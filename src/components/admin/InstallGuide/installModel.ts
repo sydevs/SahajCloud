@@ -6,7 +6,7 @@ import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verifi
 import { splitMountKey } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
-import { PLATFORM_LABELS, platformOf, stepForCheck, tracksFor } from './steps'
+import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
 
 /**
  * What the Install tab is showing, derived from the service's own record.
@@ -464,20 +464,15 @@ export function milestonesForRecord(args: {
   regionName: string | null
 }): Milestone[] {
   const { site, embedMetadata, verification, owned, regionName } = args
-  const page = site?.page ?? null
-  // The tracks only need a path to describe their steps; their flags are what is read here.
-  const path = page ?? '/classes'
-  const track = site?.track
-    ? tracksFor({ apiKey: '', prefix: path.slice(1), atlasUrl: path, cmsUrl: '', widgetUrl: '' })[
-        site.track
-      ]
-    : null
+  const track = site?.track ? TRACK_META[site.track] : null
 
+  // No steps to mark: the milestones read the reports, the stage and — only on
+  // a track with search listings — the failures, none of which needs the track.
   const model = buildInstallModel({
     embedMetadata,
     verification,
-    atlasUrl: page,
-    track,
+    atlasUrl: site?.page ?? null,
+    track: null,
     host: site?.domain,
   })
   return buildMilestones({
@@ -486,7 +481,7 @@ export function milestonesForRecord(args: {
     owned,
     searchListings: track?.searchListings !== false,
     classAddresses: track?.classAddresses !== false,
-    siteKind: track ? PLATFORM_LABELS[platformOf(track.id)] : undefined,
+    siteKind: track ? PLATFORM_LABELS[track.platform] : undefined,
     regionName,
     host: site?.domain,
   })

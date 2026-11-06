@@ -155,19 +155,12 @@ export interface CheckRouting {
   routing?: StepId
 }
 
-export interface Track {
-  id: TrackId
+/** What the tab knows of a track before building its steps. */
+export interface TrackMeta {
   platform: PlatformId
   label: string
   /** Shown under the sub-choice: how a volunteer recognises their own site. */
   recognise: string
-  /**
-   * A plan the track relies on, stated above the steps as information. A
-   * condition rather than a step: nothing done in this tab changes a site's
-   * plan, so there is nothing to tick off — and most sites already have it, so
-   * it is not worded as a warning.
-   */
-  requires?: SwitchNotice
   /**
    * `false` where no class can have a search listing of its own — an iframe, or
    * a site whose own canonical tag sends every class address back to the page.
@@ -184,6 +177,17 @@ export interface Track {
    * at the least, whether or not the site can also serve `/classes/ca/ontario`.
    */
   classAddresses?: false
+}
+
+export interface Track extends TrackMeta {
+  id: TrackId
+  /**
+   * A plan the track relies on, stated above the steps as information. A
+   * condition rather than a step: nothing done in this tab changes a site's
+   * plan, so there is nothing to tick off — and most sites already have it, so
+   * it is not worded as a warning.
+   */
+  requires?: SwitchNotice
   /** Step 3: the atlas working on the site. */
   steps: Step[]
   /** Step 4, where the track has one. */
@@ -234,22 +238,42 @@ export const PLATFORM_RECOGNISE: Record<PlatformId, string> = {
   iframe: 'You can paste an embed box on a page, but not add code to the page itself.',
 }
 
-/** Which tracks sit under each platform, in the order they are offered. */
-export const TRACKS_BY_PLATFORM: Record<PlatformId, TrackId[]> = {
-  wordpress: ['wp-selfhosted', 'wp-com'],
-  wix: ['wix'],
-  custom: ['custom'],
-  squarespace: ['squarespace'],
-  iframe: ['iframe'],
+/** Every track, in the order it is offered under its platform. */
+export const TRACK_META: Record<TrackId, TrackMeta> = {
+  'wp-selfhosted': {
+    platform: 'wordpress',
+    label: 'Self-hosted',
+    recognise: 'You can reach Plugins → Add New Plugin in your WordPress admin.',
+  },
+  'wp-com': {
+    platform: 'wordpress',
+    label: 'WordPress.com',
+    recognise: 'Your site is hosted by WordPress.com.',
+  },
+  wix: { platform: 'wix', label: 'Wix', recognise: PLATFORM_RECOGNISE.wix },
+  squarespace: {
+    platform: 'squarespace',
+    label: 'Squarespace',
+    recognise: PLATFORM_RECOGNISE.squarespace,
+    searchListings: false,
+  },
+  custom: { platform: 'custom', label: 'Custom site', recognise: PLATFORM_RECOGNISE.custom },
+  iframe: {
+    platform: 'iframe',
+    label: 'Iframe only',
+    recognise: PLATFORM_RECOGNISE.iframe,
+    searchListings: false,
+    classAddresses: false,
+  },
 }
 
-/** Which platform a track sits under. */
-export function platformOf(track: TrackId): PlatformId {
-  const entry = (Object.entries(TRACKS_BY_PLATFORM) as Array<[PlatformId, TrackId[]]>).find(
-    ([, ids]) => ids.includes(track),
-  )
-  return entry ? entry[0] : 'custom'
-}
+/** Which tracks sit under each platform, in the order they are offered. */
+export const TRACKS_BY_PLATFORM = Object.fromEntries(
+  (Object.keys(PLATFORM_LABELS) as PlatformId[]).map((platform) => [
+    platform,
+    (Object.keys(TRACK_META) as TrackId[]).filter((id) => TRACK_META[id].platform === platform),
+  ]),
+) as Record<PlatformId, TrackId[]>
 
 /** Step 4's title wherever it is search listings. */
 const SEO_TITLE = 'Let search engines list your classes'
@@ -571,45 +595,26 @@ function squarespaceSteps(values: InstallValues, snippet: string): Step[] {
   ]
 }
 
-/**
- * Each track's own label.
- *
- * Kept beside the tracks rather than read off them, so the sub-tab row renders
- * without reaching into a built track — each track's `label` is this map's
- * entry, which `tests/unit/install-steps.spec.ts` pins.
- */
-export const TRACK_LABELS: Record<TrackId, string> = {
-  'wp-selfhosted': 'Self-hosted',
-  'wp-com': 'WordPress.com',
-  wix: 'Wix',
-  squarespace: 'Squarespace',
-  custom: 'Custom site',
-  iframe: 'Iframe only',
-}
-
 /** Every track, prefilled from one service's own key and chosen address. */
 export function tracksFor(values: InstallValues): Record<TrackId, Track> {
   const snippetWithRouting = widgetSnippet(values, { routing: true })
   const snippetPlain = widgetSnippet(values, { routing: false })
   const cms = values.cmsUrl.replace(/\/+$/, '')
   const auth = `Authorization: clients API-Key ${values.apiKey}`
+  const track = (id: TrackId, rest: Omit<Track, 'id' | keyof TrackMeta>): Track => ({
+    id,
+    ...TRACK_META[id],
+    ...rest,
+  })
 
   return {
-    'wp-selfhosted': {
-      id: 'wp-selfhosted',
-      platform: 'wordpress',
-      label: TRACK_LABELS['wp-selfhosted'],
-      recognise: 'You can reach Plugins → Add New Plugin in your WordPress admin.',
+    'wp-selfhosted': track('wp-selfhosted', {
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: false }),
       more: WORDPRESS_MORE,
-    },
+    }),
 
-    'wp-com': {
-      id: 'wp-com',
-      platform: 'wordpress',
-      label: TRACK_LABELS['wp-com'],
-      recognise: 'Your site is hosted by WordPress.com.',
+    'wp-com': track('wp-com', {
       requires: {
         title: 'Requires WordPress Business plan',
         text: 'WordPress.com allows plugins on the Business plan and higher.',
@@ -618,23 +623,15 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
       checks: WORDPRESS_CHECKS,
       steps: wordpressSteps(values, { dotCom: true }),
       more: WORDPRESS_MORE,
-    },
+    }),
 
-    wix: {
-      id: 'wix',
-      platform: 'wix',
-      label: TRACK_LABELS['wix'],
-      recognise: PLATFORM_RECOGNISE.wix,
+    wix: track('wix', {
       checks: WIX_CHECKS,
       steps: wixSteps(values),
       more: wixMore(values),
-    },
+    }),
 
-    custom: {
-      id: 'custom',
-      platform: 'custom',
-      label: TRACK_LABELS['custom'],
-      recognise: PLATFORM_RECOGNISE.custom,
+    custom: track('custom', {
       checks: {
         noReport: 'snippet',
         head: 'render-seo',
@@ -721,14 +718,9 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
           },
         ],
       },
-    },
+    }),
 
-    squarespace: {
-      id: 'squarespace',
-      platform: 'squarespace',
-      label: TRACK_LABELS['squarespace'],
-      recognise: PLATFORM_RECOGNISE.squarespace,
-      searchListings: false,
+    squarespace: track('squarespace', {
       requires: {
         title: 'Requires Squarespace Core or higher',
         text: 'The map needs a paid Core, Plus or Advanced plan (or an older Business or Commerce plan), on a site set to Public.',
@@ -741,15 +733,9 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
         sitemap: 'snippet',
       },
       steps: squarespaceSteps(values, snippetPlain),
-    },
+    }),
 
-    iframe: {
-      id: 'iframe',
-      platform: 'iframe',
-      label: TRACK_LABELS['iframe'],
-      recognise: PLATFORM_RECOGNISE.iframe,
-      searchListings: false,
-      classAddresses: false,
+    iframe: track('iframe', {
       caveat: {
         tone: 'warning',
         title: 'No search listings',
@@ -774,7 +760,7 @@ export function tracksFor(values: InstallValues): Record<TrackId, Track> {
           ],
         },
       ],
-    },
+    }),
   }
 }
 

@@ -47,9 +47,9 @@ import { InstallProgress } from './InstallProgress'
 import {
   hostHints,
   PLATFORM_LABELS,
-  platformOf,
   PLATFORM_RECOGNISE,
   readAtlasAddress,
+  TRACK_META,
   TRACKS_BY_PLATFORM,
   tracksFor,
 } from './steps'
@@ -190,7 +190,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const saved = props.initialSite
   const [track, setTrackState] = useState<TrackId | null>(saved?.track ?? null)
   const [platform, setPlatform] = useState<PlatformId | null>(
-    saved?.track ? platformOf(saved.track) : null,
+    saved?.track ? TRACK_META[saved.track].platform : null,
   )
   const [addressInput, setAddressInput] = useState(() => primaryPageUrl(saved) ?? '')
   const [embedHeight, setEmbedHeightState] = useState<EmbedHeight>(saved?.embedHeight ?? 'screen')
@@ -512,7 +512,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
                 <ToggleGroup
                   aria-label="Which version?"
                   onChange={(next) => setTrack(next as TrackId)}
-                  options={tracksHere.map((id) => ({ label: tracks[id].label, value: id }))}
+                  options={tracksHere.map((id) => ({ label: TRACK_META[id].label, value: id }))}
                   value={track ?? ''}
                 />
               </div>
