@@ -31,7 +31,7 @@ const root = (paragraphs: string[], title = 'Free meditation classes'): AtlasSeo
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLdGraph: {},
+    jsonLdGraph: { '@context': 'https://schema.org', '@graph': [] },
     breadcrumbs: [],
     content: { paragraphs },
   }) as AtlasSeoDocument
@@ -47,7 +47,7 @@ const region = (content: Record<string, unknown>): AtlasSeoDocument =>
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLdGraph: {},
+    jsonLdGraph: { '@context': 'https://schema.org', '@graph': [] },
     breadcrumbs: [],
     content: {
       name: 'Ontario',
@@ -70,7 +70,7 @@ const event = (content: Record<string, unknown>): AtlasSeoDocument =>
     canonical: null,
     alternates: [],
     openGraph: {},
-    jsonLdGraph: {},
+    jsonLdGraph: { '@context': 'https://schema.org', '@graph': [] },
     breadcrumbs: [],
     content: {
       title: 'Thursday class',

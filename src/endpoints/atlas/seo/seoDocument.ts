@@ -21,7 +21,7 @@
  *   second implementation of #640 free to disagree with the first.
  */
 
-import type { JsonLdNode } from './jsonLd'
+import type { JsonLdGraph, JsonLdNode } from './jsonLd'
 import type { AtlasSeoAddress } from '../../responseTypes'
 import type {
   AtlasSeoAlternate,
@@ -49,7 +49,7 @@ import { breadcrumbList, compactNode, jsonLdGraph } from './jsonLd'
  * the response down.
  */
 /** Replace the serialized `jsonLd` with the graph, per union member. */
-type WithGraph<T> = T extends unknown ? Omit<T, 'jsonLd'> & { jsonLdGraph: JsonLdNode } : never
+type WithGraph<T> = T extends unknown ? Omit<T, 'jsonLd'> & { jsonLdGraph: JsonLdGraph } : never
 
 /**
  * One resolved SEO answer, carrying its JSON-LD as **objects**.

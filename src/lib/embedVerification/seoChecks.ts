@@ -55,8 +55,6 @@ export interface FetchedPage {
   ok: boolean
   status: number
   body: string
-  /** Where the response actually came from, after redirects. */
-  url?: string
   detail?: string
 }
 
@@ -72,10 +70,10 @@ interface FetchPageOptions {
    * exists to close, one hop further out. A `Sitemap:` line on the host under
    * check that 302s to an internal address is exactly that hop.
    */
-  sameHost?: string
+  sameHost: string
 }
 
-export type FetchPage = (url: string, options?: FetchPageOptions) => Promise<FetchedPage>
+export type FetchPage = (url: string, options: FetchPageOptions) => Promise<FetchedPage>
 
 /** Same-host redirects one bounded fetch will follow before giving up. */
 const MAX_SAME_HOST_REDIRECTS = 4
@@ -102,16 +100,14 @@ const MAX_BODY_BYTES = 1_024 * 1_024
  * has to tell "their page is wrong" from "we could not look", and an exception
  * erases that distinction. A refused fetch is `skipped`, never `fail`.
  */
-export const fetchPage: FetchPage = async (url, options = {}) => {
-  const { sameHost } = options
+export const fetchPage: FetchPage = async (url, { sameHost }) => {
   try {
-    // Unbounded, the platform follows redirects for us. Bounded, every hop has
-    // to be inspected before it is taken, so `manual` is the only mode that
-    // can refuse one — Node hands back the real 3xx with its `Location`.
+    // Every hop has to be inspected before it is taken, so `manual` is the only
+    // mode that can refuse one — Node hands back the real 3xx with its `Location`.
     let current = url
     for (let hop = 0; ; hop++) {
       const response = await fetch(current, {
-        redirect: sameHost ? 'manual' : 'follow',
+        redirect: 'manual',
         headers: {
           // Named, so an operator reading their own access log can tell what hit
           // them, and so a site may allowlist us if it challenges unknown agents.
@@ -121,25 +117,23 @@ export const fetchPage: FetchPage = async (url, options = {}) => {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       })
 
-      const location =
-        sameHost && REDIRECT_STATUSES.has(response.status) ? response.headers.get('location') : null
-      if (!sameHost || !location) {
+      const location = REDIRECT_STATUSES.has(response.status)
+        ? response.headers.get('location')
+        : null
+      if (!location) {
         return {
           ok: response.ok,
           status: response.status,
-          // `response.url` is the address after redirects, which is what a caller
-          // restricting itself to one host has to check.
-          url: response.url || current,
           body: response.ok ? await readCapped(response) : '',
         }
       }
 
       const next = URL.parse(location, current)
       if (!next || !isOnHost(next.href, sameHost)) {
-        return { ok: false, status: response.status, body: '', url: current, detail: OFF_HOST }
+        return { ok: false, status: response.status, body: '', detail: OFF_HOST }
       }
       if (hop >= MAX_SAME_HOST_REDIRECTS) {
-        return { ok: false, status: response.status, body: '', url: current, detail: TOO_MANY_HOPS }
+        return { ok: false, status: response.status, body: '', detail: TOO_MANY_HOPS }
       }
       current = next.href
     }
@@ -372,7 +366,7 @@ export async function siteListsUrl(args: {
   // `/sitemap.xml` is tried whatever robots.txt said: a site that publishes the
   // file and forgets the line is the common case, and that is a warning about
   // the line rather than about the page.
-  const queue = dedupe([...declared, `${origin}/sitemap.xml`]).slice(0, MAX_SITEMAP_DOCUMENTS)
+  const queue = [...declared, `${origin}/sitemap.xml`]
 
   const seen = new Set<string>()
   let read = 0
@@ -385,11 +379,10 @@ export async function siteListsUrl(args: {
 
     // ⚠ `sameHost`, not a check on the answer: a candidate that passed the
     // check above can still redirect off-host, and a verdict that discards
-    // that answer has already made the process fetch it. The re-check stays
-    // too — it costs nothing and it is what holds if the bound ever moves.
+    // that answer has already made the process fetch it.
     const document = await get(url, { sameHost: host })
     read++
-    if (!document.ok || !isOnHost(document.url ?? url, host)) continue
+    if (!document.ok) continue
     reachable = true
 
     const locations = locationsFrom(document.body)
@@ -431,32 +424,27 @@ function isOnHost(url: string, host: string): boolean {
   return URL.parse(url)?.host.toLowerCase() === host.toLowerCase()
 }
 
+/**
+ * `raw` as an absolute http(s) URL on `host`, or nothing. A `<loc>` is as
+ * caller-supplied as a `Sitemap:` line, and both feed the one queue.
+ */
+function onHostHref(raw: string, host: string): string[] {
+  const url = URL.parse(raw)
+  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) return []
+  return isOnHost(url.href, host) ? [url.href] : []
+}
+
 /** The `<loc>` children of a sitemap index, on this host only. */
 function childSitemaps(locations: readonly string[], host: string): string[] {
-  const children: string[] = []
-  for (const location of locations) {
-    const url = URL.parse(location)
-    // The scheme is checked here too: a `<loc>` is as caller-supplied as a
-    // `Sitemap:` line, and this is the queue both feed.
-    if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) continue
-    if (!isOnHost(url.href, host)) continue
-    children.push(url.href)
-    if (children.length >= MAX_INDEX_ENTRIES) break
-  }
-  return children
+  return locations.flatMap((location) => onHostHref(location, host)).slice(0, MAX_INDEX_ENTRIES)
 }
 
 /** The `Sitemap:` lines a `robots.txt` declares, absolute and on this host only. */
 function sitemapLinesFrom(robots: string, host: string): string[] {
-  const urls: string[] = []
-  for (const line of robots.split(/\r?\n/)) {
+  return robots.split(/\r?\n/).flatMap((line) => {
     const match = /^\s*sitemap\s*:\s*(\S+)\s*$/i.exec(line)
-    const url = match ? URL.parse(match[1]) : null
-    if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) continue
-    if (!isOnHost(url.href, host)) continue
-    urls.push(url.href)
-  }
-  return urls
+    return match ? onHostHref(match[1], host) : []
+  })
 }
 
 /** Every `<loc>` in a sitemap or a sitemap index. */
@@ -464,10 +452,6 @@ function locationsFrom(xml: string): string[] {
   return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((match) =>
     match[1].replace(/&amp;/g, '&'),
   )
-}
-
-function dedupe(values: string[]): string[] {
-  return [...new Set(values)]
 }
 
 /**
@@ -586,10 +570,9 @@ async function checkPage(
   // the mount takes a verified embed, so the bound is narrow; it is also free,
   // because a mount that redirects off-host already fails the canonical check it
   // would otherwise reach, and is reported below in plainer words.
-  const host = URL.parse(page.url)?.host
   const [seo, fetched] = await Promise.all([
     resolvers.resolveSeo(page.route),
-    get(page.url, host ? { sameHost: host } : {}),
+    get(page.url, { sameHost: URL.parse(page.url)?.host ?? '' }),
   ])
 
   if (!seo) {

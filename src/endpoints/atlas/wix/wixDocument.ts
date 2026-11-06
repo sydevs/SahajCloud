@@ -5,7 +5,7 @@ import type {
   AtlasWixMetaTag,
   AtlasWixRouteResponse,
 } from '../../responseTypes'
-import type { JsonLdNode } from '../seo/jsonLd'
+import type { JsonLdGraph, JsonLdNode } from '../seo/jsonLd'
 import type { AtlasSeoDocument } from '../seo/seoDocument'
 
 import { wixBodyHtml } from './wixBody'
@@ -54,16 +54,10 @@ const EMPTY_HEAD: AtlasWixHead = { title: '', metaTags: [], links: [], structure
  * A `@graph` is flattened, because Wix takes an array of nodes and would
  * otherwise publish one node wrapping all of them.
  */
-export function wixStructuredData(graph: JsonLdNode): Record<string, unknown>[] {
-  const nodes = graph['@graph']
-  if (!Array.isArray(nodes)) return [graph]
-
-  const context = graph['@context']
+export function wixStructuredData(graph: JsonLdGraph): JsonLdNode[] {
   // Each node carries the context forward: Wix emits one `<script>` per entry,
   // and a node with no `@context` is not a schema.org document.
-  return nodes
-    .filter((node): node is Record<string, unknown> => Boolean(node) && typeof node === 'object')
-    .map((node) => (context === undefined ? node : { '@context': context, ...node }))
+  return graph['@graph'].map((node) => ({ '@context': graph['@context'], ...node }))
 }
 
 /**

@@ -59,7 +59,7 @@ const regionSeo = (
     canonical: PAGE_URL,
     alternates: [],
     openGraph: {},
-    jsonLdGraph: {},
+    jsonLdGraph: { '@context': 'https://schema.org', '@graph': [] },
     breadcrumbs: [],
     ...rest,
     content: {
@@ -224,9 +224,6 @@ describe('siteListsUrl', () => {
     ({
       ok: url in pages,
       status: url in pages ? 200 : 404,
-      // The real `fetchPage` reports where the response came from, and
-      // `siteListsUrl` re-checks it — so a stub has to say so too.
-      url,
       body: pages[url] ?? '',
     }) satisfies FetchedPage
 
@@ -323,22 +320,6 @@ describe('siteListsUrl', () => {
     expect(asked).not.toContain('file:///etc/passwd')
   })
 
-  it('ignores a document that redirected off the host', async () => {
-    // A same-host candidate can still redirect away, and following that is the
-    // same hole one hop further out.
-    const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
-      target: PAGE_URL,
-      fetchFn: async () => ({
-        ok: true,
-        status: 200,
-        url: 'http://10.0.0.5/sitemap.xml',
-        body: `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`,
-      }),
-    })
-    expect(verdict.status).toBe('skipped')
-  })
-
   it('skips rather than fails when no sitemap could be reached', async () => {
     // We could not look. Not evidence the install is wrong.
     const verdict = await siteListsUrl({
@@ -412,17 +393,6 @@ describe('fetchPage bounds a third party\u2019s redirect', () => {
     expect(page.body).toContain('<urlset>')
     expect(asked).toHaveLength(2)
   })
-
-  it('leaves an unbounded fetch following redirects, as a page check needs', async () => {
-    const asked = serving({
-      'https://sahajayoga.ca/classes': new Response('<html></html>', { status: 200 }),
-    })
-
-    const page = await fetchPage('https://sahajayoga.ca/classes')
-
-    expect(page.ok).toBe(true)
-    expect(asked).toEqual(['https://sahajayoga.ca/classes'])
-  })
 })
 
 describe('the stored detail is bounded', () => {
@@ -492,10 +462,7 @@ describe('runSeoChecks', () => {
       routing: 'path',
       resolvers,
       deps: {
-        fetchFn: async (url, options) =>
-          options?.sameHost
-            ? { ok: false, status: 302, body: '', detail: OFF_HOST }
-            : { ok: true, status: 200, body: '', url },
+        fetchFn: async () => ({ ok: false, status: 302, body: '', detail: OFF_HOST }),
       },
     })
 

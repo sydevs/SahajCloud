@@ -73,10 +73,6 @@ describe('wixStructuredData', () => {
       expect(node['@context']).toBe('https://schema.org')
     }
   })
-
-  it('keeps a bare document as one node', () => {
-    expect(wixStructuredData({ '@type': 'Place' })).toEqual([{ '@type': 'Place' }])
-  })
 })
 
 describe('wixMetaTags', () => {
