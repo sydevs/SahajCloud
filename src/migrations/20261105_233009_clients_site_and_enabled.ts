@@ -44,10 +44,10 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   UPDATE "clients" SET "color2" = NULL WHERE lower("color2") = '#000000';
   UPDATE "clients" SET "color3" = NULL WHERE lower("color3") = '#000000';
   -- ⚠ This is reversible in schema, not in data. One site per service keeps one
-  -- host, and `down` rebuilds "allowed_domains" and "website_url" from "site" —
-  -- so the allowlist lines after the first, and every website URL, are gone both
-  -- ways round. Record them verbatim on the row, where an operator can read them
-  -- back, rather than dropping them silently.
+  -- host, and the down migration rebuilds "allowed_domains" and "website_url" from
+  -- "site" — so the allowlist lines after the first, and every website URL, are
+  -- gone both ways round. Record them verbatim on the row, where an operator can
+  -- read them back, rather than dropping them silently.
   UPDATE "clients" SET "notes" = concat_ws(chr(10) || chr(10),
     nullif(btrim("notes", chr(9) || chr(10) || chr(13) || ' '), ''),
     'One site per service, migrated ' || to_char(now(), 'YYYY-MM-DD') || '. Dropped columns:' ||
@@ -186,8 +186,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   CREATE INDEX "clients__status_idx" ON "clients" USING btree ("_status");
   UPDATE "clients" SET "_status" = CASE WHEN "enabled" THEN 'published'::"enum_clients_status" ELSE 'draft'::"enum_clients_status" END;
   -- One host, because that is all "site" holds. "website_url" comes back empty
-  -- for the same reason. `up` records both originals in "notes" rather than
-  -- pretending this restores them.
+  -- for the same reason. The up migration records both originals in "notes"
+  -- rather than pretending this restores them.
   UPDATE "clients" SET "allowed_domains" = "site_domain";
   UPDATE "clients" SET "canonical_enabled" = "canonical_owned";
   UPDATE "clients" SET "canonical_embed" = 'https://' || "site_domain" || "site_page"
