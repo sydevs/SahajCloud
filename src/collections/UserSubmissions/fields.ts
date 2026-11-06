@@ -4,15 +4,17 @@ import type {
   FieldAccess,
   RelationshipField,
   RelationshipFieldSingleValidation,
+  Validate,
 } from 'payload'
 
-import { extractID, relationship as relationshipValidation } from 'payload/shared'
+import { relationship as relationshipValidation } from 'payload/shared'
 import { z } from 'zod'
 
 import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import type { UserSubmission } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
@@ -232,44 +234,29 @@ function needsForm(data?: { event?: unknown; type?: unknown }): boolean {
  * `form` would simply store it. That half lives on `eventField`, whose own
  * condition is true for exactly the types it applies to.
  *
- * Two checks are composed: Payload's own relationship validation, which is
- * what reads `required`, and a `findByID` proving the form exists, so a
- * submission can neither skip the requirement nor name a form id that never
- * existed.
+ * Two validators are **composed with, not replaced** — supplying a validator
+ * replaces whatever was there (`src/collections/AGENTS.md`). Payload's own
+ * relationship validation is what reads `required`, and the plugin's is a
+ * `findByID` proving the form exists; dropping either would let a submission
+ * skip the requirement, or name a form id that never existed.
  *
- * ⚠ **The existence check is ours, not the plugin's.** The plugin's validator
- * runs `findByID` on the caller's `req` with no `select`, and for an API
- * client that read trips the select-required client gate
- * (`src/plugins/usage/hooks.ts`). The plugin catches the 400 and calls the form
- * missing, so every atlas issue report was refused as `System > Form` invalid.
- * Ours keeps the caller's `req`, so a client still cannot cite a form it may
- * not read, and declares the one column it needs.
+ * ⚠ **The plugin's `findByID` passes no `select`**, and for an API client that
+ * read trips the select-required client gate (`src/plugins/usage/hooks.ts`).
+ * The plugin catches the 400 and reports the form missing, so every atlas issue
+ * report was refused as `System > Form` invalid. `asTrustedReq` is this repo's
+ * opt-out for an internal read forwarding the caller's `req`; origin
+ * enforcement still applies to it.
  */
 function perTypeForm(field: Field): Field {
   if (!('name' in field) || field.name !== 'form' || field.type !== 'relationship') return field
+
+  const formExists = field.validate as Validate | undefined
 
   const validate: RelationshipFieldSingleValidation = async (value, options) => {
     const shape = await relationshipValidation(value, options)
     if (shape !== true) return shape
 
-    const { req } = options
-    // Payload also runs field validation in the browser, where there is no `payload`.
-    if (value == null || !req?.payload) return true
-
-    try {
-      await req.payload.findByID({
-        collection: 'forms',
-        // `forms` is the field's one target, so the value is never the polymorphic shape.
-        id: extractID(value as number | { id: number }),
-        req,
-        depth: 0,
-        // Any one column satisfies the gate; the id comes back regardless.
-        select: { title: true },
-      })
-      return true
-    } catch {
-      return FORM_MISSING
-    }
+    return formExists ? formExists(value, { ...options, req: asTrustedReq(options.req) }) : true
   }
 
   // `RelationshipField['validate']` is a union of the hasMany and single
@@ -289,9 +276,6 @@ function perTypeForm(field: Field): Field {
     },
   } as RelationshipField
 }
-
-/** The plugin's own wording for a form id that does not resolve. */
-const FORM_MISSING = 'Cannot create this submission because this form does not exist.'
 
 /**
  * The person, upserted from the posted `senderEmail` for **every** type. Grants
