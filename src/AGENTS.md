@@ -121,7 +121,9 @@ No loose files at the root — every file lives in a named folder:
   sweep, and a beat later when the caller queued its row inside a
   transaction. The only part of the jobs system that is not one job's own: a
   row queued with `req` cannot run until that transaction commits, and every
-  queue with an `autoRun` entry wants the same best-effort kick
+  queue with an `autoRun` entry wants the same best-effort kick. And
+  `runClock`, the time a task run treats as now — `req.context.now` when a
+  test sets one
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,

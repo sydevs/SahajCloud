@@ -2,6 +2,7 @@ import type { TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
+import { runClock } from '@/lib/jobs/runClock'
 import { managerRoles } from '@/lib/notifications/managerRoles'
 import type { Manager } from '@/payload-types'
 
@@ -64,9 +65,7 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
   schedule: [{ cron: '0 7 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
     const payload = req.payload
-    // `req.context.now` overrides the clock for deterministic tests.
-    const contextNow = (req.context as { now?: unknown } | undefined)?.now
-    const runStart = contextNow instanceof Date ? contextNow : new Date()
+    const runStart = runClock(req)
     const result: DigestResult = {
       failed: 0,
       managers: 0,

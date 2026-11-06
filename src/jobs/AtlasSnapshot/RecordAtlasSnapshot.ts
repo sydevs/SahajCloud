@@ -2,6 +2,7 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import { snapshotDate } from '@/lib/atlasOverview/statistics'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import { runClock } from '@/lib/jobs/runClock'
 import { relationId } from '@/lib/utilities/relationId'
 import type { AtlasSnapshotCounts } from '@/payload-types'
 
@@ -66,9 +67,7 @@ export const RecordAtlasSnapshot: TaskConfig<'recordAtlasSnapshot'> = {
   schedule: [{ cron: '0 6 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {
     const payload = req.payload
-    // `req.context.now` overrides the clock for deterministic tests.
-    const contextNow = (req.context as { now?: unknown } | undefined)?.now
-    const date = snapshotDate(contextNow instanceof Date ? contextNow : new Date())
+    const date = snapshotDate(runClock(req))
 
     const counts = await countEventsByRegion(req)
     const events = Object.values(counts).reduce(

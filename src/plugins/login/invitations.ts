@@ -9,6 +9,7 @@ import {
   type NotificationKey,
   notificationFrequency,
 } from '@/components/admin/NotificationPreferences/config'
+import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
@@ -196,9 +197,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
     schedule: [{ cron: INVITATIONS_CRON, queue: INVITATIONS_QUEUE }],
     handler: async ({ req }) => {
       const { payload } = req
-      // `req.context.now` overrides the clock for deterministic tests.
-      const contextNow = (req.context as { now?: unknown } | undefined)?.now
-      const now = contextNow instanceof Date ? contextNow : new Date()
+      const now = runClock(req)
       const output = { sent: 0, skipped: 0, failed: 0 }
 
       const { docs } = await payload.find({
