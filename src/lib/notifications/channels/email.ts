@@ -39,7 +39,7 @@ export async function sendEmailReminder(
   recipient: ResolvedRecipient,
   reminder: ReminderPayload,
 ): Promise<void> {
-  const html = await renderEmail(
+  const { html, text } = await renderEmail(
     createElement(EventVerificationEmail, {
       name: recipient.manager.name || recipient.destination,
       eventTitle: reminder.eventTitle,
@@ -60,5 +60,6 @@ export async function sendEmailReminder(
     to: recipient.destination,
     subject: subjectFor(reminder.level, reminder.audience, reminder.eventTitle),
     html,
+    text,
   })
 }

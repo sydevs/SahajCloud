@@ -14,10 +14,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import {
-  RegistrationConfirmationEmail,
-  registrationConfirmationText,
-} from '@/emails/RegistrationConfirmationEmail'
+import { RegistrationConfirmationEmail } from '@/emails/RegistrationConfirmationEmail'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -67,15 +64,6 @@ export async function sendRegistrationConfirmation(args: {
     uid: registrationUuid ? `registration-${registrationUuid}` : null,
   })
 
-  const templateProps = {
-    name: registrantName,
-    brand,
-    strings,
-    details,
-    locale,
-    websiteUrl: client?.websiteUrl,
-  }
-
   await payload.sendEmail({
     to: registrantEmail,
     // Resend verifies senders per domain, so we can't send as the client. The
@@ -87,8 +75,16 @@ export async function sendRegistrationConfirmation(args: {
     subject: stripNewlines(
       interpolate(strings.confirmation_subject, { event: details.eventTitle }),
     ),
-    html: await renderEmail(createElement(RegistrationConfirmationEmail, templateProps)),
-    text: registrationConfirmationText(templateProps),
+    ...(await renderEmail(
+      createElement(RegistrationConfirmationEmail, {
+        name: registrantName,
+        brand,
+        strings,
+        details,
+        locale,
+        websiteUrl: client?.websiteUrl,
+      }),
+    )),
     ...(calendar && {
       attachments: [
         {

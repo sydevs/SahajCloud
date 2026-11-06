@@ -8,6 +8,7 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
   Img,
   Link,
@@ -18,6 +19,8 @@ import {
 } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
+import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
+import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 
 /**
@@ -26,7 +29,7 @@ import type { EmailBrand } from '@/plugins/email'
  * source is invisible enough that a later edit would quietly replace it with a
  * plain space — which HTML collapses, taking the cell with it.
  */
-const NBSP = '\u00A0'
+export const NBSP = '\u00A0'
 
 /** Diagonal brand gradient shared by the header and CTA buttons. */
 export const brandGradient = (colors: BrandColors): string =>
@@ -76,14 +79,8 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-/**
- * A label-*above*-value row for the guest itinerary emails (registrant
- * confirmation, session reminder), where the accent is the client service's own
- * brand. The stacked layout and brand-coloured label read as an itinerary line
- * rather than the manager emails' `DetailRow` fact table. Shared once the
- * reminder wanted the same look as the confirmation.
- */
-export function StackedDetailRow({
+/** A label-above-value itinerary line, accented in the client service's own brand. */
+function StackedDetailRow({
   label,
   accent,
   children,
@@ -96,6 +93,95 @@ export function StackedDetailRow({
     <Section style={stackedRow}>
       <Text style={{ ...stackedLabel, color: accent }}>{label}</Text>
       <Text style={stackedValue}>{children}</Text>
+    </Section>
+  )
+}
+
+/**
+ * The guest itinerary card both registrant emails open with — the class, when,
+ * where and who — then its one call to action.
+ *
+ * Only the online CTA repeats its URL as plain text: a client that strips the
+ * button would leave the join link unrecoverable, whereas the venue address is
+ * already in the card.
+ */
+export function EventItinerary({
+  brand,
+  details,
+  strings,
+  when = details.scheduleLine,
+}: {
+  brand: EmailBrand
+  details: RegistrationEmailDetails
+  strings: EmailStrings
+  when?: ReactNode
+}) {
+  const { location } = details
+  const accent = brand.colors.primary
+  return (
+    <>
+      <Section style={detailBlock}>
+        <Heading as="h3" style={eventTitle}>
+          {details.eventTitle}
+        </Heading>
+        <StackedDetailRow label={strings.when_label} accent={accent}>
+          {when}
+        </StackedDetailRow>
+        {location.type === 'offline' ? (
+          <StackedDetailRow label={strings.where_label} accent={accent}>
+            {location.address}
+          </StackedDetailRow>
+        ) : null}
+        {details.contact ? (
+          <StackedDetailRow label={strings.contact_label} accent={accent}>
+            {details.contact}
+          </StackedDetailRow>
+        ) : null}
+      </Section>
+
+      {location.type === 'online' ? (
+        <>
+          <BrandButton href={location.joinUrl} brand={brand}>
+            {strings.online_cta}
+          </BrandButton>
+          <Text style={styles.hint}>
+            {strings.online_link_hint}
+            <br />
+            <Link href={location.joinUrl} style={{ ...styles.link, color: accent }}>
+              {location.joinUrl}
+            </Link>
+          </Text>
+        </>
+      ) : null}
+
+      {location.type === 'offline' && location.mapsUrl ? (
+        <BrandButton href={location.mapsUrl} brand={brand}>
+          {strings.directions_cta}
+        </BrandButton>
+      ) : null}
+    </>
+  )
+}
+
+/** Forwarded question-and-answer pairs under one heading; nothing when there are none. */
+export function AnswerList({
+  answers,
+  heading,
+}: {
+  answers: { label: string; value: string }[]
+  heading: string
+}) {
+  if (answers.length === 0) return null
+  return (
+    <Section>
+      <SectionHeading>{heading}</SectionHeading>
+      {/* Keyed by position: a form can ask the same question twice. */}
+      {answers.map((answer, index) => (
+        <Fragment key={index}>
+          <Text style={answerQuestion}>{answer.label}</Text>
+          <Text style={answerValue}>{answer.value}</Text>
+        </Fragment>
+      ))}
     </Section>
   )
 }
@@ -239,6 +325,8 @@ interface EmailLayoutProps {
   /** Inbox-preview snippet (hidden in the rendered body). */
   previewText?: string
   children: ReactNode
+  /** Small print under a rule, closing the card. */
+  footer?: ReactNode
 }
 
 /**
@@ -247,7 +335,7 @@ interface EmailLayoutProps {
  * Every brand token (color, product name, icon) comes from `brand`, so a new
  * email is just its body content and a project never appears hardcoded.
  */
-export function EmailLayout({ brand, heading, previewText, children }: EmailLayoutProps) {
+export function EmailLayout({ brand, heading, previewText, children, footer }: EmailLayoutProps) {
   return (
     <Html>
       <Head />
@@ -279,6 +367,12 @@ export function EmailLayout({ brand, heading, previewText, children }: EmailLayo
               </Heading>
             ) : null}
             {children}
+            {footer ? (
+              <>
+                <Hr style={styles.hr} />
+                <Text style={styles.footer}>{footer}</Text>
+              </>
+            ) : null}
           </Section>
         </Container>
       </Body>
@@ -378,233 +472,24 @@ const stackedLabel: CSSProperties = {
 }
 const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
 
-/**
- * A row of flat grey tiles — a label, a value, and up to two lines beside it.
- *
- * Table cells, because a flex row collapses in Outlook's Word engine and an
- * inline-block row wraps unpredictably at phone width. The 6px gap is a spacer
- * cell rather than a margin, which Outlook drops on a `<td>`.
- */
-export function StatTiles({
-  tiles,
-}: {
-  tiles: { change?: null | string; label: string; of?: null | string; value: string }[]
-}) {
-  if (tiles.length === 0) return null
-  return (
-    <Section style={{ margin: '0 0 8px' }}>
-      <Row>
-        {tiles.map((tile, index) => (
-          <Fragment key={tile.label}>
-            {index > 0 ? <Column style={tileGap}>{NBSP}</Column> : null}
-            <Column style={tileCell}>
-              <Text style={tileLabel}>{tile.label}</Text>
-              <Text style={tileValue}>
-                {tile.value}
-                {tile.of ? <span style={tileOf}> of {tile.of}</span> : null}
-              </Text>
-              {tile.change ? <Text style={tileChange}>{tile.change}</Text> : null}
-            </Column>
-          </Fragment>
-        ))}
-      </Row>
-    </Section>
-  )
+const detailBlock: CSSProperties = {
+  backgroundColor: '#ffffff',
+  borderRadius: '6px',
+  padding: '4px 20px',
+  margin: '0 0 24px',
 }
+// Neutral rather than the brand accent, which the labels and the CTA already carry.
+const eventTitle: CSSProperties = { fontSize: '18px', color: '#333333', margin: '16px 0 0' }
 
-/** Payload's own pill colours, so an email and the home it mirrors read alike. */
-const PILL_COLORS = {
-  error: { background: '#f7d0cc', text: '#692725' },
-  'light-gray': { background: '#ebebeb', text: '#2f2f2f' },
-  success: { background: '#bce1f8', text: '#12425a' },
-  warning: { background: '#f3d4ba', text: '#5a3713' },
-} as const
-
-export type StatusPillStyle = keyof typeof PILL_COLORS
-
-/** One status, drawn as the admin panel's own pill. */
-export function StatusPill({
-  children,
-  pillStyle,
-}: {
-  children: ReactNode
-  pillStyle: StatusPillStyle
-}) {
-  const colors = PILL_COLORS[pillStyle]
-  return (
-    <span
-      style={{
-        backgroundColor: colors.background,
-        borderRadius: '3px',
-        color: colors.text,
-        display: 'inline-block',
-        fontSize: '12px',
-        fontWeight: 600,
-        padding: '2px 8px',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {children}
-    </span>
-  )
-}
-
-/** One open item: what it is on the left, where it stands on the right. */
-export interface ItemTableRow {
-  /** The next step's wording, linked to the page that takes it. */
-  action?: null | { href: string; label: string }
-  href: string
-  /** Pills and the lines under them, most urgent first. */
-  statuses: { line?: string; pillStyle: StatusPillStyle; text: string }[]
-  title: string
-}
-
-/**
- * The open-items list, as an email can draw it.
- *
- * Two cells, not a column per fact: a five-column table is unreadable at phone
- * width and an email has no media query it can rely on.
- */
-export function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
-  if (rows.length === 0) return null
-  return (
-    <Section style={{ margin: '0 0 8px' }}>
-      {rows.map((row) => (
-        <Row key={row.href} style={itemRow}>
-          <Column style={itemMain}>
-            <Link href={row.href} style={{ ...itemTitle, color: accent }}>
-              {row.title}
-            </Link>
-            {row.action ? (
-              <Text style={itemAction}>
-                <Link href={row.action.href} style={{ color: accent }}>
-                  {row.action.label}
-                </Link>
-              </Text>
-            ) : null}
-          </Column>
-          <Column style={itemSide}>
-            {row.statuses.map((status) => (
-              <Fragment key={status.text}>
-                <StatusPill pillStyle={status.pillStyle}>{status.text}</StatusPill>
-                {status.line ? <Text style={itemLine}>{status.line}</Text> : null}
-              </Fragment>
-            ))}
-          </Column>
-        </Row>
-      ))}
-    </Section>
-  )
-}
-
-/** One registrant and the answers they gave. */
-export interface RegistrationTableRow {
-  answers?: string
-  attending?: null | string
-  email: string
-  name: string
-}
-
-/**
- * One event's new registrants — a header row, three columns, and each person's
- * answers on a line of their own.
- *
- * ⚠ **No other manager's address appears here.** These rows are registrants. A
- * colleague's contact details are theirs to share, and a digest quoting them
- * would copy personal data into every inbox up the chain (#908, #1047).
- */
-export function RegistrationTable({
-  accent,
-  allUrl,
-  heading,
-  rows,
-}: {
-  accent: string
-  /** The event's Registrations tab (#1069). */
-  allUrl: string
-  heading: string
-  rows: RegistrationTableRow[]
-}) {
-  return (
-    <Section style={{ margin: '0 0 14px' }}>
-      <Text style={{ ...registrationHeading, color: accent }}>{heading}</Text>
-      <Row style={registrationHead}>
-        <Column style={registrationHeadCell}>Name</Column>
-        <Column style={registrationHeadCell}>Email</Column>
-        <Column style={registrationHeadCell}>Attending</Column>
-      </Row>
-      {rows.map((row, index) => (
-        <Fragment key={`${row.email}-${index}`}>
-          <Row>
-            <Column style={registrationCell}>{row.name}</Column>
-            <Column style={registrationCell}>{row.email}</Column>
-            <Column style={registrationCell}>{row.attending ?? '—'}</Column>
-          </Row>
-          {row.answers ? (
-            <Row>
-              <Column style={registrationAnswers}>{row.answers}</Column>
-            </Row>
-          ) : null}
-        </Fragment>
-      ))}
-      <Text style={styles.hint}>
-        <Link href={allUrl} style={{ color: accent }}>
-          All registrations
-        </Link>
-      </Text>
-    </Section>
-  )
-}
-
-const tileCell: CSSProperties = {
-  backgroundColor: '#f1f2f4',
-  padding: '12px 14px',
-  verticalAlign: 'top',
-}
-const tileGap: CSSProperties = { fontSize: '1px', lineHeight: '1px', width: '6px' }
-const tileLabel: CSSProperties = {
-  color: '#6b7280',
-  fontSize: '11px',
-  fontWeight: 600,
-  letterSpacing: '0.04em',
-  margin: '0 0 4px',
-  textTransform: 'uppercase',
-}
-const tileValue: CSSProperties = { color: '#111827', fontSize: '22px', fontWeight: 700, margin: 0 }
-const tileOf: CSSProperties = { color: '#6b7280', fontSize: '13px', fontWeight: 400 }
-const tileChange: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 0' }
-
-const itemRow: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
-const itemMain: CSSProperties = { padding: '10px 10px 10px 0', verticalAlign: 'top' }
-const itemSide: CSSProperties = {
-  padding: '10px 0',
-  textAlign: 'right',
-  verticalAlign: 'top',
-  width: '38%',
-}
-const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, textDecoration: 'none' }
-const itemAction: CSSProperties = { fontSize: '13px', margin: '4px 0 0' }
-const itemLine: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 8px' }
-
-const registrationHeading: CSSProperties = { fontSize: '15px', fontWeight: 700, margin: '0 0 6px' }
-const registrationHead: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
-const registrationHeadCell: CSSProperties = {
-  color: '#6b7280',
-  fontSize: '11px',
-  fontWeight: 600,
-  letterSpacing: '0.04em',
-  padding: '0 8px 4px 0',
-  textTransform: 'uppercase',
-}
-const registrationCell: CSSProperties = {
-  color: '#1f2937',
+const answerQuestion: CSSProperties = {
   fontSize: '14px',
-  padding: '6px 8px 6px 0',
-  verticalAlign: 'top',
+  fontWeight: 600,
+  color: '#374151',
+  margin: '0 0 2px',
 }
-const registrationAnswers: CSSProperties = {
-  color: '#6b7280',
-  fontSize: '12px',
-  padding: '0 0 8px',
+const answerValue: CSSProperties = {
+  fontSize: '14px',
+  color: '#1f2937',
+  margin: '0 0 12px',
   whiteSpace: 'pre-wrap',
 }

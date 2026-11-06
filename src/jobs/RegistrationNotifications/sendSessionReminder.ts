@@ -13,7 +13,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
+import { SessionReminderEmail } from '@/emails/SessionReminderEmail'
 import type { LocaleCode } from '@/lib/locales'
 import { buildReminderEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -58,8 +58,6 @@ export async function sendSessionReminder(args: {
     await signUnsubscribeToken({ submissionId }, payload.secret),
   )
 
-  const templateProps = { name: registrantName, brand, strings, details, unsubscribeUrl }
-
   await payload.sendEmail({
     to: registrantEmail,
     // Resend verifies senders per domain, so we can't send as the client. The
@@ -69,7 +67,14 @@ export async function sendSessionReminder(args: {
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
     subject: stripNewlines(interpolate(strings.reminder_subject, { event: details.eventTitle })),
-    html: await renderEmail(createElement(SessionReminderEmail, templateProps)),
-    text: sessionReminderText(templateProps),
+    ...(await renderEmail(
+      createElement(SessionReminderEmail, {
+        name: registrantName,
+        brand,
+        strings,
+        details,
+        unsubscribeUrl,
+      }),
+    )),
   })
 }

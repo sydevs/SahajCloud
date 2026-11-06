@@ -61,14 +61,7 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
   return screeningResultGuard.safeParse(value).success
 }
 
-/**
- * Statuses that count a spam strike against the sender.
- *
- * The same pair `SPAM_REVIEW_STATUSES` names, taken from there rather than
- * listed again: that one carries the `as const satisfies` guard, which a copy
- * here would not, so a third spam status would join the review surface and be
- * silently missing from the strike count.
- */
+/** Strike statuses, taken from `SPAM_REVIEW_STATUSES` so a third spam status joins both. */
 const SPAM_STRIKE_STATUSES: readonly UserSubmission['status'][] = SPAM_REVIEW_STATUSES
 
 /**

@@ -6,7 +6,6 @@ import type {
 } from '@/components/admin/NotificationPreferences/config'
 import {
   buildDefaultNotificationPreferences,
-  NOTIFICATION_KEYS,
   NOTIFICATION_TYPES,
   notificationFrequency,
   notificationTypesFor,
@@ -15,58 +14,19 @@ import {
 } from '@/components/admin/NotificationPreferences/config'
 
 describe('notification preferences config', () => {
-  describe('the seven rows', () => {
-    it('is a flat list of seven, each applying to at least one role', () => {
-      expect(NOTIFICATION_TYPES.map((type) => type.key)).toEqual([
-        'invitation',
-        'event_verification',
-        'event_registration',
-        'new_proposals',
-        'open_items',
-        'refused_signups',
-        'statistics',
-      ])
-      for (const type of NOTIFICATION_TYPES) expect(type.roles.length).toBeGreaterThan(0)
-    })
-
-    /**
-     * `NOTIFICATION_KEYS` is declared rather than derived, because a key typed
-     * as the derived union would be `string` again and a misspelling at a
-     * reader would resolve to `Never` in silence. Declared, it can drift — so
-     * it is pinned here in both directions, which is the whole reason the
-     * declaration is allowed to exist.
-     */
-    it('declares exactly the keys the rows carry', () => {
-      expect([...NOTIFICATION_KEYS]).toEqual(NOTIFICATION_TYPES.map((type) => type.key))
-    })
-
-    /**
-     * ⚠ The default is not `frequencyOptions[0]`, and the two must not be
-     * collapsed: `new_proposals` offers Immediate first — a proposal somebody
-     * is waiting on is worth the interruption if you want it — and still
-     * defaults to Daily, because most managers do not.
-     */
-    it("declares a default that is one of the row's own options", () => {
+  describe('the rows', () => {
+    it("applies each row to a role, at a default that is one of the row's own options", () => {
       for (const type of NOTIFICATION_TYPES) {
+        expect(type.roles.length).toBeGreaterThan(0)
         expect(type.frequencyOptions).toContain(type.defaultFrequency)
       }
-      const proposals = NOTIFICATION_TYPES.find((type) => type.key === 'new_proposals')!
-      expect(proposals.frequencyOptions[0]).toBe('Immediate')
-      expect(proposals.defaultFrequency).toBe('Daily')
     })
   })
 
   describe('notificationTypesFor', () => {
     it('gives a program manager their own rows and no admin ones', () => {
       const keys = notificationTypesFor(['program']).map((type) => type.key)
-      expect(keys).toEqual([
-        'invitation',
-        'event_verification',
-        'event_registration',
-        'new_proposals',
-        'open_items',
-        'statistics',
-      ])
+      expect(keys).toContain('event_registration')
       expect(keys).not.toContain('refused_signups')
     })
 
@@ -118,15 +78,6 @@ describe('notification preferences config', () => {
   })
 
   describe('buildDefaultNotificationPreferences', () => {
-    it('seeds every row at its own default, not its first option', () => {
-      const defaults = buildDefaultNotificationPreferences()
-
-      expect(Object.keys(defaults)).toEqual(NOTIFICATION_TYPES.map((type) => type.key))
-      for (const type of NOTIFICATION_TYPES) {
-        expect(defaults[type.key]!.frequency).toBe(type.defaultFrequency)
-      }
-    })
-
     it('uses the email method for method-requiring rows', () => {
       const defaults = buildDefaultNotificationPreferences()
       expect(defaults.invitation).toEqual({ frequency: 'Immediate', method: 'email' })

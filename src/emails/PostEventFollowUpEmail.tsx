@@ -99,40 +99,4 @@ export function PostEventFollowUpEmail({
   )
 }
 
-/**
- * Plain-text alternative. Every registrant template ships one: a message with
- * no text part scores worse with spam filters and renders as nothing at all in
- * a text-only client.
- */
-export function postEventFollowUpText({
-  strings,
-  registrantName,
-  eventTitle,
-  sections,
-}: PostEventFollowUpEmailProps): string {
-  const lines: string[] = [
-    interpolate(strings.followup_heading, { event: eventTitle }),
-    '',
-    interpolate(strings.followup_intro, { name: registrantName, event: eventTitle }),
-  ]
-
-  for (const section of sections) {
-    lines.push('')
-    if (section.type === 'feedback-ask') {
-      lines.push(
-        strings.followup_ask,
-        '',
-        `${strings.followup_confirm_cta}: ${section.confirmUrl}`,
-        `${strings.followup_deny_cta}: ${section.denyUrl}`,
-      )
-    } else {
-      if (section.heading) lines.push(section.heading)
-      lines.push(section.body)
-    }
-  }
-
-  lines.push('', strings.followup_footer_reason)
-  return lines.join('\n')
-}
-
 export default PostEventFollowUpEmail

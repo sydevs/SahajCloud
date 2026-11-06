@@ -4,7 +4,7 @@ import { createElement } from 'react'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
-import { PostEventFollowUpEmail, postEventFollowUpText } from '@/emails/PostEventFollowUpEmail'
+import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
 import { appendLogEntry, asLog } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -117,8 +117,7 @@ async function sendFollowUp(
     subject: stripNewlines(
       interpolate(strings.followup_subject, { event: templateProps.eventTitle }),
     ),
-    html: await renderEmail(createElement(PostEventFollowUpEmail, templateProps)),
-    text: postEventFollowUpText(templateProps),
+    ...(await renderEmail(createElement(PostEventFollowUpEmail, templateProps))),
   })
 
   await payload.update({

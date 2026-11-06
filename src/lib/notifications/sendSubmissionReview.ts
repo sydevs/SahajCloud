@@ -34,6 +34,6 @@ export async function sendSubmissionReview(args: {
       props.kind === 'new-event'
         ? 'New event submission to review'
         : `Proposed changes to “${props.eventTitle ?? 'an event'}”`,
-    html: await renderEmail(createElement(SubmissionReviewEmail, { brand, ...props })),
+    ...(await renderEmail(createElement(SubmissionReviewEmail, { brand, ...props }))),
   })
 }

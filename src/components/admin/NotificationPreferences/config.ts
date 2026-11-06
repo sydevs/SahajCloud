@@ -1,11 +1,10 @@
 /**
  * Configuration + pure helpers for the NotificationPreferences field.
  *
- * `NOTIFICATION_TYPES` is passed to the field component via `admin.custom`
- * (see Managers.ts) — the component renders one row per type and adapts
+ * The field component renders one row per `NOTIFICATION_TYPES` entry and adapts
  * entirely from this config, so adding/removing a type needs no component
- * change. The helpers are pure (no React, no Payload) so they can be reused
- * by the field's `defaultValue`/`validate` and unit-tested directly.
+ * change. The helpers are pure (no React, no Payload) so they can be reused by
+ * the field's `defaultValue`/`validate` and unit-tested directly.
  *
  * ⚠ **Keep this module free of runtime imports.** `NotificationPreferencesField`
  * is a `'use client'` component and value-imports from here, so anything added
@@ -21,34 +20,11 @@ import type { NotificationPreferences } from '@/payload-types'
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
 
-/**
- * The preference rows, as a vocabulary every reader is checked against.
- *
- * ⚠ **Declared here, not derived from `NOTIFICATION_TYPES`.** This is what
- * makes a misspelled key a type error rather than a silent `Never`: derived the
- * other way round, `NotificationType['key']` would be `string` again and
- * `DIGEST_KEYS`, `PROPOSAL_KEY` and the rest could each name a row that does
- * not exist. `tests/unit/notification-preferences.spec.ts` pins the two lists
- * against each other in both directions, which is what keeps the declaration
- * honest.
- */
-export const NOTIFICATION_KEYS = [
-  'invitation',
-  'event_verification',
-  'event_registration',
-  'new_proposals',
-  'open_items',
-  'refused_signups',
-  'statistics',
-] as const
-
-export type NotificationKey = (typeof NOTIFICATION_KEYS)[number]
-
-export interface NotificationType {
-  key: NotificationKey
+interface NotificationTypeShape<Key extends string = string> {
+  key: Key
   title: string
   description: string
-  frequencyOptions: string[]
+  frequencyOptions: readonly string[]
   /**
    * The pace a manager who never saved this row is on.
    *
@@ -72,7 +48,7 @@ const EVERYONE: readonly ManagerRole[] = ['program', 'region', 'admin']
  * — and one manager is often two of them. `roles` does that filtering instead,
  * so each manager sees the rows that can actually send them something.
  */
-export const NOTIFICATION_TYPES: NotificationType[] = [
+export const NOTIFICATION_TYPES = [
   {
     key: 'invitation',
     title: 'Invitations',
@@ -129,11 +105,16 @@ export const NOTIFICATION_TYPES: NotificationType[] = [
     defaultFrequency: 'Monthly',
     roles: EVERYONE,
   },
-]
+] as const satisfies readonly NotificationTypeShape[]
+
+/** A preference row's key — a misspelling at any reader is a type error, not a silent `Never`. */
+export type NotificationKey = (typeof NOTIFICATION_TYPES)[number]['key']
+
+export type NotificationType = NotificationTypeShape<NotificationKey>
 
 /** One notification type by key, or nothing for a key nothing declares. */
 function notificationType(key: NotificationKey): NotificationType | undefined {
-  return NOTIFICATION_TYPES.find((type) => type.key === key)
+  return (NOTIFICATION_TYPES as readonly NotificationType[]).find((type) => type.key === key)
 }
 
 /**
@@ -142,7 +123,7 @@ function notificationType(key: NotificationKey): NotificationType | undefined {
  * fields in `Events.ts`) derive their choices instead of re-listing literals
  * that could drift from `NOTIFICATION_TYPES`.
  */
-export function getFrequencyOptions(key: NotificationKey): string[] {
+export function getFrequencyOptions(key: NotificationKey): readonly string[] {
   return notificationType(key)?.frequencyOptions ?? []
 }
 
@@ -152,11 +133,8 @@ export function getFrequencyOptions(key: NotificationKey): string[] {
  * A manager holding no role at all — a fresh account with nothing assigned —
  * sees nothing, which is honest: nothing can send them anything yet.
  */
-export function notificationTypesFor(
-  roles: readonly ManagerRole[],
-  types: NotificationType[] = NOTIFICATION_TYPES,
-): NotificationType[] {
-  return types.filter((type) => type.roles.some((role) => roles.includes(role)))
+export function notificationTypesFor(roles: readonly ManagerRole[]): NotificationType[] {
+  return NOTIFICATION_TYPES.filter((type) => type.roles.some((role) => roles.includes(role)))
 }
 
 /**
@@ -172,11 +150,10 @@ export function notificationTypesFor(
 export function notificationFrequency(
   preferences: NotificationPreferences | null | undefined,
   key: NotificationKey,
-  types: NotificationType[] = NOTIFICATION_TYPES,
 ): string {
-  const stored = preferences?.[key]?.frequency
-  if (stored) return stored
-  return types.find((type) => type.key === key)?.defaultFrequency ?? NEVER_FREQUENCY
+  return (
+    preferences?.[key]?.frequency || (notificationType(key)?.defaultFrequency ?? NEVER_FREQUENCY)
+  )
 }
 
 /**
@@ -192,9 +169,9 @@ export type SummaryFrequency = (typeof SUMMARY_FREQUENCIES)[number]
 /**
  * Whether a stored pace is one a digest run sends on.
  *
- * The narrowing is the point: a reader that switches over `SummaryFrequency`
- * exhaustively owes a branch to anything added here, so a fourth cadence is a
- * compile error at `isDue` rather than a manager nobody mails.
+ * The narrowing is the point: the digest's `PACES` is keyed by
+ * `SummaryFrequency`, so a fourth cadence is a compile error there rather than
+ * a manager nobody mails.
  */
 export function isSummaryFrequency(frequency: string): frequency is SummaryFrequency {
   return (SUMMARY_FREQUENCIES as readonly string[]).includes(frequency)
@@ -223,7 +200,7 @@ export const DEFAULT_REGISTRATION_FREQUENCY =
  * ships with no method.
  */
 export function buildDefaultNotificationPreferences(
-  types: NotificationType[] = NOTIFICATION_TYPES,
+  types: readonly NotificationType[] = NOTIFICATION_TYPES,
 ): NotificationPreferences {
   const prefs: NotificationPreferences = {}
   for (const type of types) {
@@ -246,7 +223,7 @@ export function buildDefaultNotificationPreferences(
  */
 export function validateNotificationPreferences(
   value: unknown,
-  types: NotificationType[] = NOTIFICATION_TYPES,
+  types: readonly NotificationType[] = NOTIFICATION_TYPES,
 ): true | string {
   if (!value || typeof value !== 'object') return true
 

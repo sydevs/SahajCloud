@@ -5,7 +5,6 @@ import { z } from 'zod'
 
 import {
   buildDefaultNotificationPreferences,
-  NOTIFICATION_TYPES,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
@@ -235,7 +234,6 @@ export const Managers: CollectionConfig = {
               },
               admin: {
                 description: 'Choose how and how often to receive each kind of notification.',
-                custom: { notificationTypes: NOTIFICATION_TYPES },
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
             }),

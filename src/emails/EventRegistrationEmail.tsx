@@ -1,13 +1,17 @@
-import type { CSSProperties } from 'react'
-
-import { Fragment } from 'react'
-import { Hr, Link, Section, Text } from 'react-email'
+import { Link, Section, Text } from 'react-email'
 
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButtonRow, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+import {
+  AnswerList,
+  BrandButtonRow,
+  DetailRow,
+  EmailLayout,
+  SectionHeading,
+  styles,
+} from './EmailLayout'
 
 /**
  * The pre-filled reply body: a greeting, blank room for the manager to write,
@@ -95,6 +99,7 @@ export function EventRegistrationEmail({
       brand={brand}
       heading="New event registration"
       previewText={`${registrantName} registered for ${eventTitle}`}
+      footer={<>You’re receiving this because you manage this event on {brand.productName}.</>}
     >
       <Text style={styles.paragraph}>
         Hello {recipientName ? <strong>{recipientName}</strong> : 'there'},
@@ -118,17 +123,7 @@ export function EventRegistrationEmail({
         {startDate ? <DetailRow label="Start date">{startDate}</DetailRow> : null}
       </Section>
 
-      {answers.length > 0 ? (
-        <Section>
-          <SectionHeading>Registration answers</SectionHeading>
-          {answers.map((answer) => (
-            <Fragment key={answer.label}>
-              <Text style={answerQuestion}>{answer.label}</Text>
-              <Text style={answerValue}>{answer.value}</Text>
-            </Fragment>
-          ))}
-        </Section>
-      ) : null}
+      <AnswerList answers={answers} heading="Registration answers" />
 
       <BrandButtonRow
         brand={brand}
@@ -137,24 +132,6 @@ export function EventRegistrationEmail({
           { href: eventAdminUrl, label: 'View event', variant: 'secondary' },
         ]}
       />
-
-      <Hr style={styles.hr} />
-      <Text style={styles.footer}>
-        You’re receiving this because you manage this event on {brand.productName}.
-      </Text>
     </EmailLayout>
   )
-}
-
-const answerQuestion: CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 600,
-  color: '#374151',
-  margin: '0 0 2px',
-}
-const answerValue: CSSProperties = {
-  fontSize: '14px',
-  color: '#1f2937',
-  margin: '0 0 12px',
-  whiteSpace: 'pre-wrap',
 }

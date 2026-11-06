@@ -1,6 +1,6 @@
 'use client'
 
-import type { NotificationKey, NotificationType } from './config'
+import type { NotificationKey } from './config'
 import type { FieldClientComponent, FormState, JSONFieldClient } from 'payload'
 
 import {
@@ -27,7 +27,7 @@ import {
  * NotificationPreferences Field
  *
  * Config-driven table for the Managers `notificationPreferences` json field.
- * Renders one row per type from `field.admin.custom.notificationTypes`; per
+ * Renders one row per `NOTIFICATION_TYPES` entry the manager's roles reach; per
  * row the manager picks a delivery Method (single-select: `email` + the
  * platforms from their `contactDetails`, read reactively from form state) and
  * a Frequency (the type's options). Selecting "Never" hides Method and
@@ -85,36 +85,29 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
   const [formState] = useAllFormFields()
   const { savedDocumentData } = useDocumentInfo()
 
-  // Its own memo, because `??` makes a fresh array on every render and this
-  // one is the dependency of the memo below.
-  const notificationTypes = useMemo(
-    () => (admin?.custom?.notificationTypes ?? []) as NotificationType[],
-    [admin?.custom?.notificationTypes],
-  )
-
   const methodOptions = useMemo(
     () => [DEFAULT_NOTIFICATION_METHOD, ...collectContactPlatforms(formState)],
     [formState],
   )
 
   const visibleTypes = useMemo(
-    () => notificationTypesFor(managerRoles(savedDocumentData ?? {}), notificationTypes),
-    [notificationTypes, savedDocumentData],
+    () => notificationTypesFor(managerRoles(savedDocumentData ?? {})),
+    [savedDocumentData],
   )
 
   const prefs = value ?? {}
+  // The resolved pace, not the stored one: a row showing its default must save
+  // that default when the manager changes only the method beside it.
+  const resolved = (key: NotificationKey) => ({
+    frequency: notificationFrequency(prefs, key),
+    method: prefs[key]?.method ?? DEFAULT_NOTIFICATION_METHOD,
+  })
 
   const updateRow = (
     key: NotificationKey,
     patch: Partial<{ frequency: string; method: string }>,
   ) => {
-    // The resolved pace, not the stored one: a row showing its default must
-    // save that default when the manager changes only the method beside it.
-    const current = {
-      frequency: notificationFrequency(prefs, key, notificationTypes),
-      method: prefs[key]?.method ?? DEFAULT_NOTIFICATION_METHOD,
-    }
-    const updated = { ...current, ...patch }
+    const updated = { ...resolved(key), ...patch }
     // Switching to "Never" clears the now-hidden method to keep data honest.
     if (updated.frequency === NEVER_FREQUENCY) updated.method = ''
     setValue({ ...prefs, [key]: updated })
@@ -157,16 +150,8 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             </thead>
             <tbody>
               {visibleTypes.map((type) => {
-                const stored = prefs[type.key]
-                const pref = {
-                  frequency: notificationFrequency(prefs, type.key, notificationTypes),
-                  method: stored?.method ?? DEFAULT_NOTIFICATION_METHOD,
-                }
+                const pref = resolved(type.key)
                 const isNever = pref.frequency === NEVER_FREQUENCY
-                // No `Boolean(pref.frequency)` test: `notificationFrequency`
-                // resolves a row the manager never saved to its own default and
-                // falls back to Never, so the blank-pace state this used to
-                // guard no longer exists.
                 const methodMissing = !isNever && !pref.method
                 // Keep a method that's no longer in contactDetails selectable so
                 // it isn't silently dropped from the dropdown.

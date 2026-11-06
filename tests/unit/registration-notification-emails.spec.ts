@@ -2,13 +2,13 @@
  * Unit tests for the session-reminder email template and the reminder
  * occurrence-detail shaping. Pure render/shape contract — no Payload, no DB.
  *
- * The manager digest moved to `tests/unit/digest-email.spec.ts` when #1070
- * replaced `RegistrationDigestEmail` with one per-role template.
+ * The manager digest that #1070 made one email per role is covered end to end
+ * by `tests/int/digests.int.spec.ts`.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
+import { SessionReminderEmail } from '@/emails/SessionReminderEmail'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import { buildReminderEmailDetails, occurrenceLine } from '@/lib/notifications/registrationDetails'
 import { type EmailStrings, EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
@@ -30,7 +30,7 @@ const onlineDetails: RegistrationEmailDetails = {
 
 describe('SessionReminderEmail', () => {
   it('renders the single occurrence, join URL, and unsubscribe link', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(SessionReminderEmail, {
         name: 'Sam',
         brand,
@@ -50,7 +50,7 @@ describe('SessionReminderEmail', () => {
   })
 
   it('offline variant shows the address + directions instead of a join URL', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(SessionReminderEmail, {
         name: 'Sam',
         brand,
@@ -71,16 +71,20 @@ describe('SessionReminderEmail', () => {
     expect(html).toContain('Get Directions')
   })
 
-  it('plain-text alternative carries the occurrence + unsubscribe URL', () => {
-    const text = sessionReminderText({
-      name: 'Sam',
-      brand,
-      strings,
-      details: onlineDetails,
-      unsubscribeUrl: UNSUBSCRIBE_URL,
-    })
+  it('plain-text part carries the occurrence, join link and unsubscribe URL', async () => {
+    const { text } = await renderEmail(
+      createElement(SessionReminderEmail, {
+        name: 'Sam',
+        brand,
+        strings,
+        details: onlineDetails,
+        unsubscribeUrl: UNSUBSCRIBE_URL,
+      }),
+    )
     expect(text).toContain('Tuesday, 21 July 2026')
+    expect(text).toContain('https://meet.example.com/abc')
     expect(text).toContain(UNSUBSCRIBE_URL)
+    expect(text).not.toMatch(/<[a-z]/i)
   })
 })
 

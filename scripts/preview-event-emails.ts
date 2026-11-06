@@ -380,7 +380,7 @@ async function main() {
       role: audience,
       secret,
     })
-    const html = await renderEmail(
+    const body = await renderEmail(
       createElement(EventVerificationEmail, {
         name: audience === 'region' ? 'Rohan Patil' : sample.managerName,
         eventTitle: sample.eventTitle,
@@ -405,7 +405,7 @@ async function main() {
       from: 'Sahaj Atlas <dev@wemeditate.com>',
       to: audience === 'region' ? 'rohan.patil@example.com' : sample.managerEmail,
       subject: `[${audience}/${level}] ${sample.eventTitle}`,
-      html,
+      ...body,
     })
     previews.push({ label: `${audience} · ${level}`, url: messageUrl(info) })
   }

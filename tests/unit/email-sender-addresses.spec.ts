@@ -12,7 +12,7 @@ import type { Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { sendDigest } from '@/jobs/Digests/sendDigest'
+import { sendDigest } from '@/jobs/Digests/SendDigests'
 import { sendSessionReminder } from '@/jobs/RegistrationNotifications/sendSessionReminder'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
@@ -118,7 +118,6 @@ const CASES: {
           ],
           summary: '1 new registration',
         },
-        subject: 'Your programs: 1 new registration',
       }),
   },
   {
@@ -148,6 +147,16 @@ describe('transactional senders pick their envelope by audience', () => {
     // The angle brackets pin the address to the envelope rather than the display
     // name, which also carries a brand string.
     expect(message.from).toContain(`<${from}>`)
+  })
+
+  it.each(CASES)('$label carries a plain-text part', async ({ send }) => {
+    const { payload, sendEmail } = stubEmailPayload()
+
+    await send(payload)
+
+    const { text } = sendEmail.mock.calls[0][0]
+    expect(text).toBeTruthy()
+    expect(text).not.toMatch(/<[a-z]/i)
   })
 
   it('uses two different addresses, so no row above can pass vacuously', () => {

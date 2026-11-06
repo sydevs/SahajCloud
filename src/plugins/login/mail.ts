@@ -11,12 +11,12 @@ import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
  * itself from `project`, which `LoginCollectionConfig.project` resolves per
  * document.
  */
-export function generateEmailHTML({
+export function generateEmail({
   doc,
   project,
   signInUrl,
   validFor,
-}: LoginMailArgs): Promise<string> {
+}: LoginMailArgs): Promise<{ html: string; text: string }> {
   return renderEmail(
     createElement(SignInLinkEmail, {
       name: doc.name || doc.email || '',
@@ -27,7 +27,7 @@ export function generateEmailHTML({
   )
 }
 
-/** @see generateEmailHTML */
+/** @see generateEmail */
 export function generateEmailSubject({ project }: LoginMailArgs): string {
   return stripNewlines(`Your sign-in link — ${getEmailBrand(project).productName}`)
 }

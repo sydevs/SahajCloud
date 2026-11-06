@@ -1,11 +1,17 @@
 import type { PayloadRequest } from 'payload'
 
 import {
+  isSummaryFrequency,
   type NotificationKey,
   notificationFrequency,
+  type SummaryFrequency,
 } from '@/components/admin/NotificationPreferences/config'
-import type { DigestEmailProps, DigestTileBlock } from '@/emails/DigestEmail'
-import type { ItemTableRow, StatusPillStyle } from '@/emails/EmailLayout'
+import type {
+  DigestEmailProps,
+  DigestTileBlock,
+  ItemTableRow,
+  StatusPillStyle,
+} from '@/emails/DigestEmail'
 import { changeLabel } from '@/lib/atlasOverview/filters'
 import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
@@ -17,23 +23,51 @@ import type { ManagerRole } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
 import type { Manager } from '@/payload-types'
 
-import { isDue, windowStart } from './due'
 import { registrationGroups } from './registrations'
-import { watermarkFor } from './watermarks'
+
+const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * The preference keys a digest reads, each its own section or part of one.
+ * When each pace sends, and how far back its window reaches with no watermark.
  *
- * Typed against the vocabulary rather than inferred, so a typo here is a
- * compile error instead of a section that resolves to `Never` and never sends.
+ * ⚠ **One schedule, three paces**, decided from the same 07:00 UTC run: three
+ * schedules would send a Weekly manager two emails on a Monday the 1st. Both
+ * anchors are absolute — Monday, and the 1st — never "seven days since the last
+ * one", which drifts on every missed run.
+ *
+ * ⚠ **Keyed by `SummaryFrequency`**, so a fourth cadence fails `tsc` here rather
+ * than leaving every manager who picks it unmailed. `Immediate`, `Never` and a
+ * retired pace are in no row, so are never due.
  */
-export const DIGEST_KEYS: Record<string, NotificationKey> = {
-  openItems: 'open_items',
-  proposals: 'new_proposals',
-  refusals: 'refused_signups',
-  registrations: 'event_registration',
-  statistics: 'statistics',
-} as const
+const PACES: Record<SummaryFrequency, { days: number; due(now: Date): boolean }> = {
+  Daily: { days: 1, due: () => true },
+  Weekly: { days: 7, due: (now) => now.getUTCDay() === 1 },
+  Monthly: { days: 30, due: (now) => now.getUTCDate() === 1 },
+}
+
+const paceOf = (frequency: string) => (isSummaryFrequency(frequency) ? PACES[frequency] : null)
+
+export const isDue = (frequency: string, now: Date): boolean => paceOf(frequency)?.due(now) ?? false
+
+/**
+ * The start of a pace's window: the watermark, or one period back, whichever is
+ * later.
+ *
+ * ⚠ **Clamped, and the clamp is the point.** A section turned back on after six
+ * months would otherwise carry half a year of items labelled "new".
+ */
+export function windowStart(
+  watermark: null | string | undefined,
+  frequency: string,
+  runStart: Date,
+): Date {
+  const floor = new Date(runStart.getTime() - (paceOf(frequency)?.days ?? 1) * DAY_MS)
+  const mark = new Date(watermark ?? NaN)
+  return mark > floor ? mark : floor
+}
+
+/** The month a statistics section is named for, e.g. "November". */
+const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
 
 /** What each role is called in a digest's heading and subject. */
 const ROLE_LABELS: Record<ManagerRole, string> = {
@@ -49,12 +83,10 @@ export interface BuiltDigest {
   /**
    * `null` when nothing was due or nothing had anything to say.
    *
-   * ⚠ **A null email still advances its watermarks.** Otherwise a manager who
-   * had a quiet month, or who had a section muted, would get everything since
-   * the last send the first time it had something — which is the #1052 finding
-   * about a muted admin receiving months of refusals labelled "the last day".
+   * ⚠ **A null email still advances its watermarks**, or a quiet or muted
+   * section would arrive as everything since the last send (#1052).
    */
-  email: null | { props: DigestEmailProps; subject: string }
+  email: DigestEmailProps | null
   /** Sections whose own query threw, counted and left out. */
   failed: number
 }
@@ -99,13 +131,6 @@ const tileText = (tile: StatTile) => ({
   value: String(tile.value),
 })
 
-/** The scope one role reads its own list through. */
-function scopeFor(role: ManagerRole, managerId: number): OverviewScope {
-  if (role === 'admin') return { role: 'admin' }
-  if (role === 'region') return { managerId, role: 'region' }
-  return { managerId, role: 'program' }
-}
-
 /** A proposal or refusal that arrived inside the window, for a "new since" section. */
 function arrivedSince(item: OpenItem, since: Date): boolean {
   const at = item.row.kind === 'event' ? item.row.proposal?.receivedAt : item.row.receivedAt
@@ -146,21 +171,19 @@ export async function buildDigest(args: {
   const prefs = manager.notificationPreferences
   const pace = (key: NotificationKey) => notificationFrequency(prefs, key)
   const due = (key: NotificationKey) => isDue(pace(key), runStart)
+  /** A section's "new since" bound: its watermark, or one period back. */
+  const since = (key: NotificationKey) =>
+    windowStart(manager.digestWatermarks?.[role]?.[key], pace(key), runStart)
 
-  const scope = scopeFor(role, manager.id)
+  const scope: OverviewScope = role === 'admin' ? { role } : { managerId: manager.id, role }
   const advance: string[] = []
   const parts: string[] = []
   let failed = 0
 
   /**
-   * Run one section, counting and skipping a failure rather than letting it
-   * empty the email.
-   *
-   * ⚠ **One wrapper, because `failed` is what rides out in the task's output.**
-   * Written per section, a fourth was one copy-paste away from catching an
-   * error without counting it — and the job row would then read green while the
-   * email was silently short a section, which is the failure this rule exists
-   * to prevent.
+   * ⚠ **One wrapper, because `failed` rides out in the task's output.** A
+   * per-section catch is one copy-paste from a green job row over an email
+   * silently short a section.
    */
   const section = async (name: string, run: () => Promise<void>): Promise<void> => {
     try {
@@ -176,12 +199,8 @@ export async function buildDigest(args: {
     }
   }
 
-  /** A section's "new since" bound: its watermark, or one period back. */
-  const since = (key: NotificationKey) =>
-    windowStart(watermarkFor(manager, role, key), pace(key), runStart)
-
   const statistics: DigestTileBlock[] = []
-  if (due(DIGEST_KEYS.statistics)) {
+  if (due('statistics')) {
     await section('statistics', async () => {
       const stats = await loadStatistics({ now: runStart, overrideAccess: true, req, scope })
       if (stats.health.length) {
@@ -190,18 +209,16 @@ export async function buildDigest(args: {
       // No Most registered in email: a tile naming one listing is a thing to
       // click, and this is the one surface where clicking costs a page load.
       statistics.push({ heading: 'Analytics', tiles: stats.analytics.map(tileText) })
-      advance.push(DIGEST_KEYS.statistics)
-      parts.push(
-        `${formatLongDate(runStart.toISOString()).split(' ').slice(1).join(' ')} analytics`,
-      )
+      advance.push('statistics')
+      parts.push(`${MONTH.format(runStart)} analytics`)
     })
   }
 
   let openItems: DigestEmailProps['openItems']
   let closingNote: DigestEmailProps['closingNote'] = null
-  const wholeList = due(DIGEST_KEYS.openItems)
-  const newProposals = due(DIGEST_KEYS.proposals)
-  const newRefusals = role === 'admin' && due(DIGEST_KEYS.refusals)
+  const wholeList = due('open_items')
+  const newProposals = due('new_proposals')
+  const newRefusals = role === 'admin' && due('refused_signups')
 
   if (wholeList || newProposals || newRefusals) {
     await section('open items', async () => {
@@ -212,11 +229,11 @@ export async function buildDigest(args: {
         // read every one of them twice.
         if (role === 'region' && item.row.kind === 'event' && item.row.ownEvent) return false
         if (wholeList) return true
-        if (newProposals && arrivedSince(item, since(DIGEST_KEYS.proposals))) return true
+        if (newProposals && arrivedSince(item, since('new_proposals'))) return true
         return Boolean(
           newRefusals &&
           item.row.kind === 'refusal' &&
-          arrivedSince(item, since(DIGEST_KEYS.refusals)),
+          arrivedSince(item, since('refused_signups')),
         )
       })
 
@@ -224,51 +241,47 @@ export async function buildDigest(args: {
         openItems = { rows: items.map(toEmailRow) }
         parts.push(`${items.length} open item${items.length === 1 ? '' : 's'}`)
       }
-      if (wholeList) advance.push(DIGEST_KEYS.openItems)
-      if (newProposals) advance.push(DIGEST_KEYS.proposals)
-      if (newRefusals) advance.push(DIGEST_KEYS.refusals)
+      if (wholeList) advance.push('open_items')
+      if (newProposals) advance.push('new_proposals')
+      if (newRefusals) advance.push('refused_signups')
       if (role === 'admin' && openItems) closingNote = await spamNote(req, runStart)
     })
   }
 
   let registrations: DigestEmailProps['registrations']
-  if (role === 'program' && due(DIGEST_KEYS.registrations)) {
+  if (role === 'program' && due('event_registration')) {
     await section('registrations', async () => {
       const groups = await registrationGroups({
         managerId: manager.id,
         req,
         runStart,
-        since: since(DIGEST_KEYS.registrations),
+        since: since('event_registration'),
       })
       if (groups.length) {
         registrations = groups
         const total = groups.reduce((sum, group) => sum + group.rows.length, 0)
         parts.push(`${total} new registration${total === 1 ? '' : 's'}`)
       }
-      advance.push(DIGEST_KEYS.registrations)
+      advance.push('event_registration')
     })
   }
 
   // Nothing to say is not an email.
   if (!statistics.length && !openItems && !registrations) return { advance, email: null, failed }
 
-  const summary = parts.join(' · ')
   return {
     advance,
     email: {
-      props: {
-        closingNote,
-        dashboardUrl: adminUrl('/'),
-        date: formatLongDate(runStart.toISOString()),
-        heading: ROLE_LABELS[role],
-        notificationsUrl: adminUrl('/account'),
-        openItems,
-        recipientName: manager.name || null,
-        registrations,
-        statistics: statistics.length ? statistics : undefined,
-        summary,
-      },
-      subject: `${ROLE_LABELS[role]}: ${summary}`,
+      closingNote,
+      dashboardUrl: adminUrl('/'),
+      date: formatLongDate(runStart.toISOString()),
+      heading: ROLE_LABELS[role],
+      notificationsUrl: adminUrl('/account'),
+      openItems,
+      recipientName: manager.name || null,
+      registrations,
+      statistics: statistics.length ? statistics : undefined,
+      summary: parts.join(' · '),
     },
     failed,
   }

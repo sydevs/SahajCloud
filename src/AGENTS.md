@@ -37,8 +37,7 @@ its `LoginCollectionConfig` — its eligibility predicate and the project its ma
 is branded for (`src/collections/Managers/login.ts`). The plugin renders and
 sends that mail itself, from `src/plugins/login/mail.ts` and, for the invitation,
 `invite.ts`; a collection overrides either half of the SIGN-IN mail through a
-`generateEmailHTML` / `generateEmailSubject` pair shaped like Payload's own
-`auth.verify` generators. There is one invitation and no override for it — it is
+`generateEmail` / `generateEmailSubject` pair. There is one invitation and no override for it — it is
 sent when a manager is assigned something (`invitations.ts`), never on create. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 

@@ -6,7 +6,6 @@ import * as Sentry from '@sentry/nextjs'
 
 import {
   NEVER_FREQUENCY,
-  type NotificationKey,
   notificationFrequency,
 } from '@/components/admin/NotificationPreferences/config'
 import { runClock } from '@/lib/jobs/runClock'
@@ -39,9 +38,6 @@ export const INVITATION_DELAY_MS = 10 * 60 * 1000
 /** The job queue `sendInvitations` runs on, and the cadence it runs at. */
 export const INVITATIONS_QUEUE = 'invitations'
 export const INVITATIONS_CRON = '*/5 * * * *'
-
-/** The notification preference that turns invitations off. */
-const PREFERENCE_KEY: NotificationKey = 'invitation'
 
 /** How many due invitations one run sends. The rest wait five minutes. */
 const BATCH = 50
@@ -262,7 +258,7 @@ async function sendOne({
   const { payload } = req
   if (!doc.email || !doc.pendingInvitation) return false
   if (config.isEligible && !config.isEligible(doc)) return false
-  if (notificationFrequency(doc.notificationPreferences, PREFERENCE_KEY) === NEVER_FREQUENCY) {
+  if (notificationFrequency(doc.notificationPreferences, 'invitation') === NEVER_FREQUENCY) {
     return false
   }
 

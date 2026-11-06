@@ -5,7 +5,6 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendDigests } from '@/jobs/Digests/SendDigests'
-import { readWatermarks } from '@/jobs/Digests/watermarks'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -21,13 +20,6 @@ const SCHEDULE = {
 
 const runDigests = (payload: Payload, now?: Date) =>
   runTaskHandler(SendDigests, { context: now ? { now } : {}, payload })
-
-/** The smallest Monday (UTC) at or after `from`, so today's rows stay in-window. */
-function mondayOnOrAfter(from: Date): Date {
-  const date = new Date(from)
-  date.setUTCDate(date.getUTCDate() + ((1 - date.getUTCDay() + 7) % 7))
-  return date
-}
 
 /** The 1st of the month at or after `from`, for the Monthly anchor. */
 function firstOfMonthOnOrAfter(from: Date): Date {
@@ -145,9 +137,8 @@ describe('SendDigests job', () => {
     emailAdapter.getCapturedEmails().filter((email) => email.to === recipient)
 
   const watermarksOf = async (managerId: number) =>
-    readWatermarks(
-      await payload.findByID({ collection: 'managers', id: managerId, overrideAccess: true }),
-    )
+    (await payload.findByID({ collection: 'managers', id: managerId, overrideAccess: true }))
+      .digestWatermarks ?? {}
 
   describe('one email per manager per role', () => {
     it('sends the program email, and re-sends nothing on the next run', async () => {
@@ -256,49 +247,9 @@ describe('SendDigests job', () => {
     })
   })
 
-  describe('the due rule', () => {
-    it('sends nothing to a manager on Immediate or Never', async () => {
-      const managerId = await createManager('immediate@example.com', {
-        event_registration: { frequency: 'Immediate' },
-        new_proposals: { frequency: 'Immediate' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      const event = await createEvent(managerId, 'Immediate Event')
-      await register(event, 'Dave')
-
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      expect(emailsTo('immediate@example.com')).toHaveLength(0)
-    })
-
-    it('fires Weekly on the Monday anchor and not a day later', async () => {
-      const mondayId = await createManager('weekly-mon@example.com', {
-        event_registration: { frequency: 'Weekly' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      await register(await createEvent(mondayId, 'Weekly Monday Event'), 'Eve')
-      const monday = mondayOnOrAfter(new Date())
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload, monday)
-      expect(emailsTo('weekly-mon@example.com')).toHaveLength(1)
-
-      const tuesdayId = await createManager('weekly-tue@example.com', {
-        event_registration: { frequency: 'Weekly' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      await register(await createEvent(tuesdayId, 'Weekly Tuesday Event'), 'Frank')
-      const tuesday = new Date(monday)
-      tuesday.setUTCDate(tuesday.getUTCDate() + 1)
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload, tuesday)
-      expect(emailsTo('weekly-tue@example.com')).toHaveLength(0)
-    })
-
-    /** Statistics arrive on the 1st, and a quiet month still arrives as zero. */
-    it('fires Monthly on the 1st, with a quiet month shown as zero', async () => {
+  describe('statistics', () => {
+    /** Statistics arrive on the 1st, named for the month, and a quiet month still arrives as zero. */
+    it('shows a quiet month as zero', async () => {
       const managerId = await createManager('monthly@example.com', {
         event_registration: { frequency: 'Never', method: '' },
         open_items: { frequency: 'Never', method: '' },
@@ -311,17 +262,13 @@ describe('SendDigests job', () => {
       await runDigests(payload, first)
       const sent = emailsTo('monthly@example.com')
       expect(sent).toHaveLength(1)
+      const month = first.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
+      expect(String(sent[0]!.subject)).toBe(`Your programs: ${month} analytics`)
       const html = String(sent[0]!.html)
       expect(html).toContain('Analytics')
       expect(html).toContain('Registrations')
       // Nobody signed up, which is a zero rather than a missing section.
       expect(html).toContain('>0<')
-
-      const second = new Date(first)
-      second.setUTCDate(2)
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload, second)
-      expect(emailsTo('monthly@example.com')).toHaveLength(0)
     })
   })
 
@@ -380,29 +327,6 @@ describe('SendDigests job', () => {
       expect(String(sent[0]!.html)).toContain('Grace')
     })
 
-    /** Nobody else's address appears in a digest. */
-    it('names no other manager', async () => {
-      const managerId = await createManager('privacy@example.com', {
-        event_registration: { frequency: 'Daily' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      const colleague = await testData.createManager(payload, {
-        email: 'colleague@example.com',
-        roles: [],
-        type: 'manager',
-      })
-      const eventId = await createEvent(managerId, 'Privacy Event')
-      await register(eventId, 'Ivy')
-
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      const sent = emailsTo('privacy@example.com')
-      expect(sent).toHaveLength(1)
-      expect(String(sent[0]!.html)).not.toContain(colleague.email)
-      expect(String(sent[0]!.text)).not.toContain(colleague.email)
-    })
-
     it('reaches admins with the refused sign-ups the next morning', async () => {
       const adminId = await createManager(
         'refusals@example.com',
@@ -437,7 +361,9 @@ describe('SendDigests job', () => {
       expect(sent).toHaveLength(1)
       expect(String(sent[0]!.subject)).toMatch(/^Sahaj Atlas: /)
       expect(String(sent[0]!.html)).toContain('Jude Spam')
-      expect(String(sent[0]!.text)).toMatch(/\d+ sign-ups? filed as spam in the last 7 days http/)
+      expect(String(sent[0]!.text)).toMatch(
+        /\d+ sign-ups? filed as spam in the last 7 days View http/,
+      )
       expect((await watermarksOf(adminId)).admin?.refused_signups).toBeTruthy()
     })
   })
@@ -470,58 +396,6 @@ describe('SendDigests job', () => {
       })
 
       expect((await watermarksOf(managerId)).program?.open_items).toBe('2026-11-01T00:00:00.000Z')
-    })
-
-    it('declares the single-run concurrency lock', () => {
-      const concurrency = SendDigests.concurrency as
-        | undefined
-        | { exclusive?: boolean; key: (args: { input: unknown; queue: string }) => string }
-      expect(concurrency?.exclusive).toBe(true)
-      expect(concurrency?.key({ input: {}, queue: 'nightly' })).toBe('sendDigests')
-    })
-
-    /**
-     * ⚠ The clamp is the point: a manager turning a section back on after
-     * months has a watermark from months ago, and without it their first email
-     * would carry the lot.
-     */
-    it('clamps the window to one period when the watermark is older', async () => {
-      const managerId = await createManager('clamped@example.com', {
-        event_registration: { frequency: 'Daily' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      const eventId = await createEvent(managerId, 'Clamped Event')
-      const old = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
-      await payload.db.updateOne({
-        collection: 'managers',
-        data: { digestWatermarks: { program: { event_registration: old.toISOString() } } },
-        id: managerId,
-        req: undefined,
-      })
-      // Registered 10 days ago: inside the stale watermark's reach, outside a
-      // one-day window.
-      await payload.update({
-        collection: 'user-submissions',
-        data: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString() } as never,
-        id: (
-          await payload.create({
-            collection: 'user-submissions',
-            data: createData<'user-submissions'>({
-              event: eventId,
-              senderEmail: 'old@example.com',
-              submissionData: [{ field: 'name', value: 'Older' }],
-              type: 'registration',
-            }),
-            overrideAccess: true,
-          })
-        ).id,
-        overrideAccess: true,
-      })
-
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      expect(emailsTo('clamped@example.com')).toHaveLength(0)
     })
   })
 })

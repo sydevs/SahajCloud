@@ -1,28 +1,54 @@
-import type { TaskConfig } from 'payload'
+import type { Payload, TaskConfig } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
+import { createElement } from 'react'
 
+import { DigestEmail, type DigestEmailProps } from '@/emails/DigestEmail'
 import { runClock } from '@/lib/jobs/runClock'
+import { pickChannel } from '@/lib/notifications'
 import { managerRoles } from '@/lib/notifications/managerRoles'
-import type { Manager } from '@/payload-types'
+import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
+import type { DigestWatermarks, Manager, TaskSendDigests } from '@/payload-types'
+import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 import { buildDigest } from './buildDigest'
-import { sendDigest } from './sendDigest'
-import { advanceWatermarks } from './watermarks'
 
 const PAGINATION_LIMIT = 200
 
-interface DigestResult {
-  /** Managers with at least one role to report on. */
-  managers: number
-  /** Emails sent. */
-  sent: number
-  /** Roles that had nothing due. */
-  quiet: number
-  /** Sections whose own query threw, across every email. */
-  sectionsFailed: number
-  /** Roles whose processing threw. */
-  failed: number
+/**
+ * Send one role's digest, its subject the role's heading then the summary line.
+ *
+ * ⚠ **A failed send throws** (`docs/rules/email.md`), which leaves that role's
+ * watermarks untouched so the next run covers the same window.
+ *
+ * The channel is the manager's own `open_items` method. No messaging transport
+ * is wired yet, so a handle logs and moves on, as every other notification's
+ * stub does.
+ */
+export async function sendDigest(args: {
+  manager: Manager
+  payload: Payload
+  props: DigestEmailProps
+}): Promise<void> {
+  const { manager, payload, props } = args
+  const { channel, destination } = pickChannel(manager, 'open_items')
+
+  if (channel !== 'email' || !destination) {
+    payload.logger.warn({
+      channel,
+      msg: `notifications: ${channel} channel not yet implemented — digest logged, not delivered`,
+      managerId: manager.id,
+    })
+    return
+  }
+
+  const brand = getEmailBrand('sahaj-atlas')
+  await payload.sendEmail({
+    from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
+    subject: stripNewlines(`${props.heading}: ${props.summary}`),
+    to: destination,
+    ...(await renderEmail(createElement(DigestEmail, props))),
+  })
 }
 
 /**
@@ -33,9 +59,7 @@ interface DigestResult {
  * (`src/jobs/queues.ts`). `recordAtlasSnapshot` runs on the 06:00 tick, so the
  * statistics an email quotes are the ones the home shows.
  *
- * ⚠ **One schedule, not three.** Daily, Weekly and Monthly are decided from
- * this run's own clock (`./due.ts`); three schedules would send a Weekly
- * manager two emails on a Monday the 1st.
+ * ⚠ **One schedule, not three** — `PACES` in `./buildDigest.ts`.
  *
  * ⚠ **One email per role, never one per manager.** A manager who runs a class,
  * looks after a region and administers the map does three jobs, and each hat's
@@ -66,7 +90,7 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
   handler: async ({ req }) => {
     const payload = req.payload
     const runStart = runClock(req)
-    const result: DigestResult = {
+    const result: TaskSendDigests['output'] = {
       failed: 0,
       managers: 0,
       quiet: 0,
@@ -84,8 +108,8 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
         collection: 'managers',
         depth: 0,
         // The two Atlas roles are derived from these joins, which an ordinary
-        // read carries (`docs/rules/access.md`). `joins` is left at its default
-        // because `virtualRoles` reads only whether `docs` is non-empty.
+        // read carries (`docs/rules/access.md`). `joins` stays default because
+        // `virtualRoles` reads only whether `docs` is non-empty.
         limit: PAGINATION_LIMIT,
         overrideAccess: true,
         page,
@@ -105,25 +129,32 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
             if (built.email) {
               // Send first, then advance: a send failure throws, leaving the
               // marks where they were so the whole window retries next run.
-              await sendDigest({
-                manager,
-                payload,
-                props: built.email.props,
-                subject: built.email.subject,
-              })
+              await sendDigest({ manager, payload, props: built.email })
               result.sent += 1
             } else {
               result.quiet += 1
             }
-            // Assigned back, so the next role in this loop merges into the
-            // marks the last one wrote rather than over them.
-            manager.digestWatermarks = await advanceWatermarks({
-              keys: built.advance,
-              manager,
-              payload,
-              role,
-              runStart,
+            if (!built.advance.length) continue
+
+            const marks = manager.digestWatermarks ?? {}
+            const at = runStart.toISOString()
+            const next: NonNullable<DigestWatermarks> = {
+              ...marks,
+              [role]: { ...marks[role], ...Object.fromEntries(built.advance.map((k) => [k, at])) },
+            }
+            // ⚠ `payload.db.updateOne`, never `update`: bookkeeping on someone
+            // else's row, which must not run their hooks or re-validate legacy
+            // data — and which `access.update: () => false` on the column
+            // exists to stop the manager themselves doing.
+            await payload.db.updateOne({
+              collection: 'managers',
+              data: { digestWatermarks: next },
+              id: manager.id,
+              req: undefined,
             })
+            // ⚠ Kept in step on the loaded row, so the next role merges into
+            // these marks rather than writing its own over them.
+            manager.digestWatermarks = next
           } catch (error) {
             result.failed += 1
             Sentry.withScope((scope) => {

@@ -4,10 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import {
-  type NotificationKey,
-  notificationFrequency,
-} from '@/components/admin/NotificationPreferences/config'
+import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
@@ -48,10 +45,9 @@ export async function deliverProposal({
 
   const to = recipient?.email ?? CONTACT_EMAIL
 
-  // The recipient's own pace decides whether this one sends now. Anything but
-  // Immediate means the morning digest carries it instead — so routing stays
-  // exactly as it was, and only the moment of delivery moves.
-  if (recipient && !isImmediate(recipient.pace)) {
+  // ⚠ Only `Immediate` sends now. Any other pace — a retired one included —
+  // means the morning digest carries it: a delay, never a drop.
+  if (recipient && recipient.pace !== 'Immediate') {
     req.payload.logger.info({
       msg: 'deliverProposal: deferred to the digest',
       pace: recipient.pace,
@@ -85,16 +81,7 @@ export async function deliverProposal({
 }
 
 /** The target event's own fields, at the depth the routing needs. */
-async function loadTarget(
-  req: DeliveryContext['req'],
-  eventId: number,
-): Promise<{
-  title: string | null
-  managerEmail: string | null
-  managerName: string | null
-  managerPace: string
-  regionId: number | null
-} | null> {
+async function loadTarget(req: DeliveryContext['req'], eventId: number) {
   const event = await req.payload.findByID({
     collection: 'events',
     id: eventId,
@@ -107,29 +94,11 @@ async function loadTarget(
 
   if (!event) return null
 
-  const manager = typeof event.manager === 'object' ? event.manager : null
-
   return {
     title: typeof event.title === 'string' ? event.title : null,
-    managerEmail: typeof manager?.email === 'string' ? manager.email : null,
-    managerName: manager?.name ?? null,
-    managerPace: notificationFrequency(manager?.notificationPreferences, PROPOSAL_KEY),
+    manager: typeof event.manager === 'object' ? event.manager : null,
     regionId: relationId(event.region),
   }
-}
-
-/** The preference row that decides when a proposal reaches its reviewer. */
-const PROPOSAL_KEY: NotificationKey = 'new_proposals'
-
-/**
- * Whether a pace sends at once.
- *
- * ⚠ **Only `Immediate` does.** Every other pace — including one nothing
- * declares any more — means the morning digest carries it, which is a delay
- * rather than a drop, so there is no pace that loses a proposal.
- */
-function isImmediate(pace: string): boolean {
-  return pace === 'Immediate'
 }
 
 /** The event's own manager, or the nearest one up its region chain. */
@@ -137,8 +106,13 @@ async function routeTo(
   req: DeliveryContext['req'],
   target: NonNullable<Awaited<ReturnType<typeof loadTarget>>>,
 ): Promise<ProposalRecipient | null> {
-  if (target.managerEmail) {
-    return { email: target.managerEmail, name: target.managerName, pace: target.managerPace }
+  const { manager } = target
+  if (typeof manager?.email === 'string' && manager.email) {
+    return {
+      email: manager.email,
+      name: manager.name ?? null,
+      pace: notificationFrequency(manager.notificationPreferences, 'new_proposals'),
+    }
   }
 
   return managerUpChain(req, target.regionId)
@@ -157,7 +131,7 @@ async function managerUpChain(
   return {
     email: found.manager.email,
     name: found.manager.name ?? null,
-    pace: notificationFrequency(found.manager.notificationPreferences, PROPOSAL_KEY),
+    pace: notificationFrequency(found.manager.notificationPreferences, 'new_proposals'),
   }
 }
 

@@ -7,21 +7,20 @@
  * Usage:
  *   pnpm tsx scripts/preview-reminder-digest-emails.ts
  *
- * No database is touched. The script drives the real send paths
- * (`sendSessionReminder` and `sendDigest`) through a stub
- * `payload` object. That stub only covers `findGlobal`, `sendEmail`,
- * `logger`, and `secret`, the only Payload calls these paths make. So
- * what you see is what the jobs send: the same subject, `From`,
- * `Reply-To`, HTML, and plain-text part. Nothing here is reimplemented,
- * so this preview cannot drift from production behavior.
+ * No database is touched. Both halves drive the real send paths
+ * (`sendSessionReminder` and `sendDigest`) through a stub `payload` covering
+ * `findGlobal`, `sendEmail`, `logger` and `secret`, so the subject, `From`,
+ * `Reply-To`, HTML and plain-text part are composed as a job composes them.
+ * The reminder's inputs are fixture events run through the real builders; the
+ * digest's props are hand-written here rather than built by `buildDigest`, so
+ * they show the template's states, not what a run would select.
  *
  * Header logos use absolute URLs. `SAHAJCLOUD_URL` defaults to
  * production, so the icon and the unsubscribe link's origin both
  * resolve in the preview.
  */
 
-import type { DigestEmailProps, DigestRegistrationGroup } from '@/emails/DigestEmail'
-import type { ItemTableRow } from '@/emails/EmailLayout'
+import type { DigestEmailProps, DigestRegistrationGroup, ItemTableRow } from '@/emails/DigestEmail'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import type { LocaleCode } from '@/lib/locales'
 import type { Event, Manager } from '@/payload-types'
@@ -183,7 +182,6 @@ interface DigestScenario {
   manager: Manager
   note: string
   props: DigestEmailProps
-  subject: string
 }
 
 // Realistic answers drawn from EVENT_REGISTRATION_QUESTIONS, cycled through so
@@ -311,7 +309,6 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
       ],
       summary: '2 open items · 11 new registrations · November analytics',
     },
-    subject: 'Your programs: 2 open items · 11 new registrations · November analytics',
   },
   {
     label: 'digest · region · statistics + open items',
@@ -344,7 +341,6 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
       ],
       summary: '3 open items · November analytics',
     },
-    subject: 'Your regions: 3 open items · November analytics',
   },
   {
     label: 'digest · admin · refused sign-ups + closing line',
@@ -377,7 +373,6 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
       recipientName: 'Rosa Delgado',
       summary: '2 open items',
     },
-    subject: 'Sahaj Atlas: 2 open items',
   },
   {
     label: 'digest · program · high volume',
@@ -390,7 +385,6 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
       registrations: buildStressGroups(),
       summary: '35 new registrations',
     },
-    subject: 'Your programs: 35 new registrations',
   },
 ]
 
@@ -400,7 +394,7 @@ async function main() {
   const nodemailer = (await import('nodemailer')).default
   const { sendSessionReminder } =
     await import('@/jobs/RegistrationNotifications/sendSessionReminder')
-  const { sendDigest } = await import('@/jobs/Digests/sendDigest')
+  const { sendDigest } = await import('@/jobs/Digests/SendDigests')
 
   const { transport, messageUrl } = createCaptureTransport()
 
@@ -442,7 +436,6 @@ async function main() {
       manager: s.manager,
       payload: stubPayload(s.label),
       props: s.props,
-      subject: s.subject,
     })
     previews[previews.length - 1].note = s.note
   }
