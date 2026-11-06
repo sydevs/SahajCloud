@@ -2,6 +2,7 @@ import type { Step, StepId, Track, TrackMeta } from './steps'
 
 import type { ClaimCanonicalResponse } from '@/collections/Clients/endpoints/claimCanonical'
 import type { VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
+import type { InfoBannerType } from '@/components/admin/InfoBanner/InfoBanner'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
@@ -239,7 +240,7 @@ function inferEarlierSteps(stepStatus: Partial<Record<StepId, StepStatus>>, step
 
 /** A banner the tab shows: its colour, its title, and one or two sentences. */
 export interface BannerContent {
-  type: 'default' | 'error' | 'success' | 'warning'
+  type: InfoBannerType
   title: string
   text: string
 }
@@ -443,7 +444,7 @@ export function buildMilestones(args: {
  * The same milestones from a service's stored record alone, with no tab open.
  *
  * For the two surfaces that show how far an install has got without being the
- * Install tab — the banner above the edit view and the Atlas tab's summary — so
+ * Install tab — the edit form's banner and the Atlas tab's summary — so
  * all three count the same milestones the same way. Everything the tab adds on
  * top (an address still being typed, a check in flight) is this visit's, and
  * not here.
@@ -483,12 +484,6 @@ export function installProgress(milestones: Milestone[]): { done: number; total:
     done: counted.filter((milestone) => milestone.state === 'done').length,
     total: counted.length,
   }
-}
-
-/** Whether every milestone a site can reach is done — the "Installation complete" of the Install tab. */
-export function installComplete(milestones: Milestone[]): boolean {
-  const { done, total } = installProgress(milestones)
-  return done === total
 }
 
 /**

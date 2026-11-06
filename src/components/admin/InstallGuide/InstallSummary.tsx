@@ -3,9 +3,9 @@ import type { UIFieldServerComponent } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
+import { SummaryCard } from '@/components/admin/SummaryCard'
 import { primaryPageUrl } from '@/lib/clients/site'
 
-import styles from './InstallGuide.module.css'
 import { InstallProgressBar } from './InstallProgress'
 import { loadInstallRecord } from './installRecord'
 
@@ -31,25 +31,24 @@ const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
   })
 
   return (
-    <div className={styles.summary}>
-      <dl className={styles.summaryList}>
-        <dt>Embed location</dt>
-        <dd>{primaryPageUrl(client.site) ?? 'Not set yet'}</dd>
-        <dt>Region</dt>
-        <dd>
-          {regionName ?? 'Worldwide'}
-          {client.canonical?.owned
-            ? regionName === null
-              ? ' — classes in regions without a site of their own are linked to your website'
-              : ' — all classes in this region are linked to your website'
-            : ''}
-        </dd>
-      </dl>
+    <SummaryCard
+      items={[
+        { label: 'Embed location', value: primaryPageUrl(client.site) ?? 'Not set yet' },
+        {
+          label: 'Region',
+          value: `${regionName ?? 'Worldwide'}${
+            client.canonical?.owned
+              ? regionName === null
+                ? ' — classes in regions without a site of their own are linked to your website'
+                : ' — all classes in this region are linked to your website'
+              : ''
+          }`,
+        },
+      ]}
+      link={{ href: installUrl, label: 'Change these on the Install tab' }}
+    >
       <InstallProgressBar milestones={milestones} />
-      <a className={styles.summaryLink} href={installUrl}>
-        Change these on the Install tab
-      </a>
-    </div>
+    </SummaryCard>
   )
 }
 

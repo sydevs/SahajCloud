@@ -7,7 +7,7 @@ import {
   buildInstallModel,
   buildMilestones,
   checkOutcome,
-  installComplete,
+  installProgress,
   MILESTONE_STATUS,
   milestonesForRecord,
   reportedMountsFor,
@@ -690,7 +690,8 @@ describe('milestonesForRecord — progress off the stored record', () => {
       regionName: 'Ontario',
     })
     expect(list.find((m) => m.id === 'seen')?.state).toBe('todo')
-    expect(installComplete(list)).toBe(false)
+    const { done, total } = installProgress(list)
+    expect(done).toBeLessThan(total)
   })
 
   it('is complete when every row it can reach is done', () => {
@@ -704,7 +705,8 @@ describe('milestonesForRecord — progress off the stored record', () => {
       owned: true,
       regionName: 'Ontario',
     })
-    expect(installComplete(list)).toBe(true)
+    const { done, total } = installProgress(list)
+    expect(done).toBe(total)
   })
 
   it('reads a reported page on another domain as not this site', () => {

@@ -312,40 +312,6 @@
   color: var(--theme-error-500);
 }
 
-/* The Atlas tab's read-only summary of where the atlas lives. */
-.summary {
-  margin-bottom: calc(var(--base) * 1.5);
-  padding: calc(var(--base) * 0.75) var(--base);
-  border: 1px solid var(--theme-elevation-150);
-  border-radius: var(--style-radius-m);
-}
-
-.summaryList {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: calc(var(--base) * 0.25) var(--base);
-  margin: 0 0 calc(var(--base) * 0.5);
-
-  dt {
-    color: var(--theme-elevation-500);
-  }
-
-  dd {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-}
-
-.summaryLink {
-  display: inline-block;
-  margin-top: calc(var(--base) * 0.5);
-}
-
-/* The not-yet-installed banner under a service's document header. */
-.installBanner {
-  margin-top: var(--base);
-}
-
 /* "Make it yours": the logo and the three colours, as four small tiles. */
 .appearance {
   display: flex;
