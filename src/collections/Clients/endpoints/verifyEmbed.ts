@@ -54,9 +54,9 @@ const MESSAGES: Record<VerifyEmbedResponse['status'], (reason?: string) => strin
  * triggers an outbound page render, so it is not part of the public client surface.
  *
  * Shares `verifyEmbed` and `nextVerificationState` with the job, so a button press and a scheduled
- * run fold into the stored state identically — including the rule that an `inconclusive` result
- * changes nothing. **This endpoint never disables canonical ownership**, though: three strikes is a
- * judgement about a pattern over days, and one impatient click should not be able to reach it.
+ * run see the same page the same way. **A press is never a strike**, though (`countsStrikes:
+ * false`): three strikes is a judgement about a pattern over days, so a failed press is logged
+ * like an inconclusive one, and this endpoint can neither run the budget down nor disable.
  *
  * **It claims the region first** ({@link claimRegion}), so the SEO checks compare the page against
  * the canonical this service is about to publish rather than the previous owner's.
@@ -121,6 +121,7 @@ export const verifyEmbedOnDemand: Endpoint = {
       // Wherever the CMS has confirmed the widget and this pass did not find it
       // gone — an inconclusive render still has a page worth checking.
       runSeo: (outcome) => outcome.status !== 'failed',
+      countsStrikes: false,
     })
 
     // Only the two keys this owns: Payload keeps the rest of the group as

@@ -202,11 +202,13 @@ export async function verifyMount(args: {
   verify: (mount: string) => Promise<VerificationResult>
   probe: (mount: string) => Promise<RoutingProbeResult>
   runSeo: (outcome: VerificationResult) => boolean
+  /** `false` for a press of Check, whose failure is no strike (`nextVerificationState`). */
+  countsStrikes: boolean
 }) {
-  const { req, client, current, mount, now, verify, probe, runSeo } = args
+  const { req, client, current, mount, now, verify, probe, runSeo, countsStrikes } = args
 
   const outcome = await verify(mount)
-  const transition = nextVerificationState({ current, result: outcome, now })
+  const transition = nextVerificationState({ current, result: outcome, now, countsStrikes })
   const verified = transition.verification.verified
 
   const checkSeo =

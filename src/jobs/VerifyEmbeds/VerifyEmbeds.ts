@@ -177,6 +177,7 @@ export async function runVerifyEmbeds(args: {
       // Only where the mount verified on this pass: a site that is down would
       // report four failures caused by the outage.
       runSeo: (result) => result.status === 'verified',
+      countsStrikes: true,
     })
     result[outcome.status]++
 

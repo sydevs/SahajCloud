@@ -46,7 +46,7 @@ The primary page is only a nomination. A canonical URL is built from `canonical.
 
 - **The marker** is `data-sahaj-atlas-ready` on `<html>`, carrying `{ v, routing, topLevel, urlWritable }` (the cross-repo contract from sydevs/SahajAtlasWeb#153, #159). Its `routing` says what the widget was asked to do, so the verifier no longer records it — see "Routing is derived, never configured" below.
 - **`src/jobs/VerifyEmbeds`** runs nightly, watermarked on `nextVerifyAt`, bounded to enabled services. Three consecutive failures turn ownership off and notify `primaryContact`, via the atomic-SQL seam, not `payload.update`.
-- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. It never disables.
+- **`POST /api/clients/:id/verify-embed`** — manager-authenticated, the same routine on demand. A press is never a strike: its failure is logged like an inconclusive one, so it can neither run the three-strike budget down nor disable. Its success still resets the counter.
 
 **`failed` vs `inconclusive` is load-bearing.** `failed` counts toward the three-strike budget. `inconclusive` (a provider error, exhausted quota, a bot challenge, missing credentials) means we couldn't look, and changes nothing. `classifyRenderError` biases an unrecognized message to inconclusive, and checks quota before timeout, so an exhausted allowance of our own is never misread as the embed timing out.
 

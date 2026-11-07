@@ -51,6 +51,18 @@ describe('nextVerificationState', () => {
     expect(t.disable).toBe(false)
   })
 
+  it('counts no strike for a press of Check, however many fail', () => {
+    let state: CanonicalVerification = { verified, failureCount: 1, attempts: [] }
+    for (let i = 0; i < CANONICAL_FAILURE_LIMIT + 1; i++) {
+      const t = nextVerificationState({ current: state, result: failed, now, countsStrikes: false })
+      expect(t.disable).toBe(false)
+      state = t.verification
+    }
+    expect(state.failureCount).toBe(1)
+    expect(state.verified).toEqual(verified)
+    expect(state.attempts).toHaveLength(CANONICAL_FAILURE_LIMIT + 1)
+  })
+
   it('disables on the third consecutive failure and not the second', () => {
     let state: CanonicalVerification = { verified, failureCount: 0, attempts: [] }
     const disables: boolean[] = []

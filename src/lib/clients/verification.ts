@@ -163,6 +163,11 @@ export const EMPTY_VERIFICATION: CanonicalVerification = {
  * - **inconclusive** — logged, but the counter and the last good snapshot are
  *   left exactly as they were; retry in an hour.
  *
+ * ⚠ **A strike is the scheduled run's alone** (`countsStrikes`). A press of
+ * Check is an observation: its failure is logged and retried like an
+ * inconclusive one, so pressing on a broken page cannot run the budget down
+ * and release ownership early. Its success still resets the counter.
+ *
  * `verified` is deliberately **not** cleared on failure. It is the last thing we
  * actually confirmed, and keeping it lets the admin panel say what is now broken
  * rather than going blank at the moment that matters most.
@@ -171,8 +176,10 @@ export function nextVerificationState(args: {
   current: CanonicalVerification | null | undefined
   result: VerificationResult
   now: Date
+  /** `false` for a press of Check; see above. */
+  countsStrikes?: boolean
 }): VerificationTransition {
-  const { current, result, now } = args
+  const { current, result, now, countsStrikes = true } = args
   const previous = current ?? EMPTY_VERIFICATION
   const at = now.toISOString()
 
@@ -183,7 +190,7 @@ export function nextVerificationState(args: {
   }
   const attempts = [attempt, ...previous.attempts].slice(0, MAX_VERIFICATION_ATTEMPTS)
 
-  if (result.status === 'inconclusive') {
+  if (result.status === 'inconclusive' || (result.status === 'failed' && !countsStrikes)) {
     return {
       verification: { ...previous, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INCONCLUSIVE_RETRY_MS).toISOString(),
