@@ -3158,6 +3158,7 @@ export interface MeditationTranscript {
     | 'hu'
     | 'nl';
   segments?: TranscriptSegments;
+  segmentCount?: number | null;
   job?: (number | null) | PayloadJob;
   status?: ('processing' | 'completed' | 'failed') | null;
   error?: string | null;
@@ -4475,6 +4476,7 @@ export interface MeditationTranscriptsSelect<T extends boolean = true> {
   provider?: T;
   language?: T;
   segments?: T;
+  segmentCount?: T;
   job?: T;
   status?: T;
   error?: T;

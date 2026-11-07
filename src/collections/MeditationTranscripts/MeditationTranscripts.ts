@@ -14,6 +14,7 @@ import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'
+import { stampSegmentCount } from './hooks/stampSegmentCount'
 import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from './status'
 
 /**
@@ -91,12 +92,13 @@ export const MeditationTranscripts: CollectionConfig = {
   },
   hooks: {
     afterChange: [queueTranscription],
-    beforeChange: [applyGlossaryToSegments],
+    beforeChange: [applyGlossaryToSegments, stampSegmentCount],
     // `status` and `error` are derived on read, so a `select` naming either
     // without their inputs made every finished transcript read `failed`
-    // (#1084). `segments` is the costly one: a reader selecting `status` is
-    // served the cues too, because nothing can select a field for a hook alone.
-    beforeOperation: [ensureVirtualFieldDeps({ status: ['segments', 'job'], error: ['job'] })],
+    // (#1084). `status` reads the stored `segmentCount` rather than the cues,
+    // so a reader asking whether a transcript is ready is no longer served the
+    // whole `segments` column to hear it.
+    beforeOperation: [ensureVirtualFieldDeps({ status: ['segmentCount', 'job'], error: ['job'] })],
   },
   fields: [
     {
@@ -137,6 +139,14 @@ export const MeditationTranscripts: CollectionConfig = {
       schema: transcriptSegmentsSchema.nullable(),
     }),
     {
+      // How many cues `segments` holds, written by `stampSegmentCount` on every
+      // write that names the column. It exists so `status` can be derived
+      // without co-selecting the cues — see that hook, and `status.ts`.
+      name: 'segmentCount',
+      type: 'number',
+      admin: { hidden: true, readOnly: true },
+    },
+    {
       // The run, kept so a reader can see what happened to it.
       // `deleteJobOnComplete` is off for this reason (`payload.config.ts`).
       //
@@ -159,7 +169,7 @@ export const MeditationTranscripts: CollectionConfig = {
       hooks: {
         afterRead: [
           async ({ data, req }) =>
-            deriveTranscriptStatus(data?.segments, await loadTranscriptJob(req, data?.job)),
+            deriveTranscriptStatus(data?.segmentCount, await loadTranscriptJob(req, data?.job)),
         ],
       },
     },

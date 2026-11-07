@@ -317,10 +317,10 @@ describe('meditation transcripts', () => {
   })
 
   /**
-   * `status` and `error` are computed on read from `segments` and the job row,
-   * and `select` strips a stored field before the afterRead field hooks run. So
-   * a caller selecting `status` alone was told every finished transcript had
-   * failed — all 121 of production's completed rows (#1084).
+   * `status` and `error` are computed on read from the stored cue count and the
+   * job row, and `select` strips a stored field before the afterRead field
+   * hooks run. So a caller selecting `status` alone was told every finished
+   * transcript had failed — all 121 of production's completed rows (#1084).
    */
   describe('the derived status survives a select', () => {
     const createCompleted = async () => {
@@ -364,6 +364,44 @@ describe('meditation transcripts', () => {
 
       expect(selected.docs[0]?.status).toBe(whole.docs[0]?.status)
       expect(selected.docs[0]?.status).toBe('completed')
+    })
+
+    it('answers completed without sending the cues back', async () => {
+      const row = await createCompleted()
+
+      const selected = await payload.findByID({
+        collection: 'meditation-transcripts',
+        id: row.id,
+        select: { status: true },
+      })
+
+      // The stored count is what buys this (#1087 review): a client feed
+      // asking whether a transcript is ready was served every cue in it, and
+      // this collection is reachable with a client key.
+      expect(selected.status).toBe('completed')
+      expect(selected.segments).toBeUndefined()
+    })
+
+    it('stamps the count on every write that names the cues', async () => {
+      const row = await createCompleted()
+
+      const cleared = await payload.update({
+        collection: 'meditation-transcripts',
+        id: row.id,
+        data: { segments: null },
+        overrideAccess: true,
+      })
+      const renamed = await payload.update({
+        collection: 'meditation-transcripts',
+        id: row.id,
+        data: { audioFilename: 'replaced.mp3' },
+        overrideAccess: true,
+      })
+
+      expect(row.segmentCount).toBe(1)
+      expect(cleared.segmentCount).toBe(0)
+      // A patch naming no cues leaves the count where the last cue write put it.
+      expect(renamed.segmentCount).toBe(0)
     })
 
     /**

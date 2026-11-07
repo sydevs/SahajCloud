@@ -111,6 +111,7 @@ import * as migration_20261104_180154_routing_region from './20261104_180154_rou
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
 import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
+import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 
 export const migrations = [
   {
@@ -676,6 +677,11 @@ export const migrations = [
   {
     up: migration_20261105_201411_atlas_digests_and_homes.up,
     down: migration_20261105_201411_atlas_digests_and_homes.down,
-    name: '20261105_201411_atlas_digests_and_homes'
+    name: '20261105_201411_atlas_digests_and_homes',
+  },
+  {
+    up: migration_20261107_213230_transcript_segment_count.up,
+    down: migration_20261107_213230_transcript_segment_count.down,
+    name: '20261107_213230_transcript_segment_count'
   },
 ];

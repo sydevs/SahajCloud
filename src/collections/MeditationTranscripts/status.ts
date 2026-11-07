@@ -17,12 +17,19 @@ import type { PayloadJob } from '@/payload-types'
  * `completed` is decided by the cues, not by the job: a job may finish having
  * written nothing (its recording was replaced mid-flight), and cues are what a
  * reader came for.
+ *
+ * It reads the **stored count** rather than the cues themselves, so a reader
+ * selecting `status` is not served the whole `segments` column to answer one
+ * question (`hooks/stampSegmentCount.ts`). A count predating that column is
+ * null, which reads as "no cues" — the backfill in
+ * `20261107_*_transcript_segment_count` is what keeps that from mislabelling a
+ * finished transcript.
  */
 export function deriveTranscriptStatus(
-  segments: unknown,
+  segmentCount: unknown,
   job: Pick<PayloadJob, 'completedAt' | 'hasError'> | null,
 ): TranscriptStatus {
-  if (Array.isArray(segments) && segments.length > 0) return 'completed'
+  if (typeof segmentCount === 'number' && segmentCount > 0) return 'completed'
   // No job row is itself a failure: the row is created by the save that adds a
   // recording and the queue write follows it, so a row without one means that
   // write never landed.
