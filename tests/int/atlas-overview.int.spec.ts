@@ -418,7 +418,7 @@ describe('Atlas overview', () => {
     it('offers to add a region manager rather than to verify', async () => {
       const data = await load()
       const row = data.items.rows.docs[0]!
-      expect(row.line).toMatch(/· no region manager$/)
+      expect(row.lines).toContain('No region manager')
       expect(row.action).toMatchObject({
         href: expect.stringContaining('/admin/collections/regions/'),
         label: 'Add region manager',

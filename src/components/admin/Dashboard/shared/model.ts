@@ -16,8 +16,8 @@ export interface OpenItemsRow {
   subtitle: string
   href: string
   statuses: Pick<OpenItemStatus, 'key' | 'label' | 'pill'>[]
-  /** The placing status's line, the one that says why the row is where it is. */
-  line: string
+  /** The placing status's lines, the ones that say why the row is where it is. */
+  lines: string[]
   action: null | { href: string; label: string }
 }
 

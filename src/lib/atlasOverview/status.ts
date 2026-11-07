@@ -46,8 +46,8 @@ export interface OpenItemStatus {
   /** The pill's text, or the text beside the tick for `up-to-date`. */
   label: string
   pill: OpenItemPill
-  /** What the pill means here; a row shows only its placing status's line. */
-  line: string
+  /** What the pill means here, one fact per line; a row shows only its placing status's. */
+  lines: string[]
   /** Lower comes first. */
   rank: number
   filter: OpenItemFilter | null
@@ -162,14 +162,14 @@ export type OpenItemStatusKey = keyof typeof STATUS_TABLE
 
 function status(
   key: OpenItemStatusKey,
-  own: Pick<OpenItemStatus, 'action' | 'line'> &
+  own: Pick<OpenItemStatus, 'action' | 'lines'> &
     Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'rank'>>,
 ): OpenItemStatus {
   return { key, ...STATUS_TABLE[key], ...own }
 }
 
-function regionNote(event: OpenItemEvent): string {
-  return event.unmanagedRegionId === undefined ? '' : ' · no region manager'
+function regionNote(event: OpenItemEvent): string[] {
+  return event.unmanagedRegionId === undefined ? [] : ['No region manager']
 }
 
 /** An admin's next step: nobody will verify a listing for a manager who does not exist. */
@@ -193,9 +193,9 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (stage === 'finished') {
     return [
       status('finished', {
-        line: event.scheduleEnd
-          ? `Ended ${shortDate(event.scheduleEnd)}`
-          : 'The schedule has ended',
+        lines: [
+          event.scheduleEnd ? `Ended ${shortDate(event.scheduleEnd)}` : 'The schedule has ended',
+        ],
         action: null,
       }),
     ]
@@ -211,7 +211,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
     ).toISOString()
     statuses.push(
       status('overdue', {
-        line: `Unpublishes ${shortDate(due)}${regionNote(event)}`,
+        lines: [`Unpublishes ${shortDate(due)}`, ...regionNote(event)],
         ...(stage === 'urgent' && { rank: 0 }),
         action: addRegionManager(event) ?? eventAction(event, 'Verify'),
         deadline: due,
@@ -222,12 +222,10 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (event.proposal) {
     statuses.push(
       status('change-proposed', {
-        line: [
+        lines: [
           fieldList(event.proposal.changedFields),
-          `received ${shortDate(event.proposal.receivedAt)}`,
-        ]
-          .filter(Boolean)
-          .join(' · '),
+          `Received ${shortDate(event.proposal.receivedAt)}`,
+        ].filter(Boolean),
         action: {
           label: 'Review',
           target: { collection: 'user-submissions', id: event.proposal.id },
@@ -241,7 +239,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (stage === 'unverified' && !event.hasManager) {
     statuses.push(
       status('no-manager', {
-        line: event.unmanagedRegionId === undefined ? '' : 'No region manager',
+        lines: regionNote(event),
         action: addRegionManager(event) ?? eventAction(event, 'Assign manager'),
         deadline: null,
       }),
@@ -253,9 +251,11 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
     statuses.push(
       status('recommendations', {
         label: `${count} recommendation${count === 1 ? '' : 's'}`,
-        line: event.recommendations?.length
-          ? event.recommendations.join(', ')
-          : `${count} thing${count === 1 ? '' : 's'} would make this listing easier to find`,
+        lines: [
+          event.recommendations?.length
+            ? event.recommendations.join(', ')
+            : `${count} thing${count === 1 ? '' : 's'} would make this listing easier to find`,
+        ],
         action: eventAction(event, 'Improve listing'),
       }),
     )
@@ -264,7 +264,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (event.draft) {
     statuses.push(
       status('draft', {
-        line: `Last edited ${shortDate(event.updatedAt)}`,
+        lines: [`Last edited ${shortDate(event.updatedAt)}`],
         action: eventAction(event, 'Continue editing'),
       }),
     )
@@ -273,9 +273,10 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (stage === 'expired') {
     statuses.push(
       status('expired', {
-        line: event.nextCheckAt
-          ? `Deleted on ${shortDate(event.nextCheckAt)}${regionNote(event)}`
-          : `Unpublished${regionNote(event)}`,
+        lines: [
+          event.nextCheckAt ? `Deleted on ${shortDate(event.nextCheckAt)}` : 'Unpublished',
+          ...regionNote(event),
+        ],
         action: addRegionManager(event) ?? eventAction(event, 'Verify'),
         deadline: event.nextCheckAt ?? null,
       }),
@@ -285,7 +286,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (statuses.length === 0) {
     statuses.push(
       status('up-to-date', {
-        line: event.nextCheckAt ? `Next check ${shortDate(event.nextCheckAt)}` : '',
+        lines: event.nextCheckAt ? [`Next check ${shortDate(event.nextCheckAt)}`] : [],
         action: null,
       }),
     )
@@ -338,14 +339,17 @@ export function openItem(row: OpenItemRow, now: Date): OpenItem {
       : row.kind === 'proposal'
         ? [
             status('class-proposed', {
-              line: `Received ${shortDate(row.receivedAt)}`,
+              lines: [`Received ${shortDate(row.receivedAt)}`],
               action: review,
               deadline: row.receivedAt,
             }),
           ]
         : [
             status('confirmed-spam-pending', {
-              line: [row.reason, shortDate(row.receivedAt)].filter(Boolean).join(' · '),
+              lines: [
+                row.reason.charAt(0).toUpperCase() + row.reason.slice(1),
+                `Received ${shortDate(row.receivedAt)}`,
+              ],
               action: review,
               deadline: row.receivedAt,
             }),

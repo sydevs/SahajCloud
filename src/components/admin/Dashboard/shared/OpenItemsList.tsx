@@ -129,7 +129,13 @@ export function OpenItemsList({
                           <StatusPill key={status.key} status={status} />
                         ))}
                       </div>
-                      {row.line ? <p>{row.line}</p> : null}
+                      {row.lines.length > 0 && (
+                        <div>
+                          {row.lines.map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )),
                 ),

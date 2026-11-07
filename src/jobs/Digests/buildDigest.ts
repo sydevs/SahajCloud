@@ -123,7 +123,7 @@ export function toEmailRow(item: OpenItem): ItemTableRow {
         : null,
     // The item itself, as on the dashboard; the next step links where it is taken.
     href: adminDocUrl(item.row.kind === 'event' ? 'events' : 'user-submissions', item.row.id),
-    line: placing.line || undefined,
+    lines: placing.lines,
     statuses: item.statuses.map((status) => ({ pillStyle: pillFor(status), text: status.label })),
     subtitle: item.row.kind === 'event' ? item.row.timing || undefined : undefined,
     title: item.row.title,

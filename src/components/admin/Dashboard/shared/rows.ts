@@ -21,7 +21,7 @@ function toRow(item: OpenItem): OpenItemsRow {
     href: adminDocPath(own, item.row.id),
     id: `${item.row.kind}-${item.row.id}`,
     kind: item.row.kind,
-    line: item.placing.line,
+    lines: item.placing.lines,
     statuses: item.statuses.map(({ key, label, pill }) => ({ key, label, pill })),
     subtitle: item.row.kind === 'event' ? (item.row.timing ?? '') : '',
     title: item.row.title,

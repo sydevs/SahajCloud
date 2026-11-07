@@ -50,7 +50,7 @@ describe('openItem', () => {
       const status = only(
         event({ nextCheckAt: '2026-11-09T00:00:00.000Z', verificationStage: 'urgent' }),
       )
-      expect(status.line).toBe('Unpublishes 9 Nov 2026')
+      expect(status.lines).toEqual(['Unpublishes 9 Nov 2026'])
     })
 
     /** Three stages, one thing to do; `sortOpenItems` pins `urgent` jumping the queue. */
@@ -78,7 +78,7 @@ describe('openItem', () => {
         rank: 1,
         counts: true,
       })
-      expect(status.line).toBe('Address, Schedule · received 3 Nov 2026')
+      expect(status.lines).toEqual(['Address, Schedule', 'Received 3 Nov 2026'])
       expect(status.action).toEqual({
         label: 'Review',
         target: { collection: 'user-submissions', id: 42 },
@@ -95,7 +95,7 @@ describe('openItem', () => {
           },
         }),
       )
-      expect(status.line).toBe('Address, Schedule, Title +2 more · received 3 Nov 2026')
+      expect(status.lines).toEqual(['Address, Schedule, Title +2 more', 'Received 3 Nov 2026'])
     })
 
     it('reads a new class proposal as its own row', () => {
@@ -111,7 +111,7 @@ describe('openItem', () => {
         label: 'New event proposed',
         rank: 1,
       })
-      expect(status.line).toBe('Received 2 Nov 2026')
+      expect(status.lines).toEqual(['Received 2 Nov 2026'])
     })
 
     /** In no filter: an admin's list is the only one that holds these. */
@@ -129,7 +129,7 @@ describe('openItem', () => {
         label: 'Flagged as spam',
         counts: true,
       })
-      expect(status.line).toBe('repeatedly refused sender · 4 Nov 2026')
+      expect(status.lines).toEqual(['Repeatedly refused sender', 'Received 4 Nov 2026'])
     })
 
     it('asks for a manager on an unadopted listing', () => {
@@ -144,7 +144,7 @@ describe('openItem', () => {
         target: { collection: 'events', id: 1 },
       })
       // When it was added says nothing the pill does not.
-      expect(status.line).toBe('')
+      expect(status.lines).toEqual([])
     })
 
     it('does not ask for a manager on a denied listing', () => {
@@ -167,19 +167,19 @@ describe('openItem', () => {
     })
 
     it("uses the failed checks' own labels where the reader paid for them", () => {
-      expect(only(event({ qualityOpenCount: 1 })).line).toBe(
+      expect(only(event({ qualityOpenCount: 1 })).lines).toEqual([
         '1 thing would make this listing easier to find',
-      )
+      ])
       expect(
         only(event({ qualityOpenCount: 2, recommendations: ['Add photos', 'Add a description'] }))
-          .line,
-      ).toBe('Add photos, Add a description')
+          .lines,
+      ).toEqual(['Add photos, Add a description'])
     })
 
     it('offers a draft the edit it was left in the middle of', () => {
       const status = only(event({ draft: true }))
       expect(status).toMatchObject({ filter: 'review', key: 'draft', pill: 'light-gray', rank: 5 })
-      expect(status.line).toBe('Last edited 1 Nov 2026')
+      expect(status.lines).toEqual(['Last edited 1 Nov 2026'])
       expect(status.action?.label).toBe('Continue editing')
     })
 
@@ -188,13 +188,13 @@ describe('openItem', () => {
         event({ nextCheckAt: '2026-11-19T00:00:00.000Z', verificationStage: 'expired' }),
       )
       expect(status).toMatchObject({ filter: 'overdue', key: 'expired', rank: 6 })
-      expect(status.line).toBe('Deleted on 19 Nov 2026')
+      expect(status.lines).toEqual(['Deleted on 19 Nov 2026'])
     })
 
     it('draws the tick, not a pill, for a listing with nothing open', () => {
       const status = only(event({ nextCheckAt: '2026-12-01T00:00:00.000Z' }))
       expect(status).toMatchObject({ counts: false, key: 'up-to-date', pill: 'check', rank: 7 })
-      expect(status.line).toBe('Next check 1 Dec 2026')
+      expect(status.lines).toEqual(['Next check 1 Dec 2026'])
       expect(status.action).toBeNull()
     })
 
@@ -203,7 +203,7 @@ describe('openItem', () => {
         event({ scheduleEnd: '2026-09-30T00:00:00.000Z', verificationStage: 'finished' }),
       )
       expect(status).toMatchObject({ counts: false, key: 'finished', rank: 8 })
-      expect(status.line).toBe('Ended 30 Sept 2026')
+      expect(status.lines).toEqual(['Ended 30 Sept 2026'])
       expect(status.action).toBeNull()
     })
   })
@@ -231,7 +231,7 @@ describe('openItem', () => {
 
     it('says no region manager, and offers to add one', () => {
       const status = only(unmanaged)
-      expect(status.line).toMatch(/· no region manager$/)
+      expect(status.lines).toContain('No region manager')
       expect(status.action).toEqual({
         label: 'Add region manager',
         target: { collection: 'regions', id: 9 },

@@ -31,8 +31,8 @@ export interface ItemTableRow {
   href: string
   /** Pills, most urgent first. */
   statuses: { pillStyle: StatusPillStyle; text: string }[]
-  /** The most urgent status's line, under the pills — the dashboard's own. */
-  line?: string
+  /** The most urgent status's lines, one fact each, under the pills — the dashboard's own. */
+  lines?: string[]
   /** When an event meets, as the dashboard shows under its title. */
   subtitle?: string
   title: string
@@ -151,7 +151,11 @@ function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
                 </Fragment>
               ))}
             </Text>
-            {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
+            {row.lines?.map((line) => (
+              <Text key={line} style={itemLine}>
+                {line}
+              </Text>
+            ))}
           </Column>
         </Row>
       ))}
@@ -284,7 +288,7 @@ export function DigestEmail({
 
       {openItems ? (
         <>
-          <SectionHeading>Open items</SectionHeading>
+          <SectionHeading>Need your attention</SectionHeading>
           <ItemTable accent={accent} rows={openItems.rows} />
           {closingNote ? (
             <Text style={styles.hint}>
