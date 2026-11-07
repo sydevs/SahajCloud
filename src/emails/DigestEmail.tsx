@@ -26,8 +26,8 @@ export type StatusPillStyle = keyof typeof PILL_COLORS
 
 /** One open item: title, schedule and next step on the left; pills and their line on the right. */
 export interface ItemTableRow {
-  /** The next step as a sentence, its opening words linked to the page that takes it. */
-  action?: null | { after: string; href: string; link: string }
+  /** The next step as a sentence, its link to the page that takes it. */
+  action?: null | { after: string; before?: string; href: string; link: string }
   href: string
   /** Pills, most urgent first. */
   statuses: { pillStyle: StatusPillStyle; text: string }[]
@@ -128,6 +128,7 @@ function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
             {row.subtitle ? <Text style={itemSubtitle}>{row.subtitle}</Text> : null}
             {row.action ? (
               <Text style={itemAction}>
+                {row.action.before}
                 <Link href={row.action.href} style={{ color: accent }}>
                   {row.action.link}
                 </Link>

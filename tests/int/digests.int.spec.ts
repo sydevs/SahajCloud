@@ -427,9 +427,9 @@ describe('SendDigests job', () => {
       const html = String(sent[0]!.html)
       expect(html).toContain('Essonne Digest Site')
       expect(html).toContain('Search problem')
-      expect(html).toContain('Page title')
+      expect(html).toContain('Google is unable to read your map embed')
+      expect(html).toContain('There is an issue with your map embed.')
       expect(html).not.toContain('Classes')
-      expect(html).toContain('Nobody visiting the site is affected')
       expect(html).toContain(`/admin/collections/clients/${client.id}/install`)
       expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
 

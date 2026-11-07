@@ -10,7 +10,6 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
-import type { SeoCheckId } from '@/lib/clients/verification'
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
@@ -92,8 +91,7 @@ export type OpenItemRow =
       kind: 'service'
       id: number
       title: string
-      /** The checks failing on the last run, each once whatever the pages. */
-      checks: SeoCheckId[]
+      /** When the checks that failed last ran. */
       checkedAt: string
     }
 
@@ -315,30 +313,17 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
 }
 
 /** What each SEO check is, as a line names it. */
-/** What each SEO check is, as a line names it, in the order the checks run. */
-const SEO_CHECK_LABELS: Record<SeoCheckId, string> = {
-  title: 'Page title',
-  canonical: 'Canonical link',
-  'json-ld': 'Structured data',
-  body: 'Page text',
-  sitemap: 'Sitemap entry',
-}
-
 /**
  * A live atlas that stopped publishing the metadata we gave it (#1055) — a
- * warning, never an outage, which is why the prompt says nobody visiting is
- * affected. The lines name the checks alone, as a proposal's name its fields:
- * which page failed, and why, is the Install tab's to say.
+ * warning, never an outage. Said in a volunteer's terms: which page failed, and
+ * which check, is the Install tab's to say, and the row links there.
  */
 function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
-  const checks = (Object.keys(SEO_CHECK_LABELS) as SeoCheckId[])
-    .filter((check) => row.checks.includes(check))
-    .map((check) => SEO_CHECK_LABELS[check])
   return [
     status('search-problem', {
-      lines: [fieldList(checks), `Checked ${shortDate(row.checkedAt)}`],
+      lines: ['Google is unable to read your map embed', `Checked ${shortDate(row.checkedAt)}`],
       action: {
-        label: 'Open the Install tab',
+        label: 'Review',
         target: { collection: 'clients', id: row.id, view: 'install' },
       },
     }),
@@ -354,6 +339,8 @@ export function rowTarget(row: OpenItemRow): OpenItemTarget {
 
 /** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
 export interface ActionPrompt {
+  /** Words ahead of the link, for a prompt that says what is wrong first. */
+  before?: string
   link: string
   after: string
 }
@@ -371,8 +358,9 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
   'search-problem': {
-    link: 'Open the Install tab',
-    after: ' to see which setup step to redo. Nobody visiting the site is affected.',
+    before: 'There is an issue with your map embed. ',
+    link: 'Review it',
+    after: '',
   },
 }
 

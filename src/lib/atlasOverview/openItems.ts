@@ -291,7 +291,6 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
         kind: 'service',
         id: doc.id,
         title: doc.name?.trim() || 'Untitled service',
-        checks: [...new Set(failures.map((failure) => failure.check))],
         checkedAt: seo.at,
       },
     ]

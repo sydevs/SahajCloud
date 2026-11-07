@@ -296,41 +296,32 @@ describe('openItem', () => {
   })
 
   describe('a service with failing SEO checks (#1055)', () => {
-    const service = (checks: Extract<OpenItemRow, { kind: 'service' }>['checks']): OpenItemRow => ({
+    const service: OpenItemRow = {
       checkedAt: '2026-11-04T07:00:00.000Z',
-      checks,
       id: 43,
       kind: 'service',
       title: 'Yoga Essonne',
-    })
+    }
 
-    it('names the failing checks, in the order they run, and sends the reader to the Install tab', () => {
-      const item = openItem(service(['sitemap', 'title']), NOW)
+    it('says what is wrong in plain words, and sends the reader to the Install tab', () => {
+      const item = openItem(service, NOW)
       expect(item.placing).toMatchObject({
-        action: {
-          label: 'Open the Install tab',
-          target: { collection: 'clients', id: 43, view: 'install' },
-        },
+        action: { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } },
         key: 'search-problem',
         label: 'Search problem',
-        lines: ['Page title, Sitemap entry', 'Checked 4 Nov 2026'],
+        lines: ['Google is unable to read your map embed', 'Checked 4 Nov 2026'],
         pill: 'warning',
       })
       expect(item.since).toBe('2026-11-04T07:00:00.000Z')
       expect(rowTarget(item.row)).toEqual({ collection: 'clients', id: 43, view: 'install' })
     })
 
-    it('says nobody visiting is affected, where there is room for a sentence', () => {
-      const item = openItem(service(['body']), NOW)
-      expect(actionPrompt(item.placing)).toEqual({
-        after: ' to see which setup step to redo. Nobody visiting the site is affected.',
-        link: 'Open the Install tab',
+    it('names the problem before the link, where there is room for a sentence', () => {
+      expect(actionPrompt(openItem(service, NOW).placing)).toEqual({
+        after: '',
+        before: 'There is an issue with your map embed. ',
+        link: 'Review it',
       })
-    })
-
-    it('counts the checks past three rather than listing every one', () => {
-      const item = openItem(service(['body', 'canonical', 'json-ld', 'sitemap', 'title']), NOW)
-      expect(item.placing.lines[0]).toBe('Page title, Canonical link, Structured data +2 more')
     })
   })
 
