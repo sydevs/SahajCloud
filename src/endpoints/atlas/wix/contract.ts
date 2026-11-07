@@ -108,6 +108,10 @@ export const wixRouteResponse = z.object({
             'Wix Multilingual the `hreflang` cluster, and ours beside them would give the ' +
             'page two canonicals.',
         ),
+      // ⚠ Objects, not the pre-escaped string `/api/atlas/seo` hands WordPress,
+      // because Wix serializes them itself and escapes `<` and `>` as `\u003C`
+      // and `\u003E` — so a manager's `</script>` in a title cannot close the
+      // tag. Checked against a Velo router on a Wix test site, 2026-11-06.
       structuredData: z
         .array(z.looseObject({}))
         .describe(
