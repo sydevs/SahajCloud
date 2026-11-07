@@ -12,6 +12,7 @@ import {
 } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
+import { mergeRepeatRegistration } from '@/collections/UserSubmissions/hooks/mergeRepeatRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
 import { resolveProposalRegion } from '@/collections/UserSubmissions/hooks/resolveProposalRegion'
@@ -285,6 +286,9 @@ export const formsPlugin = (): Plugin => async (config) => {
             hooks: {
               ...collection.hooks,
               afterChange: [
+                // First: it may swap in an existing registration as `doc`,
+                // which every hook below must act on (the hook says why).
+                mergeRepeatRegistration,
                 spawnSubscribeFromRegistration,
                 syncFullnessAfterChange,
                 syncCommunityFeedback,

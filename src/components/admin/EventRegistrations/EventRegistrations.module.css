@@ -2,6 +2,10 @@
 .registrations {
   margin: var(--base) 0 calc(var(--base) * 2);
 }
+/* End-aligned whether or not the filters render beside it. */
+.csv {
+  margin-inline-start: auto;
+}
 .name {
   font-weight: 550;
 }
@@ -25,4 +29,10 @@
 }
 .answers div:last-child dd {
   margin-bottom: 0;
+}
+.recommendations {
+  margin: 0;
+  padding-left: calc(var(--base) * 1.25);
+  text-align: left;
+  color: var(--theme-text);
 }

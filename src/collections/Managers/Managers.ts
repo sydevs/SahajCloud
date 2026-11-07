@@ -21,6 +21,10 @@ export const Managers: CollectionConfig = {
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
   auth: {
+    // 24 hours, in seconds (Payload's default is 2). It bounds the JWT, the
+    // session row and the cookie alike, and `createSession` reads it, so a
+    // sign-in link's session lasts as long.
+    tokenExpiration: 60 * 60 * 24,
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
     // accepted/not-accepted flag the invitation flow turns on. `loginPlugin`
