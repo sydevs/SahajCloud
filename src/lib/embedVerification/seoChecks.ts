@@ -366,7 +366,7 @@ export async function siteListsUrl(args: {
  * the stored, emailed verdict differs between "a document answered" and
  * "nothing did". A sitemap on another domain is deliberately not followed.
  *
- * ⚠ **The other half is {@link FetchPageOptions.sameHost}**, which applies this
+ * ⚠ **The other half is {@link FetchPageOptions.hosts}**, which applies this
  * to every redirect hop.
  */
 function onHost(raw: string, hosts: readonly string[]): string | null {
