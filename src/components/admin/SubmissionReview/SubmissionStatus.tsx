@@ -15,7 +15,7 @@ import React from 'react'
 
 import {
   OPEN_REVIEW_STATUSES,
-  SPAM_REVIEW_STATUSES,
+  isSpamStatus,
   STATUS_LABELS,
   VERDICT_LABELS,
 } from '@/collections/UserSubmissions/statuses'
@@ -134,7 +134,7 @@ function screeningLine(
   result: SubmissionScreeningResult | null | undefined,
   status: SubmissionStatus,
 ): string | null {
-  const refused = (SPAM_REVIEW_STATUSES as readonly SubmissionStatus[]).includes(status)
+  const refused = isSpamStatus(status)
   if (status !== 'pending' && !refused) return null
   const verdict = result?.verdict
   if (verdict && verdict in VERDICT_LABELS && verdict !== 'ok') {
@@ -174,11 +174,7 @@ export const SubmissionStatus: FieldClientComponent = () => {
     type === 'proposal' && status === 'accepted' && hasManager
       ? CREATED_WITH_MANAGER
       : COPY[type]?.[status]
-  const notes =
-    OPEN_REVIEW_STATUSES.includes(status) ||
-    (SPAM_REVIEW_STATUSES as readonly SubmissionStatus[]).includes(status)
-      ? notesOf(value)
-      : []
+  const notes = OPEN_REVIEW_STATUSES.includes(status) || isSpamStatus(status) ? notesOf(value) : []
   const screening = screeningLine(value, status)
 
   return (

@@ -15,7 +15,7 @@ import {
   useOperation,
   useTranslation,
 } from '@payloadcms/ui'
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback } from 'react'
 
 import { resolveStage, ruleApplies } from './stages'
 
@@ -58,24 +58,24 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, rules, stat
     statusField ? fields?.[statusField]?.value : undefined,
   )
 
-  const gateFields = useMemo(
-    () => [...new Set(rules.map((rule) => rule.when?.field).filter((f) => f !== undefined))],
-    [rules],
-  )
-  // Its own subscription, not a tuple selector beside the status: a selector
-  // returning an object hands back a fresh reference on every form-state change
-  // and re-renders the button row on every keystroke. So it returns the gates
-  // as JSON — one string, compared by value — and the record is rebuilt from it
-  // only when one of those fields actually changes. `equals` is a scalar by
-  // contract, so nothing a rule can test is lost in the round trip.
-  const gateJson = useFormFields(([fields]) =>
-    JSON.stringify(
-      Object.fromEntries(gateFields.map((name) => [name, fields?.[name]?.value ?? null])),
-    ),
-  )
-  const gates = useMemo(() => JSON.parse(gateJson) as Record<string, unknown>, [gateJson])
   // `ClientUser` carries no `type` — it is a field of ours, not Payload's.
   const isAdmin = (user as null | { type?: unknown })?.type === 'admin'
+  const named = resolveStage({ operation, status, statusField })
+  // The first rule that both applies and names this stage, as an index: a
+  // selector returning a primitive re-renders only when the answer changes. A
+  // rule that applies but is silent about the stage falls through to the next,
+  // so an earlier rule narrows rather than claims. ⚠ A stage declared `[]` is
+  // named, so it still wins and renders nothing; that is what keeps "no action
+  // here" from reading as "not my kind of document", which would restore Save.
+  const ruleIndex = useFormFields(([fields]) =>
+    named === undefined
+      ? -1
+      : rules.findIndex(
+          (rule) =>
+            rule.stages[named] !== undefined &&
+            ruleApplies(rule.when, { field: (name) => fields?.[name]?.value ?? null, isAdmin }),
+        ),
+  )
 
   const run = useCallback(
     (action: WorkflowButton) => {
@@ -85,21 +85,7 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, rules, stat
     [submit],
   )
 
-  const named = resolveStage({ operation, status, statusField })
-  // The first rule that both applies and names this stage. A rule that applies
-  // but is silent about the stage falls through to the next, so an earlier rule
-  // narrows rather than claims — and a stage no applying rule names reaches the
-  // fallback below. ⚠ A stage declared `[]` is named, so it still wins and
-  // renders nothing; that is what keeps "no action here" from reading as "not
-  // my kind of document", which would restore the Save button.
-  const actions =
-    named === undefined
-      ? undefined
-      : rules.find(
-          (rule) =>
-            rule.stages[named] !== undefined &&
-            ruleApplies(rule.when, { field: (name) => gates[name], isAdmin }),
-        )?.stages[named]
+  const actions = ruleIndex < 0 ? undefined : rules[ruleIndex]!.stages[named!]
 
   if (!actions) {
     if (!fallback) return null

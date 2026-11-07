@@ -65,7 +65,7 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
           </Button>
         )}
       </FilterTabs>
-      <div id={LIST_ID} aria-live="polite">
+      <div id={LIST_ID}>
         {/* On `totalDocs`, not this page's rows: a hand-typed page past the end
             has none, and the pager that gets you back must still render. */}
         {registrations.totalDocs > 0 ? (

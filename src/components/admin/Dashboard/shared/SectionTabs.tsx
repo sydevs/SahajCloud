@@ -12,7 +12,7 @@ import styles from './Dashboard.module.css'
 import { sectionHref } from './model'
 import { Count } from '../../helpers/listControls'
 
-export interface SectionTab {
+interface SectionTab {
   /** `null` hides the count — a section that is not a to-do list. */
   count: null | number
   label: string
@@ -40,10 +40,10 @@ export function SectionTabs({
   const search = useSearchParams()?.toString() ?? ''
   return (
     <div className={`tabs-field__tabs ${styles.sections}`}>
-      <div className={styles.tabList} role="tablist">
+      <nav aria-label="Sections" className={styles.tabList}>
         {tabs.map((tab) => (
           <Link
-            aria-selected={tab.value === active}
+            aria-current={tab.value === active ? 'page' : undefined}
             className={
               tab.value === active
                 ? 'tabs-field__tab-button tabs-field__tab-button--active'
@@ -52,7 +52,6 @@ export function SectionTabs({
             href={sectionHref(search, tab.value)}
             key={tab.value}
             prefetch={false}
-            role="tab"
           >
             {tab.label}
             {tab.count === null ? null : tab.count === 0 ? (
@@ -64,7 +63,7 @@ export function SectionTabs({
             )}
           </Link>
         ))}
-      </div>
+      </nav>
       {/* ⚠ A native `<meter>` carries the value to assistive technology, and
           Payload's `ProgressBar` is the route-transition bar. `max` is never
           zero: an empty scope is 100% on track. */}

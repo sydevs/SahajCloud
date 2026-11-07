@@ -10,7 +10,7 @@ import { isAdminManager } from '@/plugins/access/adminOnly'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
-  SPAM_REVIEW_STATUSES,
+  isSpamStatus,
   STATUS_LABELS,
 } from '../statuses'
 import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
@@ -40,9 +40,6 @@ const isOpen = (status: UserSubmission['status']) =>
 const isReopenable = (status: UserSubmission['status']) =>
   (REOPENABLE_REVIEW_STATUSES as readonly string[]).includes(status)
 
-const isSpamRefusal = (status: UserSubmission['status']) =>
-  (SPAM_REVIEW_STATUSES as readonly string[]).includes(status)
-
 /**
  * Settling a spam refusal — the move that is an admin's rather than a
  * reviewer's.
@@ -65,7 +62,7 @@ function spamActionFor(
   to: UserSubmission['status'],
   reviewable: boolean,
 ): ReviewAction | null {
-  if (!isSpamRefusal(from)) return null
+  if (!isSpamStatus(from)) return null
   if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
   // ⚠ Withdrawing an admin's confirmed strike is an admin's call, on any intake.
   if (to === 'pending' && (from === 'confirmed_spam' || !reviewable)) return 'reopen'

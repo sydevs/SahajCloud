@@ -41,9 +41,12 @@ export async function getAtlasRegionData(
   const regionId = query.region || undefined
   const tree = await getRegionTree(req)
 
-  if (regionId !== undefined && managerId !== null) {
-    if (!(await resolveOwnedRegionIds(req, managerId)).includes(regionId)) return { allowed: false }
-  }
+  // `null` for an admin, who may open any region.
+  const owned =
+    regionId !== undefined && managerId !== null
+      ? new Set(await resolveOwnedRegionIds(req, managerId))
+      : null
+  if (owned && !owned.has(regionId!)) return { allowed: false }
 
   const scope: OverviewScope = { managerId, regionId, role: 'region' }
 
@@ -76,7 +79,7 @@ export async function getAtlasRegionData(
   return {
     ...base,
     allowed: true,
-    breadcrumbs: breadcrumbsFor(regionId, tree, admin),
+    breadcrumbs: breadcrumbsFor(regionId, tree, admin, owned),
     description: [
       regionId !== undefined && tree.chainById.has(regionId)
         ? nameOf(tree, regionId)
@@ -93,17 +96,22 @@ const nameOf = (tree: RegionTree, id: number) => tree.nameById.get(id)?.trim() |
 /**
  * "Sahaj Atlas › Germany" for an admin, "Your regions › Upper Bavaria" for a
  * manager — the trail says whose map this is before it says where in it.
+ * ⚠ An ancestor above a manager's own subtree is named but not linked: its home would refuse them.
  */
 function breadcrumbsFor(
   regionId: number | undefined,
   tree: RegionTree,
   admin: boolean,
+  owned: null | Set<number>,
 ): AtlasRegionHome['breadcrumbs'] {
   const root = { label: admin ? 'Sahaj Atlas' : 'Your regions', url: '/admin' }
   const chain = regionId === undefined ? undefined : tree.chainById.get(regionId)
   if (regionId === undefined || !chain) return [root]
   const trail = [...new Set(chain)]
     .filter((id) => id !== regionId && tree.chainById.has(id))
-    .map((id) => ({ label: nameOf(tree, id), url: `/admin?region=${id}` }))
+    .map((id) => ({
+      label: nameOf(tree, id),
+      ...((!owned || owned.has(id)) && { url: `/admin?region=${id}` }),
+    }))
   return [root, ...trail, { label: nameOf(tree, regionId) }]
 }

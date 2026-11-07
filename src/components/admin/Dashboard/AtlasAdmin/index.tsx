@@ -28,7 +28,7 @@ export default async function AtlasAdmin({ req, searchParams }: AtlasAdminProps)
     req,
     parseDashboardQuery(searchParams),
   )
-  const programs = statistics.analytics[0]?.value ?? 0
+  const programs = statistics.analytics.find((tile) => tile.key === 'programs')?.value ?? 0
 
   return (
     <section aria-label="Sahaj Atlas overview" className={styles.home}>

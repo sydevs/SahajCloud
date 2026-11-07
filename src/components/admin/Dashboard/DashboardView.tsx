@@ -14,6 +14,7 @@ import AtlasManager from './AtlasManager'
 import AtlasRegion from './AtlasRegion'
 import { CenteredNotice } from '../CenteredNotice'
 import ProjectSelectionPrompt from './ProjectSelectionPrompt'
+import { parseDashboardQuery } from './shared/model'
 
 /** `no-dashboard` carries its project, so the view needs no second read of it. */
 type DashboardChoice =
@@ -66,11 +67,12 @@ export default function DashboardView({
   switch (choice.kind) {
     case 'atlas-admin':
       // An admin following a row into a region reads that region's home.
-      content = searchParams?.region ? (
-        <AtlasRegion req={req} searchParams={searchParams} />
-      ) : (
-        <AtlasAdmin req={req} searchParams={searchParams} />
-      )
+      content =
+        parseDashboardQuery(searchParams).region > 0 ? (
+          <AtlasRegion req={req} searchParams={searchParams} />
+        ) : (
+          <AtlasAdmin req={req} searchParams={searchParams} />
+        )
       break
     case 'atlas-manager':
       content = <AtlasManager req={req} searchParams={searchParams} />

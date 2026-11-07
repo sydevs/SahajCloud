@@ -804,7 +804,7 @@ describe('User submission review lifecycle', () => {
   })
 
   /**
-   * One table, four intakes, one status vocabulary. `onlyWhen` keeps the review
+   * One table, four intakes, one status vocabulary. A rule's `when` keeps the review
    * buttons off the other three in the admin; this is the half a forged
    * `PATCH /api/user-submissions/:id` meets, which no button can enforce.
    */

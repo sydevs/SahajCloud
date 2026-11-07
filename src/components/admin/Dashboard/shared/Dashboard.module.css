@@ -1,5 +1,5 @@
 /* Layout the three Atlas homes share. Pills, buttons and the table come from
-   the CMS theme; nothing here restyles a Payload component. */
+   the CMS theme; the few Payload rules adjusted here say so beside them. */
 .home {
   margin: calc(var(--base) * 0.5) 0 calc(var(--base) * 2);
 }
@@ -116,9 +116,6 @@ a.tileLink:hover {
 .sections:global(.tabs-field__tabs)::after {
   display: none;
 }
-.sections .tick {
-  margin-inline-start: calc(var(--base) / 4);
-}
 
 .itemInfo a {
   font-weight: 550;
@@ -127,7 +124,7 @@ a.tileLink:hover {
 .itemInfo a:hover {
   text-decoration: underline;
 }
-.titled {
+.itemInfo {
   display: flex;
   align-items: flex-start;
   gap: calc(var(--base) / 3);

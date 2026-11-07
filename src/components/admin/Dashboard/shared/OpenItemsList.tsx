@@ -4,30 +4,29 @@ import { Banner, Button, CheckIcon, Pill, Table } from '@payloadcms/ui'
 import { CalendarDays, FilePlus, type LucideIcon, UserX } from 'lucide-react'
 import Link from 'next/link'
 
-import type { OpenItemFilter } from '@/lib/atlasOverview/filters'
-import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
-
 import styles from './Dashboard.module.css'
 import { IconTip } from './IconTip'
-import { type OpenItemsData, type OpenItemsRow, PAGE_LIMITS, type OpenItemTab } from './model'
+import {
+  OPEN_ITEM_TABS,
+  type OpenItemsData,
+  type OpenItemsRow,
+  PAGE_LIMITS,
+  type OpenItemTab,
+} from './model'
 import { FilterTabs, QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
 
 const LIST_ID = 'atlas-open-items'
 
-const FILTER_LABELS: Record<OpenItemFilter, string> = {
-  'no-manager': 'No manager',
+/** The filter row's labels; `OPEN_ITEM_TABS` holds the order a reader meets them in. */
+const FILTER_LABELS: Record<OpenItemTab, string> = {
+  all: 'All',
   overdue: 'Overdue',
-  recommendations: 'Recommendations',
   review: 'To review',
+  'no-manager': 'No manager',
+  recommendations: 'Recommendations',
+  mine: 'Your events',
 }
-
-/** The filter row, in the order a reader meets the problems behind it. */
-const FILTERS: { label: string; value: OpenItemTab }[] = [
-  { label: 'All', value: 'all' },
-  ...OPEN_ITEM_FILTERS.map((filter) => ({ label: FILTER_LABELS[filter], value: filter })),
-  { label: 'Your events', value: 'mine' },
-]
 
 const KIND: Record<OpenItemsRow['kind'], { icon: LucideIcon; label: string }> = {
   event: { icon: CalendarDays, label: 'Event' },
@@ -76,15 +75,15 @@ export function OpenItemsList({
   // `progress` is null for the admin alone, whose every row counts.
   const open = progress?.open ?? counts.all
 
-  const visible = FILTERS.filter((filter) => {
-    if (filter.value === 'all') return true
-    if (filter.value === 'mine') return Boolean(showMine) && counts.mine > 0
-    return counts[filter.value] > 0 || query.filter === filter.value
+  const visible = OPEN_ITEM_TABS.filter((tab) => {
+    if (tab === 'all' || query.filter === tab) return true
+    if (tab === 'mine') return Boolean(showMine) && counts.mine > 0
+    return counts[tab] > 0
   })
 
   return (
-    <div className={styles.list} id={LIST_ID}>
-      {/* All clear is about the counted rows: up-to-date programs still list under it. */}
+    <div className={styles.list}>
+      {/* All clear is about the counted rows: up-to-date events still list under it. */}
       {open === 0 && <Banner type="success">{emptyBanner}</Banner>}
       {counts.all > 0 && (
         <>
@@ -93,20 +92,21 @@ export function OpenItemsList({
               active={query.filter}
               controls={LIST_ID}
               label="Filter open items"
-              tabs={visible.map((filter) => ({
-                count: filter.value === 'all' ? counts.all : counts[filter.value],
-                ...filter,
+              tabs={visible.map((tab) => ({
+                count: tab === 'all' ? counts.all : counts[tab],
+                label: FILTER_LABELS[tab],
+                value: tab,
               }))}
             />
           )}
-          <div aria-live="polite">
+          <div id={LIST_ID}>
             <Table
               columns={[
                 tableColumn(
                   'item',
                   'Item',
                   docs.map((row) => (
-                    <div className={`${styles.itemInfo} ${styles.titled}`} key={row.id}>
+                    <div className={styles.itemInfo} key={row.id}>
                       <IconTip {...KIND[row.kind]} />
                       <div>
                         <Link href={row.href} prefetch={false}>

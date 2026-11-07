@@ -29,14 +29,9 @@ export const PAGE_LIMITS = [10, 25, 50, 100]
 const DEFAULT_LIMIT = 50
 
 /** The section a home is showing — its own tabs, not the filter row's. */
-export const DASHBOARD_SECTIONS = ['items', 'regions'] as const
+const DASHBOARD_SECTIONS = ['items', 'regions'] as const
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number]
 
-/**
- * ⚠ **A `type`, not an `interface`**: only a type literal satisfies
- * `useSetQuery`'s `Record<string, …>` constraint without an explicit index
- * signature, and that signature would accept every misspelled key.
- */
 export type DashboardQuery = {
   filter: OpenItemTab
   limit: number

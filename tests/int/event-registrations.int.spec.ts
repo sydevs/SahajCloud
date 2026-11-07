@@ -81,8 +81,7 @@ describe('Event registrations', () => {
       },
     })
     ownId = event.id
-    // The event the Registrations gate is about: `assignee` is its manager,
-    // and `owner` manages the region it sits in.
+    // Naming `assignee` on an event is what gives them the program role.
     await payload.create({
       collection: 'events',
       draft: true,
@@ -94,11 +93,6 @@ describe('Event registrations', () => {
       },
     })
     assignee = await testData.authUser(payload, assigned)
-    await payload.create({
-      collection: 'events',
-      draft: true,
-      data: { title: 'Unrelated draft', region: otherCity.id, eventType: 'offline' },
-    })
   })
   afterAll(async () => cleanup())
   const request = (user: AuthManager) =>

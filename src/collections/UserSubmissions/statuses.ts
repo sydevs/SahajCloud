@@ -82,6 +82,9 @@ export const SPAM_REVIEW_STATUSES = [
 
 export type SpamReviewStatus = (typeof SPAM_REVIEW_STATUSES)[number]
 
+export const isSpamStatus = (status: null | string | undefined): status is SpamReviewStatus =>
+  (SPAM_REVIEW_STATUSES as readonly (null | string | undefined)[]).includes(status)
+
 /**
  * Shelved without touching an event, so returning one to `pending` is safe.
  * Deliberately not `accepted`: that already wrote to an event, and reopening it

@@ -23,7 +23,7 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
     parseDashboardQuery(searchParams),
   )
 
-  if (!statistics.analytics[0]?.value) {
+  if (!statistics.analytics.find((tile) => tile.key === 'programs')?.value) {
     return (
       <section aria-label="Your events" className={styles.home}>
         <CenteredNotice

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { SUBMISSION_VERDICTS } from '@/collections/UserSubmissions/fields'
-import { SPAM_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
+import { isSpamStatus } from '@/collections/UserSubmissions/statuses'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -79,8 +79,5 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
  * the two honest.
  */
 export function isSpamStrike(submission: { status?: UserSubmission['status'] | null }): boolean {
-  return (
-    submission.status != null &&
-    (SPAM_REVIEW_STATUSES as readonly string[]).includes(submission.status)
-  )
+  return isSpamStatus(submission.status)
 }

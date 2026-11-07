@@ -499,7 +499,7 @@ wrapper does that the plugin's options cannot, and how a collection-wide
 admin slot branches per intake: `src/plugins/formBuilder/AGENTS.md`.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
-buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and
+buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule's `when` and
 fall through to the ordinary Save otherwise; `livePreview.url` sends the other
 three to the explanation page, with a reason that fits a row nobody reviews. A
 new slot owes the same branch — the field hooks behind one included, since

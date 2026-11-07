@@ -37,24 +37,27 @@ export function FilterTabs({
   const setQuery = useSetQuery<ListQuery>()
   return (
     <div className={styles.toolbar}>
-      <div aria-label={label} className="doc-tabs__tabs" role="group">
-        {tabs.map((tab) => (
-          <Button
-            buttonStyle="tab"
-            className={tab.value === active ? 'doc-tab doc-tab--active' : 'doc-tab'}
-            disabled={tab.value === active}
-            extraButtonProps={{ 'aria-controls': controls, 'aria-pressed': tab.value === active }}
-            key={tab.value}
-            margin={false}
-            onClick={() => setQuery({ filter: tab.value, page: 1 })}
-            size="medium"
-          >
-            <span className="doc-tab__label">
-              {tab.label}
-              <Count value={tab.count} />
-            </span>
-          </Button>
-        ))}
+      {/* Payload's wrapper scrolls the row, with its fade, on a narrow screen. */}
+      <div className="doc-tabs">
+        <div aria-label={label} className="doc-tabs__tabs" role="group">
+          {tabs.map((tab) => (
+            <Button
+              buttonStyle="tab"
+              className={tab.value === active ? 'doc-tab doc-tab--active' : 'doc-tab'}
+              disabled={tab.value === active}
+              extraButtonProps={{ 'aria-controls': controls, 'aria-pressed': tab.value === active }}
+              key={tab.value}
+              margin={false}
+              onClick={() => setQuery({ filter: tab.value, page: 1 })}
+              size="medium"
+            >
+              <span className="doc-tab__label">
+                {tab.label}
+                <Count value={tab.count} />
+              </span>
+            </Button>
+          ))}
+        </div>
       </div>
       {children}
     </div>

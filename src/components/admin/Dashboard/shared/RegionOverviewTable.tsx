@@ -77,7 +77,7 @@ export function RegionOverviewTable({
   if (docs.length === 0) {
     return (
       <CenteredNotice title={`No ${label.toLowerCase()} to show`}>
-        <p>Regions you look after will appear here once they hold an event.</p>
+        <p>Regions appear here once they hold an event.</p>
       </CenteredNotice>
     )
   }
@@ -93,7 +93,7 @@ export function RegionOverviewTable({
       <Table
         columns={[
           column('name', label, (row) => (
-            <div className={`${styles.itemInfo} ${styles.titled}`}>
+            <div className={styles.itemInfo}>
               {subtree ? (
                 <IconTip icon={LEVEL_ICON[row.level]} label={regionLevelLabel(row.level)} />
               ) : null}
