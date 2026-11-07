@@ -121,17 +121,43 @@ describe('atlas translations: the clock-label copy migration', () => {
     expect(stored.registration?.form?.privacy_policy).toBe(PRIVACY_BEFORE)
   })
 
-  it('never overwrites copy an editor wrote, in either direction', async () => {
+  it('never overwrites copy an editor wrote', async () => {
     await seedEnglish({ captcha: 'Edited by hand.', zoneTime: '%{city} clock' })
 
     await run(up)
-    let stored = await english()
+    const stored = await english()
     expect(stored.common?.errors?.captcha_blocked).toBe('Edited by hand.')
     expect(stored.event?.display?.zone_time).toBe('%{city} clock')
+  })
+
+  /**
+   * The previous schema declares neither new key, so one left behind refuses every save of the
+   * row holding it. An editor's wording of `zone_time` does not earn a broken rollback — unlike
+   * `captcha_blocked`, whose key the old schema holds either way.
+   */
+  it('still drops a reworded new key on down', async () => {
+    await run(down)
+
+    const stored = await english()
+    expect(stored.event?.display).toEqual({ hosted_from: HOSTED_FROM })
+    expect(stored.calendar).toEqual({ view_list: VIEW_LIST })
+    expect(stored.common?.errors?.captcha_blocked).toBe('Edited by hand.')
+  })
+
+  /** `up` writes English, but any locale holding the key refuses its own save after a rollback. */
+  it('drops the new key from another locale too', async () => {
+    await payload.updateGlobal({
+      slug: SLUG,
+      locale: 'fr',
+      data: {
+        event: { display: { hosted_from: FRENCH_HOSTED_FROM, zone_time: 'heure de %{city}' } },
+      },
+    })
 
     await run(down)
-    stored = await english()
-    expect(stored.common?.errors?.captcha_blocked).toBe('Edited by hand.')
-    expect(stored.event?.display?.zone_time).toBe('%{city} clock')
+
+    const french = await payload.findGlobal({ slug: SLUG, locale: 'fr', fallbackLocale: false })
+    expect(french.event?.display).toEqual({ hosted_from: FRENCH_HOSTED_FROM })
+    expect(french.common?.errors?.captcha_blocked).toBe(FRENCH_CAPTCHA)
   })
 })

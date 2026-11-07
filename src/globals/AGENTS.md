@@ -345,9 +345,12 @@ write.
   `20261107_225000_atlas_clock_copy` is the worked example: a new key lands
   only where English lacks it, a rewording only where the stored value is still
   the seeded original, and both the main row and the `latest: true` version row
-  are written. Its `down` is required, not tidy: it removes the keys the
-  previous schema does not declare, which would otherwise refuse every save
-  after a rollback.
+  are written. Its `down` is required, not tidy, and it sweeps wider than `up`
+  wrote: the previous schema declares neither new key, so `down` drops both
+  from every locale and every version row, whatever they hold — one spared
+  because an editor reworded it refuses every save of the row holding it. A
+  rewording is the other case: the old schema declares that key, so `down`
+  reverts English alone, and only where the value is still `up`'s.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
