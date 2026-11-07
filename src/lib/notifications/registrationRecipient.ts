@@ -35,7 +35,7 @@ export interface RegistrationRecipient {
  * (email, or a messaging handle when configured) at that type's frequency.
  *
  * The frequency is **returned, not acted on**: this is the seam the immediate
- * send and the future digest run share, so each decides for itself which
+ * send and the digest run share, so each decides for itself which
  * cadences it delivers. Returns `null` only when there is no reachable
  * destination at all (no override, and no manager / no manager destination) —
  * nothing any run could deliver.

@@ -185,7 +185,7 @@ export function isSummaryFrequency(frequency: string): frequency is SummaryFrequ
  */
 export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
   'event_registration',
-).filter((frequency) => !(SUMMARY_FREQUENCIES as readonly string[]).includes(frequency))
+).filter((frequency) => !isSummaryFrequency(frequency))
 
 /**
  * Fallback cadence when an override address is set but no frequency is chosen.

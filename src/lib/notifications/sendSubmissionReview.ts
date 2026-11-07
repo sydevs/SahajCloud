@@ -4,6 +4,7 @@ import { createElement } from 'react'
 
 import type { SubmissionReviewDetail } from '@/emails/SubmissionReviewEmail'
 import { SubmissionReviewEmail } from '@/emails/SubmissionReviewEmail'
+import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 /**
@@ -33,7 +34,7 @@ export async function sendSubmissionReview(args: {
     subject:
       props.kind === 'new-event'
         ? 'New event submission to review'
-        : `Proposed changes to “${props.eventTitle ?? 'an event'}”`,
+        : stripNewlines(`Proposed changes to “${props.eventTitle ?? 'an event'}”`),
     ...(await renderEmail(createElement(SubmissionReviewEmail, { brand, ...props }))),
   })
 }

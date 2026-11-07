@@ -464,14 +464,23 @@ describe('Atlas overview', () => {
       expect(titles((await load()).items.rows.docs)).not.toContain('Nadia Haddad')
 
       // Releasing it takes it off the list too: `spam` is what the list selects.
+      // ⚠ And queues the delivery screening withheld, or the sign-up is never confirmed.
       await payload.update({
         collection: 'user-submissions',
         data: { status: 'pending' } as never,
         id: refused.id,
         overrideAccess: true,
-        req: systemReq(),
+        req: await reqAs(admin),
       })
       expect(titles((await load()).items.rows.docs)).not.toContain('Nadia Haddad')
+      const { docs: jobs } = await payload.find({
+        collection: 'payload-jobs',
+        where: { taskSlug: { equals: 'deliverSubmission' } },
+        overrideAccess: true,
+      })
+      expect(jobs.map((job) => (job.input as { submissionId?: number }).submissionId)).toContain(
+        refused.id,
+      )
     })
 
     /** ⚠ A tile with no snapshot shows no change line, never "+0". */

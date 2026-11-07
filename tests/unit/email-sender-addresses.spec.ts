@@ -49,7 +49,7 @@ const CASES: {
   label: string
   to: string
   from: string
-  send: (payload: Payload) => Promise<void>
+  send: (payload: Payload) => Promise<unknown>
 }[] = [
   {
     label: 'registration confirmation',

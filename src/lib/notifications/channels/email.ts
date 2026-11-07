@@ -4,6 +4,7 @@ import type { Payload } from 'payload'
 import { createElement } from 'react'
 
 import { EventVerificationEmail } from '@/emails/EventVerificationEmail'
+import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import { renderEmail } from '@/plugins/email'
 
 function subjectFor(level: ReminderLevel, audience: ReminderAudience, title: string): string {
@@ -58,7 +59,7 @@ export async function sendEmailReminder(
 
   await client.sendEmail({
     to: recipient.destination,
-    subject: subjectFor(reminder.level, reminder.audience, reminder.eventTitle),
+    subject: stripNewlines(subjectFor(reminder.level, reminder.audience, reminder.eventTitle)),
     html,
     text,
   })

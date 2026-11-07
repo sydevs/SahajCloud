@@ -88,10 +88,7 @@ export type SpamReviewStatus = (typeof SPAM_REVIEW_STATUSES)[number]
  * would invite a second Accept that created a duplicate listing or re-applied a
  * patch a manager has since edited away.
  */
-export const REOPENABLE_REVIEW_STATUSES: readonly UserSubmission['status'][] = [
-  'rejected',
-  ...SPAM_REVIEW_STATUSES,
-]
+export const REOPENABLE_REVIEW_STATUSES: readonly UserSubmission['status'][] = ['rejected', 'spam']
 
 /**
  * What each screening verdict is called where a reader meets it — the status

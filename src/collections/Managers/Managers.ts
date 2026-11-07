@@ -237,24 +237,11 @@ export const Managers: CollectionConfig = {
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
             }),
-            // Watermarks for the digest run: per role, per section key, the
-            // start of the last run whose email carried that section. The run
-            // covers `(max(watermark, runStart − period), runStart]` and
-            // advances it, so nothing lands in two emails and a task retry
-            // re-sends nothing.
-            //
-            // Open at both levels, typed at the leaf: a role or section key
-            // retired later must not make a stored row unsaveable, since the
-            // schema is validated on every save of the document. Its writer,
-            // `payload.db.updateOne` from the job, runs no validator, so the
-            // shape is what types the column rather than what checks the write.
-            //
-            // ⚠ **`access.update: () => false` is what makes it the job's
-            // alone.** Payload strips a field its `access.update` refuses
-            // rather than erroring, so a manager PATCHing their own
-            // watermarks succeeds with the column unchanged — which is the
-            // point: a manager who could rewind one would re-send themselves
-            // every open item the window covers.
+            // The digest run's per-role, per-section watermarks (`SendDigests`).
+            // Open at both levels for the reason `src/collections/AGENTS.md`
+            // gives for a job-written JSON column.
+            // ⚠ **`access.update: () => false` makes it the job's alone**: a
+            // manager who could rewind a mark could have their email re-sent.
             jsonField({
               name: 'digestWatermarks',
               schemaTitle: 'DigestWatermarks',

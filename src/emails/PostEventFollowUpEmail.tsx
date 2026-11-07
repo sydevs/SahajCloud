@@ -89,12 +89,16 @@ export function PostEventFollowUpEmail({
 }: PostEventFollowUpEmailProps) {
   const heading = interpolate(strings.followup_heading, { event: eventTitle })
   return (
-    <EmailLayout brand={brand} heading={heading} previewText={heading}>
+    <EmailLayout
+      brand={brand}
+      footer={strings.followup_footer_reason}
+      heading={heading}
+      previewText={heading}
+    >
       <Text style={styles.paragraph}>
         {interpolate(strings.followup_intro, { name: registrantName, event: eventTitle })}
       </Text>
       {sections.map((section, index) => renderSection(brand, strings, section, index))}
-      <Text style={styles.hint}>{strings.followup_footer_reason}</Text>
     </EmailLayout>
   )
 }

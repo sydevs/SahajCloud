@@ -157,14 +157,9 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  * Whether a role in `project` may read this collection with no explicit grant:
  * only when the collection is named in that project.
  *
- * ⚠ **A collection in no project fails closed.** For read, "no project" used to
- * mean the opposite — shared, readable by every role — and an opt-out list
- * (`RESTRICTED_COLLECTIONS`) was all that kept personal data and credentials
- * out of that rule. A complete opt-out list is an inverted default in disguise:
- * it held every project-less collection and would have failed open on the
- * next. Now a collection in no project is reachable by an explicit `read`
- * grant in a role, the admin bypass, or — for the caller's own document —
- * self-access, and nothing else. Admin-nav visibility is a separate question,
+ * ⚠ **A collection in no project fails closed**: reachable by an explicit
+ * `read` grant in a role, the admin bypass, or — for the caller's own document —
+ * self-access, and nothing else (`docs/rules/access.md`). Admin-nav visibility is a separate question,
  * answered by {@link isCollectionVisibleInProject}.
  *
  * Why each project-less collection must stay that way, and must not be added

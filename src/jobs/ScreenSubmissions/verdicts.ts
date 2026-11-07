@@ -61,14 +61,10 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
   return screeningResultGuard.safeParse(value).success
 }
 
-/** Strike statuses, taken from `SPAM_REVIEW_STATUSES` so a third spam status joins both. */
-const SPAM_STRIKE_STATUSES: readonly UserSubmission['status'][] = SPAM_REVIEW_STATUSES
-
 /**
  * Whether this row is a spam strike against its sender.
  *
- * ⚠ **`spam` and `rejected` are two statuses so this can be one comparison.**
- * `rejected` is a manager's decline; counting it as abuse would make a
+ * ⚠ **Spam statuses only, never `rejected`.** `rejected` is a manager's decline; counting it as abuse would make a
  * manager's judgement a spam strike against the person who wrote in, and enough
  * of those would refuse their next genuine submission. A row still `pending`
  * has not been screened, and is not a strike either.
@@ -83,5 +79,8 @@ const SPAM_STRIKE_STATUSES: readonly UserSubmission['status'][] = SPAM_REVIEW_ST
  * the two honest.
  */
 export function isSpamStrike(submission: { status?: UserSubmission['status'] | null }): boolean {
-  return submission.status != null && SPAM_STRIKE_STATUSES.includes(submission.status)
+  return (
+    submission.status != null &&
+    (SPAM_REVIEW_STATUSES as readonly string[]).includes(submission.status)
+  )
 }

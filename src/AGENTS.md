@@ -36,8 +36,7 @@ there is no one collection to park them beside. What stays with a collection is
 its `LoginCollectionConfig` — its eligibility predicate and the project its mail
 is branded for (`src/collections/Managers/login.ts`). The plugin renders and
 sends that mail itself, from `src/plugins/login/mail.ts` and, for the invitation,
-`invite.ts`; a collection overrides either half of the SIGN-IN mail through a
-`generateEmail` / `generateEmailSubject` pair. There is one invitation and no override for it — it is
+`invite.ts`; neither has a per-collection override. The invitation is
 sent when a manager is assigned something (`invitations.ts`), never on create. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 

@@ -45,7 +45,7 @@ export async function deliverProposal({
 
   const to = recipient?.email ?? CONTACT_EMAIL
 
-  // ⚠ Only `Immediate` sends now. Any other pace — a retired one included —
+  // ⚠ Only `Immediate` sends from here. Any other pace — a retired one included —
   // means the morning digest carries it: a delay, never a drop.
   if (recipient && recipient.pace !== 'Immediate') {
     req.payload.logger.info({

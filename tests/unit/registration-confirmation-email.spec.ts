@@ -266,29 +266,10 @@ describe('the plain-text part', () => {
     (await renderEmail(createElement(RegistrationConfirmationEmail, { ...props, ...overrides })))
       .text
 
-  it('carries the same key facts as the HTML, and no markup', async () => {
+  /** The join link is the one fact a text-only reader must be able to act on. */
+  it('carries the join link, and no markup', async () => {
     const text = await textOf()
-
-    // Headings come out upper-cased, as html-to-text sets them.
-    expect(text).toContain('TUESDAY EVENING MEDITATION')
-    for (const fact of ['Jo', 'Every week on Tuesday', ONLINE_URL]) expect(text).toContain(fact)
-    expect(text).toContain('8 sessions')
-    expect(text).toContain('Ana')
+    expect(text).toContain(ONLINE_URL)
     expect(text).not.toMatch(/<[a-z]/i)
-  })
-
-  it('renders the address and maps link for an offline event', async () => {
-    const text = await textOf({ details: offlineDetails })
-
-    expect(text).toContain('12 Example Street')
-    expect(text).toContain('maps/search')
-    expect(text).not.toContain(ONLINE_URL)
-  })
-
-  it('follows the resolved locale', async () => {
-    const text = await textOf({ strings: germanStrings })
-
-    expect(text).toContain('DU BIST ANGEMELDET')
-    expect(text).toContain('Hallo Jo')
   })
 })

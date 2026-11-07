@@ -1,6 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { holdsCollectionPermission } from '@/plugins/access'
@@ -66,7 +67,8 @@ function spamActionFor(
 ): ReviewAction | null {
   if (!isSpamRefusal(from)) return null
   if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
-  if (to === 'pending' && !reviewable) return 'reopen'
+  // ⚠ Withdrawing an admin's confirmed strike is an admin's call, on any intake.
+  if (to === 'pending' && (from === 'confirmed_spam' || !reviewable)) return 'reopen'
   return null
 }
 
@@ -165,9 +167,9 @@ export function reviewMove(args: {
  * also why `submission` is the document that update wrote rather than a fresh
  * read — an edit the reviewer made in the same post is already in it.
  *
- * A spam decision writes nothing but that log line: `confirm-spam` and the
- * `reopen` that withdraws it are status moves whose whole effect is which rows
- * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select.
+ * A spam decision is a status move whose effect is which rows
+ * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select;
+ * releasing a sign-up or message also queues the delivery screening withheld.
  *
  * Accept:
  * - update proposal (`event` set) → the proposed patch is applied with a
@@ -231,8 +233,27 @@ export async function applyReview(args: {
   }
 
   if (action === 'reopen') {
-    // A screening false positive, or a rejection a manager wants back.
-    await decide('Reopened for review')
+    if (submission.type === 'proposal') {
+      // A screening false positive, or a rejection a manager wants back.
+      await decide('Reopened for review')
+      return
+    }
+    // ⚠ A released sign-up or message was never delivered: screening queues
+    // delivery only on a pass, so releasing it must queue what that pass would have.
+    await decide('Released as not spam')
+    await payload.jobs.queue({
+      task: 'deliverSubmission',
+      input: { submissionId: submission.id },
+      queue: 'screening',
+      req,
+    })
+    runQueueSoon({
+      payload,
+      queue: 'screening',
+      label: 'applyReview',
+      context: { submissionId: submission.id },
+      afterCommit: true,
+    })
     return
   }
 
