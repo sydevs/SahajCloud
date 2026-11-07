@@ -33,29 +33,71 @@ export interface WorkflowButton {
 }
 
 /**
+ * When a rule's buttons are on offer at all.
+ *
+ * ⚠ **A rule may name the viewer, and a rule offering a privileged move must.**
+ * A button is an offer and the server owes its own guard, so an offer the guard
+ * will refuse is the one shape to avoid — a control that can only answer 403
+ * (`docs/rules/access.md`). `user-submissions` settles a spam refusal on an
+ * admin's authority alone, so its rule says so here as well as in `reviewMove`.
+ *
+ * `field`/`equals` match by value (`!==`), so an object or an array would be a
+ * test nothing can satisfy.
+ */
+export interface WorkflowRuleCondition {
+  equals?: boolean | null | number | string
+  /** A form field whose value `equals` is compared against. */
+  field?: string
+  /** The signed-in manager's own `type`. */
+  userType?: 'admin'
+}
+
+/** One conditioned set of stages. A rule with no `when` applies to every document. */
+export interface WorkflowRule<TStage extends string = string> {
+  /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
+  stages: Partial<Record<TStage, WorkflowButton[]>>
+  when?: WorkflowRuleCondition
+}
+
+/**
  * `TStage` is the collection's own stage vocabulary, so a declaration names it
  * and a typo is a type error rather than a stage that silently renders the
  * fallback — `satisfies WorkflowButtonsProps<ImportStatus | typeof CREATE_STAGE>`.
  */
 export interface WorkflowButtonsProps<TStage extends string = string> {
+  /** What a stage no rule names renders: Payload's own button, or nothing. */
+  fallback: 'publish' | 'save' | 'saveDraft' | null
+  /**
+   * The rules, in precedence order: the first that both applies and names the
+   * document's stage wins, and a stage no applying rule names takes `fallback`.
+   *
+   * One ordered list rather than a map plus a gate plus an ungated map, because
+   * a slot serving several kinds of document decides over **(kind, viewer,
+   * stage)** and precedence between those is the thing a reader most needs to
+   * see. `user-submissions` holds four intakes sharing one status vocabulary,
+   * so its first rule is the admin's spam settlement and its second the
+   * proposal review — and a contact row matches neither, which is how it keeps
+   * its ordinary Save (`docs/rules/admin-ui.md`).
+   */
+  rules: WorkflowRule<TStage>[]
   /** Form field whose value picks the stage; omit to key on the create alone. */
   statusField?: string
-  /**
-   * Render `fallback` unless this form field holds this value, whatever stage
-   * the status names.
-   *
-   * For a slot whose collection holds several kinds of document sharing one
-   * status vocabulary, where stage alone cannot tell them apart
-   * (`docs/rules/admin-ui.md`).
-   *
-   * The match is `!==`, so `equals` is only what that compares by value. An
-   * object or an array would be a declaration nothing can ever satisfy.
-   */
-  onlyWhen?: { field: string; equals: string | number | boolean | null }
-  /** Buttons per stage. An empty array is a stage with no action, not a missing one. */
-  stages: Partial<Record<TStage, WorkflowButton[]>>
-  /** What a stage with no entry renders: Payload's own button, or nothing. */
-  fallback: 'publish' | 'save' | 'saveDraft' | null
+}
+
+/**
+ * Whether a rule is on offer, given the form's own values and the viewer.
+ *
+ * An absent test passes: a rule naming only `userType` applies at every field
+ * value, and one naming only a field applies to every viewer.
+ */
+export function ruleApplies(
+  when: undefined | WorkflowRuleCondition,
+  context: { field: (name: string) => unknown; isAdmin: boolean },
+): boolean {
+  if (!when) return true
+  if (when.userType === 'admin' && !context.isAdmin) return false
+  if (when.field !== undefined && context.field(when.field) !== when.equals) return false
+  return true
 }
 
 /**

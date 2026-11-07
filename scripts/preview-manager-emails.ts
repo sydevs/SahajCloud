@@ -75,7 +75,9 @@ const SCENARIOS: Scenario[] = [
     name: 'Lena Fischer',
     type: 'manager',
     assignedBy: 'Anna Schmidt',
-    roles: { en: ['atlas-manager'] },
+    // No stored role: being named on the region and the events IS the Atlas
+    // role, and the `managed` block below is what the email names.
+    roles: {},
     managed: {
       regions: [{ title: 'Berlin', url: `${ATLAS}/germany/berlin` }],
       events: [event('Tuesday Evening Meditation'), event('Sunday Morning Introduction', false)],
@@ -153,7 +155,7 @@ const SCENARIOS: Scenario[] = [
     name: 'Priya Shah',
     type: 'manager',
     assignedBy: 'Anna Schmidt',
-    roles: { en: ['atlas-manager'], fr: ['web-translator'] },
+    roles: { fr: ['web-translator'] },
     managed: {
       events: [event('Tuesday Evening Meditation')],
       pages: [{ title: 'About Sahaja Yoga', url: 'https://wemeditate.com/about' }],
@@ -165,7 +167,7 @@ const SCENARIOS: Scenario[] = [
     note: 'an unaccepted manager asks for a link — the invitation names everything they hold',
     name: 'Ravi Menon',
     type: 'manager',
-    roles: { en: ['atlas-manager'] },
+    roles: {},
     managed: {
       regions: [
         { title: 'Bavaria', url: `${ATLAS}/germany/bavaria` },
@@ -184,21 +186,25 @@ const SCENARIOS: Scenario[] = [
 async function main() {
   const { Events, Managers, Pages, Regions } = await import('@/collections')
   const { managersLogin } = await import('@/collections/Managers/login')
-  const { generateEmailHTML, generateEmailSubject } = await import('@/plugins/login/mail')
+  const { generateEmail, generateEmailSubject } = await import('@/plugins/login/mail')
   const { composeInvitations } = await import('@/plugins/login/invite')
   const { SIGNIN_VALID_FOR } = await import('@/plugins/login')
 
   const { transport, messageUrl } = createCaptureTransport()
   const previews: { label: string; note: string; url: false | string }[] = []
 
-  const send = async (scenario: { label: string; note: string }, subject: string, html: string) => {
+  const send = async (
+    scenario: { label: string; note: string },
+    subject: string,
+    body: { html: string; text: string },
+  ) => {
     const info = await transport.sendMail({
       from: 'SahajCloud preview <dev@wemeditate.com>',
       to: 'manager-preview@example.com',
       // Label the inbox row so scenarios are distinguishable at a glance. The
       // real subject still appears inside the message.
       subject: `[${scenario.label}] ${subject}`,
-      html,
+      ...body,
     })
     previews.push({ label: scenario.label, note: scenario.note, url: messageUrl(info) })
   }
@@ -278,7 +284,7 @@ async function main() {
         invitations.length > 1
           ? `${scenario.label} (${invitation.from.replace(/ <.*/, '')})`
           : scenario.label
-      await send({ label, note: scenario.note }, invitation.subject, invitation.html)
+      await send({ label, note: scenario.note }, invitation.subject, invitation)
     }
   }
 
@@ -292,7 +298,7 @@ async function main() {
   await send(
     { label: 'sign-in link', note: 'what an ACCEPTED manager gets when they ask for a link' },
     generateEmailSubject(signInArgs),
-    await generateEmailHTML(signInArgs),
+    await generateEmail(signInArgs),
   )
 
   console.log('\n━━━ Manager auth email previews ━━━\n')

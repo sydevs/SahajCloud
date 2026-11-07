@@ -23,12 +23,7 @@ import type { LocaleCode } from '@/lib/locales'
 import type { RoleSlug } from '@/payload-types'
 
 import { bypassPermissions } from './bypassPermissions'
-import {
-  getPermissionsForRole,
-  getRoleProject,
-  isCollectionVisibleInProject,
-  isRestrictedCollection,
-} from './config'
+import { getPermissionsForRole, getRoleProject, isImplicitlyReadable, virtualRoles } from './config'
 import { rolesForAllLocales, roleScopeFromLocale } from './localizedRoles'
 
 /**
@@ -40,9 +35,9 @@ import { rolesForAllLocales, roleScopeFromLocale } from './localizedRoles'
  *    - Admin managers: allow
  *    - Inactive managers/clients: deny
  *    - Self-access: allow read of own document, and update for managers
- * 3. Extract roles (handles flat array for clients, localized for managers)
+ * 3. Extract roles (flat for clients, localized for managers, plus derived)
  * 4. Unified permission check (single loop per role):
- *    - Implicit read: project-based visibility
+ *    - Implicit read: collections the role's project names
  *    - Explicit permissions: role configuration
  *    - Translate: localized field updates only
  * 5. Default → deny
@@ -73,7 +68,7 @@ export function hasPermission(
   }
 
   // 3. Extract roles ONCE (handles flat array for clients, localized object for managers)
-  const roles = extractRoles((user as TypedAuthUser).roles, locale)
+  const roles = extractRoles(user as TypedAuthUser, locale)
   // A manager whose roles could not be resolved for this scope has no grants here.
   // That is the tightening in #665: it used to fall back to the default locale.
   if (!roles.length) return false
@@ -81,19 +76,11 @@ export function hasPermission(
   // 4. UNIFIED PERMISSION CHECK (single loop for efficiency)
   // Checks both implicit read and explicit permissions in one pass per role
   for (const role of roles) {
-    // 4a. IMPLICIT READ ACCESS (for read operations only)
-    // Both managers and API clients get the same behavior:
-    // - Collections in their role's project are readable
-    // - Shared collections (not in any project) are readable by all
-    // - EXCEPT restricted collections: personal data and credentials never
-    //   ride the shared-read rule — explicit grant or admin only.
-    //   `config/projects.ts` names the set and says why each one is on it. A
-    //   client reading its own row was already answered by step 2's
-    //   self-access.
-    if (operation === 'read' && !isRestrictedCollection(collection)) {
-      const project = getRoleProject(role)
-      if (isCollectionVisibleInProject(collection, project || null)) return true
-    }
+    // 4a. IMPLICIT READ ACCESS — managers and API clients alike read what
+    // their role's project names, and nothing else: a collection in no project
+    // fails closed (`isImplicitlyReadable`). A client reading its own row was
+    // already answered by step 2's self-access.
+    if (operation === 'read' && isImplicitlyReadable(collection, getRoleProject(role))) return true
 
     // 4b. EXPLICIT PERMISSIONS (via role configuration)
     const rolePermissions = getPermissionsForRole(role)
@@ -119,8 +106,8 @@ export function hasPermission(
 }
 
 /**
- * Extract roles from user object
- * Handles both flat array (clients) and localized object (managers)
+ * Every role this user holds for the scope — the stored ones, plus the roles
+ * their page, region and event listings derive (`virtualRoles`).
  *
  * ⚠ `Clients.roles` is deliberately NOT localized, so a client's roles are a flat
  * array and `scope` never applies to them. Everything below concerns managers.
@@ -129,11 +116,33 @@ export function hasPermission(
  * rather than falling back to a locale, because every accidental locale-less check
  * used to resolve to the DEFAULT locale's roles and grant them everywhere (#665).
  *
- * @param roles - User roles (flat for clients, per-locale record for managers)
+ * ⚠ **A derived role is held in every CONFIGURED locale, and in no other
+ * scope.** The listing it comes from is not localized, so it is granted
+ * whenever the scope resolves — but `?locale=all`, and any locale outside
+ * `LOCALES`, still resolve nothing, which is what the `undefined` scope means
+ * and what #665 left it meaning. Appending ahead of that test would answer a
+ * request that names no evaluable locale. `'union'` does resolve, and must: it
+ * is admin-UI nav visibility, which would otherwise be empty for a manager
+ * whose only role is derived.
+ *
+ * ⚠ **And only for a `managers` caller**, spelled as an allowlist like the
+ * self-access bypass. The joins are declared on `Managers` alone, so no client
+ * document carries one — but `virtualRoles` reads a shape, not a collection,
+ * and a manager role reached by a published API key is the one mistake here
+ * that cannot be undone.
+ *
+ * @param user - The authenticated user
  * @param scope - Which locale's roles to evaluate, or `'union'`, or nothing
  * @returns Array of role slugs
  */
-function extractRoles(
+function extractRoles(user: TypedAuthUser, scope?: RoleScope): RoleSlug[] {
+  const stored = storedRoles(user.roles, scope)
+  if (!scope || user.collection !== 'managers') return stored
+  return [...stored, ...virtualRoles(user)]
+}
+
+/** The roles written on the document, for the scope. */
+function storedRoles(
   roles: RoleSlug[] | Record<LocaleCode, RoleSlug[]> | undefined,
   scope?: RoleScope,
 ): RoleSlug[] {

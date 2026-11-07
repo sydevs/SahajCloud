@@ -1,11 +1,8 @@
-import type { CSSProperties } from 'react'
-
-import { Fragment } from 'react'
-import { Hr, Link, Section, Text } from 'react-email'
+import { Link, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
 
-import { DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+import { AnswerList, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
 /**
  * What the sender's client knew about where the message came from.
@@ -78,7 +75,7 @@ interface UserMessageEmailProps {
   details: UserMessageRow[]
   /**
    * Resolved brand, passed in rather than looked up here (the
-   * `SessionReminderEmail` / `RegistrationDigestEmail` shape). The sender also
+   * `SessionReminderEmail` / `DigestEmail` shape). The sender also
    * needs it for the `From` display name, so resolving it once at the send site
    * keeps the header and the body from ever disagreeing.
    */
@@ -106,7 +103,19 @@ export function UserMessageEmail({
   brand,
 }: UserMessageEmailProps) {
   return (
-    <EmailLayout brand={brand} heading={subject} previewText={previewFrom(answers)}>
+    <EmailLayout
+      brand={brand}
+      heading={subject}
+      previewText={previewFrom(answers)}
+      // Not "nothing is stored": since #632 a message is kept for screening and
+      // triage, then purged — and this is what the sender was told about their data.
+      footer={
+        <>
+          Sent via {brand.productName}. A copy is kept in the admin panel for a short period so it
+          can be checked and followed up, then deleted.
+        </>
+      }
+    >
       <Text style={styles.paragraph}>
         {senderEmail ? (
           <>
@@ -124,22 +133,7 @@ export function UserMessageEmail({
         )}
       </Text>
 
-      {answers.length > 0 ? (
-        <Section>
-          <SectionHeading>Answers</SectionHeading>
-          {/*
-            Keyed by position, not by label: an author can ask two blocks the
-            same question, and `buildFormAnswers` keeps no field name to break
-            the tie with.
-          */}
-          {answers.map((answer, index) => (
-            <Fragment key={index}>
-              <Text style={answerQuestion}>{answer.label}</Text>
-              <Text style={answerValue}>{answer.value}</Text>
-            </Fragment>
-          ))}
-        </Section>
-      ) : null}
+      <AnswerList answers={answers} heading="Answers" />
 
       {details.length > 0 ? (
         <Section>
@@ -151,19 +145,6 @@ export function UserMessageEmail({
           ))}
         </Section>
       ) : null}
-
-      <Hr style={styles.hr} />
-      {/*
-        The old footer promised "nothing about this message is stored; this email
-        is the only record" — true under #602, and a lie since #632. Messages are
-        now kept for screening and triage, and a delivered one is purged on a
-        short window rather than never written. Saying so is not bookkeeping
-        trivia: it is what the sender was told about their own data.
-      */}
-      <Text style={styles.footer}>
-        Sent via {brand.productName}. A copy is kept in the admin panel for a short period so it can
-        be checked and followed up, then deleted.
-      </Text>
     </EmailLayout>
   )
 }
@@ -182,19 +163,4 @@ function previewFrom(answers: UserMessageRow[]): string {
     '',
   )
   return longest.slice(0, 120)
-}
-
-// The `EventRegistrationEmail` answer pair, so the two forwarded-answer emails
-// read as one shape.
-const answerQuestion: CSSProperties = {
-  fontSize: '14px',
-  fontWeight: 600,
-  color: '#374151',
-  margin: '0 0 2px',
-}
-const answerValue: CSSProperties = {
-  fontSize: '14px',
-  color: '#1f2937',
-  margin: '0 0 12px',
-  whiteSpace: 'pre-wrap',
 }

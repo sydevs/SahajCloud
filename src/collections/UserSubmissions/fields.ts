@@ -14,6 +14,7 @@ import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import type { UserSubmission } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
@@ -238,6 +239,13 @@ function needsForm(data?: { event?: unknown; type?: unknown }): boolean {
  * relationship validation is what reads `required`, and the plugin's is a
  * `findByID` proving the form exists; dropping either would let a submission
  * skip the requirement, or name a form id that never existed.
+ *
+ * ⚠ **The plugin's `findByID` passes no `select`**, and for an API client that
+ * read trips the select-required client gate (`src/plugins/usage/hooks.ts`).
+ * The plugin catches the 400 and reports the form missing, so every atlas issue
+ * report was refused as `System > Form` invalid. `asTrustedReq` is this repo's
+ * opt-out for an internal read forwarding the caller's `req`; origin
+ * enforcement still applies to it.
  */
 function perTypeForm(field: Field): Field {
   if (!('name' in field) || field.name !== 'form' || field.type !== 'relationship') return field
@@ -248,7 +256,7 @@ function perTypeForm(field: Field): Field {
     const shape = await relationshipValidation(value, options)
     if (shape !== true) return shape
 
-    return formExists ? formExists(value, options) : true
+    return formExists ? formExists(value, { ...options, req: asTrustedReq(options.req) }) : true
   }
 
   // `RelationshipField['validate']` is a union of the hasMany and single
@@ -302,7 +310,8 @@ const userField: Field = {
  * ⚠ **It resolves under the reader's access.** A client cannot read `users`,
  * so on a client's create the value is absent from the response *and from
  * every `afterChange` hook's `doc`*. A hook that needs the address reads the
- * user itself (`spawnSubscribeFromRegistration`).
+ * user itself (`spawnSubscribeFromRegistration`). No manager role reads
+ * `users` either (#1068), so only an admin's read carries it.
  */
 const senderEmailField: Field = {
   name: 'senderEmail',
@@ -840,29 +849,38 @@ const systemGroup = (form: Field | undefined): Field => ({
         },
       }),
     },
-    {
-      // What `resolveProposalRegion` matched `location` to. Closed: that hook is
-      // its only writer, since `systemFieldAccess` strips a client's own value.
-      ...jsonField({
-        name: 'regionHint',
-        schemaTitle: 'SubmissionRegionHint',
-        schema: z.strictObject({
-          country: z.int().optional().describe('The matched country region.'),
-          state: z.int().optional().describe('The matched state region.'),
-          anchorRegion: z
-            .int()
-            .optional()
-            .describe('The matched city or venue, kept after a reviewer changes `region`.'),
-        }),
-        access: systemFieldAccess,
-        admin: {
-          condition: (data) => data?.type === 'proposal',
-          readOnly: true,
-          description: 'Regions matched from the location (country / state / anchor).',
-        },
-      }),
-    },
     proposedField,
+    {
+      /**
+       * Who reviews this proposal: the deepest region intake matched, at
+       * whatever level — a venue, a city, or the state or country above a city
+       * the atlas does not hold yet.
+       *
+       * ⚠ **A real indexed column, because the access layer queries it.**
+       * `managerSubmissionScope` narrows a region manager's read to their owned
+       * subtree, and asking that of a JSON column meant three
+       * `jsonb_path_exists` predicates per owned region id — `createJSONQuery`
+       * inlines one OR'd sibling per value, so a country manager owning ~1,000
+       * regions sent ~3,000 unindexable predicates and the read degraded to a
+       * seq scan of `user_submissions` (#1068). This is one `IN`.
+       *
+       * ⚠ **Not the region an accepted event is created in.** That one must be
+       * a city or venue and is the reviewer's to correct, so it stays `region`;
+       * this is where to look for the reviewer, and the two disagree exactly
+       * when the atlas has no city for the address. `submissionRoutingRegionId`
+       * is the one reader that orders them.
+       */
+      name: 'routingRegion',
+      type: 'relationship',
+      relationTo: 'regions',
+      index: true,
+      access: systemFieldAccess,
+      admin: {
+        condition: (data) => data?.type === 'proposal',
+        readOnly: true,
+        description: 'The region whose manager reviews this — matched from the location.',
+      },
+    },
     {
       // The follow-up sweep's query filter. `activityLog` records *that* it was
       // sent, but nothing can `where` on a JSON column cheaply, so the scan

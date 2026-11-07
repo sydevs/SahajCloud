@@ -28,8 +28,9 @@ import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
+  SPAM_REVIEW_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
-import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
+import type { WorkflowButtonsProps, WorkflowRule } from '@/components/admin/WorkflowButtons/stages'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
@@ -39,7 +40,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 describe('User submission review lifecycle', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let regionManager: Manager
+  let regionManager: Awaited<ReturnType<typeof testData.authUser>>
   let countryId: number
   let cityId: number
   let secondCityId: number
@@ -82,11 +83,10 @@ describe('User submission review lifecycle', () => {
       event?: number
       region?: number
       manager?: number
-      anchorRegion?: number
-      country?: number
+      routingRegion?: number
     } = {},
   ): Promise<UserSubmission> => {
-    const { proposed = BASE_PROPOSED, event, region, manager, anchorRegion, country } = fixture
+    const { proposed = BASE_PROPOSED, event, region, manager, routingRegion } = fixture
 
     return (await payload.create({
       collection: 'user-submissions',
@@ -94,10 +94,7 @@ describe('User submission review lifecycle', () => {
         type: 'proposal',
         senderEmail: 'aria@example.com',
         proposed,
-        regionHint: {
-          ...(country != null ? { country } : {}),
-          ...(anchorRegion != null ? { anchorRegion } : {}),
-        },
+        ...(routingRegion != null ? { routingRegion } : {}),
         ...(event != null ? { event } : {}),
         ...(region != null ? { region } : {}),
         ...(manager != null ? { manager } : {}),
@@ -131,7 +128,7 @@ describe('User submission review lifecycle', () => {
       collection: 'user-submissions',
       id,
       data: { status, ...data } as never,
-      user: { ...regionManager, collection: 'managers' } as never,
+      user: regionManager as never,
       overrideAccess: true,
     }) as Promise<UserSubmission>
 
@@ -162,20 +159,22 @@ describe('User submission review lifecycle', () => {
     payload = env.payload
     cleanup = env.cleanup
 
-    // `atlas-manager` is the one role granting `user-submissions: update`, and
+    // `atlas-region-manager` is what grants `user-submissions: update` here, and
     // `reviewMove` reads that grant — a manager without it is not a reviewer,
-    // whatever rows name them.
-    regionManager = await testData.createManager(payload, {
+    // whatever rows name them. The country listing below is the role, so the
+    // reviewer has to be re-read after it (`authUser`).
+    const listed = await testData.createManager(payload, {
       name: 'Region Reviewer',
       email: 'region-reviewer@example.com',
-      roles: { en: ['atlas-manager'] },
+      roles: {},
     })
     const country = await testData.createRegion(payload, {
       name: 'Submissia',
       level: 'country',
       slug: 'sb',
-      managers: [regionManager.id],
+      managers: [listed.id],
     })
+    regionManager = await testData.authUser(payload, listed)
     countryId = country.id
     const city = await testData.createRegion(payload, {
       name: 'Sub City',
@@ -256,7 +255,7 @@ describe('User submission review lifecycle', () => {
 
     it('previews a new-event proposal with the region Accept writes, and no photographs', async () => {
       const created = await createProposal({
-        anchorRegion: cityId,
+        region: cityId,
         proposed: { ...BASE_PROPOSED, schedule: WEEKLY_SCHEDULE },
       })
 
@@ -277,17 +276,10 @@ describe('User submission review lifecycle', () => {
       expect(event.region).toBe(preview.region)
     })
 
-    it('prefers a set region over the screening hint, as Accept does', async () => {
-      const created = await createProposal({ region: countryId, anchorRegion: cityId })
-
-      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
-      expect(preview.region).toBe(countryId)
-    })
-
     it('skips both projections on a list read', async () => {
       // 25 rows would otherwise mean 25 event lookups for values no list
       // column renders.
-      await createProposal({ country: countryId })
+      await createProposal({ routingRegion: countryId })
       const list = await payload.find({
         collection: 'user-submissions',
         limit: 1,
@@ -381,14 +373,31 @@ describe('User submission review lifecycle', () => {
       return slot.clientProps as WorkflowButtonsProps<UserSubmission['status']>
     }
 
-    it('gates on the one intake with a review path', () => {
-      expect(declaration().onlyWhen).toEqual({ field: 'type', equals: 'proposal' })
+    /** The rule gated on the viewer's being an admin, or the one that is not. */
+    const ruleFor = (userType?: 'admin') => {
+      const rule = declaration().rules.find((candidate) => candidate.when?.userType === userType)
+      if (!rule) throw new Error(`expected a rule for userType ${String(userType)}`)
+      return rule
+    }
+
+    /** Every (from, button) pair one rule offers. */
+    const offers = (rule: WorkflowRule<UserSubmission['status']>) =>
+      Object.entries(rule.stages).flatMap(([from, buttons]) =>
+        (buttons ?? []).map((button) => ({
+          button,
+          from: from as UserSubmission['status'],
+          to: button.overrides.status as UserSubmission['status'],
+        })),
+      )
+
+    it('gates the review rule on the one intake with a review path', () => {
+      expect(ruleFor().when).toEqual({ equals: 'proposal', field: 'type' })
       // Every other intake, and the create screen, keep Payload's own button.
       expect(declaration().fallback).toBe('save')
     })
 
     it('offers buttons at exactly the statuses a decision is still open at', () => {
-      const stages = declaration().stages
+      const stages = ruleFor().stages
       expect(Object.keys(stages).sort()).toEqual(
         [...OPEN_REVIEW_STATUSES, ...REOPENABLE_REVIEW_STATUSES, 'accepted'].sort(),
       )
@@ -397,16 +406,16 @@ describe('User submission review lifecycle', () => {
       expect(stages.accepted).toEqual([])
     })
 
+    it('settles a refusal on an admin’s authority alone, on every intake', () => {
+      // Keyed by status and gated by viewer rather than by intake, because
+      // `reviewMove` runs its spam branch ahead of the proposal gate — the
+      // offer has to reach a registration, which is what an admin's home lists.
+      expect(Object.keys(ruleFor('admin').stages).sort()).toEqual([...SPAM_REVIEW_STATUSES].sort())
+    })
+
     it('aims every button at a move the server would accept', () => {
-      const stages = declaration().stages
-      for (const [from, buttons] of Object.entries(stages) as [
-        UserSubmission['status'],
-        NonNullable<
-          WorkflowButtonsProps<UserSubmission['status']>['stages'][UserSubmission['status']]
-        >,
-      ][]) {
-        for (const button of buttons) {
-          const to = button.overrides.status as UserSubmission['status']
+      for (const rule of declaration().rules) {
+        for (const { button, from, to } of offers(rule)) {
           const move = reviewMove({
             from,
             to,
@@ -422,12 +431,34 @@ describe('User submission review lifecycle', () => {
       }
     })
 
+    /**
+     * ⚠ **The coupling the viewer gate exists for.** A button is an offer and
+     * the server owes its own guard, so a move only an admin may make must not
+     * be offered through a rule every reviewer matches — that is a control which
+     * can only answer 403 (`docs/rules/admin-ui.md`). This reviewer holds the
+     * grant and is not an admin, so the only thing left for `reviewMove` to
+     * refuse is the authority the rule failed to name.
+     */
+    it('offers a non-admin reviewer no move an admin alone may make', () => {
+      for (const rule of declaration().rules.filter((r) => r.when?.userType !== 'admin')) {
+        for (const { button, from, to } of offers(rule)) {
+          const move = reviewMove({
+            from,
+            to,
+            type: 'proposal',
+            req: { locale: 'en', user: { ...regionManager, collection: 'managers' } } as never,
+          })
+          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+        }
+      }
+    })
+
     it('leaves every button enabled on a row nobody edited', () => {
       // `WorkflowButtons` disables an action whose `overrides` are empty, the
       // rule Payload's own Save button applies to an unmodified document — so a
       // review button carrying none would be unreachable until something moved.
-      for (const buttons of Object.values(declaration().stages)) {
-        for (const button of buttons ?? []) {
+      for (const rule of declaration().rules) {
+        for (const { button } of offers(rule)) {
           expect(Object.keys(button.overrides).length, button.label).toBeGreaterThan(0)
         }
       }
@@ -436,7 +467,7 @@ describe('User submission review lifecycle', () => {
 
   describe('reopen', () => {
     const shelve = async (status: 'spam' | 'rejected') => {
-      const created = await createProposal({ country: countryId })
+      const created = await createProposal({ routingRegion: countryId })
       await settle(created.id, status)
       return created.id
     }
@@ -458,7 +489,7 @@ describe('User submission review lifecycle', () => {
     it('refuses to reopen a submission that already wrote to an event', async () => {
       // Reopening an accepted row would invite a second Accept, and a duplicate
       // listing with it.
-      const created = await createProposal({ country: countryId })
+      const created = await createProposal({ routingRegion: countryId })
       await settle(created.id, 'accepted')
 
       await expect(decide(created.id, 'pending')).rejects.toMatchObject({
@@ -474,7 +505,7 @@ describe('User submission review lifecycle', () => {
       // equivalent for, so porting that set verbatim would have stranded every
       // row whose review email bounced. `failed` means the decision path was
       // fine and the delivery was not.
-      const created = await createProposal({ country: countryId })
+      const created = await createProposal({ routingRegion: countryId })
       await settle(created.id, 'failed')
 
       await decide(created.id, 'rejected')
@@ -484,7 +515,6 @@ describe('User submission review lifecycle', () => {
     it('accept on a new-event submission creates a published unverified event', async () => {
       const created = await createProposal({
         region: cityId,
-        anchorRegion: cityId,
         proposed: {
           ...proposedAt('2 Main St'),
           description: 'A weekly meditation class.\nAll welcome.',
@@ -600,7 +630,7 @@ describe('User submission review lifecycle', () => {
       // honouring nested keys cannot quietly widen the intake.
       const created = await createProposal({
         region: cityId,
-        country: countryId,
+        routingRegion: countryId,
         proposed: {
           eventType: 'offline',
           address: { city: 'Novo Selo', street: '1 Main St', smuggled: 'nope' },
@@ -621,7 +651,7 @@ describe('User submission review lifecycle', () => {
     })
 
     it('reject shelves the submission without touching any event', async () => {
-      const created = await createProposal({ anchorRegion: cityId })
+      const created = await createProposal({ region: cityId })
       await decide(created.id, 'rejected')
 
       const after = await reload(created.id)
@@ -635,7 +665,7 @@ describe('User submission review lifecycle', () => {
       // form submit rather than a button that posts an action: screening can
       // resolve the wrong city, and fixing it must not be a second save.
       const created = await createProposal({
-        anchorRegion: cityId,
+        region: cityId,
         proposed: { ...proposedAt('7 Main St'), schedule: WEEKLY_SCHEDULE },
       })
 
@@ -661,7 +691,7 @@ describe('User submission review lifecycle', () => {
       ['accepted', 'pending'],
       ['pending', 'spam'],
     ] as const)('refuses the move from %s to %s', async (from, to) => {
-      const created = await createProposal({ region: cityId, anchorRegion: cityId })
+      const created = await createProposal({ region: cityId })
       if (from !== 'pending') await settle(created.id, from)
 
       await expect(decide(created.id, to)).rejects.toMatchObject({
@@ -677,7 +707,7 @@ describe('User submission review lifecycle', () => {
      * page the reviewer is looking at, and it is the field that fixes this.
      */
     it('refuses to accept a new event with no resolved region, and writes none', async () => {
-      const created = await createProposal({ country: countryId })
+      const created = await createProposal({ routingRegion: countryId })
       const before = await payload.count({ collection: 'events', overrideAccess: true })
 
       await expect(decide(created.id, 'accepted')).rejects.toMatchObject({
@@ -692,12 +722,14 @@ describe('User submission review lifecycle', () => {
 
     /**
      * The same refusal reached by clearing a resolved region, which the form
-     * posts as `region: null` — where the case above never had one. No
-     * `anchorRegion` either, so nothing is left for `submissionRegionId` to
-     * fall back to.
+     * posts as `region: null` — where the case above never had one.
+     * `submissionRegionId` has no fallback, so intake's match does not
+     * quietly undo the reviewer's clear.
      */
     it('refuses an accept that clears the resolved region in the same post', async () => {
-      const created = await createProposal({ region: cityId })
+      // As intake leaves it: the routing region names the same city, and is
+      // still not where an accept may fall back to.
+      const created = await createProposal({ region: cityId, routingRegion: cityId })
       const before = await payload.count({ collection: 'events', overrideAccess: true })
 
       await expect(decide(created.id, 'accepted', { region: null })).rejects.toMatchObject({
@@ -746,7 +778,6 @@ describe('User submission review lifecycle', () => {
     it('cannot accept it, and no event is written', async () => {
       const created = await createProposal({
         region: cityId,
-        anchorRegion: cityId,
         manager: assignee.id,
         proposed: { ...proposedAt('11 Main St'), schedule: WEEKLY_SCHEDULE },
       })
@@ -773,7 +804,7 @@ describe('User submission review lifecycle', () => {
   })
 
   /**
-   * One table, four intakes, one status vocabulary. `onlyWhen` keeps the review
+   * One table, four intakes, one status vocabulary. A rule's `when` keeps the review
    * buttons off the other three in the admin; this is the half a forged
    * `PATCH /api/user-submissions/:id` meets, which no button can enforce.
    */

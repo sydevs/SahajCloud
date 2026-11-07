@@ -16,7 +16,7 @@ Five things this repo does that the plugin options cannot:
   composes `{ ...rbac, ...collection.access }`, so a collection's own access
   wins — and the plugin always supplies `read: ({ req: { user } }) => !!user`,
   which grants read to any authenticated user, every API client included. Left
-  in place it outranks the role table and `RESTRICTED_COLLECTIONS` alike.
+  in place it outranks the role table and project-membership read alike.
   `forms` keeps its plugin access (`read: () => true`), which is the intended
   rule: a public site renders a form anonymously.
 - **Removes the plugin's `sendEmail` afterChange hook.** `formOverrides.fields`
@@ -66,8 +66,11 @@ assigned a proposal authority to publish the event accepting it writes — see
 carry no manager, pass untouched.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
-buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and
-fall through to the ordinary Save otherwise; `livePreview.url` sends the other
+buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule and fall
+through to the ordinary Save otherwise — ahead of them sits one more rule, gated
+on the viewer being an admin, because settling a spam refusal is a move
+`reviewMove` grants an admin on **every** intake and nobody else on any
+(`docs/rules/admin-ui.md`); `livePreview.url` sends the other
 three to the explanation page, with a reason that fits a row nobody reviews. A
 new slot owes the same branch — the field hooks behind one included, since
 `admin.condition` hides a field without stopping its hooks. The hooks above owe

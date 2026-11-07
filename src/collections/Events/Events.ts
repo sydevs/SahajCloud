@@ -44,6 +44,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  eventManagerFieldAccess,
   isAdminManager,
   managersOnlyFieldAccess,
   ownedRegionFilterOptions,
@@ -401,10 +402,10 @@ export const Events: CollectionConfig = {
               relationTo: 'regions',
               required: true,
               filterOptions: async (args) => {
-                // City or venue only. For an atlas-manager, also within their
+                // City or venue only. For a region manager, also within their
                 // owned-region subtree.
                 const cityOrVenue = { level: { in: ['city', 'venue'] } }
-                const owned = await ownedRegionFilterOptions(args)
+                const owned = await ownedRegionFilterOptions(args, args.data?.region)
                 if (owned === true) return cityOrVenue
                 if (owned === false) return false
                 return { and: [cityOrVenue, owned] }
@@ -573,12 +574,12 @@ export const Events: CollectionConfig = {
               // manager needs to see the row they flagged `spam`.
               //
               // ⚠ The condition hides the field; it does not stop the read.
-              // `user-submissions` is restricted and no manager role reads it,
-              // so this rendered empty for every manager — the drawer it opens
-              // is an admin's way into a row, and a manager reads their own
-              // event's signups on the Registrations tab instead (#1069). The
-              // join's subquery still runs for them, which is the cost of
-              // keeping that drawer.
+              // `user-submissions` is restricted and no manager role reads a
+              // `registration` row, so this rendered empty for every manager —
+              // the drawer it opens is an admin's way into a row, and a manager
+              // reads their own event's signups on the Registrations tab
+              // instead (#1069). The join's subquery still runs for them, which
+              // is the cost of keeping that drawer.
               name: 'registrations',
               type: 'join',
               collection: 'user-submissions',
@@ -633,6 +634,11 @@ export const Events: CollectionConfig = {
                   ? true
                   : 'A manager is required — only unverified, denied or finished events can be unmanaged.'
               },
+              // ⚠ Naming someone here grants them `atlas-event-manager` over
+              // this event, so the write is itself a delegation — and the
+              // assignee must not be able to pass it on, or disown the listing
+              // their own grant comes from. See `eventManagerFieldAccess`.
+              access: { update: eventManagerFieldAccess },
               admin: {
                 description:
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',

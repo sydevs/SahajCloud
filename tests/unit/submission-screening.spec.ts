@@ -15,9 +15,9 @@ import { describe, expect, it } from 'vitest'
 import { urlField } from '@/fields/urlField'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { hashSubmissionBody } from '@/jobs/ScreenSubmissions/senderHistory'
-import { isMachineSpam, isScreeningResult } from '@/jobs/ScreenSubmissions/verdicts'
+import { isScreeningResult, isSpamStrike } from '@/jobs/ScreenSubmissions/verdicts'
 
-describe('isMachineSpam', () => {
+describe('isSpamStrike', () => {
   /**
    * ⚠ The rule this file exists for. `spam` and `rejected` are two statuses so
    * abuse counting never has to guess whose refusal it read — counting a
@@ -26,21 +26,29 @@ describe('isMachineSpam', () => {
    * genuine submission.
    */
   it('counts a machine refusal', () => {
-    expect(isMachineSpam({ status: 'spam' })).toBe(true)
+    expect(isSpamStrike({ status: 'spam' })).toBe(true)
+  })
+
+  /**
+   * An admin agreeing with the machine is the same refusal, so withdrawing the
+   * strike is releasing the row to `pending` — not leaving it `spam`.
+   */
+  it('counts an admin confirming one', () => {
+    expect(isSpamStrike({ status: 'confirmed_spam' })).toBe(true)
   })
 
   it('does not count a human decline', () => {
     // A manager-declined proposal: screening passed, and a person said no
     // afterwards. Its verdict is `ok` and its status is `rejected`.
-    expect(isMachineSpam({ status: 'rejected' })).toBe(false)
+    expect(isSpamStrike({ status: 'rejected' })).toBe(false)
   })
 
   it('does not count a row nobody has refused', () => {
     for (const status of ['pending', 'accepted', 'failed'] as const) {
-      expect(isMachineSpam({ status })).toBe(false)
+      expect(isSpamStrike({ status })).toBe(false)
     }
-    expect(isMachineSpam({})).toBe(false)
-    expect(isMachineSpam({ status: null })).toBe(false)
+    expect(isSpamStrike({})).toBe(false)
+    expect(isSpamStrike({ status: null })).toBe(false)
   })
 
   it('does not count a row this build did not write', () => {

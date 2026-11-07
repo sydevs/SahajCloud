@@ -15,6 +15,21 @@ The Manager `type` field controls top-level access: `inactive` (denied), `manage
 
 Manager roles are **per-locale**: a manager can hold `meditations-editor` in English and `web-translator` in Czech, and gets the matching access in each admin locale.
 
+### Roles nobody assigns (#1068)
+
+`atlas-region-manager`, `atlas-event-manager` and `page-editor` declare `virtual: { join: 'managedRegions' }`, `virtual: { join: 'managedEvents' }` and `virtual: { join: 'managedPages' }` in `ROLES`. Nothing stores them: `virtualRoles(user)` resolves them on every request from those joins `Managers` declares, and `extractRoles` appends them to the stored set. Being listed on a page or a region, or named on an event, **is** the role — so there is nothing to keep in step, and removing the listing withdraws the grant on that manager's next request.
+
+This is why they replaced a stored `atlas-manager`: who manages a region was already a fact of the listing beside it, and a second record of the same fact could disagree with it. A program manager held no role at all.
+
+- **`getRoleOptions` refuses one**, at config build, so no select can offer a value nothing reads and nothing removes. `getRoleLabel` is what the admin UI names a held one with: `RolesField` shows it in the `roles` select as a chip with no remove button, and ⚠ `storedRoles` strips every derived chip from each change, which is the guarantee — Backspace and the clear button remove a chip whatever the button shows.
+- ⚠ **A derived role is held in every configured locale, and in no other scope.** The listing is not localized, so the grant applies wherever the scope resolves — but `?locale=all`, and any locale outside `LOCALES`, still resolve nothing, which is what #665 left the `undefined` scope meaning. `'union'` does resolve, because that is admin-UI nav visibility. ⚠ **The admin locale selector deliberately does not follow.** `filterAvailableLocales` offers a manager whose only role is derived English alone, because nothing either Atlas role grants carries a localized field — `regions` and `events` declare none, and an event's `title` is one non-localized value — so a second language would open no content the first does not. A localized field on either collection makes that answer wrong, which is why `role-based-access.int.spec.ts` reads it off the booted config. `page-editor` lands on English too, though `pages` is localized — a deliberate choice, not the same argument: a page assignment names no language, so another one comes from a stored role.
+
+`page-editor` holds no `pages` grant. A role grant is collection-wide, and the listed pages already reach their editor through document-level access, which is the exact scope; the role adds the `wemeditate-web` project and `images` / `files` create. `Pages.managers` is admin-only on update, which is the lock that keeps anyone else from handing it out.
+
+- ⚠ **And only for a `managers` caller**, spelled as an allowlist. `clients` declares neither join, but `virtualRoles` reads a shape rather than a collection.
+- ⚠ **Never ask the joins _which_ regions.** A join carries at most its own `limit` of rows (Payload's default is 10), so `virtualRoles` reads only whether `docs` is non-empty. `resolveOwnedRegionIds` answers "which" from a query, and a truncated join would silently shrink a large country's subtree.
+- **A spec's fixture needs a re-read.** A `createManager` result is the create response, so both joins are empty and a region listed afterwards is invisible to it. `testData.authUser` re-reads the manager the way Payload's JWT strategy does (`findByID`, no `joins: false`).
+
 ### How a per-locale role reaches `req.user` (#665)
 
 This only works because the authenticated user loads **four times**, not once. `roles` is `localized`, and an ordinary read resolves one locale — Payload's own `local-jwt` strategy passes none, so it reads the default. Left alone, every manager's English roles would apply in all 19 locales, and a manager with no English roles would be locked out entirely.
@@ -74,7 +89,7 @@ The `-client` suffix disambiguates a client role from a project slug. Client rol
 1. Block null users.
 2. Run `bypassPermissions`, in the order the code checks them: the admin bypass, then inactive-manager and unpublished-client blocking, then self-access (read your own document, and update it if you are a manager). Self-access is last, so neither an inactive manager nor a draft client reaches it.
 3. Resolve the roles for the request's scope (`extractRoles`). None resolvable → deny.
-4. For each role: **(a)** project-based implicit read — the role's project, plus every collection listed in no project (shared), restricted collections excepted. **(b)** An O(1) permission-table lookup, where `translate` grants an update on localized fields only.
+4. For each role: **(a)** implicit read of what the role's project names — a collection in no project fails closed. **(b)** An O(1) permission-table lookup, where `translate` grants an update on localized fields only.
 5. Otherwise deny. `createAccessConfig` then applies document-level manager access — see below — when `hasPermission` denies an active non-admin manager a read or update.
 
 The numbers are the step comments in `permissions.ts`.
@@ -91,19 +106,29 @@ Managers and API clients both read their role's project plus every shared collec
 
 A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.
 
-`resolveManagedDocIds` — the managed-set resolution both this fallback and the region-subtree scoping below run — is memoized per request, keyed on `(collection, userId)` (#749). Payload evaluates each access operation independently and dedups nothing between them: `getEntityPermissions` fires every operation of a collection in one `Promise.all` with byte-identical args, and its `whereQueryCache` cannot help because that only runs with `fetchData: true`, which `/api/access` does not pass. Measured, one `/api/access` call as an `atlas-manager` went from 12 `regions` queries to 2.
+⚠ **On `regions` and `events` the listing is also the role, so writing one is a delegation.** `Regions.managers` and `Events.manager` therefore carry a field-level `access.update` (`regionManagersFieldAccess`, `eventManagerFieldAccess`): an admin, or a region manager whose own subtree holds the row — the row's own id for a region, its `region` for an event. With no row to judge, the capability call `/api/access` makes with no document, the answer is whether the user owns any region at all, as `scopeRegionSubtreeWrite` answers a create. An event assignee is refused, so they can neither pass their event on nor disown it. Payload **strips** a field its `access.update` refuses rather than erroring, so a PATCH naming `manager` succeeds with `manager` unchanged.
+
+`resolveManagedDocIds` — the managed-set resolution both this fallback and the region-subtree scoping below run — is memoized per request, keyed on `(collection, userId)` (#749). Payload evaluates each access operation independently and dedups nothing between them: `getEntityPermissions` fires every operation of a collection in one `Promise.all` with byte-identical args, and its `whereQueryCache` cannot help because that only runs with `fetchData: true`, which `/api/access` does not pass. Measured, one `/api/access` call as an Atlas region manager went from 12 `regions` queries to 2.
 
 **It collapses the list-level resolutions only.** `createAccessConfig`'s single-document `update` branch (`id` present) routes to `userManagesDocument` instead, which is still unmemoized — so a document edit view, where `getDocumentPermissions` repeats the whole operation set four times for a drafts+trash collection, still pays that path per evaluation. The `resolveManagedDocIds` JSDoc owns the two hazards a per-request memo opens: the staleness window it pins, and why it must not be lifted to the access function. Read it before you widen the key.
 
 ### Region-subtree write scoping (Atlas managers)
 
-`atlas-manager` is the one role granting writes on `events` (create, update, delete) and `regions` (create and update) — `config/roles.ts`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`.
+`atlas-region-manager` is the one role granting writes on `regions` (create and update) and the full set on `events` (create, update, delete); `atlas-event-manager` grants `events` update and delete alone — `config/roles.ts`. `regionSubtreeAccess.ts` narrows every such grant to the manager's **owned-region subtree**: the regions listing them in `managers`, plus every descendant via `breadcrumbs`. An event assignee owns no region, so their whole grant narrows to the `manager == user` arm below.
 
 - **regions** — `create` requires the new region's `parent` in the subtree. `update` is scoped to subtree members. There is no `delete` (admin-only, since child regions and events reference it by foreign key).
 - **events** — scoped by `region ∈ subtree` **or** `manager == user` (the direct-owner case). `create` requires the incoming `region` in the subtree. Hard `delete` is scoped the same way. Soft-delete (trash) is an `update` to `deletedAt`, already covered.
 - **read** stays project-wide — only writes are subtree-scoped.
 
 Wired into `createAccessConfig` on an explicit slug allowlist (`{ regions, events }`), not field introspection, since create/delete are security-sensitive and a stray `managers` field elsewhere must not silently widen access.
+
+⚠ **`ownedRegionFilterOptions` keeps the value a document already holds, and a document that can hold one owes it that `keepCurrent` argument.** `validateFilterOptions` re-runs on every save with no exemption for a value that did not change, so the subtree alone refused two saves a manager is entitled to make: an event assignee owns no region, and a region manager's own top region sits under a parent above their subtree. Both could open the document and neither could save it — which also blocked the re-verification a save performs. Keeping the value is not permission to move it: `keepCurrent` is the value the caller **posted**, and `scopeRegionSubtreeWrite` reads the stored row to refuse a real move at the row level, before any field runs — so the exemption narrows a picker and is never itself a check. A bulk update has no one stored row, so it keeps the strict test.
+
+### Which submissions a manager sees
+
+The `user-submissions` grant both Atlas roles carry is collection-wide, and the collection holds four intakes in one table, so `managerSubmissionScope` (`accessConfigs.ts`) narrows it per row: the contact rows whose form names them as recipient, plus the proposals they are the reviewer of. The two roles differ only over that second clause — a region manager reads the proposals landing in their subtree, an event assignee the ones on their own events, and someone who is both reads the union. Registrations and subscriptions appear for nobody but an admin.
+
+⚠ **The subtree clause has to reach past `region`**, because a proposal for a city the atlas does not hold yet has none: `deliverProposal` mails its state or country manager, who would otherwise be unable to read the row they were asked to review. `routingRegion` — the deepest level intake matched, written once at create — is that reach, and an owned subtree is closed downwards, so matching it answers exactly what `submissionRoutingRegionId`'s `??` chain would. ⚠ **It is an indexed relationship column, and must stay one.** These facts lived in a JSON column until #1068, reachable only by `jsonb_path_exists`, and `createJSONQuery` inlines one OR'd sibling per value — so a country manager owning ~1,000 regions sent ~3,000 unindexable predicates and the read degraded to a seq scan of `user_submissions`.
 
 ### Locale-scoped write scoping (per-locale editors, #980)
 
@@ -113,7 +138,7 @@ A meditation **is** one language — its hidden `locale` select — but `meditat
 
 ⚠ **So the name is a commitment: never spell a column `locale` unless it is the document's own language.** A column meaning anything else takes a name of its own, or it silently acquires this scope the day its collection takes a write grant — `Clients.language` is a service's preferred language, and `imports.uploadLocale` the admin locale an upload happened in (#912). Both were spelled `locale` and were renamed for exactly that reason. `Lectures.subtitles[].locale` needs no rename: it is a row key inside an array, which no top-level rule reaches either way. Unlike `REGION_SUBTREE_COLLECTIONS` above, there is no list in the code to keep.
 
-A new column would take the scope silently, so the invariant is asserted rather than trusted: `tests/int/role-based-access.int.spec.ts` walks `payload.config.collections` for a queryable top-level `locale` and names every collection carrying one — `meditations` alone today — so a second one reds the suite until someone confirms the column really is a language. That is the half `RESTRICTED_COLLECTIONS` above still lacks.
+A new column would take the scope silently, so the invariant is asserted rather than trusted: `tests/int/role-based-access.int.spec.ts` walks `payload.config.collections` for a queryable top-level `locale` and names every collection carrying one — `meditations` alone today — so a second one reds the suite until someone confirms the column really is a language.
 
 - **update** (and `delete`, which no role grants today) → `{ locale: { equals: <scope> } }`. A single-document update that does not match answers **403 Forbidden**, because `updateByID` reports a `Where` policy that matched nothing as a refusal rather than a 404.
 - **create** → a boolean, because `executeAccess` reads a `Where` as a grant and an object there would allow every language. An absent `locale` is allowed: the field pass that fills it has not run yet, and the admin asks this question with no data at all to decide whether to offer the Create button.
@@ -193,25 +218,25 @@ Withdrawing the bypass is the whole close: no client role names `clients` at all
 
 ⚠ **Spelled as an allowlist** — `user.collection === 'managers'`, the same polarity as `managersOnlyFieldAccess` and for the same reason. A third auth collection then arrives with no self-update rather than inheriting it.
 
-### Restricted collections — "in no project" is not restrictive
+### A collection in no project fails closed
 
-This cuts the opposite way from implicit read, above, and the obvious reading is wrong. Payload's system collections sit in no project. They are reachable only by explicit permission or the admin bypass — because no role grants write on them, not because "no project" is restrictive. For read, "no project" means the opposite: shared, and readable by every role.
+Implicit read (step 4a) asks one question: does the role's project name this collection? `isImplicitlyReadable` (`config/projects.ts`) is that test. A collection in no project is therefore reachable by an explicit `read` grant, the admin bypass, or self-access, and nothing else — `users`, `user-submissions`, `managers`, `clients` and `imports` today, each held there for a reason its docblock names. A new collection starts closed; putting one in a project is what opens it to that project's roles.
 
-**`RESTRICTED_COLLECTIONS`** (`config/projects.ts`) is the only way to stop that. A collection named there is skipped by implicit read, so only an explicit `read` grant, or the admin bypass, reaches it. It holds `users`, `user-submissions`, `managers`, `clients` and `imports` — personal data and credentials.
+⚠ **It used to be the opposite.** For read, "no project" meant shared, readable by every role, and an opt-out list, `RESTRICTED_COLLECTIONS`, was all that kept personal data and credentials out of that rule. It named every project-less collection, so it was complete — and would have failed open on the next one. The history below is why each entry was added.
 
-⚠ **`managers` is there because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `web-translator` gets nothing and renders a raw id in the Page Editors sidebar, which is the accepted cost.
+⚠ **Admin-nav visibility is a separate rule** and keeps "no project means everywhere" (`isCollectionVisibleInProject`): it decides where a collection is listed, never who reads it.
 
-⚠ **`clients` is there because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
+⚠ **`managers` left the shared rule because "no project" was reading as shared** (#821): every published API key, the Atlas widget's browser key included, read every manager's name and email. **No client role gets a grant back.** `atlas-region-manager` holds the only one, because it picks on `Events.manager` and `Regions.managers`; `atlas-event-manager` and `web-translator` get nothing and render a raw id, which is the accepted cost.
 
-⚠ **`imports` is there because a class import is kept for the retention window** (#907): its skipped rows carry contact names, phone numbers and email addresses. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager who may create classes may create one, admins and the managers of the target region's subtree read and delete, nobody updates. `atlas-manager` holds `imports: create`, which is also what keeps the collection's admin pages visible to them.
+⚠ **`clients` left it because the same default exposed every service's credentials** (#822): a published key read every other service's decrypted `apiKey`, origin allowlist and usage counters. A service's own listed managers still reach it, through the document-manager path in `accessConfigs.ts`.
 
-⚠ **Restricting a collection reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address _as a value_ is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
+⚠ **`imports` sits in no project because a class import is kept for the retention window** (#907): its skipped rows carry contact names, phone numbers and email addresses. The collection declares its own `access` block (`src/plugins/eventImport/importCollection.ts`): any manager who may create classes may create one, admins and the managers of the target region's subtree read and delete, nobody updates. `atlas-region-manager` holds `imports: create`, which is also what keeps the collection's admin pages visible to them.
 
-⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Restricting `clients` is what stops a key reading _other_ services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
+⚠ **Keeping a collection out of every project reaches a relationship to it. It does not reach a copy of it.** Every `relationTo: 'managers'` field is covered and needs no lock of its own, because populate falls back to the bare id once the related read is refused. A field storing a manager's name or address _as a value_ is not covered, and needs a field lock instead — which is the next section, and why two fields on `events` have one.
 
-⚠ **Treat the list as a holding pattern.** All five collections that sit in no project are named in it now, so it is complete today and fails open the day a sixth is added. The real fix is for step 4a to test project membership directly, so a new collection fails closed. Its docblock says so.
+⚠ **It does not cover the caller's own row.** Self-access read answers at step 2, before the check, so a published client still reads its whole `clients` document over `GET /api/clients/me` — deliberately, because the atlas widget suspends on that read at every boot. Keeping `clients` out of every project is what stops a key reading _other_ services (#822); the field lock below is what keeps `apiKey` out of its own answer. Neither layer does the other's job.
 
-⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Adding a collection to this list proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
+⚠ **A collection's own `access` block outranks all of this**, because `accessPlugin` composes `{ ...createAccessConfig(slug, …), ...collection.access }` so a deliberate override is never clobbered. A plugin-created collection can therefore arrive with an `access` nobody here chose: the form-builder's submissions collection ships `read: ({ req: { user } }) => !!user`, which grants read to every authenticated user, API clients included. `src/plugins/formBuilder` clears it for `user-submissions` for exactly that reason. **Leaving a collection out of every project proves nothing on its own** — assert it by reading rows back through `overrideAccess: false`, as `tests/int/user-submissions-access.int.spec.ts` does. Asserting `hasPermission` alone would have passed while the hole was open.
 
 ### Payload's own `payload-*` entities
 
@@ -223,7 +248,7 @@ In-app job callers (autoRun, the screening kick) leave `overrideAccess` at its d
 
 ### A field lock, for a collection a client reaches
 
-`RESTRICTED_COLLECTIONS` is collection-wide, and sometimes only one field must be hidden from a client — on a collection the client legitimately reads, or on the one row restriction never covers, its own. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock, read and write alike. ⚠ **It is spelled as an allowlist** — `req.user?.collection === 'managers'` — so it denies an anonymous caller and any future auth collection, not only `clients`.
+Project membership is collection-wide, and sometimes only one field must be hidden from a client — on a collection the client legitimately reads, or on the one row restriction never covers, its own. `managersOnlyFieldAccess` (`@/plugins/access`) is that lock, read and write alike. ⚠ **It is spelled as an allowlist** — `req.user?.collection === 'managers'` — so it denies an anonymous caller and any future auth collection, not only `clients`.
 
 It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong tool for this: a client's own managers must be able to configure their service, and document-level manager access already decides which clients each manager sees. Five fields carry it:
 
@@ -233,7 +258,7 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 - `Forms.recipient` — the same collection, and now defence in depth behind restricted `managers` (#821).
 - `Events.registrationNotificationEmail` — a manager's address _copied_ onto a collection the `sahaj-atlas` project reads (#821).
 
-⚠ **Reach for a field lock, not `RESTRICTED_COLLECTIONS`, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
+⚠ **Reach for a field lock, not project membership, whenever personal data is denormalized rather than related.** `Events.activityLog` is the same shape one step further out — a JSON column whose reminder entries record the address each one went to — so the lock lives in the `logField` factory (`src/fields/logField.ts`) and every consumer inherits it. The sibling `Events.contactEmail` deliberately has no lock: that one is the address a seeker is meant to write to.
 
 ⚠ **A locked field still appears in `payload-types.ts`.** The lock strips the value at runtime, not the shape from the generated type.
 
@@ -241,7 +266,7 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 
 | Want                            | Do                                                                                  |
 | ------------------------------- | ----------------------------------------------------------------------------------- |
-| Nobody reads it implicitly      | Add it to `RESTRICTED_COLLECTIONS`                                                  |
+| Nobody reads it implicitly      | Leave it out of every project                                                       |
 | **No client key may read it**   | Add it to `CLIENT_UNREADABLE` (`accessConfigs.ts`) — managers keep implicit read    |
 | A client may still create it    | Grant `['create']` in that client's role                                            |
 | **No manager role may read it** | Grant it in **no** role                                                             |
@@ -283,4 +308,5 @@ collection from `PROJECTS` is **not** the third option — "in no project" reads
 Lookup tables compute automatically. No manual update is needed.
 
 2. Run `pnpm generate:types` to regenerate `RoleSlug`.
-3. Add tests in `tests/int/role-based-access.int.spec.ts`.
+3. List it in `Managers.roles`' `getRoleOptions([...])` — unless it declares `virtual: { join: '<joinField>' }`, which `getRoleOptions` refuses. That join name is the whole declaration — `virtualRoles` grants the role whenever the join's `docs` are non-empty, so there is no predicate to write. What a virtual role owes instead is a reason the join cannot go stale.
+4. Add tests in `tests/int/role-based-access.int.spec.ts`.

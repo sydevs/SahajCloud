@@ -6,12 +6,17 @@ import path from 'path'
 import { getAccessResults } from 'payload'
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
+import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Meditation, Region } from '@/payload-types'
-import { bypassPermissions, hasAnyPermission, hasPermission } from '@/plugins/access'
+import { bypassPermissions, hasAnyPermission, hasPermission, virtualRoles } from '@/plugins/access'
+import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
+import { filterAvailableLocales } from '@/plugins/access/filterAvailableLocales'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
+import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -259,7 +264,7 @@ describe('Role-Based Access Control', () => {
         roles: { en: ['web-translator'] },
       })
 
-      // Should have implicit read access to non-restricted collections
+      // Implicit read of what the role's project names
       expect(
         hasPermission(
           { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
@@ -370,6 +375,86 @@ describe('Role-Based Access Control', () => {
       })
     })
 
+    describe('Pages — the derived `page-editor` role', () => {
+      // `authUser`, not the create response: the role is read off the
+      // `managedPages` join, which only a re-read carries.
+      it('reads the web project but updates only the pages listing them', async () => {
+        const created = await testData.createManager(payload, {
+          name: 'Derived Page Editor',
+          roles: [],
+        })
+        const mine = await testData.createPage(payload, {
+          title: 'Derived Mine',
+          managers: [created.id],
+        })
+        const other = await testData.createPage(payload, { title: 'Derived Other' })
+        const editor = await testData.authUser(payload, created)
+        expect(virtualRoles(editor)).toEqual(['page-editor'])
+
+        // Project membership is implicit read of every page in it.
+        const read = await payload.findByID({
+          collection: 'pages',
+          id: other.id,
+          user: editor,
+          overrideAccess: false,
+        })
+        expect(read.id).toBe(other.id)
+
+        const updated = await payload.update({
+          collection: 'pages',
+          id: mine.id,
+          data: { title: 'Derived Mine Edited' },
+          user: editor,
+          overrideAccess: false,
+        })
+        expect(updated.title).toBe('Derived Mine Edited')
+
+        await expect(
+          payload.update({
+            collection: 'pages',
+            id: other.id,
+            data: { title: 'Should Not Save' },
+            user: editor,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('cannot list itself, or anyone else, on a page', async () => {
+        // The field-level lock: writing `Pages.managers` hands out the role.
+        const created = await testData.createManager(payload, { name: 'Self Lister', roles: [] })
+        const outsider = await testData.createManager(payload, { name: 'Hopeful', roles: [] })
+        const page = await testData.createPage(payload, {
+          title: 'Locked Editors',
+          managers: [created.id],
+        })
+        const editor = await testData.authUser(payload, created)
+
+        const saved = await payload.update({
+          collection: 'pages',
+          id: page.id,
+          data: { managers: [created.id, outsider.id] },
+          user: editor,
+          overrideAccess: false,
+          depth: 0,
+        })
+        expect(saved.managers).toEqual([created.id])
+      })
+
+      it('offers English alone, though pages are localized', async () => {
+        // A deliberate choice: a page assignment names no language, so another
+        // locale comes from a stored role (`filterAvailableLocales`).
+        const created = await testData.createManager(payload, { name: 'Page Locales', roles: {} })
+        await testData.createPage(payload, { title: 'Locale Page', managers: [created.id] })
+        const editor = await testData.authUser(payload, created)
+        const offered = filterAvailableLocales({
+          locales: payload.config.localization ? payload.config.localization.locales : [],
+          req: { user: editor } as unknown as PayloadRequest,
+        })
+        expect(offered.map((locale) => locale.code)).toEqual(['en'])
+      })
+    })
+
     describe('Regions — recursive inheritance via breadcrumbs', () => {
       // Non-'manual' mapboxId keeps the conditionally-required coordinate fields
       // out of validation.
@@ -475,7 +560,7 @@ describe('Role-Based Access Control', () => {
   describe('Atlas manager — region-subtree write scoping', () => {
     const managerUser = (m: ManagerFixture) => ({ ...m, collection: 'managers' as const })
 
-    let atlasManager: Awaited<ReturnType<typeof testData.createManager>>
+    let atlasManager: Awaited<ReturnType<typeof testData.authUser>>
     let fillerId: number
     let countryId: number
     let regionId: number
@@ -519,9 +604,9 @@ describe('Role-Based Access Control', () => {
     beforeAll(async () => {
       const filler = await testData.createManager(payload, { name: 'Atlas Filler', roles: [] })
       fillerId = filler.id
-      atlasManager = await testData.createManager(payload, {
+      const listed = await testData.createManager(payload, {
         name: 'Atlas Manager',
-        roles: ['atlas-manager'],
+        roles: [],
       })
 
       // country > region (owned) > city > venue, plus a separate branch.
@@ -532,9 +617,12 @@ describe('Role-Based Access Control', () => {
         level: 'region',
         name: 'AtlasMgr Region',
         parent: countryId,
-        managers: [atlasManager.id],
+        managers: [listed.id],
       })
       regionId = region.id
+      // `atlas-region-manager` is derived from that listing, so the user has to
+      // be re-read once it exists — see `testData.authUser`.
+      atlasManager = await testData.authUser(payload, listed)
       const city = await createRegion({ level: 'city', name: 'AtlasMgr City', parent: regionId })
       cityId = city.id
       const venue = await createRegion({
@@ -597,24 +685,23 @@ describe('Role-Based Access Control', () => {
 
     it('exposes the role as project-scoped: read everywhere, write only on events/regions', () => {
       const user = managerUser(atlasManager)
+      // ⚠ Every check here names a locale, and must. The role is derived from
+      // the region listing, and `extractRoles` resolves a derived role only
+      // once the scope does — so a check with no locale denies, exactly as it
+      // does for a stored per-locale role (#665).
+      const may = (collection: ContentSlug, operation: 'delete' | 'read' | 'update') =>
+        hasPermission({ user, collection, operation, locale: 'en' }, bypassPermissions)
+
       // Project-wide implicit read across the Atlas collections.
       for (const collection of ['events', 'regions', 'images'] as const) {
-        expect(hasPermission({ user, collection, operation: 'read' }, bypassPermissions)).toBe(true)
+        expect(may(collection, 'read')).toBe(true)
       }
       // Role grants events CUD and regions CU (scoped at the access layer). No
       // region delete, and nothing on unrelated collections.
-      expect(
-        hasPermission({ user, collection: 'events', operation: 'delete' }, bypassPermissions),
-      ).toBe(true)
-      expect(
-        hasPermission({ user, collection: 'regions', operation: 'update' }, bypassPermissions),
-      ).toBe(true)
-      expect(
-        hasPermission({ user, collection: 'regions', operation: 'delete' }, bypassPermissions),
-      ).toBe(false)
-      expect(
-        hasPermission({ user, collection: 'meditations', operation: 'update' }, bypassPermissions),
-      ).toBe(false)
+      expect(may('events', 'delete')).toBe(true)
+      expect(may('regions', 'update')).toBe(true)
+      expect(may('regions', 'delete')).toBe(false)
+      expect(may('meditations', 'update')).toBe(false)
     })
 
     it('reads regions and events project-wide, not just within its subtree', async () => {
@@ -804,15 +891,452 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
-    it('cannot create an event when it owns no region', async () => {
-      const regionlessManager = await testData.createManager(payload, {
-        name: 'Region-less Atlas Manager',
-        roles: ['atlas-manager'],
+    it('cannot create an event when it is listed nowhere', async () => {
+      // A manager listed on no region and named on no event holds neither
+      // Atlas role, so nothing grants `events: create` at all.
+      const unlisted = await testData.createManager(payload, {
+        name: 'Unlisted Atlas Manager',
+        roles: [],
       })
-      // Owns no region → its subtree is empty → no region is valid to create in.
       await expect(
-        createEvent({ region: cityId, address: { street: 'Nope' } }, regionlessManager),
+        createEvent({ region: cityId, address: { street: 'Nope' } }, unlisted),
       ).rejects.toThrow()
+    })
+
+    it('grants an event assignee update and delete on that event, and no create', async () => {
+      const named = await testData.createManager(payload, { name: 'Event Assignee', roles: [] })
+      const own = await createEvent({ region: otherVenueId, manager: named.id })
+      const assignee = await testData.authUser(payload, named)
+
+      expect(
+        hasPermission(
+          { user: assignee, collection: 'events', operation: 'update', locale: 'en' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+      expect(
+        hasPermission(
+          { user: assignee, collection: 'events', operation: 'create', locale: 'en' },
+          bypassPermissions,
+        ),
+      ).toBe(false)
+
+      // The grant narrows to the events naming them: their own, and no other
+      // in the same region.
+      const nobodys = await createEvent({ region: otherVenueId })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: own.id,
+          data: { contactPhone: '+44 20 1111 2222' },
+          user: assignee,
+          overrideAccess: false,
+          draft: true,
+        }),
+      ).resolves.toMatchObject({ contactPhone: '+44 20 1111 2222' })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: nobodys.id,
+          data: { contactPhone: '+44 20 3333 4444' },
+          user: assignee,
+          overrideAccess: false,
+          draft: true,
+        }),
+      ).rejects.toThrow()
+    })
+  })
+
+  describe('Atlas roles derived from a listing (#1068)', () => {
+    /** Read the manager back the way an authenticated request carries them. */
+    const reload = (manager: { id: number }) => testData.authUser(payload, manager)
+
+    const grants = (user: unknown, collection: 'events' | 'managers' | 'regions') =>
+      hasPermission(
+        { user: user as never, collection, operation: 'update', locale: 'en' },
+        bypassPermissions,
+      )
+
+    let country: number
+    let city: number
+    let farCity: number
+
+    beforeAll(async () => {
+      const region = (data: RegionFixture) =>
+        payload.create({
+          collection: 'regions',
+          data: createData<'regions'>({
+            level: 'country',
+            name: 'Derived Region',
+            mapboxId: `place.${Math.random().toString(36).slice(2)}`,
+            ...data,
+          }),
+          depth: 0,
+          overrideAccess: true,
+        })
+      country = (await region({ level: 'country', name: 'Derivia' })).id
+      city = (await region({ level: 'city', name: 'Derivia City', parent: country })).id
+      farCity = (await region({ level: 'city', name: 'Far Derivia City' })).id
+    })
+
+    it('holds the region role in every locale with nothing stored, and drops it when unlisted', async () => {
+      const manager = await testData.createManager(payload, { name: 'Listed', roles: {} })
+      expect(grants(await reload(manager), 'regions')).toBe(false)
+
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [manager.id] },
+        overrideAccess: true,
+      })
+      const listed = await reload(manager)
+      // Nothing was written to `roles`: the listing is the whole record of it.
+      expect(listed.roles ?? []).toEqual([])
+      for (const locale of ['en', 'fr', 'cs'] as const) {
+        expect(
+          hasPermission(
+            { user: listed as never, collection: 'regions', operation: 'update', locale },
+            bypassPermissions,
+          ),
+          `the derived role should apply in ${locale}`,
+        ).toBe(true)
+      }
+
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [] },
+        overrideAccess: true,
+      })
+      expect(grants(await reload(manager), 'regions')).toBe(false)
+    })
+
+    it('holds the event role for an assignment, and drops it when reassigned', async () => {
+      const manager = await testData.createManager(payload, { name: 'Assigned', roles: {} })
+      // Published, so the un-assignment below is an ordinary save: a
+      // `draft: true` update leaves the main table's `manager` alone, and the
+      // join this role is derived from reads that column.
+      const event = await testData.createEvent(payload, {
+        title: 'Assigned Program',
+        region: farCity,
+        manager: manager.id,
+        _status: 'published',
+      })
+
+      const assignee = await reload(manager)
+      expect(assignee.roles ?? []).toEqual([])
+      expect(grants(assignee, 'events')).toBe(true)
+      // The event role picks on nothing, so it reaches no roster.
+      expect(grants(assignee, 'managers')).toBe(false)
+      expect(grants(assignee, 'regions')).toBe(false)
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { manager: null, verificationStage: 'unverified' },
+        overrideAccess: true,
+        context: { skipVerifyHook: true },
+      })
+      expect(grants(await reload(manager), 'events')).toBe(false)
+    })
+
+    it('lets an event assignee save the event their role comes from', async () => {
+      // ⚠ Payload's admin posts the WHOLE document, `region` included. An
+      // assignee owns no region, so a re-home test with no exemption for an
+      // unchanged value refused every save of their own event — and a save is
+      // what re-verifies it.
+      const named = await testData.createManager(payload, { name: 'Saver', roles: {} })
+      const event = await testData.createEvent(payload, {
+        title: 'Assignee saves this',
+        region: farCity,
+        manager: named.id,
+        _status: 'published',
+      })
+      const assignee = await testData.authUser(payload, named)
+
+      const saved = await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: { region: farCity, contactPhone: '+44 20 7777 8888' },
+        user: assignee,
+        overrideAccess: false,
+      })
+      expect(saved.contactPhone).toBe('+44 20 7777 8888')
+
+      // A real re-home is still refused.
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { region: city },
+          user: assignee,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('lets a region manager save the region they are listed on', async () => {
+      // Their own top region's parent sits ABOVE the subtree, so the same
+      // unchanged-value refusal blocked every save of it.
+      const parent = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'country',
+          name: 'Above Derivia',
+          mapboxId: 'place.above-derivia',
+        }),
+        depth: 0,
+        overrideAccess: true,
+      })
+      const listed = await testData.createManager(payload, { name: 'Root Saver', roles: {} })
+      const root = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'region',
+          name: 'Derivia State',
+          mapboxId: 'place.derivia-state',
+          parent: parent.id,
+          managers: [listed.id],
+        }),
+        depth: 0,
+        overrideAccess: true,
+      })
+      const manager = await testData.authUser(payload, listed)
+
+      const saved = await payload.update({
+        collection: 'regions',
+        id: root.id,
+        data: { parent: parent.id, subtitle: 'saved by its own manager' },
+        user: manager,
+        overrideAccess: false,
+      })
+      expect(saved.subtitle).toBe('saved by its own manager')
+
+      // A real re-parent out of the subtree is still refused.
+      await expect(
+        payload.update({
+          collection: 'regions',
+          id: root.id,
+          data: { parent: country },
+          user: manager,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('offers English alone to a manager whose only role is derived', async () => {
+      // The role is held in every locale, and still opens no locale here:
+      // nothing either Atlas role grants carries a localized field, so a
+      // second language would reach no content the first does not. Asserted
+      // against the booted config rather than trusted, since the day one of
+      // those collections takes a localized field this answer is wrong.
+      const listed = await testData.createManager(payload, { name: 'Locales', roles: {} })
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [listed.id] },
+        overrideAccess: true,
+      })
+      const manager = await testData.authUser(payload, listed)
+      const locales = payload.config.localization
+        ? payload.config.localization.locales
+        : /* v8 ignore next */ []
+
+      const offered = filterAvailableLocales({
+        locales,
+        req: { user: manager } as unknown as PayloadRequest,
+      })
+      expect(offered.map((locale) => locale.code)).toEqual(['en'])
+
+      for (const slug of ['regions', 'events'] as const) {
+        const localized = payload.collections[slug]!.config.flattenedFields.filter(
+          (field) => 'localized' in field && field.localized,
+        )
+        expect(localized.map((field) => ('name' in field ? field.name : ''))).toEqual([])
+      }
+    })
+
+    it('routes a proposal only by indexed relationship columns', () => {
+      // ⚠ Every path in the subtree clause must be a real relationship column.
+      // These facts lived in a JSON column until #1068, where
+      // each path cost one inlined `jsonb_path_exists` per owned region id and
+      // a country manager's read degraded to a seq scan. A JSON path added back
+      // here would reintroduce that silently — the query still answers
+      // correctly, only slowly — so the shape is asserted rather than trusted.
+      const fieldsOf = (slug: 'user-submissions' | 'events') =>
+        payload.collections[slug]!.config.flattenedFields
+
+      expect(PROPOSAL_REGION_PATHS.length).toBeGreaterThan(0)
+      for (const path of PROPOSAL_REGION_PATHS) {
+        // A dotted path crosses one relationship, so resolve the hop first.
+        const [head, tail] = path.split('.')
+        const onSubmission = fieldsOf('user-submissions').find(
+          (field) => 'name' in field && field.name === head,
+        )
+        expect(onSubmission, `${path} names no field on user-submissions`).toBeDefined()
+        expect(onSubmission!.type, `${path} does not start at a relationship`).toBe('relationship')
+
+        const resolved = tail
+          ? fieldsOf('events').find((field) => 'name' in field && field.name === tail)
+          : onSubmission
+        expect(resolved, `${path} names no field on the related collection`).toBeDefined()
+        expect(resolved!.type, `${path} is not a relationship column`).toBe('relationship')
+      }
+    })
+
+    it('reaches the routing region a proposal with no city is reviewed by', () => {
+      // The clause and `submissionRoutingRegionId` are two spellings of one
+      // rule, in two files, which no type checks against the other. The chain's
+      // answer for the case that has no `region` at all — a proposal above a
+      // city the atlas does not hold — has to be a column the clause queries,
+      // or its region manager cannot read the row `deliverProposal` mailed them.
+      expect(submissionRoutingRegionId({ region: null, routingRegion: 7 })).toBe(7)
+      expect(PROPOSAL_REGION_PATHS as readonly string[]).toContain('routingRegion')
+
+      // And a reviewer's correction still wins, so moving a proposal moves who
+      // reviews it rather than leaving intake's match in charge.
+      expect(submissionRoutingRegionId({ region: 4, routingRegion: 7 })).toBe(4)
+    })
+
+    describe('the delegation lock', () => {
+      let regionManager: Awaited<ReturnType<typeof testData.authUser>>
+      let inSubtree: number
+      let outside: number
+      let eventInSubtree: number
+
+      beforeAll(async () => {
+        const listed = await testData.createManager(payload, { name: 'Delegator', roles: {} })
+        inSubtree = (
+          await payload.create({
+            collection: 'regions',
+            data: createData<'regions'>({
+              level: 'country',
+              name: 'Delegia',
+              mapboxId: 'place.delegia',
+              managers: [listed.id],
+            }),
+            depth: 0,
+            overrideAccess: true,
+          })
+        ).id
+        outside = (
+          await payload.create({
+            collection: 'regions',
+            data: createData<'regions'>({
+              level: 'country',
+              name: 'Outside Delegia',
+              mapboxId: 'place.outside-delegia',
+            }),
+            depth: 0,
+            overrideAccess: true,
+          })
+        ).id
+        const inSubtreeCity = (
+          await payload.create({
+            collection: 'regions',
+            data: createData<'regions'>({
+              level: 'city',
+              name: 'Delegia City',
+              mapboxId: 'place.delegia-city',
+              parent: inSubtree,
+            }),
+            depth: 0,
+            overrideAccess: true,
+          })
+        ).id
+        regionManager = await testData.authUser(payload, listed)
+        eventInSubtree = (
+          await payload.create({
+            collection: 'events',
+            draft: true,
+            data: createData<'events'>({ eventType: 'offline', region: inSubtreeCity }),
+            depth: 0,
+            overrideAccess: true,
+          })
+        ).id
+      })
+
+      it('lets a region manager list a manager inside their subtree, on a region and an event', async () => {
+        const guest = await testData.createManager(payload, { name: 'Guest', roles: {} })
+
+        const region = await payload.update({
+          collection: 'regions',
+          id: inSubtree,
+          data: { managers: [Number(regionManager.id), guest.id] },
+          user: regionManager,
+          overrideAccess: false,
+        })
+        expect((region.managers ?? []).map((m) => (typeof m === 'object' ? m.id : m))).toContain(
+          guest.id,
+        )
+
+        const event = await payload.update({
+          collection: 'events',
+          id: eventInSubtree,
+          data: { manager: guest.id },
+          user: regionManager,
+          overrideAccess: false,
+          draft: true,
+        })
+        expect(relationId(event.manager)).toBe(guest.id)
+      })
+
+      it('strips the field on a region outside their subtree', async () => {
+        const guest = await testData.createManager(payload, { name: 'Guest Outside', roles: {} })
+        // The row itself is beyond their write scope, so the whole update is
+        // refused rather than the field stripped — the lock's job starts where
+        // the row-level scope ends.
+        await expect(
+          payload.update({
+            collection: 'regions',
+            id: outside,
+            data: { managers: [guest.id] },
+            user: regionManager,
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow()
+      })
+
+      it('refuses an event assignee the manager field their own grant comes from', async () => {
+        const named = await testData.createManager(payload, { name: 'Self-dealer', roles: {} })
+        const event = await payload.create({
+          collection: 'events',
+          draft: true,
+          data: createData<'events'>({
+            eventType: 'offline',
+            region: city,
+            manager: named.id,
+          }),
+          depth: 0,
+          overrideAccess: true,
+        })
+        const assignee = await testData.authUser(payload, named)
+        const stranger = await testData.createManager(payload, { name: 'Stranger', roles: {} })
+
+        // Payload STRIPS a field its `access.update` refuses rather than
+        // erroring, so the proof is that the save went through and `manager`
+        // did not move. Reassigning and disowning are both refused.
+        const reassigned = await payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { manager: stranger.id, contactPhone: '+44 20 5555 6666' },
+          user: assignee,
+          overrideAccess: false,
+          draft: true,
+        })
+        expect(reassigned.contactPhone).toBe('+44 20 5555 6666')
+        expect(relationId(reassigned.manager)).toBe(named.id)
+
+        const disowned = await payload.update({
+          collection: 'events',
+          id: event.id,
+          data: { manager: null },
+          user: assignee,
+          overrideAccess: false,
+          draft: true,
+        })
+        expect(relationId(disowned.manager)).toBe(named.id)
+      })
     })
   })
 
@@ -2194,7 +2718,7 @@ describe('Role-Based Access Control', () => {
       expect(Number(asAdmin.parent)).toBe(Number(collidingRow.docs[0]!.parent))
     })
 
-    it('translates a recursive `or` — an atlas-manager reads its subtree, not outside', async () => {
+    it('translates a recursive `or` — a region manager reads its subtree, not outside', async () => {
       // Every other case here proves the translation for `{ id: { in } }`.
       // `events` is the one collection whose `update` returns a `Where` keyed on
       // something else: `scopeRegionSubtreeWrite` hands back
@@ -2213,9 +2737,9 @@ describe('Role-Based Access Control', () => {
         name: 'Atlas Filler for Version History Test',
         roles: [],
       })
-      const atlasManager = await testData.createManager(payload, {
+      const listed = await testData.createManager(payload, {
         name: 'Atlas Manager for Version History Test',
-        roles: ['atlas-manager'],
+        roles: [],
       })
 
       const createRegion = (data: RegionFixture) =>
@@ -2238,8 +2762,10 @@ describe('Role-Based Access Control', () => {
       const owned = await createRegion({
         level: 'country',
         name: 'VersionHistory Country',
-        managers: [atlasManager.id],
+        managers: [listed.id],
       })
+      // The listing is the role, so the user has to be re-read once it exists.
+      const atlasManager = await testData.authUser(payload, listed)
       const ownedCity = await createRegion({
         level: 'city',
         name: 'VersionHistory City',

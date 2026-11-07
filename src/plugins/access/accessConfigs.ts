@@ -24,6 +24,7 @@ import { appendVersionToQueryKey, hasWhereAccessResult } from 'payload'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 
 import { isManager } from './adminOnly'
+import { virtualRoles } from './config'
 import {
   getDocManagerFields,
   hasDocManagerAccess,
@@ -33,7 +34,11 @@ import {
 import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
-import { isRegionSubtreeCollection, scopeRegionSubtreeWrite } from './regionSubtreeAccess'
+import {
+  isRegionSubtreeCollection,
+  resolveOwnedRegionIds,
+  scopeRegionSubtreeWrite,
+} from './regionSubtreeAccess'
 
 /**
  * True when the entity named by `slug` has drafts enabled — collection **or**
@@ -68,9 +73,35 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
 }
 
 /**
+ * Every column a proposal's responsible region can be named in — the target
+ * event's own region, the listing's own, and the one intake routed it by.
+ *
+ * ⚠ **A region manager owns a subtree, so these are equivalent to
+ * `submissionRoutingRegionId`'s `??` chain rather than a loose superset of
+ * it.** `routingRegion` holds the deepest level intake matched, and an owned
+ * subtree is closed downwards: whenever a broader region is in it, every
+ * narrower one is too. So matching any path answers exactly what matching the
+ * first non-null one would.
+ *
+ * `routingRegion` is load-bearing, not a cache of `region`: a proposal for a
+ * city the atlas does not hold yet has no `region` at all, and
+ * `deliverProposal` mails its state or country manager — who would otherwise
+ * be unable to read the row they were asked to review.
+ *
+ * ⚠ **It is an indexed relationship column because this clause queries it.**
+ * The same facts once lived in a JSON column (#1068), which only
+ * `jsonb_path_exists` can reach, and `createJSONQuery` inlines one OR'd
+ * sibling per value — so three hint paths cost three predicates per owned
+ * region id, a country manager owning ~1,000 regions sent ~3,000 unindexable
+ * ones, and the `or` degraded the whole read to a seq scan of
+ * `user_submissions`. Never route this clause back through a JSON path.
+ */
+export const PROPOSAL_REGION_PATHS = ['event.region', 'region', 'routingRegion'] as const
+
+/**
  * What of `user-submissions` a manager may see.
  *
- * The role grant that reaches this restricted collection is collection-wide,
+ * The role grant that reaches this project-less collection is collection-wide,
  * and the collection now holds four different things in one table — so without
  * this narrowing, granting a manager the proposals they review would also hand
  * them every registrant's address and every stranger's message. The grant says
@@ -80,19 +111,42 @@ function scopesWritesByLocale(req: PayloadRequest, collection: ContentSlug): boo
  *   recipient lives on the form rather than the submission (one author's
  *   decision, not four hundred rows'), so the clause reaches through the
  *   relationship.
- * - **proposal** rows, per the regional grant they already had on
- *   `event-submissions` — reviewing them is the job.
+ * - **proposal** rows they are the reviewer of, which is the job. Reviewing is
+ *   what the two derived roles differ over, so each contributes its own clause:
+ *   a region manager reads the proposals landing in their subtree, an event
+ *   assignee the update proposals on their own events, and someone who is both
+ *   reads the union.
  *
  * `registration` and `subscribe` rows appear for nobody but an admin. They are
  * consent and attendance records, and no manager task reads them.
  */
-function managerSubmissionScope(userId: number | string): Where {
-  return {
-    or: [
-      { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: userId } }] },
-      { type: { equals: 'proposal' } },
-    ],
+async function managerSubmissionScope(req: PayloadRequest): Promise<Where> {
+  const user = req.user!
+  // The same predicate the caller gated on, repeated so the narrowing reaches
+  // the joins: a `Client` shares none of their keys.
+  const roles = isManager(user) ? virtualRoles(user) : []
+
+  const or: Where[] = [
+    { and: [{ type: { equals: 'contact' } }, { 'form.recipient': { equals: user.id } }] },
+  ]
+
+  if (roles.includes('atlas-event-manager')) {
+    or.push({ and: [{ type: { equals: 'proposal' } }, { 'event.manager': { equals: user.id } }] })
   }
+
+  if (roles.includes('atlas-region-manager')) {
+    const ownedRegionIds = await resolveOwnedRegionIds(req, Number(user.id))
+    if (ownedRegionIds.length) {
+      or.push({
+        and: [
+          { type: { equals: 'proposal' } },
+          { or: PROPOSAL_REGION_PATHS.map((path) => ({ [path]: { in: ownedRegionIds } })) },
+        ],
+      })
+    }
+  }
+
+  return { or }
 }
 
 /**
@@ -177,9 +231,10 @@ export function createAccessConfig(
           return { _status: { equals: 'published' } }
         }
 
-        // An atlas-manager's role grants create/update/delete on regions/events,
-        // but only within the region subtree they own — narrow the collection-
-        // wide grant to a scoped Where (or boolean). See regionSubtreeAccess.ts.
+        // The Atlas roles grant create/update/delete on regions/events, but
+        // only within the region subtree a region manager owns, or on the
+        // events an assignee is named on — narrow the collection-wide grant to
+        // a scoped Where (or boolean). See regionSubtreeAccess.ts.
         if (operation !== 'read' && isManager(req.user) && isRegionSubtreeCollection(collection)) {
           return scopeRegionSubtreeWrite({ req, collection, operation, id, data })
         }
@@ -195,7 +250,7 @@ export function createAccessConfig(
         // collection holds four different things — so narrow it to the rows
         // their job actually needs. See `managerSubmissionScope`.
         if (collection === 'user-submissions' && isManager(req.user)) {
-          return managerSubmissionScope(req.user!.id)
+          return managerSubmissionScope(req)
         }
 
         return true

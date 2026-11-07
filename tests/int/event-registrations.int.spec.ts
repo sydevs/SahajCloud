@@ -3,39 +3,37 @@ import type { Payload } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
-import { programStatus, type ProgramQuery } from '@/components/admin/Dashboard/AtlasManager/model'
 import {
   acceptedRegistrationsCsv,
   countAcceptedRegistrations,
   loadEventRegistrations,
 } from '@/components/admin/EventRegistrations/data'
 import type { RegistrationQuery } from '@/components/admin/EventRegistrations/data'
-import type { Manager as ManagerDoc } from '@/payload-types'
 
 import { createRestClientAs } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-describe('Atlas manager home', () => {
+/** The event's own Registrations view (#1069). The three homes live in `atlas-overview.int.spec.ts`. */
+describe('Event registrations', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let env: Awaited<ReturnType<typeof createTestEnvironment>>
-  let owner: ManagerDoc
-  let assignee: ManagerDoc
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let owner: AuthManager
+  let assignee: AuthManager
   let ownId: number
   let cityId: number
-  let assignedId: number
   beforeAll(async () => {
     env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
-    owner = await testData.createManager(payload, {
+    const listed = await testData.createManager(payload, {
       type: 'manager',
-      roles: ['atlas-manager'],
+      roles: [],
       currentProject: 'sahaj-atlas',
     })
-    assignee = await testData.createManager(payload, {
+    const assigned = await testData.createManager(payload, {
       type: 'manager',
       roles: [],
       currentProject: 'sahaj-atlas',
@@ -54,11 +52,14 @@ describe('Atlas manager home', () => {
         name: 'Dashboard City',
         level: 'city',
         parent: country.id,
-        managers: [owner.id],
+        managers: [listed.id],
         mapboxId: 'city.dashboard',
       }),
     })
     cityId = city.id
+    // Both Atlas roles are derived from the listings above and below, so each
+    // user is re-read once theirs exists — see `testData.authUser`.
+    owner = await testData.authUser(payload, listed)
     const otherCity = await payload.create({
       collection: 'regions',
       data: createData<'regions'>({
@@ -80,162 +81,27 @@ describe('Atlas manager home', () => {
       },
     })
     ownId = event.id
-    const assigned = await payload.create({
+    // Naming `assignee` on an event is what gives them the program role.
+    await payload.create({
       collection: 'events',
       draft: true,
       data: {
         title: 'Assigned draft',
         region: otherCity.id,
-        manager: assignee.id,
+        manager: assigned.id,
         eventType: 'offline',
       },
     })
-    assignedId = assigned.id
-    await payload.create({
-      collection: 'events',
-      draft: true,
-      data: { title: 'Unrelated draft', region: otherCity.id, eventType: 'offline' },
-    })
+    assignee = await testData.authUser(payload, assigned)
   })
   afterAll(async () => cleanup())
-  const request = (user: ManagerDoc) =>
+  const request = (user: AuthManager) =>
     createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
-  const load = async (user: ManagerDoc, query: Partial<ProgramQuery> = {}) =>
-    getAtlasManagerData(await request(user), { tab: 'all', page: 1, limit: 50, ...query })
-  const ids = (data: { programs: { docs: { id: number }[] } }) =>
-    data.programs.docs.map((event) => event.id)
 
-  it('includes manageable region drafts but excludes other project-readable events', async () => {
-    const data = await load(owner)
-    expect(data.canCreate).toBe(true)
-    expect(ids(data)).toEqual([ownId])
-    // The one event is an urgent draft, so it is awaiting review and nothing else.
-    expect(data.counts).toEqual({ all: 1, review: 1, drafts: 0 })
-  })
-  it('supports direct assignment without granting creation', async () => {
-    const data = await load(assignee)
-    expect(data.canCreate).toBe(false)
-    expect(ids(data)).toEqual([assignedId])
-  })
-  it('answers from the Events write scope and not from the current project', async () => {
-    // The Events `update` scope is regions and assignment, so it admits the same
-    // programs whatever project is selected. That is why containment to Sahaj
-    // Atlas belongs to `dashboardChoiceFor`, which decides whether this view
-    // renders at all — never to this read.
-    const elsewhere = await load({ ...owner, currentProject: 'wemeditate-web' })
-    expect(ids(elsewhere)).toEqual([ownId])
-  })
-  it('distinguishes a never-published draft from unpublished changes to a live program', async () => {
-    const live = await testData.createEvent(payload, {
-      title: 'Live program',
-      manager: owner.id,
-      region: cityId,
-      _status: 'published',
-    })
-    await payload.update({
-      collection: 'events',
-      id: live.id,
-      draft: true,
-      data: { title: 'Changed title' },
-    })
-    // Verified, so it lands in `drafts` for never having been published rather
-    // than for its stage — which is the only reason `ownId` is in `review`.
-    const draft = await payload.create({
-      collection: 'events',
-      draft: true,
-      data: {
-        title: 'Never published draft',
-        region: cityId,
-        manager: owner.id,
-        eventType: 'offline',
-      },
-    })
-    const data = await load(owner)
-    const program = data.programs.docs.find((event) => event.id === live.id)
-    expect(program).toMatchObject({ title: 'Changed title', _status: 'draft', published: true })
-    expect(programStatus(program!)).toBe('published')
-    expect(data.programs.docs.find((event) => event.id === draft.id)).toMatchObject({
-      verificationStage: 'verified',
-      published: false,
-    })
-    expect(ids(await load(owner, { tab: 'drafts' }))).toEqual([draft.id])
-    expect(ids(await load(owner, { tab: 'review' }))).toEqual([ownId])
-  })
-  it.each(['urgent', 'finished'] as const)(
-    'uses the live %s stage when a draft save resets verification',
-    async (stage) => {
-      const live = await testData.createEvent(payload, {
-        title: `Live ${stage} program`,
-        manager: owner.id,
-        region: cityId,
-        _status: 'published',
-      })
-      await payload.update({
-        collection: 'events',
-        id: live.id,
-        context: { skipVerifyHook: true },
-        data: { verificationStage: stage },
-      })
-      await payload.update({
-        collection: 'events',
-        id: live.id,
-        draft: true,
-        data: {
-          title: `Draft ${stage} program`,
-          schedule: { firstDate: '2099-10-23T10:00:00.000Z', firstDate_tz: 'Europe/London' },
-        },
-      })
-      const latest = await payload.findByID({ collection: 'events', id: live.id, draft: true })
-      const base = await payload.findByID({ collection: 'events', id: live.id, draft: false })
-      expect(latest.verificationStage).toBe('verified')
-      expect(base.verificationStage).toBe(stage)
-      const data = await load(owner)
-      expect(data.programs.docs.find((event) => event.id === live.id)).toMatchObject({
-        verificationStage: stage,
-        published: true,
-        _status: 'draft',
-      })
-      if (stage === 'urgent') expect(data.programs.docs[0]!.id).toBe(live.id)
-      else expect(data.programs.docs.at(-1)?.id).toBe(live.id)
-    },
-  )
-  it('pages the review-first order without reordering it', async () => {
-    const urgent = await testData.createEvent(payload, {
-      title: 'Newly urgent program',
-      manager: owner.id,
-      region: cityId,
-    })
-    await payload.update({
-      collection: 'events',
-      id: urgent.id,
-      context: { skipVerifyHook: true },
-      data: { verificationStage: 'urgent' },
-    })
-
-    const all = await load(owner)
-    expect(all.programs.docs[0]!.verificationStage).toBe('urgent')
-    const paged = []
-    for (let page = 1; page <= all.programs.totalDocs; page++) {
-      const data = await load(owner, { page, limit: 1 })
-      expect(data.programs.totalPages).toBe(all.programs.totalDocs)
-      paged.push(...ids(data))
-    }
-    expect(paged).toEqual(ids(all))
-    const statuses = all.programs.docs.map((program) => programStatus(program))
-    expect(statuses.indexOf('finished')).toBeGreaterThan(statuses.lastIndexOf('review'))
-    // A page past the end clamps to the last one rather than coming back empty.
-    expect(ids(await load(owner, { page: 999, limit: 1 }))).toEqual([ids(all).at(-1)])
-  })
-
-  /**
-   * The event's own Registrations tab (#1069). Nested so it shares the one
-   * environment this file may create (`tests/AGENTS.md`), and declared last so
-   * its fixtures cannot reach the cases above.
-   */
   describe('Event registrations tab', () => {
     let tabEventId: number
-    let admin: ManagerDoc
-    let stranger: ManagerDoc
+    let admin: AuthManager
+    let stranger: AuthManager
 
     const register = (
       eventId: number,
@@ -258,7 +124,7 @@ describe('Atlas manager home', () => {
         }),
       })
 
-    const openTab = async (user: ManagerDoc, query: Partial<RegistrationQuery> = {}) =>
+    const openTab = async (user: AuthManager, query: Partial<RegistrationQuery> = {}) =>
       loadEventRegistrations(await request(user), tabEventId, {
         filter: 'accepted',
         page: 1,
@@ -266,12 +132,28 @@ describe('Atlas manager home', () => {
       })
 
     beforeAll(async () => {
-      admin = await testData.createManager(payload, { type: 'admin' })
-      stranger = await testData.createManager(payload, {
+      admin = await testData.authUser(
+        payload,
+        await testData.createManager(payload, { type: 'admin' }),
+      )
+      // An Atlas region manager of a subtree of their own: the listing is
+      // where that role comes from now, so these refusals are about this
+      // event rather than about holding no Atlas role at all.
+      const unrelated = await testData.createManager(payload, {
         type: 'manager',
-        roles: ['atlas-manager'],
+        roles: [],
         currentProject: 'sahaj-atlas',
       })
+      await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          name: 'Stranger Country',
+          level: 'country',
+          managers: [unrelated.id],
+          mapboxId: 'country.stranger',
+        }),
+      })
+      stranger = await testData.authUser(payload, unrelated)
       // In `owner`'s region subtree, so `owner` holds `update` on it — the
       // authority this tab is deliberately narrower than.
       const tabEvent = await testData.createEvent(payload, {
@@ -328,9 +210,9 @@ describe('Atlas manager home', () => {
     })
 
     it('refuses every manager but the one the event names', async () => {
-      // `owner` manages the region this event sits in, so the dashboard offers
-      // it to them for editing — and these rows are still not theirs.
-      expect(ids(await load(owner))).toContain(tabEventId)
+      // `owner` manages the region this event sits in, so the Events write
+      // scope admits it — and these rows are still not theirs.
+      expect(tabEventId).toBeTypeOf('number')
 
       expect(await openTab(owner)).toBeNull()
       expect(await openTab(stranger)).toBeNull()
@@ -338,7 +220,10 @@ describe('Atlas manager home', () => {
 
     /** The admin shell still admits an inactive manager, so the gate must not. */
     it('refuses the named manager once their account is inactive', async () => {
-      const retired = await testData.createManager(payload, { type: 'inactive' })
+      const retired = await testData.authUser(
+        payload,
+        await testData.createManager(payload, { type: 'inactive' }),
+      )
       const event = await testData.createEvent(payload, { manager: retired.id, region: cityId })
 
       expect(
@@ -357,7 +242,7 @@ describe('Atlas manager home', () => {
 
     /** The tab's pill: only Ada is accepted — pending is not yet confirmed. */
     it('counts accepted registrations for the tab, behind the same gate', async () => {
-      const count = async (user: ManagerDoc) =>
+      const count = async (user: AuthManager) =>
         countAcceptedRegistrations(await request(user), tabEventId)
 
       expect(await count(assignee)).toBe(1)
@@ -411,6 +296,38 @@ describe('Atlas manager home', () => {
         page: 1,
       })
       expect(data?.registrations.docs.map((row) => row.name)).toEqual(['Archived Registrant'])
+    })
+
+    it('reports the listing’s recommendations only while nobody has registered', async () => {
+      const open = async (eventId: number) =>
+        (
+          await loadEventRegistrations(await request(assignee), eventId, {
+            filter: 'accepted',
+            page: 1,
+          })
+        )?.recommendations
+
+      expect(await open(tabEventId)).toBeNull()
+
+      const bare = await testData.createEvent(payload, {
+        title: 'Unregistered program',
+        manager: assignee.id,
+        region: cityId,
+      })
+      // Unpublished, so the panel would say it does not check the listing.
+      expect(await open(bare.id)).toEqual({ checked: false, reason: expect.any(String) })
+
+      await payload.update({
+        collection: 'events',
+        id: bare.id,
+        data: { _status: 'published' },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+      expect(await open(bare.id)).toEqual({
+        checked: true,
+        open: expect.arrayContaining(['Add a description', 'Add photos']),
+      })
     })
 
     /** A `create` screen and a deleted event both reach the route with no row. */

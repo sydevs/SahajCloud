@@ -328,12 +328,15 @@ phoneVerified }]` (a `contactMethod` of `email` produces no entry).
   `notificationPreferences` ← the `notifications` bitmask + `contactMethod`,
   with the type remap `new_managed_record`→`invitation`,
   `event_verification`→`event_verification`,
-  `event_registrations`→`event_registration`, all `*_summary` bits →
-  `regional_summary`. Per mapped type, `method = contactMethod or 'email'`.
-  Atlas has no frequency, so defaults apply: `invitation` =
-  Immediate (Never if the bit is off), `event_verification` = Monthly,
-  `event_registration` = Immediate (Never if off), `regional_summary` =
-  Monthly (Never if no summary bits set). `emailVerified` stays under
+  `event_registrations`→`event_registration`. Per mapped type,
+  `method = contactMethod or 'email'`. Atlas has no frequency, so defaults
+  apply: `invitation` = Immediate (Never if the bit is off),
+  `event_verification` = Monthly, `event_registration` = Immediate (Never if
+  off). ⚠ **Atlas's four `*_summary` bits map to nothing.** They folded into
+  one `regional_summary` row, which #1070 replaced with `open_items` and
+  `statistics` — two rows Atlas never asked about — so the mapper writes
+  neither and `notificationFrequency` resolves each manager's default.
+  `emailVerified` stays under
   `legacyData`: an imported manager arrives unaccepted (`_verified` false), and
   the first reminder link they follow accepts them (#839).
 

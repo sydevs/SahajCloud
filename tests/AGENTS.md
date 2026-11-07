@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                                              | Speed                                                                                                                                  | When                                                                                                                               |
 | --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 236 files / 3054 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
+| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 241 files / 3129 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
 | **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
@@ -150,6 +150,14 @@ returns its generated output type — don't hand-roll
 (`tests/utils/testHelpers.ts`) is the minimal `select` an API-client read
 can pass. `select: {}` is **not** equivalent — the client gate rejects an
 empty select with a 400.
+
+⚠ **`testData.createManager`'s result is not an authenticated user.** It is the
+create response, so its `managedPages`, `managedRegions` and `managedEvents` joins are empty —
+and the derived roles are read off exactly those, so a manager listed on a
+region _after_ the fixture was built holds no role as far as that object is
+concerned, and the case passes for the wrong reason. `testData.authUser(payload,
+manager)` re-reads them the way Payload's JWT strategy does. Use it whenever a
+spec decides access for a listed manager (`docs/rules/access.md`).
 
 A third, for one narrow job: `storeInvalidEvent(payload, id, patch)`
 (`tests/utils/storeInvalidEvent.ts`) puts an event into a state its own

@@ -712,6 +712,14 @@ export type EventQualityReport =
        */
       openCount: number;
     };
+export type DigestWatermarks = {
+  [k: string]: {
+    /**
+     * ISO start of the last run whose email carried this key.
+     */
+    [k: string]: string;
+  };
+} | null;
 export type MeditationNodeWeights = {
   [k: string]: number;
 } | null;
@@ -763,7 +771,9 @@ export type RoleSlug =
   | 'meditations-editor'
   | 'path-editor'
   | 'web-translator'
-  | 'atlas-manager'
+  | 'page-editor'
+  | 'atlas-region-manager'
+  | 'atlas-event-manager'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -983,12 +993,13 @@ export interface Config {
   user: Manager | Client;
   jobs: {
     tasks: {
+      recordAtlasSnapshot: TaskRecordAtlasSnapshot;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
-      sendRegistrationDigests: TaskSendRegistrationDigests;
+      sendDigests: TaskSendDigests;
       sendSessionReminders: TaskSendSessionReminders;
       cleanupCollections: TaskCleanupCollections;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -1238,7 +1249,7 @@ export interface Manager {
   /**
    * Assign roles for each locale. Different roles can be assigned for different languages.
    */
-  roles?: ('meditations-editor' | 'path-editor' | 'web-translator' | 'atlas-manager')[] | null;
+  roles?: ('meditations-editor' | 'path-editor' | 'web-translator')[] | null;
   /**
    * Pages this manager can edit.
    */
@@ -1471,7 +1482,7 @@ export interface Manager {
       }[]
     | null;
   notificationPreferences?: NotificationPreferences;
-  lastRegistrationDigestSentAt?: string | null;
+  digestWatermarks?: DigestWatermarks;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2263,7 +2274,7 @@ export interface UserSubmission {
    */
   subject?: string | null;
   type: 'contact' | 'subscribe' | 'registration' | 'proposal';
-  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'confirmed_spam' | 'failed';
   user?: (number | null) | User;
   client?: (number | null) | Client;
   form?: (number | null) | Form;
@@ -2273,8 +2284,11 @@ export interface UserSubmission {
   event?: (number | null) | Event;
   uuid?: string | null;
   location?: SubmissionLocation;
-  regionHint?: SubmissionRegionHint;
   proposed?: SubmissionProposal;
+  /**
+   * The region whose manager reviews this — matched from the location.
+   */
+  routingRegion?: (number | null) | Region;
   followUpSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -2911,20 +2925,6 @@ export interface SubmissionLocation {
    */
   countryId?: string;
 }
-export interface SubmissionRegionHint {
-  /**
-   * The matched country region.
-   */
-  country?: number;
-  /**
-   * The matched state region.
-   */
-  state?: number;
-  /**
-   * The matched city or venue, kept after a reviewer changes `region`.
-   */
-  anchorRegion?: number;
-}
 export interface SubmissionProposal {
   [k: string]: unknown;
 }
@@ -3251,12 +3251,13 @@ export interface PayloadJob {
         completedAt: string;
         taskSlug:
           | 'inline'
+          | 'recordAtlasSnapshot'
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
-          | 'sendRegistrationDigests'
+          | 'sendDigests'
           | 'sendSessionReminders'
           | 'cleanupCollections'
           | 'syncLectureMetadata'
@@ -3301,12 +3302,13 @@ export interface PayloadJob {
   taskSlug?:
     | (
         | 'inline'
+        | 'recordAtlasSnapshot'
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
-        | 'sendRegistrationDigests'
+        | 'sendDigests'
         | 'sendSessionReminders'
         | 'cleanupCollections'
         | 'syncLectureMetadata'
@@ -4836,7 +4838,7 @@ export interface ManagersSelect<T extends boolean = true> {
         id?: T;
       };
   notificationPreferences?: T;
-  lastRegistrationDigestSentAt?: T;
+  digestWatermarks?: T;
   legacyId?: T;
   legacyData?: T;
   magicLinkIssuedAt?: T;
@@ -5350,8 +5352,8 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   event?: T;
   uuid?: T;
   location?: T;
-  regionHint?: T;
   proposed?: T;
+  routingRegion?: T;
   followUpSentAt?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -10890,6 +10892,18 @@ export interface CollectionsWidget {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRecordAtlasSnapshot".
+ */
+export interface TaskRecordAtlasSnapshot {
+  input?: unknown;
+  output: {
+    date: string;
+    regions: number;
+    events: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -10963,14 +10977,15 @@ export interface TaskSendPostEventFollowUps {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskSendRegistrationDigests".
+ * via the `definition` "TaskSendDigests".
  */
-export interface TaskSendRegistrationDigests {
+export interface TaskSendDigests {
   input?: unknown;
   output: {
-    eligibleManagers: number;
-    digestsSent: number;
-    registrationsIncluded: number;
+    managers: number;
+    sent: number;
+    quiet: number;
+    sectionsFailed: number;
     failed: number;
   };
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { SUBMISSION_VERDICTS } from '@/collections/UserSubmissions/fields'
+import { isSpamStatus } from '@/collections/UserSubmissions/statuses'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -61,19 +62,22 @@ export function isScreeningResult(value: unknown): value is SubmissionScreeningR
 }
 
 /**
- * Whether **the machine** refused this row.
+ * Whether this row is a spam strike against its sender.
  *
- * ⚠ **`spam` and `rejected` are two statuses so this can be one comparison.**
- * `rejected` is a manager's decline; counting it as abuse would make a
+ * ⚠ **Spam statuses only, never `rejected`.** `rejected` is a manager's decline; counting it as abuse would make a
  * manager's judgement a spam strike against the person who wrote in, and enough
  * of those would refuse their next genuine submission. A row still `pending`
  * has not been screened, and is not a strike either.
  *
+ * `confirmed_spam` is an admin agreeing with the machine, so it counts for the
+ * same reason `spam` does — withdrawing the strike is what releasing the row
+ * back to `pending` is for.
+ *
  * `status` is indexed, so unlike the verdict this is a predicate a query can
  * reach — which is why the `user-submissions` retention windows spell the same
- * status in SQL rather than importing this. The generated union is what keeps
+ * statuses in SQL rather than importing this. The generated union is what keeps
  * the two honest.
  */
-export function isMachineSpam(submission: { status?: UserSubmission['status'] | null }): boolean {
-  return submission.status === 'spam'
+export function isSpamStrike(submission: { status?: UserSubmission['status'] | null }): boolean {
+  return isSpamStatus(submission.status)
 }

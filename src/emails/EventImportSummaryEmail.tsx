@@ -1,4 +1,4 @@
-import { Hr, Section, Text } from 'react-email'
+import { Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
 
@@ -39,6 +39,7 @@ export function EventImportSummaryEmail({
           ? `${classes(created)} ready to review in ${targetName}`
           : `No classes were created in ${targetName}`
       }
+      footer={<>You’re receiving this because you imported classes into {brand.productName}.</>}
     >
       <Text style={styles.paragraph}>
         {created
@@ -56,11 +57,6 @@ export function EventImportSummaryEmail({
         brand={brand}
         buttons={[{ href: importUrl, label: created ? 'Review and publish' : 'View the import' }]}
       />
-
-      <Hr style={styles.hr} />
-      <Text style={styles.footer}>
-        You’re receiving this because you imported classes into {brand.productName}.
-      </Text>
     </EmailLayout>
   )
 }

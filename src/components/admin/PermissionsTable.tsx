@@ -4,7 +4,7 @@ import type { CollectionSlug, FieldClientComponent } from 'payload'
 
 import { Pill, useDocumentInfo, useField } from '@payloadcms/ui'
 import { PillProps } from '@payloadcms/ui/elements/Pill'
-import React, { useMemo } from 'react'
+import React, { type CSSProperties, useMemo } from 'react'
 
 import type { RoleSlug } from '@/payload-types'
 import {
@@ -13,6 +13,7 @@ import {
   getProjectLabel,
   getReadableCollections,
   getRoleProject,
+  virtualRoles,
 } from '@/plugins/access/config'
 import type { PermissionLevel } from '@/plugins/access/types'
 
@@ -25,17 +26,27 @@ import type { PermissionLevel } from '@/plugins/access/types'
  *
  * This component is rendered as afterInput for the roles field.
  * Works for both managers (localized roles) and clients (non-localized roles).
+ *
+ * ⚠ The field's value holds the stored roles only, so the derived roles are
+ * merged in here too, or a manager's table would omit access they hold.
+ * They are read off the saved document's page, region and event joins — the same
+ * source `virtualRoles` reads on the server, and the chips `RolesField` shows.
  */
 export const PermissionsTable: FieldClientComponent = () => {
-  const { value: roles } = useField<RoleSlug[]>()
-  const { collectionSlug } = useDocumentInfo()
+  const { value: storedRoles } = useField<RoleSlug[]>()
+  const { collectionSlug, savedDocumentData } = useDocumentInfo()
 
   // Determine if this is a client (API client) or manager (admin user)
   const isClient = collectionSlug === 'clients'
 
+  // No `isClient` arm: `clients` declares neither join, so `virtualRoles`
+  // already answers `[]` for one.
+  const derivedRoles = useMemo(() => virtualRoles(savedDocumentData ?? {}), [savedDocumentData])
+
   // Compute permissions and projects from roles
   const { permissions, projects, readableCollections } = useMemo(() => {
-    if (!roles || roles.length === 0) {
+    const roles = [...(storedRoles ?? []), ...derivedRoles]
+    if (roles.length === 0) {
       return { permissions: {}, projects: [], readableCollections: [] }
     }
 
@@ -75,7 +86,7 @@ export const PermissionsTable: FieldClientComponent = () => {
     const readableCollections = getReadableCollections(roles)
 
     return { permissions, projects, readableCollections }
-  }, [roles, isClient])
+  }, [storedRoles, derivedRoles, isClient])
 
   if (!permissions || Object.keys(permissions).length === 0) {
     return (
@@ -94,6 +105,12 @@ export const PermissionsTable: FieldClientComponent = () => {
   const cellStyle = {
     padding: 'calc(var(--base) * 0.35) calc(var(--base) * 0.5)',
     color: 'var(--theme-elevation-800)',
+  }
+
+  const pillRowStyle: CSSProperties = {
+    display: 'flex',
+    gap: 'calc(var(--base) * 0.25)',
+    flexWrap: 'wrap',
   }
 
   return (
@@ -122,9 +139,7 @@ export const PermissionsTable: FieldClientComponent = () => {
                   {collection.replace(/-/g, ' ')}
                 </td>
                 <td style={cellStyle}>
-                  <div
-                    style={{ display: 'flex', gap: 'calc(var(--base) * 0.25)', flexWrap: 'wrap' }}
-                  >
+                  <div style={pillRowStyle}>
                     {(perms as PermissionLevel[]).map((op) => (
                       <Pill key={op} pillStyle={getOperationPillStyle(op)}>
                         {op}

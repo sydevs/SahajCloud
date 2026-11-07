@@ -3,7 +3,7 @@
  *
  * Three layers, and none does another's job:
  *
- * - `clients` is in `RESTRICTED_COLLECTIONS`, so implicit shared read no longer
+ * - `clients` sits in no project, so implicit read never
  *   hands every published key every other service's document;
  * - `Clients.apiKey` carries `managersOnlyFieldAccess`. Payload 3.90+ strips a
  *   stored key from every read itself, so the lock now matters for its write
@@ -131,11 +131,11 @@ describe('Clients access', () => {
 
     listedManager = await testData.createManager(payload, {
       name: 'Listed Manager',
-      roles: ['atlas-manager'],
+      roles: [],
     })
     outsideManager = await testData.createManager(payload, {
       name: 'Outside Manager',
-      roles: ['atlas-manager'],
+      roles: [],
     })
 
     atlasClient = await testData.createClient(payload, adminManager.id, {
