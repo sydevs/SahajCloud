@@ -335,8 +335,8 @@ export function nextSeoCheckState(args: {
  *
  * The key is `origin + pathname` (`https://sahajayoga.nl/?p=123`), so the URL parser does the
  * work — `host` keeps a port if there is one, and `search` preserves the WordPress permalink the
- * report contract allows through. Shared because the picker renders from it and the verifier
- * builds its `VerifiedEmbed` from it; they must agree.
+ * report contract allows through. Shared because the Install tab matches reports with it and the
+ * verifier builds its `VerifiedEmbed` from it; they must agree.
  */
 export function splitMountKey(key: string): { domain: string; mount: string } | null {
   try {

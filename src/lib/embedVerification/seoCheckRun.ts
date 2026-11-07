@@ -51,7 +51,7 @@ import { probeForOutcome } from './verifyEmbed'
  * caller's own, while `context` — and its region-tree and locale memos — is
  * still shared by reference.
  */
-export async function runSeoChecksForClient(args: {
+async function runSeoChecksForClient(args: {
   req: PayloadRequest
   clientId: number
   verified: VerifiedEmbed
@@ -111,7 +111,7 @@ export async function runSeoChecksForClient(args: {
  * ⚠ **A failed send never fails the run**: it must not cost the stored
  * snapshot, which the Install tab reads.
  */
-export async function notifySeoFailures(args: {
+async function notifySeoFailures(args: {
   payload: Payload
   client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact'>
   failures: readonly SeoCheckResult[]

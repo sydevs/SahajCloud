@@ -56,9 +56,9 @@ The primary page is only a nomination. A canonical URL is built from `canonical.
 
 ### Routing is derived, never configured (#644)
 
-Nothing lets an operator — or a script tag — say how a client's URLs are shaped. **`verification.routingProbe.verdict`** (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the admin picker's preview, and by the widget through the virtual `canonical.routing` field on `GET /api/clients/me`.
+Nothing lets an operator — or a script tag — say how a client's URLs are shaped. **`verification.routingProbe.verdict`** (`src/lib/clients/verification.ts`) is the one answer, read by `canonicalOwnerFrom`, by the Install tab, and by the widget through the virtual `canonical.routing` field on `GET /api/clients/me`.
 
-Read it at the call site, as `verification?.routingProbe?.verdict ?? 'query'` — there is no accessor to wrap it. The default belongs to the read path, and the `canonical.routing` field's `afterRead` hook is where it is applied for anything reading through Payload. The remaining sites never read the field: they hold the verification object they are about to write or have just written (`VerifyEmbeds`, the `verifyEmbed` endpoint), or they read the row through their own `select`, which does not run the hook (`canonicalOwnerFrom`, the picker).
+Read it at the call site, as `verification?.routingProbe?.verdict ?? 'query'` — there is no accessor to wrap it. The default belongs to the read path, and the `canonical.routing` field's `afterRead` hook is where it is applied for anything reading through Payload. The remaining sites never read the field: they hold the verification object they are about to write or have just written (`VerifyEmbeds`, the `verifyEmbed` endpoint), or they read the row through their own `select`, which does not run the hook (`canonicalOwnerFrom`).
 
 `routingProbe` is a sibling of `verified`, and it is the record's only routing answer. `verified.routing` — the readiness marker's copy of the widget's own script parameter — is no longer written: shaping a public URL from it was circular, and a second stored answer is a second thing to read by mistake. The widget's report is still kept as a report, per mount, in `embedMetadata`. The key stays in the verification schema as an optional legacy property, since that object is closed and validated on every save, so deleting it would strand every row verified before this change.
 
@@ -158,7 +158,7 @@ A service that relays subscribe submissions names its own provider, under **Atla
 
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 
-- It runs **only when `provider`, `listId` or `apiKey` actually changed.** `clients` runs `versions: { drafts: true, maxPerDoc: 1 }`, so the hook fires on every draft and autosave — without the gate, an outage at Mailchimp would lock every client document in the CMS.
+- It runs **only when `provider`, `listId` or `apiKey` actually changed.** the hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.
 - **A provider being unreachable never refuses a save.** An operator cannot fix somebody else's outage, so the credential goes in unproven and delivery is what finds out.
 
 Delivery resolves the target list **at delivery time**, from the subscribe form's `client` or, for a registration-spawned row, the client whose list owns the class's region (#1022). Nothing is stored on the row, so moving a service between providers does not strip pending rows.

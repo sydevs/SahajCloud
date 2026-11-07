@@ -14,7 +14,7 @@
  */
 
 // Deep import, not the `@/plugins/usage` barrel, and load-bearing: this module is
-// reached from the admin picker (a client component), and the barrel re-exports
+// reached from the Install tab (a client component), and the barrel re-exports
 // the pg-pool seam — which drags `pg` into the browser bundle and fails the
 // Next.js build. `originEnforcement` is pure and type-only at its edges.
 // See the barrel note in `src/AGENTS.md`.

@@ -42,11 +42,9 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * A verified host + mount + routing, as a {@link CanonicalTarget}, or `null`
  * when the host is not one we are willing to publish.
  *
- * Named for the role rather than the caller, because two callers fill it from
- * different records: the resolver, from a client's
- * `canonical.verification.verified`, and the admin picker, from the embed an
- * operator is about to choose. Both must produce the same URL — a picker that
- * previews a shape the resolver does not emit is worse than no preview.
+ * Named for the role rather than the caller: the resolver fills it from an
+ * owner, and the SEO checks from `canonical.verification.verified`, and both
+ * must produce the same URL.
  *
  * The scheme is stated here, not carried: a canonical URL a crawler should
  * follow is https, so it is ours to state rather than an operator's to mistype.
