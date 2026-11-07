@@ -296,24 +296,16 @@ describe('openItem', () => {
   })
 
   describe('a service with failing SEO checks (#1055)', () => {
-    const service = (
-      failures: Extract<OpenItemRow, { kind: 'service' }>['failures'],
-    ): OpenItemRow => ({
+    const service = (checks: Extract<OpenItemRow, { kind: 'service' }>['checks']): OpenItemRow => ({
       checkedAt: '2026-11-04T07:00:00.000Z',
-      failures,
+      checks,
       id: 43,
       kind: 'service',
       title: 'Yoga Essonne',
     })
 
-    it('names each page and check, and sends the reader to the Install tab', () => {
-      const item = openItem(
-        service([
-          { check: 'title', detail: 'expected “Classes”, found “Home”', route: '/' },
-          { check: 'sitemap', route: '/fr/ile-de-france' },
-        ]),
-        NOW,
-      )
+    it('names the failing checks, in the order they run, and sends the reader to the Install tab', () => {
+      const item = openItem(service(['sitemap', 'title']), NOW)
       expect(item.placing).toMatchObject({
         action: {
           label: 'Open the Install tab',
@@ -321,10 +313,7 @@ describe('openItem', () => {
         },
         key: 'search-problem',
         label: 'Search problem',
-        lines: [
-          'The main page — the page title: expected “Classes”, found “Home”',
-          '/fr/ile-de-france — the page’s sitemap entry',
-        ],
+        lines: ['Page title, Sitemap entry', 'Checked 4 Nov 2026'],
         pill: 'warning',
       })
       expect(item.since).toBe('2026-11-04T07:00:00.000Z')
@@ -332,18 +321,16 @@ describe('openItem', () => {
     })
 
     it('says nobody visiting is affected, where there is room for a sentence', () => {
-      const item = openItem(service([{ check: 'body', route: '/' }]), NOW)
+      const item = openItem(service(['body']), NOW)
       expect(actionPrompt(item.placing)).toEqual({
         after: ' to see which setup step to redo. Nobody visiting the site is affected.',
         link: 'Open the Install tab',
       })
     })
 
-    it('counts the failures past four rather than listing every one', () => {
-      const routes = ['/', '/a', '/b', '/c', '/d', '/e']
-      const item = openItem(service(routes.map((route) => ({ check: 'json-ld', route }))), NOW)
-      expect(item.placing.lines).toHaveLength(5)
-      expect(item.placing.lines.at(-1)).toBe('+2 more')
+    it('counts the checks past three rather than listing every one', () => {
+      const item = openItem(service(['body', 'canonical', 'json-ld', 'sitemap', 'title']), NOW)
+      expect(item.placing.lines[0]).toBe('Page title, Canonical link, Structured data +2 more')
     })
   })
 

@@ -92,8 +92,8 @@ export type OpenItemRow =
       kind: 'service'
       id: number
       title: string
-      /** The checks failing on the last run, one per page and check. */
-      failures: { route: string; check: SeoCheckId; detail?: string }[]
+      /** The checks failing on the last run, each once whatever the pages. */
+      checks: SeoCheckId[]
       checkedAt: string
     }
 
@@ -315,35 +315,28 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
 }
 
 /** What each SEO check is, as a line names it. */
+/** What each SEO check is, as a line names it, in the order the checks run. */
 const SEO_CHECK_LABELS: Record<SeoCheckId, string> = {
-  title: 'the page title',
-  canonical: 'the canonical link',
-  'json-ld': 'the structured-data block',
-  body: 'the text a search engine reads',
-  sitemap: 'the page’s sitemap entry',
+  title: 'Page title',
+  canonical: 'Canonical link',
+  'json-ld': 'Structured data',
+  body: 'Page text',
+  sitemap: 'Sitemap entry',
 }
-
-/** How many failing checks a row names before it counts the rest. */
-const FAILURES_NAMED = 4
 
 /**
  * A live atlas that stopped publishing the metadata we gave it (#1055) — a
  * warning, never an outage, which is why the prompt says nobody visiting is
- * affected.
+ * affected. The lines name the checks alone, as a proposal's name its fields:
+ * which page failed, and why, is the Install tab's to say.
  */
 function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
-  const lines = row.failures
-    .slice(0, FAILURES_NAMED)
-    .map(
-      (failure) =>
-        `${failure.route === '/' ? 'The main page' : failure.route} — ${SEO_CHECK_LABELS[failure.check]}` +
-        (failure.detail ? `: ${failure.detail}` : ''),
-    )
-  const more = row.failures.length - FAILURES_NAMED
-  if (more > 0) lines.push(`+${more} more`)
+  const checks = (Object.keys(SEO_CHECK_LABELS) as SeoCheckId[])
+    .filter((check) => row.checks.includes(check))
+    .map((check) => SEO_CHECK_LABELS[check])
   return [
     status('search-problem', {
-      lines,
+      lines: [fieldList(checks), `Checked ${shortDate(row.checkedAt)}`],
       action: {
         label: 'Open the Install tab',
         target: { collection: 'clients', id: row.id, view: 'install' },
