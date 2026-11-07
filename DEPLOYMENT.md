@@ -396,22 +396,28 @@ headless renders stays on `query` — see "Routing is derived, never configured"
 
 ### ⚠ Before the deploy: one site per service (#1055 follow-up)
 
-The `clients_site_and_enabled` migration replaces drafts with `enabled`, and `allowedDomains`
-with one `site.domain` — **the first line of the old list**. Every other line stops being an
-allowed origin on deploy. Two services hold more than one today, so before deploying:
+The `20261106_094841_clients_one_site` migration replaces drafts with `enabled`, and
+`allowedDomains` with one `site.domain` — **the first entry of the old list** (split on lines,
+commas and spaces). Every other entry stops being an allowed origin on deploy, and is recorded
+in the service's notes. Two services hold more than one today, so before deploying:
 
 1. **Split Sahaja Yoga FR.** `yogaessonne.fr` needs a service of its own. Create it, give its
    managers the new key, and have the site install it **before** the deploy — otherwise its map
    stops loading the moment the migration runs (only `sahajayoga.fr` is kept).
 2. **Delete the legacy Sahaj Atlas services** ("Sahaj Atlas", "Sahaj Atlas Dev"). They are not
    needed, and the migration would keep only `syatlas.pages.dev` from the first.
+3. **Publish or discard any unpublished draft edit.** Drafts never reached the main row, and the
+   migration drops the version tables they live in. List them first:
+   `select v.parent_id from _clients_v v join clients c on c.id = v.parent_id where v.latest and
+v.version__status = 'draft' and v.updated_at > c.updated_at;`
 
-Read the list first: `select id, name, allowed_domains from clients where allowed_domains like
-'%' || chr(10) || '%' or allowed_domains like '%*%';` on production.
+Read the domain lists first: `select id, name, allowed_domains from clients where allowed_domains
+~ '[,*[:space:]]' or allowed_domains !~ '[.]';` on production.
 
-After the deploy, each service's address, region and status show on its Install tab. A service
-whose old domain was not a bare host (an `n/a`, a wildcard) has no domain until someone sets one
-there — its key then accepts any origin, as an empty `allowedDomains` did.
+After the deploy, each service's address, region and status show on its Install tab. A wildcard
+keeps its apex (`*.sahajayoga.ca` becomes `sahajayoga.ca`). A service whose old list named no
+usable host (an `n/a`) has no domain until someone sets one there — its key then enforces no
+browser origin, as an app's key does — and its notes say so.
 
 ## Verifying Deployments
 

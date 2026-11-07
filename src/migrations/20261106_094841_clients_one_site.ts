@@ -23,10 +23,13 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   -- all move across.
   UPDATE "clients" SET "name" = 'Service ' || "id" WHERE "name" IS NULL;
   UPDATE "clients" SET "enabled" = ("_status" = 'published');
-  -- One domain: the first line of the old allowlist, scheme, port and path stripped.
-  UPDATE "clients" SET "site_domain" = NULLIF(lower(regexp_replace(regexp_replace(
-    btrim(split_part(replace(coalesce("allowed_domains", ''), chr(13), ''), chr(10), 1)),
-    '^[a-z]+://', '', 'i'), '[:/?#].*$', '')), '');
+  -- One domain: the first entry of the old allowlist, split on lines, commas and
+  -- whitespace as the old parser split it, with scheme, port, path and a
+  -- trailing dot stripped.
+  UPDATE "clients" SET "site_domain" = NULLIF(rtrim(lower(regexp_replace(regexp_replace(
+    (regexp_split_to_array(btrim(coalesce("allowed_domains", ''), chr(9) || chr(10) || chr(13) || ' ,'),
+      '[[:space:],]+'))[1],
+    '^[a-z]+://', '', 'i'), '[:/?#].*$', '')), '.'), '');
   -- A designated canonical embed is a page someone chose, so it names both halves.
   UPDATE "clients" SET
     "site_domain" = lower(regexp_replace(regexp_replace("canonical_embed", '^[a-z]+://', '', 'i'), '[:/?#].*$', '')),
@@ -66,9 +69,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
       replace("allowed_domains", chr(13), ''), chr(9) || chr(10) || ' '), ''), '') ||
     coalesce(chr(10) || 'websiteUrl: ' || nullif(btrim(
       "website_url", chr(9) || chr(10) || chr(13) || ' '), ''), ''))
-    WHERE coalesce(array_length(array_remove(string_to_array(
-      replace(coalesce("allowed_domains", ''), chr(13), ''), chr(10)), ''), 1), 0) > 1
-      OR coalesce(btrim("website_url", chr(9) || chr(10) || chr(13) || ' '), '') <> '';
+    WHERE coalesce(array_length(array_remove(regexp_split_to_array(
+      coalesce("allowed_domains", ''), '[[:space:],]+'), ''), 1), 0) > 1
+      OR coalesce(btrim("website_url", chr(9) || chr(10) || chr(13) || ' '), '') <> ''
+      -- An allowlist that named something yet yields no domain (an "n/a", a
+      -- non-ASCII host) leaves a key with no browser origin to enforce, as an
+      -- app's key has: recorded, so an admin can set the domain.
+      OR ("site_domain" IS NULL AND btrim(coalesce("allowed_domains", ''),
+        chr(9) || chr(10) || chr(13) || ' ,') <> '');
   ALTER TABLE "_clients_v_version_roles" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_clients_v" DISABLE ROW LEVEL SECURITY;
   ALTER TABLE "_clients_v_rels" DISABLE ROW LEVEL SECURITY;

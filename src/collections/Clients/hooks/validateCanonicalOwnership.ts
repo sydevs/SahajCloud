@@ -23,41 +23,36 @@ import type { Client } from '@/payload-types'
  *   another region clears the flag, and the next check claims the new region if
  *   it is free — the old region's links must not silently move with it.
  *
- * Runs only when the write actually touches `canonical` or `region`. Everything
- * else — the Install tab's own saves, and `POST /api/clients/report`'s
- * `embedMetadata` write — skips the incumbent query entirely.
+ * `data` is the whole merged document here, not the caller's patch, so
+ * `owned: true` arrives with every write of an owner. Only a claim — a new
+ * owner, or the flag turning on — runs the incumbent query; every other write,
+ * the Install tab's saves and the report endpoint's included, skips it.
+ *
+ * ⚠ **An inactive owner is no incumbent**, as it owns nothing by the read rule
+ * (`CANONICAL_ELIGIBLE`): counting it would lock its region until an admin
+ * noticed.
  */
 export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
   data,
   originalDoc,
   req,
 }) => {
-  if (data?.canonical === undefined && data?.region === undefined) return data
+  if (!data) return data
+  const before = originalDoc as Partial<Client> | undefined
+  const region = relationId(data.region)
+  const wasOwned = Boolean(before?.canonical?.owned)
 
-  const previous = (originalDoc ?? {}) as Partial<Client>
-  const stored = previous.canonical ?? {}
-  const patch = data.canonical ?? {}
-  const region = relationId(data.region === undefined ? previous.region : data.region)
-  const regionMoved =
-    Boolean(originalDoc) && data.region !== undefined && region !== relationId(previous.region)
-
-  // `data` is the whole merged document here, not the caller's patch, so
-  // `owned: true` arrives with every write of an owner. A move always releases;
-  // re-claiming the new region is the next Check's job.
-  if (regionMoved && stored.owned) {
-    data.canonical = { ...stored, ...patch, owned: false }
+  // A move always releases; re-claiming the new region is the next Check's job.
+  if (before && wasOwned && region !== relationId(before.region)) {
+    data.canonical = { ...data.canonical, owned: false }
     return data
   }
 
-  const owned = 'owned' in patch ? patch.owned : stored.owned
-  if (!owned) return data
-
-  const moved = !originalDoc || ('owned' in patch && patch.owned !== stored.owned) || regionMoved
-  if (!moved) return data
+  if (!data.canonical?.owned || wasOwned) return data
 
   if (region == null) {
     const fallbackId = await getCanonicalFallbackClientId(req)
-    if (originalDoc?.id != null && fallbackId === originalDoc.id) return data
+    if (before?.id != null && fallbackId === before.id) return data
     throw new ValidationError({
       collection: 'clients',
       errors: [
@@ -75,8 +70,9 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
     where: {
       and: [
         { 'canonical.owned': { equals: true } },
+        { enabled: { equals: true } },
         { region: { equals: region } },
-        ...(originalDoc?.id ? [{ id: { not_equals: originalDoc.id } }] : []),
+        ...(before?.id ? [{ id: { not_equals: before.id } }] : []),
       ],
     },
     limit: 1,

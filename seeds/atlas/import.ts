@@ -32,6 +32,7 @@ import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import type { NotificationPreferences, Region } from '@/payload-types'
+import { normalizeHost } from '@/plugins/usage/originEnforcement'
 
 import {
   BaseImporter,
@@ -1459,8 +1460,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             // `enabled` is the auth gate — a disabled Atlas service imports
             // inactive, so its key cannot authenticate.
             enabled: Boolean(client.enabled),
-            // One site per service: the first domain the legacy config names.
-            site: { domain: firstDomain(client.config?.domain) },
+            // One site per service: the first domain the legacy config names —
+            // on create only, so a re-sync never overwrites the address a
+            // volunteer has since set on the Install tab, nor clears it.
+            ...(this.hasPreloaded('clients', String(client.legacyId))
+              ? {}
+              : { site: { domain: firstDomain(client.config?.domain) } }),
             color1: isHexColor(client.config?.primary_color)
               ? client.config?.primary_color
               : undefined,
@@ -1679,20 +1684,21 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-/** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */
 /**
  * The first host a legacy `config.domain` names, or `null`. Atlas held one host
- * or a newline-separated list; a service is one site now, so only the first is
- * kept, and any second site needs a service of its own.
+ * or a list; a service is one site now, so only the first is kept, and any
+ * second site needs a service of its own. A wildcard keeps its apex, as the
+ * one-site migration does — no domain would enforce no browser origin at all.
  */
 function firstDomain(raw: string | null | undefined): string | null {
-  for (const line of (raw ?? '').split(/[\r\n,]+/)) {
-    const host = normalizeCanonicalDomain(line)
+  for (const entry of (raw ?? '').split(/[\s,]+/)) {
+    const host = normalizeCanonicalDomain(normalizeHost(entry)?.replace(/^\*\./, ''))
     if (host) return host
   }
   return null
 }
 
+/** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */
 function isHexColor(value: string | null | undefined): boolean {
   return !!value && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(value)
 }

@@ -193,6 +193,24 @@ describe('client canonical ownership + embed metadata', () => {
   // ── validateCanonicalOwnership ────────────────────────────────────────────
 
   describe('validateCanonicalOwnership', () => {
+    it('does not count an inactive owner as the incumbent', async () => {
+      // It owns nothing by the read rule, and nothing else would ever clear it.
+      const region = await createRegion('inactive-incumbent')
+      await createClient('Inactive Incumbent', {
+        region: region.id,
+        enabled: false,
+        canonical: { owned: true },
+      })
+      const challenger = await createClient('Active Challenger', { region: region.id })
+      const updated = await payload.update({
+        collection: 'clients',
+        id: challenger.id,
+        data: { canonical: { owned: true } },
+        overrideAccess: true,
+      })
+      expect(updated.canonical?.owned).toBe(true)
+    })
+
     it('refuses ownership to a worldwide service, naming why', async () => {
       const client = await createClient('Worldwide Owner')
       const message = await fieldErrorMessage(
