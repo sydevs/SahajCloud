@@ -87,7 +87,10 @@ raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
 path _is_ the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
 `GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
 /api/atlas/sitemap`, #650. `src/endpoints/atlas/challenge/` → `GET
-/api/atlas/challenge`, #1072). #632 turned another into a collection once its
+/api/atlas/challenge`, #1072. `src/endpoints/atlas/wix/route/` and
+`.../wix/sitemap/` → the Wix-shaped serializers over those same two
+resolutions, #1055, with their shared shaping modules one level up at
+`src/endpoints/atlas/wix/`). #632 turned another into a collection once its
 resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
 single-owner code and stay in the folder — putting them in `src/lib/` fails
 the one-consumer check below.
@@ -96,8 +99,8 @@ This folder is the **exception, not a second home for endpoints** — anything
 a collection plausibly owns stays colocated under
 `src/collections/<Name>/endpoints/`. Leaving the collection seam costs you
 the usage plugin's beforeOperation hooks (origin enforcement, usage
-tracking), which a root handler must then compensate for by hand — see
-`docs/rules/endpoints.md`.
+tracking), which a root handler must then compensate for — `requireClientAccess`
+is the first two, `countClientRead` the third, see `docs/rules/endpoints.md`.
 
 ### `src/lib/`
 
@@ -145,7 +148,8 @@ No loose files at the root — every file lives in a named folder:
   Lexical config. Nothing else may flatten Lexical: a second spelling under
   `eventQuality/` cost three silently missing quality findings (#961)
 - `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
-  `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
+  `requireClientAccess` — that guard plus the origin check a root endpoint
+  owes, `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
   the `contactAdmin` endpoint. Once that became a collection (#632), its
   consumers were the write-guard plugin and two jobs — no endpoint at all —
   so it moved to `antiSpam/`

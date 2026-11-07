@@ -74,6 +74,9 @@ export function compactNode(node: JsonLdNode): JsonLdNode {
   return out
 }
 
+/** The one `@context`-bearing document a consumer embeds. */
+export type JsonLdGraph = { '@context': string; '@graph': JsonLdNode[] }
+
 /** One rung of a breadcrumb trail: a name and the canonical URL it points at. */
 export interface BreadcrumbRung {
   name: string
@@ -110,7 +113,7 @@ export function breadcrumbList(rungs: readonly BreadcrumbRung[]): JsonLdNode | n
  * Always a `@graph`, even for one node: a consumer sees one shape whatever the
  * route resolved to, and adding a second node later doesn't change the envelope.
  */
-export function jsonLdGraph(nodes: readonly (JsonLdNode | null)[]): JsonLdNode {
+export function jsonLdGraph(nodes: readonly (JsonLdNode | null)[]): JsonLdGraph {
   return {
     '@context': 'https://schema.org',
     '@graph': nodes.filter((node): node is JsonLdNode => node !== null),

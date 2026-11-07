@@ -62,7 +62,7 @@ export type VirtualRoleUser = Partial<
  */
 export type TypedAuthUser = TypedUser &
   Partial<Pick<Manager, 'currentProject' | 'type'>> &
-  Partial<Pick<Client, '_status'>> &
+  Partial<Pick<Client, 'enabled'>> &
   VirtualRoleUser & {
     /** Auth collection this user belongs to */
     collection: 'managers' | 'clients'

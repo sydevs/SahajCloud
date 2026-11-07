@@ -103,7 +103,11 @@ const brandedClient: EmailClient = {
   color1: '#7B4EA8',
   color2: '#B08BD4',
   logo: null, // no Cloudflare image locally: falls back to the Atlas icon
-  websiteUrl: 'https://www.sahajayogalondon.example',
+  enabled: true,
+  canonical: {
+    owned: true,
+    verification: { verified: { domain: 'www.sahajayogalondon.example', mount: '/classes' } },
+  },
   supportEmail: 'hello@sahajayogalondon.example',
 }
 

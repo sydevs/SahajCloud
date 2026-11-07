@@ -7,7 +7,12 @@
 
 import { describe, it, expect } from 'vitest'
 
-import { baseLanguage, buildPayloadLocales, LOCALES } from '../../src/lib/locales'
+import {
+  baseLanguage,
+  buildPayloadLocales,
+  localeForLanguage,
+  LOCALES,
+} from '../../src/lib/locales'
 
 // Build locales once for all tests
 const allLocales = buildPayloadLocales()
@@ -99,5 +104,26 @@ describe('baseLanguage', () => {
     for (const { code } of LOCALES) {
       expect(baseLanguage(code)).not.toContain('-')
     }
+  })
+})
+
+describe('localeForLanguage', () => {
+  it('takes an exact locale code', () => {
+    expect(localeForLanguage('pt-BR')).toBe('pt-BR')
+  })
+
+  it('resolves a bare subtag to a regional variant that has no bare form', () => {
+    // The case a plain isValidLocale check sends to English.
+    expect(localeForLanguage('pt')).toBe('pt-BR')
+  })
+
+  it('resolves a bare subtag to the unmarked variant where one exists', () => {
+    expect(localeForLanguage('en')).toBe('en')
+  })
+
+  it('falls back to English rather than refusing', () => {
+    expect(localeForLanguage('zz')).toBe('en')
+    expect(localeForLanguage(undefined)).toBe('en')
+    expect(localeForLanguage(null)).toBe('en')
   })
 })

@@ -17,6 +17,7 @@
  * module and the merge block in the route handler.
  */
 
+import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
@@ -365,7 +366,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`select` missing, or `populate` missing at `depth > 1`.'),
-        '403': errorResponse('Caller is not a published API client.'),
+        '403': errorResponse('Caller is not an active API client.'),
       },
     },
   },
@@ -390,7 +391,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'only — a query string or fragment is rejected (`400`), not silently stripped, ' +
         'because the widget already strips them and a payload carrying either means it ' +
         'is misbehaving. Both the request `Origin`/`Referer` **and** the reported ' +
-        '`url`’s host must be in the client’s `allowedDomains`. The report is ' +
+        '`url`’s host must be in the client’s domain (`site.domain`, or its www twin). The report is ' +
         'observation only: it decides whether a mount currently *qualifies* as ' +
         'canonical, never which mount *is* canonical — a human sets that on the ' +
         'client. Repeating a recent identical observation is answered `updated: false` ' +
@@ -419,8 +420,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             '`unsupported_scheme`, `query_or_fragment`, `credentials`, or `too_long`.',
         ),
         '403': errorResponse(
-          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
-            'client’s `allowedDomains`, or the reported `url` is on a host that is not.',
+          'Caller is not an active API client, its `Origin`/`Referer` is not the ' +
+            'client’s domain, or the reported `url` is on a host that is not.',
         ),
       },
     },
@@ -505,8 +506,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         },
         '400': errorResponse('`route` is missing/too long, or `locale` is not a known locale.'),
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '404': errorResponse(
           'Either the route names a region or class that does not exist — an unknown ' +
@@ -565,8 +566,145 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
+        ),
+        '500': errorResponse('The sitemap could not be built.'),
+      },
+    },
+  },
+
+  '/api/atlas/wix/route': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'One atlas route, shaped for a Wix Velo router',
+      description:
+        'The same resolution `GET /api/atlas/seo` answers, in the shape a Wix Velo ' +
+        'router hands to `ok()` / `redirect()` / `notFound()`. Use this **only** from a ' +
+        'Wix site: every other host wants `/api/atlas/seo`, whose shape is the published ' +
+        'one. The CMS generates the `backend/routers.js` that calls this, on the ' +
+        'service’s Install tab — do not hand-write it.\n\n' +
+        '**`status` describes the page, not this request.** Every answer is HTTP 200, ' +
+        'because the router has to render something for every path Wix hands it and an ' +
+        'HTTP 404 here is indistinguishable from the endpoint being gone. `200` renders, ' +
+        '`301` redirects to `redirect`, `404` is `notFound()`.\n\n' +
+        '**`redirect` is an atlas route, never a URL and never prefixed** — the router ' +
+        'owns its prefix. A view route (`/gb/london/calendar`, `/search`) renders and ' +
+        'publishes the document’s canonical rather than redirecting, because the widget ' +
+        'itself links there; a moved route (`/events/1204`, a re-slugged country) is a ' +
+        '`301`.\n\n' +
+        '**`description` and `robots` are `metaTags` rows and appear nowhere else**, ' +
+        'because Wix’s renderer reads no top-level `description` or `noIndex`. ' +
+        '`structuredData` is JSON-LD as **objects** — the identical document ' +
+        '`/api/atlas/seo` returns pre-serialized as `jsonLd`. `links` is empty for the ' +
+        'atlas root and for any route this client canonicalises on its own host, so Wix ' +
+        'writes the self-canonical and Wix Multilingual the `hreflang` cluster.\n\n' +
+        '**`data.bodyHtml` is the one place this surface emits markup**: Wix’s only body ' +
+        'sink is `$w(…).html`, so the crawlable children are built and escaped here. ' +
+        'Links in it are real `<a>` elements.\n\n' +
+        '`lang` is a Wix language subtag (`fr`), resolved to one of the nineteen SEO ' +
+        'locales; a language the site does not path-route gets `robots: noindex` on ' +
+        'sub-routes, since nothing in the atlas is translated. Cache the answer for ' +
+        '`cacheSeconds` — a server-rendered site reads this once per page view, and the ' +
+        'router’s own cache is what bounds the volume. Sets ' +
+        '`Cache-Control: public, max-age=300, s-maxage=300`.',
+      operationId: 'atlasWixRoute',
+      parameters: [
+        {
+          name: 'path',
+          in: 'query',
+          required: true,
+          schema: { type: 'string', maxLength: 512 },
+          description:
+            'The atlas route, as the router reads it off `request.path` — `/ca/ontario`. ' +
+            'A `sahaj-atlas-probe-*` path is answered as the atlas root with ' +
+            '`robots: noindex`, which the CMS’s routing probe depends on.',
+        },
+        {
+          name: 'lang',
+          in: 'query',
+          required: false,
+          schema: { type: 'string', maxLength: 20 },
+          description:
+            'The page’s language, from `request.baseUrl` on a Multilingual site. An ' +
+            'unknown value resolves to English rather than refusing.',
+        },
+      ],
+      responses: {
+        '200': {
+          description:
+            'The page to render, the route to redirect to, or `status: 404`. Always 200.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AtlasWixRouteResponse' },
+            },
+          },
+        },
+        '400': errorResponse('`path` is missing, empty, or over 512 characters.'),
+        '403': errorResponse(
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
+        ),
+        '500': errorResponse('The page metadata could not be built.'),
+      },
+    },
+  },
+
+  '/api/atlas/wix/sitemap': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'Every atlas page this client owns, as Wix sitemap entries',
+      description:
+        'The same ownership resolution `GET /api/atlas/sitemap` answers, as the list a ' +
+        'Velo `*_SiteMap` function returns. Use this **only** from a Wix site.\n\n' +
+        '**An array, not an envelope**, because that is what Wix returns. ' +
+        '`/api/atlas/sitemap`’s `generated` timestamp is deliberately absent — it is the ' +
+        'one field that moves between two otherwise identical answers, and Wix caches ' +
+        'whole responses.\n\n' +
+        '**Every `url` is relative and carries `prefix`** — `/free-classes/ca/ontario` — ' +
+        'which is the opposite of `redirect` on `/api/atlas/wix/route`: a redirect passes ' +
+        'through the router, which composes its own prefix, and a sitemap entry does not. ' +
+        '**Only pages on this client’s own canonical host** are listed; a client that has ' +
+        'designated no canonical embed yet gets `[]`, which is an answer rather than an ' +
+        'error. Finished classes are excluded, and a document whose canonical cannot be ' +
+        'published is omitted rather than sent empty — both as on `/api/atlas/sitemap`. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300` on ' +
+        '`Vary: Authorization`.',
+      operationId: 'atlasWixSitemap',
+      parameters: [
+        {
+          name: 'prefix',
+          in: 'query',
+          required: true,
+          schema: {
+            type: 'string',
+            maxLength: WIX_PREFIX_MAX_LENGTH,
+            // The enforced rule, not a copy of it — the handler's own regex.
+            pattern: WIX_PREFIX_PATTERN.source,
+          },
+          description:
+            'The router’s dynamic-page prefix, one lowercase path segment — ' +
+            '`free-classes`. Spliced into every entry’s `url`.',
+        },
+      ],
+      responses: {
+        '200': {
+          description:
+            'Every page this client owns on its own host, ascending by route. Empty when ' +
+            'it owns none, or has designated no canonical embed.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/AtlasWixSitemapEntry' },
+              },
+            },
+          },
+        },
+        '400': errorResponse('`prefix` is missing, or not one lowercase path segment.'),
+        '403': errorResponse(
+          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
+            'the client’s domain (`site.domain`, or its www twin).',
         ),
         '500': errorResponse('The sitemap could not be built.'),
       },
@@ -1508,6 +1646,120 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         description:
           'Every URL this client owns, ascending by `route`. Empty — not a 404 — when ' +
           'the client owns no region subtree. Unpaginated.',
+      },
+    },
+  },
+  /**
+   * `GET /api/atlas/wix/route` success body. Keep in lockstep with
+   * `AtlasWixRouteResponse` in `src/endpoints/atlas/wix/shape.ts`.
+   */
+  AtlasWixRouteResponse: {
+    type: 'object',
+    required: ['status', 'redirect', 'head', 'data', 'cacheSeconds'],
+    properties: {
+      status: {
+        type: 'integer',
+        enum: [200, 301, 404],
+        description:
+          'About the page, not this request: `200` renders, `301` redirects, `404` is ' +
+          '`notFound()`. The HTTP status is always 200.',
+      },
+      redirect: {
+        type: ['string', 'null'],
+        description:
+          'On a `301`, the atlas route to redirect to — never a URL and never prefixed. ' +
+          'The router composes its own prefix.',
+      },
+      head: {
+        type: 'object',
+        required: ['title', 'metaTags', 'links', 'structuredData'],
+        description: 'The `head` half of a Wix router answer, in the shape `ok()` takes.',
+        properties: {
+          title: { type: 'string', description: 'Ready for `<title>`, already plain text.' },
+          metaTags: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['content'],
+              properties: {
+                name: { type: 'string', description: 'A standard meta — `description`, `robots`.' },
+                property: { type: 'string', description: 'An Open Graph property — `og:title`.' },
+                content: { type: 'string' },
+              },
+            },
+            description:
+              'Exactly one of `name` or `property` per row. `description` and `robots` live ' +
+              'here and nowhere else — Wix honours no top-level copy of either.',
+          },
+          links: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['rel', 'href'],
+              properties: {
+                rel: { type: 'string', description: '`canonical` or `alternate`.' },
+                href: { type: 'string' },
+                hreflang: { type: 'string', description: 'On an `alternate` only.' },
+              },
+            },
+            description:
+              'Empty for the atlas root and wherever this client canonicalises on its own ' +
+              'host, so Wix writes the self-canonical and Multilingual the hreflang cluster.',
+          },
+          structuredData: {
+            type: 'array',
+            items: { type: 'object', additionalProperties: true },
+            description:
+              'JSON-LD as objects — the identical document `/api/atlas/seo` returns ' +
+              'pre-serialized as `jsonLd`. Wix serializes it itself.',
+          },
+        },
+      },
+      data: {
+        anyOf: [
+          {
+            type: 'object',
+            required: ['bodyHtml'],
+            properties: {
+              bodyHtml: {
+                type: 'string',
+                description:
+                  'The crawlable body, as escaped HTML, for `$w(…).html`. Links are real ' +
+                  '`<a>` elements. The one place this surface emits markup.',
+              },
+            },
+          },
+          { type: 'null' },
+        ],
+        description:
+          'What the router hands its page through `getRouterData()`. `null` on a `301` ' +
+          'or a `404` — there is no page to render.',
+      },
+      cacheSeconds: {
+        type: 'integer',
+        description: 'What to pass as `ok()`’s `cache.ttl`. The router’s cache bounds our volume.',
+      },
+    },
+  },
+  /** One `WixRouterSitemapEntry` from `GET /api/atlas/wix/sitemap`. */
+  AtlasWixSitemapEntry: {
+    type: 'object',
+    required: ['url', 'title', 'lastmod'],
+    properties: {
+      url: {
+        type: 'string',
+        description:
+          'Relative to the site root, **with** the router prefix — ' +
+          '`/free-classes/ca/ontario`.',
+      },
+      title: {
+        type: 'string',
+        description: 'The document’s display name, falling back to its route.',
+      },
+      lastmod: {
+        type: 'string',
+        format: 'date-time',
+        description: 'When the document was last edited — its `updatedAt`.',
       },
     },
   },

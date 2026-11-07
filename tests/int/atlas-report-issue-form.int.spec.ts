@@ -79,7 +79,7 @@ describe('Atlas report-issue form', () => {
     atlasClient = await testData.createClient(payload, recipient.id, {
       name: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
-      _status: 'published',
+      enabled: true,
     })
 
     contactForm = await createForm({

@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 
+import { ratioTone, type Tone } from '@/components/admin/helpers/tones'
 import { buildGroupView, type ReadinessGroup as Group } from '@/lib/status'
 
 import { ErroredStatus } from './ErroredStatus'
@@ -14,7 +15,6 @@ import {
   headerRowStyle,
   headerWrapStyle,
 } from './styles'
-import { summaryTone, type SummaryTone } from './summary'
 
 interface ReadinessGroupProps {
   group: Group
@@ -34,10 +34,10 @@ interface ReadinessGroupProps {
 // Tone is presentation derived from the baked `counter` fact: optional groups
 // read neutral; an absent counter (errored) or an empty/unmet total reads danger;
 // otherwise the success/warning/danger gradient follows the ratio.
-function groupTone(group: Group): SummaryTone {
+function groupTone(group: Group): Tone {
   if (group.optional) return 'neutral'
   if (!group.counter || group.counter.total === 0) return 'danger'
-  return summaryTone(group.counter.current, group.counter.total)
+  return ratioTone(group.counter.current, group.counter.total)
 }
 
 function GroupHeader({
@@ -49,7 +49,7 @@ function GroupHeader({
 }: {
   group: Group
   groupMetadata: { label: string; description: string } | undefined
-  tone: SummaryTone
+  tone: Tone
   showDetails: boolean
   onToggle: () => void
 }) {

@@ -1,13 +1,14 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
+import { primaryPageUrl } from '@/lib/clients/site'
 import type {
   CanonicalVerification,
   RoutingProbeResult,
   VerificationResult,
 } from '@/lib/clients/verification'
-import { nextRoutingProbeState, nextVerificationState } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { probeForOutcome, probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
+import { notifyServiceContact, verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -41,7 +42,10 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * Not `Client` — a selected read returns only what it asked for, and typing it as the full document
  * would let a later edit reach for a field this query never fetched.
  */
-type DueClient = Pick<Client, 'id' | 'name' | 'canonical' | 'managers' | 'primaryContact'>
+type DueClient = Pick<
+  Client,
+  'id' | 'name' | 'canonical' | 'site' | 'managers' | 'primaryContact' | 'language'
+>
 
 interface VerifyResult {
   /** Due services examined. */
@@ -50,12 +54,19 @@ interface VerifyResult {
   failed: number
   /** Runs that told us nothing — provider errors, quota, bot challenges. */
   inconclusive: number
-  /** Services whose canonical ownership was switched off this run. */
+  /** Services that stopped being the home for their region's links this run. */
   disabled: number
   /** Services the routing probe moved onto `path` URLs this run. */
   pathPromoted: number
   /** Services returned to `?atlas=` URLs after repeated negative probes. */
   pathDemoted: number
+  /**
+   * Services whose pages stopped publishing our metadata this run.
+   *
+   * ⚠ Counted separately from `failed`, and never added to it: the embed is
+   * present and publishing, and `failed` would read as ownership at risk.
+   */
+  seoWarned: number
 }
 
 /** Persist one service's outcome. Raw SQL — see the note above. */
@@ -63,15 +74,16 @@ const updateSql = (quotedSchema: string) => `
   UPDATE ${quotedSchema}.clients
   SET canonical_verification = $1::jsonb,
       canonical_next_verify_at = $2,
-      canonical_enabled = CASE WHEN $3::boolean THEN false ELSE canonical_enabled END
+      canonical_owned = CASE WHEN $3::boolean THEN false ELSE canonical_owned END
   WHERE id = $4
 `
 
 /**
  * Services due for a check.
  *
- * One indexed predicate plus the ownership flag, the same shape `ExpireEvents` uses against
- * `nextCheckAt`. A service that has never been checked has a null watermark, so it is picked up by
+ * Every active service with a primary page, not only the ones that own their region: a page
+ * that is not running the atlas is worth knowing about whatever it owns. One indexed watermark,
+ * the same shape `ExpireEvents` uses against `nextCheckAt`. A service that has never been checked has a null watermark, so it is picked up by
  * the `exists: false` arm rather than waiting for a backfill.
  */
 async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Promise<DueClient[]> {
@@ -79,7 +91,9 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
     collection: 'clients',
     where: {
       and: [
-        { 'canonical.enabled': { equals: true } },
+        { enabled: { equals: true } },
+        { 'site.domain': { exists: true } },
+        { 'site.page': { exists: true } },
         {
           or: [
             { 'canonical.nextVerifyAt': { less_than_equal: now.toISOString() } },
@@ -89,7 +103,15 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
       ],
     },
     depth: 0,
-    select: { name: true, canonical: true, managers: true, primaryContact: true },
+    select: {
+      name: true,
+      canonical: true,
+      site: true,
+      managers: true,
+      primaryContact: true,
+      // The SEO checks resolve expectations in it.
+      language: true,
+    },
     pagination: false,
     overrideAccess: true,
     req,
@@ -98,42 +120,22 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
 }
 
 /** Tell whoever owns the service that its canonical ownership was switched off. */
-async function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
-  const contactId =
-    typeof client.primaryContact === 'number'
-      ? client.primaryContact
-      : typeof client.primaryContact === 'object' && client.primaryContact !== null
-        ? client.primaryContact.id
-        : (client.managers ?? []).map((m) => (typeof m === 'number' ? m : m?.id)).find(Boolean)
-
-  if (contactId == null) return
-
-  try {
-    const manager = await payload.findByID({
-      collection: 'managers',
-      id: contactId as number,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (!manager?.email) return
-
-    await payload.sendEmail({
-      to: manager.email,
-      subject: `Canonical URLs switched off for ${client.name}`,
+function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
+  // A failed notice must not undo the disable — the disable is the safety action.
+  return notifyServiceContact({
+    payload,
+    client,
+    failure: 'VerifyEmbeds: could not notify about a disabled canonical',
+    message: async () => ({
+      subject: `${client.name} is no longer the home for its region’s atlas links`,
       html:
-        `<p>The Sahaj Atlas embed at <code>${mount}</code> failed verification three times in a row, ` +
-        `so canonical ownership for <strong>${client.name}</strong> has been switched off.</p>` +
-        `<p>Nothing else about the service changed. Once the embed is working again, re-enable ` +
-        `canonical ownership in the admin panel and use “Verify now” to confirm it.</p>`,
-    })
-  } catch (error) {
-    // A failed notice must not undo the disable — the disable is the safety action.
-    payload.logger.error({
-      msg: 'VerifyEmbeds: could not notify about a disabled canonical',
-      clientId: client.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
+        `<p>We could not find the Sahaj Atlas on <code>${mount}</code> three times in a row, ` +
+        `so <strong>${client.name}</strong> is no longer the home for its region’s atlas links.</p>` +
+        `<p>Nothing else about the service changed. Once the map is working again, open the ` +
+        `service’s Install tab and press Check again: the region comes back to your site if no ` +
+        `other site has taken it.</p>`,
+    }),
+  })
 }
 
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
@@ -160,6 +162,7 @@ export async function runVerifyEmbeds(args: {
     disabled: 0,
     pathPromoted: 0,
     pathDemoted: 0,
+    seoWarned: 0,
   }
 
   const pool = getPgPool(req)
@@ -170,24 +173,25 @@ export async function runVerifyEmbeds(args: {
   const schema = quotedDbSchema(req)
 
   for (const client of await dueClients(payload, req, now)) {
-    const mount = client.canonical?.embed
+    const mount = primaryPageUrl(client.site)
     if (!mount) continue
 
     result.processed++
-    const outcome = await verify(mount)
-    result[outcome.status === 'verified' ? 'verified' : outcome.status]++
-
     const current = client.canonical?.verification as CanonicalVerification | null
-    const transition = nextVerificationState({ current, result: outcome, now })
-
-    // The routing verdict folds into the same object, so one owner is still one
-    // write. It never touches `failureCount`, and so can never reach `disable`.
-    const probeResult = await probeForOutcome(mount, outcome, probe)
-    const verification = nextRoutingProbeState({
-      current: transition.verification,
-      result: probeResult,
+    const { outcome, transition, probeResult, verification, newFailures } = await verifyMount({
+      req,
+      client,
+      current,
+      mount,
       now,
+      verify,
+      probe,
+      // Only where the mount verified on this pass: a site that is down would
+      // report four failures caused by the outage.
+      runSeo: (result) => result.status === 'verified',
     })
+    result[outcome.status === 'verified' ? 'verified' : outcome.status]++
+    if (newFailures.length > 0) result.seoWarned++
 
     try {
       await pool.query(updateSql(schema), [
@@ -225,10 +229,12 @@ export async function runVerifyEmbeds(args: {
       })
     }
 
-    if (transition.disable) {
+    // Every service is checked, but only an owner has anything to lose: the
+    // write clears `owned` either way, and only a cleared one is news.
+    if (transition.disable && client.canonical?.owned) {
       result.disabled++
       payload.logger.warn({
-        msg: 'VerifyEmbeds: canonical ownership switched off after repeated failures',
+        msg: 'VerifyEmbeds: region ownership released after repeated failures',
         clientId: client.id,
         mount,
       })
@@ -255,6 +261,7 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     { name: 'disabled', type: 'number', required: true },
     { name: 'pathPromoted', type: 'number', required: true },
     { name: 'pathDemoted', type: 'number', required: true },
+    { name: 'seoWarned', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {

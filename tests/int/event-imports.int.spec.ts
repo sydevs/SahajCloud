@@ -668,7 +668,7 @@ describe('class imports', () => {
           user: {
             id: clientDoc.id,
             collection: 'clients',
-            _status: 'published',
+            enabled: true,
             roles: ['sahaj-atlas-client'],
           } as never,
           overrideAccess: false,

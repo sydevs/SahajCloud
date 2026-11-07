@@ -119,20 +119,21 @@ describe('usage metering, per client-reachable route (#891)', () => {
    * A client request, exactly as API-key auth builds one.
    *
    * `createClientAuthenticatedRequest` owns the two load-bearing details — the
-   * id must be numeric or self-access silently denies, and `_status:
-   * 'published'` is the auth gate — so they are not restated here.
+   * id must be numeric or self-access silently denies, and `enabled: true` is
+   * the auth gate — so they are not restated here.
    */
   function clientReq(
     opts: {
       query?: Record<string, unknown>
       routeParams?: Record<string, unknown>
       origin?: string
-      allowedDomains?: string
+      /** The service's one domain; none allows every origin. */
+      domain?: string
     } = {},
   ): PayloadRequest {
     const { headers, user } = createClientAuthenticatedRequest(clientId, API_KEY, ROLES)
     if (opts.origin) (headers as Headers).set('origin', opts.origin)
-    return reqAs({ ...user, allowedDomains: opts.allowedDomains ?? null }, headers as Headers, opts)
+    return reqAs({ ...user, site: { domain: opts.domain ?? null } }, headers as Headers, opts)
   }
 
   /** The same shape for a manager, whose reads must never touch a client row. */
@@ -187,8 +188,8 @@ describe('usage metering, per client-reachable route (#891)', () => {
     // `ownedDocuments` and its two reads. A client owning nothing returns
     // before them, and that case would pass for the wrong reason.
     //
-    // Ownership needs BOTH halves (#633): the operator's `canonical.embed`
-    // nomination, and the CMS-written `verification.verified` snapshot that
+    // Ownership needs BOTH halves (#633): `canonical.owned`, which the Install
+    // tab's claim sets, and the CMS-written `verification.verified` snapshot that
     // `canonicalOwnerFrom` requires before it will publish a URL. Shape copied
     // from `tests/int/atlas-sitemap.int.spec.ts`, which owns this fixture's
     // reasoning — checked against `src/lib/clients/verification.ts`, the closed
@@ -198,14 +199,13 @@ describe('usage metering, per client-reachable route (#891)', () => {
       roles: ROLES,
       apiKey: API_KEY,
       region: country.id,
+      site: { domain: OWNER_DOMAIN, page: '/map' },
       canonical: {
-        enabled: true,
-        embed: `https://${OWNER_DOMAIN}/map`,
+        owned: true,
         verification: {
           verified: {
             domain: OWNER_DOMAIN,
             mount: '/map',
-            routing: 'path',
             widgetVersion: 2,
             at: '2026-08-18T00:00:00.000Z',
           },
@@ -214,7 +214,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
           routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: 'path', failedAttempts: 0 },
         },
       },
-      _status: 'published',
+      enabled: true,
     } as never)
     clientId = client.id
 
@@ -483,7 +483,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
       expect(counted).toBe(0)
     })
 
-    it('a client read from an origin outside allowedDomains', async () => {
+    it('a client read from an origin that is not the service’s domain', async () => {
       // Origin enforcement runs FIRST in the gate chain and the meter LAST
       // (`usagePlugin.ts`), so the 403 costs nothing.
       const counted = await countedBy(async () => {
@@ -492,7 +492,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
             collection: 'regions',
             select: { name: true },
             depth: 0,
-            req: clientReq({ allowedDomains: 'allowed.org', origin: 'https://evil.org' }),
+            req: clientReq({ domain: 'allowed.org', origin: 'https://evil.org' }),
           }),
         ).rejects.toThrow(/origin is not allowed/)
       })
@@ -508,7 +508,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
       // misconfigured or hostile host page drain a client's whole daily quota
       // while being refused every single time.
       const req = (origin: string) =>
-        clientReq({ routeParams: { id: meditationId }, allowedDomains: 'allowed.org', origin })
+        clientReq({ routeParams: { id: meditationId }, domain: 'allowed.org', origin })
 
       // The control. Without it the refusal below is indistinguishable from the
       // 404 this endpoint returns for a meditation that does not exist — it maps

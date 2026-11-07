@@ -8,12 +8,13 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import { hasSiteDomain, siteHosts } from '@/lib/clients/site'
 import { isLivePreviewRequest } from '@/lib/utilities/previewSecret'
 import type { Client } from '@/payload-types'
 
 import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
-import { extractRequestHost, isHostAllowed, parseAllowedDomains } from './originEnforcement'
+import { extractRequestHost, isHostAllowed } from './originEnforcement'
 
 const SKIP_VALIDATION = 'skipClientQueryValidation'
 const COUNT_CELL = 'usageCounted'
@@ -380,10 +381,12 @@ function describeStringPreview(value: unknown): string | null {
  * (`GET /api/atlas/seo`) call it. Rules:
  *
  * - Non-client requests (managers, admin UI, server tasks): untouched.
- * - Empty or unset `allowedDomains`: ALLOW any origin (the backward-compatible default).
- * - Non-empty `allowedDomains`: the request `Origin` (or the `Referer`
- *   host) must match an entry, else 403. Exact host, or a `*.` wildcard.
- *   See `originEnforcement.ts`.
+ * - No `site.domain`: ALLOW any origin. An app's key has no site, and its
+ *   requests carry no browser origin to check.
+ * - A `site.domain`: the request `Origin` (or the `Referer` host) must be that
+ *   host or its www twin (`siteHosts`), else 403.
+ * - A `site.domain` naming no host — a wildcard, or anything raw SQL wrote past
+ *   `siteDomainValidate`: 403, every origin. See `hasSiteDomain`.
  * - No `Origin` or `Referer` (server-to-server, cron): ALLOW. The API key
  *   is the gate.
  * - A valid live-preview secret: bypass. This is the same trust signal
@@ -410,9 +413,31 @@ export function assertClientOriginAllowed(req: PayloadRequest): void {
     return
   }
 
-  const patterns = parseAllowedDomains((req.user as Client).allowedDomains)
+  const domain = (req.user as Client).site?.domain
+  const patterns = siteHosts(domain)
+
+  const refuse = (host: string | null, msg: string): never => {
+    req.payload.logger.warn({
+      msg,
+      clientId: req.user?.id,
+      domain,
+      host,
+      origin: req.headers?.get?.('origin') ?? null,
+      referer: req.headers?.get?.('referer') ?? null,
+    })
+    throw new APIError('This origin is not allowed for this API client.', 403)
+  }
+
   if (patterns.length === 0) {
-    return // No allowlist configured. Allow all (the backward-compatible default).
+    if (!hasSiteDomain(domain)) {
+      return // No site, so no browser origin to enforce (an app's key).
+    }
+    // A domain that names no host is a service nobody can enforce an origin for,
+    // so it gets none. `hasSiteDomain` carries why this is not the branch above.
+    return refuse(
+      extractRequestHost(req),
+      'Client origin validation rejected: the service’s domain names no host',
+    )
   }
 
   const host = extractRequestHost(req)
@@ -424,14 +449,7 @@ export function assertClientOriginAllowed(req: PayloadRequest): void {
     return
   }
 
-  req.payload.logger.warn({
-    msg: 'Client origin validation rejected: request host not in allowedDomains',
-    clientId: req.user.id,
-    host,
-    origin: req.headers?.get?.('origin') ?? null,
-    referer: req.headers?.get?.('referer') ?? null,
-  })
-  throw new APIError('This origin is not allowed for this API client.', 403)
+  refuse(host, 'Client origin validation rejected: request host is not the service’s domain')
 }
 
 /**

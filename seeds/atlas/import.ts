@@ -26,6 +26,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
+import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -1455,14 +1456,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             managers: [managerId],
             primaryContact: managerId,
             roles: ['sahaj-atlas-client'],
-            // Publish/unpublish is the auth gate — disabled Atlas services
-            // import as drafts, so they cannot authenticate.
-            _status: client.enabled ? 'published' : 'draft',
-            allowedDomains: client.config?.domain || undefined,
+            // `enabled` is the auth gate — a disabled Atlas service imports
+            // inactive, so its key cannot authenticate.
+            enabled: Boolean(client.enabled),
+            // One site per service: the first domain the legacy config names.
+            site: { domain: firstDomain(client.config?.domain) },
             color1: isHexColor(client.config?.primary_color)
               ? client.config?.primary_color
               : undefined,
-            locale: mapLanguageCode(client.config?.locale),
+            language: mapLanguageCode(client.config?.locale),
             region,
             clientId: client.clientId ?? undefined,
             // `config.routing_type` / `embed_type` are deliberately NOT promoted
@@ -1470,7 +1472,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             // is recorded as `script` and in fact serves an iframe). The whole
             // record survives verbatim in `legacyData`, which is what
             // `scripts/backfill-client-canonical.ts` seeds a *starting point*
-            // from, always leaving `canonical.enabled` false.
+            // from, always leaving `canonical.owned` false.
             legacyId: client.legacyId,
             legacyData: client,
           },
@@ -1678,6 +1680,19 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 }
 
 /** Whether a value is a #RGB / #RRGGBB hex color (what `colorField` accepts). */
+/**
+ * The first host a legacy `config.domain` names, or `null`. Atlas held one host
+ * or a newline-separated list; a service is one site now, so only the first is
+ * kept, and any second site needs a service of its own.
+ */
+function firstDomain(raw: string | null | undefined): string | null {
+  for (const line of (raw ?? '').split(/[\r\n,]+/)) {
+    const host = normalizeCanonicalDomain(line)
+    if (host) return host
+  }
+  return null
+}
+
 function isHexColor(value: string | null | undefined): boolean {
   return !!value && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(value)
 }

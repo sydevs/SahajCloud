@@ -69,9 +69,8 @@ export function resultFromRender(mountKey: string, render: RenderResult): Verifi
 /**
  * True when `value` is a mount we are willing to send a browser at.
  *
- * `canonical.embed` normally comes from the picker, whose options are report keys that
- * `parseMountKey` has already constrained to http(s) — but it is a plain text field, so an admin
- * can type into it, and this is the point where a string becomes an outbound page load. Refusing
+ * The mount is built from `site` (`primaryPageUrl`), which a service's managers type, so this is
+ * the point where a string becomes an outbound page load. Refusing
  * anything but http(s) keeps `data:`, `file:` and `javascript:` out of the renderer.
  */
 function isFetchableMount(value: string): boolean {
@@ -122,6 +121,15 @@ export function routingProbeUrls(
 }
 
 /**
+ * What every probe segment starts with.
+ *
+ * ⚠ **Exported because a host has to recognise it**: the Wix router answers a
+ * probe path as the atlas root (#1055), and a second spelling there would break
+ * the probe silently the day either side changed.
+ */
+export const PROBE_SEGMENT_PREFIX = 'sahaj-atlas-probe-'
+
+/**
  * A path segment no host could be serving on purpose.
  *
  * Random per run, and never a real region slug: a site could have hand-built
@@ -130,7 +138,7 @@ export function routingProbeUrls(
  * can tell what hit them.
  */
 function probeToken(): string {
-  return `sahaj-atlas-probe-${randomBytes(8).toString('hex')}`
+  return `${PROBE_SEGMENT_PREFIX}${randomBytes(8).toString('hex')}`
 }
 
 /** Injectable so a test can pin the token, and drive both renders without an account. */

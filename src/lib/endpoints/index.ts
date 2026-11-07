@@ -6,8 +6,10 @@
 
 export { commaSeparatedIntIds } from './commaSeparatedIntIds'
 export { emptyPaginatedResponse } from './emptyPaginatedResponse'
+export { errorResponse, readFailureResponse, requireIntegerClientId } from './errorResponse'
 export { parseBody } from './parseBody'
 export { parseQuery, type ParseQueryResult } from './parseQuery'
 export { requireActiveClient } from './requireActiveClient'
 export { requireActiveManager } from './requireActiveManager'
+export { requireClientAccess } from './requireClientAccess'
 export { requireCollectionPermission, requireManagerPermission } from './requireManagerPermission'

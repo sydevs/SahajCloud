@@ -46,6 +46,32 @@ export const VERIFICATION_INCONCLUSIVE_REASONS = [
 export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_REASONS)[number]
 
 /**
+ * What each post-install SEO check looks at (#1055). Each is something a
+ * volunteer can get wrong at a step the Install tab names, and nothing else — a
+ * failure naming no step to redo is a red light with no action behind it.
+ *
+ * - `title`, `canonical` — the rendered value is the endpoint's (the page
+ *   itself, where it answered no canonical). Fails when the router is not
+ *   calling us, or discards `head`.
+ * - `json-ld` — a `ld+json` block is present at all.
+ * - `body` — the crawlable children are present.
+ * - `sitemap` — a sitemap the site publishes lists the sampled page. Fails when
+ *   the site was never republished after the router was added.
+ */
+export const SEO_CHECK_IDS = ['title', 'canonical', 'json-ld', 'body', 'sitemap'] as const
+export type SeoCheckId = (typeof SEO_CHECK_IDS)[number]
+
+/**
+ * How one check came out.
+ *
+ * ⚠ **`skipped` is not `fail`, and conflating them is the whole hazard here.**
+ * A page we could not fetch or a locale with no copy is no evidence the install
+ * is wrong, and both are common mid-setup. Only `fail` is shown as a problem or
+ * emailed — the split `inconclusive` makes for the mount ladder above.
+ */
+export const SEO_CHECK_STATUSES = ['pass', 'fail', 'skipped'] as const
+
+/**
  * The stored `canonical.verification` column, straight off the generated type.
  *
  * The chain is one-directional and worth stating, because it is easy to read the
@@ -63,6 +89,9 @@ export type CanonicalVerification = ClientCanonicalVerification
 
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
 export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
+
+/** One check's outcome on one page, off the generated type like its siblings. */
+export type SeoCheckResult = NonNullable<CanonicalVerification['seo']>['results'][number]
 
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]
@@ -223,6 +252,48 @@ export function nextRoutingProbeState(args: {
   return { ...previous, routingProbe: { at, verdict, failedAttempts } }
 }
 
+/** A failure's identity: the page **and** the check, two different things to fix. */
+export function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): string {
+  return `${result.route}#${result.check}`
+}
+
+/**
+ * Fold one SEO-check run into the stored state, and say which failures are new.
+ *
+ * ⚠ **This never touches `failureCount`, and must not.** That counter becomes
+ * `disable`, which withdraws the public URLs, and a failing SEO check means the
+ * embed is *present and publishing* — the category error `routingProbe` keeps
+ * its own counter to avoid (#644).
+ *
+ * **"One email per new failure" needs no second column.** The previous snapshot
+ * is the record of what was reported, so a site that stays broken is mailed
+ * once, and one that breaks again after a fix is mailed again.
+ */
+export function nextSeoCheckState(args: {
+  current: CanonicalVerification | null | undefined
+  results: SeoCheckResult[]
+  now: Date
+}): { verification: CanonicalVerification; newFailures: SeoCheckResult[] } {
+  const { current, results, now } = args
+  const previous = current ?? EMPTY_VERIFICATION
+
+  const failedBefore = new Set(
+    (previous.seo?.results ?? [])
+      .filter((result) => result.status === 'fail')
+      .map((result) => seoFailureKey(result)),
+  )
+  const newFailures = results.filter(
+    (result) => result.status === 'fail' && !failedBefore.has(seoFailureKey(result)),
+  )
+
+  return {
+    // Spread `previous` first: `verified`, `failureCount` and `routingProbe` are
+    // siblings this function does not own.
+    verification: { ...previous, seo: { at: now.toISOString(), results } },
+    newFailures,
+  }
+}
+
 /**
  * **How to read the routing verdict:** `verification?.routingProbe?.verdict ??
  * 'query'`, at the call site. There is deliberately no accessor wrapping it.
@@ -231,11 +302,10 @@ export function nextRoutingProbeState(args: {
  * mount's own subtree; `query` otherwise, which is what nearly every client
  * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
  *
- * **There is no second answer to disagree with it.** `verified.routing` — the
- * readiness marker's copy of the widget's own script parameter — is no longer
- * written at all, so the record carries the observation and nothing else. The
- * widget's report is still kept as a report, per mount, in `embedMetadata`.
- * (#644)
+ * **There is no second answer to disagree with it.** The readiness marker's
+ * copy of the widget's own script parameter is not recorded on `verified`, so
+ * the record carries the observation and nothing else. The widget's report is
+ * still kept as a report, per mount, in `embedMetadata`. (#644)
  *
  * The default belongs to the read path: the `canonical.routing` field's
  * `afterRead` hook (`Clients.ts`) is what the widget reads, and it applies it
@@ -243,10 +313,8 @@ export function nextRoutingProbeState(args: {
  * write, or have just written, and never read through Payload at all.
  *
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified, routing)` target. The routing
- * argument is separate and required precisely so that
- * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
- * self-report, no longer compiles (#644).
+ * over a `canonicalTargetForHost(verified, routing)` target, the routing
+ * argument required so every caller names where its verdict came from (#644).
  *
  * There used to be a second builder here, and the two disagreed in a way that
  * mattered: this one emitted the Atlas path with its leading slash stripped and
@@ -264,8 +332,8 @@ export function nextRoutingProbeState(args: {
  *
  * The key is `origin + pathname` (`https://sahajayoga.nl/?p=123`), so the URL parser does the
  * work — `host` keeps a port if there is one, and `search` preserves the WordPress permalink the
- * report contract allows through. Shared because the picker renders from it and the verifier
- * builds its `VerifiedEmbed` from it; they must agree.
+ * report contract allows through. Shared because the Install tab matches reports with it and the
+ * verifier builds its `VerifiedEmbed` from it; they must agree.
  */
 export function splitMountKey(key: string): { domain: string; mount: string } | null {
   try {

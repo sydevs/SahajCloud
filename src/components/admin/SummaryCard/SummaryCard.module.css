@@ -1,0 +1,27 @@
+.card {
+  margin-bottom: calc(var(--base) * 1.5);
+  padding: calc(var(--base) * 0.75) var(--base);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: calc(var(--base) * 0.25) var(--base);
+  margin: 0 0 calc(var(--base) * 0.5);
+
+  dt {
+    color: var(--theme-elevation-500);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.link {
+  display: inline-block;
+  margin-top: calc(var(--base) * 0.5);
+}
