@@ -46,17 +46,18 @@ describe('applyGlossary', () => {
   })
 
   it.each([
-    ['the manipura', 'the Manipura'],
-    ['the vishuddha', 'the Vishuddha'],
-  ])('capitalises the classical name %j without renaming it, giving %j', (heard, written) => {
-    // A narrator saying "Manipura" said Manipura, not Nabhi — a rename here
-    // would impose a terminology choice nobody made, as `anahat`/`anahata`
-    // already shows for a spelling.
+    ['the manipura', 'the Manipur'],
+    ['the vishuddha', 'the Vishuddhi'],
+  ])('writes the classical name %j our way, giving %j', (heard, written) => {
+    // Our spelling wins wherever it does not contradict the narration (#1087
+    // review): `Manipur` and `Vishuddhi` are the word the narrator said, so
+    // they are endings. `Nabhi` is a different word for the same chakra.
     expect(applyGlossary(heard, 'en')).toBe(written)
     expect(applyGlossary(written, 'en')).toBe(written)
   })
 
-  it('leaves the house form each classical name sits beside alone', () => {
+  it('still writes no synonym, so Nabhi never replaces Manipur', () => {
+    expect(applyGlossary('the manipura chakra', 'en')).toBe('the Manipur chakra')
     expect(applyGlossary('Nabhi, Vishuddhi and Agnya', 'en')).toBe('Nabhi, Vishuddhi and Agnya')
   })
 

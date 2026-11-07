@@ -8,7 +8,10 @@
  *
  * ⚠ **The list settles capitalisation and endings, never transliteration.**
  * `Anahat` and `Anahata` are both accepted spellings and both appear; an entry
- * rewriting one into the other would impose a choice nobody made.
+ * rewriting one into the other would impose a choice nobody made. Our own
+ * ending of the word that was said is settled too — `Manipur` for `manipura`
+ * — but its synonym is not: `Nabhi` names the same chakra and is a different
+ * word, so no entry writes it (#1087 review).
  *
  * ⚠ **A match that already starts with a capital keeps it.** The match is
  * case-insensitive, so without that rule an entry whose `written` is
