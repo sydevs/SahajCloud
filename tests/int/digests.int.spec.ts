@@ -375,11 +375,11 @@ describe('SendDigests job', () => {
   })
 
   /**
-   * A failing SEO check sends no mail of its own (#1055): the stored snapshot
-   * is an open item, read by the service's own managers under "Your websites"
-   * and by an admin in their list.
+   * A missing map and a failing SEO check send no mail of their own (#1055):
+   * each is an open item, read by the service's own managers under "Your
+   * websites" and by an admin in their list.
    */
-  describe('a service with failing SEO checks', () => {
+  describe('a service with a problem on its site', () => {
     it("reaches the service's managers and the admins, at the open-items pace", async () => {
       const managerId = await createManager('websites@example.com', {
         open_items: { frequency: 'Weekly' },
@@ -417,13 +417,30 @@ describe('SendDigests job', () => {
         site: { domain: 'essonne-digest.example', page: '/carte', track: 'custom' },
       })
 
+      // Its map gone three nights running, after which the region was released.
+      const missing = await testData.createClient(payload, managerId, {
+        canonical: {
+          verification: {
+            ...EMPTY_VERIFICATION,
+            attempts: [
+              { at: '2026-11-08T03:00:00.000Z', reason: 'marker-absent', status: 'failed' },
+            ],
+            failureCount: 3,
+            releasedAt: '2026-11-08T03:00:00.000Z',
+          },
+        },
+        name: 'Missing Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'missing-digest.example', page: '/carte', track: 'custom' },
+      })
+
       // A Monday, for the Weekly anchor.
       emailAdapter.clearCapturedEmails()
       await runDigests(payload, new Date('2026-11-09T07:00:00.000Z'))
 
       const sent = emailsTo('websites@example.com')
       expect(sent).toHaveLength(1)
-      expect(String(sent[0]!.subject)).toBe('Your websites: 1 open item')
+      expect(String(sent[0]!.subject)).toBe('Your websites: 2 open items')
       const html = String(sent[0]!.html)
       expect(html).toContain('Essonne Digest Site')
       expect(html).toContain('Search problem')
@@ -431,6 +448,12 @@ describe('SendDigests job', () => {
       expect(html).toContain('There is an issue with your map embed.')
       expect(html).not.toContain('Classes')
       expect(html).toContain(`/admin/collections/clients/${client.id}/install`)
+      // The missing map first: visitors see nothing at all.
+      expect(html.indexOf('Missing Digest Site')).toBeLessThan(html.indexOf('Essonne Digest Site'))
+      expect(html).toContain('Map not found')
+      expect(html).toContain('Your map was not found on your site')
+      expect(html).toContain('No longer the home for its region’s links')
+      expect(html).toContain(`/admin/collections/clients/${missing.id}/install`)
       expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
 
       const admin = emailsTo('websites-admin@example.com')

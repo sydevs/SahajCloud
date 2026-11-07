@@ -78,6 +78,10 @@ const canonicalVerificationSchema: JSONSchema4 = {
       },
     },
     failureCount: { type: 'number', minimum: 0 },
+    // When the misses released the region (#1055), so the open-items row can say
+    // so: `owned` alone cannot tell a released site from one that never owned.
+    // Optional for the reason `routingProbe` is, below; a success clears it.
+    releasedAt: { type: 'string' },
     // Optional, and outside `required` above, because this object is closed and
     // Payload validates it on *every* save of the document: a required key here
     // would strand every row written before #644. Its own inner shape is closed,

@@ -254,12 +254,12 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
 }
 
 /**
- * The atlas services whose last SEO checks failed: a service scope's own, or
- * every one for an admin (#1055). Read off the stored snapshot, so nothing here
- * renders a page.
+ * The atlas services whose map is missing or whose last SEO checks failed: a
+ * service scope's own, or every one for an admin (#1055). Read off the stored
+ * verification, so nothing here renders a page.
  *
- * ⚠ **A track with no search listings is never a problem**, whatever the
- * snapshot holds, as on the Install tab (`installModel.ts`).
+ * ⚠ **A track with no search listings is never a search problem**, whatever
+ * the snapshot holds, as on the Install tab (`installModel.ts`).
  */
 async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
   const { req, scope } = args
@@ -278,20 +278,31 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
     sort: 'name',
     overrideAccess: args.overrideAccess,
     req: localeIsolatedReq(req),
-    select: { name: true, site: { track: true }, canonical: { verification: true } },
+    select: {
+      name: true,
+      updatedAt: true,
+      site: { page: true, track: true },
+      canonical: { owned: true, verification: true },
+    },
   })
   return docs.flatMap((doc): OpenItemRow[] => {
-    const seo = doc.canonical?.verification?.seo
-    const failures = hasSearchListings(doc.site?.track)
-      ? (seo?.results ?? []).filter((result) => result.status === 'fail')
-      : []
-    if (!seo || !failures.length) return []
+    const verification = doc.canonical?.verification
+    // Only a service with a page is checked, so only one can have missed.
+    const misses = doc.site?.page ? (verification?.failureCount ?? 0) : 0
+    const seo = verification?.seo
+    const searchProblem =
+      hasSearchListings(doc.site?.track) &&
+      (seo?.results ?? []).some((result) => result.status === 'fail')
+    if (!misses && !searchProblem) return []
     return [
       {
         kind: 'service',
         id: doc.id,
         title: doc.name?.trim() || 'Untitled service',
-        checkedAt: seo.at,
+        checkedAt: (misses ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
+        misses,
+        owned: Boolean(doc.canonical?.owned),
+        releasedAt: verification?.releasedAt ?? null,
       },
     ]
   })

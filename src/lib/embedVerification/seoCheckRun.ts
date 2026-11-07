@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { PayloadRequest } from 'payload'
 
 import { parseAtlasRoute } from '@/endpoints/atlas/seo/atlasRoute'
 import { resolveAtlasSeo } from '@/endpoints/atlas/seo/resolve'
@@ -17,7 +17,6 @@ import {
   nextVerificationState,
 } from '@/lib/clients/verification'
 import { localeForLanguage } from '@/lib/locales'
-import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import { runSeoChecks } from './seoChecks'
@@ -92,45 +91,6 @@ async function runSeoChecksForClient(args: {
       resolveSitemap: async () => (await resolveAtlasSitemap({ req: auditReq, clientId })).urls,
     },
   })
-}
-
-/**
- * Mail a service's primary contact, falling back to its first listed manager.
- * A service with no contact is not an error.
- *
- * ⚠ **A failed send never throws**: losing the mail must not cost the state
- * change it reports.
- */
-export async function notifyServiceContact(args: {
-  payload: Payload
-  client: Pick<Client, 'id' | 'managers' | 'primaryContact'>
-  /** Logged, with the client id, when the send fails. */
-  failure: string
-  message: () => Promise<Omit<Parameters<Payload['sendEmail']>[0], 'to'>>
-}): Promise<void> {
-  const { payload, client, failure, message } = args
-  // `!== null` rather than `.find(Boolean)`, which would drop a legitimate id of 0.
-  const contactId =
-    relationId(client.primaryContact) ??
-    (client.managers ?? []).map((manager) => relationId(manager)).find((id) => id !== null)
-  if (contactId == null) return
-
-  try {
-    const manager = await payload.findByID({
-      collection: 'managers',
-      id: contactId,
-      depth: 0,
-      overrideAccess: true,
-    })
-    if (!manager?.email) return
-    await payload.sendEmail({ to: manager.email, ...(await message()) })
-  } catch (error) {
-    payload.logger.error({
-      msg: failure,
-      clientId: client.id,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
 }
 
 /**

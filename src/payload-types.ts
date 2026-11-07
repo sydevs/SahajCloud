@@ -2722,6 +2722,7 @@ export interface ClientCanonicalVerification {
     at: string;
   } | null;
   failureCount: number;
+  releasedAt?: string;
   routingProbe?: {
     at: string;
     verdict: 'query' | 'path';

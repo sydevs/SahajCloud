@@ -51,6 +51,26 @@ describe('nextVerificationState', () => {
     expect(t.disable).toBe(false)
   })
 
+  it('ends a release on success, so the open item goes with it (#1055)', () => {
+    const t = nextVerificationState({
+      current: { verified, failureCount: 3, attempts: [], releasedAt: '2026-11-01T03:00:00.000Z' },
+      result: ok,
+      now,
+    })
+    expect(t.verification).not.toHaveProperty('releasedAt')
+    expect(t.verification.failureCount).toBe(0)
+  })
+
+  it('keeps a release through further failures', () => {
+    const releasedAt = '2026-11-01T03:00:00.000Z'
+    const t = nextVerificationState({
+      current: { verified, failureCount: 3, attempts: [], releasedAt },
+      result: failed,
+      now,
+    })
+    expect(t.verification.releasedAt).toBe(releasedAt)
+  })
+
   it('counts no strike for a press of Check, however many fail', () => {
     let state: CanonicalVerification = { verified, failureCount: 1, attempts: [] }
     for (let i = 0; i < CANONICAL_FAILURE_LIMIT + 1; i++) {

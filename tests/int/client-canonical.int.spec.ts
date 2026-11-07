@@ -945,11 +945,14 @@ describe('client canonical ownership + embed metadata', () => {
       let doc = await read(id)
       expect(doc.canonical?.verification?.failureCount).toBe(2)
       expect(doc.canonical?.owned).toBe(true)
+      expect(doc.canonical?.verification?.releasedAt).toBeUndefined()
 
       const output = await run(failed, daysAfter(6))
       doc = await read(id)
       expect(doc.canonical?.verification?.failureCount).toBe(3)
       expect(doc.canonical?.owned).toBe(false)
+      // Recorded, so the open-items row can say the region went (#1055).
+      expect(doc.canonical?.verification?.releasedAt).toBe(daysAfter(6).toISOString())
       // The service itself stays on: losing the region is not losing the key.
       expect(doc.enabled).toBe(true)
       expect(output.disabled).toBeGreaterThanOrEqual(1)
@@ -1007,6 +1010,7 @@ describe('client canonical ownership + embed metadata', () => {
       expect(doc.canonical?.owned ?? false).toBe(false)
       // A third strike on a page that owns nothing releases nothing.
       expect(third.disabled).toBe(0)
+      expect(doc.canonical?.verification?.releasedAt).toBeUndefined()
     })
 
     it('skips a service with no page, and an inactive one', async () => {

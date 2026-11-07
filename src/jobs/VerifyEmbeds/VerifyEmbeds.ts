@@ -7,9 +7,8 @@ import type {
   VerificationResult,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { notifyServiceContact, verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Client, TaskVerifyEmbeds } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
@@ -19,7 +18,12 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * Only a mount the CMS has loaded *itself* and found the widget on may yield a canonical URL, and
  * that fact goes stale: sites are redesigned, pages move, plugins get deactivated. This walks the
  * services that own canonical URLs, re-renders each one, and after three consecutive definitive
- * failures switches the ownership off and tells someone.
+ * failures switches the ownership off.
+ *
+ * ⚠ **It sends no mail** (#1055). A miss is an open item from the first one —
+ * "Map not found", read off `failureCount` and `releasedAt` by
+ * `@/lib/atlasOverview/openItems` — in the service managers' "Your websites"
+ * digest and an admin's list, beside a failing SEO check.
  *
  * Three properties worth preserving if this is edited:
  *
@@ -43,10 +47,7 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * Not `Client` — a selected read returns only what it asked for, and typing it as the full document
  * would let a later edit reach for a field this query never fetched.
  */
-type DueClient = Pick<
-  Client,
-  'id' | 'name' | 'canonical' | 'site' | 'managers' | 'primaryContact' | 'language'
->
+type DueClient = Pick<Client, 'id' | 'name' | 'canonical' | 'site' | 'language'>
 
 /** The task's output, off its `outputSchema` below. */
 type VerifyResult = TaskVerifyEmbeds['output']
@@ -89,8 +90,6 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
       name: true,
       canonical: true,
       site: true,
-      managers: true,
-      primaryContact: true,
       // The SEO checks resolve expectations in it.
       language: true,
     },
@@ -99,27 +98,6 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
     req,
   })
   return docs
-}
-
-/** Tell whoever owns the service that its canonical ownership was switched off. */
-function notifyDisabled(payload: Payload, client: DueClient, mount: string): Promise<void> {
-  // A failed notice must not undo the disable — the disable is the safety action.
-  return notifyServiceContact({
-    payload,
-    client,
-    failure: 'VerifyEmbeds: could not notify about a disabled canonical',
-    message: async () => ({
-      subject: stripNewlines(`${client.name} is no longer the home for its region’s atlas links`),
-      html:
-        // `mount` is `site.page`, which the field validates as a percent-encoded
-        // path, and `name` an admin's: neither can carry markup.
-        `<p>We could not find the Sahaj Atlas on <code>${mount}</code> three times in a row, ` +
-        `so <strong>${client.name}</strong> is no longer the home for its region’s atlas links.</p>` +
-        `<p>Nothing else about the service changed. Once the map is working again, open the ` +
-        `service’s Install tab and press Check again: the region comes back to your site if no ` +
-        `other site has taken it.</p>`,
-    }),
-  })
 }
 
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
@@ -177,9 +155,14 @@ export async function runVerifyEmbeds(args: {
     })
     result[outcome.status]++
 
+    // Every service is checked, but only an owner has anything to lose: the
+    // write clears `owned` either way, and only a cleared one is news.
+    const released = transition.disable && Boolean(client.canonical?.owned)
+    const stored = released ? { ...verification, releasedAt: now.toISOString() } : verification
+
     try {
       await pool.query(updateSql(schema), [
-        JSON.stringify(verification),
+        JSON.stringify(stored),
         transition.nextVerifyAt,
         transition.disable,
         client.id,
@@ -216,16 +199,13 @@ export async function runVerifyEmbeds(args: {
       })
     }
 
-    // Every service is checked, but only an owner has anything to lose: the
-    // write clears `owned` either way, and only a cleared one is news.
-    if (transition.disable && client.canonical?.owned) {
+    if (released) {
       result.disabled++
       payload.logger.warn({
         msg: 'VerifyEmbeds: region ownership released after repeated failures',
         clientId: client.id,
         mount,
       })
-      await notifyDisabled(payload, client, mount)
     }
   }
 

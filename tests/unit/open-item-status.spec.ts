@@ -295,18 +295,25 @@ describe('openItem', () => {
     })
   })
 
-  describe('a service with failing SEO checks (#1055)', () => {
-    const service: OpenItemRow = {
+  describe('a service with a problem on its site (#1055)', () => {
+    const service = (
+      overrides: Partial<Extract<OpenItemRow, { kind: 'service' }>> = {},
+    ): OpenItemRow => ({
       checkedAt: '2026-11-04T07:00:00.000Z',
       id: 43,
       kind: 'service',
+      misses: 0,
+      owned: false,
+      releasedAt: null,
       title: 'Yoga Essonne',
-    }
+      ...overrides,
+    })
+    const review = { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } }
 
-    it('says what is wrong in plain words, and sends the reader to the Install tab', () => {
-      const item = openItem(service, NOW)
+    it('says a search problem in plain words, and sends the reader to the Install tab', () => {
+      const item = openItem(service(), NOW)
       expect(item.placing).toMatchObject({
-        action: { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } },
+        action: review,
         key: 'search-problem',
         label: 'Search problem',
         lines: ['Google is unable to read your map embed', 'Checked 4 Nov 2026'],
@@ -317,11 +324,36 @@ describe('openItem', () => {
     })
 
     it('names the problem before the link, where there is room for a sentence', () => {
-      expect(actionPrompt(openItem(service, NOW).placing)).toEqual({
+      expect(actionPrompt(openItem(service(), NOW).placing)).toEqual({
         after: '',
         before: 'There is an issue with your map embed. ',
         link: 'Review it',
       })
+    })
+
+    it('reports a missing map instead, ranked with Overdue', () => {
+      const item = openItem(service({ misses: 1 }), NOW)
+      expect(item.statuses.map((s) => s.key)).toEqual(['map-not-found'])
+      expect(item.placing).toMatchObject({
+        action: review,
+        label: 'Map not found',
+        lines: ['Your map was not found on your site', 'Checked 4 Nov 2026'],
+        pill: 'error',
+        rank: 2,
+      })
+    })
+
+    it('counts down to the release for an owner, and says when it happened', () => {
+      expect(openItem(service({ misses: 1, owned: true }), NOW).placing.lines[1]).toBe(
+        'Loses its region’s links after 2 more misses',
+      )
+      expect(openItem(service({ misses: 2, owned: true }), NOW).placing.lines[1]).toBe(
+        'Loses its region’s links after 1 more miss',
+      )
+      expect(
+        openItem(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }), NOW).placing
+          .lines[1],
+      ).toBe('No longer the home for its region’s links')
     })
   })
 

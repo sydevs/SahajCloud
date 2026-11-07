@@ -199,10 +199,12 @@ export function nextVerificationState(args: {
   }
 
   if (result.status === 'verified') {
+    // A success ends a release: the map is back, so nothing is missing any more.
+    const { releasedAt: _released, ...kept } = previous
     return {
       // Spread `previous` first: `routingProbe` is a sibling this function does not
       // own, and a success must not clear the routing verdict beside it.
-      verification: { ...previous, verified: result.embed, failureCount: 0, attempts },
+      verification: { ...kept, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
       disable: false,
     }

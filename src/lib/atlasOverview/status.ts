@@ -10,6 +10,7 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
+import { CANONICAL_FAILURE_LIMIT } from '@/lib/clients/verification'
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
@@ -91,8 +92,14 @@ export type OpenItemRow =
       kind: 'service'
       id: number
       title: string
-      /** When the checks that failed last ran. */
+      /** When the check this row reports last ran. */
       checkedAt: string
+      /** Nightly checks in a row that did not find the map; 0 when the last one did. */
+      misses: number
+      /** Whether the site still holds its region's links, which the third miss releases. */
+      owned: boolean
+      /** When the misses released the region, or `null`. */
+      releasedAt: null | string
     }
 
 /** One row, with every status it has and the one that places it. */
@@ -154,6 +161,14 @@ const STATUS_TABLE = {
     counts: true,
   },
   // In no filter: a service row sits only in a service's and an admin's list.
+  // Ranked with Overdue: visitors to the site see no map at all.
+  'map-not-found': {
+    label: 'Map not found',
+    pill: 'error',
+    rank: 2,
+    filter: null,
+    counts: true,
+  },
   'search-problem': {
     label: 'Search problem',
     pill: 'warning',
@@ -314,18 +329,38 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
 
 /** What each SEO check is, as a line names it. */
 /**
- * A live atlas that stopped publishing the metadata we gave it (#1055) — a
- * warning, never an outage. Said in a volunteer's terms: which page failed, and
- * which check, is the Install tab's to say, and the row links there.
+ * What is wrong with a service's map, said in a volunteer's terms (#1055): which
+ * page and which check is the Install tab's to say, and the row links there.
+ *
+ * ⚠ **A missing map outranks a search problem, and hides it.** The SEO checks
+ * run only on a pass that found the map, so while it is missing their stored
+ * result describes a page that is not there.
  */
 function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
+  const action = {
+    label: 'Review',
+    target: { collection: 'clients' as const, id: row.id, view: 'install' as const },
+  }
+  const checked = `Checked ${shortDate(row.checkedAt)}`
+
+  if (row.misses > 0) {
+    const left = CANONICAL_FAILURE_LIMIT - row.misses
+    const region = row.releasedAt
+      ? ['No longer the home for its region’s links']
+      : row.owned && left > 0
+        ? [`Loses its region’s links after ${left} more miss${left === 1 ? '' : 'es'}`]
+        : []
+    return [
+      status('map-not-found', {
+        lines: ['Your map was not found on your site', ...region, checked],
+        action,
+      }),
+    ]
+  }
   return [
     status('search-problem', {
-      lines: ['Google is unable to read your map embed', `Checked ${shortDate(row.checkedAt)}`],
-      action: {
-        label: 'Review',
-        target: { collection: 'clients', id: row.id, view: 'install' },
-      },
+      lines: ['Google is unable to read your map embed', checked],
+      action,
     }),
   ]
 }
@@ -357,6 +392,11 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
   'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
+  'map-not-found': {
+    before: 'There is an issue with your map embed. ',
+    link: 'Review it',
+    after: '',
+  },
   'search-problem': {
     before: 'There is an issue with your map embed. ',
     link: 'Review it',
