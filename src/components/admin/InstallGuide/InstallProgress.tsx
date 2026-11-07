@@ -7,58 +7,12 @@ import React from 'react'
 
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import type { Tone } from '@/components/admin/helpers/tones'
-import { TONE_COLORS } from '@/components/admin/helpers/tones'
+import type { NumberBadgeFill } from '@/components/admin/NumberBadge'
+import { NumberBadge } from '@/components/admin/NumberBadge'
 import { Progress } from '@/components/admin/Progress'
 
 import styles from './InstallGuide.module.css'
 import { installProgress } from './installModel'
-
-/**
- * How far along the milestone a badge numbers is: `solid` once it has an
- * answer, `outline` while it is still to come, `dashed` when it is out of
- * reach.
- */
-type NumberBadgeFill = 'solid' | 'outline' | 'dashed'
-
-/**
- * A small numbered circle in one tone.
- *
- * Decorative: the number repeats the table's own row order, so it is hidden
- * from assistive technology and the label beside it carries the meaning.
- */
-function NumberBadge({
-  value,
-  tone,
-  fill,
-}: {
-  value: React.ReactNode
-  tone: Tone
-  fill: NumberBadgeFill
-}): React.ReactElement {
-  const color = TONE_COLORS[tone]
-
-  return (
-    <span
-      aria-hidden
-      style={{
-        flexShrink: 0,
-        display: 'inline-grid',
-        placeItems: 'center',
-        width: '20px',
-        height: '20px',
-        border: `1.5px ${fill === 'dashed' ? 'dashed' : 'solid'} ${color}`,
-        borderRadius: '50%',
-        background: fill === 'solid' ? color : 'transparent',
-        color: fill === 'solid' ? 'var(--theme-elevation-0)' : color,
-        fontSize: '11px',
-        fontWeight: 600,
-        lineHeight: 1,
-      }}
-    >
-      {value}
-    </span>
-  )
-}
 
 /**
  * One look per state, shared by the row's badge and its status word: filled in

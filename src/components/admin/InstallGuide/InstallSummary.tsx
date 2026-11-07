@@ -3,11 +3,11 @@ import type { UIFieldServerComponent } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
+import { SummaryCard } from '@/components/admin/SummaryCard'
 import { primaryPageUrl } from '@/lib/clients/site'
 
 import { InstallProgressBar } from './InstallProgress'
 import { loadInstallRecord } from './installRecord'
-import styles from './InstallSummary.module.css'
 
 /**
  * Where this service's atlas lives, read-only, at the top of the Atlas tab.
@@ -31,26 +31,24 @@ const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
   })
 
   return (
-    <div className={styles.card}>
-      <dl className={styles.list}>
-        <dt>Embed location</dt>
-        <dd>{primaryPageUrl(client.site) ?? 'Not set yet'}</dd>
-        <dt>Region</dt>
-        <dd>
-          {`${regionName ?? 'Worldwide'}${
+    <SummaryCard
+      items={[
+        { label: 'Embed location', value: primaryPageUrl(client.site) ?? 'Not set yet' },
+        {
+          label: 'Region',
+          value: `${regionName ?? 'Worldwide'}${
             owned
               ? regionName === null
                 ? ' — classes in regions without a site of their own are linked to your website'
                 : ' — all classes in this region are linked to your website'
               : ''
-          }`}
-        </dd>
-      </dl>
+          }`,
+        },
+      ]}
+      link={{ href: installUrl, label: 'Change these on the Install tab' }}
+    >
       <InstallProgressBar milestones={milestones} />
-      <a className={styles.link} href={installUrl}>
-        Change these on the Install tab
-      </a>
-    </div>
+    </SummaryCard>
   )
 }
 
