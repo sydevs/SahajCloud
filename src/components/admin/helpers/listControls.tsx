@@ -10,6 +10,11 @@ import { useSetQuery } from './useSetQuery'
 
 type ListQuery = { filter: string; limit: number; page: number }
 
+/** A count in the counter Payload's document tabs show beside Versions. */
+export function Count({ value }: { value: number }) {
+  return <span className="pill-version-count">{value}</span>
+}
+
 /**
  * A URL-driven view's filter row, in Payload's document-tab markup — the
  * header's Edit / Versions row — so it needs no stylesheet of its own.
@@ -46,7 +51,7 @@ export function FilterTabs({
           >
             <span className="doc-tab__label">
               {tab.label}
-              <span className="pill-version-count">{tab.count}</span>
+              <Count value={tab.count} />
             </span>
           </Button>
         ))}

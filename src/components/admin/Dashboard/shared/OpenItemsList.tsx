@@ -110,12 +110,19 @@ export function OpenItemsList({
                   'Status',
                   docs.map((row) => (
                     <div className={styles.statuses} key={row.id}>
-                      {row.statuses.map((status) => (
-                        <div className={styles.status} key={status.key}>
-                          <StatusPill status={status} />
-                          {status.line ? <p>{status.line}</p> : null}
-                        </div>
-                      ))}
+                      <div className={styles.pills}>
+                        {row.statuses.map((status) => (
+                          <StatusPill key={status.key} status={status} />
+                        ))}
+                      </div>
+                      {row.statuses.some((status) => status.line) && (
+                        <p>
+                          {row.statuses
+                            .map((status) => status.line)
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </p>
+                      )}
                     </div>
                   )),
                 ),

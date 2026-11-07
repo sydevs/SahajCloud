@@ -91,6 +91,11 @@
 .sections a {
   text-decoration: none;
 }
+/* Payload pads a Tabs field's row by a gutter on each side; a home's row starts flush. */
+.sections:global(.tabs-field__tabs)::before,
+.sections:global(.tabs-field__tabs)::after {
+  display: none;
+}
 .sections .tick {
   margin-inline-start: calc(var(--base) / 4);
 }
@@ -122,8 +127,14 @@
   flex-direction: column;
   gap: calc(var(--base) / 4);
 }
-.status p {
-  margin: calc(var(--base) / 8) 0 0;
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--base) / 4);
+}
+.statuses p {
+  margin: 0;
   font-size: 0.8rem;
   color: var(--theme-elevation-650);
 }
@@ -137,8 +148,23 @@
   width: 100%;
   min-width: calc(var(--base) * 10);
 }
-.list :global(.cell-action) {
+.list :global(.cell-action),
+.list :global(#heading-action) {
   white-space: nowrap;
+  text-align: end;
+}
+/* The name takes the slack, so every other column is as wide as its content. */
+.overview :global(.cell-name),
+.overview :global(#heading-name) {
+  width: 100%;
+}
+.overview :global(td:not(.cell-name)),
+.overview :global(th:not(#heading-name)) {
+  white-space: nowrap;
+}
+.managers {
+  display: flex;
+  flex-direction: column;
 }
 
 .stretched::after {

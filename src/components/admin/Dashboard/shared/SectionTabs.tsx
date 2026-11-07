@@ -2,7 +2,7 @@
 
 import type { DashboardSection } from './model'
 
-import { CheckIcon, Pill } from '@payloadcms/ui'
+import { CheckIcon } from '@payloadcms/ui'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 
@@ -10,6 +10,7 @@ import type { OverviewProgress } from '@/lib/atlasOverview/status'
 
 import styles from './Dashboard.module.css'
 import { sectionHref } from './model'
+import { Count } from '../../helpers/listControls'
 
 export interface SectionTab {
   /** `null` hides the count — a section that is not a to-do list. */
@@ -59,9 +60,7 @@ export function SectionTabs({
                 <CheckIcon />
               </span>
             ) : (
-              <Pill pillStyle="light-gray" rounded size="small">
-                {tab.count}
-              </Pill>
+              <Count value={tab.count} />
             )}
           </Link>
         ))}

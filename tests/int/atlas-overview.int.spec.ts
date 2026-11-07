@@ -260,11 +260,12 @@ describe('Atlas overview', () => {
 
     it('measures progress against every unfinished program it covers, quiet ones included', async () => {
       const data = await load({ limit: 100 })
-      const country = data.regions.docs.find((row) => row.name === 'Overview Country')!
-      expect(data.items.progress?.total).toBe(country.programs)
-      expect(data.items.progress!.open).toBeLessThan(country.programs)
+      // Every program sits in one of the country's cities, so its children partition them.
+      const programs = data.regions.docs.reduce((sum, row) => sum + row.programs, 0)
+      expect(data.items.progress?.total).toBe(programs)
+      expect(data.items.progress!.open).toBeLessThan(programs)
       // The header counts the subtree once, not once per level of it.
-      expect(data.description).toContain(` · ${country.programs} programs · `)
+      expect(data.description).toContain(` · ${programs} programs · `)
     })
 
     /** ⚠ A region manager sees recommendations on their own events only. */
@@ -307,15 +308,25 @@ describe('Atlas overview', () => {
       expect(Object.keys(data)).toEqual(['allowed'])
     })
 
-    it('lists its subtree in the regions overview, with the scoped region as the header', async () => {
+    it("lists the scoped region's children in the regions overview, one level only", async () => {
+      await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          level: 'venue',
+          mapboxId: 'venue.overview-managed',
+          name: 'Managed Venue',
+          parent: managedCityId,
+        }),
+      })
       const data = await load({ region: countryId, section: 'regions' })
       const names = data.regions.docs.map((row) => row.name)
       expect(names).toContain('Managed City')
       expect(names).not.toContain('Overview Country')
+      expect(names).not.toContain('Managed Venue')
       const city = data.regions.docs.find((row) => row.name === 'Managed City')!
       // The city lists nobody itself; its cover comes from the country above.
       expect(city).toMatchObject({
-        managers: { count: 0, first: null },
+        managers: { count: 0, names: [] },
         overdue: 2,
         unverified: 1,
       })
@@ -395,8 +406,8 @@ describe('Atlas overview', () => {
       expect([...levels]).toEqual(['country'])
       expect(data.countries.docs.map((row) => row.name)).toContain('Orphan Country')
       const country = data.countries.docs.find((row) => row.name === 'Overview Country')!
-      // The country's own manager is named first, ahead of any listed below it.
-      expect(country.managers.first).toBe('Listed Manager')
+      // Its own manager only, not those listed on the regions below it.
+      expect(country.managers).toEqual({ count: 1, names: ['Listed Manager'] })
     })
 
     it('lists a registration the spam check refused, and loses it once it is settled', async () => {

@@ -3,7 +3,7 @@
 import type { PaginatedDocs } from 'payload'
 import type { ReactNode } from 'react'
 
-import { Button, Pill, Table } from '@payloadcms/ui'
+import { Button, ErrorPill, Table, useTranslation } from '@payloadcms/ui'
 import { Building2, Globe, type LucideIcon, Map as MapIcon, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
@@ -14,7 +14,7 @@ import styles from './Dashboard.module.css'
 import { PAGE_LIMITS } from './model'
 import { HoverTooltip } from '../../AtlasNav/HoverTooltip'
 import { CenteredNotice } from '../../CenteredNotice'
-import { QueryPager } from '../../helpers/listControls'
+import { Count, QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
 
 function signupLabel(signups: RegionOverviewRow['signups']): string {
@@ -40,25 +40,17 @@ function LevelIcon({ level }: { level: RegionOverviewRow['level'] }) {
   )
 }
 
-function managersLabel({ count, first }: RegionOverviewRow['managers']): ReactNode {
-  if (!first) return '—'
-  return count > 1 ? (
-    <>
-      {first} <span className={styles.muted}>+{count - 1}</span>
-    </>
-  ) : (
-    first
+function managersLabel({ count, names }: RegionOverviewRow['managers']): ReactNode {
+  if (count === 0) return '—'
+  return (
+    <div className={styles.managers}>
+      {names.map((name, index) => (
+        <span key={index}>{name}</span>
+      ))}
+      {count > names.length && <span className={styles.muted}>+{count - names.length}</span>}
+    </div>
   )
 }
-
-const countPill = (count: number, pillStyle: 'error' | 'warning'): ReactNode =>
-  count > 0 ? (
-    <Pill pillStyle={pillStyle} rounded size="small">
-      {count}
-    </Pill>
-  ) : (
-    '—'
-  )
 
 /**
  * The Regions overview and the Countries overview — one component, two scopes.
@@ -78,6 +70,7 @@ export function RegionOverviewTable({
   /** A manager's own subtree rather than the top level — marks each row's level. */
   subtree?: boolean
 }) {
+  const { i18n } = useTranslation()
   const docs = rows.docs
 
   if (docs.length === 0) {
@@ -95,7 +88,7 @@ export function RegionOverviewTable({
   ) => tableColumn(accessor, heading, docs.map(cell))
 
   return (
-    <div className={styles.list}>
+    <div className={`${styles.list} ${styles.overview}`}>
       <Table
         columns={[
           column('name', label, (row) => (
@@ -113,8 +106,12 @@ export function RegionOverviewTable({
           column('managers', 'Managers', (row) => managersLabel(row.managers)),
           column('programs', 'Programs', (row) => row.programs),
           column('healthy', 'Healthy', (row) => (row.healthy === null ? '—' : `${row.healthy}%`)),
-          column('overdue', 'Overdue', (row) => countPill(row.overdue, 'error')),
-          column('unverified', 'Unverified', (row) => countPill(row.unverified, 'warning')),
+          column('overdue', 'Overdue', (row) =>
+            row.overdue > 0 ? <ErrorPill count={row.overdue} i18n={i18n} /> : '—',
+          ),
+          column('unverified', 'Unverified', (row) =>
+            row.unverified > 0 ? <Count value={row.unverified} /> : '—',
+          ),
           column('signups', 'Sign-ups · 30 days', (row) => signupLabel(row.signups)),
           column('edit', <span className="sr-only">Edit</span>, (row) => (
             <Button

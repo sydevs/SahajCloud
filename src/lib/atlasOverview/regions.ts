@@ -13,8 +13,8 @@ export interface RegionOverviewRow {
   id: number
   name: string
   level: Region['level']
-  /** Managers listed on this region or any below it; `first` is one of the region's own when it has one. */
-  managers: { count: number; first: null | string }
+  /** Managers listed on this region itself, and the first two of their names. */
+  managers: { count: number; names: string[] }
   /** Events that are not finished. */
   programs: number
   /** Managed and not overdue, over programs — whole per cent, `null` with no programs. */
@@ -46,7 +46,9 @@ export async function loadRegionOverview(
 
   // ⚠ Narrowed to the scope: a subtree is closed downwards, so nothing excluded could roll up into it.
   const narrow = scoped ? [...scoped] : null
-  const managerIds = [...new Set([...inScope].flatMap((id) => tree.managersById.get(id) ?? []))]
+  const managerIds = [
+    ...new Set([...inScope].flatMap((id) => (tree.managersById.get(id) ?? []).slice(0, 2))),
+  ]
   const [events, signups, managerDocs] = await Promise.all([
     req.payload.find({
       collection: 'events',
@@ -105,29 +107,21 @@ export async function loadRegionOverview(
     }
   }
 
-  // ⚠ Out-of-scope regions are dropped, not just gated: their managers must not reach an in-scope ancestor.
-  const managers = new Map<number, Set<number>>()
-  for (const regionId of inScope) {
-    for (const id of upChain(regionId)) {
-      const set = managers.get(id) ?? new Set<number>()
-      for (const managerId of tree.managersById.get(regionId) ?? []) set.add(managerId)
-      managers.set(id, set)
-    }
-  }
-
   const rows: RegionOverviewRow[] = []
   for (const id of inScope) {
     const level = tree.levelById.get(id)
     if (!level || (args.countriesOnly && level !== 'country')) continue
     const row = metrics.get(id) ?? empty()
-    const listed = [...new Set([...(tree.managersById.get(id) ?? []), ...(managers.get(id) ?? [])])]
+    const own = tree.managersById.get(id) ?? []
     rows.push({
       id,
       name: tree.nameById.get(id)?.trim() || `#${id}`,
       level,
       managers: {
-        count: listed.length,
-        first: listed.length ? managerName.get(listed[0]!)?.trim() || 'Unnamed manager' : null,
+        count: own.length,
+        names: own
+          .slice(0, 2)
+          .map((managerId) => managerName.get(managerId)?.trim() || 'Unnamed manager'),
       },
       programs: row.programs,
       healthy: row.programs > 0 ? Math.round((row.healthy / row.programs) * 100) : null,

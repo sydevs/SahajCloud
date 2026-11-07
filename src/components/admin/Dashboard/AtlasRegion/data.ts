@@ -52,8 +52,13 @@ export async function getAtlasRegionData(
     loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
   ])
 
-  // Without `?region=`, the owned subtrees' roots: summing every row would count a city once per ancestor.
   const listed = new Set(regionRows.map((row) => row.id))
+  const parentOf = (id: number) =>
+    tree.chainById
+      .get(id)
+      ?.filter((link) => link !== id)
+      .at(-1)
+  // Without `?region=`, the owned subtrees' roots: summing every row would count a city once per ancestor.
   const roots =
     regionId === undefined
       ? regionRows.filter(
@@ -61,7 +66,11 @@ export async function getAtlasRegionData(
         )
       : regionRows.filter((row) => row.id === regionId)
   const programs = roots.reduce((sum, row) => sum + row.programs, 0)
-  const managers = roots.reduce((sum, row) => sum + row.managers.count, 0)
+  const managers = new Set(regionRows.flatMap((row) => tree.managersById.get(row.id) ?? [])).size
+  // The overview lists one level: the opened region's children, or a lone root's.
+  const parentId = regionId ?? (roots.length === 1 ? roots[0]!.id : undefined)
+  const levelRows =
+    parentId === undefined ? roots : regionRows.filter((row) => parentOf(row.id) === parentId)
 
   return {
     ...base,
@@ -74,12 +83,7 @@ export async function getAtlasRegionData(
       `${programs} program${programs === 1 ? '' : 's'}`,
       `${managers} manager${managers === 1 ? '' : 's'}`,
     ].join(' · '),
-    regions: paginate(
-      // A region's own row is the header's description, not a row under it.
-      regionRows.filter((row) => row.id !== regionId),
-      query.page,
-      query.limit,
-    ),
+    regions: paginate(levelRows, query.page, query.limit),
   }
 }
 
