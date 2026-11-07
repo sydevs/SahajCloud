@@ -412,11 +412,31 @@ describe('Clients access', () => {
       const updated = (await payload.update({
         collection: 'clients',
         id: otherClient.id,
-        data: { supportEmail: 'help@other-service.example' },
+        data: { language: 'fr' },
         overrideAccess: false,
         req: managerReq(listedManager),
       })) as Client
-      expect(updated.supportEmail).toBe('help@other-service.example')
+      expect(updated.language).toBe('fr')
+    })
+
+    it('keeps the Atlas tab unwritable for a service without the atlas role', async () => {
+      // The tab is hidden there, and a hidden tab runs no validation, so an
+      // unchecked colour or reply-to address could otherwise land.
+      await payload.update({
+        collection: 'clients',
+        id: otherClient.id,
+        data: { supportEmail: 'not-an-address', color1: 'red' },
+        overrideAccess: false,
+        req: managerReq(listedManager),
+      })
+      const after = await payload.findByID({
+        collection: 'clients',
+        id: otherClient.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(after.supportEmail ?? null).toBeNull()
+      expect(after.color1 ?? null).toBeNull()
     })
 
     it('keeps a listed manager out of the admin-only Config fields', async () => {
@@ -470,7 +490,7 @@ describe('Clients access', () => {
       await payload.update({
         collection: 'clients',
         id: otherClient.id,
-        data: { supportEmail: 'counters@other-service.example' },
+        data: { language: 'de' },
         overrideAccess: false,
         req: managerReq(listedManager),
       })
@@ -481,7 +501,7 @@ describe('Clients access', () => {
         depth: 0,
         overrideAccess: true,
       })) as Client
-      expect(row.supportEmail).toBe('counters@other-service.example')
+      expect(row.language).toBe('de')
       expect(row.usage?.dailyRequests).toBe(77)
     })
 

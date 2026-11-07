@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { CollectionConfig, Condition, Field, PayloadRequest, Tab } from 'payload'
+import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
@@ -180,9 +180,6 @@ const siteDomainValidate = (value: string | null | undefined) =>
     ? true
     : 'A domain is a bare host, such as sahajayoga.ca.'
 
-/** The Config tab's lock: everyone who reaches the row reads these, only an admin writes them. */
-const ADMIN_WRITES = { create: adminOnlyFieldAccess, update: adminOnlyFieldAccess }
-
 /**
  * Shows the Config, Usage and Diagnostics tabs to admins alone.
  *
@@ -191,27 +188,48 @@ const ADMIN_WRITES = { create: adminOnlyFieldAccess, update: adminOnlyFieldAcces
  * seed, an endpoint writing with `overrideAccess`) must pass, or every JSON
  * Schema and `required` check in these tabs stops running for it. A non-admin
  * manager does skip them, which is safe only because every field in these tabs
- * is `ADMIN_WRITES`-locked or virtual: nothing a manager sends there can land.
+ * is admin-write-locked (`lockTabs`) or virtual: nothing a manager sends there can land.
  */
 const adminTabs: Condition = (_data, _siblingData, { user }) => !user || isAdminManager(user)
 
 /**
- * Every data field of an `adminTabs` tab, `ADMIN_WRITES`-locked. Stamped rather
- * than written per field, because the lock is what makes the condition's
- * skipped validation safe: a field added there later cannot ship writable by a
- * listed manager.
+ * Every data field of a conditional tab, write-locked to whoever the tab is
+ * shown to: an admin for the `adminTabs` ones, an admin or a service with the
+ * atlas role for the Atlas tab.
+ *
+ * ⚠ **The lock is what makes the condition's skipped validation safe** — a
+ * false condition runs no `required` and no `validate` — so it is stamped here
+ * rather than written per field, and a field added to such a tab later cannot
+ * ship writable, unvalidated, by a listed manager. It ANDs with a field's own
+ * write rule.
  */
-function lockAdminTabs(tabs: Tab[]): Tab[] {
-  const lock = (field: Field): Field => {
-    if (field.type === 'ui') return field
-    const locked = (
-      'name' in field ? { ...field, access: { ...field.access, ...ADMIN_WRITES } } : field
-    ) as Field
-    return 'fields' in locked ? ({ ...locked, fields: locked.fields.map(lock) } as Field) : locked
-  }
-  return tabs.map((tab) =>
-    tab.admin?.condition === adminTabs ? { ...tab, fields: tab.fields.map(lock) } : tab,
-  )
+function lockTabs(tabs: Tab[]): Tab[] {
+  const and = (own: FieldAccess | undefined, rule: FieldAccess): FieldAccess =>
+    own ? async (args) => (await own(args)) && (await rule(args)) : rule
+  const lock =
+    (rule: FieldAccess) =>
+    (field: Field): Field => {
+      if (field.type === 'ui') return field
+      const locked = (
+        'name' in field
+          ? {
+              ...field,
+              access: {
+                ...field.access,
+                create: and(field.access?.create, rule),
+                update: and(field.access?.update, rule),
+              },
+            }
+          : field
+      ) as Field
+      return 'fields' in locked
+        ? ({ ...locked, fields: locked.fields.map(lock(rule)) } as Field)
+        : locked
+    }
+  return tabs.map((tab) => {
+    const rule = tab.admin?.condition && TAB_WRITE_RULES.get(tab.admin.condition)
+    return rule ? { ...tab, fields: tab.fields.map(lock(rule)) } : tab
+  })
 }
 
 /** A read-only usage counter, which the usage plugin writes with raw SQL. */
@@ -223,6 +241,16 @@ const usageCounter = (name: string, type: 'number' | 'date', description: string
 /** The Atlas-only settings, shown to a service holding the Atlas role. */
 const isAtlasClient = (data: { roles?: unknown }): boolean =>
   Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
+
+/** The Atlas tab's lock: an admin, or the row's own atlas role (`roles` is admin-locked). */
+const atlasWrites: FieldAccess = ({ req, doc, data }) =>
+  isAdminManager(req.user) || isAtlasClient(doc ?? data ?? {})
+
+/** Each conditional tab's write rule, keyed on the condition that hides it (`lockTabs`). */
+const TAB_WRITE_RULES = new Map<Condition, FieldAccess>([
+  [adminTabs, adminOnlyFieldAccess],
+  [isAtlasClient, atlasWrites],
+])
 
 /** The mailing-list group's master switch. */
 const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
@@ -420,9 +448,9 @@ export const Clients: CollectionConfig = {
     },
     {
       type: 'tabs',
-      tabs: lockAdminTabs([
+      tabs: lockTabs([
         {
-          // Operator configuration end to end, so admins only (`lockAdminTabs`):
+          // Operator configuration end to end, so admins only (`lockTabs`):
           // a listed manager could otherwise PATCH their key new roles,
           // themselves new co-managers, or their site a region it does not own.
           label: 'Config',

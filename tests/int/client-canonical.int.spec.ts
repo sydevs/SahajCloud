@@ -156,6 +156,22 @@ describe('client canonical ownership + embed metadata', () => {
         walk(tab.fields)
       }
       expect(unlocked).toEqual([])
+
+      // And the Atlas tab, hidden on a service without the atlas role, carries a
+      // write rule on every data field too.
+      const atlas = tabs.find((tab) => tab.label === 'Atlas')!
+      const open: string[] = []
+      const walkAtlas = (fields: unknown[]) => {
+        for (const field of fields as Record<string, unknown>[]) {
+          if (field.type === 'ui') continue
+          if (typeof field.name === 'string' && !(field.access as { update?: unknown })?.update) {
+            open.push(field.name)
+          }
+          if (Array.isArray(field.fields)) walkAtlas(field.fields)
+        }
+      }
+      walkAtlas(atlas.fields)
+      expect(open).toEqual([])
     })
 
     it('serves canonical.embed and allowedDomains computed for the widget, never stored', () => {
