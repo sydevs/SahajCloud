@@ -36,5 +36,9 @@ const TEXT_SELECTORS = [
  */
 export async function renderEmail(element: ReactElement): Promise<{ html: string; text: string }> {
   const html = await render(element)
-  return { html, text: toPlainText(html, { selectors: TEXT_SELECTORS }) }
+  const text = toPlainText(html, { selectors: TEXT_SELECTORS })
+    // ⚠ A spacer cell's NBSP is what holds it open in Outlook; in text it is a stray blank line.
+    .replace(/^[\s\u00A0]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+  return { html, text }
 }

@@ -268,9 +268,9 @@ describe('SendDigests job', () => {
       const sent = emailsTo('monthly@example.com')
       expect(sent).toHaveLength(1)
       const month = first.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
-      expect(String(sent[0]!.subject)).toBe(`Your events: ${month} analytics`)
+      expect(String(sent[0]!.subject)).toBe(`Your events: ${month} statistics`)
       const html = String(sent[0]!.html)
-      expect(html).toContain('Analytics')
+      expect(html).toContain('Statistics')
       expect(html).toContain('Registrations')
       // Nobody signed up, which is a zero rather than a missing section.
       expect(html).toContain('>0<')

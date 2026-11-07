@@ -53,7 +53,7 @@ export async function sendSessionReminder(args: {
 
   const brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')
   const strings = await resolveEmailStrings({ payload, locale, req })
-  const details = buildReminderEmailDetails(event, occurrenceIso)
+  const details = buildReminderEmailDetails(event, occurrenceIso, { locale, strings })
   const unsubscribeUrl = buildUnsubscribeEmailLink(
     await signUnsubscribeToken({ submissionId }, payload.secret),
   )

@@ -76,6 +76,21 @@ export const EMAIL_STRING_DEFAULTS = {
   unsubscribe_error_title: 'Something went wrong',
   unsubscribe_error_message:
     'We could not process your request. Please try again in a little while.',
+  // ⚠ Read from the global's `event.recurrence` group, not `emails`: the Atlas
+  // widget renders schedules from those same keys, so a translator writes each
+  // once. English here mirrors SahajAtlasWeb `src/config/translations.en.json`.
+  recurrence_daily: 'Every day',
+  recurrence_daily_n: 'Every %{interval} days',
+  recurrence_weekly_1: 'Every %{weekday}',
+  recurrence_weekly_2: 'Every 2nd %{weekday}',
+  recurrence_weekly_n: 'Every %{interval} weeks on %{weekday}',
+  recurrence_weekly_multi: 'Every %{weekdays}',
+  recurrence_monthly_1st: '1st %{weekday} of every month',
+  recurrence_monthly_2nd: '2nd %{weekday} of every month',
+  recurrence_monthly_3rd: '3rd %{weekday} of every month',
+  recurrence_monthly_4th: '4th %{weekday} of every month',
+  recurrence_monthly_last: 'Last %{weekday} of every month',
+  recurrence_monthly_date: 'On day %{day} of every month',
 } as const
 
 export type EmailStringKey = keyof typeof EMAIL_STRING_DEFAULTS
@@ -124,13 +139,21 @@ export function pluralize(
   return interpolate(template, { count, ...values })
 }
 
-/** Merge a raw JSON blob from the global over the English defaults. */
-function withDefaults(raw: unknown): EmailStrings {
-  const blob = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+const RECURRENCE_PREFIX = 'recurrence_'
+
+/** Merge the global's `emails` and `event.recurrence` blobs over the English defaults. */
+function withDefaults(translations: unknown): EmailStrings {
+  const asRecord = (value: unknown) =>
+    (value && typeof value === 'object' ? value : {}) as Record<string, unknown>
+  const root = asRecord(translations)
+  const emails = asRecord(root.emails)
+  const recurrence = asRecord(asRecord(root.event).recurrence)
   const resolved = { ...EMAIL_STRING_DEFAULTS } as EmailStrings
 
   for (const key of Object.keys(EMAIL_STRING_DEFAULTS) as EmailStringKey[]) {
-    const value = blob[key]
+    const value = key.startsWith(RECURRENCE_PREFIX)
+      ? recurrence[key.slice(RECURRENCE_PREFIX.length)]
+      : emails[key]
     if (typeof value === 'string' && value.trim()) resolved[key] = value
   }
 
@@ -171,7 +194,7 @@ export async function resolveEmailStrings(args: {
         depth: 0,
         req,
       })
-      return withDefaults((translations as { emails?: unknown }).emails)
+      return withDefaults(translations)
     } catch (error) {
       payload.logger.debug({
         msg: 'Failed to read sy-atlas-translations emails group; using English defaults',

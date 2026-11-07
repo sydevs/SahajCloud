@@ -6,7 +6,7 @@ import { Column, Link, Row, Section, Text } from 'react-email'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
-import { BrandButton, EmailLayout, NBSP, SectionHeading, styles } from './EmailLayout'
+import { AnswerPairs, BrandButton, EmailLayout, NBSP, SectionHeading, styles } from './EmailLayout'
 
 /** One block of tiles, with the heading it sits under. */
 export interface DigestTileBlock {
@@ -24,15 +24,17 @@ const PILL_COLORS = {
 
 export type StatusPillStyle = keyof typeof PILL_COLORS
 
-/** One open item: what it is on the left, where it stands on the right. */
+/** One open item, stacked: title, when it meets, its pills and line, then the next step. */
 export interface ItemTableRow {
-  /** The next step's wording, linked to the page that takes it. */
-  action?: null | { href: string; label: string }
+  /** The next step as a sentence, its opening words linked to the page that takes it. */
+  action?: null | { after: string; href: string; link: string }
   href: string
   /** Pills, most urgent first. */
   statuses: { pillStyle: StatusPillStyle; text: string }[]
-  /** The most urgent status's line, under the pills. */
+  /** The most urgent status's line, under the pills — the dashboard's own. */
   line?: string
+  /** When an event meets, as the dashboard shows under its title. */
+  subtitle?: string
   title: string
 }
 
@@ -47,7 +49,12 @@ export interface DigestRegistrationGroup {
   /** The event's Registrations tab (#1069). */
   allUrl: string
   heading: string
-  rows: { answers?: string; attending?: null | string; email: string; name: string }[]
+  rows: {
+    answers?: { label: string; value: string }[]
+    attending?: null | string
+    email: string
+    name: string
+  }[]
 }
 
 export interface DigestEmailProps {
@@ -103,55 +110,55 @@ function StatTiles({ tiles }: { tiles: DigestTileBlock['tiles'] }) {
 }
 
 /**
- * The open-items list in two cells, not a column per fact: a five-column table
- * is unreadable at phone width and an email has no media query it can rely on.
+ * The open-items list, one stacked block per item: a column per fact is
+ * unreadable at phone width, and an email has no media query it can rely on.
  */
 function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
   if (rows.length === 0) return null
   return (
     <Section style={{ margin: '0 0 8px' }}>
       {rows.map((row) => (
-        <Row key={row.href} style={itemRow}>
-          <Column style={itemMain}>
-            <Link href={row.href} style={{ ...itemTitle, color: accent }}>
-              {row.title}
-            </Link>
-            {row.action ? (
-              <Text style={itemAction}>
-                <Link href={row.action.href} style={{ color: accent }}>
-                  {row.action.label}
-                </Link>
-              </Text>
-            ) : null}
-          </Column>
-          <Column style={itemSide}>
+        <Section key={row.href} style={itemBlock}>
+          <Link href={row.href} style={{ ...itemTitle, color: accent }}>
+            {row.title}
+          </Link>
+          {row.subtitle ? <Text style={itemSubtitle}>{row.subtitle}</Text> : null}
+          <Text style={itemPills}>
             {row.statuses.map((status) => (
               <Fragment key={status.text}>
                 <span
                   style={{
+                    ...pill,
                     backgroundColor: PILL_COLORS[status.pillStyle].background,
-                    borderRadius: '3px',
                     color: PILL_COLORS[status.pillStyle].text,
-                    display: 'inline-block',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    padding: '2px 8px',
-                    whiteSpace: 'nowrap',
                   }}
                 >
                   {status.text}
                 </span>{' '}
               </Fragment>
             ))}
-            {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
-          </Column>
-        </Row>
+          </Text>
+          {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
+          {row.action ? (
+            <Text style={itemAction}>
+              <Link href={row.action.href} style={{ color: accent }}>
+                {row.action.link}
+              </Link>
+              {row.action.after}
+            </Text>
+          ) : null}
+        </Section>
       ))}
     </Section>
   )
 }
 
-/** One event's new registrants: a header row, three columns, and each person's answers below. */
+/**
+ * One event's new registrants: one table, so every row's columns line up under
+ * the header, with each person's answers in a full-width row beneath them.
+ * ⚠ `colSpan` is plain HTML 4, which every client draws; a `Row` per line would
+ * be a table per line, each sizing its own columns.
+ */
 function RegistrationTable({
   accent,
   group: { allUrl, heading, rows },
@@ -161,26 +168,45 @@ function RegistrationTable({
 }) {
   return (
     <Section style={{ margin: '0 0 14px' }}>
-      <Text style={{ ...registrationHeading, color: accent }}>{heading}</Text>
-      <Row style={registrationHead}>
-        <Column style={registrationHeadCell}>Name</Column>
-        <Column style={registrationHeadCell}>Email</Column>
-        <Column style={registrationHeadCell}>Attending</Column>
-      </Row>
-      {rows.map((row, index) => (
-        <Fragment key={`${row.email}-${index}`}>
-          <Row>
-            <Column style={registrationCell}>{row.name}</Column>
-            <Column style={registrationCell}>{row.email}</Column>
-            <Column style={registrationCell}>{row.attending ?? '—'}</Column>
-          </Row>
-          {row.answers ? (
-            <Row>
-              <Column style={registrationAnswers}>{row.answers}</Column>
-            </Row>
-          ) : null}
-        </Fragment>
-      ))}
+      <Text style={registrationHeading}>{heading}</Text>
+      <table
+        cellPadding={0}
+        cellSpacing={0}
+        role="presentation"
+        style={registrationTable}
+        width="100%"
+      >
+        <colgroup>
+          <col width="34%" />
+          <col width="44%" />
+          <col width="22%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={registrationHeadCell}>Name</th>
+            <th style={registrationHeadCell}>Email</th>
+            <th style={registrationHeadCell}>Attending</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <Fragment key={`${row.email}-${index}`}>
+              <tr>
+                <td style={registrationCell}>{row.name}</td>
+                <td style={{ ...registrationCell, ...styles.link }}>{row.email}</td>
+                <td style={registrationCell}>{row.attending ?? '—'}</td>
+              </tr>
+              {row.answers?.length ? (
+                <tr>
+                  <td colSpan={3} style={registrationAnswers}>
+                    <AnswerPairs answers={row.answers} compact />
+                  </td>
+                </tr>
+              ) : null}
+            </Fragment>
+          ))}
+        </tbody>
+      </table>
       <Text style={styles.hint}>
         <Link href={allUrl} style={{ color: accent }}>
           All registrations
@@ -239,7 +265,8 @@ export function DigestEmail({
     >
       <Text style={styles.hint}>{date}</Text>
       <Text style={styles.paragraph}>
-        Hello {recipientName ? <strong>{recipientName}</strong> : 'there'}, {summary}.
+        Hello {recipientName ? <strong>{recipientName}</strong> : 'there'}, here’s what’s new:{' '}
+        {summary}.
       </Text>
 
       {statistics?.map((block) => (
@@ -298,36 +325,42 @@ const tileValue: CSSProperties = { color: '#111827', fontSize: '22px', fontWeigh
 const tileOf: CSSProperties = { color: '#6b7280', fontSize: '13px', fontWeight: 400 }
 const tileChange: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 0' }
 
-const itemRow: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
-const itemMain: CSSProperties = { padding: '10px 10px 10px 0', verticalAlign: 'top' }
-const itemSide: CSSProperties = {
-  padding: '10px 0',
-  textAlign: 'right',
-  verticalAlign: 'top',
-  width: '38%',
-}
+const itemBlock: CSSProperties = { borderBottom: '1px solid #e5e7eb', padding: '10px 0' }
 const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, textDecoration: 'none' }
-const itemAction: CSSProperties = { fontSize: '13px', margin: '4px 0 0' }
-const itemLine: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 8px' }
-const registrationHeading: CSSProperties = { fontSize: '15px', fontWeight: 700, margin: '0 0 6px' }
-const registrationHead: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
+const itemSubtitle: CSSProperties = { color: '#6b7280', fontSize: '13px', margin: '2px 0 0' }
+const itemPills: CSSProperties = { fontSize: '12px', margin: '8px 0 0' }
+const pill: CSSProperties = {
+  borderRadius: '3px',
+  display: 'inline-block',
+  fontSize: '12px',
+  fontWeight: 600,
+  padding: '2px 8px',
+  whiteSpace: 'nowrap',
+}
+const itemLine: CSSProperties = { color: '#6b7280', fontSize: '13px', margin: '4px 0 0' }
+const itemAction: CSSProperties = { color: '#1f2937', fontSize: '14px', margin: '6px 0 0' }
+const registrationHeading: CSSProperties = {
+  color: '#1f2937',
+  fontSize: '15px',
+  fontWeight: 700,
+  margin: '0 0 6px',
+}
+const registrationTable: CSSProperties = { borderCollapse: 'collapse', tableLayout: 'fixed' }
 const registrationHeadCell: CSSProperties = {
+  borderBottom: '1px solid #e5e7eb',
   color: '#6b7280',
   fontSize: '11px',
   fontWeight: 600,
   letterSpacing: '0.04em',
   padding: '0 8px 4px 0',
+  textAlign: 'left',
   textTransform: 'uppercase',
 }
 const registrationCell: CSSProperties = {
+  borderTop: '1px solid #f1f2f4',
   color: '#1f2937',
   fontSize: '14px',
-  padding: '6px 8px 6px 0',
+  padding: '8px 8px 4px 0',
   verticalAlign: 'top',
 }
-const registrationAnswers: CSSProperties = {
-  color: '#6b7280',
-  fontSize: '12px',
-  padding: '0 0 8px',
-  whiteSpace: 'pre-wrap',
-}
+const registrationAnswers: CSSProperties = { padding: '0 0 8px 12px' }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { OpenItemEvent, OpenItemRow } from '@/lib/atlasOverview/status'
-import { openItem, overviewProgress, sortOpenItems } from '@/lib/atlasOverview/status'
+import { actionPrompt, openItem, overviewProgress, sortOpenItems } from '@/lib/atlasOverview/status'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
 
@@ -192,6 +192,24 @@ describe('openItem', () => {
       expect(status).toMatchObject({ counts: false, key: 'finished', rank: 8 })
       expect(status.line).toBe('Ended 30 Sept 2026')
       expect(status.action).toBeNull()
+    })
+  })
+
+  describe('the next step as a sentence', () => {
+    it('says what the step is for, its opening words the link', () => {
+      expect(actionPrompt(only(event({ verificationStage: 'urgent' })))).toEqual({
+        after: ' to keep it on the map.',
+        link: 'Verify this event',
+      })
+    })
+
+    it('asks an admin for a region manager rather than a verification', () => {
+      const status = only(event({ unmanagedRegionId: 9, verificationStage: 'urgent' }))
+      expect(actionPrompt(status)?.link).toBe('Add a region manager')
+    })
+
+    it('has none for a status with no next step', () => {
+      expect(actionPrompt(only(event({ verificationStage: 'finished' })))).toBeNull()
     })
   })
 

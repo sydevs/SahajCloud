@@ -79,19 +79,11 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-/** A label-above-value itinerary line, accented in the client service's own brand. */
-function StackedDetailRow({
-  label,
-  accent,
-  children,
-}: {
-  label: string
-  accent: string
-  children: ReactNode
-}) {
+/** A label-above-value itinerary line. */
+function StackedDetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Section style={stackedRow}>
-      <Text style={{ ...stackedLabel, color: accent }}>{label}</Text>
+      <Text style={stackedLabel}>{label}</Text>
       <Text style={stackedValue}>{children}</Text>
     </Section>
   )
@@ -124,18 +116,12 @@ export function EventItinerary({
         <Heading as="h3" style={eventTitle}>
           {details.eventTitle}
         </Heading>
-        <StackedDetailRow label={strings.when_label} accent={accent}>
-          {when}
-        </StackedDetailRow>
+        <StackedDetailRow label={strings.when_label}>{when}</StackedDetailRow>
         {location.type === 'offline' ? (
-          <StackedDetailRow label={strings.where_label} accent={accent}>
-            {location.address}
-          </StackedDetailRow>
+          <StackedDetailRow label={strings.where_label}>{location.address}</StackedDetailRow>
         ) : null}
         {details.contact ? (
-          <StackedDetailRow label={strings.contact_label} accent={accent}>
-            {details.contact}
-          </StackedDetailRow>
+          <StackedDetailRow label={strings.contact_label}>{details.contact}</StackedDetailRow>
         ) : null}
       </Section>
 
@@ -163,6 +149,23 @@ export function EventItinerary({
   )
 }
 
+/** Question-and-answer pairs, each question above its answer; `compact` inside a table row. */
+export function AnswerPairs({
+  answers,
+  compact,
+}: {
+  answers: { label: string; value: string }[]
+  compact?: boolean
+}) {
+  // Keyed by position: a form can ask the same question twice.
+  return answers.map((answer, index) => (
+    <Fragment key={index}>
+      <Text style={compact ? compactQuestion : answerQuestion}>{answer.label}</Text>
+      <Text style={compact ? compactValue : answerValue}>{answer.value}</Text>
+    </Fragment>
+  ))
+}
+
 /** Forwarded question-and-answer pairs under one heading; nothing when there are none. */
 export function AnswerList({
   answers,
@@ -175,13 +178,7 @@ export function AnswerList({
   return (
     <Section>
       <SectionHeading>{heading}</SectionHeading>
-      {/* Keyed by position: a form can ask the same question twice. */}
-      {answers.map((answer, index) => (
-        <Fragment key={index}>
-          <Text style={answerQuestion}>{answer.label}</Text>
-          <Text style={answerValue}>{answer.value}</Text>
-        </Fragment>
-      ))}
+      <AnswerPairs answers={answers} />
     </Section>
   )
 }
@@ -362,7 +359,7 @@ export function EmailLayout({ brand, heading, previewText, children, footer }: E
           </Section>
           <Section style={card}>
             {heading ? (
-              <Heading as="h2" style={{ ...cardHeading, color: brand.colors.primary }}>
+              <Heading as="h2" style={cardHeading}>
                 {heading}
               </Heading>
             ) : null}
@@ -420,9 +417,11 @@ const card: CSSProperties = {
   borderRadius: '0 0 8px 8px',
 }
 
+// ⚠ Text colour, never the brand's: the brand colour is how a reader tells a link.
 const cardHeading: CSSProperties = {
   marginTop: 0,
   fontSize: '20px',
+  color: '#1f2937',
 }
 
 const buttonContainer: CSSProperties = {
@@ -464,6 +463,7 @@ const sectionHeading: CSSProperties = {
 // Guest-itinerary stacked row: brand-coloured uppercase label above its value.
 const stackedRow: CSSProperties = { margin: '16px 0' }
 const stackedLabel: CSSProperties = {
+  color: '#6b7280',
   fontSize: '12px',
   fontWeight: 'bold',
   letterSpacing: '0.06em',
@@ -478,7 +478,7 @@ const detailBlock: CSSProperties = {
   padding: '4px 20px',
   margin: '0 0 24px',
 }
-// Neutral rather than the brand accent, which the labels and the CTA already carry.
+// Neutral rather than the brand accent, which the links and the CTA carry.
 const eventTitle: CSSProperties = { fontSize: '18px', color: '#333333', margin: '16px 0 0' }
 
 const answerQuestion: CSSProperties = {
@@ -493,3 +493,5 @@ const answerValue: CSSProperties = {
   margin: '0 0 12px',
   whiteSpace: 'pre-wrap',
 }
+const compactQuestion: CSSProperties = { ...answerQuestion, color: '#6b7280', fontSize: '12px' }
+const compactValue: CSSProperties = { ...answerValue, fontSize: '13px', margin: '0 0 6px' }

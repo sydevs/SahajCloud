@@ -17,7 +17,7 @@ import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
 import { loadStatistics, type StatTile } from '@/lib/atlasOverview/statistics'
-import type { OpenItem, OpenItemStatus } from '@/lib/atlasOverview/status'
+import { actionPrompt, type OpenItem, type OpenItemStatus } from '@/lib/atlasOverview/status'
 import { formatLongDate } from '@/lib/notifications'
 import type { ManagerRole } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
@@ -109,21 +109,23 @@ function pillFor(status: OpenItemStatus): StatusPillStyle {
   return 'light-gray'
 }
 
-function toEmailRow(item: OpenItem): ItemTableRow {
+/** An open item as the email lists it, worded as the dashboard words it. */
+export function toEmailRow(item: OpenItem): ItemTableRow {
   const { placing } = item
-  const target = placing.action?.target
+  const prompt = actionPrompt(placing)
   return {
-    action: placing.action
-      ? {
-          href: adminDocUrl(placing.action.target.collection, placing.action.target.id),
-          label: placing.action.label,
-        }
-      : null,
-    href: target
-      ? adminDocUrl(target.collection, target.id)
-      : adminDocUrl(item.row.kind === 'event' ? 'events' : 'user-submissions', item.row.id),
+    action:
+      placing.action && prompt
+        ? {
+            ...prompt,
+            href: adminDocUrl(placing.action.target.collection, placing.action.target.id),
+          }
+        : null,
+    // The item itself, as on the dashboard; the next step links where it is taken.
+    href: adminDocUrl(item.row.kind === 'event' ? 'events' : 'user-submissions', item.row.id),
     line: placing.line || undefined,
     statuses: item.statuses.map((status) => ({ pillStyle: pillFor(status), text: status.label })),
+    subtitle: item.row.kind === 'event' ? item.row.timing || undefined : undefined,
     title: item.row.title,
   }
 }
@@ -214,9 +216,9 @@ export async function buildDigest(args: {
       }
       // No Most registered in email: a tile naming one listing is a thing to
       // click, and this is the one surface where clicking costs a page load.
-      statistics.push({ heading: 'Analytics', tiles: stats.analytics.map(tileText) })
+      statistics.push({ heading: 'Statistics', tiles: stats.analytics.map(tileText) })
       advance.push('statistics')
-      parts.push(`${MONTH.format(runStart)} analytics`)
+      parts.push(`${MONTH.format(runStart)} statistics`)
     })
   }
 

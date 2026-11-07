@@ -78,9 +78,9 @@ const SCENARIOS: Scenario[] = [
     registrantEmail: 'jo.smith@example.com',
     startingAt: daysFromNow(5),
     questions: {
-      priorExperience: 'No, this is my first time',
-      referralSource: 'A friend recommended it',
-      guests: 'Bringing my partner',
+      experience: 'No, this is my first time',
+      referral: 'A friend recommended it',
+      questions: 'Can I bring my partner along?',
     },
   },
   {
@@ -91,7 +91,7 @@ const SCENARIOS: Scenario[] = [
     registrantName: 'Priya Deshmukh',
     registrantEmail: 'priya.d@example.com',
     startingAt: daysFromNow(3),
-    questions: { referralSource: 'Instagram' },
+    questions: { referral: 'Instagram' },
   },
   {
     label: 'manager · minimal',
@@ -114,7 +114,8 @@ const SCENARIOS: Scenario[] = [
     registrantEmail: 'maria.g@example.com',
     startingAt: daysFromNow(9),
     questions: {
-      healthInfo: 'A knee injury — I may need to sit on a chair',
+      aspirations: 'Some calm while I recover — a knee injury, so I may need a chair',
+      // A key no current question names, as legacy rows carry: labelled from the key.
       accessibility: 'Step-free access, please',
     },
   },

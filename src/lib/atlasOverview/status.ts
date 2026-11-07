@@ -285,6 +285,35 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   return statuses
 }
 
+/** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
+export interface ActionPrompt {
+  link: string
+  after: string
+}
+
+const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
+  overdue: { link: 'Verify this event', after: ' to keep it on the map.' },
+  expired: { link: 'Verify this event', after: ' to put it back on the map before it is deleted.' },
+  'change-proposed': { link: 'Review the proposed changes', after: ' and accept or reject them.' },
+  'class-proposed': { link: 'Review the proposed event', after: ' and accept or reject it.' },
+  'confirmed-spam-pending': {
+    link: 'Review the sign-up',
+    after: ' and confirm it as spam or release it.',
+  },
+  'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
+  recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
+  draft: { link: 'Finish the draft', after: ' and publish it.' },
+}
+
+/** The sentence for a status's next step, or `null` when it has none. */
+export function actionPrompt(status: OpenItemStatus): ActionPrompt | null {
+  if (!status.action) return null
+  if (status.action.target.collection === 'regions') {
+    return { link: 'Add a region manager', after: ' so someone looks after this region.' }
+  }
+  return PROMPTS[status.key] ?? { link: status.action.label, after: '.' }
+}
+
 /**
  * One row with every status it has, placed by the lowest rank — an event can
  * be two problems at once, and hiding one is how it never gets fixed.

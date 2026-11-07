@@ -29,6 +29,7 @@ import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
 
 import { SPAM_SIGNUPS_PATH } from '@/lib/atlasOverview/refusals'
+import { openItem, type OpenItemEvent, type OpenItemRow } from '@/lib/atlasOverview/status'
 
 import { createCaptureTransport } from './mailpit-transport'
 
@@ -115,14 +116,33 @@ const brandedClient: EmailClient = {
  * purpose, so the per-key English fallback shows in the rendered mail.
  */
 const GERMAN_EMAILS = {
-  reminder_heading: 'Deine Klasse ist morgen',
-  reminder_intro: 'Hallo %{name}, eine kurze Erinnerung an deine bevorstehende Klasse.',
-  reminder_footer_reason:
-    'Du erhältst diese Erinnerung, weil du dich für diese Klasse angemeldet hast.',
+  confirmation_subject: 'Du bist angemeldet: %{event}',
+  confirmation_heading: 'Du bist angemeldet',
+  confirmation_intro: 'Hallo %{name}, dein Platz ist bestätigt. Hier sind die Details.',
   when_label: 'Wann',
   where_label: 'Wo',
   online_cta: 'Online teilnehmen',
   online_link_hint: 'Falls der Button nicht funktioniert, kopiere diesen Link:',
+  directions_cta: 'Wegbeschreibung',
+  about_label: 'Was dich erwartet',
+  contact_label: 'Deine Gastgeberin',
+  sessions_count_one: '%{count} Termin',
+  sessions_count_other: '%{count} Termine',
+  footer_reason: 'Du erhältst diese E-Mail, weil du dich für diese Klasse angemeldet hast.',
+  footer_website: '%{name} besuchen',
+  reminder_subject: 'Erinnerung: %{event} ist morgen',
+  reminder_heading: 'Deine Klasse ist morgen',
+  reminder_intro: 'Hallo %{name}, eine kurze Erinnerung an deine bevorstehende Klasse.',
+  reminder_footer_reason:
+    'Du erhältst diese Erinnerung, weil du dich für diese Klasse angemeldet hast.',
+  unsubscribe_cta: 'Diese Erinnerungen abbestellen',
+}
+
+/** The widget's own schedule sentences, which the email's schedule line reads too. */
+const GERMAN_RECURRENCE = {
+  daily: 'Jeden Tag',
+  weekly_1: 'Jeden %{weekday}',
+  weekly_multi: 'Jeden %{weekdays}',
 }
 
 interface ReminderScenario {
@@ -150,7 +170,7 @@ const REMINDER_SCENARIOS: ReminderScenario[] = [
   },
   {
     label: 'reminder · online · german',
-    note: 'partly-translated locale — untranslated keys (subject, unsubscribe) fall back to English',
+    note: 'German throughout: chrome, schedule sentence, weekday, date and clock',
     event: onlineEvent,
     client: brandedClient,
     locale: 'de',
@@ -175,7 +195,6 @@ const digestManager = (name: string): Manager =>
   }) as unknown as Manager
 
 const ADMIN = 'https://cloud.sydevelopers.com/admin/collections/events'
-const SUBMISSIONS = 'https://cloud.sydevelopers.com/admin/collections/user-submissions'
 
 interface DigestScenario {
   label: string
@@ -184,14 +203,17 @@ interface DigestScenario {
   props: DigestEmailProps
 }
 
-// Realistic answers drawn from EVENT_REGISTRATION_QUESTIONS, cycled through so
-// the high-volume scenario shows a mix of full, partial and empty ones.
-const QA: string[] = [
-  'Have you practised Sahaja Yoga meditation before?: No, this is my first time · How did you hear about this event?: A friend recommended it',
-  'How did you hear about this event?: Instagram · Will you be bringing any guests?: 2 guests',
-  'Have you practised Sahaja Yoga meditation before?: Yes, occasionally · Is there anything about your health we should know?: Recovering from a knee injury',
-  '', // some registrants leave every optional question blank
-  'How did you hear about this event?: Google search',
+// Raw answers under the real question keys, shaped by the real builder in
+// `main`, cycled so the high-volume scenario mixes full, partial and empty ones.
+const QA: Record<string, string>[] = [
+  { experience: 'No, this is my first time', referral: 'A friend recommended it' },
+  {
+    referral: 'Instagram',
+    questions: 'Is there parking nearby, and should I bring a mat or cushion?',
+  },
+  { experience: 'Yes, occasionally', aspirations: 'Some calm in a stressful week' },
+  {}, // some registrants leave every optional question blank
+  { referral: 'Google search' },
 ]
 
 const NAMES = [
@@ -224,7 +246,9 @@ const SHELL = {
  * with no RNG, so re-runs match. The point is to judge how manageable a dense
  * digest reads.
  */
-function buildStressGroups(): DigestRegistrationGroup[] {
+function buildStressGroups(
+  shape: (raw: Record<string, string>) => { label: string; value: string }[],
+): DigestRegistrationGroup[] {
   const events = [
     { count: 8, title: 'Monday Morning Meditation — Camden' },
     { count: 3, title: 'Tuesday Evening Class — Islington' },
@@ -243,7 +267,7 @@ function buildStressGroups(): DigestRegistrationGroup[] {
       const answers = QA[person % QA.length]!
       person += 1
       return {
-        answers: answers || undefined,
+        answers: shape(answers),
         attending: r % 3 === 0 ? '5 Aug 2025' : null,
         email: `${name.split(' ')[0]!.toLowerCase()}${person}@example.com`,
         name,
@@ -252,128 +276,171 @@ function buildStressGroups(): DigestRegistrationGroup[] {
   }))
 }
 
-const OPEN_ROWS: ItemTableRow[] = [
-  {
-    action: { href: `${ADMIN}/1041`, label: 'Verify' },
-    href: `${ADMIN}/1041`,
-    line: 'Unpublishes 12 Nov 2026',
-    statuses: [
-      { pillStyle: 'error', text: 'Overdue' },
-      { pillStyle: 'light-gray', text: '2 recommendations' },
-    ],
+const ago = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
+const ahead = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString()
+const listing = (overrides: Partial<OpenItemEvent> & Pick<OpenItemEvent, 'id' | 'title'>) =>
+  ({
+    createdAt: ago(40),
+    draft: false,
+    hasManager: true,
+    kind: 'event',
+    qualityOpenCount: 0,
+    updatedAt: ago(3),
+    verificationStage: 'verified',
+    ...overrides,
+  }) as OpenItemRow
+
+/** Open items as the status model words them, so the preview cannot drift from a real run. */
+const OPEN_ITEMS: OpenItemRow[] = [
+  listing({
+    id: 1041,
+    nextCheckAt: ahead(4),
+    qualityOpenCount: 2,
+    recommendations: ['Add photos', 'Improve the event description'],
+    timing: 'Every week on Tuesday at 7:00 PM',
     title: 'Tuesday Evening Meditation',
-  },
-  {
-    action: { href: `${SUBMISSIONS}/5120`, label: 'Review' },
-    href: `${SUBMISSIONS}/5120`,
-    line: 'Address › City, Schedule › Start Time · received 3 Nov 2026',
-    statuses: [{ pillStyle: 'success', text: 'Change proposed' }],
+    verificationStage: 'urgent',
+  }),
+  listing({
+    id: 1042,
+    proposal: {
+      changedFields: ['Address › City', 'Schedule › Start Time'],
+      id: 5120,
+      receivedAt: ago(2),
+    },
+    timing: 'Every week on Saturday at 10:00 AM',
     title: 'Saturday Morning Meditation',
-  },
-  {
-    action: { href: `${ADMIN}/1044`, label: 'Assign manager' },
-    href: `${ADMIN}/1044`,
-    statuses: [{ pillStyle: 'warning', text: 'No manager' }],
+  }),
+  listing({
+    draft: true,
+    id: 1043,
+    timing: 'Every week on Thursday at 6:30 PM',
+    title: 'Thursday Beginners Course',
+  }),
+  listing({
+    hasManager: false,
+    id: 1044,
+    timing: 'Saturday, 28 November 2026 at 11:00 AM',
     title: 'Introduction to Meditation — Open Day',
+    verificationStage: 'unverified',
+  }),
+  { id: 5300, kind: 'proposal', receivedAt: ago(1), title: 'Lunchtime meditation in Leeds' },
+  listing({
+    id: 1045,
+    nextCheckAt: ahead(9),
+    timing: 'Every 2 weeks on Sunday at 5:00 PM',
+    title: 'Sunday Meditation in Galway',
+    unmanagedRegionId: 25,
+    verificationStage: 'escalated',
+  }),
+  {
+    id: 5400,
+    kind: 'refusal',
+    reason: 'repeatedly refused sender',
+    receivedAt: ago(2),
+    title: 'Nadia Haddad',
   },
 ]
 
-const DIGEST_SCENARIOS: DigestScenario[] = [
-  {
-    label: 'digest · program · open items + registrations',
-    manager: digestManager('Priya Deshmukh'),
-    note: 'the common program email: what is open, then who signed up',
-    props: {
-      ...SHELL,
-      heading: 'Your events',
-      openItems: { rows: OPEN_ROWS.slice(0, 2) },
-      recipientName: 'Priya Deshmukh',
-      registrations: buildStressGroups().slice(0, 2),
-      statistics: [
-        {
-          heading: 'Analytics',
-          tiles: [
-            { change: '+2 in 30 days', label: 'Total events', value: '6' },
-            { change: '+11 in 30 days', label: 'Registrations', value: '34' },
-            { label: 'Events with a sign-up', of: '6', value: '4' },
-          ],
-        },
-      ],
-      summary: '2 open items · 11 new registrations · November analytics',
-    },
-  },
-  {
-    label: 'digest · region · statistics + open items',
-    manager: digestManager('Sam Okafor'),
-    note: 'two tile blocks, and a list holding none of their own programs',
-    props: {
-      ...SHELL,
-      heading: 'Your regions',
-      openItems: { rows: OPEN_ROWS },
-      recipientName: 'Sam Okafor',
-      statistics: [
-        {
-          heading: 'Verification health',
-          tiles: [
-            { change: '+4 in 30 days', label: 'Verified', value: '58' },
-            { change: '-1 in 30 days', label: 'Escalated', value: '3' },
-            { change: '+0 in 30 days', label: 'Urgent', value: '1' },
-            { change: null, label: 'Expired', value: '0' },
-            { change: '+2 in 30 days', label: 'Unverified', value: '7' },
-          ],
-        },
-        {
-          heading: 'Analytics',
-          tiles: [
-            { change: '+5 in 30 days', label: 'Total events', value: '69' },
-            { change: '-3 in 30 days', label: 'Registrations', value: '112' },
-            { label: 'Events with a sign-up', of: '69', value: '31' },
-          ],
-        },
-      ],
-      summary: '3 open items · November analytics',
-    },
-  },
-  {
-    label: 'digest · admin · refused sign-ups + closing line',
-    manager: digestManager('Rosa Delgado'),
-    note: 'the one email that counts the sign-ups filed as spam',
-    props: {
-      ...SHELL,
-      closingNote: {
-        href: `https://cloud.sydevelopers.com/admin${SPAM_SIGNUPS_PATH}`,
-        text: '27 sign-ups filed as spam in the last 7 days',
-      },
-      heading: 'Sahaj Atlas',
-      openItems: {
-        rows: [
-          ...OPEN_ROWS.slice(2),
+function digestScenarios(
+  rows: ItemTableRow[],
+  shape: (raw: Record<string, string>) => { label: string; value: string }[],
+): DigestScenario[] {
+  const [overdue, changed, draft, noManager, proposed, unmanaged, refused] = rows as [
+    ItemTableRow,
+    ItemTableRow,
+    ItemTableRow,
+    ItemTableRow,
+    ItemTableRow,
+    ItemTableRow,
+    ItemTableRow,
+  ]
+  return [
+    {
+      label: 'digest · program · open items + registrations',
+      manager: digestManager('Priya Deshmukh'),
+      note: 'the common program email: what is open, then who signed up',
+      props: {
+        ...SHELL,
+        heading: 'Your events',
+        openItems: { rows: [overdue, changed, draft] },
+        recipientName: 'Priya Deshmukh',
+        registrations: buildStressGroups(shape).slice(0, 2),
+        statistics: [
           {
-            action: { href: `${SUBMISSIONS}/5400`, label: 'Review' },
-            href: `${SUBMISSIONS}/5400`,
-            line: 'repeatedly refused sender · 4 Nov 2026',
-            statuses: [{ pillStyle: 'success', text: 'Flagged as spam' }],
-            title: 'Nadia Haddad',
+            heading: 'Statistics',
+            tiles: [
+              { change: '+2 in 30 days', label: 'Total events', value: '6' },
+              { change: '+11 in 30 days', label: 'Registrations', value: '34' },
+              { label: 'Events with a sign-up', of: '6', value: '4' },
+            ],
           },
         ],
+        summary: '3 open items · 11 new registrations · November statistics',
       },
-      recipientName: 'Rosa Delgado',
-      summary: '2 open items',
     },
-  },
-  {
-    label: 'digest · program · high volume',
-    manager: digestManager('Lena Novak'),
-    note: '~35 registrations across 7 events — how manageable is a busy week?',
-    props: {
-      ...SHELL,
-      heading: 'Your events',
-      recipientName: 'Lena Novak',
-      registrations: buildStressGroups(),
-      summary: '35 new registrations',
+    {
+      label: 'digest · region · statistics + open items',
+      manager: digestManager('Sam Okafor'),
+      note: 'two tile blocks, and a list holding none of their own programs',
+      props: {
+        ...SHELL,
+        heading: 'Your regions',
+        openItems: { rows: [overdue, changed, noManager, proposed] },
+        recipientName: 'Sam Okafor',
+        statistics: [
+          {
+            heading: 'Verification health',
+            tiles: [
+              { change: '+4 in 30 days', label: 'Verified', value: '58' },
+              { change: '-1 in 30 days', label: 'Escalated', value: '3' },
+              { change: '+0 in 30 days', label: 'Urgent', value: '1' },
+              { change: null, label: 'Expired', value: '0' },
+              { change: '+2 in 30 days', label: 'Unverified', value: '7' },
+            ],
+          },
+          {
+            heading: 'Statistics',
+            tiles: [
+              { change: '+5 in 30 days', label: 'Total events', value: '69' },
+              { change: '-3 in 30 days', label: 'Registrations', value: '112' },
+              { label: 'Events with a sign-up', of: '69', value: '31' },
+            ],
+          },
+        ],
+        summary: '4 open items · November statistics',
+      },
     },
-  },
-]
+    {
+      label: 'digest · admin · refused sign-ups + closing line',
+      manager: digestManager('Rosa Delgado'),
+      note: 'the one email that counts the sign-ups filed as spam',
+      props: {
+        ...SHELL,
+        closingNote: {
+          href: `https://cloud.sydevelopers.com/admin${SPAM_SIGNUPS_PATH}`,
+          text: '27 sign-ups filed as spam in the last 7 days',
+        },
+        heading: 'Sahaj Atlas',
+        openItems: { rows: [unmanaged, proposed, refused] },
+        recipientName: 'Rosa Delgado',
+        summary: '3 open items',
+      },
+    },
+    {
+      label: 'digest · program · high volume',
+      manager: digestManager('Lena Novak'),
+      note: '~35 registrations across 7 events — how manageable is a busy week?',
+      props: {
+        ...SHELL,
+        heading: 'Your events',
+        recipientName: 'Lena Novak',
+        registrations: buildStressGroups(shape),
+        summary: '35 new registrations',
+      },
+    },
+  ]
+}
 
 type Preview = { label: string; note: string; url: string | false }
 
@@ -382,6 +449,13 @@ async function main() {
   const { sendSessionReminder } =
     await import('@/jobs/RegistrationNotifications/sendSessionReminder')
   const { sendDigest } = await import('@/jobs/Digests/SendDigests')
+  const { toEmailRow } = await import('@/jobs/Digests/buildDigest')
+  const { buildRegistrationAnswers } = await import('@/lib/registrations/questions')
+  const now = new Date()
+  const DIGEST_SCENARIOS = digestScenarios(
+    OPEN_ITEMS.map((row) => toEmailRow(openItem(row, now))),
+    buildRegistrationAnswers,
+  )
 
   const { transport, messageUrl } = createCaptureTransport()
 
@@ -391,7 +465,8 @@ async function main() {
   const stubPayload = (label: string, translations?: Record<string, unknown>) =>
     ({
       secret: 'preview-secret-for-unsubscribe-token',
-      findGlobal: async () => ({ emails: translations ?? {} }),
+      findGlobal: async () =>
+        translations ? { emails: translations, event: { recurrence: GERMAN_RECURRENCE } } : {},
       logger: { debug() {}, error() {}, info() {}, warn() {} },
       sendEmail: async (message: Record<string, unknown>) => {
         const info = await transport.sendMail({

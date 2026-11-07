@@ -93,8 +93,7 @@ export async function registrationGroups(args: {
       const zone = row.startingAt_tz || event.schedule?.firstDate_tz || 'UTC'
       const list = rowsByEvent.get(eventId) ?? []
       list.push({
-        answers:
-          answers.map((answer) => `${answer.label}: ${answer.value}`).join(' · ') || undefined,
+        answers: answers.length ? answers : undefined,
         attending: row.startingAt ? formatShortDate(row.startingAt, zone) || null : null,
         email: row.senderEmail?.trim() ?? '',
         name: readSubmissionValue(row.submissionData, 'name')?.trim() || 'A registrant',

@@ -149,9 +149,22 @@ describe('atlas translations schema', () => {
     )
   })
 
+  const emailKeys = Object.keys(EMAIL_STRING_DEFAULTS)
+  const isRecurrence = (key: string) => key.startsWith('recurrence_')
+
   it('names emails exactly after EMAIL_STRING_DEFAULTS, plural families collapsed', () => {
     expect([...collapsePlurals(Object.keys(group('emails').properties ?? {}))].sort()).toEqual(
-      [...collapsePlurals(Object.keys(EMAIL_STRING_DEFAULTS))].sort(),
+      [...collapsePlurals(emailKeys.filter((key) => !isRecurrence(key)))].sort(),
+    )
+  })
+
+  /** ⚠ An email's schedule reads the widget's own keys, so a translator writes each once. */
+  it('names every recurrence default after a key in event.recurrence', () => {
+    expect(Object.keys(group('event', 'recurrence').properties ?? {}).sort()).toEqual(
+      emailKeys
+        .filter(isRecurrence)
+        .map((key) => key.slice('recurrence_'.length))
+        .sort(),
     )
   })
 
