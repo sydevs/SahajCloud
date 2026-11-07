@@ -657,7 +657,7 @@ describe('class imports', () => {
       expect(field.defaultValue({ req: { query: {} } })).toBeUndefined()
     })
 
-    it('refuses a published API client, which is what RESTRICTED_COLLECTIONS is for', async () => {
+    it('refuses a published API client, since imports sit in no project', async () => {
       const clientDoc = await testData.createClient(payload, admin.id, {
         name: 'Atlas Widget Key',
         roles: ['sahaj-atlas-client'],

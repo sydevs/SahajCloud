@@ -12,6 +12,7 @@ import {
 } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
 import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
+import { mergeRepeatRegistration } from '@/collections/UserSubmissions/hooks/mergeRepeatRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
 import { resolveProposalRegion } from '@/collections/UserSubmissions/hooks/resolveProposalRegion'
@@ -22,6 +23,7 @@ import {
 } from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
 import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
+import type { SpamReviewStatus } from '@/collections/UserSubmissions/statuses'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
@@ -29,6 +31,7 @@ import {
 import type {
   WorkflowButton,
   WorkflowButtonsProps,
+  WorkflowRule,
 } from '@/components/admin/WorkflowButtons/stages'
 import { stagesFor, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -48,7 +51,8 @@ import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 export const CONTACT_ACCEPTED_DAYS = 7
 
 /**
- * How long a **machine-refused** (`spam`) row is kept, whatever its type.
+ * How long a **machine-refused** (`spam`, or `confirmed_spam` once an admin
+ * agrees) row is kept, whatever its type.
  * Longer, because a sender's history is the evidence a pattern is visible in.
  * Bounded, because abuse tracking has a shelf life.
  */
@@ -88,9 +92,10 @@ export const PURGE_WINDOWS: PurgeWindow[] = [
     // registration is an attendance record and a subscribe row is a consent
     // record, kept for ever — but a `spam` one of either is neither, because
     // nobody came and nobody subscribed. It is evidence like any other
-    // refusal, and ages out with the rest.
+    // refusal, and ages out with the rest. `confirmed_spam` is an admin
+    // agreeing with that refusal, so it ages out on the same clock.
     where: (cutoff) => ({
-      status: { equals: 'spam' },
+      status: { in: ['spam', 'confirmed_spam'] },
       createdAt: { less_than: cutoff },
     }),
   },
@@ -142,6 +147,32 @@ const REVIEW_BUTTONS: WorkflowButton[] = [
 
 const REOPEN_BUTTONS: WorkflowButton[] = [{ label: 'Reopen', overrides: { status: 'pending' } }]
 
+const NOT_SPAM: WorkflowButton = {
+  label: 'Not spam',
+  overrides: { status: 'pending' },
+  buttonStyle: 'secondary',
+}
+
+/**
+ * What an admin may do with a row the spam check refused, on every intake.
+ *
+ * Keyed on `SpamReviewStatus` rather than the whole vocabulary, so a third
+ * spam status is a compile error here instead of one nobody can settle. The two
+ * members are offered different decisions: there is nothing left to confirm
+ * once an admin has.
+ */
+const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
+  spam: [
+    NOT_SPAM,
+    {
+      label: 'Confirm spam',
+      overrides: { status: 'confirmed_spam' },
+      confirm: 'Confirm this as spam?',
+    },
+  ],
+  confirmed_spam: [NOT_SPAM],
+}
+
 /**
  * Which buttons a reviewer is offered at which status.
  *
@@ -151,8 +182,14 @@ const REOPEN_BUTTONS: WorkflowButton[] = [{ label: 'Reopen', overrides: { status
  * offer a button whose transition the guard then refuses, or leave a newly-open
  * status with no button at all. `SubmissionActions` imported both sets for
  * exactly this reason before the move to data.
+ *
+ * The two spam statuses are in `REOPENABLE_REVIEW_STATUSES` too, so they get a
+ * Reopen here. An admin sees `SPAM_STAGES` on such a row instead, since that
+ * rule comes first; a region manager reviewing a refused **proposal** sees this
+ * Reopen, which is the move `reviewMove` grants them — the admin-only gate
+ * covers settling a refusal, not re-opening a proposal.
  */
-const REVIEW_STAGES: WorkflowButtonsProps<UserSubmission['status']>['stages'] = {
+const REVIEW_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = {
   ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS),
   ...stagesFor(REOPENABLE_REVIEW_STATUSES, REOPEN_BUTTONS),
   // A stage with no action, not a missing one: Payload's own ⋯ menu carries this
@@ -187,7 +224,7 @@ const REVIEW_STAGES: WorkflowButtonsProps<UserSubmission['status']>['stages'] = 
  * - **`read: ({ req: { user } }) => !!user`** — read for any authenticated
  *   user, every API client included, on a table of unscreened stranger
  *   messages and registrant addresses. It outranks the role table, the per-row
- *   manager scope and `RESTRICTED_COLLECTIONS` alike.
+ *   manager scope and project-membership read alike.
  * - **`update: () => false`** — nothing could ever update a submission.
  *   Clearing it hands `update` to the roles that hold it, which is a real
  *   behaviour change from `form-submissions` and the reason `type`,
@@ -249,6 +286,9 @@ export const formsPlugin = (): Plugin => async (config) => {
             hooks: {
               ...collection.hooks,
               afterChange: [
+                // First: it may swap in an existing registration as `doc`,
+                // which every hook below must act on (the hook says why).
+                mergeRepeatRegistration,
                 spawnSubscribeFromRegistration,
                 syncFullnessAfterChange,
                 syncCommunityFeedback,
@@ -304,10 +344,18 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
             SaveButton: {
               path: WORKFLOW_BUTTONS,
               clientProps: {
-                statusField: 'status',
-                onlyWhen: { field: 'type', equals: 'proposal' },
                 fallback: 'save',
-                stages: REVIEW_STAGES,
+                rules: [
+                  // First, because settling a refusal is one decision on every
+                  // intake and it outranks re-opening one: a reader looking at
+                  // a refused proposal is asked whether it is spam, not whether
+                  // to review it. Admin-only on both sides of the wire — only
+                  // an admin may make the move (`reviewMove`), so only an admin
+                  // is offered it.
+                  { stages: SPAM_STAGES, when: { userType: 'admin' } },
+                  { stages: REVIEW_STAGES, when: { equals: 'proposal', field: 'type' } },
+                ],
+                statusField: 'status',
               } satisfies WorkflowButtonsProps<UserSubmission['status']>,
             },
           },

@@ -237,30 +237,52 @@ describe('atlas submission routing', () => {
       expect(doc.routingRegion).toBeFalsy()
     })
 
-    it('emails the nearest manager above the placed region', async () => {
+    /**
+     * ⚠ **Routing is settled before the pace is read**, which is what these two
+     * cases are about together. Who should hear about a proposal is a fact of
+     * the atlas; whether they hear about it *now* is their own choice — and
+     * reading the pace first would escalate a muted manager's proposal to
+     * somebody else, which is not what a pace asks for (#1070).
+     */
+    const placeWithManager = async (pace: string) => {
       const stateManager = await testData.createManager(payload, {
+        email: `state-lead-${pace.toLowerCase()}@example.com`,
         name: 'State Lead',
-        email: 'state-lead@example.com',
+        notificationPreferences: { new_proposals: { frequency: pace, method: 'email' } },
       })
       await payload.update({
         collection: 'regions',
-        id: region.state,
         data: { managers: [stateManager.id] },
+        id: region.state,
         overrideAccess: true,
       })
       const doc = await propose({
-        location: { placeId: 'routing-missing-city-2', regionId: `${PREFIX}-state` },
+        location: { placeId: `routing-missing-city-${pace}`, regionId: `${PREFIX}-state` },
       })
+      return {
+        email: stateManager.email,
+        outcome: await DELIVERERS.proposal.deliver({
+          req: { context: {}, payload } as unknown as PayloadRequest,
+          submission: doc,
+        }),
+      }
+    }
 
-      const outcome = await DELIVERERS.proposal.deliver({
-        req: { payload, context: {} } as unknown as PayloadRequest,
-        submission: doc,
-      })
+    it('emails the nearest manager above the placed region, at Immediate', async () => {
+      const { email, outcome } = await placeWithManager('Immediate')
 
-      expect(outcome).toMatchObject({ ok: true, sentTo: 'state-lead@example.com' })
+      expect(outcome).toMatchObject({ ok: true, sentTo: email })
       expect(reviewMock).toHaveBeenCalledWith(
-        expect.objectContaining({ to: 'state-lead@example.com', kind: 'new-event' }),
+        expect.objectContaining({ kind: 'new-event', to: email }),
       )
+    })
+
+    it('sends nothing at a digest pace, and says the digest carries it', async () => {
+      reviewMock.mockClear()
+      const { email, outcome } = await placeWithManager('Daily')
+
+      expect(outcome).toMatchObject({ ok: true, sentTo: `${email} (in their daily digest)` })
+      expect(reviewMock).not.toHaveBeenCalled()
     })
   })
 

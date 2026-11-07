@@ -10,8 +10,8 @@ import type { UserSubmission } from '@/payload-types'
  * stands and so does any email already sent, because no job ever recalls an
  * email and a manager needs the evidence to unwind a false positive. What
  * `spam` buys is exactly this exclusion — the registrant stops receiving
- * reminders, and they stop occupying a seat. `rejected`, a manager declining
- * one by hand, does the same.
+ * reminders, and they stop occupying a seat. `confirmed_spam`, an admin
+ * agreeing, and `rejected`, a manager declining one by hand, do the same.
  *
  * `failed` is excluded too, and for a different reason: it means the row's own
  * delivery never happened, so the person has never been told they are
@@ -35,7 +35,12 @@ export function isActiveRegistration(submission: {
   )
 }
 
-const INACTIVE_STATUSES: readonly UserSubmission['status'][] = ['rejected', 'spam', 'failed']
+const INACTIVE_STATUSES: readonly UserSubmission['status'][] = [
+  'rejected',
+  'spam',
+  'confirmed_spam',
+  'failed',
+]
 
 /**
  * The same rule as SQL, for a query that must select on it.

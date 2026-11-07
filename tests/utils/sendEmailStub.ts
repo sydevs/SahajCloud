@@ -8,6 +8,7 @@ export interface SentMessage {
   from: string
   subject: string
   html: string
+  text: string
   replyTo?: string
 }
 

@@ -69,7 +69,7 @@ export async function sendRegistrationNotification(args: {
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
     subject: stripNewlines(`New registration: ${eventTitle}`),
-    html: await renderEmail(
+    ...(await renderEmail(
       createElement(EventRegistrationEmail, {
         recipientName: recipient.name,
         eventTitle,
@@ -79,6 +79,6 @@ export async function sendRegistrationNotification(args: {
         answers,
         eventAdminUrl: adminDocUrl('events', event.id),
       }),
-    ),
+    )),
   })
 }

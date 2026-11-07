@@ -4,6 +4,11 @@ import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } fro
 
 import * as Sentry from '@sentry/nextjs'
 
+import {
+  NEVER_FREQUENCY,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
+import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
@@ -33,9 +38,6 @@ export const INVITATION_DELAY_MS = 10 * 60 * 1000
 /** The job queue `sendInvitations` runs on, and the cadence it runs at. */
 export const INVITATIONS_QUEUE = 'invitations'
 export const INVITATIONS_CRON = '*/5 * * * *'
-
-/** The notification preference that turns invitations off. */
-const PREFERENCE_KEY = 'invitation'
 
 /** How many due invitations one run sends. The rest wait five minutes. */
 const BATCH = 50
@@ -191,9 +193,7 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
     schedule: [{ cron: INVITATIONS_CRON, queue: INVITATIONS_QUEUE }],
     handler: async ({ req }) => {
       const { payload } = req
-      // `req.context.now` overrides the clock for deterministic tests.
-      const contextNow = (req.context as { now?: unknown } | undefined)?.now
-      const now = contextNow instanceof Date ? contextNow : new Date()
+      const now = runClock(req)
       const output = { sent: 0, skipped: 0, failed: 0 }
 
       const { docs } = await payload.find({
@@ -258,7 +258,9 @@ async function sendOne({
   const { payload } = req
   if (!doc.email || !doc.pendingInvitation) return false
   if (config.isEligible && !config.isEligible(doc)) return false
-  if (doc.notificationPreferences?.[PREFERENCE_KEY]?.frequency === 'Never') return false
+  if (notificationFrequency(doc.notificationPreferences, 'invitation') === NEVER_FREQUENCY) {
+    return false
+  }
 
   const { by } = doc.pendingInvitation
   const assigner =

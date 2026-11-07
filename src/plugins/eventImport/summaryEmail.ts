@@ -29,7 +29,7 @@ export async function sendImportSummary(args: {
           ? `${imported} ${imported === 1 ? 'class' : 'classes'} ready to review in ${run.target.name}`
           : `No classes were created from your import into ${run.target.name}`,
       ),
-      html: await renderEmail(
+      ...(await renderEmail(
         createElement(EventImportSummaryEmail, {
           brand,
           targetName: run.target.name,
@@ -38,7 +38,7 @@ export async function sendImportSummary(args: {
           errors: run.skipped.length - duplicates,
           importUrl: adminDocUrl('imports', run.importId),
         }),
-      ),
+      )),
     })
     return true
   } catch (error) {

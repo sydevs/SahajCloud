@@ -6,7 +6,7 @@
  *   capture to Mailpit when `SMTP_URL` is set, otherwise disable email loudly.
  * - `USER_EMAIL_FROM` / `MANAGER_EMAIL_FROM` — the envelope `From` of each
  *   audience. Server-only.
- * - `renderEmail` — render a React Email template to inline HTML.
+ * - `renderEmail` — render a React Email template to inline HTML and its plain-text part.
  * - `getEmailBrand` — resolve per-project branding (`EmailBrand`) for a template.
  * - `getClientEmailBrand` — resolve per-client-service branding for registrant
  *   mail, falling back field-by-field to the `sahaj-atlas` project brand.
@@ -18,8 +18,10 @@
  * import { getEmailBrand, renderEmail, resendAdapter } from '@/plugins/email'
  *
  * email: resendAdapter(),
- * generateEmailHTML: ({ doc, signInUrl }) =>
- *   renderEmail(createElement(SignInLinkEmail, { name: doc.name, signInUrl })),
+ * await payload.sendEmail({
+ *   to, from, subject,
+ *   ...(await renderEmail(createElement(SignInLinkEmail, { name, signInUrl, validFor }))),
+ * })
  * ```
  */
 

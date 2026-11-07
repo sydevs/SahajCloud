@@ -441,6 +441,14 @@ import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
 
+⚠ **A column only a job writes still takes `jsonField`, open at every level.**
+`Managers.digestWatermarks` (#1070) is written by `payload.db.updateOne` from
+the digest run, which runs no validator, so its schema checks nothing on the
+write that makes it. It still types the column, and it is still validated on
+every _other_ save of the manager — so declare it as nested `z.record`s with
+no `required` key, which no row the job writes can fail. Pair it with
+`access: { update: () => false }` so the job really is the only writer.
+
 ### A virtual column takes a schema too, and it can be closed
 
 `virtual: true` changes what the schema is _for_, not whether to write one.
@@ -491,7 +499,7 @@ wrapper does that the plugin's options cannot, and how a collection-wide
 admin slot branches per intake: `src/plugins/formBuilder/AGENTS.md`.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
-buttons gate on `type === 'proposal'` through `WorkflowButtons`' `onlyWhen` and
+buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule's `when` and
 fall through to the ordinary Save otherwise; `livePreview.url` sends the other
 three to the explanation page, with a reason that fits a row nobody reviews. A
 new slot owes the same branch — the field hooks behind one included, since

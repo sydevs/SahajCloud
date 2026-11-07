@@ -1419,7 +1419,7 @@
     },
     "emails": {
       "type": "object",
-      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address, times) is never translated — only the surrounding copy is.",
+      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address) is never translated; dates and times read in the registrant’s locale, and the schedule sentence comes from `event.recurrence`.",
       "properties": {
         "confirmation_subject": {
           "type": "string",

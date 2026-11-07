@@ -349,11 +349,12 @@ describe('Job schedules', () => {
       .sort()
 
     expect(declaring).toEqual([
+      'jobs/AtlasSnapshot/RecordAtlasSnapshot.ts',
       'jobs/CleanupCollections/CleanupCollections.ts',
       'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
+      'jobs/Digests/SendDigests.ts',
       'jobs/ExpireEvents/ExpireEvents.ts',
       'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
-      'jobs/RegistrationNotifications/SendRegistrationDigests.ts',
       'jobs/RegistrationNotifications/SendSessionReminders.ts',
       'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',
       'jobs/VerifyEmbeds/VerifyEmbeds.ts',
