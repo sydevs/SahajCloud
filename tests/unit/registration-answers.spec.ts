@@ -18,12 +18,14 @@ describe('buildRegistrationAnswers', () => {
     expect(answers.map((answer) => answer.label)).toEqual([
       'Have you practised Sahaja Yoga meditation before?', // experience — earlier in config
       'Do you have any questions for us?', // questions — later in config
-      'custom', // unconfigured key → raw key, last
+      'Custom', // unconfigured key → labelled from the key, last
     ])
   })
 
-  it('falls back to the raw key for an unconfigured question', () => {
-    expect(buildRegistrationAnswers({ mystery: 'hi' })).toEqual([{ label: 'mystery', value: 'hi' }])
+  it('labels an unconfigured question from its key, never as the bare key', () => {
+    expect(buildRegistrationAnswers({ priorExperience: 'hi' })).toEqual([
+      { label: 'Prior Experience', value: 'hi' },
+    ])
   })
 
   it('drops blank / whitespace-only answers', () => {

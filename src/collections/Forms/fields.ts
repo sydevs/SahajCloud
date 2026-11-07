@@ -159,9 +159,9 @@ const recipientField: Field = {
  * anyway, which no column constraint can express.
  *
  * ⚠ **`managersOnlyFieldAccess` is the security boundary here too**, for the
- * same reason as `recipient` above and with a worse payload. `clients` is not
- * in `RESTRICTED_COLLECTIONS`, so without the lock a read at `depth >= 1`
- * populates a whole `clients` document — plaintext `apiKey` included (#822).
+ * same reason as `recipient` above and with a worse payload. `forms` keeps the
+ * plugin's `read: () => true`, which outranks the role table, so without the
+ * lock a read at `depth >= 1` populates a whole `clients` document — plaintext `apiKey` included (#822).
  * `deliverSubscribe` resolves this field with `overrideAccess: true`, so the
  * lock cannot starve a subscription.
  */

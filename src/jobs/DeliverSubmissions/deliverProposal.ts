@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
+import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
@@ -44,6 +45,18 @@ export async function deliverProposal({
 
   const to = recipient?.email ?? CONTACT_EMAIL
 
+  // ⚠ Only `Immediate` sends from here. Any other pace — a retired one included —
+  // means the morning digest carries it: a delay, never a drop.
+  if (recipient && recipient.pace !== 'Immediate') {
+    req.payload.logger.info({
+      msg: 'deliverProposal: deferred to the digest',
+      pace: recipient.pace,
+      submissionId: submission.id,
+      to,
+    })
+    return { ok: true, sentTo: `${to} (in their ${recipient.pace.toLowerCase()} digest)` }
+  }
+
   try {
     await sendSubmissionReview({
       payload: req.payload,
@@ -68,15 +81,7 @@ export async function deliverProposal({
 }
 
 /** The target event's own fields, at the depth the routing needs. */
-async function loadTarget(
-  req: DeliveryContext['req'],
-  eventId: number,
-): Promise<{
-  title: string | null
-  managerEmail: string | null
-  managerName: string | null
-  regionId: number | null
-} | null> {
+async function loadTarget(req: DeliveryContext['req'], eventId: number) {
   const event = await req.payload.findByID({
     collection: 'events',
     id: eventId,
@@ -89,12 +94,9 @@ async function loadTarget(
 
   if (!event) return null
 
-  const manager = typeof event.manager === 'object' ? event.manager : null
-
   return {
     title: typeof event.title === 'string' ? event.title : null,
-    managerEmail: typeof manager?.email === 'string' ? manager.email : null,
-    managerName: manager?.name ?? null,
+    manager: typeof event.manager === 'object' ? event.manager : null,
     regionId: relationId(event.region),
   }
 }
@@ -103,9 +105,14 @@ async function loadTarget(
 async function routeTo(
   req: DeliveryContext['req'],
   target: NonNullable<Awaited<ReturnType<typeof loadTarget>>>,
-): Promise<{ email: string; name: string | null } | null> {
-  if (target.managerEmail) {
-    return { email: target.managerEmail, name: target.managerName }
+): Promise<ProposalRecipient | null> {
+  const { manager } = target
+  if (typeof manager?.email === 'string' && manager.email) {
+    return {
+      email: manager.email,
+      name: manager.name ?? null,
+      pace: notificationFrequency(manager.notificationPreferences, 'new_proposals'),
+    }
   }
 
   return managerUpChain(req, target.regionId)
@@ -115,13 +122,24 @@ async function routeTo(
 async function managerUpChain(
   req: DeliveryContext['req'],
   regionId: number | null,
-): Promise<{ email: string; name: string | null } | null> {
+): Promise<ProposalRecipient | null> {
   if (regionId == null) return null
 
   const found = await findManagerForRegion(req.payload, regionId, { req })
   if (!found?.manager.email) return null
 
-  return { email: found.manager.email, name: found.manager.name ?? null }
+  return {
+    email: found.manager.email,
+    name: found.manager.name ?? null,
+    pace: notificationFrequency(found.manager.notificationPreferences, 'new_proposals'),
+  }
+}
+
+/** Who to tell, and how soon they want telling. */
+interface ProposalRecipient {
+  email: string
+  name: string | null
+  pace: string
 }
 
 /**

@@ -44,7 +44,7 @@ import * as path from 'path'
 
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import { EVENT_TITLE_DEFAULTS } from '../../src/lib/eventTitle/compose'
-import { EMAIL_STRING_DEFAULTS } from '../../src/lib/translations/emailStrings'
+import { EMAILS_GROUP_DEFAULTS } from '../../src/lib/translations/emailStrings'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   ATLAS_TRANSLATION_LOCALES as ATLAS_LOCALES,
@@ -212,7 +212,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
         const stored = await this.readAtlasGlobal(slug, locale)
 
         if (stored.ok) {
-          const emails = fillBlanks(stored.doc?.emails, EMAIL_STRING_DEFAULTS)
+          const emails = fillBlanks(stored.doc?.emails, EMAILS_GROUP_DEFAULTS)
           if (emails) data.emails = emails
 
           const storedEvent = asRecord(stored.doc?.event)

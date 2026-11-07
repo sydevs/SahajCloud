@@ -24,7 +24,7 @@ export {
   getProjectCollections,
   getAllProjectCollections,
   isCollectionVisibleInProject,
-  isRestrictedCollection,
+  isImplicitlyReadable,
 } from './projects'
 
 // --- Role Configuration & Helpers ---

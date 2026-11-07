@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { sectionHref } from '@/components/admin/Dashboard/shared/model'
 import { parseRegistrationQuery } from '@/components/admin/EventRegistrations/data'
 import { firstParam, pageParam } from '@/components/admin/helpers/searchParams'
 
@@ -30,10 +31,7 @@ describe('pageParam', () => {
   })
 })
 
-/**
- * A view's own parse keeps only its vocabulary, which is what differs.
- * `atlas-manager-model.spec.ts` pins the dashboard's.
- */
+/** A view's own parse keeps only its vocabulary, which is what differs. */
 describe('parseRegistrationQuery', () => {
   it('shows accepted registrations first, refusing a filter it does not offer', () => {
     expect(parseRegistrationQuery({ filter: 'withdrawn', page: '3' })).toEqual({
@@ -43,5 +41,16 @@ describe('parseRegistrationQuery', () => {
     expect(parseRegistrationQuery({ filter: 'pending' })).toEqual({ filter: 'pending', page: 1 })
     expect(parseRegistrationQuery({ filter: 'spam' })).toEqual({ filter: 'accepted', page: 1 })
     expect(parseRegistrationQuery(undefined)).toEqual({ filter: 'accepted', page: 1 })
+  })
+})
+
+describe('sectionHref', () => {
+  /** A region home whose tabs dropped `?region=` fell back to the reader's whole scope. */
+  it('keeps the region and the filter, and leaves the old section’s page behind', () => {
+    expect(sectionHref('region=542&filter=overdue&page=3', 'regions')).toBe(
+      '?region=542&filter=overdue&section=regions',
+    )
+    expect(sectionHref('region=542&section=regions', 'items')).toBe('?region=542&section=items')
+    expect(sectionHref('', 'items')).toBe('?section=items')
   })
 })

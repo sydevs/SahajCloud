@@ -10,6 +10,8 @@
  * `src/AGENTS.md`).
  */
 
+import { toWords } from 'payload/shared'
+
 /**
  * Optional questions an event can ask registrants. Rendered as a group of
  * checkboxes on the Event (each label IS the question shown to the registrant);
@@ -60,7 +62,7 @@ function formatAnswer(raw: unknown): string {
  * Shape a registrant's raw `questions` answers into labelled rows for the
  * manager notification: configured questions first, in their configured order,
  * using their labels; then any extra keys (validation rejects these on write,
- * but stored/legacy data may still carry them), labelled by the raw key. Blank
+ * but stored/legacy data may still carry them), labelled from the key itself. Blank
  * answers are dropped.
  */
 export function buildRegistrationAnswers(
@@ -79,7 +81,7 @@ export function buildRegistrationAnswers(
   for (const [key, raw] of Object.entries(questions)) {
     if (REGISTRATION_QUESTION_NAMES.has(key)) continue
     const value = formatAnswer(raw)
-    if (value) answers.push({ label: key, value })
+    if (value) answers.push({ label: toWords(key), value })
   }
 
   return answers

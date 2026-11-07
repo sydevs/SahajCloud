@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-import { Hr, Link, Section, Text } from 'react-email'
+import { Link, Section, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
@@ -493,7 +493,12 @@ export function EventVerificationEmail({
       : verifyUrl
 
   return (
-    <EmailLayout brand={brand} heading={variant.heading} previewText={variant.preview}>
+    <EmailLayout
+      brand={brand}
+      heading={variant.heading}
+      previewText={variant.preview}
+      footer={COPY.footer(audience, brand.productName)}
+    >
       <Text style={styles.paragraph}>{COPY.greeting(name)}</Text>
       <Text style={styles.paragraph}>{variant.body(vars)}</Text>
 
@@ -630,8 +635,6 @@ export function EventVerificationEmail({
           </Link>
         </Text>
       )}
-      <Hr style={styles.hr} />
-      <Text style={styles.footer}>{COPY.footer(audience, brand.productName)}</Text>
     </EmailLayout>
   )
 }

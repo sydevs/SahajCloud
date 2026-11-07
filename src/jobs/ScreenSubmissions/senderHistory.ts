@@ -2,7 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { createHash } from 'node:crypto'
 
-import { isMachineSpam } from './verdicts'
+import { isSpamStrike } from './verdicts'
 
 /**
  * How far back the history checks look. Must stay comfortably inside the
@@ -92,7 +92,7 @@ export async function loadSenderHistory({
   })
 
   return {
-    spamCount: docs.filter(isMachineSpam).length,
+    spamCount: docs.filter(isSpamStrike).length,
     duplicate:
       bodyHash != null && docs.some((doc) => hashSubmissionBody(doc.submissionData) === bodyHash),
   }

@@ -1,8 +1,8 @@
 /**
  * Unit tests for the registrant confirmation email's content shaping.
  *
- * These are the *facts* the email states (schedule in words, where, host) —
- * none of it is translated. Chrome is covered by `email-strings.spec.ts`.
+ * These are the *facts* the email states (schedule in words, where, host), read
+ * in the registrant's locale. Chrome is covered by `email-strings.spec.ts`.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -12,6 +12,7 @@ import {
   registrationScheduleLine,
   sessionCount,
 } from '@/lib/notifications/registrationDetails'
+import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
 import type { Event } from '@/payload-types'
 
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST) == 18:00 UTC.
@@ -47,10 +48,23 @@ describe('registrationScheduleLine', () => {
     )
 
     // 19:00 local, not the 18:00 UTC the column stores.
-    expect(line).toContain('Every week on Tuesday')
+    expect(line).toContain('Every Tuesday')
     expect(line).toContain('7:00')
     expect(line).toContain('8:30 PM')
     expect(line).toContain('GMT+1')
+  })
+
+  /** ⚠ The registrant's locale, and the widget's own recurrence keys. */
+  it('reads in the registrant’s locale: weekday, clock and sentence', () => {
+    const line = registrationScheduleLine(
+      schedule({ recurrenceType: 'WEEKLY', weekdays: ['TU', 'TH'], endTime: '20:30' }),
+      {
+        locale: 'de',
+        strings: { ...EMAIL_STRING_DEFAULTS, recurrence_weekly_multi: 'Jeden %{weekdays}' },
+      },
+    )
+    expect(line).toContain('Jeden Dienstag und Donnerstag')
+    expect(line).toContain('19:00 – 20:30')
   })
 
   it('renders only the start time when no endTime is set', () => {

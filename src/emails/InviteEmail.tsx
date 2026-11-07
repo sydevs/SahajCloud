@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { Hr, Link, Text } from 'react-email'
+import { Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
@@ -78,7 +78,16 @@ export function InviteEmail({
       : ` Confirm your email below so you can sign in and keep ${count === 1 ? 'it' : 'them'} up to date — there’s no password to choose.`
 
   return (
-    <EmailLayout brand={brand} heading={heading} previewText={`${heading}.`}>
+    <EmailLayout
+      brand={brand}
+      heading={heading}
+      previewText={`${heading}.`}
+      footer={
+        accepted
+          ? `You're receiving this because you look after content on ${brand.productName}. The button above is where you choose which emails you get.`
+          : `This link is valid for ${validFor}. If you weren't expecting this email, you can safely ignore it.`
+      }
+    >
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
@@ -145,12 +154,6 @@ export function InviteEmail({
           </Link>
         </Text>
       )}
-      <Hr style={styles.hr} />
-      <Text style={styles.footer}>
-        {accepted
-          ? `You're receiving this because you look after content on ${brand.productName}. The button above is where you choose which emails you get.`
-          : `This link is valid for ${validFor}. If you weren't expecting this email, you can safely ignore it.`}
-      </Text>
     </EmailLayout>
   )
 }

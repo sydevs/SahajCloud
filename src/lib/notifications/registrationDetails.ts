@@ -6,21 +6,97 @@
  * and address formatting is shared from there rather than reimplemented — the
  * two emails describing the same class differently would be a bug of its own.
  *
- * Everything here is data, not chrome: nothing in this module is translated.
- * Localized labels come from `@/lib/translations/emailStrings`.
+ * The facts are the event's own; how they read — weekday and month names, the
+ * clock, the recurrence sentence — follows the registrant's locale, the sentence
+ * from the same `event.recurrence` keys the Atlas widget uses.
  */
 
+import type { LocaleCode } from '@/lib/locales'
 import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import { minutesOfDay } from '@/lib/schedule/time'
+import {
+  EMAIL_STRING_DEFAULTS,
+  type EmailStrings,
+  interpolate,
+} from '@/lib/translations/emailStrings'
 import type { Event } from '@/payload-types'
 
-import { addressOneLine, recurrencePhrase } from './eventDetails'
+import { addressOneLine } from './eventDetails'
 
 type Schedule = NonNullable<Event['schedule']>
 
-/** Times render in `en-US` — this is the event's data, not the registrant's locale. */
-const TIME_LOCALE = 'en-US'
+/** The registrant's locale and resolved strings; English when a caller has none. */
+export interface ScheduleText {
+  locale?: LocaleCode | null
+  strings?: EmailStrings
+}
+
+/** `en` keeps the day-month dates and 12-hour clock these emails have always used. */
+const dateLocale = (locale?: LocaleCode | null) => (!locale || locale === 'en' ? 'en-GB' : locale)
+const timeLocale = (locale?: LocaleCode | null) => (!locale || locale === 'en' ? 'en-US' : locale)
+
+/** A Monday, so `MO`…`SU` map onto consecutive days for a localized weekday name. */
+const WEEK_START = Date.UTC(2024, 0, 1)
+const WEEKDAY_CODES = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+
+function weekdayName(code: string, locale?: LocaleCode | null): string {
+  const index = WEEKDAY_CODES.indexOf(code)
+  if (index < 0) return code
+  return new Intl.DateTimeFormat(dateLocale(locale), { weekday: 'long', timeZone: 'UTC' }).format(
+    new Date(WEEK_START + index * 86_400_000),
+  )
+}
+
+const MONTHLY_WEEK_KEYS = {
+  '1': 'recurrence_monthly_1st',
+  '2': 'recurrence_monthly_2nd',
+  '3': 'recurrence_monthly_3rd',
+  '4': 'recurrence_monthly_4th',
+  '-1': 'recurrence_monthly_last',
+} as const
+
+/** The recurrence sentence, from the widget's own keys (`use-event-display.ts` in SahajAtlasWeb). */
+function recurrenceLine(
+  schedule: Schedule,
+  { locale, strings = EMAIL_STRING_DEFAULTS }: ScheduleText,
+): string {
+  const interval = schedule.interval && schedule.interval > 1 ? schedule.interval : 1
+  switch (schedule.recurrenceType) {
+    case 'DAILY':
+      return interval > 1
+        ? interpolate(strings.recurrence_daily_n, { interval })
+        : strings.recurrence_daily
+    case 'WEEKLY': {
+      const names = (schedule.weekdays ?? []).map((code) => weekdayName(code, locale))
+      const weekday = new Intl.ListFormat(dateLocale(locale), {
+        style: 'long',
+        type: 'conjunction',
+      }).format(names)
+      if (interval === 2) return interpolate(strings.recurrence_weekly_2, { weekday })
+      if (interval > 2) return interpolate(strings.recurrence_weekly_n, { interval, weekday })
+      return names.length > 1
+        ? interpolate(strings.recurrence_weekly_multi, { weekdays: weekday })
+        : interpolate(strings.recurrence_weekly_1, { weekday })
+    }
+    case 'MONTHLY': {
+      const key =
+        schedule.monthlyMode === 'weekday' && schedule.weekdayOfMonth
+          ? MONTHLY_WEEK_KEYS[String(schedule.weekNumber) as keyof typeof MONTHLY_WEEK_KEYS]
+          : undefined
+      if (key) {
+        return interpolate(strings[key], {
+          weekday: weekdayName(schedule.weekdayOfMonth!, locale),
+        })
+      }
+      return schedule.monthDay
+        ? interpolate(strings.recurrence_monthly_date, { day: schedule.monthDay })
+        : ''
+    }
+    default:
+      return ''
+  }
+}
 
 /**
  * ICU emits a narrow no-break space (U+202F) before AM/PM, which survives into
@@ -30,25 +106,21 @@ function normalizeSpaces(value: string): string {
   return value.replace(/ /g, ' ')
 }
 
-/** Wall-clock time in the event's timezone, e.g. `7:00 PM`. */
-function formatTime(date: Date, timezone: string, withZone = false): string {
+/** Wall-clock time in the event's timezone, e.g. `7:00 PM`, or `19:00` in German. */
+function formatTime(date: Date, timezone: string, locale?: LocaleCode | null, withZone = false) {
   return normalizeSpaces(
-    new Intl.DateTimeFormat(TIME_LOCALE, {
+    new Intl.DateTimeFormat(timeLocale(locale), {
       timeZone: timezone,
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true,
       ...(withZone && { timeZoneName: 'short' }),
     }).format(date),
   )
 }
 
-/** Render minutes-since-midnight in 12-hour form, e.g. `8:30 PM`. */
-function formatMinutesOfDay(minutes: number): string {
-  const hour24 = Math.floor(minutes / 60)
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
-  const minute = String(minutes % 60).padStart(2, '0')
-  return `${hour12}:${minute} ${hour24 < 12 ? 'AM' : 'PM'}`
+/** Minutes since midnight as a clock time, read as written (no zone, no DST). */
+function formatMinutesOfDay(minutes: number, locale?: LocaleCode | null): string {
+  return formatTime(new Date(Date.UTC(2024, 0, 1, 0, minutes)), 'UTC', locale)
 }
 
 /**
@@ -63,11 +135,11 @@ function formatMinutesOfDay(minutes: number): string {
  * With no (or a malformed, or a non-increasing) end time, the span collapses to
  * the start alone.
  */
-function timeSpan(schedule: Schedule): string {
+function timeSpan(schedule: Schedule, locale?: LocaleCode | null): string {
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const start = new Date(schedule.firstDate)
   if (Number.isNaN(start.getTime())) return ''
-  return formatTimeSpan(start, schedule.firstDate, schedule.endTime, timezone)
+  return formatTimeSpan(start, schedule.firstDate, schedule.endTime, timezone, locale)
 }
 
 /**
@@ -85,29 +157,31 @@ function formatTimeSpan(
   startIso: string,
   endTime: string | null | undefined,
   timezone: string,
+  locale?: LocaleCode | null,
 ): string {
   const endMinutes = minutesOfDay(endTime)
   const startMinutes = minutesOfDay(getLocalTimeHHMM(startIso, timezone))
   if (endMinutes === null || startMinutes === null || endMinutes <= startMinutes) {
-    return formatTime(date, timezone, true)
+    return formatTime(date, timezone, locale, true)
   }
-  return `${formatTime(date, timezone)} – ${formatMinutesOfDay(endMinutes)} ${zoneName(date, timezone)}`
+  return `${formatTime(date, timezone, locale)} – ${formatMinutesOfDay(endMinutes, locale)} ${zoneName(date, timezone, locale)}`
 }
 
 /** The short timezone label alone, e.g. `GMT+1`. */
-function zoneName(date: Date, timezone: string): string {
-  const part = new Intl.DateTimeFormat(TIME_LOCALE, { timeZone: timezone, timeZoneName: 'short' })
+function zoneName(date: Date, timezone: string, locale?: LocaleCode | null): string {
+  const part = new Intl.DateTimeFormat(timeLocale(locale), {
+    timeZone: timezone,
+    timeZoneName: 'short',
+  })
     .formatToParts(date)
     .find((p) => p.type === 'timeZoneName')
   return part?.value ?? ''
 }
 
-/** Full date for a one-off, e.g. `Tuesday, 21 July 2026`. */
-function formatFullDate(schedule: Schedule): string {
-  const timezone: string = schedule.firstDate_tz || 'UTC'
-  const date = new Date(schedule.firstDate)
+/** A full date, e.g. `Tuesday, 21 July 2026`, in the event's timezone and the reader's locale. */
+function formatFullDate(date: Date, timezone: string, locale?: LocaleCode | null): string {
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(dateLocale(locale), {
     timeZone: timezone,
     weekday: 'long',
     day: 'numeric',
@@ -135,10 +209,15 @@ export function sessionCount(schedule: Schedule | null | undefined): number | nu
  * count is *not* appended here — it is a translated, pluralized string, so the
  * caller appends it via `pluralize(strings, 'sessions_count', …)`.
  */
-export function registrationScheduleLine(schedule: Schedule | null | undefined): string {
+export function registrationScheduleLine(
+  schedule: Schedule | null | undefined,
+  text: ScheduleText = {},
+): string {
   if (!schedule?.firstDate) return ''
-  const when = schedule.recurrenceType ? recurrencePhrase(schedule) : formatFullDate(schedule)
-  return [when, timeSpan(schedule)].filter(Boolean).join(', ')
+  const when = schedule.recurrenceType
+    ? recurrenceLine(schedule, text)
+    : formatFullDate(new Date(schedule.firstDate), schedule.firstDate_tz || 'UTC', text.locale)
+  return [when, timeSpan(schedule, text.locale)].filter(Boolean).join(', ')
 }
 
 /**
@@ -188,21 +267,15 @@ export interface RegistrationEmailDetails {
 export function occurrenceLine(
   schedule: Schedule | null | undefined,
   occurrenceIso: string,
+  { locale }: ScheduleText = {},
 ): string {
   if (!schedule?.firstDate) return ''
   const timezone: string = schedule.firstDate_tz || 'UTC'
   const occurrence = new Date(occurrenceIso)
   if (Number.isNaN(occurrence.getTime())) return ''
 
-  const date = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(occurrence)
-
-  const time = formatTimeSpan(occurrence, occurrenceIso, schedule.endTime, timezone)
+  const date = formatFullDate(occurrence, timezone, locale)
+  const time = formatTimeSpan(occurrence, occurrenceIso, schedule.endTime, timezone, locale)
   return [date, time].filter(Boolean).join(', ')
 }
 
@@ -212,7 +285,10 @@ export function occurrenceLine(
  * Pure and synchronous — every value comes off the already-loaded document, so
  * this issues no queries and stays unit-testable.
  */
-export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDetails {
+export function buildRegistrationEmailDetails(
+  event: Event,
+  text: ScheduleText = {},
+): RegistrationEmailDetails {
   const address = addressOneLine(event.address ?? {})
 
   // An online event without a URL falls through to `unspecified` rather than
@@ -230,7 +306,7 @@ export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDe
 
   return {
     eventTitle: typeof event.title === 'string' ? event.title : `Event #${event.id}`,
-    scheduleLine: registrationScheduleLine(event.schedule),
+    scheduleLine: registrationScheduleLine(event.schedule, text),
     sessions: sessionCount(event.schedule),
     location,
     description: lexicalToPlainText(event.description) || null,
@@ -246,10 +322,11 @@ export function buildRegistrationEmailDetails(event: Event): RegistrationEmailDe
 export function buildReminderEmailDetails(
   event: Event,
   occurrenceIso: string,
+  text: ScheduleText = {},
 ): RegistrationEmailDetails {
   return {
-    ...buildRegistrationEmailDetails(event),
-    scheduleLine: occurrenceLine(event.schedule, occurrenceIso),
+    ...buildRegistrationEmailDetails(event, text),
+    scheduleLine: occurrenceLine(event.schedule, occurrenceIso, text),
     sessions: null,
   }
 }
