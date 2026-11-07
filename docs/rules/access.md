@@ -267,7 +267,6 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 | Want                            | Do                                                                                  |
 | ------------------------------- | ----------------------------------------------------------------------------------- |
 | Nobody reads it implicitly      | Leave it out of every project                                                       |
-| **No client key may read it**   | Add it to `CLIENT_UNREADABLE` (`accessConfigs.ts`) — managers keep implicit read    |
 | A client may still create it    | Grant `['create']` in that client's role                                            |
 | **No manager role may read it** | Grant it in **no** role                                                             |
 | Only _some_ rows, for a manager | Grant `read`, then narrow to a `Where` in `createAccessConfig` (`user-submissions`) |
@@ -286,20 +285,19 @@ list would cost a second round trip on every parent row.
 
 ⚠ **That fix is unavailable once the parent is polymorphic.** Payload resolves `source`,
 `source.relationTo` and `source.value` on a `relationTo` array and throws
-`APIError('Not supported')` on anything deeper, so `source._status` cannot be written. `transcripts`
-is that case (#1043), and the client read goes rather than the protection: the collection is named
-in `CLIENT_UNREADABLE`, which `createAccessConfig` refuses **above every clause that returns a
-`Where`**. Order is load-bearing there — each clause below it is a narrowed grant, so a refusal
-placed under one is skipped whenever that one matches, and the day the collection gained
-`versions.drafts` every client would read it again.
+`APIError('Not supported')` on anything deeper, so `source._status` cannot be written in any form.
+`transcripts` is that case (#1043).
 
-**Why not `RESTRICTED_COLLECTIONS`.** It skips implicit read for every role, managers included, so
-it would 403 the admin Transcript tab — a manager read that resolves purely through project
-membership today — until every role that opens a meditation gained an explicit `transcripts: ['read']`
-grant. That is the one enumerable home for "who may read this", and it is the reviewer's call; the
-cost is that a role nobody remembers to list gets a silently broken tab, which is the same accepted
-cost this file already records for `web-translator` and restricted `managers`. ⚠ Removing the
-collection from `PROJECTS` is **not** the third option — "in no project" reads as _shared_.
+**So on `transcripts` the narrowing is gone and nothing replaced it** (#1075). A client whose
+project names the collection reads every row, a draft or trashed meditation's included. That
+exposure was priced and accepted: a transcript carries no personal data, and a client reaching one
+at all already reads the recording it belongs to. Project membership is therefore the whole gate,
+and the collection sits in `wemeditate-web` and `wemeditate-app` — `sahaj-atlas` reads none.
+
+**A later child row in this shape owes the same judgement, not the same answer.** Weigh what the
+row holds before leaving it on project membership. The two narrower homes both cost something: a
+client-key refusal puts "who may read this" in a second place, and a per-role grant leaves a
+silently broken admin tab for the next role nobody lists.
 
 ## Adding a new role
 

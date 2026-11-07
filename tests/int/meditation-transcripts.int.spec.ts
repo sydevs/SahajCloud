@@ -100,20 +100,26 @@ describe('transcripts', () => {
     })
 
     /**
-     * ⚠ **Every client key is refused, and this is the clause that replaced a
-     * narrowing.** A client used to read a transcript whose meditation was
-     * published and untrashed, spelled `meditation._status` — and a polymorphic
-     * `source` cannot carry that path at all: Payload resolves `source`,
-     * `source.relationTo` and `source.value` and throws `Not supported` on
-     * anything deeper. So the read goes rather than the protection, which is
-     * what kept a draft meditation's full spoken text and its R2 key off every
-     * client key (#968, #1043).
+     * ⚠ **Project membership is the whole gate, and that is a priced
+     * exposure rather than an oversight.** A client used to read a transcript
+     * only where its meditation was published and untrashed, spelled
+     * `meditation._status` — and a polymorphic `source` cannot carry that path
+     * at all: Payload resolves `source`, `source.relationTo` and
+     * `source.value` and throws `Not supported` on anything deeper. So the
+     * narrowing went and nothing replaced it: a transcript carries no personal
+     * data, and a client reaching one already reads the recording (#968,
+     * #1043, #1075).
+     *
+     * Both directions are the assertion. A refusal that denied every client
+     * would pass a test that only checked the Atlas key, and a grant that
+     * admitted every client would pass one that only checked the two We
+     * Meditate keys.
      *
      * Real clients, not stubs. A caller the access layer cannot interpret — a
      * client that was never published — is refused for the wrong reason, which
      * reads exactly like a working restriction.
      */
-    it('refuses every client key, whatever its project', async () => {
+    it('answers a client whose project carries meditations, and no other', async () => {
       const editor = await testData.createManager(payload, {
         roles: { en: ['meditations-editor'] },
       })
@@ -125,25 +131,24 @@ describe('transcripts', () => {
           user: user as Parameters<typeof payload.find>[0]['user'],
           // A client read carries `select`, or the query-validation hook
           // refuses it before access control runs. `select: {}` 400s too, and
-          // the default depth of 2 is refused without `populate` — which the
-          // refusal below would otherwise pass on, for the wrong reason.
+          // the default depth of 2 is refused without `populate` — which an
+          // answer below would otherwise pass on, for the wrong reason.
           select: idOnlySelect(),
           depth: 0,
         })
 
-      for (const roles of [
-        ['wemeditate-app-client'],
-        ['wemeditate-web-client'],
-        ['sahaj-atlas-client'],
-      ] as const) {
+      for (const roles of [['wemeditate-app-client'], ['wemeditate-web-client']] as const) {
         await expect(
           read(await testData.createClient(payload, editor.id, { roles: [...roles] })),
-        ).rejects.toThrow()
+        ).resolves.toBeTruthy()
       }
 
-      // The editor is the control: a refusal that denied everyone would pass
-      // the loop above while emptying the admin panel.
-      await expect(read(editor)).resolves.toBeTruthy()
+      // `sahaj-atlas` names neither `meditations` nor `transcripts`, so its key
+      // reaches no row — the half that makes the grant above a project test
+      // rather than a blanket one.
+      await expect(
+        read(await testData.createClient(payload, editor.id, { roles: ['sahaj-atlas-client'] })),
+      ).rejects.toThrow()
     })
   })
 
@@ -171,6 +176,42 @@ describe('transcripts', () => {
       expect(typeof row).toBe('object')
       expect((row as Transcript).segments).toEqual([
         { content: 'Let your hands rest open.', startTimeMs: 0, endTimeMs: 3000 },
+      ])
+    })
+
+    /**
+     * ⚠ **The join is the canonical client read**, so it is the one that
+     * breaks first. `sanitizeJoinQuery` suppresses a join whose child access
+     * answers `false`, which empties this field on every client key without
+     * failing a read — the whole visible cost of refusing the collection to
+     * clients, and invisible to a direct-read assertion (#1075).
+     */
+    it('carries the transcript to a client key through the join', async () => {
+      const meditation = await createMeditationWithoutTranscript()
+      await createTranscript('meditations', meditation.id, {
+        segments: [{ content: 'Breathe out slowly.', startTimeMs: 0, endTimeMs: 2500 }],
+      })
+
+      const editor = await testData.createManager(payload, {
+        roles: { en: ['meditations-editor'] },
+      })
+      const client = await testData.createClient(payload, editor.id, {
+        roles: ['wemeditate-web-client'],
+      })
+
+      const read = await payload.findByID({
+        collection: 'meditations',
+        id: meditation.id,
+        depth: 1,
+        overrideAccess: false,
+        user: client as Parameters<typeof payload.findByID>[0]['user'],
+        select: { transcript: true },
+      })
+
+      const [row] = read.transcript?.docs ?? []
+      expect(typeof row).toBe('object')
+      expect((row as Transcript).segments).toEqual([
+        { content: 'Breathe out slowly.', startTimeMs: 0, endTimeMs: 2500 },
       ])
     })
 

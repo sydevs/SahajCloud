@@ -150,26 +150,6 @@ async function managerSubmissionScope(req: PayloadRequest): Promise<Where> {
 }
 
 /**
- * Collections no client key may read at all, however its roles reach them.
- *
- * ⚠ **A last resort, for a child row whose parent's state no `Where` can
- * reach.** The published-only clause below and Payload's trash filter are both
- * per collection, so a child carrying neither answers for a parent that refuses
- * to be read — which handed every client key a draft meditation's full spoken
- * text and the R2 key it plays from (#968). The fix then was a `Where` over the
- * parent relationship; `transcripts.source` is polymorphic, and Payload
- * resolves only `source`, `source.relationTo` and `source.value` on a
- * `relationTo` array, throwing `APIError('Not supported')` on anything deeper.
- * So `source._status` cannot be written at all, and the read goes rather than
- * the protection (#1043).
- *
- * Narrower than `RESTRICTED_COLLECTIONS`, which would take a manager's implicit
- * read with it and so the admin Transcript tab. `docs/rules/access.md` carries
- * the choice between the two.
- */
-const CLIENT_UNREADABLE: ContentSlug[] = ['transcripts']
-
-/**
  * Create unified access config for collections and globals
  *
  * @param collection - Collection slug
@@ -197,21 +177,6 @@ export function createAccessConfig(
       const hasAccess = hasPermission(args, bypassFn)
 
       if (hasAccess) {
-        // ⚠ **Above every clause that returns a `Where`, and deliberately not
-        // exempt for live preview.** Each clause below is a *grant* — narrowed,
-        // but a grant — so a refusal placed after one is skipped whenever that
-        // one matches: put this under the drafts branch and the day
-        // `transcripts` gains `versions.drafts` every client reads it again.
-        // The live-preview exemption exists to let a credentialed preview see
-        // unpublished work, which is not what this list is about.
-        if (
-          operation === 'read' &&
-          req.user?.collection === 'clients' &&
-          CLIENT_UNREADABLE.includes(collection)
-        ) {
-          return false
-        }
-
         if (
           operation === 'read' &&
           req.user?.collection === 'clients' &&
