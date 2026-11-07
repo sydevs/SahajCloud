@@ -53,7 +53,7 @@ export const adminOnlyFieldAccess: FieldAccess = ({ req }) => isAdminManager(req
  *
  * Wider than `adminOnlyFieldAccess` on purpose — a client's own managers must
  * still configure their service. It guards the fields on the documents a
- * published key still reaches — an unrestricted collection (`forms`), and its
+ * published key still reaches — a collection with its own open `read` (`forms`), and its
  * own row, which self-access hands over whole (#822).
  * See `docs/rules/access.md`, "A field lock, for a collection a client
  * reaches", for why, and why it is spelled positively.

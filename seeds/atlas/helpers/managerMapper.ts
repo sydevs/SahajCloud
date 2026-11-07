@@ -11,9 +11,6 @@ export type ContactPlatform = 'whatsapp' | 'telegram' | 'wechat'
 /** Atlas `contactMethod` values that map to a messaging handle (email → none). */
 const MESSAGING_PLATFORMS = new Set<string>(['whatsapp', 'telegram', 'wechat'])
 
-/** Atlas notification bits that all fold into the single `regional_summary` type. */
-const SUMMARY_FLAGS = ['place_summary', 'country_summary', 'application_summary', 'client_summary']
-
 /**
  * Map Atlas `notifications` flags and `contactMethod` to #462's
  * `notificationPreferences` json. Frequencies follow the MIGRATION_PLAN
@@ -21,6 +18,12 @@ const SUMMARY_FLAGS = ['place_summary', 'country_summary', 'application_summary'
  * email if none is set. A "Never" frequency ships with no method, so it
  * passes the field's validator, which requires a method only for
  * non-Never types.
+ *
+ * ⚠ **Only the keys Atlas has an answer for.** Atlas's four `*_summary`
+ * flags folded into one `regional_summary` row, which #1070 replaced with
+ * `open_items` and `statistics` — two rows Atlas never asked about. Writing a
+ * guess for them would override the defaults every other manager gets, so the
+ * mapper leaves them out and `notificationFrequency` resolves them.
  */
 export function mapNotificationPreferences(
   notifications: string[] | null | undefined,
@@ -31,12 +34,10 @@ export function mapNotificationPreferences(
   const pref = (frequency: string) =>
     frequency === 'Never' ? { frequency, method: '' } : { frequency, method }
 
-  const hasSummary = SUMMARY_FLAGS.some((flag) => flags.has(flag))
   return {
     invitation: pref(flags.has('new_managed_record') ? 'Immediate' : 'Never'),
     event_verification: pref('Monthly'),
     event_registration: pref(flags.has('event_registrations') ? 'Immediate' : 'Never'),
-    regional_summary: pref(hasSummary ? 'Monthly' : 'Never'),
   }
 }
 

@@ -42,7 +42,7 @@ Each failure path — no client, a Resend API error, a thrown exception — logs
 
 A throw cannot roll back a manager create: a create sends no mail (`suppressCreateMail`, `src/plugins/login/loginPlugin.ts`).
 
-⚠ **The capture carries nothing from the message** — no recipient, no subject. A contact send carries a viewer-authored subject, and `user-submissions` sits in `RESTRICTED_COLLECTIONS` because it holds personal data. Copying it into a third-party error tracker would widen where that data lives. The pino line beside each capture already has the detail — don't add more.
+⚠ **The capture carries nothing from the message** — no recipient, no subject. A contact send carries a viewer-authored subject, and `user-submissions` sits in no project — so no role reads it implicitly — because it holds personal data. Copying it into a third-party error tracker would widen where that data lives. The pino line beside each capture already has the detail — don't add more.
 
 ### It hand-maps the message — an unmapped field is silently dropped
 
@@ -91,31 +91,31 @@ RESEND_API_KEY=your-resend-api-key-here   # production only
 
 Transactional emails are [React Email](https://react.email) components under `src/emails/`, rendered to inline HTML at send time. Components and `render()` both come from the single `react-email` package (v6 unified them — `@react-email/components` and `@react-email/render` are deprecated).
 
-| File                                | Purpose                                                                                                                                                                                                                                                                                                                                                                                   |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EmailLayout.tsx`                   | Shared shell (header, card body, footer). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `StackedDetailRow` (guest itinerary row), `SectionHeading`, `ProgressBar`, and shared `styles`. Reuse these for visual consistency.                                                                                                                                  |
-| `InviteEmail.tsx`                   | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept.                                                                 |
-| `SignInLinkEmail.tsx`               | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`.                                                                                                                                                                                                                                                          |
-| `EventVerificationEmail.tsx`        | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all.                                                                                                                                      |
-| `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached. Also exports `registrationConfirmationText`.                                                                                                                                                                                                                                                                           |
-| `SessionReminderEmail.tsx`          | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`.                                                                                                                                                                                                                                                       |
-| `EventRegistrationEmail.tsx`        | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout.                                                                                                                                                                                                                                                   |
-| `UserMessageEmail.tsx`              | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named. |
-| `RegistrationDigestEmail.tsx`       | Manager digest of new registrations (#589), grouped by event, one email per recipient per period. Sent by `SendRegistrationDigests`.                                                                                                                                                                                                                                                      |
-| `PostEventFollowUpEmail.tsx`        | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`.                                                                                                                                             |
+| File                                | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EmailLayout.tsx`                   | Shared shell (header, card body, and the `footer` prop's rule and small print). Exports `BrandButton`, `BrandButtonRow`, `DetailRow` (manager fact table), `EventItinerary` (the registrant itinerary card and its CTA), `AnswerList` (forwarded answers), `SectionHeading`, `ProgressBar`, and shared `styles`. A component one template uses lives in that template — the digest's tiles, item and registration tables are in `DigestEmail.tsx`. |
+| `InviteEmail.tsx`                   | Manager invitation (#839): what a manager was just assigned — roles, and each region, event and page naming them, one per line and linked to its public page — with an Atlas introduction and the assigner's name. An accepted manager gets the same email with a button to the admin instead of an invitation to accept.                                                                                                                          |
+| `SignInLinkEmail.tsx`               | The emailed sign-in link an ACCEPTED manager gets (#837). `issueMagicLink` picks between this and the invitation on `_verified`.                                                                                                                                                                                                                                                                                                                   |
+| `EventVerificationEmail.tsx`        | Manager/region verification reminder, with a listing-quality progress section (#611) shown to the **event manager only**. A complete listing drops the progress bar and keeps only the ticks. An absent `listingProgress` renders no section at all.                                                                                                                                                                                               |
+| `RegistrationConfirmationEmail.tsx` | Registrant confirmation — client-branded, localized, ICS attached.                                                                                                                                                                                                                                                                                                                                                                                 |
+| `SessionReminderEmail.tsx`          | Registrant reminder ~24h before a session (#589) — client-branded, no ICS, footer unsubscribe link. Sent by `SendSessionReminders`.                                                                                                                                                                                                                                                                                                                |
+| `EventRegistrationEmail.tsx`        | Manager notice of a new registration — Sahaj Atlas brand, `DetailRow`s, a Reply/View-event button row. Informational, no alert callout.                                                                                                                                                                                                                                                                                                            |
+| `UserMessageEmail.tsx`              | Admin-facing message sent on a viewer's behalf, once a contact submission passes screening (#632). Caller-agnostic: the named form's own answers from `buildFormAnswers` (#832), plus a `DetailRow` context block from `buildUserMessageDetails`, each row omitted when its value is absent. There is no `Message` section — every answer is a sibling row, whatever the field was named.                                                          |
+| `DigestEmail.tsx`                   | One manager's digest for one role (#1070): statistics, the open-items list, and the new registrations on their own programs — each section present only when its own pace is due. The subject is the role's label then the summary line, so three roles read as three jobs. Sent by `SendDigests`. Admin-facing and English only; `resolveEmailStrings` serves the registrant templates.                                                           |
+| `PostEventFollowUpEmail.tsx`        | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`.                                                                                                                                                                                                      |
 
 ### Registrant mail: the six things, every time
 
 The follow-up email once shipped missing four of these, which is why they're written down. Every registrant template and sender does all six:
 
-| #   | What                                                                          | Why it isn't optional                                                                                          |
-| --- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 1   | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback.           |
-| 2   | `strings = await resolveEmailStrings({ payload, locale, req })`               | The registration stores a `locale` for this. Hardcoded English JSX ships English to every locale.              |
-| 3   | `from: headerDisplayName(brand.productName) <USER_EMAIL_FROM>`                | Resend verifies senders per domain, so mail can't send _as_ the client — the display name carries the brand.   |
-| 4   | `replyTo: client.supportEmail` when set                                       | Otherwise a reply reaches nobody who can answer.                                                               |
-| 5   | `subject: stripNewlines(...)`                                                 | An event title is manager-authored free text. A CR/LF starts a second header.                                  |
-| 6   | `text: <template>Text(props)`                                                 | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. |
+| #   | What                                                                          | Why it isn't optional                                                                                                                                                                            |
+| --- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')` | Registrant mail is branded per **client service**, not per project. The project brand is a fallback.                                                                                             |
+| 2   | `strings = await resolveEmailStrings({ payload, locale, req })`               | The registration stores a `locale` for this. Hardcoded English JSX ships English to every locale.                                                                                                |
+| 3   | `from: headerDisplayName(brand.productName) <USER_EMAIL_FROM>`                | Resend verifies senders per domain, so mail can't send _as_ the client — the display name carries the brand.                                                                                     |
+| 4   | `replyTo: client.supportEmail` when set                                       | Otherwise a reply reaches nobody who can answer.                                                                                                                                                 |
+| 5   | `subject: stripNewlines(...)`                                                 | An event title is manager-authored free text. A CR/LF starts a second header.                                                                                                                    |
+| 6   | `...(await renderEmail(element))` — `html` and `text` together                | A message with no plain-text part scores worse with spam filters and renders as nothing in a text-only client. The text is generated from the HTML, never hand-written, so the two cannot drift. |
 
 `sendSessionReminder` is the reference implementation — copy its shape, not a template's.
 
@@ -125,20 +125,26 @@ Pick one shape per new template, not a blend:
 
 - **Manager, action needed** (`EventVerificationEmail`) — an alert: a colored callout, a deadline, urgency-keyed color.
 - **Manager, informational** (`EventRegistrationEmail`) — a notice: no callout, a `DetailRow` fact table, forwarded answers, a Reply/View-event row, the **project** brand.
-- **Registrant / guest** (`RegistrationConfirmationEmail`, `SessionReminderEmail`) — an itinerary: no callout, `StackedDetailRow`s, and the only accent is the **client service's** own brand.
+- **Registrant / guest** (`RegistrationConfirmationEmail`, `SessionReminderEmail`) — an itinerary: no callout, the shared `EventItinerary`, and the only accent is the **client service's** own brand.
 
 Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `src/emails/`.
 
-- **Render**: `renderEmail(element)` wraps `react-email`'s async `render()`. `.ts` files use `createElement` (`.tsx` for JSX):
+- **Render**: `renderEmail(element)` returns `{ html, text }` — `react-email`'s `render()`, then its `toPlainText` over that HTML (what `render(element, { plainText: true })` runs). Spread both into the send. Its selectors add a space between table columns and drop `mailto:` hrefs; react-email's own already skip images and the preheader and print each link's URL. `.ts` files use `createElement` (`.tsx` for JSX):
 
   ```typescript
   import { createElement } from 'react'
   import { SignInLinkEmail } from '@/emails/SignInLinkEmail'
   import { renderEmail } from '@/plugins/email'
 
-  generateEmailHTML: ({ doc, signInUrl, validFor }) =>
-    renderEmail(createElement(SignInLinkEmail, { name: doc.name, signInUrl, validFor })),
+  await payload.sendEmail({
+    to,
+    from,
+    subject,
+    ...(await renderEmail(createElement(SignInLinkEmail, { name, signInUrl, validFor }))),
+  })
   ```
+
+  Small print goes in `EmailLayout`'s `footer` prop, which draws the rule above it.
 
 - **Branding is per-project** by default: `getEmailBrand(project)` composes `{ productName, colors, iconUrl }`, defaulting to `wemeditate-web`. A template takes branding as a prop, never a hardcoded color: either `project?: ProjectSlug` (resolved inside the template) when it is the only consumer, or `brand: EmailBrand` (resolved once by the sender and passed down) when the sender also needs it — e.g. for the `From` name — so header and body can't resolve to different brands.
 - **Registrant mail is branded per client service**: `getClientEmailBrand(client)` builds the same `EmailBrand` shape from a `Clients` doc, falling back field-by-field to the `sahaj-atlas` project brand — bar the logo, which falls back to the We Meditate icon, the default the Install tab previews. Read the client at `depth >= 1` — the logo needs an explicit `format=png` variant, since the default `auto` negotiates WebP/AVIF from headers an email client never sends, and Outlook renders neither.
@@ -150,6 +156,7 @@ Email glue lives in the plugin (`@/plugins/email`). Only JSX templates live in `
   pnpm tsx scripts/preview-registration-notification-emails.ts  # manager registration notice, all states
   pnpm tsx scripts/preview-event-emails.ts                      # manager verification reminders
   pnpm tsx scripts/preview-manager-emails.ts                    # manager invitation + sign-in link
+  pnpm tsx scripts/preview-reminder-digest-emails.ts            # registrant session reminder + the three role digests
   ```
 
   None touches the database. `preview-manager-emails.ts` drives

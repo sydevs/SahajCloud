@@ -3,7 +3,7 @@
  *
  * Three layers, and none does another's job:
  *
- * - `clients` is in `RESTRICTED_COLLECTIONS`, so implicit shared read no longer
+ * - `clients` sits in no project, so implicit read never
  *   hands every published key every other service's document;
  * - `Clients.apiKey` carries `managersOnlyFieldAccess`. Payload 3.90+ strips a
  *   stored key from every read itself, so the lock now matters for its write

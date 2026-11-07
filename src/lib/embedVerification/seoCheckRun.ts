@@ -127,7 +127,7 @@ export async function notifySeoFailures(args: {
       return {
         from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
         subject: stripNewlines(`Search engines may not be reading ${client.name}’s atlas pages`),
-        html: await renderEmail(
+        ...(await renderEmail(
           createElement(AtlasSeoWarningEmail, {
             brand,
             siteName: client.name,
@@ -136,7 +136,7 @@ export async function notifySeoFailures(args: {
             // Payload's to change.
             installUrl: `${adminDocUrl('clients', client.id)}/install`,
           }),
-        ),
+        )),
       }
     },
   })

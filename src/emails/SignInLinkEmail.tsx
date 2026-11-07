@@ -1,4 +1,4 @@
-import { Hr, Link, Text } from 'react-email'
+import { Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
@@ -30,6 +30,12 @@ export function SignInLinkEmail({
       brand={brand}
       heading="Your Sign-In Link"
       previewText={`Sign in to ${brand.productName} — this link is valid for ${validFor}.`}
+      footer={
+        <>
+          If you didn&apos;t ask to sign in, you can safely ignore this email. The link only reaches
+          this address.
+        </>
+      }
     >
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
@@ -47,11 +53,6 @@ export function SignInLinkEmail({
         <Link href={signInUrl} style={{ ...styles.link, color: brand.colors.primary }}>
           {signInUrl}
         </Link>
-      </Text>
-      <Hr style={styles.hr} />
-      <Text style={styles.footer}>
-        If you didn&apos;t ask to sign in, you can safely ignore this email. The link only reaches
-        this address.
       </Text>
     </EmailLayout>
   )

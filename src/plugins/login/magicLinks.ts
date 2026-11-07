@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import { composeInvitations } from './invite'
 import { signInLinkUrl } from './links'
-import { emailFrom, generateEmailHTML, generateEmailSubject } from './mail'
+import { emailFrom, generateEmail, generateEmailSubject } from './mail'
 import { createSession } from './session'
 import { isAdminPath, SIGNIN_TOKEN_TTL_MS } from './token'
 
@@ -196,7 +196,7 @@ export async function issueMagicLink({
     to: account.email,
     from: emailFrom(args.project),
     subject: generateEmailSubject(args),
-    html: await generateEmailHTML(args),
+    ...(await generateEmail(args)),
   })
 }
 

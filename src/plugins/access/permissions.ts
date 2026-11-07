@@ -23,13 +23,7 @@ import type { LocaleCode } from '@/lib/locales'
 import type { RoleSlug } from '@/payload-types'
 
 import { bypassPermissions } from './bypassPermissions'
-import {
-  getPermissionsForRole,
-  getRoleProject,
-  isCollectionVisibleInProject,
-  isRestrictedCollection,
-  virtualRoles,
-} from './config'
+import { getPermissionsForRole, getRoleProject, isImplicitlyReadable, virtualRoles } from './config'
 import { rolesForAllLocales, roleScopeFromLocale } from './localizedRoles'
 
 /**
@@ -43,7 +37,7 @@ import { rolesForAllLocales, roleScopeFromLocale } from './localizedRoles'
  *    - Self-access: allow read of own document, and update for managers
  * 3. Extract roles (flat for clients, localized for managers, plus derived)
  * 4. Unified permission check (single loop per role):
- *    - Implicit read: project-based visibility
+ *    - Implicit read: collections the role's project names
  *    - Explicit permissions: role configuration
  *    - Translate: localized field updates only
  * 5. Default → deny
@@ -82,19 +76,11 @@ export function hasPermission(
   // 4. UNIFIED PERMISSION CHECK (single loop for efficiency)
   // Checks both implicit read and explicit permissions in one pass per role
   for (const role of roles) {
-    // 4a. IMPLICIT READ ACCESS (for read operations only)
-    // Both managers and API clients get the same behavior:
-    // - Collections in their role's project are readable
-    // - Shared collections (not in any project) are readable by all
-    // - EXCEPT restricted collections: personal data and credentials never
-    //   ride the shared-read rule — explicit grant or admin only.
-    //   `config/projects.ts` names the set and says why each one is on it. A
-    //   client reading its own row was already answered by step 2's
-    //   self-access.
-    if (operation === 'read' && !isRestrictedCollection(collection)) {
-      const project = getRoleProject(role)
-      if (isCollectionVisibleInProject(collection, project || null)) return true
-    }
+    // 4a. IMPLICIT READ ACCESS — managers and API clients alike read what
+    // their role's project names, and nothing else: a collection in no project
+    // fails closed (`isImplicitlyReadable`). A client reading its own row was
+    // already answered by step 2's self-access.
+    if (operation === 'read' && isImplicitlyReadable(collection, getRoleProject(role))) return true
 
     // 4b. EXPLICIT PERMISSIONS (via role configuration)
     const rolePermissions = getPermissionsForRole(role)

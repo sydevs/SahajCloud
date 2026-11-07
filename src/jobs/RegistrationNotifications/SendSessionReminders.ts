@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
+import { runClock } from '@/lib/jobs/runClock'
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -305,9 +306,7 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
   ],
   handler: async ({ req }) => {
     const payload = req.payload
-    // `req.context.now` overrides the clock for deterministic tests.
-    const contextNow = (req.context as { now?: unknown } | undefined)?.now
-    const now = contextNow instanceof Date ? contextNow : new Date()
+    const now = runClock(req)
     const window = reminderWindow(now)
     const result: ReminderResult = {
       processedEvents: 0,

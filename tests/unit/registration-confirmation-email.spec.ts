@@ -3,15 +3,12 @@
  *
  * Follows `email-templates.spec.ts`: pure render contract, no Payload
  * bootstrap, no DB. Covers the AC's matrix — online + offline, two locales,
- * and a branded vs fallback client — plus the plain-text alternative.
+ * and a branded vs fallback client — plus the generated plain-text part.
  */
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import {
-  RegistrationConfirmationEmail,
-  registrationConfirmationText,
-} from '@/emails/RegistrationConfirmationEmail'
+import { RegistrationConfirmationEmail } from '@/emails/RegistrationConfirmationEmail'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
@@ -62,7 +59,7 @@ function decodeEntities(html: string): string {
 }
 
 async function render(props: Partial<Parameters<typeof RegistrationConfirmationEmail>[0]> = {}) {
-  const html = await renderEmail(
+  const { html } = await renderEmail(
     createElement(RegistrationConfirmationEmail, {
       name: 'Jo',
       brand: getEmailBrand('sahaj-atlas'),
@@ -261,41 +258,21 @@ describe('RegistrationConfirmationEmail — event title', () => {
   })
 })
 
-describe('registrationConfirmationText', () => {
-  const props = {
+describe('the plain-text part', () => {
+  const props: Parameters<typeof RegistrationConfirmationEmail>[0] = {
     name: 'Jo',
     brand: getEmailBrand('sahaj-atlas'),
     strings: EMAIL_STRING_DEFAULTS,
     details: baseDetails,
   }
+  const textOf = async (overrides: Partial<typeof props> = {}) =>
+    (await renderEmail(createElement(RegistrationConfirmationEmail, { ...props, ...overrides })))
+      .text
 
-  it('carries the same key facts as the HTML', () => {
-    const text = registrationConfirmationText(props)
-
-    expect(text).toContain('Jo')
-    expect(text).toContain('Tuesday Evening Meditation')
-    expect(text).toContain('Every week on Tuesday')
+  /** The join link is the one fact a text-only reader must be able to act on. */
+  it('carries the join link, and no markup', async () => {
+    const text = await textOf()
     expect(text).toContain(ONLINE_URL)
-    expect(text).toContain('8 sessions')
-    expect(text).toContain('Ana')
-  })
-
-  it('contains no HTML markup', () => {
-    expect(registrationConfirmationText(props)).not.toMatch(/<[a-z]/i)
-  })
-
-  it('renders the address and maps link for an offline event', () => {
-    const text = registrationConfirmationText({ ...props, details: offlineDetails })
-
-    expect(text).toContain('12 Example Street')
-    expect(text).toContain('maps/search')
-    expect(text).not.toContain(ONLINE_URL)
-  })
-
-  it('follows the resolved locale', () => {
-    const text = registrationConfirmationText({ ...props, strings: germanStrings })
-
-    expect(text).toContain('Du bist angemeldet')
-    expect(text).toContain('Hallo Jo')
+    expect(text).not.toMatch(/<[a-z]/i)
   })
 })

@@ -242,15 +242,33 @@ const partialClient: EmailClient = {
  * English fallback shows in the rendered mail.
  */
 const GERMAN_EMAILS = {
+  confirmation_subject: 'Du bist angemeldet: %{event}',
   confirmation_heading: 'Du bist angemeldet',
   confirmation_intro: 'Hallo %{name}, dein Platz ist bestätigt. Hier sind die Details.',
   when_label: 'Wann',
   where_label: 'Wo',
   online_cta: 'Online teilnehmen',
   online_link_hint: 'Falls der Button nicht funktioniert, kopiere diesen Link:',
+  directions_cta: 'Wegbeschreibung',
   about_label: 'Was dich erwartet',
+  contact_label: 'Deine Gastgeberin',
   sessions_count_one: '%{count} Termin',
   sessions_count_other: '%{count} Termine',
+  footer_reason: 'Du erhältst diese E-Mail, weil du dich für diese Klasse angemeldet hast.',
+  footer_website: '%{name} besuchen',
+  reminder_subject: 'Erinnerung: %{event} ist morgen',
+  reminder_heading: 'Deine Klasse ist morgen',
+  reminder_intro: 'Hallo %{name}, eine kurze Erinnerung an deine bevorstehende Klasse.',
+  reminder_footer_reason:
+    'Du erhältst diese Erinnerung, weil du dich für diese Klasse angemeldet hast.',
+  unsubscribe_cta: 'Diese Erinnerungen abbestellen',
+}
+
+/** The widget's own schedule sentences, which the email's schedule line reads too. */
+const GERMAN_RECURRENCE = {
+  daily: 'Jeden Tag',
+  weekly_1: 'Jeden %{weekday}',
+  weekly_multi: 'Jeden %{weekdays}',
 }
 
 interface Scenario {
@@ -383,7 +401,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     label: 'online · german',
-    note: 'partly-translated locale — untranslated keys fall back to English',
+    note: 'German throughout: chrome, schedule sentence, weekday, date and clock',
     event: onlineEvent,
     client: brandedClient,
     locale: 'de',
@@ -445,7 +463,12 @@ async function main() {
     // Stub only what sendRegistrationConfirmation actually touches, so the real
     // composition (subject, From, Reply-To, HTML, text, .ics) runs unchanged.
     const payload = {
-      findGlobal: realFindGlobal ?? (async () => ({ emails: scenario.translations ?? {} })),
+      findGlobal:
+        realFindGlobal ??
+        (async () =>
+          scenario.translations
+            ? { emails: scenario.translations, event: { recurrence: GERMAN_RECURRENCE } }
+            : {}),
       logger: { debug() {}, error() {}, info() {}, warn() {} },
       sendEmail: async (message: Record<string, unknown>) => {
         const attachments = message.attachments as { filename?: string }[] | undefined

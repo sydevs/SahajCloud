@@ -89,7 +89,7 @@ filterSpec(rawSpec, {
 
 **`ALLOW_POST_FOR` is necessary but not sufficient.** Two independent tiers can each mark a POST `x-internal`: clearing the create-specific one leaves the second untouched, since **any path whose collection is in no project is hidden**. Both public intakes sit in no project on purpose — that is what stops project membership granting implicit read to a project's roles — so both POSTs stay `x-internal` despite this list. Clients discover them through the generated types, not `/api/docs`.
 
-To document one of them, change project membership plus `RESTRICTED_COLLECTIONS` instead — not another entry here. `tests/unit/openapi-custom-endpoints.spec.ts` pins both directions.
+To document one of them, change project membership instead — which also grants that project's roles implicit read, so add it only if they should have it — — not another entry here. `tests/unit/openapi-custom-endpoints.spec.ts` pins both directions.
 
 **Project-based filtering.** With a project specified, only its collections show. Otherwise the union of all client-role collections shows. This uses `getProjectCollections()` and `getRoleOptions()` from `@/plugins/access` — not duplicate helpers.
 

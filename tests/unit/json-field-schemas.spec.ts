@@ -178,7 +178,7 @@ describe('Managers.notificationPreferences', () => {
     ).not.toBe(true)
     expect(
       runFieldValidate(field, { event_registration: { frequency: 'Immediate', method: '' } }),
-    ).toMatch(/Event Registration/)
+    ).toMatch(/New registrations/)
   })
 
   it('keeps the top level open, so a retired notification type strands no manager', () => {
@@ -204,7 +204,7 @@ describe('Managers.notificationPreferences', () => {
         invitation: { frequency: 'Immediate', method: 'email' },
         event_verification: { frequency: 'Monthly', method: 'email' },
         event_registration: { frequency: 'Immediate', method: 'email' },
-        regional_summary: { frequency: 'Monthly', method: 'email' },
+        statistics: { frequency: 'Monthly', method: 'email' },
       }),
     ).toBe(true)
   })

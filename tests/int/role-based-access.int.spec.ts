@@ -264,7 +264,7 @@ describe('Role-Based Access Control', () => {
         roles: { en: ['web-translator'] },
       })
 
-      // Should have implicit read access to non-restricted collections
+      // Implicit read of what the role's project names
       expect(
         hasPermission(
           { user: managerUser, locale: 'en', collection: 'narrators', operation: 'read' },
