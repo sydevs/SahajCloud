@@ -13,7 +13,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
 
-import { SessionReminderEmail, sessionReminderText } from '@/emails/SessionReminderEmail'
+import { SessionReminderEmail } from '@/emails/SessionReminderEmail'
 import type { LocaleCode } from '@/lib/locales'
 import { buildReminderEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -53,12 +53,10 @@ export async function sendSessionReminder(args: {
 
   const brand = client ? getClientEmailBrand(client) : getEmailBrand('sahaj-atlas')
   const strings = await resolveEmailStrings({ payload, locale, req })
-  const details = buildReminderEmailDetails(event, occurrenceIso)
+  const details = buildReminderEmailDetails(event, occurrenceIso, { locale, strings })
   const unsubscribeUrl = buildUnsubscribeEmailLink(
     await signUnsubscribeToken({ submissionId }, payload.secret),
   )
-
-  const templateProps = { name: registrantName, brand, strings, details, unsubscribeUrl }
 
   await payload.sendEmail({
     to: registrantEmail,
@@ -69,7 +67,14 @@ export async function sendSessionReminder(args: {
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
     subject: stripNewlines(interpolate(strings.reminder_subject, { event: details.eventTitle })),
-    html: await renderEmail(createElement(SessionReminderEmail, templateProps)),
-    text: sessionReminderText(templateProps),
+    ...(await renderEmail(
+      createElement(SessionReminderEmail, {
+        name: registrantName,
+        brand,
+        strings,
+        details,
+        unsubscribeUrl,
+      }),
+    )),
   })
 }

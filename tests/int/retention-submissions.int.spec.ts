@@ -184,6 +184,26 @@ describe('Submission retention sweep', () => {
       expect(await exists('user-submissions', row.id)).toBe(false)
     })
 
+    /**
+     * ⚠ `confirmed_spam` ages out on the same clock, not for ever. An admin
+     * agreeing with the spam check does not make the row evidence worth
+     * keeping any longer than the refusal it confirms.
+     */
+    it('sweeps a confirmed refusal on the same window as the machine refusal', async () => {
+      const row = await seed({
+        senderEmail: 'confirmed@example.com',
+        screeningResult: { screenedAt: new Date().toISOString(), verdict: 'disposable_email' },
+        status: 'confirmed_spam',
+      })
+      const anchor = Date.now()
+
+      await sweep(anchor, MACHINE_SPAM_DAYS - 1)
+      expect(await exists('user-submissions', row.id)).toBe(true)
+
+      await sweep(anchor, MACHINE_SPAM_DAYS + 1)
+      expect(await exists('user-submissions', row.id)).toBe(false)
+    })
+
     it('keeps a decided proposal for its own window', async () => {
       const row = await seed({
         type: 'proposal',

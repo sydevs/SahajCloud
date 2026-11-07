@@ -7,6 +7,7 @@ import {
   PublishButton,
   SaveButton,
   SaveDraftButton,
+  useAuth,
   useDocumentInfo,
   useForm,
   useFormFields,
@@ -16,7 +17,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
-import { resolveStage } from './stages'
+import { resolveStage, ruleApplies } from './stages'
 
 /**
  * ⚠ **The key must match the slot the declaration sits in.** Nothing can check
@@ -46,24 +47,35 @@ const FALLBACKS = {
  * module serves a drafts-enabled collection `PublishButton` / `SaveDraftButton`
  * and never `SaveButton`, so Meditations declares the first two.
  */
-const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
-  fallback,
-  onlyWhen,
-  stages,
-  statusField,
-}) => {
+const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, rules, statusField }) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
   const { i18n } = useTranslation()
   const modified = useFormModified()
+  const { user } = useAuth()
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
   )
-  // Its own subscription, not a tuple selector beside the status: a selector
-  // returning an object hands back a fresh reference on every form-state change
-  // and re-renders the button row on every keystroke.
-  const gate = useFormFields(([fields]) => (onlyWhen ? fields?.[onlyWhen.field]?.value : undefined))
+
+  // `ClientUser` carries no `type` — it is a field of ours, not Payload's.
+  const isAdmin = (user as null | { type?: unknown })?.type === 'admin'
+  const named = resolveStage({ operation, status, statusField })
+  // The first rule that both applies and names this stage, as an index: a
+  // selector returning a primitive re-renders only when the answer changes. A
+  // rule that applies but is silent about the stage falls through to the next,
+  // so an earlier rule narrows rather than claims. ⚠ A stage declared `[]` is
+  // named, so it still wins and renders nothing; that is what keeps "no action
+  // here" from reading as "not my kind of document", which would restore Save.
+  const ruleIndex = useFormFields(([fields]) =>
+    named === undefined
+      ? -1
+      : rules.findIndex(
+          (rule) =>
+            rule.stages[named] !== undefined &&
+            ruleApplies(rule.when, { field: (name) => fields?.[name]?.value ?? null, isAdmin }),
+        ),
+  )
 
   const run = useCallback(
     (action: WorkflowButton) => {
@@ -73,15 +85,7 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
     [submit],
   )
 
-  // A gated-out document names no stage, which is the same answer as a status
-  // the declaration never mentioned — so it takes the fallback path already
-  // below. ⚠ That is also what puts it ahead of a stage declared `[]`, which
-  // renders nothing: a gated-out row would otherwise lose its Save button.
-  const stage =
-    onlyWhen && gate !== onlyWhen.equals
-      ? undefined
-      : resolveStage({ operation, status, statusField })
-  const actions = stage === undefined ? undefined : stages[stage]
+  const actions = ruleIndex < 0 ? undefined : rules[ruleIndex]!.stages[named!]
 
   if (!actions) {
     if (!fallback) return null

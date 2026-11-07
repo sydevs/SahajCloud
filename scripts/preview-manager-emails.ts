@@ -186,21 +186,25 @@ const SCENARIOS: Scenario[] = [
 async function main() {
   const { Events, Managers, Pages, Regions } = await import('@/collections')
   const { managersLogin } = await import('@/collections/Managers/login')
-  const { generateEmailHTML, generateEmailSubject } = await import('@/plugins/login/mail')
+  const { generateEmail, generateEmailSubject } = await import('@/plugins/login/mail')
   const { composeInvitations } = await import('@/plugins/login/invite')
   const { SIGNIN_VALID_FOR } = await import('@/plugins/login')
 
   const { transport, messageUrl } = createCaptureTransport()
   const previews: { label: string; note: string; url: false | string }[] = []
 
-  const send = async (scenario: { label: string; note: string }, subject: string, html: string) => {
+  const send = async (
+    scenario: { label: string; note: string },
+    subject: string,
+    body: { html: string; text: string },
+  ) => {
     const info = await transport.sendMail({
       from: 'SahajCloud preview <dev@wemeditate.com>',
       to: 'manager-preview@example.com',
       // Label the inbox row so scenarios are distinguishable at a glance. The
       // real subject still appears inside the message.
       subject: `[${scenario.label}] ${subject}`,
-      html,
+      ...body,
     })
     previews.push({ label: scenario.label, note: scenario.note, url: messageUrl(info) })
   }
@@ -280,7 +284,7 @@ async function main() {
         invitations.length > 1
           ? `${scenario.label} (${invitation.from.replace(/ <.*/, '')})`
           : scenario.label
-      await send({ label, note: scenario.note }, invitation.subject, invitation.html)
+      await send({ label, note: scenario.note }, invitation.subject, invitation)
     }
   }
 
@@ -294,7 +298,7 @@ async function main() {
   await send(
     { label: 'sign-in link', note: 'what an ACCEPTED manager gets when they ask for a link' },
     generateEmailSubject(signInArgs),
-    await generateEmailHTML(signInArgs),
+    await generateEmail(signInArgs),
   )
 
   console.log('\n━━━ Manager auth email previews ━━━\n')

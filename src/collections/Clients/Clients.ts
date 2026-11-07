@@ -153,8 +153,8 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
  *
  * ⚠ **Every field carries `managersOnlyFieldAccess`, and that is the security
  * boundary rather than a nicety.** Self-access lets a published key read its own
- * row whole over `GET /api/clients/me`, which no `RESTRICTED_COLLECTIONS` entry
- * covers — without the lock a service would read back its own provider secret.
+ * row whole over `GET /api/clients/me`, which project membership never
+ * reaches — without the lock a service would read back its own provider secret.
  * `admin.condition` covers only the UI.
  *
  * `required` plus a false `admin.condition` is the whole "required only when

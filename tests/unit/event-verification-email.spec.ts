@@ -89,7 +89,9 @@ const baseProps = {
 /** Render with `baseProps`, overridden per case. Returns the promise so the
  *  unsupported region/due combination can still be asserted with `.rejects`. */
 const render = (props: Partial<Parameters<typeof EventVerificationEmail>[0]> = {}) =>
-  renderEmail(createElement(EventVerificationEmail, { ...baseProps, level: 'due', ...props }))
+  renderEmail(createElement(EventVerificationEmail, { ...baseProps, level: 'due', ...props })).then(
+    ({ html }) => html,
+  )
 
 describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
@@ -337,7 +339,7 @@ describe('EventVerificationEmail', () => {
   })
 
   it('renders without a details table when none is supplied', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(EventVerificationEmail, {
         name: 'Sam',
         eventTitle: 'Untitled',

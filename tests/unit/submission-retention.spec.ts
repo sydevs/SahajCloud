@@ -114,7 +114,7 @@ describe('Submission retention', () => {
 
     expect(selects('proposals')).toContain('rejected')
     expect(selects('proposals')).not.toContain('spam')
-    expect(selects('machineSpam')).toEqual(['spam'])
+    expect(selects('machineSpam')).toEqual(['spam', 'confirmed_spam'])
   })
 
   it('sweeps the longest window first, so the windows cannot overlap by accident', () => {

@@ -349,7 +349,7 @@ describe('Event feedback (registrant voting)', () => {
     const runJob = (runStart: Date) =>
       runTaskHandler(SendPostEventFollowUps, {
         payload,
-        context: { runStart: runStart.toISOString() },
+        context: { now: runStart },
       })
 
     it('asks registrants of an elapsed unverified event exactly once', async () => {

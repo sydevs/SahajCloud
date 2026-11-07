@@ -10,7 +10,7 @@ What a `clients` document holds beyond its key: canonical ownership and the embe
 ## Clients collection (`src/collections/Clients/Clients.ts`)
 
 - `useAPIKey: { reveal: true }` — Payload generates an API key per client. Managers regenerate keys and manage settings through the **document-manager** path, not a role: no role holds any `clients` grant, so an admin, or a manager listed in that client's `managers` field, is the whole of who reaches the document. No read returns a stored key (Payload 3.90+) — the admin's **Reveal** button, `POST /api/clients/:id/api-key/reveal`, is the only way to see one again, gated as in `docs/rules/access.md`.
-- ⚠ **`clients` is a restricted collection, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
+- ⚠ **`clients` sits in no project, so no role reads it implicitly, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
 
 ## Canonical ownership + observed embeds (#633)
 
@@ -110,7 +110,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 
 A service that relays subscribe submissions names its own provider, under **Config → Mailing List**. Any service may run a list, whatever its roles.
 
-⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read `RESTRICTED_COLLECTIONS` never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
+⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read project membership never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 

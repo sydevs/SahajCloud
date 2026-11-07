@@ -41,6 +41,9 @@ export type ChallengeConfig =
  *
  * `reset` is accepted from the parent window at that origin only, so nobody else can discard a
  * challenge the visitor has just solved.
+ *
+ * The widget renders `interaction-only`: invisible unless Cloudflare needs a click. The parent
+ * keeps its frame collapsed, and `interactive` / `settled` tell it when to open and close it.
  */
 export const CHALLENGE_SCRIPT = `(function (config) {
   var parentWindow = window.parent;
@@ -66,6 +69,9 @@ export const CHALLENGE_SCRIPT = `(function (config) {
       sitekey: config.siteKey,
       theme: config.theme,
       language: config.language,
+      appearance: 'interaction-only',
+      'before-interactive-callback': function () { send({ type: 'interactive' }); },
+      'after-interactive-callback': function () { send({ type: 'settled' }); },
       callback: function (token) { send({ type: 'token', token: token }); },
       'error-callback': function () { send({ type: 'error' }); },
       'expired-callback': function () { send({ type: 'expired' }); }
@@ -87,7 +93,7 @@ const scriptJson = (value: unknown): string => JSON.stringify(value).replace(/</
 
 /**
  * The whole document. Transparent and margin-free, because the widget sizes its frame to
- * Turnstile's own 300×65 and nothing else is on the page.
+ * Turnstile's own 300×65 while a challenge is interactive, and nothing else is on the page.
  */
 export function challengeDocument(config: ChallengeConfig): string {
   return `<!doctype html>
