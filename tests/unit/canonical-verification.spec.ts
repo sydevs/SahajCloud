@@ -11,7 +11,7 @@ import {
 import {
   normalizeMountPath,
   primaryPageUrl,
-  primaryReport,
+  reportedMountsFor,
   supportsClassAddresses,
 } from '../../src/lib/clients/site'
 import {
@@ -177,14 +177,16 @@ describe('normalizeMountPath', () => {
   })
 })
 
-describe('primaryReport', () => {
+describe('reportedMountsFor on a service with a domain', () => {
   const site = { domain: 'sahajayoga.ca', page: '/classes' }
 
   it('finds the report from the primary page, on the domain or its www twin', () => {
     const embedMetadata: EmbedMetadata = {
       'https://www.sahajayoga.ca/classes/': record(),
     }
-    expect(primaryReport(embedMetadata, site)?.key).toBe('https://www.sahajayoga.ca/classes/')
+    expect(reportedMountsFor(embedMetadata, site)[0]?.key).toBe(
+      'https://www.sahajayoga.ca/classes/',
+    )
   })
 
   it('takes the most recent of several, which is the live one', () => {
@@ -192,7 +194,7 @@ describe('primaryReport', () => {
       'https://sahajayoga.ca/classes': record({ lastSeen: '2026-09-01T00:00:00.000Z' }),
       'https://www.sahajayoga.ca/classes': record({ lastSeen: '2026-10-01T00:00:00.000Z' }),
     }
-    expect(primaryReport(embedMetadata, site)?.key).toBe('https://www.sahajayoga.ca/classes')
+    expect(reportedMountsFor(embedMetadata, site)[0]?.key).toBe('https://www.sahajayoga.ca/classes')
   })
 
   it('ignores another page on the site, and the same page on another site', () => {
@@ -200,14 +202,13 @@ describe('primaryReport', () => {
       'https://sahajayoga.ca/': record(),
       'https://evil.example/classes': record(),
     }
-    expect(primaryReport(embedMetadata, site)).toBeNull()
+    expect(reportedMountsFor(embedMetadata, site)).toEqual([])
   })
 
-  it('answers null with no page, no domain or no reports', () => {
+  it('answers nothing with no page or no reports', () => {
     const embedMetadata: EmbedMetadata = { 'https://sahajayoga.ca/classes': record() }
-    expect(primaryReport(embedMetadata, { domain: 'sahajayoga.ca', page: null })).toBeNull()
-    expect(primaryReport(embedMetadata, { domain: null, page: '/classes' })).toBeNull()
-    expect(primaryReport(null, site)).toBeNull()
+    expect(reportedMountsFor(embedMetadata, { domain: 'sahajayoga.ca', page: null })).toEqual([])
+    expect(reportedMountsFor(null, site)).toEqual([])
   })
 })
 

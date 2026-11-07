@@ -9,7 +9,7 @@ import {
   mergeEmbedReport,
   parseMountKey,
 } from '@/lib/clients/embedMetadata'
-import { primaryReport, siteHosts } from '@/lib/clients/site'
+import { siteHosts } from '@/lib/clients/site'
 import { parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
 import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
@@ -163,8 +163,6 @@ export const clientEmbedReport: Endpoint = {
       key: mount.key,
       observation,
       at: new Date().toISOString(),
-      // Spared by the cap whatever its `lastSeen` — see `pinned`.
-      pinned: primaryReport(client.embedMetadata, client.site)?.key,
     })
 
     if (changed) {

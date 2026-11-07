@@ -3,9 +3,9 @@ import type { Step, StepId, Track, TrackMeta } from './steps'
 import type { ClaimResult, VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import type { InfoBannerType } from '@/components/admin/InfoBanner/InfoBanner'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
+import type { ReportedMount } from '@/lib/clients/site'
+import { normalizeMountPath, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
-import { splitMountKey } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
@@ -18,57 +18,6 @@ import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
  * arriving for the chosen page while the tab is open, and a check failing on one
  * page and passing on another.
  */
-
-/** A mount the widget has reported, matched against the address being set up. */
-export interface ReportedMount {
-  /** The `origin + pathname` key `embedMetadata` is keyed by. */
-  key: string
-  host: string
-  mount: string
-  lastSeen?: string
-}
-
-/**
- * The reported mounts whose page is the address being installed.
- *
- * Matched on the path, and on the host when one is known: a service is one site,
- * served at its domain or that domain's www twin (`siteHosts`), and the browser
- * reports whichever the visitor typed. The one chosen is the most recently seen
- * — which is the live one.
- *
- * A WordPress permalink mount (`/?p=42`) is compared with its query intact,
- * because that query *is* the page there.
- */
-export function reportedMountsFor(args: {
-  embedMetadata: EmbedMetadata | null | undefined
-  /** `null` while the address has a problem, which matches nothing. */
-  atlasUrl: string | null
-  /** The service's domain, which narrows the match to its own site. */
-  host?: string | null
-}): ReportedMount[] {
-  const { embedMetadata, atlasUrl } = args
-  if (atlasUrl === null || !embedMetadata || typeof embedMetadata !== 'object') return []
-
-  const wanted = normalizeMountPath(atlasUrl)
-  const hosts = siteHosts(args.host)
-  const mounts: ReportedMount[] = []
-
-  for (const [key, record] of Object.entries(embedMetadata)) {
-    const split = splitMountKey(key)
-    if (!split || normalizeMountPath(split.mount) !== wanted) continue
-    if (hosts.length > 0 && !hosts.includes(split.domain.split(':')[0].toLowerCase())) continue
-    const lastSeen = (record as { lastSeen?: unknown } | null)?.lastSeen
-    mounts.push({
-      key,
-      host: split.domain,
-      mount: split.mount,
-      lastSeen: typeof lastSeen === 'string' ? lastSeen : undefined,
-    })
-  }
-
-  // Newest first, so the live host wins over a staging copy reported last month.
-  return mounts.sort((a, b) => (b.lastSeen ?? '').localeCompare(a.lastSeen ?? ''))
-}
 
 /** How far along the install is. One answer, for the banner at the top. */
 export type InstallStage = 'waiting' | 'seen' | 'verifying' | 'verified' | 'warnings' | 'failed'
@@ -122,7 +71,7 @@ export function buildInstallModel(args: {
 }): InstallModel {
   const { embedMetadata, verification, atlasUrl, track, busy = false } = args
 
-  const reported = reportedMountsFor({ embedMetadata, atlasUrl, host: args.host })
+  const reported = reportedMountsFor(embedMetadata, { domain: args.host, page: atlasUrl })
   const candidate = reported[0] ?? null
   // A track with no search listings ignores the checks the CMS runs regardless.
   const results = track?.searchListings === false ? [] : (verification?.seo?.results ?? [])

@@ -5,7 +5,7 @@ import { APIError } from 'payload'
 import { getCanonicalFallbackClientId } from '@/lib/atlas/regionOwners'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { primaryPageUrl, primaryReport, supportsClassAddresses } from '@/lib/clients/site'
+import { primaryPageUrl, reportedMountsFor, supportsClassAddresses } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
 import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
@@ -178,7 +178,8 @@ async function claimRegion(req: PayloadRequest, client: Client): Promise<ClaimRe
     }
   }
 
-  const report = primaryReport(client.embedMetadata as EmbedMetadata | null, client.site)
+  // The address is set (the caller refused a service without one), so this is its own domain's.
+  const [report] = reportedMountsFor(client.embedMetadata as EmbedMetadata | null, client.site)
   if (!report) {
     return {
       status: 'unknown-mount',

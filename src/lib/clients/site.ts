@@ -94,27 +94,41 @@ export function normalizeMountPath(mount: string): string {
   return query ? `${trimmed}?${query}` : trimmed
 }
 
+/** A report from the page being installed, as {@link reportedMountsFor} finds it. */
+export interface ReportedMount {
+  /** The `origin + pathname` key `embedMetadata` is keyed by. */
+  key: string
+  host: string
+  mount: string
+  lastSeen?: string
+  record: EmbedMountRecord
+}
+
 /**
- * The widget's most recent report from the primary page, on either of the
- * site's hosts, or `null` when it has not reported from there.
+ * The widget's reports from one page, newest first — the live host wins over a
+ * staging copy reported last month.
+ *
+ * Matched on the path, and on the domain or its www twin when one is set (the
+ * browser reports whichever the visitor typed). A WordPress permalink mount
+ * (`/?p=42`) is compared with its query intact, because that query *is* the
+ * page there.
  */
-export function primaryReport(
+export function reportedMountsFor(
   embedMetadata: EmbedMetadata | null | undefined,
   site: SiteFields | null | undefined,
-): { key: string; record: EmbedMountRecord } | null {
-  const hosts = siteHosts(site?.domain)
-  if (!embedMetadata || typeof embedMetadata !== 'object' || !site?.page || hosts.length === 0) {
-    return null
-  }
+): ReportedMount[] {
+  if (!embedMetadata || typeof embedMetadata !== 'object' || !site?.page) return []
+
   const wanted = normalizeMountPath(site.page)
-  let best: { key: string; record: EmbedMountRecord } | null = null
+  const hosts = siteHosts(site.domain)
+  const mounts: ReportedMount[] = []
   for (const [key, record] of Object.entries(embedMetadata)) {
     const split = splitMountKey(key)
-    if (!split || !hosts.includes(normalizeHost(split.domain) ?? '')) continue
-    if (normalizeMountPath(split.mount) !== wanted) continue
-    if (!best || (record.lastSeen ?? '') > (best.record.lastSeen ?? '')) best = { key, record }
+    if (!split || normalizeMountPath(split.mount) !== wanted) continue
+    if (hosts.length > 0 && !hosts.includes(normalizeHost(split.domain) ?? '')) continue
+    mounts.push({ key, host: split.domain, mount: split.mount, lastSeen: record.lastSeen, record })
   }
-  return best
+  return mounts.sort((a, b) => (b.lastSeen ?? '').localeCompare(a.lastSeen ?? ''))
 }
 
 /**

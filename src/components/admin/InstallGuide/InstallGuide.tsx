@@ -27,7 +27,7 @@ import {
   isBrandColor,
 } from '@/lib/clients/appearance'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { primaryPageUrl } from '@/lib/clients/site'
+import { primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
@@ -37,7 +37,6 @@ import {
   buildInstallModel,
   buildMilestones,
   checkOutcome,
-  reportedMountsFor,
   sectionConfirmed,
   stageBanner,
   type StepStatus,
@@ -390,11 +389,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   const recheck = async (from: CheckSource): Promise<void> => {
     setResult(null)
     const polled = await reread()
-    const candidate = reportedMountsFor({
-      embedMetadata: (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
-      atlasUrl: atlasPath,
-      host: address.host,
-    })[0]
+    const candidate = reportedMountsFor(
+      (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
+      { domain: address.host, page: atlasPath },
+    )[0]
     // Clearing the guard is what makes this button re-run rather than no-op: the
     // poll's effect only acts on a mount it has not confirmed before.
     confirmedFor.current = candidate?.key ?? null

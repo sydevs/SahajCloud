@@ -20,7 +20,7 @@ A service is **one site**: `site.domain` (a bare host) plus `site.page` (the pri
 
 - **`siteHosts(domain)`** is the whole origin allowlist: the domain and its www or bare twin. No wildcards, no second domain — a second site needs a service and key of its own. No domain means no browser origin to enforce, which is an app's key. ⚠ An empty list is **not** the same as no domain: **`hasSiteDomain(domain)`** answers that, and a domain naming no host is refused every origin rather than allowed any (`docs/rules/api-clients.md`).
 - **`primaryPageUrl(site)`** is the page that is verified, probed, routed from and, for an owner, published on — always `https://` on the bare host.
-- **`primaryReport(embedMetadata, site)`** is the widget's latest report from that page, on either host, and **`supportsClassAddresses(record)`** reads from it whether the page can give a class its own link (inline, and able to write the URL). That observation, not the chosen track, decides whether a site may own its region.
+- **`reportedMountsFor(embedMetadata, site)`** is the widget's reports from that page, on either host, newest first, and **`supportsClassAddresses(record)`** reads from the newest whether the page can give a class its own link (inline, and able to write the URL). That observation, not the chosen track, decides whether a site may own its region.
 
 Any other page on the same domain is a secondary embed automatically: it reports, it shows on the Install tab as evidence, it owns nothing.
 
@@ -91,7 +91,7 @@ Two origin checks apply: the request's `Origin`/`Referer` must be the service's 
 
 Rate limiting is Cloudflare's, at the edge, as for every client route. On top of that, a repeat of a recent identical observation gets `updated: false` with **no read and no write** — the widget reports on every page load, so this path carries most of the traffic.
 
-- **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. Two exceptions to eviction: the primary page's report is never evicted, and the mount just reported can't be evicted by the write that reports it.
+- **The cap bounds storage, never which mounts are knowable** (#639). `MAX_EMBED_MOUNTS` (50) caps what a forger can accumulate. A client at the cap still reports a new mount, evicting the least-recently-seen entry, so the held 50 reflect what is currently live. There is no 429 — refusing growth was tried first, and once ordinary traffic filled the budget an operator's intended page could never get reported. One exception to eviction: the mount just reported can't be evicted by the write that reports it. The primary page's report is not protected — only fifty newer pages can push it out, and its next page load reports it again.
 
   `mergeEmbedReport` (`embedMetadata.ts`) computes the decision. The endpoint applies it in one statement — `|| $1::jsonb` merges, `- $2::text[]` deletes evicted keys. Both halves matter: `||` alone can't delete, so the column would grow unbounded while the cap stayed inert.
 

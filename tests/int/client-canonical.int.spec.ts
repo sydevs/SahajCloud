@@ -462,9 +462,8 @@ describe('client canonical ownership + embed metadata', () => {
         json: async () => opts.body,
         // The whole client doc, as `APIKeyAuthentication` hands it over — it
         // finds the row with no `select`, so every field the handler reads off
-        // `req.user` is present. `site` is one of them (the host check, and the
-        // mount cap sparing the primary page), and a fixture that omitted it
-        // would report a pass for a pin that never applied.
+        // `req.user` is present. `site` is one of them (the host check), and a
+        // fixture that omitted it would report a pass for a check that never ran.
         user: {
           id: opts.clientId,
           collection: 'clients',
@@ -792,24 +791,6 @@ describe('client canonical ownership + embed metadata', () => {
         const stored = (await storedMetadata(client.id)) as Record<string, unknown>
         expect(Object.keys(stored)).toHaveLength(MAX_EMBED_MOUNTS)
         expect(stored['https://sahajayoga.nl/three']).toBeDefined()
-      })
-
-      it('never evicts the primary page’s report, whatever its lastSeen', async () => {
-        const client = await seedAtCap('Canonical Capped Reporter')
-        // `p0` is both the oldest mount and the service's primary page.
-        await payload.update({
-          collection: 'clients',
-          id: client.id,
-          data: { site: { domain: 'sahajayoga.nl', page: '/p0' } },
-          overrideAccess: true,
-        })
-
-        await report(client.id, '/newly-added')
-
-        const stored = (await storedMetadata(client.id)) as Record<string, unknown>
-        expect(Object.keys(stored)).toHaveLength(MAX_EMBED_MOUNTS)
-        expect(stored['https://sahajayoga.nl/p0']).toBeDefined()
-        expect(stored['https://sahajayoga.nl/p1']).toBeUndefined()
       })
     })
   })

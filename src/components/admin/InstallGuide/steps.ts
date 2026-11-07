@@ -840,7 +840,7 @@ export interface AtlasAddress {
  * ⚠ **The domain is required.** A volunteer copies the address bar, so a whole
  * URL is what they have — and the host is what `hostHints` reads to warn about
  * an undeclared domain or a free Wix site before anything has reported. Reports
- * are still matched on the path alone (`reportedMountsFor`).
+ * are matched on the path and that host (`reportedMountsFor`).
  *
  * ⚠ **The query survives only on the home page**, where it *is* the page: a
  * WordPress plain permalink is `/?p=42`. Anywhere else it is tracking noise

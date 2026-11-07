@@ -10,10 +10,10 @@ import {
   installProgress,
   MILESTONE_STATUS,
   milestonesForRecord,
-  reportedMountsFor,
   sectionConfirmed,
 } from '../../src/components/admin/InstallGuide/installModel'
 import { TRACK_META, tracksFor } from '../../src/components/admin/InstallGuide/steps'
+import { reportedMountsFor } from '../../src/lib/clients/site'
 import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
 
 /**
@@ -69,51 +69,51 @@ const seo = (results: SeoCheckResult[]): CanonicalVerification['seo'] => ({
 
 describe('reportedMountsFor', () => {
   it('matches on the path, because only the site knows its own origin', () => {
-    const mounts = reportedMountsFor({
-      embedMetadata: mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z'),
-      atlasUrl: '/free-classes',
-    })
+    const mounts = reportedMountsFor(
+      mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z'),
+      { page: '/free-classes' },
+    )
     expect(mounts.map((entry) => entry.host)).toEqual(['sahajayoga.ca'])
   })
 
   it('ignores a trailing slash, which is the same page', () => {
-    const mounts = reportedMountsFor({
-      embedMetadata: mount('https://sahajayoga.ca/free-classes/', '2026-10-01T00:00:00.000Z'),
-      atlasUrl: '/free-classes',
-    })
+    const mounts = reportedMountsFor(
+      mount('https://sahajayoga.ca/free-classes/', '2026-10-01T00:00:00.000Z'),
+      { page: '/free-classes' },
+    )
     expect(mounts).toHaveLength(1)
   })
 
   it('does not match another page on the same site', () => {
-    const mounts = reportedMountsFor({
-      embedMetadata: mount('https://sahajayoga.ca/about', '2026-10-01T00:00:00.000Z'),
-      atlasUrl: '/free-classes',
-    })
+    const mounts = reportedMountsFor(
+      mount('https://sahajayoga.ca/about', '2026-10-01T00:00:00.000Z'),
+      { page: '/free-classes' },
+    )
     expect(mounts).toEqual([])
   })
 
   it('keeps a WordPress permalink query, which is the page there', () => {
-    const mounts = reportedMountsFor({
-      embedMetadata: mount('https://sahajayoga.ca/?p=42', '2026-10-01T00:00:00.000Z'),
-      atlasUrl: '/?p=42',
-    })
+    const mounts = reportedMountsFor(
+      mount('https://sahajayoga.ca/?p=42', '2026-10-01T00:00:00.000Z'),
+      { page: '/?p=42' },
+    )
     expect(mounts).toHaveLength(1)
   })
 
   it('puts the most recently seen host first, so a staging copy does not win', () => {
-    const mounts = reportedMountsFor({
-      embedMetadata: {
+    const mounts = reportedMountsFor(
+      {
         ...mount('https://staging.sahajayoga.ca/free-classes', '2026-09-01T00:00:00.000Z'),
         ...mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z'),
       },
-      atlasUrl: '/free-classes',
-    })
+      { page: '/free-classes' },
+    )
     expect(mounts.map((entry) => entry.host)).toEqual(['sahajayoga.ca', 'staging.sahajayoga.ca'])
   })
 
   it('answers nothing for a service that has reported nothing', () => {
-    expect(reportedMountsFor({ embedMetadata: null, atlasUrl: '/free-classes' })).toEqual([])
-    expect(reportedMountsFor({ embedMetadata: {}, atlasUrl: '/free-classes' })).toEqual([])
+    expect(reportedMountsFor(null, { page: '/free-classes' })).toEqual([])
+    expect(reportedMountsFor({}, { page: '/free-classes' })).toEqual([])
   })
 })
 
@@ -276,7 +276,7 @@ describe('buildInstallModel — before the volunteer has chosen', () => {
 
   it('matches nothing while the address has a problem', () => {
     // A null address must not fall back to matching the site root.
-    expect(reportedMountsFor({ embedMetadata, atlasUrl: null })).toEqual([])
+    expect(reportedMountsFor(embedMetadata, { page: null })).toEqual([])
     expect(
       buildInstallModel({ atlasUrl: null, track: TRACK, embedMetadata, verification: null })
         .candidate,
