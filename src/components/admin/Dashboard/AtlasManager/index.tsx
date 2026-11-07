@@ -53,7 +53,7 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
         subtitle="Manage your events and keep their public details up to date."
         title="Your events"
       />
-      <StatTiles label="Statistics • Last 30 days" tiles={statistics.analytics} />
+      <StatTiles label="Statistics" note="Last 30 days" tiles={statistics.analytics} />
       {statistics.mostRegistered ? (
         <p className={styles.closingNote}>
           Most registered: {statistics.mostRegistered.title} ·{' '}

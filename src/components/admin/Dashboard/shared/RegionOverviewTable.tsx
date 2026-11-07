@@ -7,6 +7,7 @@ import { Button, ErrorPill, Table, useTranslation } from '@payloadcms/ui'
 import { Building2, Globe, type LucideIcon, Map as MapIcon, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
+import { changeLabel } from '@/lib/atlasOverview/filters'
 import type { RegionOverviewRow } from '@/lib/atlasOverview/regions'
 import { regionLevelLabel } from '@/lib/atlasSidebar/sidebarModel'
 
@@ -17,9 +18,20 @@ import { CenteredNotice } from '../../CenteredNotice'
 import { Count, QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
 
-function signupLabel(signups: RegionOverviewRow['signups']): string {
-  if (signups.change === 0) return String(signups.last30)
-  return `${signups.last30} (${signups.change > 0 ? '+' : ''}${signups.change})`
+function registrationsLabel({ change, last30 }: RegionOverviewRow['signups']): ReactNode {
+  return (
+    <div className={styles.stacked}>
+      <span>{last30}</span>
+      <span className={styles.muted}>{changeLabel(change)}</span>
+    </div>
+  )
+}
+
+/** Bold, and green from 80% or red under 50%, as the design marks them. */
+function healthyLabel(healthy: RegionOverviewRow['healthy']): ReactNode {
+  if (healthy === null) return '—'
+  const tone = healthy >= 80 ? styles.healthyGood : healthy < 50 ? styles.healthyPoor : ''
+  return <span className={`${styles.healthy} ${tone}`}>{healthy}%</span>
 }
 
 const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
@@ -32,7 +44,7 @@ const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
 function managersLabel({ count, names }: RegionOverviewRow['managers']): ReactNode {
   if (count === 0) return '—'
   return (
-    <div className={styles.managers}>
+    <div className={styles.stacked}>
       {names.map((name, index) => (
         <span key={index}>{name}</span>
       ))}
@@ -96,14 +108,14 @@ export function RegionOverviewTable({
           )),
           column('managers', 'Managers', (row) => managersLabel(row.managers)),
           column('programs', 'Events', (row) => row.programs),
-          column('healthy', 'Healthy', (row) => (row.healthy === null ? '—' : `${row.healthy}%`)),
+          column('healthy', 'Healthy', (row) => healthyLabel(row.healthy)),
           column('overdue', 'Overdue', (row) =>
             row.overdue > 0 ? <ErrorPill count={row.overdue} i18n={i18n} /> : '—',
           ),
           column('unverified', 'Unverified', (row) =>
             row.unverified > 0 ? <Count value={row.unverified} /> : '—',
           ),
-          column('signups', 'Sign-ups · 30 days', (row) => signupLabel(row.signups)),
+          column('signups', 'Registrations', (row) => registrationsLabel(row.signups)),
           column('edit', <span className="sr-only">Edit</span>, (row) => (
             <Button
               aria-label={`Edit ${row.name}`}

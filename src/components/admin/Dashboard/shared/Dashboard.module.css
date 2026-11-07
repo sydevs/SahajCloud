@@ -25,24 +25,34 @@
   flex-shrink: 0;
 }
 
-/* Statistics: flat, no border, no radius — numbers to glance at. */
+/* Statistics: flat tiles that fill the row — numbers to glance at. */
+.tileGroup {
+  margin: 0 0 var(--base);
+}
 .tilesHeading {
-  margin: 0 0 calc(var(--base) / 3);
+  margin: 0 0 calc(var(--base) / 2);
 }
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(var(--base) * 8), 1fr));
-  gap: calc(var(--base) / 6);
-  margin: 0 0 var(--base);
+  --tile-gap: calc(var(--base) * 0.6);
+  /* At most five to a row, so every group's tiles share one width. */
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(calc(var(--base) * 8.5), calc((100% - 4 * var(--tile-gap)) / 5)), 1fr)
+  );
+  gap: var(--tile-gap);
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 .tileLink {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--base) / 8);
+  gap: calc(var(--base) / 5);
   height: 100%;
-  padding: calc(var(--base) * 0.6) calc(var(--base) * 0.7);
+  box-sizing: border-box;
+  padding: calc(var(--base) * 0.7) calc(var(--base) * 0.8);
+  border-radius: var(--style-radius-m);
   background: var(--theme-elevation-50);
   color: inherit;
   text-decoration: none;
@@ -51,21 +61,28 @@ a.tileLink:hover {
   background: var(--theme-elevation-100);
 }
 .tileLabel {
-  font-weight: 600;
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-650);
 }
 .tileValue {
   font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.1;
+  font-weight: 600;
+  line-height: 1.2;
 }
 .tileValue small {
   font-weight: 400;
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-650);
 }
 .tileChange {
   min-height: 1lh;
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-650);
+}
+.better {
+  font-weight: 600;
+  color: var(--theme-success-750);
+}
+.worse {
+  font-weight: 600;
+  color: var(--theme-error-650);
 }
 
 .meter {
@@ -117,7 +134,7 @@ a.tileLink:hover {
 }
 .itemSubtitle {
   display: block;
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-650);
 }
 /* Above the stretched name link, so the icon's own tooltip can be hovered. */
 .iconTip {
@@ -129,7 +146,7 @@ a.tileLink:hover {
   color: var(--theme-elevation-500);
 }
 .muted {
-  color: var(--theme-elevation-500);
+  color: var(--theme-elevation-650);
 }
 .statuses {
   display: flex;
@@ -167,10 +184,22 @@ a.tileLink:hover {
   white-space: nowrap;
   text-align: end;
 }
-/* The name takes the slack, so every other column is as wide as its content. */
+/* The name holds a share of the width, and the figures spread over the rest. */
 .overview :global(.cell-name),
 .overview :global(#heading-name) {
-  width: 100%;
+  width: 30%;
+}
+.overview :global(.cell-edit) {
+  width: 1%;
+}
+.healthy {
+  font-weight: 600;
+}
+.healthyGood {
+  color: var(--theme-success-750);
+}
+.healthyPoor {
+  color: var(--theme-error-650);
 }
 .overview :global(td:not(.cell-name)),
 .overview :global(th:not(#heading-name)) {
@@ -178,7 +207,7 @@ a.tileLink:hover {
   min-width: 0;
   white-space: nowrap;
 }
-.managers {
+.stacked {
   display: flex;
   flex-direction: column;
 }

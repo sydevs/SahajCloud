@@ -112,6 +112,8 @@ export interface StatTile {
   of?: number
   /** The 30-day change, or `null` where nothing can say. */
   change: null | number
+  /** Which way the change is good news, so a reader can tell better from worse. */
+  better?: 'down' | 'up'
   /** The admin list of what the tile counts, under the admin route; absent where the reader has none. */
   path?: `/${string}`
 }
@@ -187,6 +189,8 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
             label,
             value,
             change: before ? value - sum(before) : null,
+            // More verified listings is the one rise that is good news on the ladder.
+            better: label === 'Verified' ? ('up' as const) : ('down' as const),
             path: listPath('events', [...inScope, { verificationStage: { in: stages.join(',') } }]),
           }
         })
@@ -222,6 +226,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
     analytics: [
       {
         key: 'programs',
+        better: 'up',
         label: 'Total events',
         value: programs.size,
         change: programsBefore === null ? null : programs.size - programsBefore,
@@ -229,6 +234,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
       },
       {
         key: 'registrations',
+        better: 'up',
         label: 'Registrations',
         value: signupsNow,
         change: signupsNow - signupsPrevious,
