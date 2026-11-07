@@ -202,6 +202,11 @@ const adminTabs: Condition = (_data, _siblingData, { user }) => !user || isAdmin
  * rather than written per field, and a field added to such a tab later cannot
  * ship writable, unvalidated, by a listed manager. It ANDs with a field's own
  * write rule.
+ *
+ * ⚠ **A rule is matched by the condition's own function reference, so a tab
+ * whose condition is written inline matches nothing.** That is why an
+ * unmatched conditional tab throws at config build rather than shipping
+ * unlocked: there is no other signal, and the tab looks correct either way.
  */
 function lockTabs(tabs: Tab[]): Tab[] {
   const and = (own: FieldAccess | undefined, rule: FieldAccess): FieldAccess =>
@@ -227,8 +232,16 @@ function lockTabs(tabs: Tab[]): Tab[] {
         : locked
     }
   return tabs.map((tab) => {
-    const rule = tab.admin?.condition && TAB_WRITE_RULES.get(tab.admin.condition)
-    return rule ? { ...tab, fields: tab.fields.map(lock(rule)) } : tab
+    if (!tab.admin?.condition) return tab
+    const rule = TAB_WRITE_RULES.get(tab.admin.condition)
+    if (!rule) {
+      const name = 'name' in tab ? tab.name : JSON.stringify(tab.label)
+      throw new Error(
+        `Clients tab ${name} has an admin.condition that TAB_WRITE_RULES does not name. ` +
+          'Register the condition with the write rule it implies, or move the condition to a named one.',
+      )
+    }
+    return { ...tab, fields: tab.fields.map(lock(rule)) }
   })
 }
 

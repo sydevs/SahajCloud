@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { FieldAccess, Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -10,7 +10,6 @@ import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
 import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
-import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -131,46 +130,43 @@ describe('client canonical ownership + embed metadata', () => {
       }
     })
 
-    it('locks every data field of an admin-only tab to admins', () => {
-      // The condition skips validation for a listed manager; the lock is what
-      // makes that safe, so no field in those tabs may be left writable.
+    it('refuses a listed manager every data field of every conditional tab', async () => {
+      // A false condition skips `required` and `validate`, so the write lock is
+      // what makes that safe. Both halves come off the config and the rules are
+      // called rather than compared, so a fifth tab, a rename, or a field
+      // carrying a write rule of its own is covered with no edit here.
       const tabs = (
         Clients.fields.find((field) => field.type === 'tabs') as {
-          tabs: { label?: unknown; fields: unknown[] }[]
+          tabs: {
+            name?: string
+            label?: unknown
+            admin?: { condition?: unknown }
+            fields: unknown[]
+          }[]
         }
-      ).tabs
-      const unlocked: string[] = []
-      const walk = (fields: unknown[]) => {
-        for (const field of fields as Record<string, unknown>[]) {
-          if (field.type === 'ui') continue
-          const access = field.access as { update?: unknown } | undefined
-          if (typeof field.name === 'string' && access?.update !== adminOnlyFieldAccess) {
-            unlocked.push(field.name)
-          }
-          if (Array.isArray(field.fields)) walk(field.fields)
-        }
-      }
-      for (const tab of tabs.filter((tab) =>
-        ['Config', 'Usage', 'Diagnostics'].includes(String(tab.label)),
-      )) {
-        walk(tab.fields)
-      }
-      expect(unlocked).toEqual([])
+      ).tabs.filter((tab) => tab.admin?.condition)
+      expect(tabs.length).toBeGreaterThan(0)
 
-      // And the Atlas tab, hidden on a service without the atlas role, carries a
-      // write rule on every data field too.
-      const atlas = tabs.find((tab) => tab.label === 'Atlas')!
+      // A listed manager of a service with no atlas role is hidden every one of
+      // these tabs, so every lock in them must refuse this write.
+      const req = {
+        user: { collection: 'managers', type: 'manager', id: managerId },
+      } as unknown as PayloadRequest
       const open: string[] = []
-      const walkAtlas = (fields: unknown[]) => {
+      const walk = async (fields: unknown[], tab: string) => {
         for (const field of fields as Record<string, unknown>[]) {
           if (field.type === 'ui') continue
-          if (typeof field.name === 'string' && !(field.access as { update?: unknown })?.update) {
-            open.push(field.name)
+          if (typeof field.name === 'string') {
+            const update = (field.access as { update?: FieldAccess } | undefined)?.update
+            const granted = update
+              ? await update({ req, data: {}, doc: {}, siblingData: {} } as never)
+              : true
+            if (granted !== false) open.push(`${tab}.${field.name}`)
           }
-          if (Array.isArray(field.fields)) walkAtlas(field.fields)
+          if (Array.isArray(field.fields)) await walk(field.fields, tab)
         }
       }
-      walkAtlas(atlas.fields)
+      for (const tab of tabs) await walk(tab.fields, String(tab.name ?? tab.label))
       expect(open).toEqual([])
     })
 
