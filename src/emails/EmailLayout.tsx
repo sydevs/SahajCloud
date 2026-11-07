@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+import { Fragment } from 'react'
 import {
   Body,
   Button,
@@ -9,6 +10,7 @@ import {
   Heading,
   Html,
   Img,
+  Link,
   Preview,
   Row,
   Section,
@@ -375,3 +377,234 @@ const stackedLabel: CSSProperties = {
   margin: '0 0 4px',
 }
 const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
+
+/**
+ * A row of flat grey tiles — a label, a value, and up to two lines beside it.
+ *
+ * Table cells, because a flex row collapses in Outlook's Word engine and an
+ * inline-block row wraps unpredictably at phone width. The 6px gap is a spacer
+ * cell rather than a margin, which Outlook drops on a `<td>`.
+ */
+export function StatTiles({
+  tiles,
+}: {
+  tiles: { change?: null | string; label: string; of?: null | string; value: string }[]
+}) {
+  if (tiles.length === 0) return null
+  return (
+    <Section style={{ margin: '0 0 8px' }}>
+      <Row>
+        {tiles.map((tile, index) => (
+          <Fragment key={tile.label}>
+            {index > 0 ? <Column style={tileGap}>{NBSP}</Column> : null}
+            <Column style={tileCell}>
+              <Text style={tileLabel}>{tile.label}</Text>
+              <Text style={tileValue}>
+                {tile.value}
+                {tile.of ? <span style={tileOf}> of {tile.of}</span> : null}
+              </Text>
+              {tile.change ? <Text style={tileChange}>{tile.change}</Text> : null}
+            </Column>
+          </Fragment>
+        ))}
+      </Row>
+    </Section>
+  )
+}
+
+/** Payload's own pill colours, so an email and the home it mirrors read alike. */
+const PILL_COLORS = {
+  error: { background: '#f7d0cc', text: '#692725' },
+  'light-gray': { background: '#ebebeb', text: '#2f2f2f' },
+  success: { background: '#bce1f8', text: '#12425a' },
+  warning: { background: '#f3d4ba', text: '#5a3713' },
+} as const
+
+export type StatusPillStyle = keyof typeof PILL_COLORS
+
+/** One status, drawn as the admin panel's own pill. */
+export function StatusPill({
+  children,
+  pillStyle,
+}: {
+  children: ReactNode
+  pillStyle: StatusPillStyle
+}) {
+  const colors = PILL_COLORS[pillStyle]
+  return (
+    <span
+      style={{
+        backgroundColor: colors.background,
+        borderRadius: '3px',
+        color: colors.text,
+        display: 'inline-block',
+        fontSize: '12px',
+        fontWeight: 600,
+        padding: '2px 8px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** One open item: what it is on the left, where it stands on the right. */
+export interface ItemTableRow {
+  /** The next step's wording, linked to the page that takes it. */
+  action?: null | { href: string; label: string }
+  href: string
+  /** Pills and the lines under them, most urgent first. */
+  statuses: { line?: string; pillStyle: StatusPillStyle; text: string }[]
+  title: string
+}
+
+/**
+ * The open-items list, as an email can draw it.
+ *
+ * Two cells, not a column per fact: a five-column table is unreadable at phone
+ * width and an email has no media query it can rely on.
+ */
+export function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
+  if (rows.length === 0) return null
+  return (
+    <Section style={{ margin: '0 0 8px' }}>
+      {rows.map((row) => (
+        <Row key={row.href} style={itemRow}>
+          <Column style={itemMain}>
+            <Link href={row.href} style={{ ...itemTitle, color: accent }}>
+              {row.title}
+            </Link>
+            {row.action ? (
+              <Text style={itemAction}>
+                <Link href={row.action.href} style={{ color: accent }}>
+                  {row.action.label}
+                </Link>
+              </Text>
+            ) : null}
+          </Column>
+          <Column style={itemSide}>
+            {row.statuses.map((status) => (
+              <Fragment key={status.text}>
+                <StatusPill pillStyle={status.pillStyle}>{status.text}</StatusPill>
+                {status.line ? <Text style={itemLine}>{status.line}</Text> : null}
+              </Fragment>
+            ))}
+          </Column>
+        </Row>
+      ))}
+    </Section>
+  )
+}
+
+/** One registrant and the answers they gave. */
+export interface RegistrationTableRow {
+  answers?: string
+  attending?: null | string
+  email: string
+  name: string
+}
+
+/**
+ * One event's new registrants — a header row, three columns, and each person's
+ * answers on a line of their own.
+ *
+ * ⚠ **No other manager's address appears here.** These rows are registrants. A
+ * colleague's contact details are theirs to share, and a digest quoting them
+ * would copy personal data into every inbox up the chain (#908, #1047).
+ */
+export function RegistrationTable({
+  accent,
+  allUrl,
+  heading,
+  rows,
+}: {
+  accent: string
+  /** The event's Registrations tab (#1069). */
+  allUrl: string
+  heading: string
+  rows: RegistrationTableRow[]
+}) {
+  return (
+    <Section style={{ margin: '0 0 14px' }}>
+      <Text style={{ ...registrationHeading, color: accent }}>{heading}</Text>
+      <Row style={registrationHead}>
+        <Column style={registrationHeadCell}>Name</Column>
+        <Column style={registrationHeadCell}>Email</Column>
+        <Column style={registrationHeadCell}>Attending</Column>
+      </Row>
+      {rows.map((row, index) => (
+        <Fragment key={`${row.email}-${index}`}>
+          <Row>
+            <Column style={registrationCell}>{row.name}</Column>
+            <Column style={registrationCell}>{row.email}</Column>
+            <Column style={registrationCell}>{row.attending ?? '—'}</Column>
+          </Row>
+          {row.answers ? (
+            <Row>
+              <Column style={registrationAnswers}>{row.answers}</Column>
+            </Row>
+          ) : null}
+        </Fragment>
+      ))}
+      <Text style={styles.hint}>
+        <Link href={allUrl} style={{ color: accent }}>
+          All registrations
+        </Link>
+      </Text>
+    </Section>
+  )
+}
+
+const tileCell: CSSProperties = {
+  backgroundColor: '#f1f2f4',
+  padding: '12px 14px',
+  verticalAlign: 'top',
+}
+const tileGap: CSSProperties = { fontSize: '1px', lineHeight: '1px', width: '6px' }
+const tileLabel: CSSProperties = {
+  color: '#6b7280',
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  margin: '0 0 4px',
+  textTransform: 'uppercase',
+}
+const tileValue: CSSProperties = { color: '#111827', fontSize: '22px', fontWeight: 700, margin: 0 }
+const tileOf: CSSProperties = { color: '#6b7280', fontSize: '13px', fontWeight: 400 }
+const tileChange: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 0' }
+
+const itemRow: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
+const itemMain: CSSProperties = { padding: '10px 10px 10px 0', verticalAlign: 'top' }
+const itemSide: CSSProperties = {
+  padding: '10px 0',
+  textAlign: 'right',
+  verticalAlign: 'top',
+  width: '38%',
+}
+const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, textDecoration: 'none' }
+const itemAction: CSSProperties = { fontSize: '13px', margin: '4px 0 0' }
+const itemLine: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 8px' }
+
+const registrationHeading: CSSProperties = { fontSize: '15px', fontWeight: 700, margin: '0 0 6px' }
+const registrationHead: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
+const registrationHeadCell: CSSProperties = {
+  color: '#6b7280',
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  padding: '0 8px 4px 0',
+  textTransform: 'uppercase',
+}
+const registrationCell: CSSProperties = {
+  color: '#1f2937',
+  fontSize: '14px',
+  padding: '6px 8px 6px 0',
+  verticalAlign: 'top',
+}
+const registrationAnswers: CSSProperties = {
+  color: '#6b7280',
+  fontSize: '12px',
+  padding: '0 0 8px',
+  whiteSpace: 'pre-wrap',
+}

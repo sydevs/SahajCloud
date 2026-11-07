@@ -17,7 +17,6 @@ describe('mapNotificationPreferences', () => {
       invitation: { frequency: 'Immediate', method: 'whatsapp' },
       event_verification: { frequency: 'Monthly', method: 'whatsapp' },
       event_registration: { frequency: 'Immediate', method: 'whatsapp' },
-      regional_summary: { frequency: 'Never', method: '' },
     })
   })
 
@@ -27,17 +26,23 @@ describe('mapNotificationPreferences', () => {
     // Verification is always on (monthly re-verification by default).
     expect(prefs.event_verification).toEqual({ frequency: 'Monthly', method: 'email' })
     expect(prefs.event_registration).toEqual({ frequency: 'Never', method: '' })
-    expect(prefs.regional_summary).toEqual({ frequency: 'Never', method: '' })
   })
 
-  it('folds any *_summary flag into a monthly regional_summary', () => {
-    expect(mapNotificationPreferences(['country_summary'], null).regional_summary).toEqual({
-      frequency: 'Monthly',
-      method: 'email',
-    })
-    expect(mapNotificationPreferences(['client_summary'], null).regional_summary.frequency).toBe(
-      'Monthly',
-    )
+  /**
+   * Atlas's four `*_summary` flags folded into `regional_summary`, which #1070
+   * replaced with `open_items` and `statistics` — two rows Atlas never asked
+   * about. The mapper writing a guess for either would override the default
+   * every other manager gets.
+   */
+  it('writes no key Atlas has no answer for', () => {
+    for (const flag of ['place_summary', 'country_summary', 'client_summary']) {
+      const prefs = mapNotificationPreferences([flag], null)
+      expect(Object.keys(prefs).sort()).toEqual([
+        'event_registration',
+        'event_verification',
+        'invitation',
+      ])
+    }
   })
 })
 

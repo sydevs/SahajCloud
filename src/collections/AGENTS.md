@@ -441,6 +441,16 @@ import, or a third-party payload. Say so in a one-line comment naming
 where the type already lives, rather than restating that type as a second
 definition.
 
+⚠ **And leave a column with no schema at all where no write of it would run
+one.** `Managers.digestWatermarks` (#1070) is the one such column: a bare
+`type: 'json'` whose only writer is `payload.db.updateOne` from the digest
+run, which runs no validator. A declared shape there would be a contract
+unchecked on the write that makes it, and a refusal on every unrelated
+manager save made before it — the `required`-key hazard above, arriving
+through a column nobody edits. Pair it with `access: { update: () => false }`
+so the job really is the only writer, and say both things in a comment at the
+field. A column a **person** can write still takes `jsonField`.
+
 ### A virtual column takes a schema too, and it can be closed
 
 `virtual: true` changes what the schema is _for_, not whether to write one.

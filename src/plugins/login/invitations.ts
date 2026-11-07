@@ -4,6 +4,11 @@ import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } fro
 
 import * as Sentry from '@sentry/nextjs'
 
+import {
+  NEVER_FREQUENCY,
+  type NotificationKey,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
 
@@ -35,7 +40,7 @@ export const INVITATIONS_QUEUE = 'invitations'
 export const INVITATIONS_CRON = '*/5 * * * *'
 
 /** The notification preference that turns invitations off. */
-const PREFERENCE_KEY = 'invitation'
+const PREFERENCE_KEY: NotificationKey = 'invitation'
 
 /** How many due invitations one run sends. The rest wait five minutes. */
 const BATCH = 50
@@ -258,7 +263,9 @@ async function sendOne({
   const { payload } = req
   if (!doc.email || !doc.pendingInvitation) return false
   if (config.isEligible && !config.isEligible(doc)) return false
-  if (doc.notificationPreferences?.[PREFERENCE_KEY]?.frequency === 'Never') return false
+  if (notificationFrequency(doc.notificationPreferences, PREFERENCE_KEY) === NEVER_FREQUENCY) {
+    return false
+  }
 
   const { by } = doc.pendingInvitation
   const assigner =

@@ -1,126 +1,67 @@
-import type { PayloadRequest, Where } from 'payload'
+import type { PaginatedDocs, PayloadRequest } from 'payload'
 
-import { stringify } from 'qs-esm'
-
-import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
-import type { VerificationStage } from '@/lib/eventVerification/stages'
+import {
+  loadOpenItems,
+  loadRegionOverview,
+  loadStatistics,
+  type OverviewStatistics,
+  type RegionOverviewRow,
+} from '@/lib/atlasOverview'
+import { refusedAtTheForm } from '@/lib/atlasOverview/refusals'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import type { Event } from '@/payload-types'
 
-/** One count on the overview, and the list view that shows its rows. */
-export type OverviewCount = { label: string; count: number; href: string }
+import { type DashboardQuery, type OpenItemsData, paginate } from '../shared/model'
+import { openItemsData } from '../shared/rows'
 
-export type RecentProgram = Pick<
-  Event,
-  'id' | 'title' | '_status' | 'verificationStage' | 'updatedAt'
-> & {
-  regionName: string | null
-}
-
-export type AtlasAdminData = {
-  health: (OverviewCount & { stage: VerificationStage })[]
-  /** Work only an admin can move: unadopted events, unmanaged countries, open proposals. */
-  attention: OverviewCount[]
-  recent: RecentProgram[]
-}
-
-/** The verification ladder, in the order a program climbs it. */
-const HEALTH_STAGES: { stage: VerificationStage; label: string }[] = [
-  { stage: 'verified', label: 'Verified' },
-  { stage: 'reminded', label: 'Reminded' },
-  { stage: 'escalated', label: 'Escalated' },
-  { stage: 'urgent', label: 'Urgent' },
-  { stage: 'expired', label: 'Expired' },
-]
-
-const UNADOPTED: Where = {
-  and: [{ verificationStage: { equals: 'unverified' } }, { manager: { exists: false } }],
-}
-/**
- * A country is the top of the escalation ladder, so one with no manager has
- * nobody above its regions' managers. Below country level, a region with no
- * manager of its own is still covered by its ancestors'.
- */
-const UNMANAGED_COUNTRIES: Where = {
-  and: [{ level: { equals: 'country' } }, { managers: { exists: false } }],
-}
-const OPEN_PROPOSALS: Where = {
-  and: [{ type: { equals: 'proposal' } }, { status: { in: [...OPEN_REVIEW_STATUSES] } }],
-}
-
-/** A list view filtered to `where` — the overview counts, Payload's own list browses. */
-export function listHref(collection: string, where: Where): string {
-  return `/admin/collections/${collection}${stringify({ where }, { addQueryPrefix: true })}`
+export interface AtlasAdminData {
+  countries: PaginatedDocs<RegionOverviewRow>
+  /** How many countries the map holds, for the header's description. */
+  countryCount: number
+  items: OpenItemsData
+  /**
+   * The finished "N sign-ups blocked at the form in the last 7 days" line, or
+   * `null` for a quiet week.
+   *
+   * The sentence arrives built rather than as a count, so the home and the
+   * admin digest cannot word the same fact differently or disagree about how
+   * long the window is (`atlasOverview/refusals.ts`).
+   */
+  refusedAtTheForm: null | string
+  statistics: OverviewStatistics
 }
 
 /**
- * The admin's view of the whole map. Every count is a list-view filter, so an
- * admin follows one straight into the rows behind it.
+ * The admin's home: only what nobody below them covers.
+ *
+ * ⚠ **Not "everything".** A region with a manager anywhere above it is that
+ * manager's work, and listing it here would ask an admin to do everyone's —
+ * which is what the previous home's "Needs attention" row did, and why it is
+ * gone. `loadOpenItems` applies the rule; this loader only draws the result.
  */
-export async function getAtlasAdminData(req: PayloadRequest): Promise<AtlasAdminData> {
-  // Concurrent reads on one req must not share it (src/collections/AGENTS.md).
-  const count = (collection: 'events' | 'regions' | 'user-submissions', where: Where) =>
-    req.payload
-      .count({ collection, where, overrideAccess: false, req: localeIsolatedReq(req) })
-      .then((result) => result.totalDocs)
+export async function getAtlasAdminData(
+  req: PayloadRequest,
+  query: DashboardQuery,
+): Promise<AtlasAdminData> {
+  const now = new Date()
+  const scope = { role: 'admin' } as const
 
-  const [health, unadopted, unmanagedCountries, proposals, recent] = await Promise.all([
-    Promise.all(
-      HEALTH_STAGES.map(async ({ stage, label }) => {
-        const where: Where = { verificationStage: { equals: stage } }
-        return {
-          stage,
-          label,
-          count: await count('events', where),
-          href: listHref('events', where),
-        }
-      }),
-    ),
-    count('events', UNADOPTED),
-    count('regions', UNMANAGED_COUNTRIES),
-    count('user-submissions', OPEN_PROPOSALS),
-    req.payload.find({
-      collection: 'events',
-      overrideAccess: false,
+  const [result, statistics, countries, refused] = await Promise.all([
+    loadOpenItems({ now, overrideAccess: false, req, scope }),
+    loadStatistics({ now, overrideAccess: false, req: localeIsolatedReq(req), scope }),
+    loadRegionOverview({
+      countriesOnly: true,
+      now,
       req: localeIsolatedReq(req),
-      draft: true,
-      depth: 1,
-      limit: 10,
-      sort: '-updatedAt',
-      locale: req.locale,
-      select: {
-        title: true,
-        _status: true,
-        verificationStage: true,
-        updatedAt: true,
-        region: true,
-      },
-      populate: { regions: { name: true } },
+      scope,
     }),
+    refusedAtTheForm({ now, overrideAccess: false, req: localeIsolatedReq(req) }),
   ])
 
   return {
-    health,
-    attention: [
-      { label: 'Imported, not adopted', count: unadopted, href: listHref('events', UNADOPTED) },
-      {
-        label: 'Countries with no manager',
-        count: unmanagedCountries,
-        href: listHref('regions', UNMANAGED_COUNTRIES),
-      },
-      {
-        label: 'Proposals awaiting review',
-        count: proposals,
-        href: listHref('user-submissions', OPEN_PROPOSALS),
-      },
-    ],
-    recent: recent.docs.map((event) => ({
-      id: event.id,
-      title: event.title,
-      _status: event._status,
-      verificationStage: event.verificationStage,
-      updatedAt: event.updatedAt,
-      regionName: typeof event.region === 'object' ? (event.region?.name ?? null) : null,
-    })),
+    countries: paginate(countries, query.page, query.limit),
+    countryCount: countries.length,
+    items: await openItemsData({ now, query, req, result }),
+    refusedAtTheForm: refused?.text ?? null,
+    statistics,
   }
 }

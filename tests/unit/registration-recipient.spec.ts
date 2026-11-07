@@ -139,21 +139,27 @@ describe('resolveRegistrationRecipient', () => {
         event(),
         manager({
           notificationPreferences: {
-            event_registration: { frequency: 'Daily Summary', method: 'email' },
+            event_registration: { frequency: 'Daily', method: 'email' },
           },
         } as Partial<Manager>),
       )
-      expect(result?.frequency).toBe('Daily Summary')
+      expect(result?.frequency).toBe('Daily')
     })
 
-    it('defaults the frequency to Immediate when the manager has no preference', () => {
+    /**
+     * ⚠ Not `Immediate`. The `event_registration` row defaults to `Daily`, and
+     * `notificationFrequency` is the one resolver every reader shares — so a
+     * manager who never saved the row is on the pace their preferences screen
+     * shows them, not on the one this seam used to invent.
+     */
+    it("defaults to the event_registration row's own default", () => {
       const result = resolveRegistrationRecipient(
         event(),
         // The column is nullable in Postgres; the generated type omits `null`
         // because a `jsonSchema` replaces Payload's loose JSON union verbatim.
         manager({ notificationPreferences: null } as unknown as Partial<Manager>),
       )
-      expect(result?.frequency).toBe('Immediate')
+      expect(result?.frequency).toBe('Daily')
     })
 
     it('uses the email as the display name when the manager name is empty', () => {

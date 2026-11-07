@@ -800,6 +800,8 @@ export interface Config {
     regions: Region;
     events: Event;
     users: User;
+    'atlas-snapshots': AtlasSnapshot;
+    'registration-refusals': RegistrationRefusal;
     imports: Import;
     forms: Form;
     'user-submissions': UserSubmission;
@@ -881,6 +883,8 @@ export interface Config {
     regions: RegionsSelect<false> | RegionsSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'atlas-snapshots': AtlasSnapshotsSelect<false> | AtlasSnapshotsSelect<true>;
+    'registration-refusals': RegistrationRefusalsSelect<false> | RegistrationRefusalsSelect<true>;
     imports: ImportsSelect<false> | ImportsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'user-submissions': UserSubmissionsSelect<false> | UserSubmissionsSelect<true>;
@@ -985,12 +989,13 @@ export interface Config {
   user: Manager | Client;
   jobs: {
     tasks: {
+      recordAtlasSnapshot: TaskRecordAtlasSnapshot;
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
-      sendRegistrationDigests: TaskSendRegistrationDigests;
+      sendDigests: TaskSendDigests;
       sendSessionReminders: TaskSendSessionReminders;
       cleanupCollections: TaskCleanupCollections;
       syncLectureMetadata: TaskSyncLectureMetadata;
@@ -1473,7 +1478,15 @@ export interface Manager {
       }[]
     | null;
   notificationPreferences?: NotificationPreferences;
-  lastRegistrationDigestSentAt?: string | null;
+  digestWatermarks?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2265,7 +2278,7 @@ export interface UserSubmission {
    */
   subject?: string | null;
   type: 'contact' | 'subscribe' | 'registration' | 'proposal';
-  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'failed';
+  status: 'pending' | 'accepted' | 'rejected' | 'spam' | 'confirmed_spam' | 'failed';
   user?: (number | null) | User;
   client?: (number | null) | Client;
   form?: (number | null) | Form;
@@ -3209,12 +3222,13 @@ export interface PayloadJob {
         completedAt: string;
         taskSlug:
           | 'inline'
+          | 'recordAtlasSnapshot'
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
-          | 'sendRegistrationDigests'
+          | 'sendDigests'
           | 'sendSessionReminders'
           | 'cleanupCollections'
           | 'syncLectureMetadata'
@@ -3259,12 +3273,13 @@ export interface PayloadJob {
   taskSlug?:
     | (
         | 'inline'
+        | 'recordAtlasSnapshot'
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
-        | 'sendRegistrationDigests'
+        | 'sendDigests'
         | 'sendSessionReminders'
         | 'cleanupCollections'
         | 'syncLectureMetadata'
@@ -4212,6 +4227,48 @@ export interface Frame {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "atlas-snapshots".
+ */
+export interface AtlasSnapshot {
+  id: number;
+  /**
+   * The UTC day these counts were taken, as YYYY-MM-DD.
+   */
+  date: string;
+  counts?: AtlasSnapshotCounts;
+  updatedAt: string;
+  createdAt: string;
+}
+export interface AtlasSnapshotCounts {
+  /**
+   * Events in that region's own node, keyed by verification stage (unverified, denied, verified, reminded, escalated, urgent, expired, finished).
+   */
+  [k: string]: {
+    [k: string]: number;
+  };
+}
+/**
+ * Class sign-ups the spam check refused. Admins see these on their home and in their digest, at the Refused sign-ups pace.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-refusals".
+ */
+export interface RegistrationRefusal {
+  id: number;
+  event?: (number | null) | Event;
+  stage: 'request' | 'screening';
+  reason: string;
+  /**
+   * The hour these refusals at the form were counted in.
+   */
+  hour?: string | null;
+  count: number;
+  submission?: (number | null) | UserSubmission;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -4325,6 +4382,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'atlas-snapshots';
+        value: number | AtlasSnapshot;
+      } | null)
+    | ({
+        relationTo: 'registration-refusals';
+        value: number | RegistrationRefusal;
       } | null)
     | ({
         relationTo: 'forms';
@@ -4819,7 +4884,7 @@ export interface ManagersSelect<T extends boolean = true> {
         id?: T;
       };
   notificationPreferences?: T;
-  lastRegistrationDigestSentAt?: T;
+  digestWatermarks?: T;
   legacyId?: T;
   legacyData?: T;
   magicLinkIssuedAt?: T;
@@ -5149,6 +5214,30 @@ export interface UsersSelect<T extends boolean = true> {
   submittedEvents?: T;
   legacyId?: T;
   legacyData?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "atlas-snapshots_select".
+ */
+export interface AtlasSnapshotsSelect<T extends boolean = true> {
+  date?: T;
+  counts?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-refusals_select".
+ */
+export interface RegistrationRefusalsSelect<T extends boolean = true> {
+  event?: T;
+  stage?: T;
+  reason?: T;
+  hour?: T;
+  count?: T;
+  submission?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -10873,6 +10962,18 @@ export interface CollectionsWidget {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRecordAtlasSnapshot".
+ */
+export interface TaskRecordAtlasSnapshot {
+  input?: unknown;
+  output: {
+    date: string;
+    regions: number;
+    events: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskCleanupOrphanedMedia".
  */
 export interface TaskCleanupOrphanedMedia {
@@ -10946,14 +11047,15 @@ export interface TaskSendPostEventFollowUps {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "TaskSendRegistrationDigests".
+ * via the `definition` "TaskSendDigests".
  */
-export interface TaskSendRegistrationDigests {
+export interface TaskSendDigests {
   input?: unknown;
   output: {
-    eligibleManagers: number;
-    digestsSent: number;
-    registrationsIncluded: number;
+    managers: number;
+    sent: number;
+    quiet: number;
+    sectionsFailed: number;
     failed: number;
   };
 }

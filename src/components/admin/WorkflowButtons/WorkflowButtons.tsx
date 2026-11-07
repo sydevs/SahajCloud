@@ -7,6 +7,7 @@ import {
   PublishButton,
   SaveButton,
   SaveDraftButton,
+  useAuth,
   useDocumentInfo,
   useForm,
   useFormFields,
@@ -14,9 +15,9 @@ import {
   useOperation,
   useTranslation,
 } from '@payloadcms/ui'
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 
-import { resolveStage } from './stages'
+import { resolveStage, ruleApplies } from './stages'
 
 /**
  * ⚠ **The key must match the slot the declaration sits in.** Nothing can check
@@ -46,24 +47,35 @@ const FALLBACKS = {
  * module serves a drafts-enabled collection `PublishButton` / `SaveDraftButton`
  * and never `SaveButton`, so Meditations declares the first two.
  */
-const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
-  fallback,
-  onlyWhen,
-  stages,
-  statusField,
-}) => {
+const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({ fallback, rules, statusField }) => {
   const { uploadStatus } = useDocumentInfo()
   const operation = useOperation()
   const { submit } = useForm()
   const { i18n } = useTranslation()
   const modified = useFormModified()
+  const { user } = useAuth()
   const status = useFormFields(([fields]) =>
     statusField ? fields?.[statusField]?.value : undefined,
   )
+
+  const gateFields = useMemo(
+    () => [...new Set(rules.map((rule) => rule.when?.field).filter((f) => f !== undefined))],
+    [rules],
+  )
   // Its own subscription, not a tuple selector beside the status: a selector
   // returning an object hands back a fresh reference on every form-state change
-  // and re-renders the button row on every keystroke.
-  const gate = useFormFields(([fields]) => (onlyWhen ? fields?.[onlyWhen.field]?.value : undefined))
+  // and re-renders the button row on every keystroke. So it returns the gates
+  // as JSON — one string, compared by value — and the record is rebuilt from it
+  // only when one of those fields actually changes. `equals` is a scalar by
+  // contract, so nothing a rule can test is lost in the round trip.
+  const gateJson = useFormFields(([fields]) =>
+    JSON.stringify(
+      Object.fromEntries(gateFields.map((name) => [name, fields?.[name]?.value ?? null])),
+    ),
+  )
+  const gates = useMemo(() => JSON.parse(gateJson) as Record<string, unknown>, [gateJson])
+  // `ClientUser` carries no `type` — it is a field of ours, not Payload's.
+  const isAdmin = (user as null | { type?: unknown })?.type === 'admin'
 
   const run = useCallback(
     (action: WorkflowButton) => {
@@ -73,15 +85,21 @@ const WorkflowButtons: React.FC<WorkflowButtonsProps> = ({
     [submit],
   )
 
-  // A gated-out document names no stage, which is the same answer as a status
-  // the declaration never mentioned — so it takes the fallback path already
-  // below. ⚠ That is also what puts it ahead of a stage declared `[]`, which
-  // renders nothing: a gated-out row would otherwise lose its Save button.
-  const stage =
-    onlyWhen && gate !== onlyWhen.equals
+  const named = resolveStage({ operation, status, statusField })
+  // The first rule that both applies and names this stage. A rule that applies
+  // but is silent about the stage falls through to the next, so an earlier rule
+  // narrows rather than claims — and a stage no applying rule names reaches the
+  // fallback below. ⚠ A stage declared `[]` is named, so it still wins and
+  // renders nothing; that is what keeps "no action here" from reading as "not
+  // my kind of document", which would restore the Save button.
+  const actions =
+    named === undefined
       ? undefined
-      : resolveStage({ operation, status, statusField })
-  const actions = stage === undefined ? undefined : stages[stage]
+      : rules.find(
+          (rule) =>
+            rule.stages[named] !== undefined &&
+            ruleApplies(rule.when, { field: (name) => gates[name], isAdmin }),
+        )?.stages[named]
 
   if (!actions) {
     if (!fallback) return null

@@ -194,10 +194,17 @@ const ALL_PROJECT_COLLECTIONS: ContentSlug[] = (() => {
  *   it skipped, with contact names, phone numbers and email addresses. The
  *   collection's own `access` narrows it to admins and the managers of its
  *   target region's subtree (`src/plugins/eventImport/importCollection.ts`).
+ * - `registration-refusals` — the class sign-ups the spam check refused, each
+ *   naming the class and, after screening, the refused registration. Its own
+ *   `access` is admin-only (`src/collections/RegistrationRefusals/`).
+ * - `atlas-snapshots` — a day's event counts per region, which is the only
+ *   record of what the map looked like yesterday. Its own `access` is
+ *   admin-read-only, and nothing writes one through the API
+ *   (`src/collections/AtlasSnapshots/`).
  *
  * ⚠ **This list is a holding pattern, not the permanent mechanism.** Exactly
- * five registered collections sit in no project, and all five are named here
- * — so the set is complete today and fails open the day a sixth is added. A
+ * seven registered collections sit in no project, and all seven are named here
+ * — so the set is complete today and fails open the day an eighth is added. A
  * complete opt-out list is an inverted default in disguise: the fix is for
  * step 4a to test project membership directly, so a new collection fails
  * closed instead. Deferred, not blocked — #821 settled the question that held
@@ -210,6 +217,10 @@ const RESTRICTED_COLLECTIONS: ReadonlySet<string> = new Set([
   'clients',
   // The bulk class import's rows (contact details).
   'imports',
+  // Sign-ups the spam check refused, each naming a class and a registrant.
+  'registration-refusals',
+  // A region's event counts, per day.
+  'atlas-snapshots',
 ])
 
 /** Whether implicit (project/shared) read must never apply to this collection. */

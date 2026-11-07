@@ -1,97 +1,72 @@
-import type { AtlasAdminData, OverviewCount } from './data'
+'use client'
 
-import { Button, Card, Pill, Table } from '@payloadcms/ui'
+import type { AtlasAdminData } from './data'
+
+import { Button } from '@payloadcms/ui'
 import Link from 'next/link'
-import { toWords } from 'payload/shared'
 
-import styles from './AtlasAdmin.module.css'
 import { NAV_LINKS } from '../../AdminNavLinks/links'
-import { tableColumn } from '../../helpers/tableColumn'
+import styles from '../shared/Dashboard.module.css'
+import { OpenItemsList } from '../shared/OpenItemsList'
+import { RegionOverviewTable } from '../shared/RegionOverviewTable'
+import { SectionTabs } from '../shared/SectionTabs'
+import { StatTiles } from '../shared/StatTiles'
 
-/** Stages a manager has let slide, whose counts should catch the eye. */
-const ALERT_STAGES = new Set(['urgent', 'expired'])
+/**
+ * The admin's home.
+ *
+ * ⚠ **No meter here.** Progress is a share of somebody's own workload, and an
+ * admin's list is what fell through everyone else's — there is no denominator
+ * that would make a percentage mean anything.
+ */
+export function AtlasAdminView({ data }: { data: AtlasAdminData }) {
+  const { countries, items, statistics } = data
+  const section = items.query.section
+  const programs = statistics.analytics[0]?.value ?? 0
 
-function CountCards({ items }: { items: (OverviewCount & { alert?: boolean })[] }) {
   return (
-    <ul className={styles.cards}>
-      {items.map((item) => (
-        <li key={item.label}>
-          <Card
-            title={item.label}
-            href={item.href}
-            actions={
-              <Pill size="small" pillStyle={item.alert && item.count > 0 ? 'error' : 'light-gray'}>
-                {item.count}
-              </Pill>
-            }
-          />
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-/** Every count links into Payload's own list view, filtered to its rows. */
-export function AtlasAdminView({ data, language }: { data: AtlasAdminData; language: string }) {
-  const dateFormat = new Intl.DateTimeFormat(language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-  return (
-    <section className={styles.home} aria-label="Sahaj Atlas overview">
+    <section aria-label="Sahaj Atlas overview" className={styles.home}>
       <header className={styles.header}>
         <div>
           <h1>Sahaj Atlas</h1>
-          <p className={styles.subtitle}>Map-wide health, open work, and recent changes.</p>
+          <p className={styles.subtitle}>
+            {programs} program{programs === 1 ? '' : 's'} · {data.countryCount} countr
+            {data.countryCount === 1 ? 'y' : 'ies'}
+          </p>
         </div>
-        <Button el="link" url={NAV_LINKS.map.href} buttonStyle="secondary" margin={false}>
+        <Button buttonStyle="secondary" el="link" margin={false} url={NAV_LINKS.map.href}>
           {NAV_LINKS.map.label}
         </Button>
       </header>
 
-      <h2>Verification health</h2>
-      <CountCards
-        items={data.health.map((item) => ({ ...item, alert: ALERT_STAGES.has(item.stage) }))}
-      />
+      <StatTiles label="Verification health" tiles={statistics.health} />
 
-      <h2>Needs attention</h2>
-      <CountCards items={data.attention.map((item) => ({ ...item, alert: true }))} />
-
-      <h2>Recent activity</h2>
-      <Table
-        data={data.recent}
-        columns={[
-          tableColumn(
-            'program',
-            'Program',
-            data.recent.map((event) => (
-              <Link key={event.id} href={`/admin/collections/events/${event.id}`} prefetch={false}>
-                {event.title?.trim() || 'Untitled program'}
-              </Link>
-            )),
-          ),
-          tableColumn(
-            'region',
-            'Region',
-            data.recent.map((event) => event.regionName ?? '—'),
-          ),
-          tableColumn(
-            'stage',
-            'Stage',
-            data.recent.map((event) => toWords(event.verificationStage)),
-          ),
-          tableColumn(
-            'updated',
-            'Last change',
-            data.recent.map((event) => (
-              <span key={event.id} className={styles.recentMeta}>
-                {dateFormat.format(new Date(event.updatedAt))}
-                {event._status === 'draft' ? ' · draft' : ''}
-              </span>
-            )),
-          ),
+      <SectionTabs
+        active={section}
+        tabs={[
+          { count: items.counts.all, label: 'Open items', value: 'items' },
+          { count: null, label: 'Countries overview', value: 'regions' },
         ]}
       />
+
+      {section === 'regions' ? (
+        <RegionOverviewTable label="Country" rows={countries} />
+      ) : (
+        <>
+          <OpenItemsList
+            data={items}
+            emptyBanner="All clear. Every region has someone looking after it."
+          />
+          {data.refusedAtTheForm === null ? null : (
+            <p className={styles.closingNote}>
+              {data.refusedAtTheForm} ·{' '}
+              <Link href="/admin/collections/registration-refusals" prefetch={false}>
+                View
+              </Link>
+            </p>
+          )}
+        </>
+      )}
     </section>
   )
 }

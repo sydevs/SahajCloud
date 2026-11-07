@@ -51,6 +51,7 @@ const STATUS: Record<
   pending: { pillStyle: 'warning', detail: 'Awaiting screening and confirmation' },
   failed: { pillStyle: 'error', detail: 'Confirmation email could not be sent' },
   spam: { pillStyle: 'error', detail: 'Flagged by spam screening' },
+  confirmed_spam: { pillStyle: 'error', detail: 'Confirmed as spam by an admin' },
   rejected: { pillStyle: 'error', detail: 'Declined by an admin' },
 }
 

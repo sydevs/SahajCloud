@@ -9,6 +9,7 @@
  */
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import { rollUpRegionTree } from '@/lib/regionTree/rollUp'
 import type { Region } from '@/payload-types'
 
 // --- Events ---
@@ -230,24 +231,27 @@ const UNNAMED_REGION = '(unnamed region)'
  * region and every ancestor within the subtree, in a single pass over events
  * (no per-region recursive queries). Ancestors outside the subtree — above the
  * manager's owned roots — are ignored.
+ *
+ * The published/total pair is all this surface wants; `rollUpRegionTree` owns
+ * the walk, and the overviews instantiate it with their own counters.
  */
 export function rollUpRegionCounts(
   events: SidebarCountEventInput[],
   subtreeRegionIds: Set<number>,
 ): Map<number, RegionCounts> {
-  const counts = new Map<number, RegionCounts>()
-  const bump = (regionId: number, event: SidebarCountEventInput) => {
-    if (!subtreeRegionIds.has(regionId)) return
-    const current = counts.get(regionId) ?? { published: 0, total: 0 }
-    if (event.published) current.published += 1
-    if (event.countsTowardTotal) current.total += 1
-    counts.set(regionId, current)
-  }
-  for (const event of events) {
-    bump(event.regionId, event)
-    for (const ancestorId of event.ancestorRegionIds) bump(ancestorId, event)
-  }
-  return counts
+  return rollUpRegionTree<SidebarCountEventInput, RegionCounts>({
+    bump: (counts, event) => {
+      if (event.published) counts.published += 1
+      if (event.countsTowardTotal) counts.total += 1
+    },
+    chainOf: (event) => ({
+      ancestorIds: event.ancestorRegionIds,
+      regionId: event.regionId,
+    }),
+    empty: () => ({ published: 0, total: 0 }),
+    inScope: subtreeRegionIds,
+    items: events,
+  })
 }
 
 function byName(a: { name: string }, b: { name: string }): number {

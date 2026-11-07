@@ -1,6 +1,8 @@
 import type { SubmissionScreeningResult, SubmissionVerdict } from './verdicts'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { commitTransaction, initTransaction, killTransaction } from 'payload'
+
 import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
@@ -42,9 +44,10 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  *
  * ⚠ **A refused registration is flagged, never unwound.** It becomes
  * `spam`, which excludes it from reminders and fullness counts
- * (`src/lib/registrations/active.ts`), and nothing else happens: the row
- * stands, any email already sent stands, and no job ever recalls an email. A
- * manager unwinds a real mistake by hand.
+ * (`src/lib/registrations/active.ts`), and nothing is undone: the row stands,
+ * any email already sent stands, and no job ever recalls an email. A
+ * `registration-refusals` row is what puts it on the admin's own home and in
+ * their digest, which is how a real mistake reaches someone who can unwind it.
  *
  * Known gap, filed separately: the duplicate-body check is scoped to one
  * sender, because the cross-sender version needs a queryable `bodyHash` column
@@ -102,28 +105,61 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
     const passed = verdict === 'ok'
 
-    await payload.update({
-      collection: 'user-submissions',
-      id: submissionId,
-      data: {
-        screeningResult: result,
-        // A pass leaves the row `pending` — delivery is what settles it. Only a
-        // refusal is terminal here.
-        ...(passed ? {} : { status: 'spam' as const }),
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'screening',
-          key: 'screening',
-          verdict,
-          cells: {
-            activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
+    const refusedEventId = relationId(submission.event)
+    const refusedRegistration =
+      !passed && submission.type === 'registration' && refusedEventId != null
+
+    // A refused registration is two writes, and they land together or not at
+    // all. Payload gives a task no transaction of its own, so without this the
+    // status write commits alone; a failed refusal row then leaves a `spam` row
+    // that the settled-row guard above never screens, or records, again.
+    const opened = refusedRegistration ? await initTransaction(req) : false
+    try {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submissionId,
+        data: {
+          screeningResult: result,
+          // A pass leaves the row `pending` — delivery is what settles it. Only a
+          // refusal is terminal here.
+          ...(passed ? {} : { status: 'spam' as const }),
+          activityLog: appendLogEntry(asLog(submission.activityLog), {
+            at: now.toISOString(),
+            type: 'screening',
+            key: 'screening',
+            verdict,
+            cells: {
+              activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
+            },
+          }),
+        },
+        overrideAccess: true,
+        context: { skipWriteGuard: true },
+        req,
+      })
+
+      // The visitor was told they were signed up, so this refusal reaches no
+      // one unless the admin's home and their digest name it
+      // (sydevs/SahajAtlasWeb#259).
+      if (refusedRegistration) {
+        await payload.create({
+          collection: 'registration-refusals',
+          data: {
+            event: refusedEventId,
+            stage: 'screening',
+            reason: verdict,
+            count: 1,
+            submission: submissionId,
           },
-        }),
-      },
-      overrideAccess: true,
-      context: { skipWriteGuard: true },
-      req,
-    })
+          overrideAccess: true,
+          req,
+        })
+      }
+      if (opened) await commitTransaction(req)
+    } catch (error) {
+      if (opened) await killTransaction(req)
+      throw error
+    }
 
     if (!passed) return { output: { verdict, status: 'spam' } }
 

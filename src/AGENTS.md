@@ -161,6 +161,21 @@ No loose files at the root — every file lives in a named folder:
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
   booting it
+- `atlasOverview/` — what is open on the Sahaj Atlas, for one role. Barrelled,
+  and read by the three admin homes' loaders and by the nightly digest. Its
+  `status.ts` owns **every word a reader sees about an open item** — the pill,
+  the line, the rank that places the row, the filter, whether it counts against
+  progress, and the next step — because four surfaces show the same list and a
+  status spelled at each is four chances to call one state four things. ⚠ **A
+  `'use client'` component imports `./filters` by its own path**, never the
+  barrel: the barrel reaches the loaders and, through them, `@/lib/env/server`,
+  which is the browser-bundle hazard this file states below. Measured with that
+  guard's own walk, `status.ts` reaches six files and no server-only entry,
+  while the barrel reaches sixty-seven (`docs/rules/admin-ui.md`)
+- `regionTree/` — the one walk up the region tree, which the atlas sidebar's
+  published/total pair and both overviews' counters instantiate with their own
+  accumulators. It owns the ancestor chain and the scope gate; a caller owns
+  what it adds per item
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
@@ -280,7 +295,10 @@ This is why a job's supporting code lives in the job folder.
 `SendSessionReminders` owns `sendSessionReminder.ts` and
 `unsubscribeUrl.ts`.
 `recipients` stays in `src/lib/notifications` because both `ExpireEvents`
-and `registrationRecipient` also use it. The **view layer is untouched** —
+and `registrationRecipient` also use it. `managerRoles` is there for the same
+reason, with three: the notification-preferences field filters its rows by
+role, the digest run sends one email per role, and `dashboardChoiceFor` picks a
+home by role. The **view layer is untouched** —
 email templates stay in `src/emails/`, and a job's sender imports its
 template from there.
 

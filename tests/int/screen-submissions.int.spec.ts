@@ -245,7 +245,11 @@ describe('Submission screening', () => {
    */
   describe('abuse counting reads the machine status, never a decline', () => {
     /** Six prior refusals for one sender, under the given status. */
-    const seedHistory = async (email: string, status: 'spam' | 'rejected', verdict: string) => {
+    const seedHistory = async (
+      email: string,
+      status: 'confirmed_spam' | 'rejected' | 'spam',
+      verdict: string,
+    ) => {
       for (let i = 0; i < 6; i += 1) {
         const row = await seed({ senderEmail: email })
         await payload.update({
@@ -269,6 +273,22 @@ describe('Submission screening', () => {
       await expect(screen(submission.id)).resolves.toEqual({
         verdict: 'repeat_sender',
         status: 'spam',
+      })
+    })
+
+    /**
+     * ⚠ An admin agreeing with the machine counts for the same reason the
+     * machine's own refusal does. Withdrawing the strike is releasing the row
+     * to `pending`, not leaving it at `spam`.
+     */
+    it('refuses a sender whose refusals an admin has confirmed', async () => {
+      const email = 'confirmed-repeat@example.com'
+      await seedHistory(email, 'confirmed_spam', 'disposable_email')
+
+      const submission = await seed({ senderEmail: email })
+      await expect(screen(submission.id)).resolves.toEqual({
+        status: 'spam',
+        verdict: 'repeat_sender',
       })
     })
 
