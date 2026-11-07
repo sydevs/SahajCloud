@@ -17,6 +17,7 @@
  * module and the merge block in the route handler.
  */
 
+import { MAX_ATLAS_ROUTE_LENGTH } from '@/endpoints/atlas/seo/atlasRoute'
 import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
@@ -236,6 +237,11 @@ const errorResponse = (description: string): OpenAPIResponse => ({
     },
   },
 })
+
+/** The 403 every root Atlas endpoint answers: no client guard passed, or the origin gate. */
+const ROOT_ENDPOINT_FORBIDDEN =
+  'Caller is not an active API client, or its `Origin`/`Referer` is not in the client’s ' +
+  'domain (`site.domain`, or its www twin).'
 
 /**
  * Query parameters for `GET /api/events/geojson` — the standard client read
@@ -505,10 +511,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`route` is missing/too long, or `locale` is not a known locale.'),
-        '403': errorResponse(
-          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s domain (`site.domain`, or its www twin).',
-        ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '404': errorResponse(
           'Either the route names a region or class that does not exist — an unknown ' +
             'slug, an unpublished or missing event — or the string is not a route we ' +
@@ -565,10 +568,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             },
           },
         },
-        '403': errorResponse(
-          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s domain (`site.domain`, or its www twin).',
-        ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '500': errorResponse('The sitemap could not be built.'),
       },
     },
@@ -581,32 +581,16 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       description:
         'The same resolution `GET /api/atlas/seo` answers, in the shape a Wix Velo ' +
         'router hands to `ok()` / `redirect()` / `notFound()`. Use this **only** from a ' +
-        'Wix site: every other host wants `/api/atlas/seo`, whose shape is the published ' +
-        'one. The CMS generates the `backend/routers.js` that calls this, on the ' +
-        'service’s Install tab — do not hand-write it.\n\n' +
-        '**`status` describes the page, not this request.** Every answer is HTTP 200, ' +
-        'because the router has to render something for every path Wix hands it and an ' +
-        'HTTP 404 here is indistinguishable from the endpoint being gone. `200` renders, ' +
-        '`301` redirects to `redirect`, `404` is `notFound()`.\n\n' +
-        '**`redirect` is an atlas route, never a URL and never prefixed** — the router ' +
-        'owns its prefix. A view route (`/gb/london/calendar`, `/search`) renders and ' +
-        'publishes the document’s canonical rather than redirecting, because the widget ' +
-        'itself links there; a moved route (`/events/1204`, a re-slugged country) is a ' +
-        '`301`.\n\n' +
-        '**`description` and `robots` are `metaTags` rows and appear nowhere else**, ' +
-        'because Wix’s renderer reads no top-level `description` or `noIndex`. ' +
-        '`structuredData` is JSON-LD as **objects** — the identical document ' +
-        '`/api/atlas/seo` returns pre-serialized as `jsonLd`. `links` is empty for the ' +
-        'atlas root and for any route this client canonicalises on its own host, so Wix ' +
-        'writes the self-canonical and Wix Multilingual the `hreflang` cluster.\n\n' +
-        '**`data.bodyHtml` is the one place this surface emits markup**: Wix’s only body ' +
-        'sink is `$w(…).html`, so the crawlable children are built and escaped here. ' +
-        'Links in it are real `<a>` elements.\n\n' +
-        '`lang` is a Wix language subtag (`fr`), resolved to one of the nineteen SEO ' +
-        'locales; a language the site does not path-route gets `robots: noindex` on ' +
-        'sub-routes, since nothing in the atlas is translated. Cache the answer for ' +
-        '`cacheSeconds` — a server-rendered site reads this once per page view, and the ' +
-        'router’s own cache is what bounds the volume. Sets ' +
+        'Wix site: every other host wants `/api/atlas/seo`. The CMS generates the ' +
+        '`backend/routers.js` that calls this, on the service’s Install tab — do not ' +
+        'hand-write it.\n\n' +
+        '**Every page answer is HTTP 200**, with the page’s own answer in `status`: the ' +
+        'router has to render something for every path Wix hands it, and an HTTP 404 ' +
+        'here is indistinguishable from the endpoint being gone. A view route ' +
+        '(`/gb/london/calendar`, `/search`) renders and publishes its canonical; a moved ' +
+        'route (`/events/1204`, a re-slugged country) is a `301`.\n\n' +
+        'Cache the answer for `cacheSeconds` — a server-rendered site reads this once per ' +
+        'page view, and the router’s own cache is what bounds the volume. Sets ' +
         '`Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasWixRoute',
       parameters: [
@@ -614,7 +598,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           name: 'path',
           in: 'query',
           required: true,
-          schema: { type: 'string', maxLength: 512 },
+          schema: { type: 'string', minLength: 1, maxLength: MAX_ATLAS_ROUTE_LENGTH },
           description:
             'The atlas route, as the router reads it off `request.path` — `/ca/ontario`. ' +
             'A `sahaj-atlas-probe-*` path is answered as the atlas root with ' +
@@ -626,8 +610,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           required: false,
           schema: { type: 'string', maxLength: 20 },
           description:
-            'The page’s language, from `request.baseUrl` on a Multilingual site. An ' +
-            'unknown value resolves to English rather than refusing.',
+            'The page’s language subtag (`fr`), from `request.baseUrl` on a Multilingual ' +
+            'site. Empty means the service’s own language. Any other language gets ' +
+            '`robots: noindex` on sub-routes, since nothing in the atlas is translated; ' +
+            'one with no SEO locale is answered in English rather than refused.',
         },
       ],
       responses: {
@@ -640,11 +626,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             },
           },
         },
-        '400': errorResponse('`path` is missing, empty, or over 512 characters.'),
-        '403': errorResponse(
-          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s domain (`site.domain`, or its www twin).',
+        '400': errorResponse(
+          `\`path\` is missing, empty, or over ${MAX_ATLAS_ROUTE_LENGTH} characters.`,
         ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '500': errorResponse('The page metadata could not be built.'),
       },
     },
@@ -664,8 +649,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         '**Every `url` is relative and carries `prefix`** — `/free-classes/ca/ontario` — ' +
         'which is the opposite of `redirect` on `/api/atlas/wix/route`: a redirect passes ' +
         'through the router, which composes its own prefix, and a sitemap entry does not. ' +
-        '**Only pages on this client’s own canonical host** are listed; a client that has ' +
-        'designated no canonical embed yet gets `[]`, which is an answer rather than an ' +
+        '**Only pages on this client’s own site** (`site.domain`, or its www twin) are ' +
+        'listed; a client with no domain gets `[]`, which is an answer rather than an ' +
         'error. Finished classes are excluded, and a document whose canonical cannot be ' +
         'published is omitted rather than sent empty — both as on `/api/atlas/sitemap`. ' +
         'Sets `Cache-Control: public, max-age=300, s-maxage=300` on ' +
@@ -690,8 +675,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
       responses: {
         '200': {
           description:
-            'Every page this client owns on its own host, ascending by route. Empty when ' +
-            'it owns none, or has designated no canonical embed.',
+            'Every page this client owns on its own site, ascending by route. Empty when ' +
+            'it owns none, or has no domain.',
           content: {
             'application/json': {
               schema: {
@@ -702,10 +687,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`prefix` is missing, or not one lowercase path segment.'),
-        '403': errorResponse(
-          'Caller is not an active API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s domain (`site.domain`, or its www twin).',
-        ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '500': errorResponse('The sitemap could not be built.'),
       },
     },

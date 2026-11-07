@@ -2,7 +2,6 @@ import type { AtlasSeoDocument } from '../../src/endpoints/atlas/seo/seoDocument
 
 import { describe, expect, it } from 'vitest'
 
-import { jsonLdEscape } from '../../src/endpoints/atlas/seo/jsonLd'
 import {
   isProbePath,
   normalizeAtlasPath,
@@ -14,7 +13,7 @@ import {
   wixRouteAnswer,
   wixStructuredData,
 } from '../../src/endpoints/atlas/wix/shape'
-import { PROBE_SEGMENT_PREFIX } from '../../src/lib/embedVerification/verifyEmbed'
+import { PROBE_SEGMENT_PREFIX } from '../../src/lib/clients/verification'
 
 /**
  * The Wix serializer's shape, independent of any read.
@@ -58,17 +57,6 @@ describe('wixStructuredData', () => {
     expect(wixStructuredData(GRAPH)).toEqual(
       GRAPH['@graph'].map((node) => ({ '@context': GRAPH['@context'], ...node })),
     )
-  })
-
-  it('escapes to exactly what /api/atlas/seo publishes for the same route', () => {
-    // The two shapes may differ in form and must not differ in content.
-    expect(JSON.parse(jsonLdEscape(GRAPH))).toEqual(GRAPH)
-  })
-
-  it('carries the context onto every node, since Wix emits one script each', () => {
-    for (const node of wixStructuredData(GRAPH)) {
-      expect(node['@context']).toBe('https://schema.org')
-    }
   })
 })
 

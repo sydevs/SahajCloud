@@ -3,7 +3,7 @@ import type { RenderDeps, RenderResult } from './browserRendering'
 import { randomBytes } from 'node:crypto'
 
 import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
-import { splitMountKey } from '@/lib/clients/verification'
+import { PROBE_SEGMENT_PREFIX, splitMountKey } from '@/lib/clients/verification'
 
 import { renderPage } from './browserRendering'
 import { parseReadinessMarker, READY_ATTR } from './readinessMarker'
@@ -119,15 +119,6 @@ export function routingProbeUrls(
   const base = url.pathname.replace(/\/+$/, '')
   return { probe: `${url.origin}${base}/${token}`, control: `${url.origin}/${token}` }
 }
-
-/**
- * What every probe segment starts with.
- *
- * ⚠ **Exported because a host has to recognise it**: the Wix router answers a
- * probe path as the atlas root (#1055), and a second spelling there would break
- * the probe silently the day either side changed.
- */
-export const PROBE_SEGMENT_PREFIX = 'sahaj-atlas-probe-'
 
 /**
  * A path segment no host could be serving on purpose.

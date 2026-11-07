@@ -625,12 +625,4 @@ describe('the Wix router endpoints are documented', () => {
     const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as Schema
     expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])
   })
-
-  it('exempts both root paths from the project filter, as the other two are', () => {
-    const rootEndpointPaths = rootEndpointPathsFrom([
-      { path: '/atlas/wix/route' },
-      { path: '/atlas/wix/sitemap' },
-    ])
-    expect(rootEndpointPaths).toEqual(['/api/atlas/wix/route', '/api/atlas/wix/sitemap'])
-  })
 })

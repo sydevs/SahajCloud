@@ -2,7 +2,7 @@ import type { JsonLdGraph, JsonLdNode } from '../seo/jsonLd'
 import type { AtlasSeoDocument } from '../seo/seoDocument'
 import type { AtlasSitemapResolution } from '../sitemap/resolve'
 
-import { PROBE_SEGMENT_PREFIX } from '@/lib/embedVerification/verifyEmbed'
+import { PROBE_SEGMENT_PREFIX } from '@/lib/clients/verification'
 
 import { wixBodyHtml } from './wixBody'
 import { parseAtlasRoute } from '../seo/atlasRoute'
@@ -93,11 +93,6 @@ export const WIX_CACHE_SECONDS = 300
 
 /** An empty head, for the two answers that render no page. */
 const EMPTY_HEAD: WixHead = { title: '', metaTags: [], links: [], structuredData: [] }
-
-/** The host a URL names, or `null`. */
-export function hostOf(url: string | null | undefined): string | null {
-  return url ? (URL.parse(url)?.host ?? null) : null
-}
 
 /**
  * The route spelled the way `webPath` spells it, so `requested === seo.route`
@@ -253,14 +248,14 @@ export function wixSitemapEntries(args: {
   resolution: AtlasSitemapResolution
   /** No slashes, as the Install tab validated it. */
   prefix: string
-  host: string | null
+  /** The site's hosts: its domain and www twin (`siteHosts`). */
+  hosts: readonly string[]
 }): AtlasWixSitemapEntry[] {
-  const { resolution, prefix, host } = args
-  if (!host) return []
+  const { resolution, prefix, hosts } = args
 
   const entries: AtlasWixSitemapEntry[] = []
   for (const url of resolution.urls) {
-    if (URL.parse(url.loc)?.host !== host) continue
+    if (!hosts.includes(URL.parse(url.loc)?.host ?? '')) continue
     entries.push({
       url: `/${prefix}${url.route}`,
       // An empty `title` renders as a blank row in Wix's own sitemap.

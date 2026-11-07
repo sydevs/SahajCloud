@@ -54,6 +54,8 @@ import { meditationLectures } from '@/collections/Meditations/endpoints/lectures
 import { meditationSongs } from '@/collections/Meditations/endpoints/songs'
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import { atlasSitemap } from '@/endpoints/atlas/sitemap'
+import { atlasWixRoute } from '@/endpoints/atlas/wix/route'
+import { atlasWixSitemap } from '@/endpoints/atlas/wix/sitemap'
 import type { Client } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
@@ -346,6 +348,18 @@ describe('usage metering, per client-reachable route (#891)', () => {
       // `beforeOperation` chain runs and nothing counted it before #891. It is
       // why the two root endpoints call `countClientRead` themselves.
       await expectOneCount(() => callHandler(atlasSeo, clientReq({ query: { route: '/' } })))
+    })
+
+    it('GET /api/atlas/wix/route', async () => {
+      await expectOneCount(() =>
+        callHandler(atlasWixRoute, clientReq({ query: { path: '/usageland', lang: 'en' } })),
+      )
+    })
+
+    it('GET /api/atlas/wix/sitemap', async () => {
+      await expectOneCount(() =>
+        callHandler(atlasWixSitemap, clientReq({ query: { prefix: 'classes' } })),
+      )
     })
 
     it('GET /api/events/geojson', async () => {

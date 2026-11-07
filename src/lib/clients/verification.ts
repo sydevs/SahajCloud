@@ -335,6 +335,15 @@ export function nextSeoCheckState(args: {
  */
 
 /**
+ * What every probe segment starts with.
+ *
+ * ⚠ **Exported because a host has to recognise it**: the Wix router answers a
+ * probe path as the atlas root (#1055), and a second spelling there would break
+ * the probe silently the day either side changed.
+ */
+export const PROBE_SEGMENT_PREFIX = 'sahaj-atlas-probe-'
+
+/**
  * Split a mount key back into the host and the page path.
  *
  * The key is `origin + pathname` (`https://sahajayoga.nl/?p=123`), so the URL parser does the

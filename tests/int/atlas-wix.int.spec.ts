@@ -7,7 +7,7 @@ import { atlasWixRoute } from '@/endpoints/atlas/wix/route'
 import type { AtlasWixRouteResponse, AtlasWixSitemapEntry } from '@/endpoints/atlas/wix/shape'
 import { atlasWixSitemap } from '@/endpoints/atlas/wix/sitemap'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
-import { PROBE_SEGMENT_PREFIX } from '@/lib/embedVerification/verifyEmbed'
+import { PROBE_SEGMENT_PREFIX } from '@/lib/clients/verification'
 import type { Event } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -327,6 +327,23 @@ describe('atlas Wix endpoints', () => {
       expect(body.head.links).toEqual([])
     })
 
+    it('links a view of the root to the root, rather than leaving it a second page', async () => {
+      const { body } = await callRoute({ path: '/calendar', lang: 'en' })
+      expect(body.head.links).toContainEqual({
+        rel: 'canonical',
+        href: `https://${OWNER_DOMAIN}${OWNER_MOUNT}`,
+      })
+    })
+
+    it('reads its own host through the www twin of the site domain', async () => {
+      const twin = { ...owner!, site: { ...owner!.site, domain: `www.${OWNER_DOMAIN}` } }
+      expect(
+        (await callRoute({ path: '/canada/ontario', lang: 'en' }, twin)).body.head.links,
+      ).toEqual([])
+      const { body } = await callSitemap({ prefix: 'free-classes' }, twin)
+      expect(body.map((entry) => entry.url)).toContain('/free-classes/canada/ontario')
+    })
+
     it('publishes the canonical for a region owned somewhere else', async () => {
       const { body } = await callRoute({ path: '/germany', lang: 'en' })
       expect(body.head.links.some((link) => link.rel === 'canonical')).toBe(true)
@@ -337,6 +354,15 @@ describe('atlas Wix endpoints', () => {
     it('noindexes a sub-route in a language the site does not path-route', async () => {
       const { body } = await callRoute({ path: '/canada/ontario', lang: 'fr' })
       expect(body.head.metaTags).toContainEqual({ name: 'robots', content: 'noindex' })
+    })
+
+    it('reads no language as the site’s own, which need not be English', async () => {
+      // The router sends no `lang` on a site's primary language.
+      const french = { ...owner!, language: 'fr' }
+      const { body } = await callRoute({ path: '/canada/ontario', lang: '' }, french)
+      expect(body.head.metaTags).not.toContainEqual({ name: 'robots', content: 'noindex' })
+      const english = await callRoute({ path: '/canada/ontario', lang: 'en' }, french)
+      expect(english.body.head.metaTags).toContainEqual({ name: 'robots', content: 'noindex' })
     })
 
     it('leaves the root indexable, since Wix Multilingual declares its languages', async () => {
@@ -357,15 +383,7 @@ describe('atlas Wix endpoints', () => {
       expect(body.find((entry) => entry.url.endsWith('/canada/ontario'))?.title).toBe('Ontario')
     })
 
-    it('lists only pages on this client host', async () => {
-      const { body } = await callSitemap({ prefix: 'free-classes' })
-      const seo = await callSeo({ route: '/canada/ontario', locale: 'en' })
-      // Every entry's canonical is this host, which is what the filter proves.
-      expect(seo.body.canonical).toContain(OWNER_DOMAIN)
-      expect(body.length).toBeGreaterThan(0)
-    })
-
-    it('answers nothing for a client with no designated embed', async () => {
+    it('answers nothing for a client with no site domain', async () => {
       // Owning pages it is not yet publishing is a state, not an error.
       const { status, body } = await callSitemap({ prefix: 'free-classes' }, stranger)
       expect(status).toBe(200)

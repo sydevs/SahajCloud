@@ -39,21 +39,16 @@ export function safeUrl(value: string | null | undefined): string | null {
 }
 
 /** One `<p>` per authored block. */
-function Paragraphs({ content }: { content: { paragraphs?: string[] } }): ReactNode {
-  return (content.paragraphs ?? []).map((text, index) => <p key={index}>{text}</p>)
+function Paragraphs({ content }: { content: { paragraphs: string[] } }): ReactNode {
+  return content.paragraphs.map((text, index) => <p key={index}>{text}</p>)
 }
 
-/**
- * ⚠ Takes the whole answer, not just `content`: the root names no document, so
- * its heading is the top-level title. A locale with no copy still renders the
- * heading, which is why it is decided before the `content` guard in
- * {@link wixBodyHtml}.
- */
+/** Takes the whole answer: the root names no document, so its heading is the top-level title. */
 function RootBody({ seo }: { seo: Extract<AtlasSeoDocument, { type: 'root' }> }): ReactNode {
   return (
     <section>
       <h1>{seo.title}</h1>
-      <Paragraphs content={seo.content ?? { paragraphs: [] }} />
+      <Paragraphs content={seo.content} />
     </section>
   )
 }
@@ -66,7 +61,7 @@ function EventBody({ content }: { content: AtlasSeoEventContent }): ReactNode {
       {content.schedule?.oneLine ? <p>{content.schedule.oneLine}</p> : null}
       {content.address?.oneLine ? <address>{content.address.oneLine}</address> : null}
       <Paragraphs content={content} />
-      {(content.images ?? []).map((image) => {
+      {content.images.map((image) => {
         const src = safeUrl(image.url)
         if (!src) return null
         // This markup is a string handed to another site's `html` sink, so Next
@@ -84,7 +79,7 @@ function EventBody({ content }: { content: AtlasSeoEventContent }): ReactNode {
 }
 
 function RegionBody({ content }: { content: AtlasSeoRegionContent }): ReactNode {
-  const rows = (content.events ?? []).filter((event) => event.title)
+  const rows = content.events.filter((event) => event.title)
   return (
     <section>
       <h1>{content.name}</h1>
@@ -108,10 +103,10 @@ function RegionBody({ content }: { content: AtlasSeoRegionContent }): ReactNode 
 }
 
 export function wixBodyHtml(seo: AtlasSeoDocument): string {
-  if (seo.type === 'root') return renderToStaticMarkup(<RootBody seo={seo} />)
-  if (!seo.content) return ''
   return renderToStaticMarkup(
-    seo.type === 'event' ? (
+    seo.type === 'root' ? (
+      <RootBody seo={seo} />
+    ) : seo.type === 'event' ? (
       <EventBody content={seo.content} />
     ) : (
       <RegionBody content={seo.content} />

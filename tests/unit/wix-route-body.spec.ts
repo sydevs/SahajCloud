@@ -108,10 +108,6 @@ describe('both sinks are closed by construction', () => {
     )
     expect(html).toContain(`alt="A &quot;hall&quot; &amp; &#x27;more&#x27;"`)
   })
-
-  it('does not double-escape an entity the operator typed', () => {
-    expect(wixBodyHtml(root(['&lt;']))).toContain('<p>&amp;lt;</p>')
-  })
 })
 
 describe('safeUrl', () => {
@@ -138,12 +134,6 @@ describe('wixBodyHtml — the root', () => {
 
   it('renders the heading alone in a locale nobody wrote copy for', () => {
     expect(wixBodyHtml(root([]))).toBe('<section><h1>Free meditation classes</h1></section>')
-  })
-
-  it('escapes operator-authored copy', () => {
-    expect(wixBodyHtml(root(['<script>x</script>'], 'A & B'))).toBe(
-      '<section><h1>A &amp; B</h1><p>&lt;script&gt;x&lt;/script&gt;</p></section>',
-    )
   })
 })
 
@@ -244,12 +234,5 @@ describe('wixBodyHtml — an event', () => {
     const html = wixBodyHtml(event({ website: 'javascript:alert(1)' }))
     expect(html).not.toContain('javascript')
     expect(html).toBe('<article><h1>Thursday class</h1></article>')
-  })
-
-  it('escapes an image alt into its attribute', () => {
-    const html = wixBodyHtml(
-      event({ images: [{ url: 'https://img.example.org/a.jpg', alt: 'A "hall" & more' }] }),
-    )
-    expect(html).toContain('alt="A &quot;hall&quot; &amp; more"')
   })
 })

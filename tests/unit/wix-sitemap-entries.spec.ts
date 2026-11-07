@@ -30,7 +30,7 @@ describe('wixSitemapEntries', () => {
     const entries = wixSitemapEntries({
       resolution: resolution([row('/ca/ontario')], { '/ca/ontario': 'Ontario' }),
       prefix: 'free-classes',
-      host: 'sahajayoga.ca',
+      hosts: ['sahajayoga.ca', 'www.sahajayoga.ca'],
     })
     expect(entries).toEqual([
       { url: '/free-classes/ca/ontario', title: 'Ontario', lastmod: '2026-10-01T00:00:00.000Z' },
@@ -38,14 +38,21 @@ describe('wixSitemapEntries', () => {
   })
 
   it('drops a page on another host, however it got into the answer', () => {
-    // A shared key or a mis-set canonical.embed; Wix would republish it as this
-    // site's own page.
+    // A shared key or a mis-set site; Wix would republish it as this site's own
+    // page. The www twin is the same site, and stays.
     const entries = wixSitemapEntries({
-      resolution: resolution([row('/ca/ontario'), row('/nl/amsterdam', 'sahajayoga.nl')]),
+      resolution: resolution([
+        row('/ca/ontario'),
+        row('/ca/quebec', 'www.sahajayoga.ca'),
+        row('/nl/amsterdam', 'sahajayoga.nl'),
+      ]),
       prefix: 'free-classes',
-      host: 'sahajayoga.ca',
+      hosts: ['sahajayoga.ca', 'www.sahajayoga.ca'],
     })
-    expect(entries.map((entry) => entry.url)).toEqual(['/free-classes/ca/ontario'])
+    expect(entries.map((entry) => entry.url)).toEqual([
+      '/free-classes/ca/ontario',
+      '/free-classes/ca/quebec',
+    ])
   })
 
   it('answers nothing at all for a client with no canonical host yet', () => {
@@ -53,7 +60,7 @@ describe('wixSitemapEntries', () => {
       wixSitemapEntries({
         resolution: resolution([row('/ca/ontario')]),
         prefix: 'free-classes',
-        host: null,
+        hosts: [],
       }),
     ).toEqual([])
   })
@@ -62,7 +69,7 @@ describe('wixSitemapEntries', () => {
     const entries = wixSitemapEntries({
       resolution: resolution([row('/ca/ontario')]),
       prefix: 'free-classes',
-      host: 'sahajayoga.ca',
+      hosts: ['sahajayoga.ca', 'www.sahajayoga.ca'],
     })
     expect(entries[0].title).toBe('/ca/ontario')
   })

@@ -3,7 +3,7 @@ import type { Endpoint } from 'payload'
 import { z } from 'zod'
 
 import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
-import { primaryPageUrl } from '@/lib/clients/site'
+import { siteHosts } from '@/lib/clients/site'
 import {
   parseQuery,
   readFailureResponse,
@@ -15,7 +15,7 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
-import { type AtlasWixSitemapEntry, hostOf, wixSitemapEntries } from '../shape'
+import { type AtlasWixSitemapEntry, wixSitemapEntries } from '../shape'
 
 const querySchema = z.object({
   // The Install tab's own rule, so a prefix it accepts cannot be refused here.
@@ -34,8 +34,8 @@ const querySchema = z.object({
  * - **An array, not an envelope**, returned verbatim by the generated function.
  *   No `generated` timestamp: Wix caches whole responses, and it is the one
  *   field that moves between two identical answers.
- * - A client that has designated no canonical embed has no host, and gets
- *   `[]` — an answer, not an error.
+ * - A client with no `site.domain` has no host, and gets `[]` — an answer, not
+ *   an error.
  *
  * A root endpoint, so the gates are called by hand (`docs/rules/endpoints.md`).
  */
@@ -59,7 +59,7 @@ export const atlasWixSitemap: Endpoint = {
       const body: AtlasWixSitemapEntry[] = wixSitemapEntries({
         resolution: await resolveAtlasSitemap({ req, clientId }),
         prefix: parsed.data.prefix,
-        host: hostOf(primaryPageUrl((req.user as Client | undefined)?.site)),
+        hosts: siteHosts((req.user as Client | undefined)?.site?.domain),
       })
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {

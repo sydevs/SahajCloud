@@ -2,6 +2,8 @@ import type { PayloadRequest } from 'payload'
 
 import { reportRejectedCredential } from '@/plugins/sentry/credentialRejection'
 
+import { errorResponse } from './errorResponse'
+
 /**
  * Active-client auth guard shared by the public client endpoints.
  *
@@ -25,10 +27,7 @@ import { reportRejectedCredential } from '@/plugins/sentry/credentialRejection'
 export function requireActiveClient(req: PayloadRequest): Response | null {
   if (req.user?.collection !== 'clients' || req.user.enabled !== true) {
     reportRejectedCredential(req)
-    return Response.json(
-      { errors: [{ message: 'You are not allowed to perform this action.' }] },
-      { status: 403 },
-    )
+    return errorResponse('You are not allowed to perform this action.', 403)
   }
   return null
 }
