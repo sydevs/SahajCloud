@@ -6826,11 +6826,11 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false,
-          "default": "'{\"invitation\":{\"frequency\":\"Immediate\",\"method\":\"email\"},\"event_verification\":{\"frequency\":\"Monthly\",\"method\":\"email\"},\"event_registration\":{\"frequency\":\"Immediate\",\"method\":\"email\"},\"regional_summary\":{\"frequency\":\"Monthly\",\"method\":\"email\"}}'::jsonb"
+          "default": "'{\"invitation\":{\"frequency\":\"Immediate\",\"method\":\"email\"},\"event_verification\":{\"frequency\":\"Monthly\",\"method\":\"email\"},\"event_registration\":{\"frequency\":\"Daily\",\"method\":\"email\"},\"new_proposals\":{\"frequency\":\"Daily\",\"method\":\"email\"},\"open_items\":{\"frequency\":\"Monthly\",\"method\":\"email\"},\"refused_signups\":{\"frequency\":\"Daily\",\"method\":\"email\"},\"statistics\":{\"frequency\":\"Monthly\",\"method\":\"email\"}}'::jsonb"
         },
-        "last_registration_digest_sent_at": {
-          "name": "last_registration_digest_sent_at",
-          "type": "timestamp(3) with time zone",
+        "digest_watermarks": {
+          "name": "digest_watermarks",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -28061,6 +28061,7 @@
         "accepted",
         "rejected",
         "spam",
+        "confirmed_spam",
         "failed"
       ]
     },
@@ -28069,12 +28070,13 @@
       "schema": "public",
       "values": [
         "inline",
+        "recordAtlasSnapshot",
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
         "screenSubmission",
         "sendPostEventFollowUps",
-        "sendRegistrationDigests",
+        "sendDigests",
         "sendSessionReminders",
         "cleanupCollections",
         "syncLectureMetadata",
@@ -28099,12 +28101,13 @@
       "schema": "public",
       "values": [
         "inline",
+        "recordAtlasSnapshot",
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
         "screenSubmission",
         "sendPostEventFollowUps",
-        "sendRegistrationDigests",
+        "sendDigests",
         "sendSessionReminders",
         "cleanupCollections",
         "syncLectureMetadata",
