@@ -1,7 +1,7 @@
 'use client'
 
 import type { Action, Notice, PlatformId, Step, TrackId } from './steps'
-import type { EmbedHeight, InstallValues } from './templates'
+import type { InstallValues } from './templates'
 
 import {
   Button,
@@ -27,6 +27,7 @@ import {
   isBrandColor,
 } from '@/lib/clients/appearance'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import type { EmbedHeight } from '@/lib/clients/site'
 import { ownedHost, primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
@@ -85,7 +86,7 @@ type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'enabled' | 'si
 /** Which Check button asked, so its answer shows beside it. */
 type CheckSource = 'sidebar' | 'section3' | 'section4'
 
-export interface InstallGuideProps {
+interface InstallGuideProps {
   clientId: number
   /** The service's API key, revealed server-side for this one render. */
   apiKey: string | null

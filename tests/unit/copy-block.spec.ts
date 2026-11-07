@@ -92,9 +92,9 @@ describe('CopyBlock', () => {
       value: 'https://sahajatlas.com/auto.js?key=abc-123',
       kind: 'text',
     })
-    const code = container.querySelector('code')
-    expect(code?.getAttribute('aria-label')).toBe('Server URL')
-    expect(code?.nextElementSibling?.textContent).toBe('Copy')
+    const group = container.querySelector('[role="group"]')
+    expect(group?.getAttribute('aria-label')).toBe('Server URL')
+    expect(group?.querySelector('code')?.nextElementSibling?.textContent).toBe('Copy')
   })
 })
 

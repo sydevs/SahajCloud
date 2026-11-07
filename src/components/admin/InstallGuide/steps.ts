@@ -2,7 +2,6 @@ import type { InstallValues } from './templates'
 
 import type { Snippet } from '@/components/admin/CopyBlock'
 import { isValidWixPrefix } from '@/lib/atlas/wixPrefix'
-// Deep, never the `@/plugins/usage` barrel: this module reaches the browser.
 import type { SiteTrack } from '@/lib/clients/site'
 import { siteHosts } from '@/lib/clients/site'
 import type { SeoCheckId } from '@/lib/clients/verification'

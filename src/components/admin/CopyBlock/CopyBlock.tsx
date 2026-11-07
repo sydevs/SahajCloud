@@ -43,10 +43,9 @@ export function CopyBlock({ snippet }: { snippet: Snippet }): React.ReactElement
   const [fit, setFit] = useState<{ height: number; at: number } | null>(null)
   if (snippet.kind === 'text') {
     return (
-      <div className={styles.value}>
-        <code aria-label={snippet.label} className={styles.code}>
-          {snippet.value}
-        </code>
+      // Named on the group: a `<code>` element's role takes no accessible name.
+      <div aria-label={snippet.label} className={styles.value} role="group">
+        <code className={styles.code}>{snippet.value}</code>
         <CopyToClipboard value={snippet.value} />
       </div>
     )

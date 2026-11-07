@@ -10,7 +10,7 @@ import type { Client } from '@/payload-types'
 
 import { type Milestone, milestonesForRecord } from './installModel'
 
-export interface InstallRecord {
+interface InstallRecord {
   client: Pick<Client, 'roles' | 'enabled' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
   /** Whether the service has the atlas role, and so an install at all. */
   atlas: boolean

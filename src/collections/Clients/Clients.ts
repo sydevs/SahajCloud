@@ -22,7 +22,7 @@ import {
 } from '@/lib/clients/verification'
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
-import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
+import { MAILING_LIST_PROVIDER_LABELS, MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import {
   adminOnlyFieldAccess,
@@ -228,13 +228,6 @@ const isAtlasClient = (data: { roles?: unknown }): boolean =>
 const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
   Boolean(data?.mailingList?.enabled)
 
-/** What each provider is called in the select. */
-const PROVIDER_LABELS: Record<MailingListProvider, string> = {
-  mailchimp: 'Mailchimp',
-  brevo: 'Brevo',
-  klaviyo: 'Klaviyo',
-}
-
 /**
  * What opt-in actually does, per provider — the description under the provider
  * select, switched by the chosen value (`SelectDescription`).
@@ -294,7 +287,7 @@ const mailingListGroup: Field = {
       type: 'select',
       required: true,
       options: MAILING_LIST_PROVIDERS.map((value) => ({
-        label: PROVIDER_LABELS[value],
+        label: MAILING_LIST_PROVIDER_LABELS[value],
         value,
       })),
       enumName: 'enum_clients_mailing_list_provider',

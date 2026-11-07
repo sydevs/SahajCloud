@@ -11,6 +11,7 @@ import { ownedHost } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env/server'
 import { getLanguageOptions } from '@/lib/locales'
+import { MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList/types'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client } from '@/payload-types'
 import { USER_EMAIL_FROM } from '@/plugins/email'
@@ -18,6 +19,7 @@ import { USER_EMAIL_FROM } from '@/plugins/email'
 import { CenteredNotice } from '../CenteredNotice'
 import { type Appearance, InstallGuide } from './InstallGuide'
 import styles from './InstallGuide.module.css'
+import { loadInstallRecord } from './installRecord'
 
 /**
  * The Install tab's server half (#1055).
@@ -127,7 +129,9 @@ export default async function InstallView(
         }
         languageOptions={getLanguageOptions()}
         appearance={await readAppearance(props, client)}
-        regionName={await readRegionName(props, client.region)}
+        regionName={
+          (await loadInstallRecord(props.initPageResult.req.payload, client.id))?.regionName ?? null
+        }
         widgetUrl={serverEnv.SAHAJATLAS_URL}
       />
     </>
@@ -145,17 +149,9 @@ async function readAppearance(props: DocumentViewServerProps, client: Client): P
       color3: client.color3 ?? null,
     },
     replyTo: client.supportEmail || USER_EMAIL_FROM,
-    mailingList: list?.enabled && list.provider ? PROVIDER_NAMES[list.provider] : null,
+    mailingList:
+      list?.enabled && list.provider ? MAILING_LIST_PROVIDER_LABELS[list.provider] : null,
   }
-}
-
-const PROVIDER_NAMES: Record<
-  NonNullable<NonNullable<Client['mailingList']>['provider']>,
-  string
-> = {
-  mailchimp: 'Mailchimp',
-  brevo: 'Brevo',
-  klaviyo: 'Klaviyo',
 }
 
 /** The logo's own URL, or `null` when there is none or it cannot be read. */
@@ -173,28 +169,6 @@ async function readLogoUrl(
       select: { url: true },
     })
     return image.url ?? null
-  } catch {
-    return null
-  }
-}
-
-/** The service's region by name, for the progress table, or `null` for Worldwide. */
-async function readRegionName(
-  props: DocumentViewServerProps,
-  region: Client['region'],
-): Promise<string | null> {
-  if (region === null || region === undefined) return null
-  if (typeof region === 'object') return region.name ?? null
-  const { req } = props.initPageResult
-  try {
-    const doc = await req.payload.findByID({
-      collection: 'regions',
-      id: region,
-      depth: 0,
-      select: { name: true },
-      req,
-    })
-    return doc.name ?? null
   } catch {
     return null
   }

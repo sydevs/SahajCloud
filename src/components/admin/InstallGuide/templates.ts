@@ -44,19 +44,8 @@ export interface InstallValues {
   embedHeight?: EmbedHeight
 }
 
-/**
- * How tall a pasted `<sahaj-atlas>` is: a definite height, or none at all.
- *
- * Those are the embed contract's only two shapes (sydevs/SahajAtlasWeb
- * `docs/embedding.md`, "Sizing the element"): with a height the map lives in the
- * page between header and footer, and with none it fills the browser window. A
- * free number is not offered because below 420px the widget gives up on the map
- * and shows its compact card.
- */
-export type { EmbedHeight }
-
 /** The element's inline style per choice; `null` is the window-filling map. */
-export const EMBED_HEIGHT_STYLE: Record<EmbedHeight, string | null> = {
+const EMBED_HEIGHT_STYLE: Record<EmbedHeight, string | null> = {
   fixed: 'display:block;height:640px',
   screen: 'display:block;height:80vh',
   window: null,
@@ -259,7 +248,7 @@ $w.onReady(function () {
 }
 
 /** What a volunteer types into the Custom Element panel, field by field. */
-export interface CustomElementSettings {
+interface CustomElementSettings {
   serverUrl: string
   tagName: string
 }

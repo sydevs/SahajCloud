@@ -41,7 +41,16 @@ export function hasSearchListings(track: SiteTrack | null | undefined): boolean 
   return track !== 'squarespace' && track !== 'iframe'
 }
 
-/** How tall a pasted embed is, as `site.embedHeight` stores it. */
+/**
+ * How tall a pasted `<sahaj-atlas>` is, as `site.embedHeight` stores it: a
+ * definite height, or none at all.
+ *
+ * Those are the embed contract's only two shapes (sydevs/SahajAtlasWeb
+ * `docs/embedding.md`, "Sizing the element"): with a height the map lives in the
+ * page between header and footer, and with none it fills the browser window. A
+ * free number is not offered because below 420px the widget gives up on the map
+ * and shows its compact card.
+ */
 export const EMBED_HEIGHTS = ['fixed', 'screen', 'window'] as const
 
 export type EmbedHeight = (typeof EMBED_HEIGHTS)[number]

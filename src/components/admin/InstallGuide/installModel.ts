@@ -20,7 +20,7 @@ import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
  */
 
 /** How far along the install is. One answer, for the banner at the top. */
-export type InstallStage = 'waiting' | 'seen' | 'verifying' | 'verified' | 'warnings' | 'failed'
+type InstallStage = 'waiting' | 'seen' | 'verifying' | 'verified' | 'warnings' | 'failed'
 
 /**
  * What one step's light says, and why.
@@ -129,7 +129,7 @@ export function buildInstallModel(args: {
     : candidate === null
       ? 'waiting'
       : !verification?.verified
-        ? reported.length > 0 && (verification?.attempts.length ?? 0) > 0
+        ? (verification?.attempts.length ?? 0) > 0
           ? 'failed'
           : 'seen'
         : failures.length > 0
