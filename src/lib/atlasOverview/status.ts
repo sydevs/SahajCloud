@@ -195,7 +195,11 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   const statuses: OpenItemStatus[] = []
 
   if (stage === 'urgent' || stage === 'reminded' || stage === 'escalated') {
-    const due = unpublishDate(stage, now).toISOString()
+    // ⚠ From the stage's own check, not from now: the ladder's offsets start when it comes due.
+    const due = unpublishDate(
+      stage,
+      event.nextCheckAt ? new Date(event.nextCheckAt) : now,
+    ).toISOString()
     statuses.push(
       status('overdue', {
         line: `Unpublishes ${shortDate(due)}${regionNote(event)}`,

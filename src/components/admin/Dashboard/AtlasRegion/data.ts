@@ -1,6 +1,6 @@
 import type { PaginatedDocs, PayloadRequest } from 'payload'
 
-import { getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
+import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
 import { loadRegionOverview, type RegionOverviewRow } from '@/lib/atlasOverview/regions'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
 import type { OverviewStatistics } from '@/lib/atlasOverview/statistics'
@@ -47,9 +47,10 @@ export async function getAtlasRegionData(
 
   const scope: OverviewScope = { managerId, regionId, role: 'region' }
 
-  const [base, regionRows] = await Promise.all([
+  const [base, regionRows, managersById] = await Promise.all([
     loadHomeBase({ now, query, req, scope }),
     loadRegionOverview({ now, req: localeIsolatedReq(req), scope }),
+    getRegionManagers(req),
   ])
 
   const listed = new Set(regionRows.map((row) => row.id))
@@ -66,7 +67,7 @@ export async function getAtlasRegionData(
         )
       : regionRows.filter((row) => row.id === regionId)
   const programs = roots.reduce((sum, row) => sum + row.programs, 0)
-  const managers = new Set(regionRows.flatMap((row) => tree.managersById.get(row.id) ?? [])).size
+  const managers = new Set(regionRows.flatMap((row) => managersById.get(row.id) ?? [])).size
   // The overview lists one level: the opened region's children, or a lone root's.
   const parentId = regionId ?? (roots.length === 1 ? roots[0]!.id : undefined)
   const levelRows =

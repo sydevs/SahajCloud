@@ -244,6 +244,11 @@ describe('SendDigests job', () => {
       const marks = await watermarksOf(both.id)
       expect(marks.program?.open_items).toBeTruthy()
       expect(marks.region?.open_items).toBeTruthy()
+
+      // A retry, or a second manual run, the same day sends neither again.
+      emailAdapter.clearCapturedEmails()
+      await runDigests(payload)
+      expect(emailsTo('both@example.com')).toHaveLength(0)
     })
   })
 
@@ -370,8 +375,8 @@ describe('SendDigests job', () => {
 
   describe('exactly once', () => {
     /**
-     * ⚠ **A manager who could rewind their own marks would re-send themselves
-     * every open item the window covers.** Payload strips a field its
+     * ⚠ **A manager who could rewind their own marks could have the day's
+     * email, and every item since the mark, sent again.** Payload strips a field its
      * `access.update` refuses rather than erroring, so the PATCH succeeds with
      * the column unchanged — which is the behaviour to assert, not a 403.
      */

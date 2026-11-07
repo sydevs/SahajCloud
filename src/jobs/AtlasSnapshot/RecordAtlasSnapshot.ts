@@ -10,38 +10,24 @@ import {
 import { addDays } from '@/lib/eventVerification/periods'
 import { runClock } from '@/lib/jobs/runClock'
 
-const PAGINATION_LIMIT = 500
-
 /**
- * How long a day's counts are kept.
- *
- * ⚠ **Lower bound: the longest comparison a tile makes, plus slack.** The homes
- * and the statistics email compare against 30 days ago, so a window at 30 would
- * race the prune. 45 leaves two weeks of missed runs before a comparison goes
- * blind.
+ * How long a day's counts are kept: the 30-day comparison plus the week a
+ * reader looks back past a missed run (`snapshotBefore`), plus a day of slack.
  */
-const SNAPSHOT_RETENTION_DAYS = 45
+const SNAPSHOT_RETENTION_DAYS = 38
 
 /** Count each region's own non-trashed events by stage; the subtree rollup happens at read time. */
 export async function countEventsByRegion(req: PayloadRequest): Promise<AtlasSnapshotCounts> {
-  const counts: AtlasSnapshotCounts = {}
-  let page = 1
-  let hasNextPage = true
-  while (hasNextPage) {
-    const batch = await req.payload.find({
-      collection: 'events',
-      depth: 0,
-      limit: PAGINATION_LIMIT,
-      page,
-      overrideAccess: true,
-      req,
-      select: { region: true, verificationStage: true },
-    })
-    countByRegion(batch.docs, counts)
-    hasNextPage = batch.hasNextPage
-    page++
-  }
-  return counts
+  // ⚠ One unpaginated read, as the live tiles make: offset pages would shift under an event created mid-run.
+  const { docs } = await req.payload.find({
+    collection: 'events',
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    req,
+    select: { region: true, verificationStage: true },
+  })
+  return countByRegion(docs)
 }
 
 /**

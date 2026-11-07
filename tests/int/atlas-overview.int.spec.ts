@@ -268,6 +268,31 @@ describe('Atlas overview', () => {
       expect(data.description).toContain(` · ${programs} events · `)
     })
 
+    /** ⚠ A change proposal carries no region of its own, so its event places it. */
+    it('shows a change proposed to an unadopted listing in its subtree', async () => {
+      const [listing] = (
+        await payload.find({
+          collection: 'events',
+          where: { title: { equals: 'Unadopted listing' } },
+          limit: 1,
+          overrideAccess: true,
+        })
+      ).docs
+      await payload.create({
+        collection: 'user-submissions',
+        data: {
+          event: listing!.id,
+          proposed: { description: 'Now on Thursdays too' },
+          senderEmail: 'proposer@example.com',
+          type: 'proposal',
+        } as never,
+        overrideAccess: true,
+        req: systemReq(),
+      })
+      const row = (await load()).items.rows.docs.find((doc) => doc.title === 'Unadopted listing')!
+      expect(row.statuses.map((status) => status.key)).toContain('change-proposed')
+    })
+
     /** ⚠ A region manager sees recommendations on their own events only. */
     it("shows recommendations on nobody else's events", async () => {
       const data = await load()
@@ -468,17 +493,17 @@ describe('Atlas overview', () => {
       expect(verified.change).toBe(0)
     })
 
-    it('prunes snapshots older than 45 days, and keeps the rest', async () => {
+    it('prunes snapshots past their 38 days, and keeps the rest', async () => {
       const day = 24 * 60 * 60 * 1000
       const now = new Date()
       const key = (daysAgo: number) =>
         `atlas-snapshot:${new Date(now.getTime() - daysAgo * day).toISOString().slice(0, 10)}`
-      await payload.kv.set(key(46), {})
-      await payload.kv.set(key(44), {})
+      await payload.kv.set(key(39), {})
+      await payload.kv.set(key(37), {})
 
       await runTaskHandler(RecordAtlasSnapshot, { context: { now }, payload })
-      expect(await payload.kv.has(key(46))).toBe(false)
-      expect(await payload.kv.has(key(44))).toBe(true)
+      expect(await payload.kv.has(key(39))).toBe(false)
+      expect(await payload.kv.has(key(37))).toBe(true)
       expect(await payload.kv.has(key(0))).toBe(true)
     })
 

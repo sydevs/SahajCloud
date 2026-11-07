@@ -6,7 +6,7 @@ import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecyc
 import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
+import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
@@ -15,6 +15,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Event } from '@/payload-types'
 
+import { SPAM_SIGNUPS } from './refusals'
 import { type OverviewArgs, type OverviewScope, scopeRegionIds } from './scope'
 import {
   isProgramStage,
@@ -88,10 +89,13 @@ function changedFields(proposed: unknown, fields: FlattenedField[]): string[] {
 }
 
 /** The regions nobody manages, at any level above them. */
-function regionsWithNoManagerAbove(tree: RegionTree): Set<number> {
+function regionsWithNoManagerAbove(
+  tree: RegionTree,
+  managersById: Map<number, number[]>,
+): Set<number> {
   const unmanaged = new Set<number>()
   for (const [id, chain] of tree.chainById) {
-    if (![id, ...chain].some((link) => tree.managersById.get(link)?.length)) unmanaged.add(id)
+    if (!chain.some((link) => managersById.get(link)?.length)) unmanaged.add(id)
   }
   return unmanaged
 }
@@ -153,7 +157,7 @@ function loadOpenProposals(req: PayloadRequest, adminUnmanaged?: number[]) {
 async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
-    where: { and: [{ type: { equals: 'registration' } }, { status: { equals: 'spam' } }] },
+    where: { and: SPAM_SIGNUPS },
     depth: 0,
     limit: LIST_READ_LIMIT,
     sort: '-createdAt',
@@ -174,6 +178,14 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
   })
 }
 
+/** A region scope's own events — inside `?region=` when it names one. */
+function ownEventsWhere(scope: OverviewScope, regionIds: null | Set<number>): Where[] {
+  if (scope.role !== 'region' || scope.managerId === null) return []
+  const own: Where = { manager: { equals: scope.managerId } }
+  if (scope.regionId === undefined) return [own]
+  return regionIds?.size ? [{ and: [own, { region: { in: [...regionIds] } }] }] : []
+}
+
 /** The events one scope lists, or `null` for none. */
 function scopedEventsWhere(
   scope: OverviewScope,
@@ -189,10 +201,7 @@ function scopedEventsWhere(
   const or: Where[] =
     scope.role === 'admin'
       ? listedIn([...unmanaged])
-      : [
-          ...(scope.managerId === null ? [] : [{ manager: { equals: scope.managerId } }]),
-          ...listedIn([...(regionIds ?? [])]),
-        ]
+      : [...ownEventsWhere(scope, regionIds), ...listedIn([...(regionIds ?? [])])]
   if (!or.length) return null
   return or.length === 1 ? or[0]! : { or }
 }
@@ -208,9 +217,8 @@ async function countRegionPrograms(
   const { req, scope } = args
   if (scope.role !== 'region') return 0
   const covers: Where[] = [
-    ...(regionIds === null ? [{ region: { exists: true } }] : []),
     ...(regionIds?.size ? [{ region: { in: [...regionIds] } }] : []),
-    ...(scope.managerId === null ? [] : [{ manager: { equals: scope.managerId } }]),
+    ...ownEventsWhere(scope, regionIds),
   ]
   if (!covers.length) return 0
   const { totalDocs } = await req.payload.count({
@@ -232,7 +240,10 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   const { now, req, scope } = args
   const tree = await getRegionTree(req)
   const regionIds = await scopeRegionIds(req, scope, tree)
-  const unmanaged = scope.role === 'admin' ? regionsWithNoManagerAbove(tree) : new Set<number>()
+  const unmanaged =
+    scope.role === 'admin'
+      ? regionsWithNoManagerAbove(tree, await getRegionManagers(req))
+      : new Set<number>()
 
   const readEvents = async (where: Where) =>
     (
@@ -266,12 +277,15 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
       // A new class is nobody's program yet.
       mine = eventId !== null && byId.has(eventId)
     } else if (scope.role === 'region') {
-      const routingRegion = submissionRoutingRegionId(proposal)
-      // Only what no program manager holds: a new class, or a change to an unadopted listing.
-      mine =
-        routingRegion !== null &&
-        (regionIds?.has(routingRegion) ?? true) &&
-        (eventId === null || (byId.has(eventId) && relationId(byId.get(eventId)!.manager) === null))
+      // Only what no program manager holds: a new class routed into the scope,
+      // or a change to an unadopted listing in it. ⚠ A change proposal carries
+      // no region of its own, so its event decides (`resolveProposalRegion`).
+      if (eventId === null) {
+        const routingRegion = submissionRoutingRegionId(proposal)
+        mine = routingRegion !== null && (regionIds?.has(routingRegion) ?? true)
+      } else {
+        mine = byId.has(eventId) && relationId(byId.get(eventId)!.manager) === null
+      }
     }
     if (!mine) continue
 

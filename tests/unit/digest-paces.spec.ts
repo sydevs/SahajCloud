@@ -21,13 +21,18 @@ describe('digest paces', () => {
     expect(isDue('Monthly', new Date('2026-12-02T07:00:00Z'))).toBe(false)
   })
 
-  /** ⚠ The clamp is the point: an old watermark must not make months of items "new". */
-  it('clamps the window to one period when the watermark is older', () => {
-    const old = new Date(MONDAY.getTime() - 40 * DAY_MS).toISOString()
+  it('trusts a watermark inside two periods, so a late or missed run drops nothing', () => {
+    const lastMonth = new Date(MONDAY.getTime() - 31 * DAY_MS).toISOString()
+    expect(windowStart(lastMonth, 'Monthly', MONDAY).toISOString()).toBe(lastMonth)
+    const yesterdayLate = new Date(MONDAY.getTime() - DAY_MS - 60_000).toISOString()
+    expect(windowStart(yesterdayLate, 'Daily', MONDAY).toISOString()).toBe(yesterdayLate)
+  })
+
+  /** ⚠ The clamp is the point: a section back on after months must not make them all "new". */
+  it('clamps to one period when the watermark is missing or older than two', () => {
+    const old = new Date(MONDAY.getTime() - 70 * DAY_MS).toISOString()
     expect(windowStart(old, 'Daily', MONDAY).getTime()).toBe(MONDAY.getTime() - DAY_MS)
     expect(windowStart(old, 'Monthly', MONDAY).getTime()).toBe(MONDAY.getTime() - 30 * DAY_MS)
-    const recent = new Date(MONDAY.getTime() - 3 * DAY_MS).toISOString()
-    expect(windowStart(recent, 'Weekly', MONDAY).toISOString()).toBe(recent)
     expect(windowStart(null, 'Weekly', MONDAY).getTime()).toBe(MONDAY.getTime() - 7 * DAY_MS)
   })
 })

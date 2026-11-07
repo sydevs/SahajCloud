@@ -118,9 +118,40 @@ export interface StatTile {
   path?: `/${string}`
 }
 
-/** ⚠ An `in` list goes as one comma-joined value, which Payload splits; indexed keys make a subtree's URL kilobytes long. */
+/**
+ * ⚠ An `in` list goes as one comma-joined value, which Payload splits; indexed
+ * keys make a subtree's URL kilobytes long.
+ */
 const listPath = (collection: string, and: Where[]): `/${string}` =>
-  `/collections/${collection}${qs.stringify({ where: { and } }, { addQueryPrefix: true })}`
+  `/collections/${collection}${qs.stringify({ where: { and: joinIn(and) } }, { addQueryPrefix: true })}`
+
+const joinIn = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(joinIn)
+  if (!value || typeof value !== 'object') return value
+  return Object.fromEntries(
+    Object.entries(value).map(([key, inner]) => [
+      key,
+      key === 'in' && Array.isArray(inner) ? inner.join(',') : joinIn(inner),
+    ]),
+  )
+}
+
+/** How far back a missing day may be covered by an older snapshot. */
+const SNAPSHOT_TOLERANCE_DAYS = 7
+
+/**
+ * The newest snapshot at least 30 days old and at most a week older, so one
+ * missed nightly run does not blank every change line for a day.
+ */
+async function snapshotBefore(req: PayloadRequest, now: Date): Promise<AtlasSnapshotCounts | null> {
+  const newest = snapshotKey(snapshotDate(addDays(now, -WINDOW_DAYS)))
+  const oldest = snapshotKey(snapshotDate(addDays(now, -WINDOW_DAYS - SNAPSHOT_TOLERANCE_DAYS)))
+  const key = (await req.payload.kv.keys())
+    .filter((candidate) => candidate >= oldest && candidate <= newest)
+    .sort()
+    .at(-1)
+  return key ? req.payload.kv.get<AtlasSnapshotCounts>(key) : null
+}
 
 export interface OverviewStatistics {
   /** Empty for a program manager, who has no ladder to watch. */
@@ -142,25 +173,19 @@ const HEALTH_TILES: { label: string; stages: VerificationStage[] }[] = [
 /** Every tile one scope shows. */
 export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatistics> {
   const { now, req, scope } = args
-  const [tree, snapshot] = await Promise.all([
-    getRegionTree(req),
-    req.payload.kv.get<AtlasSnapshotCounts>(snapshotKey(snapshotDate(addDays(now, -WINDOW_DAYS)))),
-  ])
+  const [tree, snapshot] = await Promise.all([getRegionTree(req), snapshotBefore(req, now)])
   const regionIds = await scopeRegionIds(req, scope, tree)
-  const inScope: Where[] =
+  const inScope: Where =
     scope.role === 'program'
-      ? [{ manager: { equals: scope.managerId } }]
-      : [{ region: regionIds ? { in: [...regionIds].join(',') } : { exists: true } }]
+      ? { manager: { equals: scope.managerId } }
+      : { region: regionIds ? { in: [...regionIds] } : { exists: true } }
   // ⚠ Registrations appear for nobody but an admin, who alone reads a region scope with no manager.
   const readsSubmissions =
     scope.role === 'admin' || (scope.role === 'region' && scope.managerId === null)
 
   const { docs } = await req.payload.find({
     collection: 'events',
-    where:
-      scope.role === 'program'
-        ? { manager: { equals: scope.managerId } }
-        : { region: regionIds ? { in: [...regionIds] } : { exists: true } },
+    where: inScope,
     depth: 0,
     pagination: false,
     overrideAccess: args.overrideAccess,
@@ -191,16 +216,21 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
             change: before ? value - sum(before) : null,
             // More verified listings is the one rise that is good news on the ladder.
             better: label === 'Verified' ? ('up' as const) : ('down' as const),
-            path: listPath('events', [...inScope, { verificationStage: { in: stages.join(',') } }]),
+            path: listPath('events', [inScope, { verificationStage: { in: stages } }]),
           }
         })
 
   const programs = new Map(
     docs.filter((doc) => isProgramStage(doc.verificationStage)).map((doc) => [doc.id, doc]),
   )
+  // ⚠ By region, not by an id list: a whole-map scope's ids would overrun Postgres's bind limit.
   const windows = docs.length
     ? await loadSignupWindows({
-        extraWhere: [{ event: { in: docs.map((doc) => doc.id) } }],
+        extraWhere: [
+          scope.role === 'program'
+            ? { event: { in: docs.map((doc) => doc.id) } }
+            : { 'event.region': regionIds ? { in: [...regionIds] } : { exists: true } },
+        ],
         now,
         req,
       })
@@ -230,7 +260,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
         label: 'Total events',
         value: programs.size,
         change: programsBefore === null ? null : programs.size - programsBefore,
-        path: listPath('events', [...inScope, { verificationStage: { not_equals: 'finished' } }]),
+        path: listPath('events', [inScope, { verificationStage: { not_equals: 'finished' } }]),
       },
       {
         key: 'registrations',
@@ -242,7 +272,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
           path: listPath('user-submissions', [
             { type: { equals: 'registration' } },
             { createdAt: { greater_than: addDays(now, -WINDOW_DAYS).toISOString() } },
-            ...(regionIds ? [{ 'event.region': { in: [...regionIds].join(',') } }] : []),
+            ...(regionIds ? [{ 'event.region': { in: [...regionIds] } }] : []),
           ]),
         }),
       },

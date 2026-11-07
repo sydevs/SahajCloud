@@ -1,6 +1,6 @@
 /** The Regions and Countries overviews: every number rolled up over a region's whole subtree. */
 
-import { getRegionTree } from '@/lib/atlas/regionTree'
+import { getRegionManagers, getRegionTree } from '@/lib/atlas/regionTree'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Region } from '@/payload-types'
@@ -47,19 +47,17 @@ export async function loadRegionOverview(
   args: Omit<OverviewArgs, 'overrideAccess'> & { countriesOnly?: boolean },
 ): Promise<RegionOverviewRow[]> {
   const { now, req, scope } = args
-  const tree = await getRegionTree(req)
+  const [tree, managersById] = await Promise.all([getRegionTree(req), getRegionManagers(req)])
   const scoped = await scopeRegionIds(req, scope, tree)
   const inScope = scoped ?? new Set(tree.chainById.keys())
   /** A region and its ancestors inside the scope; ⚠ the scope gates the roll-up, not the item. */
   const upChain = (regionId: number) =>
-    [...new Set([regionId, ...(tree.chainById.get(regionId) ?? [])])].filter((id) =>
-      inScope.has(id),
-    )
+    (tree.chainById.get(regionId) ?? [regionId]).filter((id) => inScope.has(id))
 
   // ⚠ Narrowed to the scope: a subtree is closed downwards, so nothing excluded could roll up into it.
   const narrow = scoped ? [...scoped] : null
   const managerIds = [
-    ...new Set([...inScope].flatMap((id) => (tree.managersById.get(id) ?? []).slice(0, 2))),
+    ...new Set([...inScope].flatMap((id) => (managersById.get(id) ?? []).slice(0, 2))),
   ]
   const [events, signups, managerDocs] = await Promise.all([
     req.payload.find({
@@ -124,7 +122,7 @@ export async function loadRegionOverview(
     const level = tree.levelById.get(id)
     if (!level || (args.countriesOnly && level !== 'country')) continue
     const row = metrics.get(id) ?? empty()
-    const own = tree.managersById.get(id) ?? []
+    const own = managersById.get(id) ?? []
     rows.push({
       id,
       name: tree.nameById.get(id)?.trim() || `#${id}`,
@@ -143,7 +141,7 @@ export async function loadRegionOverview(
 
   // Least healthy first, then those with no manager of their own.
   // ⚠ `healthy: null` sorts last: an empty region is not an unhealthy one.
-  const managerless = (row: RegionOverviewRow) => !tree.managersById.get(row.id)?.length
+  const managerless = (row: RegionOverviewRow) => !managersById.get(row.id)?.length
   return rows.sort(
     (a, b) =>
       (a.healthy ?? 101) - (b.healthy ?? 101) ||

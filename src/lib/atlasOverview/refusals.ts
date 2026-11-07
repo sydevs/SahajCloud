@@ -8,7 +8,10 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 /** How far back a surface counts sign-ups the spam check filed. */
 const SPAM_SIGNUP_WINDOW_DAYS = 7
 
-const SPAM_SIGNUPS: Where[] = [{ type: { equals: 'registration' } }, { status: { equals: 'spam' } }]
+export const SPAM_SIGNUPS: Where[] = [
+  { type: { equals: 'registration' } },
+  { status: { equals: 'spam' } },
+]
 
 /** The admin list of those sign-ups, as a path under the admin route. */
 export const SPAM_SIGNUPS_PATH: `/${string}` = `/collections/user-submissions${qs.stringify(

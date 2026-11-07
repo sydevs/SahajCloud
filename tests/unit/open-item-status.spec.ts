@@ -24,16 +24,33 @@ const only = (row: OpenItemRow) => openItem(row, NOW).statuses[0]!
 describe('openItem', () => {
   describe('every status in the table', () => {
     it('places an urgent listing ahead of everything, including a proposal', () => {
-      const status = only(event({ verificationStage: 'urgent' }))
-      expect(status).toMatchObject({
+      const item = openItem(
+        event({
+          proposal: { changedFields: ['Title'], id: 7, receivedAt: '2026-11-01T00:00:00.000Z' },
+          verificationStage: 'urgent',
+        }),
+        NOW,
+      )
+      expect(item.placing).toMatchObject({
         filter: 'overdue',
         key: 'overdue',
         label: 'Overdue',
         pill: 'error',
         counts: true,
       })
-      expect(status.line).toMatch(/^Unpublishes /)
-      expect(status.action).toEqual({ label: 'Verify', target: { collection: 'events', id: 1 } })
+      expect(item.statuses.map((status) => status.key)).toEqual(['overdue', 'change-proposed'])
+      expect(item.placing.action).toEqual({
+        label: 'Verify',
+        target: { collection: 'events', id: 1 },
+      })
+    })
+
+    /** ⚠ From the stage's own check: an urgent listing unpublishes when it next comes due. */
+    it('dates the unpublish from the next check, not from today', () => {
+      const status = only(
+        event({ nextCheckAt: '2026-11-09T00:00:00.000Z', verificationStage: 'urgent' }),
+      )
+      expect(status.line).toBe('Unpublishes 9 Nov 2026')
     })
 
     /** Three stages, one thing to do; `sortOpenItems` pins `urgent` jumping the queue. */

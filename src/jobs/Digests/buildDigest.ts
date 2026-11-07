@@ -50,21 +50,28 @@ const paceOf = (frequency: string) => (isSummaryFrequency(frequency) ? PACES[fre
 export const isDue = (frequency: string, now: Date): boolean => paceOf(frequency)?.due(now) ?? false
 
 /**
- * The start of a pace's window: the watermark, or one period back, whichever is
- * later.
+ * The start of a pace's window: the watermark, or one period back when there is
+ * none or it is more than two periods old.
  *
- * ⚠ **Clamped, and the clamp is the point.** A section turned back on after six
- * months would otherwise carry half a year of items labelled "new".
+ * ⚠ **The watermark is trusted inside two periods**, so a late or missed run
+ * still covers everything since the last send. Only a section turned back on
+ * after months is cut to one period, or it would carry half a year of "new".
  */
 export function windowStart(
   watermark: null | string | undefined,
   frequency: string,
   runStart: Date,
 ): Date {
-  const floor = new Date(runStart.getTime() - (paceOf(frequency)?.days ?? 1) * DAY_MS)
+  const period = (paceOf(frequency)?.days ?? 1) * DAY_MS
   const mark = new Date(watermark ?? NaN)
-  return mark > floor ? mark : floor
+  return mark.getTime() > runStart.getTime() - 2 * period
+    ? mark
+    : new Date(runStart.getTime() - period)
 }
+
+/** Whether a section was already sent on `runStart`'s UTC day — a retry or a second manual run. */
+const sentToday = (watermark: null | string | undefined, runStart: Date): boolean =>
+  Boolean(watermark) && watermark!.slice(0, 10) === runStart.toISOString().slice(0, 10)
 
 /** The month a statistics section is named for, e.g. "November". */
 const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
@@ -167,10 +174,12 @@ export async function buildDigest(args: {
   const { manager, req, role, runStart } = args
   const prefs = manager.notificationPreferences
   const pace = (key: NotificationKey) => notificationFrequency(prefs, key)
-  const due = (key: NotificationKey) => isDue(pace(key), runStart)
+  const mark = (key: NotificationKey) => manager.digestWatermarks?.[role]?.[key]
+  // ⚠ Not again today: a task retry or a manual run must not re-send what went out this morning.
+  const due = (key: NotificationKey) =>
+    isDue(pace(key), runStart) && !sentToday(mark(key), runStart)
   /** A section's "new since" bound: its watermark, or one period back. */
-  const since = (key: NotificationKey) =>
-    windowStart(manager.digestWatermarks?.[role]?.[key], pace(key), runStart)
+  const since = (key: NotificationKey) => windowStart(mark(key), pace(key), runStart)
 
   const scope: OverviewScope = role === 'admin' ? { role } : { managerId: manager.id, role }
   const advance: string[] = []

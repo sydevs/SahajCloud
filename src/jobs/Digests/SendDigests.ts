@@ -16,7 +16,8 @@ import { buildDigest } from './buildDigest'
 const PAGINATION_LIMIT = 200
 
 /**
- * Send one role's digest, its subject the role's heading then the summary line.
+ * Send one role's digest, its subject the role's heading then the summary line,
+ * and say whether it went out.
  *
  * ⚠ **A failed send throws** (`docs/rules/email.md`), which leaves that role's
  * watermarks untouched so the next run covers the same window.
@@ -29,7 +30,7 @@ export async function sendDigest(args: {
   manager: Manager
   payload: Payload
   props: DigestEmailProps
-}): Promise<void> {
+}): Promise<boolean> {
   const { manager, payload, props } = args
   const { channel, destination } = pickChannel(manager, 'open_items')
 
@@ -39,7 +40,7 @@ export async function sendDigest(args: {
       msg: `notifications: ${channel} channel not yet implemented — digest logged, not delivered`,
       managerId: manager.id,
     })
-    return
+    return false
   }
 
   const brand = getEmailBrand('sahaj-atlas')
@@ -49,6 +50,7 @@ export async function sendDigest(args: {
     to: destination,
     ...(await renderEmail(createElement(DigestEmail, props))),
   })
+  return true
 }
 
 /**
@@ -66,8 +68,8 @@ export async function sendDigest(args: {
  * work arrives on its own pace with its own watermarks.
  *
  * Exactly-once: per-role, per-key watermarks on `Managers.digestWatermarks`. A
- * run covers `(max(watermark, runStart − period), runStart]` and advances it
- * after the send, so nothing lands in two emails and a task retry re-sends
+ * run covers `(watermark, runStart]` (`windowStart`) and advances it after the
+ * send, and a key already advanced today is not due, so a task retry re-sends
  * nothing. **A crash between the send and the advance re-sends that role's
  * email**, which is the accepted direction: a duplicate is a nuisance, a
  * dropped month of open items is not.
@@ -129,7 +131,8 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
             if (built.email) {
               // Send first, then advance: a send failure throws, leaving the
               // marks where they were so the whole window retries next run.
-              await sendDigest({ manager, payload, props: built.email })
+              // ⚠ Undelivered is not sent: its marks stay, so nothing counts as delivered.
+              if (!(await sendDigest({ manager, payload, props: built.email }))) continue
               result.sent += 1
             } else {
               result.quiet += 1
