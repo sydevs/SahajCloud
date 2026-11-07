@@ -96,6 +96,21 @@ export const EMAIL_STRING_DEFAULTS = {
 export type EmailStringKey = keyof typeof EMAIL_STRING_DEFAULTS
 export type EmailStrings = Record<EmailStringKey, string>
 
+const RECURRENCE_PREFIX = 'recurrence_'
+
+/**
+ * The keys above that the `emails` group itself declares.
+ *
+ * ⚠ The table spans two groups, so a writer that fills `emails` from the whole
+ * of it sends twelve keys the group does not declare — and every leaf group
+ * declares `additionalProperties: false`, so Payload refuses the write with
+ * `Emails > Emails` rather than naming a key. `seeds/translations/import.ts`
+ * fills blanks from this subset for that reason.
+ */
+export const EMAILS_GROUP_DEFAULTS: Record<string, string> = Object.fromEntries(
+  Object.entries(EMAIL_STRING_DEFAULTS).filter(([key]) => !key.startsWith(RECURRENCE_PREFIX)),
+)
+
 /** Where the in-flight translations load is stashed on `req.context`. */
 const CACHE_KEY = 'registrationEmailStrings'
 
@@ -138,8 +153,6 @@ export function pluralize(
   const template = lookup[`${baseKey}_${category}`] ?? lookup[`${baseKey}_other`] ?? ''
   return interpolate(template, { count, ...values })
 }
-
-const RECURRENCE_PREFIX = 'recurrence_'
 
 /** Merge the global's `emails` and `event.recurrence` blobs over the English defaults. */
 function withDefaults(translations: unknown): EmailStrings {

@@ -22,7 +22,7 @@ import { describe, expect, it } from 'vitest'
 import schemaJson from '@/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import { EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
+import { EMAIL_STRING_DEFAULTS, EMAILS_GROUP_DEFAULTS } from '@/lib/translations/emailStrings'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
 import { schemaShape } from '../utils/translationsSchemaShape'
@@ -152,9 +152,15 @@ describe('atlas translations schema', () => {
   const emailKeys = Object.keys(EMAIL_STRING_DEFAULTS)
   const isRecurrence = (key: string) => key.startsWith('recurrence_')
 
-  it('names emails exactly after EMAIL_STRING_DEFAULTS, plural families collapsed', () => {
+  /**
+   * ⚠ Against `EMAILS_GROUP_DEFAULTS`, not a filter spelled here: that export is
+   * what `seeds/translations/import.ts` fills the group from, and the group
+   * declares `additionalProperties: false`. A key in it the schema does not
+   * declare makes every seed run 400 on `Emails > Emails`.
+   */
+  it('names emails exactly after EMAILS_GROUP_DEFAULTS, plural families collapsed', () => {
     expect([...collapsePlurals(Object.keys(group('emails').properties ?? {}))].sort()).toEqual(
-      [...collapsePlurals(emailKeys.filter((key) => !isRecurrence(key)))].sort(),
+      [...collapsePlurals(Object.keys(EMAILS_GROUP_DEFAULTS))].sort(),
     )
   })
 
