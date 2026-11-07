@@ -114,7 +114,20 @@ describe('the challenge page script', () => {
       sitekey: '0x4AAAAtest',
       theme: 'dark',
       language: 'fr',
+      appearance: 'interaction-only',
     })
+  })
+
+  it('tells the parent when the challenge needs the visitor, and when it no longer does', () => {
+    const page = runPage(RENDER)
+    page.load()
+    page.renderOptions()['before-interactive-callback']?.()
+    page.renderOptions()['after-interactive-callback']?.()
+
+    expect(page.posted.slice(1)).toEqual([
+      { message: { type: 'interactive', channel: CHALLENGE_CHANNEL }, targetOrigin: PARENT },
+      { message: { type: 'settled', channel: CHALLENGE_CHANNEL }, targetOrigin: PARENT },
+    ])
   })
 
   it('sends every token to the allowed parent origin, never to "*"', () => {

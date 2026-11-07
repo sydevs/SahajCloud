@@ -26,11 +26,15 @@ import type { Client, Form, Manager, UserSubmission } from '@/payload-types'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const { sendUserMessageMock } = vi.hoisted(() => ({ sendUserMessageMock: vi.fn() }))
+const { sendUserMessageMock, verifyMock } = vi.hoisted(() => ({
+  sendUserMessageMock: vi.fn(),
+  verifyMock: vi.fn(async () => ({ success: true as const })),
+}))
 
 vi.mock('@/lib/notifications/sendUserMessage', () => ({
   sendUserMessage: sendUserMessageMock,
 }))
+vi.mock('@/lib/turnstile/verifyTurnstile', () => ({ verifyTurnstileToken: verifyMock }))
 
 describe('Atlas report-issue form', () => {
   let payload: Payload
@@ -176,6 +180,57 @@ describe('Atlas report-issue form', () => {
         })
         expect(docs[0], `depth ${depth}`).not.toHaveProperty('client')
       }
+    })
+  })
+
+  // Every report the widget sent was refused as `System > Form` invalid: the
+  // form-builder plugin proves the form exists with a `findByID` on the caller's
+  // req and no `select`, which the client read gate refuses. The other cases
+  // here create with `overrideAccess` and no user, so none of them took that path.
+  describe('submitting a report as the widget', () => {
+    const answers = [
+      { field: 'email', value: 'visitor@example.org' },
+      { field: 'message', value: 'The class has moved to the hall next door.' },
+    ]
+
+    const report = (formId: number, submissionData = answers) =>
+      payload.create({
+        collection: 'user-submissions',
+        data: {
+          type: 'contact',
+          form: formId,
+          senderEmail: 'visitor@example.org',
+          submissionData,
+        } as never,
+        overrideAccess: false,
+        req: {
+          payload,
+          headers: new Headers({ 'x-turnstile-token': 'tok-valid' }),
+          user: { ...atlasClient, collection: 'clients' },
+          context: {},
+        } as unknown as PayloadRequest,
+      }) as Promise<UserSubmission>
+
+    it('accepts a report naming the configured form', async () => {
+      const submission = await report(contactForm.id)
+
+      expect(submission.id).toBeDefined()
+      expect(submission.type).toBe('contact')
+    })
+
+    it('still refuses a form id that does not exist', async () => {
+      // The thrown message is the wrapper (`System > Form`), which is also what
+      // the defect above produced — so the field's own message is the assertion.
+      // No answers: an unknown form names no fields, so any answer is refused first.
+      let messages: string[] = []
+      try {
+        await report(999_999, [])
+      } catch (error) {
+        const { errors } = (error as { data?: { errors?: { message?: string }[] } }).data ?? {}
+        messages = (errors ?? []).map((entry) => entry.message ?? '')
+      }
+
+      expect(messages).toEqual([expect.stringContaining('this form does not exist')])
     })
   })
 

@@ -1,18 +1,20 @@
 import type { PaginatedDocs, PayloadRequest, Where } from 'payload'
 
 import { stringify } from 'csv-stringify/sync'
-import { extractID } from 'payload/shared'
+import { extractID, formatAdminURL } from 'payload/shared'
 
 import {
   readSubmissionValue,
   registrationAnswers,
 } from '@/collections/UserSubmissions/submissionData'
+import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { UserSubmission } from '@/payload-types'
 import { isAdminManager, isManager } from '@/plugins/access/adminOnly'
 
+import { buildPanelModel } from '../EventQualityPanel/model'
 import { firstParam, pageParam } from '../helpers/searchParams'
 
 export type RegistrationFilter = 'accepted' | 'pending' | 'withdrawn'
@@ -44,7 +46,26 @@ export type EventRegistrationsData = {
   registrations: PaginatedDocs<RegistrationRow>
   /** The accepted registrants as a file (`endpoints/registrationsCsv.ts` on Events). */
   csvUrl: string
+  /**
+   * The event's edit view, where the Recommendations panel lists what to fix —
+   * the empty state's call to action.
+   */
+  editUrl: string
+  /**
+   * The event's listing-quality recommendations, for the empty state alone —
+   * so `null` whenever the event has any registration, and the report's cost
+   * (a full document read plus the title templates) is paid only there.
+   */
+  recommendations: ListingRecommendations | null
 }
+
+/**
+ * What the Recommendations panel on the Edit tab would say: the open items'
+ * labels, or why the listing is not checked at all. The two are kept apart
+ * because "nothing to improve" and "not checked" are different messages.
+ */
+export type ListingRecommendations =
+  { checked: true; open: string[] } | { checked: false; reason: string }
 
 /** There is no `PerPage` control, so this is the only page size. */
 const PER_PAGE = 50
@@ -214,6 +235,42 @@ export async function loadEventRegistrations(
     counts: { accepted, pending, withdrawn },
     registrations: { ...page, docs: page.docs.map((row) => toRow(row, eventTimeZone)) },
     csvUrl: `${req.payload.config.routes.api}/events/${event.id}/registrations/csv`,
+    editUrl: formatAdminURL({
+      adminRoute: req.payload.config.routes.admin,
+      path: `/collections/events/${event.id}`,
+    }),
+    recommendations:
+      accepted + pending + withdrawn === 0 ? await listingRecommendations(req, event.id) : null,
+  }
+}
+
+/**
+ * The virtual `qualityReport` (`computeEventQualityReport`), read off the
+ * draft — what the manager edits, and what the panel beside it reports on.
+ *
+ * ⚠ **No `select`.** The report is computed from the document it is read
+ * with, so a narrowed read would report every unselected field as missing.
+ */
+async function listingRecommendations(
+  req: PayloadRequest,
+  eventId: number,
+): Promise<ListingRecommendations | null> {
+  const event = await req.payload.findByID({
+    collection: 'events',
+    id: eventId,
+    depth: 0,
+    draft: true,
+    disableErrors: true,
+    overrideAccess: true,
+    trash: true,
+    req: localeIsolatedReq(req),
+  })
+  const model = buildPanelModel(event?.qualityReport, EVENT_QUALITY_CHECK_METADATA)
+  if (!model) return null
+  if (model.skipped) return { checked: false, reason: SKIP_REASON_LABELS[model.reason] }
+  return {
+    checked: true,
+    open: model.items.filter((item) => item.status === 'failed').map((item) => item.label),
   }
 }
 
