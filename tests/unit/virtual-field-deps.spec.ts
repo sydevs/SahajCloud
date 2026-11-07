@@ -3,8 +3,9 @@
  * field's stored inputs back into an include-mode `select`.
  *
  * Pure: it reads and rewrites the operation's own arguments, so no booted
- * collection is needed. What each collection declares is pinned where that
- * collection's reads are — `tests/int/events.int.spec.ts` and
+ * collection is needed. Which fields declare what is
+ * `virtual-field-declarations.spec.ts`; what each collection then answers is
+ * pinned where its reads are — `tests/int/events.int.spec.ts` and
  * `tests/int/meditation-transcripts.int.spec.ts`.
  *
  * Fixture pre-mortem: the cases assume Payload hands the hook
@@ -17,9 +18,9 @@ import type { CollectionBeforeOperationHook } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
-import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
+import { ensureVirtualFieldDeps } from '@/plugins/virtualFields/ensureVirtualFieldDeps'
 
-const hook = ensureVirtualFieldDeps({ status: ['segments', 'job'], error: ['job'] })
+const hook = ensureVirtualFieldDeps({ status: ['segmentCount', 'job'], error: ['job'] })
 
 type Args = Parameters<CollectionBeforeOperationHook>[0]
 
@@ -36,7 +37,7 @@ const run = (operation: string, select?: unknown): unknown => {
 
 describe('ensureVirtualFieldDeps', () => {
   it('adds the inputs a requested computed field reads', () => {
-    expect(run('find', { status: true })).toEqual({ status: true, segments: true, job: true })
+    expect(run('find', { status: true })).toEqual({ status: true, segmentCount: true, job: true })
   })
 
   it('adds only what the requested field declares', () => {
@@ -47,17 +48,17 @@ describe('ensureVirtualFieldDeps', () => {
     expect(run('read', { status: true, audioFilename: true })).toEqual({
       status: true,
       audioFilename: true,
-      segments: true,
+      segmentCount: true,
       job: true,
     })
   })
 
   it('leaves an input the caller already decided alone', () => {
-    // `segments: false` is the caller's own exclusion. Overwriting it would
-    // make the hook widen a response nobody asked to widen.
-    expect(run('find', { status: true, segments: false })).toEqual({
+    // `segmentCount: false` is the caller's own exclusion. Overwriting it
+    // would make the hook widen a response nobody asked to widen.
+    expect(run('find', { status: true, segmentCount: false })).toEqual({
       status: true,
-      segments: false,
+      segmentCount: false,
       job: true,
     })
   })

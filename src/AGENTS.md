@@ -23,6 +23,12 @@ split into `plugins/`, `jobs/`, and shared utilities).
 
 One self-contained folder per plugin/adapter, with a public API via an
 `index.ts` barrel: `access/`, `storage/`, `usage/`, `openapi/`, `email/`,
+`virtualFields/` (a computed field declares the stored fields its `afterRead`
+reads with `virtualFieldInputs(...)` on its own `custom`, and the plugin mounts
+the `beforeOperation` hook that puts them back into an include-mode `select`,
+which strips them first. The declaration is on the **field** because a
+per-collection one is a thing to forget: that is how #1084 happened, and it is
+what retires the `url`→`filename` co-select on the eight upload collections),
 `eventImport/` (the bulk class import: the `imports` collection, the job that
 turns its CSV rows into draft classes, and the Events hooks that keep an
 import's status current),
@@ -132,12 +138,6 @@ No loose files at the root — every file lives in a named folder:
   `where`, `eventImages` — an event's photos as documents, in the order the
   editor arranged them, with the `url` co-select that stops them arriving
   blank (the atlas SEO endpoint and the proposal preview both read them),
-  `virtualFieldDeps` — `ensureVirtualFieldDeps(deps)` builds the
-  `beforeOperation` hook that puts a computed field's stored inputs back
-  into an include-mode `select`, which strips them before the afterRead
-  field hooks run. Declared by `events`, `pages`, `meditations` and
-  `meditation-transcripts`; a collection has to declare it and nothing
-  makes it, which is how #1084 happened,
   `url` — `originOf` for code deciding whether to trust a URL someone
   else handed it, where an opaque origin reads as none. Parsing itself
   is `URL.parse`, the built-in that returns `null` rather than throwing —

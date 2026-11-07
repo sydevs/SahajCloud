@@ -1,6 +1,6 @@
 import type { CollectionBeforeOperationHook, SelectType } from 'payload'
 
-import { isRecord } from './isRecord'
+import { isRecord } from '@/lib/utilities/isRecord'
 
 /**
  * Keep a computed field resolvable when an include-mode `select` names it
@@ -11,19 +11,14 @@ import { isRecord } from './isRecord'
  * the hook sees `undefined` and the field comes back wrong. Whenever a computed
  * field is requested, its inputs go back into the `select`.
  *
- * ⚠ **The input is returned too, so the dependency is part of the response.**
- * There is no way to select a field for a hook alone. Declare only what the
- * hook truly reads: a large column named here is paid for by every caller who
- * selects the field deriving from it.
+ * Mounted on `beforeOperation`, rather than in one endpoint, so each computed
+ * field stays selectable on its own across every read path. A no-op unless the
+ * caller uses an include-mode `select` naming one, so it can neither strip nor
+ * alter any other read.
  *
- * ⚠ **A collection has to declare this, and nothing makes it.** That is how
- * #1084 happened — `meditation-transcripts` grew a computed `status` while only
- * Events had declared anything. A new computed field owes a declaration here.
- *
- * Declared per collection on `beforeOperation`, rather than in one endpoint, so
- * each computed field stays selectable on its own across every read path. A
- * no-op unless the caller uses an include-mode `select` naming one, so it can
- * neither strip nor alter any other read.
+ * Nothing calls this directly: `virtualFieldsPlugin` builds one per collection
+ * from the declarations its own fields carry (`declare.ts`), so a computed
+ * field cannot be mounted without saying what it reads.
  *
  * @param deps computed field name → the stored fields its hook reads
  */

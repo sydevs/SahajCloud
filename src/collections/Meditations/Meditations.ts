@@ -19,9 +19,9 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
-import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
@@ -113,19 +113,7 @@ export const Meditations: CollectionConfig = {
   trash: true,
   endpoints: [meditationLectures, meditationSongs, meditationTranscribe],
   hooks: {
-    // `durationMinutes` derives from `duration` and `title` from the
-    // `subtleSystemNodeWeights` cache, both of which an include-mode `select`
-    // strips (#1084). `MEDITATION_CARD_SELECT` co-selects them by hand for the
-    // card reads; an API client sending its own `select` has nothing to.
-    // `url` is not here: the `filename` co-select is still each caller's, on
-    // all eight upload collections (`docs/rules/endpoints.md`).
-    beforeOperation: [
-      ensureVirtualFieldDeps({
-        durationMinutes: ['duration'],
-        title: ['subtleSystemNodeWeights'],
-      }),
-      filterMeditationsByLocale,
-    ],
+    beforeOperation: [filterMeditationsByLocale],
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       // After `extractAudioDuration`: the weights are computed against the
@@ -337,6 +325,7 @@ export const Meditations: CollectionConfig = {
               type: 'number',
               label: 'Duration (minutes)',
               virtual: true,
+              custom: virtualFieldInputs('duration'),
               admin: {
                 readOnly: true,
                 hidden: true,
@@ -386,6 +375,7 @@ export const Meditations: CollectionConfig = {
               // subtle-system node (see ./hooks/fallbackTitle). Virtual: no DB
               // column, computed on read, so it can't be set or queried.
               virtual: true,
+              custom: virtualFieldInputs('subtleSystemNodeWeights'),
               admin: {
                 readOnly: true,
                 description:

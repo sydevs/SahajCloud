@@ -9,7 +9,7 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
-import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
@@ -93,12 +93,6 @@ export const MeditationTranscripts: CollectionConfig = {
   hooks: {
     afterChange: [queueTranscription],
     beforeChange: [applyGlossaryToSegments, stampSegmentCount],
-    // `status` and `error` are derived on read, so a `select` naming either
-    // without their inputs made every finished transcript read `failed`
-    // (#1084). `status` reads the stored `segmentCount` rather than the cues,
-    // so a reader asking whether a transcript is ready is no longer served the
-    // whole `segments` column to hear it.
-    beforeOperation: [ensureVirtualFieldDeps({ status: ['segmentCount', 'job'], error: ['job'] })],
   },
   fields: [
     {
@@ -164,6 +158,11 @@ export const MeditationTranscripts: CollectionConfig = {
       name: 'status',
       type: 'select',
       virtual: true,
+      // Derived on read, so a `select` naming it without these made every
+      // finished transcript read `failed` (#1084). It reads the stored count
+      // rather than the cues, so a reader asking whether a transcript is ready
+      // is not served the whole `segments` column to hear it.
+      custom: virtualFieldInputs('segmentCount', 'job'),
       options: [...TRANSCRIPT_STATUSES],
       admin: { readOnly: true },
       hooks: {
@@ -180,6 +179,7 @@ export const MeditationTranscripts: CollectionConfig = {
       name: 'error',
       type: 'textarea',
       virtual: true,
+      custom: virtualFieldInputs('job'),
       admin: { readOnly: true },
       hooks: {
         afterRead: [

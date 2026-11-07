@@ -468,6 +468,9 @@ export const Regions: CollectionConfig = {
       // the published URL and the previewed one cannot drift.
       buildPath: buildRegionWebPath,
       requirePublished: false,
+      // Nothing to put back: the breadcrumb path is resolved from `id`, which
+      // every `select` returns, and there is no `_status` to gate on.
+      inputs: [],
     }),
     ...legacyMigrationFields(),
   ],

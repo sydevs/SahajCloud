@@ -1,5 +1,7 @@
 import type { CollectionSlug, Field, FieldHook } from 'payload'
 
+import { virtualFieldInputs } from '@/plugins/virtualFields'
+
 import { getCloudflareImagesUrl } from './cloudflareImagesAdapter'
 import {
   getCloudflareStreamHlsUrl,
@@ -103,6 +105,7 @@ export const virtualUrlField = (options: VirtualUrlFieldOptions): Field => {
     name: 'url',
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs('filename'),
     hooks: {
       afterRead: [afterReadHook],
     },
@@ -159,6 +162,7 @@ export const previewUrlField = (options: PreviewUrlFieldOptions): Field => {
     name: 'previewUrl',
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs('filename', 'mimeType'),
     hooks: {
       afterRead: [afterReadHook],
     },
@@ -232,6 +236,7 @@ export const mixedMediaUrlField = (options: MixedMediaUrlFieldOptions): Field =>
     name: 'url',
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs('filename', 'mimeType'),
     hooks: {
       afterRead: [afterReadHook],
     },
@@ -266,6 +271,7 @@ export const hlsUrlField = (options: VideoUrlFieldOptions): Field => {
     name: 'hlsUrl',
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs('filename', 'mimeType'),
     hooks: {
       afterRead: [afterReadHook],
     },
@@ -302,6 +308,7 @@ export const mp4UrlField = (options: VideoUrlFieldOptions): Field => {
     name: 'mp4Url',
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs('filename', 'mimeType'),
     hooks: {
       afterRead: [afterReadHook],
     },

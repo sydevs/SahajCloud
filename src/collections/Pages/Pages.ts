@@ -10,7 +10,6 @@ import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
-import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { loadAppConfigOnce } from './appConfigCache'
@@ -50,20 +49,6 @@ export const Pages: CollectionConfig = {
       // config root, or Payload sanitises this back to false.
       localizeStatus: true,
     },
-  },
-  hooks: {
-    // All three deep links derive from `slug` and are publish-gated on
-    // `_status`, which an include-mode `select` strips — and an API client must
-    // send one, so `?select[webUrl]=true` answered null for every published
-    // page (#1084). `appUrl`'s own gate reads `id`, which a select always
-    // returns.
-    beforeOperation: [
-      ensureVirtualFieldDeps({
-        webPath: ['slug', '_status'],
-        webUrl: ['slug', '_status'],
-        appUrl: ['slug', '_status'],
-      }),
-    ],
   },
   fields: [
     {
@@ -174,6 +159,11 @@ export const Pages: CollectionConfig = {
       // which is the failure mode `serverEnv` exists to prevent elsewhere.
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
+      // All three deep links read `slug`, and an include-mode `select` strips
+      // it before the afterRead field hooks run — so `?select[webUrl]=true`
+      // answered null for every published page (#1084). The publish gate's own
+      // `_status` is added by the factory.
+      inputs: ['slug'],
       buildPath: ({ platform, data, req }) => {
         // The app deep-links by bare slug; the web path is shared with the
         // live-preview panel through `buildPageWebPath`, so the two cannot

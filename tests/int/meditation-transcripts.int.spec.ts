@@ -379,7 +379,11 @@ describe('meditation transcripts', () => {
       // asking whether a transcript is ready was served every cue in it, and
       // this collection is reachable with a client key.
       expect(selected.status).toBe('completed')
-      expect(selected.segments).toBeUndefined()
+      // Outside the declared select, so the narrowed type has to be widened to
+      // say it is absent — which is the whole claim.
+      expect(
+        (selected as typeof selected & Pick<MeditationTranscript, 'segments'>).segments,
+      ).toBeUndefined()
     })
 
     it('stamps the count on every write that names the cues', async () => {

@@ -42,7 +42,6 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { ensureVirtualFieldDeps } from '@/lib/utilities/virtualFieldDeps'
 import {
   adminOnlyCondition,
   eventManagerFieldAccess,
@@ -51,6 +50,7 @@ import {
   ownedRegionFilterOptions,
 } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 import { eventsGeoJson } from './endpoints/geojson'
 import { registrationsCsv } from './endpoints/registrationsCsv'
@@ -181,18 +181,11 @@ export const Events: CollectionConfig = {
   // banner's Verify button. A reminder's link opens the `/events/verify` page,
   // which runs the shared verify operation from its button's Server Action.
   hooks: {
-    // `webPath` and `webUrl` derive from `region` and are publish-gated on
-    // `_status`; `offersMailingList` derives from `region`. Then drop finished
-    // events from API-client list reads. They stay published so their pages
-    // resolve, but should not be listed. See excludeFinishedEvents.
-    beforeOperation: [
-      ensureVirtualFieldDeps({
-        webPath: ['region', '_status'],
-        webUrl: ['region', '_status'],
-        offersMailingList: ['region'],
-      }),
-      excludeFinishedEvents,
-    ],
+    // Drop finished events from API-client list reads. They stay published so
+    // their pages resolve, but should not be listed. See excludeFinishedEvents.
+    // The `select` repair in front of it is `virtualFieldsPlugin`'s, built from
+    // the inputs this collection's own computed fields declare.
+    beforeOperation: [excludeFinishedEvents],
     // A class that repeats one already listed is refused before anything else
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],
@@ -381,10 +374,10 @@ export const Events: CollectionConfig = {
             // that null-on-unpublish contract. (`appUrl` is always null. There
             // is no Atlas app deep-link.)
             // `region` (an id at depth 0) must be present for the path to
-            // resolve. The ensureVirtualFieldDeps beforeOperation hook keeps
-            // `region` selectable on its own. `region` is also exactly the
-            // input that canonical ownership resolves on, so that hook needs
-            // no change to keep `webUrl` resolvable.
+            // resolve, which is what `inputs` below declares — it keeps
+            // `region` selectable on its own. It is also exactly the input
+            // that canonical ownership resolves on, so the per-region base
+            // needs nothing of its own to keep `webUrl` resolvable.
             //
             // The base is per-region (#634): the client that owns this
             // event's region, or the nearest owning ancestor, on its own
@@ -395,6 +388,7 @@ export const Events: CollectionConfig = {
               // Shared with the live-preview panel through `buildEventWebPath`,
               // so the published URL and the previewed one cannot drift.
               buildPath: buildEventWebPath,
+              inputs: ['region'],
             }),
           ],
         },
@@ -809,6 +803,7 @@ export const Events: CollectionConfig = {
           name: 'offersMailingList',
           type: 'checkbox',
           virtual: true,
+          custom: virtualFieldInputs('region'),
           admin: {
             readOnly: true,
             description:

@@ -51,8 +51,8 @@ const REGION_SELECT: SelectType = {
 
 /**
  * Fields an event's own read needs. `region` and `_status` back `webPath` /
- * `webUrl`; the `ensureVirtualFieldDeps` beforeOperation hook keeps them present
- * even when a caller selects the URL fields without them.
+ * `webUrl`; those fields declare both, so `virtualFieldsPlugin` keeps them
+ * present even when a caller selects the URL fields without them.
  */
 const EVENT_SELECT: SelectType = {
   title: true,
