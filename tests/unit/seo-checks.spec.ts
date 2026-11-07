@@ -35,8 +35,8 @@ import {
  * - `VerifiedEmbed` — `canonical.verification.verified`, whose required keys are
  *   `domain`, `mount`, `widgetVersion` and `at` (checked against
  *   `canonicalVerificationSchema` in `src/collections/Clients/Clients.ts`). The
- *   `routing: 'path'` the audit is given is the second argument, not a property,
- *   because `verified.routing` is legacy and no longer written (#644).
+ *   `routing: 'path'` the audit is given is the second argument, from the probe
+ *   (#644).
  */
 
 const PAGE_URL = 'https://sahajayoga.ca/classes/ca/ontario'

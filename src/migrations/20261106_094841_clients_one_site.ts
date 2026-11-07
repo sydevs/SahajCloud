@@ -45,6 +45,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   UPDATE "clients" SET "canonical_owned" = true
     WHERE "canonical_enabled" AND "canonical_verification" -> 'verified' IS NOT NULL
       AND jsonb_typeof("canonical_verification" -> 'verified') = 'object';
+  -- The widget's self-reported routing, no longer written since #644: dropped
+  -- here so the closed verification schema can stop declaring it.
+  UPDATE "clients" SET "canonical_verification" = "canonical_verification" #- '{verified,routing}'
+    WHERE jsonb_typeof("canonical_verification" -> 'verified') = 'object'
+      AND "canonical_verification" -> 'verified' ? 'routing';
   -- #000000 was the old stored default, which the widget already reads as unset.
   UPDATE "clients" SET "color1" = NULL WHERE lower("color1") = '#000000';
   UPDATE "clients" SET "color2" = NULL WHERE lower("color2") = '#000000';

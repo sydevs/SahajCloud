@@ -302,11 +302,10 @@ export function nextSeoCheckState(args: {
  * mount's own subtree; `query` otherwise, which is what nearly every client
  * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
  *
- * **There is no second answer to disagree with it.** `verified.routing` — the
- * readiness marker's copy of the widget's own script parameter — is no longer
- * written at all, so the record carries the observation and nothing else. The
- * widget's report is still kept as a report, per mount, in `embedMetadata`.
- * (#644)
+ * **There is no second answer to disagree with it.** The readiness marker's
+ * copy of the widget's own script parameter is not recorded on `verified`, so
+ * the record carries the observation and nothing else. The widget's report is
+ * still kept as a report, per mount, in `embedMetadata`. (#644)
  *
  * The default belongs to the read path: the `canonical.routing` field's
  * `afterRead` hook (`Clients.ts`) is what the widget reads, and it applies it
@@ -314,10 +313,8 @@ export function nextSeoCheckState(args: {
  * write, or have just written, and never read through Payload at all.
  *
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified, routing)` target. The routing
- * argument is separate and required precisely so that
- * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
- * self-report, no longer compiles (#644).
+ * over a `canonicalTargetForHost(verified, routing)` target, the routing
+ * argument required so every caller names where its verdict came from (#644).
  *
  * There used to be a second builder here, and the two disagreed in a way that
  * mattered: this one emitted the Atlas path with its leading slash stripped and

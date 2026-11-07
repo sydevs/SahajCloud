@@ -2699,7 +2699,6 @@ export interface ClientCanonicalVerification {
   verified: {
     domain: string;
     mount: string;
-    routing?: 'query' | 'path';
     widgetVersion: number;
     at: string;
   } | null;

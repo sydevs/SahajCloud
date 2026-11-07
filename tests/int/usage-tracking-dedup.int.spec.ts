@@ -206,7 +206,6 @@ describe('usage metering, per client-reachable route (#891)', () => {
           verified: {
             domain: OWNER_DOMAIN,
             mount: '/map',
-            routing: 'path',
             widgetVersion: 2,
             at: '2026-08-18T00:00:00.000Z',
           },

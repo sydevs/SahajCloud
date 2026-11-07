@@ -53,10 +53,9 @@ describe('per-region canonical webUrl', () => {
    * page is meant. Both `canonical.owned` and a verified snapshot are needed for
    * a client to actually own anything (#633's trust boundary, consumed by #634).
    *
-   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644).
-   * `verified.routing` is what the widget said about itself, and it shapes no
-   * URL — so a `path` owner here is one the probe has promoted, which is the
-   * only way a client gets path-shaped canonical URLs.
+   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644)
+   * — so a `path` owner here is one the probe has promoted, which is the only
+   * way a client gets path-shaped canonical URLs.
    */
   const createOwner = async (args: {
     name: string
@@ -75,7 +74,7 @@ describe('per-region canonical webUrl', () => {
       canonical: {
         owned: enabled,
         verification: {
-          verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
+          verified: { domain, mount, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
           failureCount: 0,
           attempts: [],
           routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
@@ -198,12 +197,9 @@ describe('per-region canonical webUrl', () => {
     })
 
     /**
-     * The shape follows the probe's verdict, not the widget's self-report (#644).
-     *
-     * `verified.routing` stays `path` throughout here, so a URL that changed
-     * shape can only have read `routingProbe`. This is the circularity the ticket
-     * removed: the marker copies the script tag's parameter, which is a request,
-     * not an observation of the host's server.
+     * The shape follows the probe's verdict, not the widget's self-report (#644):
+     * nothing else changes here, so a URL that changed shape can only have read
+     * `routingProbe`.
      */
     it('re-shapes a public URL when the probe verdict is demoted, with no other change', async () => {
       const { docs } = await payload.find({
@@ -214,7 +210,6 @@ describe('per-region canonical webUrl', () => {
       })
       const londonClient = docs[0]
       const verification = londonClient.canonical!.verification!
-      expect(verification.verified?.routing).toBe('path')
 
       const setVerdict = async (verdict: 'query' | 'path') => {
         await payload.update({
@@ -351,7 +346,6 @@ describe('per-region canonical webUrl', () => {
         verified: {
           domain: `${LONDON_DOMAIN}:8080`,
           mount: '/map',
-          routing: 'path',
           widgetVersion: 2,
           at: '2026-08-18T00:00:00.000Z',
         },

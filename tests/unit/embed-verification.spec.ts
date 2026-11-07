@@ -401,7 +401,6 @@ describe('the routing-probe ladder', () => {
         embed: {
           domain: 'sahajayoga.nl',
           mount: '/locatelessons/',
-          routing: 'query',
           widgetVersion: 2,
           at: now.toISOString(),
         },

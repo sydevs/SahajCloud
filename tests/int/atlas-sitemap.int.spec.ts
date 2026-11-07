@@ -167,13 +167,12 @@ describe('atlasSitemap endpoint', () => {
           verified: {
             domain: args.domain,
             mount: args.mount,
-            routing: args.routing,
             widgetVersion: 2,
             at: '2026-08-18T00:00:00.000Z',
           },
           failureCount: 0,
           attempts: [],
-          // The shape is the derived verdict, never `verified.routing` (#644).
+          // The shape is the derived verdict (#644).
           routingProbe: {
             at: '2026-08-18T00:00:00.000Z',
             verdict: args.routing,

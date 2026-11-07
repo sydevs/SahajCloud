@@ -233,7 +233,6 @@ describe('client canonical ownership + embed metadata', () => {
                 verified: {
                   domain: 'https://example.org/map',
                   mount: '/',
-                  routing: 'query',
                   widgetVersion: 2,
                   at: '2026-08-18T00:00:00.000Z',
                 },
@@ -386,7 +385,6 @@ describe('client canonical ownership + embed metadata', () => {
             verified: {
               domain: 'example.org',
               mount: '/',
-              routing: 'path',
               widgetVersion: 2,
               at: '2026-08-18T00:00:00.000Z',
             },
@@ -803,7 +801,6 @@ describe('client canonical ownership + embed metadata', () => {
       embed: {
         domain: 'verify.example',
         mount: '/embed',
-        routing: 'query',
         widgetVersion: 2,
         at: '2026-08-18T03:00:00.000Z',
       },
@@ -1088,7 +1085,6 @@ describe('client canonical ownership + embed metadata', () => {
               verified: {
                 domain: 'probe.example',
                 mount: '/classes',
-                routing: 'path',
                 widgetVersion: 2,
                 at: '2026-08-01T00:00:00.000Z',
               },
@@ -1100,9 +1096,8 @@ describe('client canonical ownership + embed metadata', () => {
         overrideAccess: true,
       })
 
-      // Saved unmodified, and a `path` self-report shapes nothing.
+      // With no probe, the routing is the read path's default.
       const doc = await read(id)
-      expect(doc.canonical?.verification?.verified?.routing).toBe('path')
       expect(doc.canonical?.routing).toBe('query')
 
       // And it saves again untouched, which is what a closed column makes fragile.

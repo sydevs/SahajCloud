@@ -66,14 +66,10 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * verifier loads the mount URL itself, so dropping it would verify `:8080` and
  * publish `:443` — a page we never looked at.
  *
- * **`routing` is a separate argument, and required, on purpose** (#644). The
- * host record carries a `routing` key of its own — what the widget said about
- * itself — and while this function read it off the same object, passing a
- * `VerifiedEmbed` straight in compiled and quietly shaped a public URL from
- * that self-report. That was the circularity #644 removed, and a comment is not
- * what should be holding it: every caller now has to say where its routing
- * verdict came from, and `verification.routingProbe.verdict` is the only thing
- * that answers.
+ * **`routing` is a separate argument, and required, on purpose** (#644): every
+ * caller has to say where its routing verdict came from, and
+ * `verification.routingProbe.verdict` is the only thing that answers — never
+ * the widget's report about itself.
  */
 export function canonicalTargetForHost(
   host: { domain: string; mount?: string | null },

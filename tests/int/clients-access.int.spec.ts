@@ -528,7 +528,6 @@ describe('Clients access', () => {
       verified: {
         domain: 'atlas-self-update.example',
         mount: '/map',
-        routing: 'query',
         widgetVersion: 1,
         at: '2026-09-22T00:00:00.000Z',
       },
@@ -638,7 +637,8 @@ describe('Clients access', () => {
         id: managedClient.id,
         data: {
           roles: ['sahaj-atlas-client', 'wemeditate-web-client'],
-          site: { domain: 'second.example', page: '/map' },
+          // The verified page's own address, or the region would own nothing.
+          site: { domain: 'atlas-self-update.example', page: '/map' },
           region: managedRegion,
           usage: { highUsageDays: 0 },
           canonical: { owned: true, verification: FORGED_VERIFICATION },
@@ -648,7 +648,7 @@ describe('Clients access', () => {
       })) as Client
 
       expect(updated.roles).toEqual(['sahaj-atlas-client', 'wemeditate-web-client'])
-      expect(updated.site?.domain).toBe('second.example')
+      expect(updated.site?.domain).toBe('atlas-self-update.example')
       expect(updated.usage?.highUsageDays).toBe(0)
       expect(updated.canonical?.owned).toBe(true)
 
