@@ -229,7 +229,6 @@ describe('siteListsUrl', () => {
 
   it('finds the page through a Sitemap: line in robots.txt', async () => {
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: answering({
         'https://sahajayoga.ca/robots.txt': 'Sitemap: https://sahajayoga.ca/wp-sitemap.xml',
@@ -242,7 +241,6 @@ describe('siteListsUrl', () => {
   it('tries /sitemap.xml even when robots.txt declares nothing', async () => {
     // A site that publishes the file and forgets the line is the common case.
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: answering({
         'https://sahajayoga.ca/sitemap.xml': `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`,
@@ -253,7 +251,6 @@ describe('siteListsUrl', () => {
 
   it('follows one level of sitemap index', async () => {
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: answering({
         'https://sahajayoga.ca/sitemap.xml':
@@ -266,7 +263,6 @@ describe('siteListsUrl', () => {
 
   it('fails when a reachable sitemap does not list the page', async () => {
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: answering({
         'https://sahajayoga.ca/sitemap.xml':
@@ -283,7 +279,6 @@ describe('siteListsUrl', () => {
     // reachability oracle for the network this process sits in.
     const asked: string[] = []
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: async (url) => {
         asked.push(url)
@@ -302,7 +297,6 @@ describe('siteListsUrl', () => {
   it('refuses a sitemap index child pointing off the host', async () => {
     const asked: string[] = []
     await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: async (url) => {
         asked.push(url)
@@ -323,7 +317,6 @@ describe('siteListsUrl', () => {
   it('skips rather than fails when no sitemap could be reached', async () => {
     // We could not look. Not evidence the install is wrong.
     const verdict = await siteListsUrl({
-      origin: 'https://sahajayoga.ca',
       target: PAGE_URL,
       fetchFn: answering({}),
     })

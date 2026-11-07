@@ -25,14 +25,11 @@ import { decodeEntities } from './readinessMarker'
 
 const FETCH_TIMEOUT_MS = 8000
 
-/** Sitemap documents one check will read, index entries included. */
+/** Sitemap documents one check will read, index entries included — and so queued. */
 const MAX_SITEMAP_DOCUMENTS = 6
 
 /** In the tab's order. One list, so every branch covers the same set. */
 const PAGE_CHECKS = ['title', 'canonical', 'json-ld', 'body'] as const
-
-/** `<loc>` entries one sitemap index may contribute. */
-const MAX_INDEX_ENTRIES = 20
 
 export interface FetchedPage {
   ok: boolean
@@ -47,7 +44,7 @@ interface FetchPageOptions {
    *
    * ⚠ **Judged before each hop, never on the answer.** A followed redirect has
    * already issued the request — a `Sitemap:` line that 302s to an internal
-   * address is the hole {@link isOnHost} closes, one hop further out.
+   * address is the hole {@link onHost} closes, one hop further out.
    */
   sameHost: string
 }
@@ -97,14 +94,14 @@ export const fetchPage: FetchPage = async (url, { sameHost }) => {
         }
       }
 
-      const next = URL.parse(location, current)
-      if (!next || !isOnHost(next.href, sameHost)) {
+      const next = onHost(URL.parse(location, current)?.href ?? '', sameHost)
+      if (!next) {
         return { ok: false, status: response.status, body: '', detail: OFF_HOST }
       }
       if (hop >= MAX_SAME_HOST_REDIRECTS) {
         return { ok: false, status: response.status, body: '', detail: TOO_MANY_HOPS }
       }
-      current = next.href
+      current = next
     }
   } catch (error) {
     return {
@@ -287,43 +284,51 @@ export function comparePage(args: {
  * `<sitemapindex>` is read, so a malformed index is not a crawl.
  */
 export async function siteListsUrl(args: {
-  origin: string
   target: string
   fetchFn?: FetchPage
 }): Promise<Verdict> {
-  const { origin, target } = args
+  const { target } = args
   const get = args.fetchFn ?? fetchPage
 
-  const host = URL.parse(origin)?.host
-  if (!host) return skip('This page has no resolvable origin.')
+  const url = URL.parse(target)
+  if (!url) return skip('This page has no resolvable origin.')
+  const { origin, host } = url
 
   const robots = await get(`${origin}/robots.txt`, { sameHost: host })
-  const declared = robots.ok ? sitemapLinesFrom(robots.body, host) : []
+  const declared = robots.ok
+    ? [...robots.body.matchAll(/^\s*sitemap\s*:\s*(\S+)\s*$/gim)].map((match) => match[1])
+    : []
   // Whatever robots.txt said: publishing the file and forgetting the line is common.
-  const queue = [...declared, `${origin}/sitemap.xml`]
+  const queue = [...declared, `${origin}/sitemap.xml`].flatMap((candidate) =>
+    onHostList(candidate, host),
+  )
 
   const seen = new Set<string>()
   let read = 0
   let reachable = false
 
   while (queue.length > 0 && read < MAX_SITEMAP_DOCUMENTS) {
-    const url = queue.shift() as string
-    if (seen.has(url)) continue
-    seen.add(url)
+    const next = queue.shift() as string
+    if (seen.has(next)) continue
+    seen.add(next)
 
     // ⚠ `sameHost`, not a check on the answer: an on-host candidate can still redirect off it.
-    const document = await get(url, { sameHost: host })
+    const document = await get(next, { sameHost: host })
     read++
     if (!document.ok) continue
     reachable = true
 
-    const locations = locationsFrom(document.body)
+    const locations = [...document.body.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((match) =>
+      decodeEntities(match[1]),
+    )
     if (locations.some((location) => sameUrl(location, target))) return pass()
 
     if (/<sitemapindex\b/i.test(document.body)) {
-      for (const child of childSitemaps(locations, host)) {
-        if (!seen.has(child)) queue.push(child)
-      }
+      queue.push(
+        ...locations
+          .flatMap((location) => onHostList(location, host))
+          .slice(0, MAX_SITEMAP_DOCUMENTS),
+      )
     }
   }
 
@@ -333,7 +338,7 @@ export async function siteListsUrl(args: {
 }
 
 /**
- * Is this URL on the host the check is about?
+ * `raw` as an absolute http(s) URL on `host`, or `null`.
  *
  * ⚠ **Half the SSRF bound, and the reason it is a bound rather than a filter.**
  * The `Sitemap:` lines and `<loc>` children are URLs a third party chose, and
@@ -341,41 +346,18 @@ export async function siteListsUrl(args: {
  * the stored, emailed verdict differs between "a document answered" and
  * "nothing did". A sitemap on another domain is deliberately not followed.
  *
- * ⚠ **The other half is {@link FetchPageOptions.sameHost}, and this function
- * cannot stand in for it**: it leaves the redirect chain unjudged.
+ * ⚠ **The other half is {@link FetchPageOptions.sameHost}**, which applies this
+ * to every redirect hop.
  */
-function isOnHost(url: string, host: string): boolean {
-  return URL.parse(url)?.host.toLowerCase() === host.toLowerCase()
-}
-
-/**
- * `raw` as an absolute http(s) URL on `host`, or nothing. A `<loc>` is as
- * caller-supplied as a `Sitemap:` line, and both feed the one queue.
- */
-function onHostHref(raw: string, host: string): string[] {
+function onHost(raw: string, host: string): string | null {
   const url = URL.parse(raw)
-  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) return []
-  return isOnHost(url.href, host) ? [url.href] : []
+  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) return null
+  return url.host.toLowerCase() === host.toLowerCase() ? url.href : null
 }
 
-/** The `<loc>` children of a sitemap index, on this host only. */
-function childSitemaps(locations: readonly string[], host: string): string[] {
-  return locations.flatMap((location) => onHostHref(location, host)).slice(0, MAX_INDEX_ENTRIES)
-}
-
-/** The `Sitemap:` lines a `robots.txt` declares, absolute and on this host only. */
-function sitemapLinesFrom(robots: string, host: string): string[] {
-  return robots.split(/\r?\n/).flatMap((line) => {
-    const match = /^\s*sitemap\s*:\s*(\S+)\s*$/i.exec(line)
-    return match ? onHostHref(match[1], host) : []
-  })
-}
-
-/** Every `<loc>` in a sitemap or a sitemap index. */
-function locationsFrom(xml: string): string[] {
-  return [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((match) =>
-    match[1].replace(/&amp;/g, '&'),
-  )
+const onHostList = (raw: string, host: string): string[] => {
+  const url = onHost(raw, host)
+  return url ? [url] : []
 }
 
 /** Injected, with the client and locale baked in — see the module docblock. */
@@ -445,7 +427,11 @@ export async function runSeoChecks(args: {
   // — up to eight `FETCH_TIMEOUT_MS` waits on top of three browser renders, and
   // "Verify now" has to answer inside Cloudflare's 100s origin limit (#644).
   const sitemapCheck: Promise<SeoCheckResult> = sample
-    ? checkSitemap(sample, get)
+    ? siteListsUrl({ target: sample.loc, fetchFn: get }).then((verdict) => ({
+        route: sample.route,
+        check: 'sitemap' as const,
+        ...verdict,
+      }))
     : Promise.resolve({
         route: '/',
         check: 'sitemap',
@@ -504,12 +490,4 @@ async function checkPage(
 
   const verdicts = comparePage({ seo, snapshot: parsePageHtml(fetched.body), pageUrl: page.url })
   return PAGE_CHECKS.map((check) => ({ route: page.route, check, ...verdicts[check] }))
-}
-
-async function checkSitemap(sample: AtlasSitemapUrl, get: FetchPage): Promise<SeoCheckResult> {
-  const origin = URL.parse(sample.loc)?.origin
-  const verdict = origin
-    ? await siteListsUrl({ origin, target: sample.loc, fetchFn: get })
-    : skip('This page has no resolvable origin.')
-  return { route: sample.route, check: 'sitemap', ...verdict }
 }
