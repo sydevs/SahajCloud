@@ -7,6 +7,7 @@ import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import { ownedHost } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env/server'
 import { getLanguageOptions } from '@/lib/locales'
@@ -119,7 +120,7 @@ export default async function InstallView(
         })}
         initialEmbedMetadata={(client.embedMetadata ?? null) as EmbedMetadata | null}
         initialLanguage={client.language ?? null}
-        initialOwned={Boolean(client.canonical?.owned)}
+        initialOwned={ownedHost(client) !== null}
         initialSite={client.site ?? null}
         initialVerification={
           (client.canonical?.verification ?? null) as CanonicalVerification | null

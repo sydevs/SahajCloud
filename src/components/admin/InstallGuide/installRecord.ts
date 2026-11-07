@@ -3,6 +3,7 @@ import type { Payload } from 'payload'
 import { cache } from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
+import { ownedHost } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
@@ -10,9 +11,11 @@ import type { Client } from '@/payload-types'
 import { type Milestone, milestonesForRecord } from './installModel'
 
 export interface InstallRecord {
-  client: Pick<Client, 'roles' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
+  client: Pick<Client, 'roles' | 'enabled' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
   /** Whether the service has the atlas role, and so an install at all. */
   atlas: boolean
+  /** Whether its site is the home for its region's links right now (`ownedHost`). */
+  owned: boolean
   /** The region's name, `'Set'` when it cannot be read, `null` for a worldwide map. */
   regionName: string | null
   milestones: Milestone[]
@@ -31,7 +34,15 @@ export const loadInstallRecord = cache(
       collection: 'clients',
       id,
       depth: 1,
-      select: { roles: true, site: true, region: true, canonical: true, embedMetadata: true },
+      select: {
+        roles: true,
+        enabled: true,
+        site: true,
+        region: true,
+        canonical: true,
+        embedMetadata: true,
+      },
+      populate: { regions: { name: true } },
       overrideAccess: true,
       disableErrors: true,
     })) as InstallRecord['client'] | null
@@ -43,15 +54,17 @@ export const loadInstallRecord = cache(
         : client.region && typeof client.region === 'object'
           ? (client.region.name ?? 'Set')
           : 'Set'
+    const owned = ownedHost(client) !== null
     return {
       client,
       atlas: Boolean(client.roles?.includes('sahaj-atlas-client')),
+      owned,
       regionName,
       milestones: milestonesForRecord({
         site: client.site,
         embedMetadata: (client.embedMetadata ?? null) as EmbedMetadata | null,
         verification: (client.canonical?.verification ?? null) as CanonicalVerification | null,
-        owned: Boolean(client.canonical?.owned),
+        owned,
         regionName,
       }),
     }

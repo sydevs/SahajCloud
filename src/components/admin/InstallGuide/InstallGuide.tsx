@@ -27,7 +27,7 @@ import {
   isBrandColor,
 } from '@/lib/clients/appearance'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
-import { primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
+import { ownedHost, primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
@@ -80,7 +80,7 @@ import {
 const POLL_MS = 10_000
 
 /** What `GET /api/clients/:id` gives the tab, narrowed to what it reads. */
-type PolledClient = Pick<Client, 'embedMetadata' | 'canonical'>
+type PolledClient = Pick<Client, 'embedMetadata' | 'canonical' | 'enabled' | 'site'>
 
 /** Which Check button asked, so its answer shows beside it. */
 type CheckSource = 'sidebar' | 'section3' | 'section4'
@@ -313,14 +313,14 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
    *
    * Two bounds, both because this runs every {@link POLL_MS} for as long as the
    * tab is open — and the tab is the one page a volunteer is told to leave open
-   * while they work: it asks for the three fields the tab reads rather than the
+   * while they work: it asks for the four fields the tab reads rather than the
    * whole document, and it leaves state untouched when the answer is byte-for-byte
    * the previous one, so an unchanged poll costs no re-render.
    */
   const reread = useCallback(async (): Promise<PolledClient | null> => {
     try {
       const response = await fetch(
-        `/api/clients/${clientId}?depth=0&select[embedMetadata]=true&select[canonical]=true`,
+        `/api/clients/${clientId}?depth=0&select[embedMetadata]=true&select[canonical]=true&select[enabled]=true&select[site]=true`,
         { credentials: 'include' },
       )
       if (!response.ok) return null
@@ -330,7 +330,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         lastRead.current = text
         setEmbedMetadata((body.embedMetadata ?? null) as EmbedMetadata | null)
         setVerification((body.canonical?.verification ?? null) as CanonicalVerification | null)
-        setOwned(Boolean(body.canonical?.owned))
+        setOwned(ownedHost(body) !== null)
       }
       return body
     } catch {

@@ -39,7 +39,7 @@ import type { Event } from '@/payload-types'
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
 
-import { ownedSiteOrigin } from '@/lib/atlas/regionOwners'
+import { ownedHost } from '@/lib/clients/site'
 import { isValidLocale } from '@/lib/locales'
 import { createCaptureTransport } from './mailpit-transport'
 
@@ -295,7 +295,7 @@ async function selectFromDatabase(): Promise<Scenario[]> {
   // Best-branded service first, so the sample shows the most configured state
   // the database actually contains.
   const score = (c: (typeof clients)[number]) =>
-    [c.logo, ownedSiteOrigin(c), c.supportEmail, c.color1 && c.color1 !== '#000000'].filter(Boolean)
+    [c.logo, ownedHost(c), c.supportEmail, c.color1 && c.color1 !== '#000000'].filter(Boolean)
       .length
   const ranked = [...clients].sort((a, b) => score(b) - score(a))
 

@@ -2,8 +2,7 @@ import type { CanonicalTarget } from './canonicalUrl'
 import type { PayloadRequest, Where } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
-import { isValidCanonicalDomain } from '@/lib/clients/canonical'
-import { isPrimaryPage } from '@/lib/clients/site'
+import { verifiedHomeHost } from '@/lib/clients/site'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -81,7 +80,7 @@ const FALLBACK_CLIENT_MEMO_KEY = 'atlas:canonicalFallbackClientId'
  * Which clients may own a canonical, as `where` clauses.
  *
  * ⚠ **The one definition of region ownership**, with {@link canonicalOwnerFrom}
- * for the verified host it publishes on and {@link ownedSiteOrigin} for a row
+ * for the verified host it publishes on and `ownedHost` (`@/lib/clients/site`) for a row
  * already in hand. Every reader applies these — canonical URLs, the sitemap,
  * the SEO root, the fallback client, registrant emails — so a third condition
  * added to only one of them would let that reader keep the old rule. An
@@ -169,34 +168,18 @@ function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwn
  * nothing, and its region falls through to the next ancestor.
  */
 function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
-  const verified = row.canonical?.verification?.verified
-  if (!isValidCanonicalDomain(verified?.domain)) return undefined
-  if (!isPrimaryPage(row.site, verified.domain, verified.mount ?? '/')) return undefined
+  const domain = verifiedHomeHost(row)
+  if (!domain) return undefined
 
   return {
     clientId: row.id,
-    domain: verified.domain,
-    mount: verified.mount ?? '/',
+    domain,
+    mount: row.canonical?.verification?.verified?.mount ?? '/',
     // Derived, not reported (#644): the probe is what the host's server
     // actually does. The resolver reads the row with its own `select`, which
     // does not run the `canonical.routing` hook, so the default is applied here.
     routing: row.canonical?.verification?.routingProbe?.verdict ?? 'query',
   }
-}
-
-/**
- * The owning site's origin for a row already in hand — `https://<verified
- * host>` — or `null` when the row owns no region.
- *
- * The in-memory twin of {@link CANONICAL_ELIGIBLE} plus
- * {@link canonicalOwnerFrom}, for a reader holding the row rather than querying
- * for it: registrant emails link to a service's site only while that site is
- * the home for its region's links.
- */
-export function ownedSiteOrigin(row: ClientRow): string | null {
-  if (row.enabled !== true || row.canonical?.owned !== true) return null
-  const owner = canonicalOwnerFrom(row)
-  return owner ? `https://${owner.domain}` : null
 }
 
 /**

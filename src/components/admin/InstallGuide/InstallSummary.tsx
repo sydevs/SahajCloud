@@ -24,7 +24,7 @@ const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
 
   const record = await loadInstallRecord(payload, id)
   if (!record) return null
-  const { client, regionName, milestones } = record
+  const { client, owned, regionName, milestones } = record
   const installUrl = formatAdminURL({
     adminRoute: payload.config.routes.admin,
     path: `/collections/clients/${id}/install`,
@@ -37,7 +37,7 @@ const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
         {
           label: 'Region',
           value: `${regionName ?? 'Worldwide'}${
-            client.canonical?.owned
+            owned
               ? regionName === null
                 ? ' — classes in regions without a site of their own are linked to your website'
                 : ' — all classes in this region are linked to your website'

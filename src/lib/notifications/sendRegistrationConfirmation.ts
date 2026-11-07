@@ -18,8 +18,8 @@ import {
   RegistrationConfirmationEmail,
   registrationConfirmationText,
 } from '@/emails/RegistrationConfirmationEmail'
-import type { ClientRow } from '@/lib/atlas/regionOwners'
-import { ownedSiteOrigin } from '@/lib/atlas/regionOwners'
+import type { OwnershipFields } from '@/lib/clients/site'
+import { ownedHost } from '@/lib/clients/site'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -32,10 +32,10 @@ import { buildRegistrationEmailDetails } from './registrationDetails'
 /**
  * The client fields the email needs; `logo` must be populated (`depth >= 1`).
  * `enabled`, `site` and `canonical` decide the site link: the email links to a
- * service's site only while it owns its region (`ownedSiteOrigin`).
+ * service's site only while it owns its region (`ownedHost`).
  */
 export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
-  Pick<ClientRow, 'enabled' | 'canonical' | 'site'>
+  OwnershipFields
 
 export async function sendRegistrationConfirmation(args: {
   payload: Payload
@@ -71,13 +71,14 @@ export async function sendRegistrationConfirmation(args: {
     uid: registrationUuid ? `registration-${registrationUuid}` : null,
   })
 
+  const siteHost = client ? ownedHost(client) : null
   const templateProps = {
     name: registrantName,
     brand,
     strings,
     details,
     locale,
-    websiteUrl: client ? ownedSiteOrigin({ id: 0, ...client }) : null,
+    websiteUrl: siteHost ? `https://${siteHost}` : null,
   }
 
   await payload.sendEmail({

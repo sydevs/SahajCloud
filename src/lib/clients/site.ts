@@ -10,6 +10,7 @@
  * Deep import, not the `@/plugins/usage` barrel: the Install tab is a client
  * component, and the barrel pulls the pg pool into the browser (`src/AGENTS.md`).
  */
+import { isValidCanonicalDomain } from '@/lib/clients/canonical'
 import type {
   EmbedMetadata,
   EmbedMountObservation,
@@ -120,6 +121,38 @@ export function isPrimaryPage(
     siteHosts(site.domain).includes(normalizeHost(host) ?? '') &&
     normalizeMountPath(mount) === normalizeMountPath(site.page)
   )
+}
+
+/** The fields region ownership reads off a `clients` row. */
+export interface OwnershipFields {
+  enabled?: boolean | null
+  site?: SiteFields | null
+  canonical?: {
+    owned?: boolean | null
+    verification?: { verified?: { domain?: string | null; mount?: string | null } | null } | null
+  } | null
+}
+
+/**
+ * The verified host a row can publish its region's links on: a bare host, still
+ * the service's current page. `regionOwners.ts` applies it to the rows its
+ * query already narrowed to active owners.
+ */
+export function verifiedHomeHost(row: OwnershipFields): string | null {
+  const verified = row.canonical?.verification?.verified
+  if (!isValidCanonicalDomain(verified?.domain)) return null
+  return isPrimaryPage(row.site, verified.domain, verified.mount ?? '/') ? verified.domain : null
+}
+
+/**
+ * The host a row in hand is the home for its region's links on, or `null` —
+ * the read rule `regionOwners.ts` queries by, for a reader already holding the
+ * row: active, `canonical.owned`, and {@link verifiedHomeHost}. Registrant
+ * emails link to the site only while it holds; the Install tab says so only
+ * while it holds.
+ */
+export function ownedHost(row: OwnershipFields): string | null {
+  return row.enabled === true && row.canonical?.owned === true ? verifiedHomeHost(row) : null
 }
 
 /** A report from the page being installed, as {@link reportedMountsFor} finds it. */
