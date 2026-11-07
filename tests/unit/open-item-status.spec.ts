@@ -64,7 +64,7 @@ describe('openItem', () => {
       const status = only(
         event({
           proposal: {
-            changedFields: ['Address › City', 'Schedule › Start Time'],
+            changedFields: ['Address', 'Schedule'],
             id: 42,
             receivedAt: '2026-11-03T00:00:00.000Z',
           },
@@ -78,11 +78,24 @@ describe('openItem', () => {
         rank: 1,
         counts: true,
       })
-      expect(status.line).toBe('Address › City, Schedule › Start Time · received 3 Nov 2026')
+      expect(status.line).toBe('Address, Schedule · received 3 Nov 2026')
       expect(status.action).toEqual({
         label: 'Review',
         target: { collection: 'user-submissions', id: 42 },
       })
+    })
+
+    it('names three changed fields and counts the rest', () => {
+      const status = only(
+        event({
+          proposal: {
+            changedFields: ['Address', 'Schedule', 'Title', 'Description', 'Images'],
+            id: 42,
+            receivedAt: '2026-11-03T00:00:00.000Z',
+          },
+        }),
+      )
+      expect(status.line).toBe('Address, Schedule, Title +2 more · received 3 Nov 2026')
     })
 
     it('reads a new class proposal as its own row', () => {

@@ -304,7 +304,7 @@ const OPEN_ITEMS: OpenItemRow[] = [
   listing({
     id: 1042,
     proposal: {
-      changedFields: ['Address › City', 'Schedule › Start Time'],
+      changedFields: ['Address', 'Schedule', 'Title', 'Description', 'Images'],
       id: 5120,
       receivedAt: ago(2),
     },

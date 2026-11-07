@@ -82,7 +82,7 @@ export interface OpenItemsResult {
   progress: null | OverviewProgress
 }
 
-/** The fields a change proposal touches, in the Events config's own wording. */
+/** The top-level fields a change proposal touches, in the Events config's own wording. */
 function changedFields(proposed: unknown, fields: FlattenedField[]): string[] {
   if (typeof proposed !== 'object' || proposed === null || Array.isArray(proposed)) return []
   return Object.keys(proposed).map((key) => labelForPath([key], fields))

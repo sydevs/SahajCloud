@@ -24,7 +24,7 @@ const PILL_COLORS = {
 
 export type StatusPillStyle = keyof typeof PILL_COLORS
 
-/** One open item, stacked: title, when it meets, its pills and line, then the next step. */
+/** One open item: title, schedule and next step on the left; pills and their line on the right. */
 export interface ItemTableRow {
   /** The next step as a sentence, its opening words linked to the page that takes it. */
   action?: null | { after: string; href: string; link: string }
@@ -110,44 +110,50 @@ function StatTiles({ tiles }: { tiles: DigestTileBlock['tiles'] }) {
 }
 
 /**
- * The open-items list, one stacked block per item: a column per fact is
- * unreadable at phone width, and an email has no media query it can rely on.
+ * The open-items list in two cells, so the pills and their lines run down the
+ * right edge to scan: what the item is and what to do on the left, where it
+ * stands on the right. A column per fact is unreadable at phone width, and an
+ * email has no media query it can rely on.
  */
 function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
   if (rows.length === 0) return null
   return (
     <Section style={{ margin: '0 0 8px' }}>
       {rows.map((row) => (
-        <Section key={row.href} style={itemBlock}>
-          <Link href={row.href} style={{ ...itemTitle, color: accent }}>
-            {row.title}
-          </Link>
-          {row.subtitle ? <Text style={itemSubtitle}>{row.subtitle}</Text> : null}
-          <Text style={itemPills}>
-            {row.statuses.map((status) => (
-              <Fragment key={status.text}>
-                <span
-                  style={{
-                    ...pill,
-                    backgroundColor: PILL_COLORS[status.pillStyle].background,
-                    color: PILL_COLORS[status.pillStyle].text,
-                  }}
-                >
-                  {status.text}
-                </span>{' '}
-              </Fragment>
-            ))}
-          </Text>
-          {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
-          {row.action ? (
-            <Text style={itemAction}>
-              <Link href={row.action.href} style={{ color: accent }}>
-                {row.action.link}
-              </Link>
-              {row.action.after}
+        <Row key={row.href} style={itemRow}>
+          <Column style={itemMain}>
+            <Link href={row.href} style={{ ...itemTitle, color: accent }}>
+              {row.title}
+            </Link>
+            {row.subtitle ? <Text style={itemSubtitle}>{row.subtitle}</Text> : null}
+            {row.action ? (
+              <Text style={itemAction}>
+                <Link href={row.action.href} style={{ color: accent }}>
+                  {row.action.link}
+                </Link>
+                {row.action.after}
+              </Text>
+            ) : null}
+          </Column>
+          <Column style={itemSide}>
+            <Text style={itemPills}>
+              {row.statuses.map((status) => (
+                <Fragment key={status.text}>
+                  <span
+                    style={{
+                      ...pill,
+                      backgroundColor: PILL_COLORS[status.pillStyle].background,
+                      color: PILL_COLORS[status.pillStyle].text,
+                    }}
+                  >
+                    {status.text}
+                  </span>{' '}
+                </Fragment>
+              ))}
             </Text>
-          ) : null}
-        </Section>
+            {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
+          </Column>
+        </Row>
       ))}
     </Section>
   )
@@ -325,10 +331,18 @@ const tileValue: CSSProperties = { color: '#111827', fontSize: '22px', fontWeigh
 const tileOf: CSSProperties = { color: '#6b7280', fontSize: '13px', fontWeight: 400 }
 const tileChange: CSSProperties = { color: '#6b7280', fontSize: '12px', margin: '4px 0 0' }
 
-const itemBlock: CSSProperties = { borderBottom: '1px solid #e5e7eb', padding: '10px 0' }
+const itemRow: CSSProperties = { borderBottom: '1px solid #e5e7eb' }
+const itemMain: CSSProperties = { padding: '10px 12px 10px 0', verticalAlign: 'top' }
+// ⚠ A fixed share, so every item's pills start at the same edge.
+const itemSide: CSSProperties = {
+  padding: '10px 0',
+  textAlign: 'right',
+  verticalAlign: 'top',
+  width: '38%',
+}
 const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, textDecoration: 'none' }
 const itemSubtitle: CSSProperties = { color: '#6b7280', fontSize: '13px', margin: '2px 0 0' }
-const itemPills: CSSProperties = { fontSize: '12px', margin: '8px 0 0' }
+const itemPills: CSSProperties = { fontSize: '12px', lineHeight: '22px', margin: 0 }
 const pill: CSSProperties = {
   borderRadius: '3px',
   display: 'inline-block',
@@ -337,7 +351,12 @@ const pill: CSSProperties = {
   padding: '2px 8px',
   whiteSpace: 'nowrap',
 }
-const itemLine: CSSProperties = { color: '#6b7280', fontSize: '13px', margin: '4px 0 0' }
+const itemLine: CSSProperties = {
+  color: '#6b7280',
+  fontSize: '12px',
+  lineHeight: '18px',
+  margin: '2px 0 0',
+}
 const itemAction: CSSProperties = { color: '#1f2937', fontSize: '14px', margin: '6px 0 0' }
 const registrationHeading: CSSProperties = {
   color: '#1f2937',

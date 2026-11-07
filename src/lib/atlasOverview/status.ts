@@ -100,6 +100,15 @@ export interface OpenItem {
   filters: OpenItemFilter[]
 }
 
+/** How many changed fields a line names before it counts the rest. */
+const FIELDS_NAMED = 3
+
+/** "Address, Schedule, Title +2 more" — a proposal's top-level fields, kept to one short line. */
+function fieldList(fields: string[]): string {
+  const more = fields.length - FIELDS_NAMED
+  return fields.slice(0, FIELDS_NAMED).join(', ') + (more > 0 ? ` +${more} more` : '')
+}
+
 const shortDate = (iso: null | string | undefined): string =>
   iso ? formatShortDate(iso) || '' : ''
 
@@ -214,7 +223,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
     statuses.push(
       status('change-proposed', {
         line: [
-          event.proposal.changedFields.join(', '),
+          fieldList(event.proposal.changedFields),
           `received ${shortDate(event.proposal.receivedAt)}`,
         ]
           .filter(Boolean)
