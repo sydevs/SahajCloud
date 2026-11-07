@@ -222,6 +222,43 @@ describe('a repeat registration updates the existing one', () => {
     expect(await registrationsOf(event.id)).toHaveLength(1)
   })
 
+  it('records what the update replaced, so a manager can put it back', async () => {
+    // The merge is keyed on an unverified address, so this entry is the only
+    // record the overwritten values leave: the collection keeps no versions.
+    const event = await createEvent()
+    const address = email()
+    const first = await register({
+      event: event.id,
+      email: address,
+      name: 'Ann',
+      startingAt: SESSION_A,
+    })
+    await payload.update({
+      collection: 'user-submissions',
+      id: first.id,
+      data: { status: 'accepted' },
+      overrideAccess: true,
+    })
+
+    await register({ event: event.id, email: address, name: 'Bo', startingAt: SESSION_B })
+
+    const [row] = (await registrationsOf(event.id)) as UserSubmission[]
+    const update = asLog(row!.activityLog).find((entry) => entry.type === 'registration-update')
+    expect(update).toBeDefined()
+    const replaced = update!.replaced as {
+      status: string
+      startingAt: string
+      submissionData: { field: string; value: string }[]
+    }
+    expect(replaced.status).toBe('accepted')
+    expect(new Date(replaced.startingAt).toISOString()).toBe(SESSION_A)
+    expect(replaced.submissionData).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: 'name', value: 'Ann' })]),
+    )
+    // Visible beside the entry, so an overwrite is not only machine-readable.
+    expect(update!.cells.activity).toMatchObject({ sub: 'Replaced: Ann · Accepted' })
+  })
+
   it('folds into the seat a sender holds, not a newer failed row', async () => {
     const event = await createEvent({ registrationLimit: 1 })
     const address = email()

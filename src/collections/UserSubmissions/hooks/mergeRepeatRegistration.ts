@@ -1,11 +1,15 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
+import type { LogEntry } from '@/fields'
 import { appendLogEntry, asLog } from '@/fields'
 import { isActiveRegistration } from '@/lib/registrations/active'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
+
+import { STATUS_LABELS } from '../statuses'
+import { readSubmissionValue } from '../submissionData'
 
 /**
  * afterChange (create): a registrant signing up again for an event they are
@@ -26,6 +30,13 @@ import { asTrustedReq } from '@/plugins/usage/hooks'
  * ⚠ **Listed first in `afterChange`**, because every hook after it must act on
  * the surviving row. Only `id`, `uuid` and the timestamps are swapped into the
  * client-shaped `doc`, so the response shows the client nothing new.
+ *
+ * ⚠ **The sender's address is never verified**, so a signup naming someone
+ * else's address reaches their row: anyone holding the widget's client key can
+ * replace a registrant's answers and session, put the row back to `pending`
+ * and have a fresh confirmation mailed to them. The collection keeps no
+ * versions, so the log entry below is the only record the old values leave —
+ * write nothing here that it does not carry.
  */
 export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   data,
@@ -50,7 +61,31 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   )
   if (!existing) return doc
 
+  // What a reader needs beside the entry, muted under it; the values
+  // themselves are machine data, so no answer is rendered as a column.
+  const previous = [
+    readSubmissionValue(existing.submissionData, 'name'),
+    existing.status ? STATUS_LABELS[existing.status] : undefined,
+  ].filter(Boolean)
   const now = new Date().toISOString()
+  const entry: LogEntry = {
+    at: now,
+    type: 'registration-update',
+    key: now,
+    cells: {
+      activity: {
+        text: 'Registered again — details updated',
+        sub: previous.length > 0 ? `Replaced: ${previous.join(' · ')}` : undefined,
+      },
+    },
+    replaced: {
+      status: existing.status,
+      screeningResult: existing.screeningResult ?? null,
+      startingAt: existing.startingAt ?? null,
+      submissionData: existing.submissionData ?? [],
+    },
+  }
+
   const updated = await req.payload.update({
     collection: 'user-submissions',
     id: existing.id,
@@ -68,12 +103,7 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       // `ScreenSubmissions` skips a row that already carries a verdict. The
       // generated type omits the column's `null` (src/collections/AGENTS.md).
       screeningResult: null as unknown as UserSubmission['screeningResult'],
-      activityLog: appendLogEntry(asLog(existing.activityLog), {
-        at: now,
-        type: 'registration-update',
-        key: now,
-        cells: { activity: 'Registered again — details updated' },
-      }),
+      activityLog: appendLogEntry(asLog(existing.activityLog), entry),
     },
     depth: 0,
     overrideAccess: true,
@@ -133,7 +163,14 @@ export async function findRepeatRegistration(
     // handful even where a legacy duplicate survives. A cap here would be the
     // number above which the active row stops being found.
     pagination: false,
-    select: { activityLog: true, status: true, type: true },
+    select: {
+      activityLog: true,
+      screeningResult: true,
+      startingAt: true,
+      status: true,
+      submissionData: true,
+      type: true,
+    },
     overrideAccess: true,
     req,
   })
