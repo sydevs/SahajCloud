@@ -15,7 +15,7 @@ import styles from './Dashboard.module.css'
 import { IconTip } from './IconTip'
 import { PAGE_LIMITS } from './model'
 import { CenteredNotice } from '../../CenteredNotice'
-import { Count, QueryPager } from '../../helpers/listControls'
+import { QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
 
 function registrationsLabel({ change, last30 }: RegionOverviewRow['signups']): ReactNode {
@@ -113,7 +113,11 @@ export function RegionOverviewTable({
             row.overdue > 0 ? <ErrorPill count={row.overdue} i18n={i18n} /> : '—',
           ),
           column('unverified', 'Unverified', (row) =>
-            row.unverified > 0 ? <Count value={row.unverified} /> : '—',
+            row.unverified > 0 ? (
+              <ErrorPill className={styles.warningPill} count={row.unverified} i18n={i18n} />
+            ) : (
+              '—'
+            ),
           ),
           column('signups', 'Registrations', (row) => registrationsLabel(row.signups)),
           column('edit', <span className="sr-only">Edit</span>, (row) => (

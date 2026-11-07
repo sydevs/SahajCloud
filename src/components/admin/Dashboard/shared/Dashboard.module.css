@@ -192,6 +192,11 @@ a.tileLink:hover {
 .overview :global(.cell-edit) {
   width: 1%;
 }
+/* Unverified takes Overdue's counter in Payload's own warning colours (`pill--style-warning`). */
+.warningPill:global(.error-pill) {
+  background: var(--theme-warning-150);
+  color: var(--theme-warning-800);
+}
 .healthy {
   font-weight: 600;
 }
