@@ -30,6 +30,16 @@ export const SITE_TRACKS = [
 
 export type SiteTrack = (typeof SITE_TRACKS)[number]
 
+/**
+ * Whether a track can give a class a search listing of its own: not an iframe,
+ * and not Squarespace, whose own canonical tag sends every class address back
+ * to the page. The search checks run only where it can, since elsewhere they
+ * could only fail. The Install tab's `TrackMeta.searchListings` agrees.
+ */
+export function hasSearchListings(track: SiteTrack | null | undefined): boolean {
+  return track !== 'squarespace' && track !== 'iframe'
+}
+
 /** How tall a pasted embed is, as `site.embedHeight` stores it. */
 export const EMBED_HEIGHTS = ['fixed', 'screen', 'window'] as const
 
@@ -92,6 +102,24 @@ export function normalizeMountPath(mount: string): string {
   const [path, query] = mount.split('?')
   const trimmed = `/${path.split('/').filter(Boolean).join('/')}`
   return query ? `${trimmed}?${query}` : trimmed
+}
+
+/**
+ * Whether `host` + `mount` is the site's page: on its domain or www twin, with
+ * the path however its trailing slash is spelled. The one comparison for "is
+ * this still the service's page", read by region ownership, the SEO checks and
+ * the Install tab.
+ */
+export function isPrimaryPage(
+  site: SiteFields | null | undefined,
+  host: string | null | undefined,
+  mount: string | null | undefined,
+): boolean {
+  if (!site?.page || mount == null) return false
+  return (
+    siteHosts(site.domain).includes(normalizeHost(host) ?? '') &&
+    normalizeMountPath(mount) === normalizeMountPath(site.page)
+  )
 }
 
 /** A report from the page being installed, as {@link reportedMountsFor} finds it. */

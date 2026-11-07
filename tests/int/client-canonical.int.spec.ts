@@ -107,6 +107,29 @@ describe('client canonical ownership + embed metadata', () => {
       return null
     }
 
+    it('stores a page only as a report would spell it', async () => {
+      // A page no report can match would leave the claim at unknown-mount for good.
+      const client = await createClient('Page Shape', {})
+      for (const page of ['/classes?lang=fr', '/classes#map', '/a b']) {
+        await expect(
+          payload.update({
+            collection: 'clients',
+            id: client.id,
+            data: { site: { domain: 'shape.example', page } },
+            overrideAccess: true,
+          }),
+        ).rejects.toThrow()
+      }
+      for (const page of ['/classes', '/classes/', '/?p=42']) {
+        await payload.update({
+          collection: 'clients',
+          id: client.id,
+          data: { site: { domain: 'shape.example', page } },
+          overrideAccess: true,
+        })
+      }
+    })
+
     it('serves canonical.embed and allowedDomains computed for the widget, never stored', () => {
       // The widget still selects both; they come from `site` until SahajAtlasWeb
       // reads it directly. `virtual` is the guarantee: no column to drift.

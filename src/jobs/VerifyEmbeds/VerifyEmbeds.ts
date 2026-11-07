@@ -7,9 +7,14 @@ import type {
   VerificationResult,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import { notifyServiceContact, verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import {
+  notifySeoFailures,
+  notifyServiceContact,
+  verifyMount,
+} from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import type { Client } from '@/payload-types'
+import { stripNewlines } from '@/lib/utilities/emailSafeText'
+import type { Client, TaskVerifyEmbeds } from '@/payload-types'
 import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 
 /**
@@ -47,27 +52,8 @@ type DueClient = Pick<
   'id' | 'name' | 'canonical' | 'site' | 'managers' | 'primaryContact' | 'language'
 >
 
-interface VerifyResult {
-  /** Due services examined. */
-  processed: number
-  verified: number
-  failed: number
-  /** Runs that told us nothing — provider errors, quota, bot challenges. */
-  inconclusive: number
-  /** Services that stopped being the home for their region's links this run. */
-  disabled: number
-  /** Services the routing probe moved onto `path` URLs this run. */
-  pathPromoted: number
-  /** Services returned to `?atlas=` URLs after repeated negative probes. */
-  pathDemoted: number
-  /**
-   * Services whose pages stopped publishing our metadata this run.
-   *
-   * ⚠ Counted separately from `failed`, and never added to it: the embed is
-   * present and publishing, and `failed` would read as ownership at risk.
-   */
-  seoWarned: number
-}
+/** The task's output, off its `outputSchema` below. */
+type VerifyResult = TaskVerifyEmbeds['output']
 
 /** Persist one service's outcome. Raw SQL — see the note above. */
 const updateSql = (quotedSchema: string) => `
@@ -127,8 +113,10 @@ function notifyDisabled(payload: Payload, client: DueClient, mount: string): Pro
     client,
     failure: 'VerifyEmbeds: could not notify about a disabled canonical',
     message: async () => ({
-      subject: `${client.name} is no longer the home for its region’s atlas links`,
+      subject: stripNewlines(`${client.name} is no longer the home for its region’s atlas links`),
       html:
+        // `mount` is `site.page`, which the field validates as a percent-encoded
+        // path, and `name` an admin's: neither can carry markup.
         `<p>We could not find the Sahaj Atlas on <code>${mount}</code> three times in a row, ` +
         `so <strong>${client.name}</strong> is no longer the home for its region’s atlas links.</p>` +
         `<p>Nothing else about the service changed. Once the map is working again, open the ` +
@@ -190,8 +178,7 @@ export async function runVerifyEmbeds(args: {
       // report four failures caused by the outage.
       runSeo: (result) => result.status === 'verified',
     })
-    result[outcome.status === 'verified' ? 'verified' : outcome.status]++
-    if (newFailures.length > 0) result.seoWarned++
+    result[outcome.status]++
 
     try {
       await pool.query(updateSql(schema), [
@@ -207,6 +194,12 @@ export async function runVerifyEmbeds(args: {
         error: error instanceof Error ? error.message : String(error),
       })
       continue
+    }
+
+    // Mailed after the write, so a lost write cannot mail the same failures twice.
+    if (newFailures.length > 0) {
+      result.seoWarned++
+      await notifySeoFailures({ payload, client, failures: newFailures })
     }
 
     // Counted after the write, not before: an owner whose row could not be
@@ -261,6 +254,9 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     { name: 'disabled', type: 'number', required: true },
     { name: 'pathPromoted', type: 'number', required: true },
     { name: 'pathDemoted', type: 'number', required: true },
+    // ⚠ Services whose pages stopped publishing our metadata. Counted apart from
+    // `failed`, never added to it: the embed is present and publishing, and
+    // `failed` would read as ownership at risk.
     { name: 'seoWarned', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],

@@ -7,7 +7,7 @@ import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { primaryPageUrl, reportedMountsFor, supportsClassAddresses } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
-import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { notifySeoFailures, verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { errorResponse, requireActiveManager } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
@@ -103,15 +103,13 @@ export const verifyEmbedOnDemand: Endpoint = {
     }
 
     const claim = await claimRegion(req, client)
-    if (claim.status === 'claimed') {
-      client = { ...client, canonical: { ...client.canonical, owned: true } }
-    }
 
     const {
       outcome: result,
       transition,
       verification,
       seo,
+      newFailures,
     } = await verifyMount({
       req,
       client,
@@ -120,23 +118,21 @@ export const verifyEmbedOnDemand: Endpoint = {
       now: new Date(),
       verify: verifyEmbed,
       probe: probeRouting,
-      // Wherever the CMS has ever confirmed the widget, not only on this pass.
-      runSeo: () => true,
+      // Wherever the CMS has confirmed the widget and this pass did not find it
+      // gone — an inconclusive render still has a page worth checking.
+      runSeo: (outcome) => outcome.status !== 'failed',
     })
 
+    // Only the two keys this owns: Payload keeps the rest of the group as
+    // stored, so an `owned` released while the renders ran is not written back.
+    // `disable` is deliberately ignored here — see the note above.
     await req.payload.update({
       collection: 'clients',
       id: clientId,
-      // `disable` is deliberately ignored here — see the note above.
-      data: {
-        canonical: {
-          ...client.canonical,
-          verification,
-          nextVerifyAt: transition.nextVerifyAt,
-        },
-      },
+      data: { canonical: { verification, nextVerifyAt: transition.nextVerifyAt } },
       overrideAccess: true,
     })
+    await notifySeoFailures({ payload: req.payload, client, failures: newFailures })
 
     const reason = result.status === 'verified' ? undefined : result.reason
     const body: VerifyEmbedResponse = {
@@ -165,9 +161,10 @@ export const verifyEmbedOnDemand: Endpoint = {
  * owns nothing.
  *
  * The region is an admin's choice (`Clients.region`, write-locked), so a manager
- * claims only the region an admin gave the service. **The uniqueness and
- * worldwide refusals are `validateCanonicalOwnership`'s**, and their words are
- * passed through. The write runs `overrideAccess`, because `canonical.owned` is
+ * claims only the region an admin gave the service. **The uniqueness refusal is
+ * `validateCanonicalOwnership`'s**, and its words are passed through; the
+ * worldwide case is answered here first, because the hook's words for it are
+ * an admin's. The write runs `overrideAccess`, because `canonical.owned` is
  * admin-write-locked: this is the one door a manager has to it.
  */
 async function claimRegion(req: PayloadRequest, client: Client): Promise<ClaimResult> {
@@ -210,7 +207,7 @@ async function claimRegion(req: PayloadRequest, client: Client): Promise<ClaimRe
     await req.payload.update({
       collection: 'clients',
       id: client.id,
-      data: { canonical: { ...client.canonical, owned: true } },
+      data: { canonical: { owned: true } },
       overrideAccess: true,
       req,
     })

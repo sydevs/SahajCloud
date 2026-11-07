@@ -4,10 +4,9 @@ import type { ClaimResult, VerifyEmbedResponse } from '@/collections/Clients/end
 import type { InfoBannerType } from '@/components/admin/InfoBanner/InfoBanner'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { ReportedMount } from '@/lib/clients/site'
-import { normalizeMountPath, reportedMountsFor, siteHosts } from '@/lib/clients/site'
+import { isPrimaryPage, normalizeMountPath, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
-import { normalizeHost } from '@/plugins/usage/originEnforcement'
 
 import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
 
@@ -180,8 +179,11 @@ export function alreadyVerified(
   const verified = verification?.verified
   return (
     verified != null &&
-    siteHosts(verified.domain).includes(normalizeHost(candidate.host) ?? '') &&
-    normalizeMountPath(verified.mount) === normalizeMountPath(candidate.mount)
+    isPrimaryPage(
+      { domain: verified.domain, page: verified.mount },
+      candidate.host,
+      candidate.mount,
+    )
   )
 }
 

@@ -11,7 +11,7 @@ import {
   ROUTING_MODE_OPTIONS,
   ROUTING_MODES,
 } from '@/lib/clients/canonical'
-import { embedMetadataJsonSchema } from '@/lib/clients/embedMetadata'
+import { embedMetadataJsonSchema, parseMountKey } from '@/lib/clients/embedMetadata'
 import type { SiteFields } from '@/lib/clients/site'
 import { EMBED_HEIGHTS, primaryPageUrl, SITE_TRACKS } from '@/lib/clients/site'
 import {
@@ -816,12 +816,20 @@ export const Clients: CollectionConfig = {
           validate: siteDomainValidate,
         },
         {
-          // The primary page's path on `domain`. A WordPress permalink keeps
-          // its `?p=` query, because that query is the page there.
+          // The primary page's path on `domain`, spelled as a report's mount key
+          // spells it — so a report can match it, and it carries no markup. A
+          // WordPress permalink keeps its `?p=` query, because that query is
+          // the page there.
           name: 'page',
           type: 'text',
-          validate: (value: string | null | undefined) =>
-            !value || value.startsWith('/') ? true : 'A page is a path, such as /classes.',
+          validate: (value: string | null | undefined) => {
+            if (!value) return true
+            const url = `https://site.example${value}`
+            const parsed = value.startsWith('/') ? parseMountKey(url) : null
+            return parsed?.ok && parsed.key === url
+              ? true
+              : 'A page is a path, such as /classes, with no query other than a WordPress ?p=.'
+          },
         },
         {
           name: 'track',

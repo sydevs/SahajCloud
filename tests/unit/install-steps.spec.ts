@@ -10,6 +10,7 @@ import {
   type Step,
   stepForCheck,
   type Track,
+  TRACK_META,
   type TrackId,
   TRACKS_BY_PLATFORM,
   tracksFor,
@@ -17,6 +18,7 @@ import {
   WORDPRESS_PLUGIN_ZIP_URL,
 } from '../../src/components/admin/InstallGuide/steps'
 import { CONTENT_ELEMENT_ID } from '../../src/components/admin/InstallGuide/templates'
+import { hasSearchListings } from '../../src/lib/clients/site'
 
 /**
  * The Install tab's content, and the couplings a component cannot check.
@@ -88,6 +90,12 @@ describe('the four platform choices', () => {
 })
 
 describe('every track', () => {
+  it('agrees with the CMS about which tracks get search checks', () => {
+    for (const id of Object.keys(TRACK_META) as TrackId[]) {
+      expect(TRACK_META[id].searchListings !== false, id).toBe(hasSearchListings(id))
+    }
+  })
+
   it('routes all four check signals to a step it actually has', () => {
     // A failing check that names a step the track does not render is a red light
     // with nowhere to go.

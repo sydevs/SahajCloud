@@ -3,7 +3,7 @@ import type { PayloadRequest, Where } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
-import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
+import { isPrimaryPage } from '@/lib/clients/site'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -171,13 +171,7 @@ function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwn
 function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
   const verified = row.canonical?.verification?.verified
   if (!isValidCanonicalDomain(verified?.domain)) return undefined
-  if (
-    !siteHosts(row.site?.domain).includes(verified.domain) ||
-    !row.site?.page ||
-    normalizeMountPath(verified.mount ?? '/') !== normalizeMountPath(row.site.page)
-  ) {
-    return undefined
-  }
+  if (!isPrimaryPage(row.site, verified.domain, verified.mount ?? '/')) return undefined
 
   return {
     clientId: row.id,

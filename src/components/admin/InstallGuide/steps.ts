@@ -164,9 +164,8 @@ export interface TrackMeta {
    * `false` where no class can have a search listing of its own — an iframe, or
    * a site whose own canonical tag sends every class address back to the page.
    *
-   * ⚠ **The CMS runs its search checks on every confirmed install**, knowing
-   * nothing of the track, and on such a site they can only fail. So the tab
-   * ignores them there rather than calling a working install broken, and the
+   * The CMS skips its search checks on such a site (`hasSearchListings`, which
+   * must agree), and the tab ignores any stored from an earlier track: the
    * Search listings row reads Not available.
    */
   searchListings?: false

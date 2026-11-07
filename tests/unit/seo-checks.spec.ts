@@ -34,9 +34,7 @@ import {
  *   `title`, and the root carries `content.paragraphs`.
  * - `VerifiedEmbed` — `canonical.verification.verified`, whose required keys are
  *   `domain`, `mount`, `widgetVersion` and `at` (checked against
- *   `canonicalVerificationSchema` in `src/collections/Clients/Clients.ts`). The
- *   `routing: 'path'` the audit is given is the second argument, from the probe
- *   (#644).
+ *   `canonicalVerificationSchema` in `src/collections/Clients/Clients.ts`).
  */
 
 const PAGE_URL = 'https://sahajayoga.ca/classes/ca/ontario'
@@ -219,6 +217,27 @@ describe('comparePage', () => {
   })
 })
 
+describe('parsePageHtml, against a stranger’s markup', () => {
+  it('compares body text decoded, as the CMS text it looks for is', () => {
+    const page = parsePageHtml('<head></head><body>Women&#x27;s Meditation &amp; Music</body>')
+    expect(page.body).toContain("Women's Meditation & Music")
+  })
+
+  it('reads an unquoted canonical and structured-data type, as a minifier writes them', () => {
+    const page = parsePageHtml(
+      '<head><link rel=canonical href=https://a.example/x><script type=application/ld+json>{}</script></head>',
+    )
+    expect(page.canonical).toBe('https://a.example/x')
+    expect(page.hasJsonLd).toBe(true)
+  })
+
+  it('leaves a reference past the last code point as written, rather than throwing', () => {
+    expect(parsePageHtml('<head><title>A &#99999999; B</title></head>').title).toBe(
+      'A &#99999999; B',
+    )
+  })
+})
+
 describe('siteListsUrl', () => {
   const answering = (pages: Record<string, string>) => async (url: string) =>
     ({
@@ -314,6 +333,32 @@ describe('siteListsUrl', () => {
     expect(asked).not.toContain('file:///etc/passwd')
   })
 
+  it('skips rather than fails when an index lists more than it will read', async () => {
+    // A plugin often appends its own sitemap last; unread is not "not listed".
+    const children = Array.from(
+      { length: 10 },
+      (_, index) => `<sitemap><loc>https://sahajayoga.ca/s-${index}.xml</loc></sitemap>`,
+    ).join('')
+    const verdict = await siteListsUrl({
+      target: PAGE_URL,
+      fetchFn: answering({
+        'https://sahajayoga.ca/sitemap.xml': `<sitemapindex>${children}</sitemapindex>`,
+      }),
+    })
+    expect(verdict.status).toBe('skipped')
+  })
+
+  it('reads a sitemap on the www twin, which is the same site', async () => {
+    const verdict = await siteListsUrl({
+      target: PAGE_URL,
+      fetchFn: answering({
+        'https://sahajayoga.ca/robots.txt': 'Sitemap: https://www.sahajayoga.ca/sitemap-x.xml',
+        'https://www.sahajayoga.ca/sitemap-x.xml': `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`,
+      }),
+    })
+    expect(verdict.status).toBe('pass')
+  })
+
   it('skips rather than fails when no sitemap could be reached', async () => {
     // We could not look. Not evidence the install is wrong.
     const verdict = await siteListsUrl({
@@ -361,7 +406,7 @@ describe('fetchPage bounds a third party\u2019s redirect', () => {
     })
 
     const page = await fetchPage('https://sahajayoga.ca/sitemap.xml', {
-      sameHost: 'sahajayoga.ca',
+      hosts: ['sahajayoga.ca', 'www.sahajayoga.ca'],
     })
 
     expect(page.ok).toBe(false)
@@ -379,7 +424,7 @@ describe('fetchPage bounds a third party\u2019s redirect', () => {
     })
 
     const page = await fetchPage('https://sahajayoga.ca/sitemap.xml', {
-      sameHost: 'sahajayoga.ca',
+      hosts: ['sahajayoga.ca', 'www.sahajayoga.ca'],
     })
 
     expect(page.ok).toBe(true)
@@ -452,11 +497,8 @@ describe('runSeoChecks', () => {
     // mail. A redirecting mount is also a real answer, not "we could not look".
     const results = await runSeoChecks({
       verified: VERIFIED,
-      routing: 'path',
       resolvers,
-      deps: {
-        fetchFn: async () => ({ ok: false, status: 302, body: '', detail: OFF_HOST }),
-      },
+      fetchFn: async () => ({ ok: false, status: 302, body: '', detail: OFF_HOST }),
     })
 
     const pages = results.filter((result) => result.check !== 'sitemap')
@@ -470,23 +512,20 @@ describe('runSeoChecks', () => {
   it('checks the root and one sampled region, and the sitemap once', async () => {
     const results = await runSeoChecks({
       verified: VERIFIED,
-      routing: 'path',
       resolvers,
-      deps: {
-        fetchFn: async (url) => ({
-          ok: true,
-          status: 200,
-          body: url.includes('/robots.txt')
-            ? `Sitemap: https://sahajayoga.ca/sitemap.xml`
-            : url.includes('sitemap.xml')
-              ? `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`
-              : pageHtml({
-                  title: url === PAGE_URL ? 'Free meditation classes in Ontario' : 'Ontario',
-                  canonical: url === PAGE_URL ? PAGE_URL : 'https://sahajayoga.ca/classes',
-                  body: url === PAGE_URL ? '<li>Thursday class</li>' : '<p>Come and sit.</p>',
-                }),
-        }),
-      },
+      fetchFn: async (url) => ({
+        ok: true,
+        status: 200,
+        body: url.includes('/robots.txt')
+          ? `Sitemap: https://sahajayoga.ca/sitemap.xml`
+          : url.includes('sitemap.xml')
+            ? `<urlset><url><loc>${PAGE_URL}</loc></url></urlset>`
+            : pageHtml({
+                title: url === PAGE_URL ? 'Free meditation classes in Ontario' : 'Ontario',
+                canonical: url === PAGE_URL ? PAGE_URL : 'https://sahajayoga.ca/classes',
+                body: url === PAGE_URL ? '<li>Thursday class</li>' : '<p>Come and sit.</p>',
+              }),
+      }),
     })
 
     expect(results.map((result) => result.route)).toContain('/')
@@ -500,9 +539,8 @@ describe('runSeoChecks', () => {
   it('skips every check on a page it could not fetch, rather than failing it', async () => {
     const results = await runSeoChecks({
       verified: VERIFIED,
-      routing: 'path',
       resolvers,
-      deps: { fetchFn: async () => ({ ok: false, status: 503, body: '', detail: 'timed out' }) },
+      fetchFn: async () => ({ ok: false, status: 503, body: '', detail: 'timed out' }),
     })
     expect(results.every((result) => result.status === 'skipped')).toBe(true)
   })
@@ -584,6 +622,26 @@ describe('nextSeoCheckState', () => {
       now: new Date('2026-11-03T00:00:00Z'),
     })
     expect(again.newFailures.map(seoFailureKey)).toEqual(['/#title'])
+  })
+
+  it('keeps a failure through a run that could not look, and mails it once', () => {
+    const broken = nextSeoCheckState({
+      current: EMPTY_VERIFICATION,
+      results: [failure('/', 'title')],
+      now: new Date('2026-11-01T00:00:00Z'),
+    })
+    const timedOut = nextSeoCheckState({
+      current: broken.verification,
+      results: [{ route: '/', check: 'title', status: 'skipped', detail: 'timed out' }],
+      now: new Date('2026-11-02T00:00:00Z'),
+    })
+    expect(timedOut.verification.seo?.results[0]?.status).toBe('fail')
+    const again = nextSeoCheckState({
+      current: timedOut.verification,
+      results: [failure('/', 'title')],
+      now: new Date('2026-11-03T00:00:00Z'),
+    })
+    expect(again.newFailures).toEqual([])
   })
 
   it('tells the same check on two pages apart', () => {

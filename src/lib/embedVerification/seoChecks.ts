@@ -1,7 +1,8 @@
 import type { AtlasSeoDocument } from '@/endpoints/atlas/seo/seoDocument'
 import type { AtlasSitemapUrl } from '@/endpoints/responseTypes'
-import { canonicalMountUrl, canonicalTargetForHost } from '@/lib/atlas/canonicalUrl'
-import type { RoutingMode } from '@/lib/clients/canonical'
+import { canonicalMountUrl } from '@/lib/atlas/canonicalUrl'
+import { isValidCanonicalDomain } from '@/lib/clients/canonical'
+import { siteHosts } from '@/lib/clients/site'
 import type { SeoCheckId, SeoCheckResult, VerifiedEmbed } from '@/lib/clients/verification'
 
 import { decodeEntities } from './readinessMarker'
@@ -25,6 +26,15 @@ import { decodeEntities } from './readinessMarker'
 
 const FETCH_TIMEOUT_MS = 8000
 
+/**
+ * The whole pass's budget, shared by every fetch in it.
+ *
+ * ⚠ **"Verify now" must answer inside Cloudflare's 100 s origin limit** (#644),
+ * after a browser verification of up to 45 s — and the pass runs beside the
+ * routing probe, so this, not the sum of its fetches, is what it adds.
+ */
+const SEO_PASS_DEADLINE_MS = 40_000
+
 /** Sitemap documents one check will read, index entries included — and so queued. */
 const MAX_SITEMAP_DOCUMENTS = 6
 
@@ -40,13 +50,16 @@ export interface FetchedPage {
 
 interface FetchPageOptions {
   /**
-   * Refuse a redirect that leaves this host, instead of following it.
+   * The site's hosts — its domain and www twin (`siteHosts`). A redirect that
+   * leaves them is refused rather than followed.
    *
    * ⚠ **Judged before each hop, never on the answer.** A followed redirect has
    * already issued the request — a `Sitemap:` line that 302s to an internal
    * address is the hole {@link onHost} closes, one hop further out.
    */
-  sameHost: string
+  hosts: readonly string[]
+  /** The pass's shared deadline ({@link SEO_PASS_DEADLINE_MS}). */
+  signal?: AbortSignal
 }
 
 export type FetchPage = (url: string, options: FetchPageOptions) => Promise<FetchedPage>
@@ -68,8 +81,11 @@ const MAX_BODY_BYTES = 1_024 * 1_024
  * Fetch one document as a crawler would, and **never throw**: the caller has to
  * tell "their page is wrong" from "we could not look", as with `browserRendering`.
  */
-export const fetchPage: FetchPage = async (url, { sameHost }) => {
+export const fetchPage: FetchPage = async (url, { hosts, signal }) => {
   try {
+    // One budget for the whole chain, not one per hop.
+    const timeout = AbortSignal.timeout(FETCH_TIMEOUT_MS)
+    const bound = signal ? AbortSignal.any([timeout, signal]) : timeout
     // `manual` is the only mode that can refuse a hop before it is taken.
     let current = url
     for (let hop = 0; ; hop++) {
@@ -80,7 +96,7 @@ export const fetchPage: FetchPage = async (url, { sameHost }) => {
           'User-Agent': 'SahajCloud-SEO-Check (+https://github.com/sydevs/SahajCloud)',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: bound,
       })
 
       const location = REDIRECT_STATUSES.has(response.status)
@@ -94,7 +110,7 @@ export const fetchPage: FetchPage = async (url, { sameHost }) => {
         }
       }
 
-      const next = onHost(URL.parse(location, current)?.href ?? '', sameHost)
+      const next = onHost(URL.parse(location, current)?.href ?? '', hosts)
       if (!next) {
         return { ok: false, status: response.status, body: '', detail: OFF_HOST }
       }
@@ -119,9 +135,6 @@ const TOO_MANY_HOPS = 'Too many redirects on this host.'
 
 /** The first {@link MAX_BODY_BYTES} of a response, decoded as UTF-8. */
 async function readCapped(response: Response): Promise<string> {
-  const declared = Number(response.headers.get('content-length'))
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return ''
-
   const reader = response.body?.getReader()
   if (!reader) return ''
 
@@ -141,14 +154,14 @@ async function readCapped(response: Response): Promise<string> {
     await reader.cancel().catch(() => undefined)
   }
 
-  return new TextDecoder('utf-8').decode(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))))
+  return new TextDecoder('utf-8').decode(Buffer.concat(chunks))
 }
 
 interface PageSnapshot {
   title: string | null
   canonical: string | null
   hasJsonLd: boolean
-  /** Everything after `</head>`. */
+  /** Everything after `</head>`, entities decoded, as the CMS text it is compared with is. */
   body: string
 }
 
@@ -169,14 +182,14 @@ export function parsePageHtml(html: string): PageSnapshot {
   const canonical =
     /<link\b[^>]*\brel\s*=\s*["']?canonical["']?[^>]*>/i
       .exec(head)?.[0]
-      ?.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1] ?? null
+      ?.match(/\bhref\s*=\s*["']?([^"'\s>]+)/i)?.[1] ?? null
 
   return {
     title: title === null ? null : decodeEntities(title).trim(),
     canonical: canonical === null ? null : decodeEntities(canonical).trim(),
     // Anywhere: a host is free to put it in either half.
-    hasJsonLd: /<script\b[^>]*type\s*=\s*["']application\/ld\+json["']/i.test(html),
-    body,
+    hasJsonLd: /<script\b[^>]*type\s*=\s*["']?application\/ld\+json/i.test(html),
+    body: decodeEntities(body),
   }
 }
 
@@ -286,34 +299,38 @@ export function comparePage(args: {
 export async function siteListsUrl(args: {
   target: string
   fetchFn?: FetchPage
+  signal?: AbortSignal
 }): Promise<Verdict> {
-  const { target } = args
+  const { target, signal } = args
   const get = args.fetchFn ?? fetchPage
 
   const url = URL.parse(target)
   if (!url) return skip('This page has no resolvable origin.')
-  const { origin, host } = url
+  const { origin } = url
+  const hosts = siteHosts(url.hostname)
 
-  const robots = await get(`${origin}/robots.txt`, { sameHost: host })
+  const robots = await get(`${origin}/robots.txt`, { hosts, signal })
   const declared = robots.ok
     ? [...robots.body.matchAll(/^\s*sitemap\s*:\s*(\S+)\s*$/gim)].map((match) => match[1])
     : []
   // Whatever robots.txt said: publishing the file and forgetting the line is common.
-  const queue = [...declared, `${origin}/sitemap.xml`].flatMap((candidate) =>
-    onHostList(candidate, host),
+  const queue = [...declared, `${origin}/sitemap.xml`].flatMap(
+    (candidate) => onHost(candidate, hosts) ?? [],
   )
 
   const seen = new Set<string>()
   let read = 0
   let reachable = false
+  // Whether an index listed more than the check will read.
+  let cut = false
 
   while (queue.length > 0 && read < MAX_SITEMAP_DOCUMENTS) {
     const next = queue.shift() as string
     if (seen.has(next)) continue
     seen.add(next)
 
-    // ⚠ `sameHost`, not a check on the answer: an on-host candidate can still redirect off it.
-    const document = await get(next, { sameHost: host })
+    // ⚠ `hosts`, not a check on the answer: an on-host candidate can still redirect off it.
+    const document = await get(next, { hosts, signal })
     read++
     if (!document.ok) continue
     reachable = true
@@ -324,21 +341,24 @@ export async function siteListsUrl(args: {
     if (locations.some((location) => sameUrl(location, target))) return pass()
 
     if (/<sitemapindex\b/i.test(document.body)) {
-      queue.push(
-        ...locations
-          .flatMap((location) => onHostList(location, host))
-          .slice(0, MAX_SITEMAP_DOCUMENTS),
-      )
+      const children = locations.flatMap((location) => onHost(location, hosts) ?? [])
+      cut ||= children.length > MAX_SITEMAP_DOCUMENTS
+      queue.push(...children.slice(0, MAX_SITEMAP_DOCUMENTS))
     }
   }
 
+  // ⚠ **Unread sitemaps are no evidence the page is missing**: a plugin often
+  // appends its own sitemap last in a long index.
+  if (cut || queue.some((candidate) => !seen.has(candidate))) {
+    return skip('Your site’s sitemaps are too many to read through, so this was not checked.')
+  }
   return reachable
     ? fail(`Your site’s sitemap does not list ${target} yet.`)
     : skip('This site publishes no sitemap we could reach.')
 }
 
 /**
- * `raw` as an absolute http(s) URL on `host`, or `null`.
+ * `raw` as an absolute https URL on one of `hosts`, or `null`.
  *
  * ⚠ **Half the SSRF bound, and the reason it is a bound rather than a filter.**
  * The `Sitemap:` lines and `<loc>` children are URLs a third party chose, and
@@ -349,25 +369,18 @@ export async function siteListsUrl(args: {
  * ⚠ **The other half is {@link FetchPageOptions.sameHost}**, which applies this
  * to every redirect hop.
  */
-function onHost(raw: string, host: string): string | null {
+function onHost(raw: string, hosts: readonly string[]): string | null {
   const url = URL.parse(raw)
-  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) return null
-  return url.host.toLowerCase() === host.toLowerCase() ? url.href : null
-}
-
-const onHostList = (raw: string, host: string): string[] => {
-  const url = onHost(raw, host)
-  return url ? [url] : []
+  // https only: a plain-http hop is what a DNS-rebinding host would answer on,
+  // and every page checked is https (`primaryPageUrl`).
+  if (!url || url.protocol !== 'https:') return null
+  return hosts.includes(url.host.toLowerCase()) ? url.href : null
 }
 
 /** Injected, with the client and locale baked in — see the module docblock. */
 interface SeoAuditResolvers {
   resolveSeo: (route: string) => Promise<AtlasSeoDocument | null>
   resolveSitemap: () => Promise<AtlasSitemapUrl[]>
-}
-
-export interface SeoAuditDeps {
-  fetchFn?: FetchPage
 }
 
 /**
@@ -394,18 +407,18 @@ export function sampleRegion(urls: readonly AtlasSitemapUrl[]): AtlasSitemapUrl 
  */
 export async function runSeoChecks(args: {
   verified: VerifiedEmbed
-  routing: RoutingMode
   resolvers: SeoAuditResolvers
-  deps?: SeoAuditDeps
+  fetchFn?: FetchPage
 }): Promise<SeoCheckResult[]> {
-  const { verified, routing, resolvers, deps = {} } = args
-  const get = deps.fetchFn ?? fetchPage
+  const { verified, resolvers } = args
+  const get = args.fetchFn ?? fetchPage
+  const signal = AbortSignal.timeout(SEO_PASS_DEADLINE_MS)
 
   // ⚠ `canonicalMountUrl`, not `buildCanonicalUrl(target, '/')`, which refuses
-  // `/` as a webPath. `routing` stays required, so no target is built from the
-  // widget's own self-report (#644).
-  const target = canonicalTargetForHost(verified, routing)
-  const mountUrl = target ? canonicalMountUrl(target) : null
+  // `/` as a webPath. The domain is re-checked: the job writes it with raw SQL.
+  const mountUrl = isValidCanonicalDomain(verified.domain)
+    ? canonicalMountUrl({ origin: `https://${verified.domain}`, mount: verified.mount })
+    : null
   if (!mountUrl) {
     return [
       {
@@ -423,11 +436,9 @@ export async function runSeoChecks(args: {
   const sample = sampleRegion(sitemap)
   if (sample) pages.push({ route: sample.route, url: sample.loc })
 
-  // ⚠ **Overlapped, because the serial version could cost a minute per client**
-  // — up to eight `FETCH_TIMEOUT_MS` waits on top of three browser renders, and
-  // "Verify now" has to answer inside Cloudflare's 100s origin limit (#644).
+  // Overlapped, and bounded by one deadline — see `SEO_PASS_DEADLINE_MS`.
   const sitemapCheck: Promise<SeoCheckResult> = sample
-    ? siteListsUrl({ target: sample.loc, fetchFn: get }).then((verdict) => ({
+    ? siteListsUrl({ target: sample.loc, fetchFn: get, signal }).then((verdict) => ({
         route: sample.route,
         check: 'sitemap' as const,
         ...verdict,
@@ -439,15 +450,18 @@ export async function runSeoChecks(args: {
         detail: 'This service owns no region page to look for yet.',
       })
 
-  const pageResults = await Promise.all(pages.map((page) => checkPage(page, resolvers, get)))
-
-  return [...pageResults.flat(), await sitemapCheck]
+  const [sitemapResult, ...pageResults] = await Promise.all([
+    sitemapCheck,
+    ...pages.map((page) => checkPage(page, resolvers, get, signal)),
+  ])
+  return [...pageResults.flat(), sitemapResult]
 }
 
 async function checkPage(
   page: { route: string; url: string },
   resolvers: SeoAuditResolvers,
   get: FetchPage,
+  signal: AbortSignal,
 ): Promise<SeoCheckResult[]> {
   // ⚠ **Bounded to the mount's own host, like every sitemap fetch, and for a
   // sharper reason.** Two failures quote what came back, so a mount that 302s to
@@ -455,7 +469,7 @@ async function checkPage(
   // stored detail and the manager's mail.
   const [seo, fetched] = await Promise.all([
     resolvers.resolveSeo(page.route),
-    get(page.url, { sameHost: URL.parse(page.url)?.host ?? '' }),
+    get(page.url, { hosts: siteHosts(URL.parse(page.url)?.hostname), signal }),
   ])
 
   if (!seo) {

@@ -43,9 +43,12 @@ const NAMED_ENTITIES: Record<string, string> = {
   '&quot;': '"',
   '&lt;': '<',
   '&gt;': '>',
-  '&#39;': "'",
   '&apos;': "'",
 }
+
+/** A numeric reference as its character, or left as written when no character has that number. */
+const codePoint = (entity: string, code: number): string =>
+  code <= 0x10ffff ? String.fromCodePoint(code) : entity
 
 /**
  * Decode the entities a host's template escaped on the way out.
@@ -59,14 +62,17 @@ const NAMED_ENTITIES: Record<string, string> = {
  * comparison, never a sanitizer: nothing it returns is re-emitted as markup.
  */
 export function decodeEntities(raw: string): string {
-  return raw
-    .replace(
-      /&(?:quot|lt|gt|#39|apos);/gi,
-      (entity) => NAMED_ENTITIES[entity.toLowerCase()] ?? entity,
-    )
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCodePoint(parseInt(code, 16)))
-    .replace(/&amp;/g, '&')
+  return (
+    raw
+      .replace(
+        /&(?:quot|lt|gt|apos);/gi,
+        (entity) => NAMED_ENTITIES[entity.toLowerCase()] ?? entity,
+      )
+      // ⚠ Guarded: `fromCodePoint` throws past U+10FFFF, and the page is a stranger's.
+      .replace(/&#(\d+);/g, (entity, code: string) => codePoint(entity, Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (entity, code: string) => codePoint(entity, parseInt(code, 16)))
+      .replace(/&amp;/g, '&')
+  )
 }
 
 /**

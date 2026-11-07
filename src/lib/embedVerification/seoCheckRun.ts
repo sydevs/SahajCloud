@@ -1,4 +1,3 @@
-import type { SeoAuditDeps } from './seoChecks'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { createElement } from 'react'
@@ -7,7 +6,7 @@ import { AtlasSeoWarningEmail } from '@/emails/AtlasSeoWarningEmail'
 import { parseAtlasRoute } from '@/endpoints/atlas/seo/atlasRoute'
 import { resolveAtlasSeo } from '@/endpoints/atlas/seo/resolve'
 import { resolveAtlasSitemap } from '@/endpoints/atlas/sitemap/resolve'
-import type { RoutingMode } from '@/lib/clients/canonical'
+import { hasSearchListings, isPrimaryPage } from '@/lib/clients/site'
 import type {
   CanonicalVerification,
   RoutingProbeResult,
@@ -55,12 +54,10 @@ async function runSeoChecksForClient(args: {
   req: PayloadRequest
   clientId: number
   verified: VerifiedEmbed
-  routing: RoutingMode
   /** The service's own language, from `Clients.language`. */
   language?: string | null
-  deps?: SeoAuditDeps
 }): Promise<SeoCheckResult[]> {
-  const { req, clientId, verified, routing, language, deps } = args
+  const { req, clientId, verified, language } = args
 
   const client = await req.payload.findByID({
     collection: 'clients',
@@ -72,8 +69,12 @@ async function runSeoChecksForClient(args: {
   // `assertClientOriginAllowed`, which fires for any `clients` user, so every
   // correctly configured client's reads threw 403 before the verification write.
   // These reads *are* server-to-server, and with no headers the rule stands down.
+  //
+  // A context of its own, too: the job runs many services on one `req`, and its
+  // own writes change the ownership a shared memo would still be holding.
   const auditReq = {
     ...req,
+    context: {},
     headers: new Headers(),
     user: { ...client, collection: 'clients' },
   } as unknown as PayloadRequest
@@ -85,8 +86,6 @@ async function runSeoChecksForClient(args: {
 
   return runSeoChecks({
     verified,
-    routing,
-    deps,
     resolvers: {
       resolveSeo: async (route) => {
         const target = parseAtlasRoute(route)
@@ -111,7 +110,7 @@ async function runSeoChecksForClient(args: {
  * ⚠ **A failed send never fails the run**: it must not cost the stored
  * snapshot, which the Install tab reads.
  */
-async function notifySeoFailures(args: {
+export async function notifySeoFailures(args: {
   payload: Payload
   client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact'>
   failures: readonly SeoCheckResult[]
@@ -185,13 +184,18 @@ export async function notifyServiceContact(args: {
 /**
  * Verify one mount, probe its routing, and run the SEO checks, folded into one
  * verification object, so a button press and a scheduled run spend the same
- * renders and fold identically. Persistence, counters and `disable` stay with
- * each caller, as does the SEO gate: `runSeo` is asked only once the record
- * holds a verified snapshot.
+ * renders and fold identically. Persistence, counters, `disable` and the SEO
+ * mail (`notifySeoFailures`, sent after the write) stay with each caller.
+ *
+ * The SEO checks run beside the probe, which they do not depend on, and only
+ * where they can say something: `runSeo` passes, the track can have search
+ * listings, and the verified snapshot is still the service's current page.
+ * ⚠ **A throw there keeps the previous snapshot** rather than costing the
+ * verification write — the checks read a stranger's page.
  */
 export async function verifyMount(args: {
   req: PayloadRequest
-  client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact' | 'language'>
+  client: Pick<Client, 'id' | 'language' | 'site'>
   current: CanonicalVerification | null
   mount: string
   now: Date
@@ -203,28 +207,44 @@ export async function verifyMount(args: {
 
   const outcome = await verify(mount)
   const transition = nextVerificationState({ current, result: outcome, now })
+  const verified = transition.verification.verified
+
+  const checkSeo =
+    verified &&
+    runSeo(outcome) &&
+    hasSearchListings(client.site?.track) &&
+    isPrimaryPage(client.site, verified.domain, verified.mount)
+
+  const [probeResult, seo] = await Promise.all([
+    probeForOutcome(mount, outcome, probe),
+    checkSeo
+      ? runSeoChecksForClient({
+          req,
+          clientId: client.id,
+          verified,
+          language: client.language,
+        }).catch((error: unknown) => {
+          req.payload.logger.error({
+            msg: 'verifyMount: the SEO checks failed; keeping the previous snapshot',
+            clientId: client.id,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return null
+        })
+      : null,
+  ])
 
   // The routing verdict folds into the same object, so one owner is still one
   // write. It never touches `failureCount`, and so can never reach `disable`.
-  const probeResult = await probeForOutcome(mount, outcome, probe)
   const probed = nextRoutingProbeState({
     current: transition.verification,
     result: probeResult,
     now,
   })
 
-  if (!probed.verified || !runSeo(outcome)) {
+  if (!seo) {
     return { outcome, transition, probeResult, verification: probed, seo: [], newFailures: [] }
   }
-
-  const seo = await runSeoChecksForClient({
-    req,
-    clientId: client.id,
-    verified: probed.verified,
-    routing: probed.routingProbe?.verdict ?? 'query',
-    language: client.language,
-  })
   const { verification, newFailures } = nextSeoCheckState({ current: probed, results: seo, now })
-  await notifySeoFailures({ payload: req.payload, client, failures: newFailures })
   return { outcome, transition, probeResult, verification, seo, newFailures }
 }

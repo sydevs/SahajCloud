@@ -11,9 +11,9 @@ import type { ClientCanonicalVerification } from '@/payload-types'
  * or touches Payload, so the three-strikes rule, the `inconclusive` exemption
  * and the backoff are unit-testable on their own.
  *
- * ⚠ **Keep this module free of heavy runtime imports.** `CanonicalEmbedPicker`
- * is a `'use client'` component and value-imports {@link splitMountKey} from
- * here, so a top-level import lands in an admin browser chunk. That is why the
+ * ⚠ **Keep this module free of heavy runtime imports.** The Install tab is a
+ * `'use client'` component and reaches {@link splitMountKey} here through
+ * `@/lib/clients/site`, so a top-level import lands in an admin browser chunk. That is why the
  * `jsonSchema` call moved to `Clients.ts` — declaring it here would ship `zod`
  * to the browser to describe a shape only the server validates.
  *
@@ -268,19 +268,26 @@ export function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): 
  * **"One email per new failure" needs no second column.** The previous snapshot
  * is the record of what was reported, so a site that stays broken is mailed
  * once, and one that breaks again after a fix is mailed again.
+ *
+ * ⚠ **A `skipped` check keeps the failure it had**, as an `inconclusive` render
+ * changes nothing: a fetch that timed out once is no evidence of a fix, and
+ * dropping the failure would mail it again on the next run.
  */
 export function nextSeoCheckState(args: {
   current: CanonicalVerification | null | undefined
   results: SeoCheckResult[]
   now: Date
 }): { verification: CanonicalVerification; newFailures: SeoCheckResult[] } {
-  const { current, results, now } = args
+  const { current, now } = args
   const previous = current ?? EMPTY_VERIFICATION
 
-  const failedBefore = new Set(
+  const failedBefore = new Map(
     (previous.seo?.results ?? [])
       .filter((result) => result.status === 'fail')
-      .map((result) => seoFailureKey(result)),
+      .map((result) => [seoFailureKey(result), result]),
+  )
+  const results = args.results.map((result) =>
+    result.status === 'skipped' ? (failedBefore.get(seoFailureKey(result)) ?? result) : result,
   )
   const newFailures = results.filter(
     (result) => result.status === 'fail' && !failedBefore.has(seoFailureKey(result)),
