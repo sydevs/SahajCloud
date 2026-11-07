@@ -34,8 +34,14 @@ import { STATUS_LABELS } from '../statuses'
  * else's address reaches their row: anyone holding the widget's client key can
  * replace a registrant's answers and session, put the row back to `pending`
  * and have a fresh confirmation mailed to them. The collection keeps no
- * versions, so the log entry below is the only record the old values leave —
- * write nothing here that it does not carry.
+ * versions, so the log entry below is the only record the old values leave.
+ *
+ * ⚠ **That record is not durable, and knowing why matters before trusting it.**
+ * `appendLogEntry` keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops
+ * the oldest, and each repeat signup appends one — so that many further signups
+ * for the same address and event roll the entry carrying the original values
+ * out of the column, and nothing else holds them. A record outside a caller's
+ * reach is still owed here.
  */
 export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   data,
