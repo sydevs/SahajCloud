@@ -4,6 +4,7 @@ import {
   isSummaryFrequency,
   type NotificationKey,
   notificationFrequency,
+  notificationTypesFor,
   type SummaryFrequency,
 } from '@/components/admin/NotificationPreferences/config'
 import type {
@@ -17,7 +18,12 @@ import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
 import { loadStatistics, type StatTile } from '@/lib/atlasOverview/statistics'
-import { actionPrompt, type OpenItem, type OpenItemStatus } from '@/lib/atlasOverview/status'
+import {
+  actionPrompt,
+  type OpenItem,
+  type OpenItemStatus,
+  rowTarget,
+} from '@/lib/atlasOverview/status'
 import { formatLongDate } from '@/lib/notifications'
 import type { ManagerRole } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
@@ -80,6 +86,7 @@ const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' 
 const ROLE_LABELS: Record<ManagerRole, string> = {
   program: 'Your events',
   region: 'Your regions',
+  service: 'Your websites',
   admin: 'Sahaj Atlas',
 }
 
@@ -113,16 +120,21 @@ function pillFor(status: OpenItemStatus): StatusPillStyle {
 export function toEmailRow(item: OpenItem): ItemTableRow {
   const { placing } = item
   const prompt = actionPrompt(placing)
+  const own = rowTarget(item.row)
   return {
     action:
       placing.action && prompt
         ? {
             ...prompt,
-            href: adminDocUrl(placing.action.target.collection, placing.action.target.id),
+            href: adminDocUrl(
+              placing.action.target.collection,
+              placing.action.target.id,
+              placing.action.target.view,
+            ),
           }
         : null,
     // The item itself, as on the dashboard; the next step links where it is taken.
-    href: adminDocUrl(item.row.kind === 'event' ? 'events' : 'user-submissions', item.row.id),
+    href: adminDocUrl(own.collection, own.id, own.view),
     lines: placing.lines,
     statuses: item.statuses.map((status) => ({ pillStyle: pillFor(status), text: status.label })),
     subtitle: item.row.kind === 'event' ? item.row.timing || undefined : undefined,
@@ -139,6 +151,7 @@ const tileText = (tile: StatTile) => ({
 
 /** A proposal or refusal that arrived inside the window, for a "new since" section. */
 function arrivedSince(item: OpenItem, since: Date): boolean {
+  if (item.row.kind === 'service') return false
   const at = item.row.kind === 'event' ? item.row.proposal?.receivedAt : item.row.receivedAt
   return at !== undefined && at !== null && new Date(at) > since
 }
@@ -177,9 +190,12 @@ export async function buildDigest(args: {
   const prefs = manager.notificationPreferences
   const pace = (key: NotificationKey) => notificationFrequency(prefs, key)
   const mark = (key: NotificationKey) => manager.digestWatermarks?.[role]?.[key]
+  // Only a row this hat is shown: a service's managers set no Statistics pace,
+  // so the default must not send them one.
+  const rows = new Set(notificationTypesFor([role]).map((type) => type.key))
   // ⚠ Not again today: a task retry or a manual run must not re-send what went out this morning.
   const due = (key: NotificationKey) =>
-    isDue(pace(key), runStart) && !sentToday(mark(key), runStart)
+    rows.has(key) && isDue(pace(key), runStart) && !sentToday(mark(key), runStart)
   /** A section's "new since" bound: its watermark, or one period back. */
   const since = (key: NotificationKey) => windowStart(mark(key), pace(key), runStart)
 

@@ -3,7 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { loadOpenItems, withRecommendations } from '@/lib/atlasOverview/openItems'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
 import { loadStatistics, type OverviewStatistics } from '@/lib/atlasOverview/statistics'
-import type { OpenItem } from '@/lib/atlasOverview/status'
+import { type OpenItem, rowTarget } from '@/lib/atlasOverview/status'
 import { adminDocPath } from '@/lib/utilities/adminUrl'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
@@ -13,12 +13,15 @@ import { type DashboardQuery, type OpenItemsData, type OpenItemsRow, paginate } 
 // the digest, leaving the app, uses `adminDocUrl` for the same target.
 function toRow(item: OpenItem): OpenItemsRow {
   const { action } = item.placing
-  const own = item.row.kind === 'event' ? ('events' as const) : ('user-submissions' as const)
+  const own = rowTarget(item.row)
   return {
     action: action
-      ? { href: adminDocPath(action.target.collection, action.target.id), label: action.label }
+      ? {
+          href: adminDocPath(action.target.collection, action.target.id, action.target.view),
+          label: action.label,
+        }
       : null,
-    href: adminDocPath(own, item.row.id),
+    href: adminDocPath(own.collection, own.id, own.view),
     id: `${item.row.kind}-${item.row.id}`,
     kind: item.row.kind,
     lines: item.placing.lines,

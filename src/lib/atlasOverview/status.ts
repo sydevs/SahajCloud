@@ -10,6 +10,7 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
+import type { SeoCheckId } from '@/lib/clients/verification'
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
@@ -37,8 +38,10 @@ export function countPrograms(byStage: Record<string, number | undefined>): numb
 }
 
 export interface OpenItemTarget {
-  collection: 'events' | 'regions' | 'user-submissions'
+  collection: 'clients' | 'events' | 'regions' | 'user-submissions'
   id: number
+  /** A document view of its own, e.g. a service's Install tab. */
+  view?: 'install'
 }
 
 export interface OpenItemStatus {
@@ -85,6 +88,14 @@ export type OpenItemRow =
   | ({ kind: 'event' } & OpenItemEvent)
   | { kind: 'proposal'; id: number; title: string; receivedAt: string }
   | { kind: 'refusal'; id: number; title: string; reason: string; receivedAt: string }
+  | {
+      kind: 'service'
+      id: number
+      title: string
+      /** The checks failing on the last run, one per page and check. */
+      failures: { route: string; check: SeoCheckId; detail?: string }[]
+      checkedAt: string
+    }
 
 /** One row, with every status it has and the one that places it. */
 export interface OpenItem {
@@ -142,6 +153,14 @@ const STATUS_TABLE = {
     pill: 'warning',
     rank: 3,
     filter: 'no-manager',
+    counts: true,
+  },
+  // In no filter: a service row sits only in a service's and an admin's list.
+  'search-problem': {
+    label: 'Search problem',
+    pill: 'warning',
+    rank: 3,
+    filter: null,
     counts: true,
   },
   // Advice, never a deadline.
@@ -295,6 +314,51 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   return statuses
 }
 
+/** What each SEO check is, as a line names it. */
+const SEO_CHECK_LABELS: Record<SeoCheckId, string> = {
+  title: 'the page title',
+  canonical: 'the canonical link',
+  'json-ld': 'the structured-data block',
+  body: 'the text a search engine reads',
+  sitemap: 'the page’s sitemap entry',
+}
+
+/** How many failing checks a row names before it counts the rest. */
+const FAILURES_NAMED = 4
+
+/**
+ * A live atlas that stopped publishing the metadata we gave it (#1055) — a
+ * warning, never an outage, which is why the prompt says nobody visiting is
+ * affected.
+ */
+function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
+  const lines = row.failures
+    .slice(0, FAILURES_NAMED)
+    .map(
+      (failure) =>
+        `${failure.route === '/' ? 'The main page' : failure.route} — ${SEO_CHECK_LABELS[failure.check]}` +
+        (failure.detail ? `: ${failure.detail}` : ''),
+    )
+  const more = row.failures.length - FAILURES_NAMED
+  if (more > 0) lines.push(`+${more} more`)
+  return [
+    status('search-problem', {
+      lines,
+      action: {
+        label: 'Open the Install tab',
+        target: { collection: 'clients', id: row.id, view: 'install' },
+      },
+    }),
+  ]
+}
+
+/** The document a row is, which its title links to. */
+export function rowTarget(row: OpenItemRow): OpenItemTarget {
+  if (row.kind === 'event') return { collection: 'events', id: row.id }
+  if (row.kind === 'service') return { collection: 'clients', id: row.id, view: 'install' }
+  return { collection: 'user-submissions', id: row.id }
+}
+
 /** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
 export interface ActionPrompt {
   link: string
@@ -313,6 +377,10 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
   'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
+  'search-problem': {
+    link: 'Open the Install tab',
+    after: ' to see which setup step to redo. Nobody visiting the site is affected.',
+  },
 }
 
 /** The sentence for a status's next step, or `null` when it has none. */
@@ -336,24 +404,26 @@ export function openItem(row: OpenItemRow, now: Date): OpenItem {
   const statuses =
     row.kind === 'event'
       ? eventStatuses(row, now)
-      : row.kind === 'proposal'
-        ? [
-            status('class-proposed', {
-              lines: [`Received ${shortDate(row.receivedAt)}`],
-              action: review,
-              deadline: row.receivedAt,
-            }),
-          ]
-        : [
-            status('confirmed-spam-pending', {
-              lines: [
-                row.reason.charAt(0).toUpperCase() + row.reason.slice(1),
-                `Received ${shortDate(row.receivedAt)}`,
-              ],
-              action: review,
-              deadline: row.receivedAt,
-            }),
-          ]
+      : row.kind === 'service'
+        ? serviceStatuses(row)
+        : row.kind === 'proposal'
+          ? [
+              status('class-proposed', {
+                lines: [`Received ${shortDate(row.receivedAt)}`],
+                action: review,
+                deadline: row.receivedAt,
+              }),
+            ]
+          : [
+              status('confirmed-spam-pending', {
+                lines: [
+                  row.reason.charAt(0).toUpperCase() + row.reason.slice(1),
+                  `Received ${shortDate(row.receivedAt)}`,
+                ],
+                action: review,
+                deadline: row.receivedAt,
+              }),
+            ]
 
   const rank = Math.min(...statuses.map((s) => s.rank))
   const deadlines = statuses
@@ -366,7 +436,12 @@ export function openItem(row: OpenItemRow, now: Date): OpenItem {
     placing: statuses.find((s) => s.rank === rank)!,
     rank,
     deadline: deadlines[0] ?? null,
-    since: row.kind === 'event' ? row.createdAt : row.receivedAt,
+    since:
+      row.kind === 'event'
+        ? row.createdAt
+        : row.kind === 'service'
+          ? row.checkedAt
+          : row.receivedAt,
     counts: statuses.some((s) => s.counts),
     filters: [...new Set(statuses.flatMap((s) => (s.filter === null ? [] : [s.filter])))],
   }

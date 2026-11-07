@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { OpenItemEvent, OpenItemRow } from '@/lib/atlasOverview/status'
-import { actionPrompt, openItem, overviewProgress, sortOpenItems } from '@/lib/atlasOverview/status'
+import {
+  actionPrompt,
+  openItem,
+  overviewProgress,
+  rowTarget,
+  sortOpenItems,
+} from '@/lib/atlasOverview/status'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
 
@@ -286,6 +292,58 @@ describe('openItem', () => {
       )
       const without = openItem(event({ id: 2, verificationStage: 'expired' }), NOW)
       expect(sortOpenItems([without, withDeadline]).map((item) => item.row.id)).toEqual([1, 2])
+    })
+  })
+
+  describe('a service with failing SEO checks (#1055)', () => {
+    const service = (
+      failures: Extract<OpenItemRow, { kind: 'service' }>['failures'],
+    ): OpenItemRow => ({
+      checkedAt: '2026-11-04T07:00:00.000Z',
+      failures,
+      id: 43,
+      kind: 'service',
+      title: 'Yoga Essonne',
+    })
+
+    it('names each page and check, and sends the reader to the Install tab', () => {
+      const item = openItem(
+        service([
+          { check: 'title', detail: 'expected “Classes”, found “Home”', route: '/' },
+          { check: 'sitemap', route: '/fr/ile-de-france' },
+        ]),
+        NOW,
+      )
+      expect(item.placing).toMatchObject({
+        action: {
+          label: 'Open the Install tab',
+          target: { collection: 'clients', id: 43, view: 'install' },
+        },
+        key: 'search-problem',
+        label: 'Search problem',
+        lines: [
+          'The main page — the page title: expected “Classes”, found “Home”',
+          '/fr/ile-de-france — the page’s sitemap entry',
+        ],
+        pill: 'warning',
+      })
+      expect(item.since).toBe('2026-11-04T07:00:00.000Z')
+      expect(rowTarget(item.row)).toEqual({ collection: 'clients', id: 43, view: 'install' })
+    })
+
+    it('says nobody visiting is affected, where there is room for a sentence', () => {
+      const item = openItem(service([{ check: 'body', route: '/' }]), NOW)
+      expect(actionPrompt(item.placing)).toEqual({
+        after: ' to see which setup step to redo. Nobody visiting the site is affected.',
+        link: 'Open the Install tab',
+      })
+    })
+
+    it('counts the failures past four rather than listing every one', () => {
+      const routes = ['/', '/a', '/b', '/c', '/d', '/e']
+      const item = openItem(service(routes.map((route) => ({ check: 'json-ld', route }))), NOW)
+      expect(item.placing.lines).toHaveLength(5)
+      expect(item.placing.lines.at(-1)).toBe('+2 more')
     })
   })
 

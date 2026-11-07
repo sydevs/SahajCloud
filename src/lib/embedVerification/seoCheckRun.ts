@@ -1,8 +1,5 @@
 import type { Payload, PayloadRequest } from 'payload'
 
-import { createElement } from 'react'
-
-import { AtlasSeoWarningEmail } from '@/emails/AtlasSeoWarningEmail'
 import { parseAtlasRoute } from '@/endpoints/atlas/seo/atlasRoute'
 import { resolveAtlasSeo } from '@/endpoints/atlas/seo/resolve'
 import { resolveAtlasSitemap } from '@/endpoints/atlas/sitemap/resolve'
@@ -20,20 +17,21 @@ import {
   nextVerificationState,
 } from '@/lib/clients/verification'
 import { localeForLanguage } from '@/lib/locales'
-import { adminDocUrl } from '@/lib/utilities/adminUrl'
-import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
-import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 
 import { runSeoChecks } from './seoChecks'
 import { probeForOutcome } from './verifyEmbed'
 
 /**
  * The verification pass the `VerifyEmbeds` job and `POST
- * /api/clients/:id/verify-embed` share, and the one place an SEO failure
- * becomes an email (#1055). The pure folds live in `@/lib/clients/verification`,
- * the observations in `./verifyEmbed` and `./seoChecks`.
+ * /api/clients/:id/verify-embed` share (#1055). The pure folds live in
+ * `@/lib/clients/verification`, the observations in `./verifyEmbed` and
+ * `./seoChecks`.
+ *
+ * ⚠ **An SEO failure sends no mail.** The stored snapshot is the record, and the
+ * open-items digest reads it: a service's managers see it under "Your websites",
+ * an admin in their own list (`@/lib/atlasOverview/openItems`).
  */
 
 /**
@@ -97,52 +95,6 @@ async function runSeoChecksForClient(args: {
 }
 
 /**
- * Tell the service's manager that one of its pages stopped publishing our
- * metadata.
- *
- * ⚠ **One seam, because the recipient rule and the install URL were written
- * twice.**
- *
- * ⚠ **One mail for the whole run, listing every new failure**: a router that
- * stops answering fails four checks on two pages at once, and eight emails for
- * one cause is how a volunteer learns to filter us out.
- *
- * ⚠ **A failed send never fails the run**: it must not cost the stored
- * snapshot, which the Install tab reads.
- */
-export async function notifySeoFailures(args: {
-  payload: Payload
-  client: Pick<Client, 'id' | 'name' | 'managers' | 'primaryContact'>
-  failures: readonly SeoCheckResult[]
-}): Promise<void> {
-  const { payload, client, failures } = args
-  if (failures.length === 0) return
-
-  await notifyServiceContact({
-    payload,
-    client,
-    failure: 'seoChecks: could not notify about new SEO check failures',
-    message: async () => {
-      const brand = getEmailBrand('sahaj-atlas')
-      return {
-        from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
-        subject: stripNewlines(`Search engines may not be reading ${client.name}’s atlas pages`),
-        ...(await renderEmail(
-          createElement(AtlasSeoWarningEmail, {
-            brand,
-            siteName: client.name,
-            failures,
-            // `adminDocUrl` plus the view's own path, so the admin route stays
-            // Payload's to change.
-            installUrl: `${adminDocUrl('clients', client.id)}/install`,
-          }),
-        )),
-      }
-    },
-  })
-}
-
-/**
  * Mail a service's primary contact, falling back to its first listed manager.
  * A service with no contact is not an error.
  *
@@ -184,8 +136,8 @@ export async function notifyServiceContact(args: {
 /**
  * Verify one mount, probe its routing, and run the SEO checks, folded into one
  * verification object, so a button press and a scheduled run spend the same
- * renders and fold identically. Persistence, counters, `disable` and the SEO
- * mail (`notifySeoFailures`, sent after the write) stay with each caller.
+ * renders and fold identically. Persistence, counters and `disable` stay with
+ * each caller.
  *
  * The SEO checks run beside the probe, which they do not depend on, and only
  * where they can say something: `runSeo` passes, the track can have search

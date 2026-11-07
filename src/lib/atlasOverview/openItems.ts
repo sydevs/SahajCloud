@@ -7,6 +7,7 @@ import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedCh
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
+import { hasSearchListings } from '@/lib/clients/site'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -252,6 +253,55 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
   })
 }
 
+/**
+ * The atlas services whose last SEO checks failed: a service scope's own, or
+ * every one for an admin (#1055). Read off the stored snapshot, so nothing here
+ * renders a page.
+ *
+ * ⚠ **A track with no search listings is never a problem**, whatever the
+ * snapshot holds, as on the Install tab (`installModel.ts`).
+ */
+async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
+  const { req, scope } = args
+  if (scope.role !== 'service' && scope.role !== 'admin') return []
+  const { docs } = await req.payload.find({
+    collection: 'clients',
+    where: {
+      and: [
+        { roles: { contains: 'sahaj-atlas-client' } },
+        { enabled: { equals: true } },
+        ...(scope.role === 'service' ? [{ managers: { in: [scope.managerId] } }] : []),
+      ],
+    },
+    depth: 0,
+    limit: LIST_READ_LIMIT,
+    sort: 'name',
+    overrideAccess: args.overrideAccess,
+    req: localeIsolatedReq(req),
+    select: { name: true, site: { track: true }, canonical: { verification: true } },
+  })
+  return docs.flatMap((doc): OpenItemRow[] => {
+    const seo = doc.canonical?.verification?.seo
+    const failures = hasSearchListings(doc.site?.track)
+      ? (seo?.results ?? []).filter((result) => result.status === 'fail')
+      : []
+    if (!seo || !failures.length) return []
+    return [
+      {
+        kind: 'service',
+        id: doc.id,
+        title: doc.name?.trim() || 'Untitled service',
+        failures: failures.map(({ check, detail, route }) => ({
+          check,
+          route,
+          ...(detail ? { detail } : {}),
+        })),
+        checkedAt: seo.at,
+      },
+    ]
+  })
+}
+
 /** A region scope's own events — inside `?region=` when it names one. */
 function ownEventsWhere(scope: OverviewScope, regionIds: null | Set<number>): Where[] {
   if (scope.role !== 'region' || scope.managerId === null) return []
@@ -312,6 +362,12 @@ async function countRegionPrograms(
  */
 export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult> {
   const { now, req, scope } = args
+  // A service's list is its websites alone: no events, no region tree.
+  if (scope.role === 'service') {
+    const rows = await loadServiceRows(args)
+    return { items: sortOpenItems(rows.map((row) => openItem(row, now))), progress: null }
+  }
+
   const tree = await getRegionTree(req)
   const regionIds = await scopeRegionIds(req, scope, tree)
   const unmanaged =
@@ -412,7 +468,9 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
     })
   }
 
-  if (scope.role === 'admin') rows.push(...(await loadRefusals(req)))
+  if (scope.role === 'admin') {
+    rows.push(...(await loadRefusals(req)), ...(await loadServiceRows(args)))
+  }
 
   const items = sortOpenItems(rows.map((row) => openItem(row, now)))
   const programs =

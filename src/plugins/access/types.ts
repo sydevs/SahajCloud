@@ -53,7 +53,7 @@ export type BypassPermissionFunction = (
  * join by default, so every request carries them.
  */
 export type VirtualRoleUser = Partial<
-  Pick<Manager, 'managedEvents' | 'managedPages' | 'managedRegions'>
+  Pick<Manager, 'managedClients' | 'managedEvents' | 'managedPages' | 'managedRegions'>
 >
 
 /**

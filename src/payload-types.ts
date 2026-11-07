@@ -774,6 +774,7 @@ export type RoleSlug =
   | 'page-editor'
   | 'atlas-region-manager'
   | 'atlas-event-manager'
+  | 'atlas-service-manager'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -850,6 +851,7 @@ export interface Config {
       managedPages: 'pages';
       managedRegions: 'regions';
       managedEvents: 'events';
+      managedClients: 'clients';
     };
     regions: {
       events: 'events';
@@ -1271,6 +1273,14 @@ export interface Manager {
    */
   managedEvents?: {
     docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Sahaj Atlas services — websites — this manager looks after.
+   */
+  managedClients?: {
+    docs?: (number | Client)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -4802,6 +4812,7 @@ export interface ManagersSelect<T extends boolean = true> {
   managedPages?: T;
   managedRegions?: T;
   managedEvents?: T;
+  managedClients?: T;
   language?: T;
   contactDetails?:
     | T
@@ -11046,7 +11057,7 @@ export interface TaskVerifyEmbeds {
     disabled: number;
     pathPromoted: number;
     pathDemoted: number;
-    seoWarned: number;
+    seoNewFailures: number;
   };
 }
 /**

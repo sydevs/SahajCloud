@@ -5,6 +5,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendDigests } from '@/jobs/Digests/SendDigests'
+import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -370,6 +371,70 @@ describe('SendDigests job', () => {
         /\d+ sign-ups? filed as spam in the last 7 days View http/,
       )
       expect((await watermarksOf(adminId)).admin?.refused_signups).toBeTruthy()
+    })
+  })
+
+  /**
+   * A failing SEO check sends no mail of its own (#1055): the stored snapshot
+   * is an open item, read by the service's own managers under "Your websites"
+   * and by an admin in their list.
+   */
+  describe('a service with failing SEO checks', () => {
+    it("reaches the service's managers and the admins, at the open-items pace", async () => {
+      const managerId = await createManager('websites@example.com', {
+        open_items: { frequency: 'Weekly' },
+      })
+      await createManager(
+        'websites-admin@example.com',
+        {
+          new_proposals: { frequency: 'Never', method: '' },
+          open_items: { frequency: 'Weekly' },
+          refused_signups: { frequency: 'Never', method: '' },
+          statistics: { frequency: 'Never', method: '' },
+        },
+        'admin',
+      )
+      const client = await testData.createClient(payload, managerId, {
+        canonical: {
+          verification: {
+            ...EMPTY_VERIFICATION,
+            seo: {
+              at: '2026-11-08T07:00:00.000Z',
+              results: [
+                {
+                  check: 'title',
+                  detail: 'expected “Classes”, found “Home”',
+                  route: '/',
+                  status: 'fail',
+                },
+                { check: 'canonical', route: '/', status: 'pass' },
+              ],
+            },
+          },
+        },
+        name: 'Essonne Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'essonne-digest.example', page: '/carte', track: 'custom' },
+      })
+
+      // A Monday, for the Weekly anchor.
+      emailAdapter.clearCapturedEmails()
+      await runDigests(payload, new Date('2026-11-09T07:00:00.000Z'))
+
+      const sent = emailsTo('websites@example.com')
+      expect(sent).toHaveLength(1)
+      expect(String(sent[0]!.subject)).toBe('Your websites: 1 open item')
+      const html = String(sent[0]!.html)
+      expect(html).toContain('Essonne Digest Site')
+      expect(html).toContain('Search problem')
+      expect(html).toContain('The main page — the page title')
+      expect(html).toContain('Nobody visiting the site is affected')
+      expect(html).toContain(`/admin/collections/clients/${client.id}/install`)
+      expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
+
+      const admin = emailsTo('websites-admin@example.com')
+      expect(admin).toHaveLength(1)
+      expect(String(admin[0]!.html)).toContain('Essonne Digest Site')
     })
   })
 

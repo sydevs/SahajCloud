@@ -375,6 +375,41 @@ describe('Role-Based Access Control', () => {
       })
     })
 
+    describe('Services — the derived `atlas-service-manager` role (#1055)', () => {
+      it('derives from an atlas service, never from an app key, and grants no service of its own', async () => {
+        const created = await testData.createManager(payload, {
+          name: 'Derived Service Manager',
+          roles: [],
+        })
+        const app = await testData.createClient(payload, created.id, {
+          name: 'Derived App Key',
+          roles: ['wemeditate-app-client'],
+        })
+        expect(virtualRoles(await testData.authUser(payload, created))).toEqual([])
+
+        const mine = await testData.createClient(payload, created.id, {
+          name: 'Derived Atlas Site',
+          roles: ['sahaj-atlas-client'],
+        })
+        const stranger = await testData.createManager(payload, { roles: [] })
+        const other = await testData.createClient(payload, stranger.id, {
+          name: 'Derived Other Site',
+          roles: ['sahaj-atlas-client'],
+        })
+        const manager = await testData.authUser(payload, created)
+        expect(virtualRoles(manager)).toEqual(['atlas-service-manager'])
+
+        // The role adds no `clients` grant: the listing is what reaches a row.
+        const read = await payload.find({
+          collection: 'clients',
+          where: { id: { in: [mine.id, other.id, app.id] } },
+          user: manager,
+          overrideAccess: false,
+        })
+        expect(read.docs.map((doc) => doc.id).sort()).toEqual([mine.id, app.id].sort())
+      })
+    })
+
     describe('Pages — the derived `page-editor` role', () => {
       // `authUser`, not the create response: the role is read off the
       // `managedPages` join, which only a re-read carries.

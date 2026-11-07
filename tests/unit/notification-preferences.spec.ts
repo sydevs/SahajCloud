@@ -42,6 +42,13 @@ describe('notification preferences config', () => {
       expect(keys).toEqual(NOTIFICATION_TYPES.map((type) => type.key))
     })
 
+    it("gives a service's managers their invitations and open items, nothing about events", () => {
+      expect(notificationTypesFor(['service']).map((type) => type.key)).toEqual([
+        'invitation',
+        'open_items',
+      ])
+    })
+
     /** Nothing is assigned yet, so nothing can send them anything. */
     it('gives a manager with no role nothing', () => {
       expect(notificationTypesFor([])).toEqual([])

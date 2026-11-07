@@ -7,11 +7,7 @@ import type {
   VerificationResult,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
-import {
-  notifySeoFailures,
-  notifyServiceContact,
-  verifyMount,
-} from '@/lib/embedVerification/seoCheckRun'
+import { notifyServiceContact, verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { Client, TaskVerifyEmbeds } from '@/payload-types'
@@ -150,7 +146,7 @@ export async function runVerifyEmbeds(args: {
     disabled: 0,
     pathPromoted: 0,
     pathDemoted: 0,
-    seoWarned: 0,
+    seoNewFailures: 0,
   }
 
   const pool = getPgPool(req)
@@ -197,11 +193,8 @@ export async function runVerifyEmbeds(args: {
       continue
     }
 
-    // Mailed after the write, so a lost write cannot mail the same failures twice.
-    if (newFailures.length > 0) {
-      result.seoWarned++
-      await notifySeoFailures({ payload, client, failures: newFailures })
-    }
+    // No mail: the open-items digest reads the snapshot just written.
+    if (newFailures.length > 0) result.seoNewFailures++
 
     // Counted after the write, not before: an owner whose row could not be
     // persisted has not changed its verdict, whatever the fold said.
@@ -258,7 +251,7 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     // ⚠ Services whose pages stopped publishing our metadata. Counted apart from
     // `failed`, never added to it: the embed is present and publishing, and
     // `failed` would read as ownership at risk.
-    { name: 'seoWarned', type: 'number', required: true },
+    { name: 'seoNewFailures', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {

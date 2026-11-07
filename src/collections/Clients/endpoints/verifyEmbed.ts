@@ -7,7 +7,7 @@ import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { primaryPageUrl, reportedMountsFor, supportsClassAddresses } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
-import { notifySeoFailures, verifyMount } from '@/lib/embedVerification/seoCheckRun'
+import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { errorResponse, requireActiveManager } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
@@ -82,7 +82,7 @@ export const verifyEmbedOnDemand: Endpoint = {
     // `requireActiveManager` admits any active manager, with no document check,
     // so the row's own read access — the document-manager path
     // (`docs/rules/access.md`) — decides whether this manager may touch this
-    // service. A press spends outbound fetches, mails the contact, and can demote
+    // service. A press spends outbound fetches and can demote
     // the `routingProbe` verdict (#1055); an unlisted manager gets the 404.
     let client: Client
     try {
@@ -109,7 +109,6 @@ export const verifyEmbedOnDemand: Endpoint = {
       transition,
       verification,
       seo,
-      newFailures,
     } = await verifyMount({
       req,
       client,
@@ -133,7 +132,6 @@ export const verifyEmbedOnDemand: Endpoint = {
       data: { canonical: { verification, nextVerifyAt: transition.nextVerifyAt } },
       overrideAccess: true,
     })
-    await notifySeoFailures({ payload: req.payload, client, failures: newFailures })
 
     const reason = result.status === 'verified' ? undefined : result.reason
     const body: VerifyEmbedResponse = {
