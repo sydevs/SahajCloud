@@ -339,6 +339,15 @@ write.
   Re-seed it — `pnpm db:migrate` is not the recovery, since an empty
   `payload_migrations` replays the whole chain and fails on its first
   `CREATE TABLE`.
+- **Production's English copy ships as a guarded data migration.** The seed
+  files reach only a fresh database, so a new key is otherwise blank in
+  production until someone types it into the admin.
+  `20261107_225000_atlas_clock_copy` is the worked example: a new key lands
+  only where English lacks it, a rewording only where the stored value is still
+  the seeded original, and both the main row and the `latest: true` version row
+  are written. Its `down` is required, not tidy: it removes the keys the
+  previous schema does not declare, which would otherwise refuse every save
+  after a rollback.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
