@@ -1,6 +1,7 @@
 /**
  * Curation decisions that are ids, not data: which Atlas events never become
- * listings, and which surviving listing inherits a removed one's registrants.
+ * listings, which surviving listing inherits a removed one's registrants, and
+ * which Atlas services are left out or split in two.
  *
  * Applied by `build`, locally, so a new decision at a later sync needs no
  * deploy — the importer only ever sees the result. The evidence behind every
@@ -74,3 +75,100 @@ export const MERGED_EVENT_TARGETS: Readonly<Record<number, number>> = {
 export const UNIMPORTABLE_REGIONS = new Map<string, string>([
   ['region:42', 'East (GB): Atlas osm id "custom" and no coordinates, so it geocodes to nothing'],
 ])
+
+/**
+ * Atlas services that must never become SahajCloud services. The importer
+ * never deletes, so leaving one out of the data is what keeps a deleted service
+ * deleted (#1055).
+ */
+export const EXCLUDED_CLIENT_LEGACY_IDS = new Map<number, string>([
+  [33, 'Sahaj Atlas Dev — a localhost key nothing serves'],
+  [
+    66,
+    'Sahaj Atlas — the legacy widget hosts; SahajCloud’s own “Sahaj Atlas” service holds the live key',
+  ],
+])
+
+/**
+ * A second site on one Atlas service, made a service of its own, because a
+ * service is one site (#1055).
+ *
+ * ⚠ **`legacyId` is negative**, so it cannot collide with an Atlas serial id,
+ * and the importer's upsert finds the same service again on every re-sync.
+ *
+ * ⚠ **The region is matched by name under the source's country**, never by
+ * id, because Atlas renumbers geo nodes between dumps. Without a region of its
+ * own the service would sit on its source's country, where the first site to
+ * pass a check claims the whole country's links.
+ */
+export const CLIENT_SPLITS: readonly {
+  from: number
+  legacyId: number
+  label: string
+  domain: string
+  regionName: string
+}[] = [
+  {
+    from: 32,
+    legacyId: -32,
+    label: 'Yoga Essonne',
+    domain: 'yogaessonne.fr',
+    regionName: 'Ile-de-France',
+  },
+]
+
+type GeoRow = { legacyId: number; level?: unknown; name?: unknown; parent?: unknown }
+type ClientRow = { legacyId: number; config?: unknown; location?: unknown }
+
+/**
+ * Apply both client decisions: drop the excluded services, and give each split
+ * site its own row, taken out of its source's domain list.
+ *
+ * A split whose source Atlas has since deleted emits nothing. One whose region
+ * matches no row, or more than one, throws: the import would otherwise put the
+ * site on its country.
+ */
+export function applyClientDecisions<C extends ClientRow>(clients: C[], regions: GeoRow[]): C[] {
+  const out = clients.filter((client) => !EXCLUDED_CLIENT_LEGACY_IDS.has(client.legacyId))
+
+  for (const split of CLIENT_SPLITS) {
+    const at = out.findIndex((client) => client.legacyId === split.from)
+    if (at === -1) continue
+    const source = out[at]
+    const config = (source.config ?? {}) as Record<string, unknown>
+    const country = source.location as { level?: unknown; legacyId?: unknown } | null | undefined
+    const matches = regions.filter((region) => {
+      const parent = region.parent as { level?: unknown; legacyId?: unknown } | null | undefined
+      return (
+        region.level === 'region' &&
+        region.name === split.regionName &&
+        parent?.level === country?.level &&
+        parent?.legacyId === country?.legacyId
+      )
+    })
+    if (matches.length !== 1) {
+      throw new Error(
+        `Client split ${split.label} (#${split.from}): ${matches.length} regions named ` +
+          `"${split.regionName}" under the source's country. Update CLIENT_SPLITS in merges.ts.`,
+      )
+    }
+
+    // The source keeps every other host it lists; the importer reads the first.
+    const domains = String(config.domain ?? '')
+      .split(/[\s,]+/)
+      .filter((host) => host && host !== split.domain)
+    out[at] = { ...source, config: { ...config, domain: domains.join('\n') } }
+    out.push({
+      ...source,
+      legacyId: split.legacyId,
+      label: split.label,
+      // Each service has its own public identifier; the Clients hook mints one.
+      clientId: null,
+      config: { ...config, domain: split.domain },
+      location: { level: 'region', legacyId: matches[0].legacyId },
+      splitFrom: split.from,
+    })
+  }
+
+  return out
+}

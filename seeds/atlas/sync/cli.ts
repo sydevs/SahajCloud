@@ -35,7 +35,7 @@ import { extractAtlas } from '../extract'
 import { checkAtlasData, type CheckData, missingMergeSurvivors } from './check'
 import { cleanEventRow } from './clean'
 import { deriveExpectedCounts, type CountInput } from './counts'
-import { EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './merges'
+import { applyClientDecisions, EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './merges'
 import {
   applyOverlay,
   OVERLAY_SPECS,
@@ -132,7 +132,7 @@ async function fetchStep(backup?: string): Promise<void> {
 /**
  * A raw extraction as both build and record see it: de-duplicated, then with
  * the merge decisions applied — excluded rows gone, a removed duplicate's
- * registrants on its survivor. Applying them here, ahead of the overlay, is
+ * registrants on its survivor, a split service's second site its own row. Applying them here, ahead of the overlay, is
  * what keeps them out of it: a merge is decided in code, never frozen in as
  * a curated value.
  */
@@ -144,6 +144,7 @@ function prepareRaw(rawId: string): Tables {
     const survivor = MERGED_EVENT_TARGETS[reg.eventId as number]
     return survivor == null ? reg : { ...reg, eventId: survivor }
   })
+  raw.clients = applyClientDecisions(raw.clients, raw.regions)
   return raw
 }
 

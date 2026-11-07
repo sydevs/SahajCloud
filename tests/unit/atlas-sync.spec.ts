@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { cleanContactInfo, cleanText, hasInvisibleJunk } from '../../seeds/atlas/sync/clean'
 import { deriveExpectedCounts } from '../../seeds/atlas/sync/counts'
 import {
+  applyClientDecisions,
+  CLIENT_SPLITS,
+  EXCLUDED_CLIENT_LEGACY_IDS,
   EXCLUDED_EVENT_LEGACY_IDS,
   MERGED_EVENT_TARGETS,
   UNIMPORTABLE_REGIONS,
@@ -154,6 +157,68 @@ describe('the merge decisions', () => {
   it('keys unimportable regions as level:legacyId', () => {
     for (const key of UNIMPORTABLE_REGIONS.keys())
       expect(key).toMatch(/^(country|region|area):\d+$/)
+  })
+})
+
+describe('the client decisions (#1055)', () => {
+  const france = { level: 'country', legacyId: 27 }
+  const regions = [
+    { legacyId: 27, level: 'country', name: 'France' },
+    { legacyId: 83, level: 'region', name: 'Ile-de-France', parent: france },
+    // Same name under another country: never the match.
+    {
+      legacyId: 90,
+      level: 'region',
+      name: 'Ile-de-France',
+      parent: { level: 'country', legacyId: 1 },
+    },
+  ]
+  const fr = {
+    legacyId: 32,
+    label: 'Sahaja Yoga FR',
+    managerId: 350,
+    enabled: true,
+    clientId: 'atlas-key',
+    location: france,
+    config: { domain: 'sahajayoga.fr\r\nyogaessonne.fr', locale: 'fr' },
+  }
+  const dev = { legacyId: 33, label: 'Sahaj Atlas Dev', config: { domain: 'localhost' } }
+  const atlas = { legacyId: 66, label: 'Sahaj Atlas', config: { domain: 'syatlas.pages.dev' } }
+
+  it('leaves out the excluded services and splits the second site off', () => {
+    const out = applyClientDecisions([fr, dev, atlas], regions)
+    expect(out.map((c) => c.legacyId)).toEqual([32, -32])
+    expect(out[0]).toMatchObject({ config: { domain: 'sahajayoga.fr', locale: 'fr' } })
+    expect(out[1]).toMatchObject({
+      label: 'Yoga Essonne',
+      managerId: 350,
+      enabled: true,
+      clientId: null,
+      config: { domain: 'yogaessonne.fr', locale: 'fr' },
+      location: { level: 'region', legacyId: 83 },
+      splitFrom: 32,
+    })
+  })
+
+  it('does not mutate the rows it was given', () => {
+    applyClientDecisions([fr], regions)
+    expect(fr.config.domain).toBe('sahajayoga.fr\r\nyogaessonne.fr')
+  })
+
+  it('emits no split once Atlas has deleted its source', () => {
+    expect(applyClientDecisions([dev], regions)).toEqual([])
+  })
+
+  it('throws rather than put a split site on its country', () => {
+    expect(() => applyClientDecisions([fr], regions.slice(0, 1))).toThrow(/0 regions named/)
+  })
+
+  it('gives every split an id no Atlas row can hold', () => {
+    for (const split of CLIENT_SPLITS) {
+      expect(split.legacyId).toBeLessThan(0)
+      expect(EXCLUDED_CLIENT_LEGACY_IDS.has(split.from)).toBe(false)
+    }
+    expect(new Set(CLIENT_SPLITS.map((s) => s.legacyId)).size).toBe(CLIENT_SPLITS.length)
   })
 })
 
