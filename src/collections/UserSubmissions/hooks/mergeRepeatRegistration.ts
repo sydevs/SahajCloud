@@ -9,7 +9,6 @@ import type { UserSubmission } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { STATUS_LABELS } from '../statuses'
-import { readSubmissionValue } from '../submissionData'
 
 /**
  * afterChange (create): a registrant signing up again for an event they are
@@ -71,12 +70,12 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   )
   if (!existing) return doc
 
-  // What a reader needs beside the entry, muted under it; the values
-  // themselves are machine data, so no answer is rendered as a column.
-  const previous = [
-    readSubmissionValue(existing.submissionData, 'name'),
-    existing.status ? STATUS_LABELS[existing.status] : undefined,
-  ].filter(Boolean)
+  // ⚠ **The muted line states the previous status and nothing a caller wrote.**
+  // After one overwrite the stored answers are the sender's, and the sender is
+  // whoever held the key — so rendering a name from them puts text of their
+  // choosing in the admin table as the record of what it replaced, which is the
+  // forged history `logField`'s own write lock exists to refuse. `status` is a
+  // server-set enum, so it is safe to show.
   const now = new Date().toISOString()
   const entry: LogEntry = {
     at: now,
@@ -85,7 +84,9 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     cells: {
       activity: {
         text: 'Registered again — details updated',
-        sub: previous.length > 0 ? `Replaced: ${previous.join(' · ')}` : undefined,
+        sub: existing.status
+          ? `Replaced a ${STATUS_LABELS[existing.status]} registration`
+          : undefined,
       },
     },
     replaced: {
@@ -94,6 +95,9 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       startingAt: existing.startingAt ?? null,
       submissionData: existing.submissionData ?? [],
     },
+    // Which key submitted the update. Recorded rather than written to the row's
+    // own `client`: see the update below.
+    submittedVia: data.client ?? null,
   }
 
   const updated = await req.payload.update({
@@ -101,6 +105,16 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     id: existing.id,
     // `data` is the create's input after `prepareUserSubmission`, which `doc`
     // (shaped by the client's read access) is not.
+    //
+    // ⚠ **`client` is deliberately not among these.** It is the key the row is
+    // attributed to, and the branding `DeliverSubmissions` renders the
+    // registrant's mail from. `systemFieldAccess` closes it to every client
+    // write for that reason, and this update runs at `overrideAccess: true` on
+    // a client's behalf — so carrying the caller's own key here let one
+    // organisation's key re-attribute another's registrant and re-send their
+    // confirmation under its own name. The row keeps the key it arrived on, as
+    // it keeps its `id`, `uuid` and `createdAt`; the entry above records which
+    // key sent the update.
     data: {
       // Without the array rows' ids, which belong to the row being deleted.
       submissionData: ((data.submissionData ?? []) as { field: string; value: string }[]).map(
@@ -108,7 +122,6 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       ),
       startingAt: data.startingAt ?? null,
       startingAt_tz: data.startingAt_tz,
-      client: data.client,
       status: 'pending',
       // `ScreenSubmissions` skips a row that already carries a verdict. The
       // generated type omits the column's `null` (src/collections/AGENTS.md).

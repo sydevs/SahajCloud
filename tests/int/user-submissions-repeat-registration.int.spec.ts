@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { asLog } from '@/fields'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Client, Event, Manager, UserSubmission } from '@/payload-types'
 
 import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
@@ -271,8 +272,11 @@ describe('a repeat registration updates the existing one', () => {
     expect(replaced.submissionData).toEqual(
       expect.arrayContaining([expect.objectContaining({ field: 'name', value: 'Ann' })]),
     )
-    // Visible beside the entry, so an overwrite is not only machine-readable.
-    expect(update!.cells.activity).toMatchObject({ sub: 'Replaced: Ann · Accepted' })
+    // Visible beside the entry, so an overwrite is not only machine-readable —
+    // and built from the status alone, never from text the sender wrote.
+    expect(update!.cells.activity).toMatchObject({
+      sub: 'Replaced a Accepted registration',
+    })
   })
 
   it('folds into the seat a sender holds, not a newer failed row', async () => {
@@ -343,9 +347,47 @@ describe('a repeat registration updates the existing one', () => {
     const rows = (await registrationsOf(event.id)) as UserSubmission[]
     expect(rows).toHaveLength(1)
     expect(rows[0]!.id).toBe(first.id)
-    expect(
-      rows[0]!.submissionData as unknown as { field: string; value: string }[],
-    ).toEqual(expect.arrayContaining([expect.objectContaining({ value: 'Ann Smith' })]))
+    expect(rows[0]!.submissionData as unknown as { field: string; value: string }[]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ value: 'Ann Smith' })]),
+    )
+  })
+
+  it('leaves the row attributed to the key it arrived on', async () => {
+    // `client` brands the registrant's confirmation mail, and `systemFieldAccess`
+    // closes it to every client write — so a merge must not carry the caller's
+    // own key onto a row another organisation's key created.
+    const event = await createEvent()
+    const address = email()
+    const other = await testData.createClient(payload, manager.id, {
+      name: 'Another Org',
+      roles: ['sahaj-atlas-client'],
+    })
+
+    const first = await register({ event: event.id, email: address, name: 'Ann' })
+    expect(relationId(first.client)).toBe(client.id)
+
+    const second = await payload.create({
+      collection: 'user-submissions',
+      data: {
+        type: 'registration',
+        event: event.id,
+        senderEmail: address,
+        submissionData: [{ field: 'name', value: 'Ann Smith' }],
+      } as never,
+      overrideAccess: false,
+      req: {
+        payload,
+        headers: new Headers({ 'x-turnstile-token': 'tok-valid' }),
+        user: { ...other, collection: 'clients' },
+        context: {},
+      } as unknown as PayloadRequest,
+    })
+
+    expect(second.id).toBe(first.id)
+    const [row] = (await registrationsOf(event.id)) as UserSubmission[]
+    expect(relationId(row!.client)).toBe(client.id)
+    const update = asLog(row!.activityLog).find((e) => e.type === 'registration-update')
+    expect(update!.submittedVia).toBe(other.id)
   })
 
   it('leaves a manager’s own write alone', async () => {
