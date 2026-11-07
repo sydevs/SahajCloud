@@ -106,9 +106,11 @@ describe('transcripts', () => {
      * `meditation._status` — and a polymorphic `source` cannot carry that path
      * at all: Payload resolves `source`, `source.relationTo` and
      * `source.value` and throws `Not supported` on anything deeper. So the
-     * narrowing went and nothing replaced it: a transcript carries no personal
-     * data, and a client reaching one already reads the recording (#968,
-     * #1043, #1075).
+     * narrowing went and nothing replaced it, which reopens #968 on purpose:
+     * a transcript holds no personal data, and a client reading one is one
+     * that reads the recording. ⚠ It is wider than the cues — `audioFilename`
+     * resolves to a public, unsigned R2 URL — and that was priced too
+     * (#1043, #1075).
      *
      * Both directions are the assertion. A refusal that denied every client
      * would pass a test that only checked the Atlas key, and a grant that

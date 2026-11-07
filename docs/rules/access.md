@@ -289,10 +289,16 @@ list would cost a second round trip on every parent row.
 `transcripts` is that case (#1043).
 
 **So on `transcripts` the narrowing is gone and nothing replaced it** (#1075). A client whose
-project names the collection reads every row, a draft or trashed meditation's included. That
-exposure was priced and accepted: a transcript carries no personal data, and a client reaching one
-at all already reads the recording it belongs to. Project membership is therefore the whole gate,
-and the collection sits in `wemeditate-web` and `wemeditate-app` — `sahaj-atlas` reads none.
+project names the collection reads every row, a draft or trashed meditation's included. Project
+membership is the whole gate, and the collection sits in `wemeditate-web` and `wemeditate-app` —
+`sahaj-atlas` reads none.
+
+⚠ **That reopens #968 deliberately, and it is wider than the cues.** The row also carries
+`audioFilename`, which `getR2Url` turns into a **public, unsigned** delivery URL, so the exposure
+is the recording of an unpublished meditation and not only its text. The owner priced both on
+#1075: a transcript holds no personal data, and a client reading one is one that reads the
+recording. **Say which of the two a later reader is relying on** — "already reads the recording"
+is true of a published meditation and not of a draft.
 
 **A later child row in this shape owes the same judgement, not the same answer.** Weigh what the
 row holds before leaving it on project membership. The two narrower homes both cost something: a
