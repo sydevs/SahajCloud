@@ -10,6 +10,7 @@ import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
 import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
+import { adminOnlyFieldAccess } from '@/plugins/access'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -128,6 +129,33 @@ describe('client canonical ownership + embed metadata', () => {
           overrideAccess: true,
         })
       }
+    })
+
+    it('locks every data field of an admin-only tab to admins', () => {
+      // The condition skips validation for a listed manager; the lock is what
+      // makes that safe, so no field in those tabs may be left writable.
+      const tabs = (
+        Clients.fields.find((field) => field.type === 'tabs') as {
+          tabs: { label?: unknown; fields: unknown[] }[]
+        }
+      ).tabs
+      const unlocked: string[] = []
+      const walk = (fields: unknown[]) => {
+        for (const field of fields as Record<string, unknown>[]) {
+          if (field.type === 'ui') continue
+          const access = field.access as { update?: unknown } | undefined
+          if (typeof field.name === 'string' && access?.update !== adminOnlyFieldAccess) {
+            unlocked.push(field.name)
+          }
+          if (Array.isArray(field.fields)) walk(field.fields)
+        }
+      }
+      for (const tab of tabs.filter((tab) =>
+        ['Config', 'Usage', 'Diagnostics'].includes(String(tab.label)),
+      )) {
+        walk(tab.fields)
+      }
+      expect(unlocked).toEqual([])
     })
 
     it('serves canonical.embed and allowedDomains computed for the widget, never stored', () => {

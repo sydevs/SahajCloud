@@ -1,5 +1,5 @@
 import type { JSONSchema4 } from 'json-schema'
-import type { CollectionConfig, Condition, Field, PayloadRequest } from 'payload'
+import type { CollectionConfig, Condition, Field, PayloadRequest, Tab } from 'payload'
 
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
@@ -195,6 +195,31 @@ const ADMIN_WRITES = { create: adminOnlyFieldAccess, update: adminOnlyFieldAcces
  */
 const adminTabs: Condition = (_data, _siblingData, { user }) => !user || isAdminManager(user)
 
+/**
+ * Every data field of an `adminTabs` tab, `ADMIN_WRITES`-locked. Stamped rather
+ * than written per field, because the lock is what makes the condition's
+ * skipped validation safe: a field added there later cannot ship writable by a
+ * listed manager.
+ */
+function lockAdminTabs(tabs: Tab[]): Tab[] {
+  const lock = (field: Field): Field => {
+    if (field.type === 'ui') return field
+    const locked = (
+      'name' in field ? { ...field, access: { ...field.access, ...ADMIN_WRITES } } : field
+    ) as Field
+    return 'fields' in locked ? ({ ...locked, fields: locked.fields.map(lock) } as Field) : locked
+  }
+  return tabs.map((tab) =>
+    tab.admin?.condition === adminTabs ? { ...tab, fields: tab.fields.map(lock) } : tab,
+  )
+}
+
+/** A read-only usage counter, which the usage plugin writes with raw SQL. */
+const usageCounter = (name: string, type: 'number' | 'date', description: string): Field =>
+  type === 'number'
+    ? { name, type, defaultValue: 0, admin: { readOnly: true, description } }
+    : { name, type, admin: { readOnly: true, description } }
+
 /** The Atlas-only settings, shown to a service holding the Atlas role. */
 const isAtlasClient = (data: { roles?: unknown }): boolean =>
   Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
@@ -361,7 +386,7 @@ export const Clients: CollectionConfig = {
             tab: {
               label: 'Install',
               href: '/install',
-              // 400 puts it after Payload's own Edit, API and Versions tabs.
+              // 400 puts it after Payload's own Edit and API tabs.
               order: 400,
             },
           },
@@ -402,20 +427,16 @@ export const Clients: CollectionConfig = {
     },
     {
       type: 'tabs',
-      tabs: [
+      tabs: lockAdminTabs([
         {
-          // Operator configuration end to end, so admins only — and not by the
-          // tab's condition alone, which hides fields without stopping a write:
-          // a service's listed managers hold `update` on its row through
-          // document-level manager access, so without the field locks below
-          // they could PATCH their key new roles, themselves new co-managers,
-          // or their site a region it does not own.
+          // Operator configuration end to end, so admins only (`lockAdminTabs`):
+          // a listed manager could otherwise PATCH their key new roles,
+          // themselves new co-managers, or their site a region it does not own.
           label: 'Config',
           admin: { condition: adminTabs },
           fields: [
             {
               name: 'name',
-              access: ADMIN_WRITES,
               type: 'text',
               required: true,
               label: 'Client Name',
@@ -425,7 +446,6 @@ export const Clients: CollectionConfig = {
             },
             {
               name: 'enabled',
-              access: ADMIN_WRITES,
               type: 'checkbox',
               defaultValue: false,
               label: 'Active',
@@ -434,7 +454,6 @@ export const Clients: CollectionConfig = {
             },
             {
               name: 'notes',
-              access: ADMIN_WRITES,
               type: 'textarea',
               label: 'Notes',
               admin: {
@@ -444,7 +463,6 @@ export const Clients: CollectionConfig = {
             // Roles field (non-localized multi-select)
             {
               name: 'roles',
-              access: ADMIN_WRITES,
               type: 'select',
               label: 'Access',
               hasMany: true,
@@ -465,7 +483,6 @@ export const Clients: CollectionConfig = {
               fields: [
                 {
                   name: 'managers',
-                  access: ADMIN_WRITES,
                   type: 'relationship',
                   relationTo: 'managers',
                   hasMany: true,
@@ -476,7 +493,6 @@ export const Clients: CollectionConfig = {
                 },
                 {
                   name: 'primaryContact',
-                  access: ADMIN_WRITES,
                   type: 'relationship',
                   relationTo: 'managers',
                   hasMany: false,
@@ -497,7 +513,6 @@ export const Clients: CollectionConfig = {
               // is Worldwide — the map opens on the world, and the site owns no
               // region (`sy-atlas-config`'s fallback client aside).
               name: 'region',
-              access: ADMIN_WRITES,
               type: 'relationship',
               relationTo: 'regions',
               admin: {
@@ -586,9 +601,7 @@ export const Clients: CollectionConfig = {
           ],
         },
         {
-          // A named tab stores exactly what the sidebar group it replaced did —
-          // `usage.*`, in the same `usage_*` columns the usage plugin's raw SQL
-          // writes — so moving it out of the sidebar moved no data.
+          // Named: `usage.*`, in the `usage_*` columns the usage plugin's raw SQL writes.
           name: 'usage',
           label: 'Usage',
           description: 'API usage statistics',
@@ -617,74 +630,14 @@ export const Clients: CollectionConfig = {
                 },
               },
             }),
-            {
-              name: 'dailyRequests',
-              access: ADMIN_WRITES,
-              type: 'number',
-              defaultValue: 0,
-              admin: {
-                readOnly: true,
-                description: "Today's request count",
-              },
-            },
-            {
-              name: 'peakDailyRequests',
-              access: ADMIN_WRITES,
-              type: 'number',
-              defaultValue: 0,
-              admin: {
-                readOnly: true,
-                description: 'Maximum historical request count',
-              },
-            },
-            {
-              name: 'lastRequestAt',
-              access: ADMIN_WRITES,
-              type: 'date',
-              admin: {
-                readOnly: true,
-                description: 'Last API call timestamp',
-              },
-            },
+            usageCounter('dailyRequests', 'number', "Today's request count"),
+            usageCounter('peakDailyRequests', 'number', 'Maximum historical request count'),
+            usageCounter('lastRequestAt', 'date', 'Last API call timestamp'),
             // Abuse detection fields
-            {
-              name: 'totalRequests',
-              access: ADMIN_WRITES,
-              type: 'number',
-              defaultValue: 0,
-              admin: {
-                readOnly: true,
-                description: 'Lifetime total requests (never resets)',
-              },
-            },
-            {
-              name: 'highUsageDays',
-              access: ADMIN_WRITES,
-              type: 'number',
-              defaultValue: 0,
-              admin: {
-                readOnly: true,
-                description: 'Count of days exceeding threshold',
-              },
-            },
-            {
-              name: 'lastHighUsageAt',
-              access: ADMIN_WRITES,
-              type: 'date',
-              admin: {
-                readOnly: true,
-                description: 'Last date threshold was exceeded',
-              },
-            },
-            {
-              name: 'firstRequestAt',
-              access: ADMIN_WRITES,
-              type: 'date',
-              admin: {
-                readOnly: true,
-                description: 'First API request (tracking start)',
-              },
-            },
+            usageCounter('totalRequests', 'number', 'Lifetime total requests (never resets)'),
+            usageCounter('highUsageDays', 'number', 'Count of days exceeding threshold'),
+            usageCounter('lastHighUsageAt', 'date', 'Last date threshold was exceeded'),
+            usageCounter('firstRequestAt', 'date', 'First API request (tracking start)'),
           ],
         },
         {
@@ -703,7 +656,6 @@ export const Clients: CollectionConfig = {
                   // the VerifyEmbeds job after repeated failures. An admin may
                   // release it here; `validateCanonicalOwnership` holds the rest.
                   name: 'owned',
-                  access: ADMIN_WRITES,
                   type: 'checkbox',
                   defaultValue: false,
                   label: 'This service’s site is the home for its region’s atlas links',
@@ -711,7 +663,6 @@ export const Clients: CollectionConfig = {
                 },
                 jsonField({
                   name: 'verification',
-                  access: ADMIN_WRITES,
                   label: 'Verification',
                   // Written only by the VerifyEmbeds job (and verify-on-demand) from
                   // what was observed on the live page — never by a client report, so
@@ -760,7 +711,6 @@ export const Clients: CollectionConfig = {
                 },
                 {
                   name: 'nextVerifyAt',
-                  access: ADMIN_WRITES,
                   type: 'date',
                   // A real indexed column, not part of the JSON above: it is the
                   // VerifyEmbeds job's only query predicate, so it has to stay cheap
@@ -786,7 +736,6 @@ export const Clients: CollectionConfig = {
               // `POST /api/clients/report`, hence read-only here. One record per
               // mount, keyed by origin + pathname; see ./embedMetadata.ts.
               name: 'embedMetadata',
-              access: ADMIN_WRITES,
               label: 'Discovered Embeds',
               schemaTitle: 'ClientEmbedMetadata',
               schema: embedMetadataJsonSchema,
@@ -798,7 +747,7 @@ export const Clients: CollectionConfig = {
             }),
           ],
         },
-      ],
+      ]),
     },
     {
       // Where the atlas lives, owned by the Install tab — `admin.disabled`

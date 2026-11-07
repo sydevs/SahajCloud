@@ -209,7 +209,7 @@ Document locking is unrelated: that is the `payload-locked-documents` collection
 
 A user can always read their own document in their auth collection. **Update is for `managers` alone** (#827).
 
-A manager row is a person's profile, so the person must edit their own name, email and password — `type` and `roles` carry admin-only field locks for the parts that are not theirs to change. A `clients` row is operator configuration end to end: `roles`, `allowedDomains`, `region`, `canonical` and the `usage` counters. There is no half of it a service may edit, so the grant is withdrawn whole rather than locked field by field, and the next field added to `Clients` is closed by default.
+A manager row is a person's profile, so the person must edit their own name, email and password — `type` and `roles` carry admin-only field locks for the parts that are not theirs to change. A `clients` row is operator configuration end to end: `roles`, `site`, `region`, `canonical` and the `usage` counters. There is no half of it a service may edit, so the grant is withdrawn whole rather than locked field by field, and the next field added to `Clients` is closed by default.
 
 ⚠ **Read is what boots the atlas widget**, over `GET /api/clients/me`, and nothing else answers it. Narrowing the update half is safe only because no `clients` write depends on the client's own grant: every `payload.update({ collection: 'clients' })` runs with `overrideAccess: true` or in a job with no user, and `POST /api/clients/report` writes `embedMetadata` through the pg pool rather than through Payload. `disableLocalStrategy: true` means no login, logout or refresh writes the row either.
 
