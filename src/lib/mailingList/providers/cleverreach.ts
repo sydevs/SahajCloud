@@ -6,6 +6,7 @@ import type {
   SubscribeArgs,
 } from '../types'
 
+import { providerError } from '../http'
 import { probeCredentials } from '../probe'
 import { statusFailure, transportFailure } from '../types'
 
@@ -44,16 +45,9 @@ type Receiver = {
 async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListResult> {
   const { config, email, name, locale, source, userAgent, hostUrl, signal } = args
   const listId = config.listId ?? ''
-  const clientId = config.clientId?.trim() ?? ''
-  const doubleOptIn = config.doubleOptIn !== false
-  const flowId = config.doiFlowId?.trim() ?? ''
+  const { clientId, doubleOptIn, flowId, missing } = credentials(config)
 
-  if (clientId === '') return refused('The CleverReach client ID is missing.')
-  // Without it the address would go in inactive and never be asked to confirm,
-  // which is a subscription nothing can complete.
-  if (doubleOptIn && flowId === '') {
-    return refused('The CleverReach confirmation flow ID is missing.')
-  }
+  if (missing !== null) return refused(`The CleverReach ${missing} is missing.`)
 
   try {
     const token = await accessToken(clientId, config.apiKey ?? '', signal)
@@ -64,30 +58,8 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
     // ⚠ Read before writing. The upsert below carries `activated`, and writing
     // one over a receiver that opted out re-subscribes them — the single
     // fastest way to get a sender blocklisted.
-    const existing = await authed(`${groupPath}/receivers/${encodeURIComponent(email)}`, {
-      token,
-      signal,
-    })
-    if (!existing.ok && existing.status !== 404) {
-      return statusFailure(existing.status, await readError(existing))
-    }
-
-    if (existing.ok) {
-      const receiver = (await existing.json().catch(() => null)) as Receiver | null
-      if (suppressed(receiver?.deactivated) || suppressed(receiver?.blacklisted)) {
-        return {
-          ok: false,
-          code: 'previously_unsubscribed',
-          message: 'That address is deactivated or blocklisted on this CleverReach group.',
-          retryable: false,
-        }
-      }
-      // Already confirmed: idempotent for the caller, no second confirmation
-      // mail, and it reports nothing about who else is on the list.
-      if (flagged(receiver?.active) || flagged(receiver?.activated)) {
-        return { ok: true, status: 'subscribed' }
-      }
-    }
+    const settled = await existingReceiver(groupPath, email, token, signal)
+    if (settled !== null) return settled
 
     const now = Math.floor(Date.now() / 1000)
     const upsert = await authed(`${groupPath}/receivers/upsert`, {
@@ -149,6 +121,44 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
 }
 
 /**
+ * What the group already knows about this address, where that settles the
+ * subscribe on its own — `null` to carry on to the upsert. A 404 is the
+ * ordinary case: nobody by that address on the group yet.
+ */
+async function existingReceiver(
+  groupPath: string,
+  email: string,
+  token: string,
+  signal: AbortSignal,
+): Promise<MailingListResult | null> {
+  const existing = await authed(`${groupPath}/receivers/${encodeURIComponent(email)}`, {
+    token,
+    signal,
+  })
+  if (!existing.ok) {
+    return existing.status === 404
+      ? null
+      : statusFailure(existing.status, await readError(existing))
+  }
+
+  const receiver = (await existing.json().catch(() => null)) as Receiver | null
+  if (suppressed(receiver?.deactivated) || suppressed(receiver?.blacklisted)) {
+    return {
+      ok: false,
+      code: 'previously_unsubscribed',
+      message: 'That address is deactivated or blocklisted on this CleverReach group.',
+      retryable: false,
+    }
+  }
+  // Already confirmed: idempotent for the caller, no second confirmation mail,
+  // and it reports nothing about who else is on the list.
+  if (flagged(receiver?.active) || flagged(receiver?.activated)) {
+    return { ok: true, status: 'subscribed' }
+  }
+  return null
+}
+
+/**
  * One Bearer-authenticated REST v3 call. A `body` makes it a POST.
  */
 function authed(
@@ -202,6 +212,29 @@ function refused(message: string): MailingListFailure {
 }
 
 /**
+ * The two credentials only this provider takes, trimmed, and which of them the
+ * row is missing.
+ *
+ * Both entry points ask before their first call: neither question needs a
+ * provider to answer it, and a flow id missing while the checkbox is ticked
+ * would put the address in inactive and never ask it to confirm — a
+ * subscription nothing can complete.
+ */
+function credentials(config: MailingListConfig): {
+  clientId: string
+  doubleOptIn: boolean
+  flowId: string
+  missing: 'client ID' | 'confirmation flow ID' | null
+} {
+  const clientId = config.clientId?.trim() ?? ''
+  const doubleOptIn = config.doubleOptIn !== false
+  const flowId = config.doiFlowId?.trim() ?? ''
+  const missing =
+    clientId === '' ? 'client ID' : doubleOptIn && flowId === '' ? 'confirmation flow ID' : null
+  return { clientId, doubleOptIn, flowId, missing }
+}
+
+/**
  * Whether one of `Receiver`'s flags is set, whichever shape it arrived in.
  * `Number` answers a boolean, a number and a numeric string alike, and anything
  * else is `NaN`, which is not set — the safe answer for `active` and
@@ -231,24 +264,15 @@ function suppressed(value: unknown): boolean {
 /**
  * CleverReach's two error bodies as one sentence — REST v3 nests
  * `{ error: { message } }`, the OAuth endpoint answers
- * `{ error, error_description }`. Never throws; see the Mailchimp twin.
+ * `{ error, error_description }`.
  */
-async function readError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as {
-      error?: { message?: unknown } | string
-      error_description?: unknown
-    }
-    const parts =
-      typeof body.error === 'string' ? [body.error, body.error_description] : [body.error?.message]
-    const message = parts
-      .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
-      .join(': ')
-    if (message !== '') return message
-  } catch {
-    // Fall through to the status line.
-  }
-  return `CleverReach answered ${response.status}.`
+function readError(response: Response): Promise<string> {
+  return providerError<{ error?: { message?: unknown } | string; error_description?: unknown }>(
+    response,
+    'CleverReach',
+    (body) =>
+      typeof body.error === 'string' ? [body.error, body.error_description] : [body.error?.message],
+  )
 }
 
 /**
@@ -268,14 +292,9 @@ async function verifyCleverReach(
   config: MailingListConfig,
   signal: AbortSignal,
 ): Promise<string | null> {
-  const clientId = config.clientId?.trim() ?? ''
-  const doubleOptIn = config.doubleOptIn !== false
-  const flowId = config.doiFlowId?.trim() ?? ''
+  const { clientId, doubleOptIn, flowId, missing } = credentials(config)
 
-  // Both before the first call, as `subscribeCleverReach` checks them: neither
-  // needs a provider to answer it.
-  if (clientId === '') return 'the CleverReach client ID is missing.'
-  if (doubleOptIn && flowId === '') return 'the CleverReach confirmation flow ID is missing.'
+  if (missing !== null) return `the CleverReach ${missing} is missing.`
 
   const token = await accessToken(clientId, config.apiKey ?? '', signal)
   if (typeof token !== 'string') {

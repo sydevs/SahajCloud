@@ -117,7 +117,7 @@ export const PROVIDER_TIMEOUT_MS = 8000
  * abort, a DNS failure and a socket reset are all "the provider was not there",
  * which is the one failure worth retrying.
  */
-export function transportFailure(error: unknown): MailingListResult {
+export function transportFailure(error: unknown): MailingListFailure {
   const message = error instanceof Error ? error.message : String(error)
   return { ok: false, code: 'provider_unavailable', message, retryable: true }
 }

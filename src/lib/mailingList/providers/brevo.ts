@@ -5,8 +5,9 @@ import type {
   SubscribeArgs,
 } from '../types'
 
+import { postJson, providerError } from '../http'
 import { probeCredentials } from '../probe'
-import { statusFailure, transportFailure } from '../types'
+import { statusFailure } from '../types'
 
 /**
  * Subscribe one address to a Brevo list.
@@ -33,29 +34,21 @@ async function subscribeBrevo(args: SubscribeArgs): Promise<MailingListResult> {
     }
   }
 
-  let response: Response
-  try {
-    response = await fetch('https://api.brevo.com/v3/contacts', {
-      method: 'POST',
-      headers: {
-        'api-key': config.apiKey ?? '',
-        'Content-Type': 'application/json',
+  const response = await postJson('https://api.brevo.com/v3/contacts', {
+    headers: { 'api-key': config.apiKey ?? '' },
+    body: {
+      email,
+      listIds: [listId],
+      updateEnabled: true,
+      attributes: {
+        ...(name ? { FIRSTNAME: name } : {}),
+        ...(locale ? { LANGUAGE: locale } : {}),
+        ...(source ? { SOURCE: source } : {}),
       },
-      body: JSON.stringify({
-        email,
-        listIds: [listId],
-        updateEnabled: true,
-        attributes: {
-          ...(name ? { FIRSTNAME: name } : {}),
-          ...(locale ? { LANGUAGE: locale } : {}),
-          ...(source ? { SOURCE: source } : {}),
-        },
-      }),
-      signal,
-    })
-  } catch (error) {
-    return transportFailure(error)
-  }
+    },
+    signal,
+  })
+  if ('code' in response) return response
 
   if (response.ok) return { ok: true, status: 'subscribed' }
 
@@ -71,17 +64,15 @@ async function subscribeBrevo(args: SubscribeArgs): Promise<MailingListResult> {
   return statusFailure(response.status, detail)
 }
 
-/** Brevo's error body, as one sentence. Never throws — see the Mailchimp twin. */
-async function readError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { code?: unknown; message?: unknown }
-    if (typeof body.message === 'string' && body.message.trim() !== '') {
-      return typeof body.code === 'string' ? `${body.code}: ${body.message}` : body.message
-    }
-  } catch {
-    // Fall through to the status line.
-  }
-  return `Brevo answered ${response.status}.`
+/**
+ * Brevo's error body, as one sentence. A `code` with no `message` beside it is
+ * dropped for the status line: an opaque `invalid_parameter` names nothing an
+ * operator can act on.
+ */
+function readError(response: Response): Promise<string> {
+  return providerError<{ code?: unknown; message?: unknown }>(response, 'Brevo', (body) =>
+    typeof body.message === 'string' ? [body.code, body.message] : [],
+  )
 }
 
 /** Read the named list back. Brevo's list id is numeric, so that is checked first. */

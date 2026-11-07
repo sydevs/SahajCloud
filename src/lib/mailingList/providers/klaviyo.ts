@@ -5,8 +5,9 @@ import type {
   SubscribeArgs,
 } from '../types'
 
+import { postJson, providerError } from '../http'
 import { probeCredentials } from '../probe'
-import { statusFailure, transportFailure } from '../types'
+import { statusFailure } from '../types'
 
 /**
  * Klaviyo's API is versioned by a date header rather than a path segment, so
@@ -33,17 +34,15 @@ const KLAVIYO_REVISION = '2024-10-15'
 async function subscribeKlaviyo(args: SubscribeArgs): Promise<MailingListResult> {
   const { config, email, name, locale, signal } = args
 
-  let response: Response
-  try {
-    response = await fetch('https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/', {
-      method: 'POST',
+  const response = await postJson(
+    'https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/',
+    {
       headers: {
         Authorization: `Klaviyo-API-Key ${config.apiKey ?? ''}`,
         revision: KLAVIYO_REVISION,
-        'Content-Type': 'application/json',
         accept: 'application/vnd.api+json',
       },
-      body: JSON.stringify({
+      body: {
         data: {
           type: 'profile-subscription-bulk-create-job',
           attributes: {
@@ -65,33 +64,24 @@ async function subscribeKlaviyo(args: SubscribeArgs): Promise<MailingListResult>
             list: { data: { type: 'list', id: config.listId ?? '' } },
           },
         },
-      }),
+      },
       signal,
-    })
-  } catch (error) {
-    return transportFailure(error)
-  }
+    },
+  )
+  if ('code' in response) return response
 
   if (response.ok) return { ok: true, status: 'accepted' }
 
   return statusFailure(response.status, await readError(response))
 }
 
-/** Klaviyo's JSON:API error body, as one sentence. Never throws. */
-async function readError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as {
-      errors?: { title?: unknown; detail?: unknown }[]
-    }
-    const first = body.errors?.[0]
-    const parts = [first?.title, first?.detail].filter(
-      (part): part is string => typeof part === 'string' && part.trim() !== '',
-    )
-    if (parts.length > 0) return parts.join(': ')
-  } catch {
-    // Fall through to the status line.
-  }
-  return `Klaviyo answered ${response.status}.`
+/** Klaviyo's JSON:API error body, as one sentence. */
+function readError(response: Response): Promise<string> {
+  return providerError<{ errors?: { title?: unknown; detail?: unknown }[] }>(
+    response,
+    'Klaviyo',
+    (body) => [body.errors?.[0]?.title, body.errors?.[0]?.detail],
+  )
 }
 
 /** Read the named list back, at the same revision every other request uses. */
