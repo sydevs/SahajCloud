@@ -44,12 +44,22 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   operation,
   req,
 }) => {
-  if (operation !== 'create' || doc.type !== 'registration') return doc
+  if (operation !== 'create' || data.type !== 'registration') return doc
   // A manager's own write, or an import, is deliberate — as for the gate.
   if (req.user?.collection !== 'clients') return doc
 
-  const eventId = relationId(doc.event)
-  const userId = relationId(doc.user)
+  // ⚠ **Every input here comes from `data`, never from `doc`.** `doc` is the
+  // `afterRead` projection, and a create's `select` is a query parameter no
+  // gate polices — `validateClientQueryParamsHook` returns on anything that is
+  // not a read. So `POST …?select[id]=true` empties `doc` of `type`, `event`
+  // and `user`, and a guard reading them there switches this hook off from the
+  // request. `gateRegistration` judges `data`, and has already waived
+  // `event_full` for the seat this fold-in is what keeps: the two must read the
+  // same input, or the waiver is granted and never paid for. `doc.id` is the
+  // exception, and is safe — Payload returns the new row's id whatever the
+  // projection asks for.
+  const eventId = relationId(data.event)
+  const userId = relationId(data.user)
   if (eventId == null || userId == null) return doc
 
   const trusted = asTrustedReq(req)

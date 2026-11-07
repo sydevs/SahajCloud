@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { asLog } from '@/fields'
 import type { Client, Event, Manager, UserSubmission } from '@/payload-types'
 
+import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -28,6 +29,9 @@ const FUTURE_WEEKLY = {
   firstDate_tz: 'Europe/London',
 } as const
 
+/** Seeded plaintext: Payload returns `apiKey: null` from a create, encrypted. */
+const REST_API_KEY = 'atlas-widget-key-for-repeat-registration-spec'
+
 const SESSION_A = '2027-01-06T10:00:00.000Z'
 const SESSION_B = '2027-01-13T10:00:00.000Z'
 
@@ -36,6 +40,7 @@ describe('a repeat registration updates the existing one', () => {
   let cleanup: () => Promise<void>
   let manager: Manager
   let client: Client
+  let asClient: RestClient
 
   const clientReq = (): PayloadRequest =>
     ({
@@ -102,7 +107,18 @@ describe('a repeat registration updates the existing one', () => {
     client = await testData.createClient(payload, manager.id, {
       name: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
+      apiKey: REST_API_KEY,
     })
+    // The REST surface, because `select` is a query parameter and the local API
+    // cannot carry one. The create's response projection is what the merge hook
+    // reads its own inputs from.
+    asClient = createRestClientWithAuth(
+      { config: env.config, payload },
+      {
+        Authorization: `clients API-Key ${REST_API_KEY}`,
+        'x-turnstile-token': 'tok-valid',
+      },
+    )
   })
 
   afterAll(async () => {
@@ -301,6 +317,35 @@ describe('a repeat registration updates the existing one', () => {
     expect(rows).toHaveLength(2)
     expect(rows.find((row) => row.id === held.id)!.status).toBe('pending')
     expect(rows.find((row) => row.id === dead.id)!.status).toBe('failed')
+  })
+
+  it('merges a REST create whose `select` hides the fields the hook keys on', async () => {
+    // ⚠ A create's `select` is a query parameter the caller sets, and nothing
+    // polices it: the client query gate only guards reads. It narrows the
+    // `afterRead` projection the `afterChange` hooks are handed, so a hook
+    // reading its inputs off `doc` can be switched off from the request — while
+    // `gateRegistration`, which reads `data`, has already waived `event_full`.
+    const event = await createEvent({ registrationLimit: 1 })
+    const address = email()
+    const first = await register({ event: event.id, email: address, name: 'Ann' })
+
+    const response = await asClient('/api/user-submissions?select[id]=true', {
+      method: 'POST',
+      json: {
+        type: 'registration',
+        event: event.id,
+        senderEmail: address,
+        submissionData: [{ field: 'name', value: 'Ann Smith' }],
+      },
+    })
+
+    expect(response.status).toBe(201)
+    const rows = (await registrationsOf(event.id)) as UserSubmission[]
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.id).toBe(first.id)
+    expect(
+      rows[0]!.submissionData as unknown as { field: string; value: string }[],
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ value: 'Ann Smith' })]))
   })
 
   it('leaves a manager’s own write alone', async () => {
