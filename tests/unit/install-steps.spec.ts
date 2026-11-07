@@ -434,6 +434,13 @@ describe('hostHints', () => {
     expect(hints('https://sahajayoga.ca/classes', 'wix')).toEqual([])
   })
 
+  it('names a free Wix address even while its path is wrong for Wix', () => {
+    // A free Wix page is <user>.wixsite.com/<site>/<page>: two segments, which
+    // the address check refuses — and that must not hide the real problem.
+    const list = hints('https://someone.wixsite.com/sahajayoga/classes', 'wix')
+    expect(list.map((hint) => hint.title)).toEqual(['This is a free Wix address'])
+  })
+
   it('points a WordPress.com address at the WordPress.com track, until it is chosen', () => {
     const url = 'https://sahajayoga.wordpress.com/classes'
     const [hint] = hints(url, 'wordpress', { trackId: 'wp-selfhosted' })

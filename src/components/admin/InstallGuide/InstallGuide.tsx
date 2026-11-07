@@ -33,6 +33,7 @@ import type { Client } from '@/payload-types'
 
 import styles from './InstallGuide.module.css'
 import {
+  alreadyVerified,
   type BannerContent,
   buildInstallModel,
   buildMilestones,
@@ -266,39 +267,46 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
 
   // Each choice is saved as it is made. The address waits for a pause in typing
   // and for an address with no problem, so a half-typed one is never stored.
-  const siteNow = useCallback(
-    (patch: Partial<NonNullable<Client['site']>>) => ({
-      domain: address.problem === null ? address.host : (saved?.domain ?? null),
-      page: address.problem === null ? address.path : (saved?.page ?? null),
-      track,
-      embedHeight,
-      ...patch,
-    }),
-    [address, saved, track, embedHeight],
+  // `stored` is the address last sent: a save carries the typed address while it
+  // has no problem, and the stored one otherwise.
+  const stored = useRef({ domain: saved?.domain ?? null, page: saved?.page ?? null })
+  const saveSite = useCallback(
+    (patch: Partial<NonNullable<Client['site']>> = {}) => {
+      const site = {
+        ...(address.problem === null
+          ? { domain: address.host, page: address.path }
+          : stored.current),
+        track,
+        embedHeight,
+        ...patch,
+      }
+      stored.current = { domain: site.domain ?? null, page: site.page ?? null }
+      save({ site })
+    },
+    [address, track, embedHeight, save],
   )
+  /** Store the typed address now, when it has no problem and differs from the stored one. */
+  const saveAddress = useCallback(() => {
+    if (address.problem !== null) return
+    if (address.host === stored.current.domain && address.path === stored.current.page) return
+    saveSite()
+  }, [address, saveSite])
+  useEffect(() => {
+    const timer = setTimeout(saveAddress, ADDRESS_SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [saveAddress])
   const setTrack = (next: TrackId | null) => {
     setTrackState(next)
-    if (next) save({ site: siteNow({ track: next }) })
+    if (next) saveSite({ track: next })
   }
   const setEmbedHeight = (next: EmbedHeight) => {
     setEmbedHeightState(next)
-    save({ site: siteNow({ embedHeight: next }) })
+    saveSite({ embedHeight: next })
   }
   const setLanguage = (next: string | null) => {
     setLanguageState(next)
     save({ language: next })
   }
-  const storedAddress = useRef(primaryPageUrl(saved))
-  useEffect(() => {
-    if (address.problem !== null || !address.host || !address.path) return
-    const next = primaryPageUrl({ domain: address.host, page: address.path })
-    if (next === storedAddress.current) return
-    const timer = setTimeout(() => {
-      storedAddress.current = next
-      save({ site: siteNow({}) })
-    }, ADDRESS_SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [address, save, siteNow])
 
   /**
    * Re-read the record. The one thing that makes this tab live.
@@ -341,7 +349,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   }> => {
     setBusy(true)
     try {
-      // The check reads the saved address, so the queue is flushed first.
+      // The check reads the stored address, so a pending one is sent and the
+      // queue flushed first.
+      saveAddress()
       await save.flush()
       const verify = await post<VerifyEmbedResponse>(`/api/clients/${clientId}/verify-embed`)
       await reread()
@@ -349,7 +359,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     } finally {
       setBusy(false)
     }
-  }, [clientId, reread, save])
+  }, [clientId, reread, save, saveAddress])
 
   // The poll. Re-reading the record is what turns a report arriving on the
   // volunteer's own site into a confirmed install with nothing clicked.
@@ -374,8 +384,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     confirmedFor.current = candidate.key
     // Already confirmed at this page: opening the tab again must not re-run a
     // browser verification. "Check again" still forces one.
-    const verified = verification?.verified
-    if (verified?.domain === candidate.host && verified.mount === candidate.mount) return
+    if (alreadyVerified(verification, candidate)) return
     void confirm()
   }, [model.candidate, busy, confirm, verification])
 
@@ -393,8 +402,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
       (polled?.embedMetadata ?? embedMetadata) as EmbedMetadata | null,
       { domain: address.host, page: atlasPath },
     )[0]
-    // Clearing the guard is what makes this button re-run rather than no-op: the
-    // poll's effect only acts on a mount it has not confirmed before.
+    // Marked as confirmed, so the poll's effect does not confirm it a second time.
     confirmedFor.current = candidate?.key ?? null
     const answers = candidate ? await confirm() : { claim: null, verify: null }
     setResult({
@@ -850,11 +858,13 @@ function StepCard({
           </div>
         ) : null}
         <ol className={styles.actions}>
-          {step.actions.map((action) => (
+          {/* By position: a step's actions are a fixed list, and the custom snippet's
+              text changes with the height chosen inside it. */}
+          {step.actions.map((action, index) => (
             <ActionItem
               action={action}
               embedHeight={embedHeight}
-              key={typeof action === 'string' ? action : action.text}
+              key={index}
               onEmbedHeight={onEmbedHeight}
             />
           ))}

@@ -827,7 +827,10 @@ export interface AtlasAddress {
    * the same page give the same answer.
    */
   path: string | null
-  /** The site's host, or `null` while there is a problem. */
+  /**
+   * The site's host, or `null` until the input parses as a web address — kept
+   * through a path problem, so a free Wix address is named as one.
+   */
   host: string | null
   /** Whether the address is https — the only scheme a canonical URL is built with. */
   secure: boolean
@@ -867,10 +870,10 @@ export function readAtlasAddress(
   } = {},
 ): AtlasAddress {
   const trimmed = input.trim()
-  const fail = (problem: string): AtlasAddress => ({
+  const fail = (problem: string, url?: URL): AtlasAddress => ({
     path: null,
-    host: null,
-    secure: false,
+    host: url?.hostname ?? null,
+    secure: url?.protocol === 'https:',
     problem,
   })
   if (trimmed === '') return fail('Paste the address of the page that will show the atlas.')
@@ -893,6 +896,7 @@ export function readAtlasAddress(
   if (segments.length === 0 && query === '') {
     return fail(
       'That is your site’s home page. The atlas needs a page of its own, such as /classes.',
+      url,
     )
   }
 
@@ -901,11 +905,13 @@ export function readAtlasAddress(
     if (segments.length !== 1) {
       return fail(
         `On ${oneLevel}, the atlas page must come straight after your domain, like /classes — not inside another page.`,
+        url,
       )
     }
     if (!isValidWixPrefix(segments[0])) {
       return fail(
         `On ${oneLevel}, use lowercase letters, numbers and hyphens only, like /free-classes.`,
+        url,
       )
     }
   }

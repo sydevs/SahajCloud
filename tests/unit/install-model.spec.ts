@@ -4,6 +4,7 @@ import type { CanonicalVerification, SeoCheckResult } from '../../src/lib/client
 import { describe, expect, it } from 'vitest'
 
 import {
+  alreadyVerified,
   buildInstallModel,
   buildMilestones,
   checkOutcome,
@@ -114,6 +115,29 @@ describe('reportedMountsFor', () => {
   it('answers nothing for a service that has reported nothing', () => {
     expect(reportedMountsFor(null, { page: '/free-classes' })).toEqual([])
     expect(reportedMountsFor({}, { page: '/free-classes' })).toEqual([])
+  })
+})
+
+describe('alreadyVerified', () => {
+  const candidate = (host: string, path: string) =>
+    reportedMountsFor(mount(`https://${host}${path}`, '2026-10-01T00:00:00.000Z'), {
+      page: path,
+    })[0]
+
+  it('is true for the verified page, on its www twin or with a trailing slash', () => {
+    for (const [host, path] of [
+      ['sahajayoga.ca', '/free-classes'],
+      ['www.sahajayoga.ca', '/free-classes'],
+      ['sahajayoga.ca', '/free-classes/'],
+    ]) {
+      expect(alreadyVerified(verified(), candidate(host, path))).toBe(true)
+    }
+  })
+
+  it('is false for another page, another site, or nothing verified', () => {
+    expect(alreadyVerified(verified(), candidate('sahajayoga.ca', '/about'))).toBe(false)
+    expect(alreadyVerified(verified(), candidate('other.example', '/free-classes'))).toBe(false)
+    expect(alreadyVerified(null, candidate('sahajayoga.ca', '/free-classes'))).toBe(false)
   })
 })
 
