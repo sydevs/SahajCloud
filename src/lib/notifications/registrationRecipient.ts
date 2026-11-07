@@ -1,6 +1,9 @@
 import type { NotificationChannel } from './types'
 
-import { DEFAULT_REGISTRATION_FREQUENCY } from '@/components/admin/NotificationPreferences/config'
+import {
+  DEFAULT_REGISTRATION_FREQUENCY,
+  notificationFrequency,
+} from '@/components/admin/NotificationPreferences/config'
 import type { Event, Manager } from '@/payload-types'
 
 import { pickChannel } from './recipients'
@@ -32,7 +35,7 @@ export interface RegistrationRecipient {
  * (email, or a messaging handle when configured) at that type's frequency.
  *
  * The frequency is **returned, not acted on**: this is the seam the immediate
- * send and the future digest run share, so each decides for itself which
+ * send and the digest run share, so each decides for itself which
  * cadences it delivers. Returns `null` only when there is no reachable
  * destination at all (no override, and no manager / no manager destination) —
  * nothing any run could deliver.
@@ -59,8 +62,6 @@ export function resolveRegistrationRecipient(
     destination,
     name: manager.name || manager.email || null,
     channel,
-    frequency:
-      manager.notificationPreferences?.event_registration?.frequency ||
-      DEFAULT_REGISTRATION_FREQUENCY,
+    frequency: notificationFrequency(manager.notificationPreferences, 'event_registration'),
   }
 }

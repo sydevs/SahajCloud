@@ -42,9 +42,10 @@ import { isScreeningResult, VERDICT_NOTES } from './verdicts'
  *
  * ⚠ **A refused registration is flagged, never unwound.** It becomes
  * `spam`, which excludes it from reminders and fullness counts
- * (`src/lib/registrations/active.ts`), and nothing else happens: the row
- * stands, any email already sent stands, and no job ever recalls an email. A
- * manager unwinds a real mistake by hand.
+ * (`src/lib/registrations/active.ts`), and nothing is undone: the row stands,
+ * any email already sent stands, and no job ever recalls an email. The admin's
+ * home and digest list it while it stays `spam`, which is how a real mistake
+ * reaches someone who can unwind it.
  *
  * Known gap, filed separately: the duplicate-body check is scoped to one
  * sender, because the cross-sender version needs a queryable `bodyHash` column

@@ -1,14 +1,21 @@
 import type { PayloadRequest } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
+import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { holdsCollectionPermission } from '@/plugins/access'
+import { isAdminManager } from '@/plugins/access/adminOnly'
 
-import { OPEN_REVIEW_STATUSES, REOPENABLE_REVIEW_STATUSES, STATUS_LABELS } from '../statuses'
+import {
+  OPEN_REVIEW_STATUSES,
+  REOPENABLE_REVIEW_STATUSES,
+  isSpamStatus,
+  STATUS_LABELS,
+} from '../statuses'
 import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
 
-export type ReviewAction = 'accept' | 'reject' | 'reopen'
+export type ReviewAction = 'accept' | 'confirm-spam' | 'reject' | 'reopen'
 
 /**
  * What one write means for review: nothing to judge, a move no reviewer may
@@ -32,6 +39,35 @@ const isOpen = (status: UserSubmission['status']) =>
 
 const isReopenable = (status: UserSubmission['status']) =>
   (REOPENABLE_REVIEW_STATUSES as readonly string[]).includes(status)
+
+/**
+ * Settling a spam refusal — the move that is an admin's rather than a
+ * reviewer's.
+ *
+ * ⚠ **Only the part the reviewer path cannot already answer.** Reopening a
+ * refused *reviewable* row has always been a reviewer's call and stays one,
+ * below: narrowing it to admins would take a reviewer's own false-positive
+ * recovery away. What is new here is confirming a refusal, and reopening one on
+ * an intake nobody reviews — a registration, which is what an admin's home
+ * lists.
+ *
+ * ⚠ **It takes `reviewable`, never the intake.** Which intakes a reviewer
+ * reviews is one fact, and `reviewMove` reads it below to refuse an unreviewable
+ * row outright — spelled here as well, with the opposite polarity, the two would
+ * silently disagree the day a second intake becomes reviewable, routing that
+ * intake's reopen to admins alone with nothing failing.
+ */
+function spamActionFor(
+  from: UserSubmission['status'],
+  to: UserSubmission['status'],
+  reviewable: boolean,
+): ReviewAction | null {
+  if (!isSpamStatus(from)) return null
+  if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
+  // ⚠ Withdrawing an admin's confirmed strike is an admin's call, on any intake.
+  if (to === 'pending' && (from === 'confirmed_spam' || !reviewable)) return 'reopen'
+  return null
+}
 
 /** Which decision a status move is, or `null` for one no reviewer may make. */
 function actionFor(
@@ -89,10 +125,24 @@ export function reviewMove(args: {
     return { kind: 'illegal', reason: 'You do not have permission to review submissions.' }
   }
 
-  // One table holds four intakes sharing one status vocabulary, so without this
-  // a contact row could be walked through the review states and reach the
-  // accept path with no `proposed` to apply.
-  if (type !== 'proposal') {
+  // One table holds four intakes sharing one status vocabulary, and only one of
+  // them has a review path: without that, a contact row could be walked through
+  // the review states and reach the accept path with no `proposed` to apply.
+  // Read once, because the spam branch below needs the same answer.
+  const reviewable = type === 'proposal'
+
+  // Settling a spam refusal comes before the reviewability gate, because it is
+  // the one decision no reviewer makes. Admins only: the strike it confirms, and
+  // the seat a released registration takes back, are map-wide consequences.
+  const spamAction = spamActionFor(from, to, reviewable)
+  if (spamAction) {
+    if (!isAdminManager(req.user)) {
+      return { kind: 'illegal', reason: 'Only an admin can settle a spam refusal.' }
+    }
+    return { kind: 'decision', action: spamAction }
+  }
+
+  if (!reviewable) {
     return { kind: 'illegal', reason: `A ${type} submission is not reviewable.` }
   }
 
@@ -113,6 +163,10 @@ export function reviewMove(args: {
  * Nothing here writes `status`: the review's own update already did, which is
  * also why `submission` is the document that update wrote rather than a fresh
  * read — an edit the reviewer made in the same post is already in it.
+ *
+ * A spam decision is a status move whose effect is which rows
+ * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select;
+ * releasing a sign-up or message also queues the delivery screening withheld.
  *
  * Accept:
  * - update proposal (`event` set) → the proposed patch is applied with a
@@ -170,9 +224,33 @@ export async function applyReview(args: {
       req,
     })
 
+  if (action === 'confirm-spam') {
+    await decide('Confirmed as spam')
+    return
+  }
+
   if (action === 'reopen') {
-    // A screening false positive, or a rejection a manager wants back.
-    await decide('Reopened for review')
+    if (submission.type === 'proposal') {
+      // A screening false positive, or a rejection a manager wants back.
+      await decide('Reopened for review')
+      return
+    }
+    // ⚠ A released sign-up or message was never delivered: screening queues
+    // delivery only on a pass, so releasing it must queue what that pass would have.
+    await decide('Released as not spam')
+    await payload.jobs.queue({
+      task: 'deliverSubmission',
+      input: { submissionId: submission.id },
+      queue: 'screening',
+      req,
+    })
+    runQueueSoon({
+      payload,
+      queue: 'screening',
+      label: 'applyReview',
+      context: { submissionId: submission.id },
+      afterCommit: true,
+    })
     return
   }
 

@@ -36,9 +36,7 @@ there is no one collection to park them beside. What stays with a collection is
 its `LoginCollectionConfig` — its eligibility predicate and the project its mail
 is branded for (`src/collections/Managers/login.ts`). The plugin renders and
 sends that mail itself, from `src/plugins/login/mail.ts` and, for the invitation,
-`invite.ts`; a collection overrides either half of the SIGN-IN mail through a
-`generateEmailHTML` / `generateEmailSubject` pair shaped like Payload's own
-`auth.verify` generators. There is one invitation and no override for it — it is
+`invite.ts`; neither has a per-collection override. The invitation is
 sent when a manager is assigned something (`invitations.ts`), never on create. The barrel deliberately stops short of the
 factories: `loginPlugin` is their only caller.
 
@@ -121,7 +119,9 @@ No loose files at the root — every file lives in a named folder:
   sweep, and a beat later when the caller queued its row inside a
   transaction. The only part of the jobs system that is not one job's own: a
   row queued with `req` cannot run until that transaction commits, and every
-  queue with an `autoRun` entry wants the same best-effort kick
+  queue with an `autoRun` entry wants the same best-effort kick. And
+  `runClock`, the time a task run treats as now — `req.context.now` when a
+  test sets one
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
@@ -167,6 +167,12 @@ No loose files at the root — every file lives in a named folder:
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
   booting it
+- `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
+  the three admin homes' loaders and by the nightly digest. Its `status.ts`
+  owns **every word a reader sees about an open item** — the pill, the line,
+  the rank, the filter, whether it counts against progress, and the next step
+  — because four surfaces show the same list. No barrel: import each module
+  by its own path
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
@@ -286,7 +292,10 @@ This is why a job's supporting code lives in the job folder.
 `SendSessionReminders` owns `sendSessionReminder.ts` and
 `unsubscribeUrl.ts`.
 `recipients` stays in `src/lib/notifications` because both `ExpireEvents`
-and `registrationRecipient` also use it. The **view layer is untouched** —
+and `registrationRecipient` also use it. `managerRoles` is there for the same
+reason, with three: the notification-preferences field filters its rows by
+role, the digest run sends one email per role, and `dashboardChoiceFor` picks a
+home by role. The **view layer is untouched** —
 email templates stay in `src/emails/`, and a job's sender imports its
 template from there.
 

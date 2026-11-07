@@ -5,7 +5,6 @@ import { z } from 'zod'
 
 import {
   buildDefaultNotificationPreferences,
-  NOTIFICATION_TYPES,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
@@ -22,6 +21,10 @@ export const Managers: CollectionConfig = {
   // `setProject` is the lightweight self-only Current Project write path (#532).
   endpoints: [setProject],
   auth: {
+    // 24 hours, in seconds (Payload's default is 2). It bounds the JWT, the
+    // session row and the cookie alike, and `createSession` reads it, so a
+    // sign-in link's session lasts as long.
+    tokenExpiration: 60 * 60 * 24,
     // Configured for the `_verified` column, not for Payload's own verify mail:
     // the JWT strategy yields no user while that column is false, so it is the
     // accepted/not-accepted flag the invitation flow turns on. `loginPlugin`
@@ -235,21 +238,29 @@ export const Managers: CollectionConfig = {
               },
               admin: {
                 description: 'Choose how and how often to receive each kind of notification.',
-                custom: { notificationTypes: NOTIFICATION_TYPES },
                 components: { Field: '@/components/admin/NotificationPreferences' },
               },
             }),
-            {
-              // Watermark for the registration digest run: the start of the last
-              // digest sent to this manager. The digest job covers registrations
-              // created after it and advances it to the run's start, so no
-              // registration lands in two digests and a retry re-sends nothing.
-              // Only consulted when this manager's `event_registration` frequency
-              // is a summary cadence; machine-managed, so hidden from the UI.
-              name: 'lastRegistrationDigestSentAt',
-              type: 'date',
+            // The digest run's per-role, per-section watermarks (`SendDigests`).
+            // Open at both levels for the reason `src/collections/AGENTS.md`
+            // gives for a job-written JSON column.
+            // ⚠ **`access.update: () => false` makes it the job's alone**: a
+            // manager who could rewind a mark could have their email re-sent.
+            jsonField({
+              name: 'digestWatermarks',
+              schemaTitle: 'DigestWatermarks',
+              schema: z
+                .record(
+                  z.string(),
+                  z.record(
+                    z.string(),
+                    z.string().describe('ISO start of the last run whose email carried this key.'),
+                  ),
+                )
+                .nullable(),
+              access: { update: () => false },
               admin: { readOnly: true, hidden: true },
-            },
+            }),
           ],
         },
       ],

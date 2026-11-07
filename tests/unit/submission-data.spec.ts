@@ -331,7 +331,7 @@ describe('registrationAnswers', () => {
       ]),
     ).toEqual([
       { label: 'How did you hear about this event?', value: 'A friend' },
-      { label: 'mystery', value: 'legacy answer' },
+      { label: 'Mystery', value: 'legacy answer' },
     ])
   })
 

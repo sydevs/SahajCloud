@@ -14,6 +14,7 @@ import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import type { UserSubmission } from '@/payload-types'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
 import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
@@ -238,6 +239,13 @@ function needsForm(data?: { event?: unknown; type?: unknown }): boolean {
  * relationship validation is what reads `required`, and the plugin's is a
  * `findByID` proving the form exists; dropping either would let a submission
  * skip the requirement, or name a form id that never existed.
+ *
+ * ⚠ **The plugin's `findByID` passes no `select`**, and for an API client that
+ * read trips the select-required client gate (`src/plugins/usage/hooks.ts`).
+ * The plugin catches the 400 and reports the form missing, so every atlas issue
+ * report was refused as `System > Form` invalid. `asTrustedReq` is this repo's
+ * opt-out for an internal read forwarding the caller's `req`; origin
+ * enforcement still applies to it.
  */
 function perTypeForm(field: Field): Field {
   if (!('name' in field) || field.name !== 'form' || field.type !== 'relationship') return field
@@ -248,7 +256,7 @@ function perTypeForm(field: Field): Field {
     const shape = await relationshipValidation(value, options)
     if (shape !== true) return shape
 
-    return formExists ? formExists(value, options) : true
+    return formExists ? formExists(value, { ...options, req: asTrustedReq(options.req) }) : true
   }
 
   // `RelationshipField['validate']` is a union of the hasMany and single

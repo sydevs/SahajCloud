@@ -53,7 +53,7 @@ const events = (...items: { title: string; url: null | string }[]) => ({
 
 describe('InviteEmail', () => {
   it('renders the recipient name, invitation URL, CTA, and validity', async () => {
-    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+    const { html } = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(html).toContain('Jo')
     expect(html).toContain(INVITE_URL)
@@ -62,7 +62,7 @@ describe('InviteEmail', () => {
   })
 
   it('names the roles per locale', async () => {
-    const html = await renderEmail(createElement(InviteEmail, inviteProps))
+    const { html } = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(html).toContain('English')
     expect(html).toContain('Meditations Editor, Path Editor')
@@ -71,14 +71,16 @@ describe('InviteEmail', () => {
   })
 
   it('names full access for an admin instead of a role table', async () => {
-    const html = await renderEmail(createElement(InviteEmail, { ...inviteProps, fullAccess: true }))
+    const { html } = await renderEmail(
+      createElement(InviteEmail, { ...inviteProps, fullAccess: true }),
+    )
 
     expect(html).toContain('Administrator')
     expect(html).not.toContain('Meditations Editor')
   })
 
   it('opens by naming who asked, when a person did', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         assignedBy: 'Anna Schmidt',
@@ -90,7 +92,7 @@ describe('InviteEmail', () => {
   })
 
   it('lists each kind as a row beside the roles, one document per line, linked', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         responsibilities: [
@@ -115,7 +117,7 @@ describe('InviteEmail', () => {
   })
 
   it('says "role" and "responsibility", and names the kind, when there is one of each', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         grants: [{ locale: 'English', roles: ['Atlas Manager'] }],
@@ -130,7 +132,7 @@ describe('InviteEmail', () => {
   })
 
   it('stays plural for two roles in one locale, or two documents of a kind', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         listsOnlyNew: true,
@@ -145,7 +147,7 @@ describe('InviteEmail', () => {
   })
 
   it('marks a document with no public page, outside its title', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, {
         ...inviteProps,
         responsibilities: [events({ title: 'Sunday Workshop', url: null })],
@@ -158,10 +160,10 @@ describe('InviteEmail', () => {
   })
 
   it('introduces Sahaj Atlas to a manager meeting it for the first time', async () => {
-    const atlas = await renderEmail(
+    const { html: atlas } = await renderEmail(
       createElement(InviteEmail, { ...inviteProps, project: 'sahaj-atlas' }),
     )
-    const web = await renderEmail(createElement(InviteEmail, inviteProps))
+    const { html: web } = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(atlas).toContain(
       'Sahaj Atlas is a worldwide map of free Sahaja Yoga meditation classes.',
@@ -172,7 +174,7 @@ describe('InviteEmail', () => {
 
   it('offers an accepted manager their notification settings, and no confirmation', async () => {
     const settings = 'https://cloud.test/admin/login?token=SETTINGS'
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(InviteEmail, { ...inviteProps, accepted: true, actionUrl: settings }),
     )
 
@@ -184,10 +186,10 @@ describe('InviteEmail', () => {
   })
 
   it('asks for a confirmation that says what it does — and no set-up that is not there', async () => {
-    const one = await renderEmail(
+    const { html: one } = await renderEmail(
       createElement(InviteEmail, { ...inviteProps, responsibilities: [regions('Berlin')] }),
     )
-    const none = await renderEmail(createElement(InviteEmail, inviteProps))
+    const { html: none } = await renderEmail(createElement(InviteEmail, inviteProps))
 
     expect(one).toContain('Confirm your email below so you can sign in and keep it up to date')
     expect(none).toContain('Confirm your email below so you can sign in —')
@@ -198,7 +200,10 @@ describe('InviteEmail', () => {
     const render = (
       project: 'sahaj-atlas' | 'wemeditate-app' | 'wemeditate-web',
       accepted = false,
-    ) => renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project }))
+    ) =>
+      renderEmail(createElement(InviteEmail, { ...inviteProps, accepted, project })).then(
+        ({ html }) => html,
+      )
 
     expect(await render('wemeditate-web')).toContain('We Meditate is a free website')
     expect(await render('wemeditate-app')).toContain('We Meditate is a free app')
@@ -250,10 +255,10 @@ describe('brand configurability', () => {
   const props = inviteProps
 
   it('renders a different product name + primary color per project', async () => {
-    const web = await renderEmail(
+    const { html: web } = await renderEmail(
       createElement(InviteEmail, { ...props, project: 'wemeditate-web' }),
     )
-    const atlas = await renderEmail(
+    const { html: atlas } = await renderEmail(
       createElement(InviteEmail, { ...props, project: 'sahaj-atlas' }),
     )
 
@@ -273,7 +278,7 @@ describe('brand configurability', () => {
   })
 
   it('defaults to wemeditate-web when no project is passed', async () => {
-    const html = await renderEmail(createElement(InviteEmail, props))
+    const { html } = await renderEmail(createElement(InviteEmail, props))
     expect(html).toContain(getEmailBrand('wemeditate-web').productName)
   })
 })
@@ -293,7 +298,7 @@ describe('EventRegistrationEmail', () => {
   }
 
   it('renders the recipient, registrant, start date, answers, and both CTAs', async () => {
-    const html = await renderEmail(createElement(EventRegistrationEmail, props))
+    const { html } = await renderEmail(createElement(EventRegistrationEmail, props))
 
     expect(html).toContain('Anna')
     expect(html).toContain('Morning Meditation')
@@ -318,7 +323,7 @@ describe('EventRegistrationEmail', () => {
   })
 
   it('greets neutrally for a bare override address (no recipient name)', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(EventRegistrationEmail, { ...props, recipientName: null }),
     )
     // React Email inserts `<!-- -->` markers between adjacent text nodes. Strip
@@ -328,7 +333,7 @@ describe('EventRegistrationEmail', () => {
   })
 
   it('omits the start-date row and answers section when neither is supplied', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(EventRegistrationEmail, { ...props, startDate: null, answers: [] }),
     )
     expect(html).not.toContain('Start date')
@@ -435,7 +440,7 @@ describe('UserMessageEmail', () => {
   ]
 
   it('renders every answer under its own label, the sender address, and every detail row', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers,
         senderEmail: 'seeker@example.com',
@@ -460,7 +465,7 @@ describe('UserMessageEmail', () => {
     // The section is gone: every answer is a sibling row, whatever its field
     // was named. A heading would re-privilege the one key this template used to
     // build its whole body from (#832).
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [{ label: 'Your message', value: 'Hello.' }],
         subject: 'Issue report',
@@ -477,7 +482,7 @@ describe('UserMessageEmail', () => {
   it('renders an answer value as text, never as an anchor', async () => {
     // Submitter-chosen text reaching a renderer. A manager-written row is not
     // URL-scanned at intake (`URL_EXEMPT_KEYS`), so escaping is the only guard.
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [{ label: 'Details', value: '<script>x</script> see evil.example.com' }],
         subject: 'Issue report',
@@ -492,7 +497,7 @@ describe('UserMessageEmail', () => {
   })
 
   it('says the message is unanswerable when no address was supplied', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [{ label: 'Details', value: 'Something went wrong on the map page.' }],
         subject: 'Issue report',
@@ -509,7 +514,7 @@ describe('UserMessageEmail', () => {
   })
 
   it('drops the details block entirely when there is nothing to show', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [{ label: 'What happened?', value: 'A message with no context at all.' }],
         subject: 'Issue report',
@@ -523,7 +528,7 @@ describe('UserMessageEmail', () => {
   })
 
   it('renders whatever brand it is handed', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [{ label: 'Details', value: 'Branding check message body.' }],
         subject: 'Message',
@@ -543,7 +548,7 @@ describe('UserMessageEmail', () => {
     // `<Preview>` renders nothing at all for an empty string, so the assertion
     // names the preview element: a bare `toContain` would pass on the answer
     // row alone, and would not notice which answer was chosen.
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(UserMessageEmail, {
         answers: [
           { label: 'Your email', value: 'seeker@example.com' },
@@ -572,7 +577,7 @@ describe('EventImportSummaryEmail', () => {
   }
 
   it('counts each outcome and links to the import alone', async () => {
-    const html = await renderEmail(createElement(EventImportSummaryEmail, props))
+    const { html } = await renderEmail(createElement(EventImportSummaryEmail, props))
 
     expect(html).toContain('Your class import is ready to review')
     expect(html).toContain('12 classes ready to review in Germany')
@@ -586,7 +591,7 @@ describe('EventImportSummaryEmail', () => {
   })
 
   it('leaves out a count of nothing, and asks for attention when nothing was created', async () => {
-    const html = await renderEmail(
+    const { html } = await renderEmail(
       createElement(EventImportSummaryEmail, { ...props, created: 0, duplicates: 0 }),
     )
 

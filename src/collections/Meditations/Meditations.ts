@@ -204,25 +204,29 @@ export const Meditations: CollectionConfig = {
           path: WORKFLOW_BUTTONS,
           clientProps: {
             fallback: 'publish',
-            stages: { [CREATE_STAGE]: [] },
+            rules: [{ stages: { [CREATE_STAGE]: [] } }],
           } satisfies WorkflowButtonsProps<typeof CREATE_STAGE>,
         },
         SaveDraftButton: {
           path: WORKFLOW_BUTTONS,
           clientProps: {
             fallback: 'saveDraft',
-            stages: {
-              [CREATE_STAGE]: [
-                // `skipValidation`, because the fields a finished meditation
-                // needs are on tabs this screen has not reached yet.
-                {
-                  label: 'Next step',
-                  labelKey: 'general:next',
-                  overrides: { _status: 'draft' },
-                  skipValidation: true,
+            rules: [
+              {
+                stages: {
+                  [CREATE_STAGE]: [
+                    // `skipValidation`, because the fields a finished meditation
+                    // needs are on tabs this screen has not reached yet.
+                    {
+                      label: 'Next step',
+                      labelKey: 'general:next',
+                      overrides: { _status: 'draft' },
+                      skipValidation: true,
+                    },
+                  ],
                 },
-              ],
-            },
+              },
+            ],
           } satisfies WorkflowButtonsProps<typeof CREATE_STAGE>,
         },
         Upload: '@/components/admin/AudioUpload',

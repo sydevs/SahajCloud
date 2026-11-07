@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+import { Fragment } from 'react'
 import {
   Body,
   Button,
@@ -7,8 +8,10 @@ import {
   Container,
   Head,
   Heading,
+  Hr,
   Html,
   Img,
+  Link,
   Preview,
   Row,
   Section,
@@ -16,6 +19,8 @@ import {
 } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
+import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
+import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 
 /**
@@ -24,7 +29,7 @@ import type { EmailBrand } from '@/plugins/email'
  * source is invisible enough that a later edit would quietly replace it with a
  * plain space — which HTML collapses, taking the cell with it.
  */
-const NBSP = '\u00A0'
+export const NBSP = '\u00A0'
 
 /** Diagonal brand gradient shared by the header and CTA buttons. */
 export const brandGradient = (colors: BrandColors): string =>
@@ -74,26 +79,106 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-/**
- * A label-*above*-value row for the guest itinerary emails (registrant
- * confirmation, session reminder), where the accent is the client service's own
- * brand. The stacked layout and brand-coloured label read as an itinerary line
- * rather than the manager emails' `DetailRow` fact table. Shared once the
- * reminder wanted the same look as the confirmation.
- */
-export function StackedDetailRow({
-  label,
-  accent,
-  children,
-}: {
-  label: string
-  accent: string
-  children: ReactNode
-}) {
+/** A label-above-value itinerary line. */
+function StackedDetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Section style={stackedRow}>
-      <Text style={{ ...stackedLabel, color: accent }}>{label}</Text>
+      <Text style={stackedLabel}>{label}</Text>
       <Text style={stackedValue}>{children}</Text>
+    </Section>
+  )
+}
+
+/**
+ * The guest itinerary card both registrant emails open with — the class, when,
+ * where and who — then its one call to action.
+ *
+ * Only the online CTA repeats its URL as plain text: a client that strips the
+ * button would leave the join link unrecoverable, whereas the venue address is
+ * already in the card.
+ */
+export function EventItinerary({
+  brand,
+  details,
+  strings,
+  when = details.scheduleLine,
+}: {
+  brand: EmailBrand
+  details: RegistrationEmailDetails
+  strings: EmailStrings
+  when?: ReactNode
+}) {
+  const { location } = details
+  const accent = brand.colors.primary
+  return (
+    <>
+      <Section style={detailBlock}>
+        <Heading as="h3" style={eventTitle}>
+          {details.eventTitle}
+        </Heading>
+        <StackedDetailRow label={strings.when_label}>{when}</StackedDetailRow>
+        {location.type === 'offline' ? (
+          <StackedDetailRow label={strings.where_label}>{location.address}</StackedDetailRow>
+        ) : null}
+        {details.contact ? (
+          <StackedDetailRow label={strings.contact_label}>{details.contact}</StackedDetailRow>
+        ) : null}
+      </Section>
+
+      {location.type === 'online' ? (
+        <>
+          <BrandButton href={location.joinUrl} brand={brand}>
+            {strings.online_cta}
+          </BrandButton>
+          <Text style={styles.hint}>
+            {strings.online_link_hint}
+            <br />
+            <Link href={location.joinUrl} style={{ ...styles.link, color: accent }}>
+              {location.joinUrl}
+            </Link>
+          </Text>
+        </>
+      ) : null}
+
+      {location.type === 'offline' && location.mapsUrl ? (
+        <BrandButton href={location.mapsUrl} brand={brand}>
+          {strings.directions_cta}
+        </BrandButton>
+      ) : null}
+    </>
+  )
+}
+
+/** Question-and-answer pairs, each question above its answer; `compact` inside a table row. */
+export function AnswerPairs({
+  answers,
+  compact,
+}: {
+  answers: { label: string; value: string }[]
+  compact?: boolean
+}) {
+  // Keyed by position: a form can ask the same question twice.
+  return answers.map((answer, index) => (
+    <Fragment key={index}>
+      <Text style={compact ? compactQuestion : answerQuestion}>{answer.label}</Text>
+      <Text style={compact ? compactValue : answerValue}>{answer.value}</Text>
+    </Fragment>
+  ))
+}
+
+/** Forwarded question-and-answer pairs under one heading; nothing when there are none. */
+export function AnswerList({
+  answers,
+  heading,
+}: {
+  answers: { label: string; value: string }[]
+  heading: string
+}) {
+  if (answers.length === 0) return null
+  return (
+    <Section>
+      <SectionHeading>{heading}</SectionHeading>
+      <AnswerPairs answers={answers} />
     </Section>
   )
 }
@@ -237,6 +322,8 @@ interface EmailLayoutProps {
   /** Inbox-preview snippet (hidden in the rendered body). */
   previewText?: string
   children: ReactNode
+  /** Small print under a rule, closing the card. */
+  footer?: ReactNode
 }
 
 /**
@@ -245,7 +332,7 @@ interface EmailLayoutProps {
  * Every brand token (color, product name, icon) comes from `brand`, so a new
  * email is just its body content and a project never appears hardcoded.
  */
-export function EmailLayout({ brand, heading, previewText, children }: EmailLayoutProps) {
+export function EmailLayout({ brand, heading, previewText, children, footer }: EmailLayoutProps) {
   return (
     <Html>
       <Head />
@@ -272,11 +359,17 @@ export function EmailLayout({ brand, heading, previewText, children }: EmailLayo
           </Section>
           <Section style={card}>
             {heading ? (
-              <Heading as="h2" style={{ ...cardHeading, color: brand.colors.primary }}>
+              <Heading as="h2" style={cardHeading}>
                 {heading}
               </Heading>
             ) : null}
             {children}
+            {footer ? (
+              <>
+                <Hr style={styles.hr} />
+                <Text style={styles.footer}>{footer}</Text>
+              </>
+            ) : null}
           </Section>
         </Container>
       </Body>
@@ -324,9 +417,11 @@ const card: CSSProperties = {
   borderRadius: '0 0 8px 8px',
 }
 
+// ⚠ Text colour, never the brand's: the brand colour is how a reader tells a link.
 const cardHeading: CSSProperties = {
   marginTop: 0,
   fontSize: '20px',
+  color: '#1f2937',
 }
 
 const buttonContainer: CSSProperties = {
@@ -368,6 +463,7 @@ const sectionHeading: CSSProperties = {
 // Guest-itinerary stacked row: brand-coloured uppercase label above its value.
 const stackedRow: CSSProperties = { margin: '16px 0' }
 const stackedLabel: CSSProperties = {
+  color: '#6b7280',
   fontSize: '12px',
   fontWeight: 'bold',
   letterSpacing: '0.06em',
@@ -375,3 +471,27 @@ const stackedLabel: CSSProperties = {
   margin: '0 0 4px',
 }
 const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
+
+const detailBlock: CSSProperties = {
+  backgroundColor: '#ffffff',
+  borderRadius: '6px',
+  padding: '4px 20px',
+  margin: '0 0 24px',
+}
+// Neutral rather than the brand accent, which the links and the CTA carry.
+const eventTitle: CSSProperties = { fontSize: '18px', color: '#333333', margin: '16px 0 0' }
+
+const answerQuestion: CSSProperties = {
+  fontSize: '14px',
+  fontWeight: 600,
+  color: '#374151',
+  margin: '0 0 2px',
+}
+const answerValue: CSSProperties = {
+  fontSize: '14px',
+  color: '#1f2937',
+  margin: '0 0 12px',
+  whiteSpace: 'pre-wrap',
+}
+const compactQuestion: CSSProperties = { ...answerQuestion, color: '#6b7280', fontSize: '12px' }
+const compactValue: CSSProperties = { ...answerValue, fontSize: '13px', margin: '0 0 6px' }

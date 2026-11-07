@@ -237,9 +237,8 @@ describe('User submissions access', () => {
 
     it('gets no implicit read from project membership', async () => {
       // The collection left the `wemeditate-web` project when it stopped being
-      // `form-submissions`. Being in no project is not restrictive on its own —
-      // it means "shared, readable by every role" — so RESTRICTED_COLLECTIONS
-      // is what closes it. This asserts the outcome, not the mechanism.
+      // `form-submissions`, and a collection in no project fails closed
+      // (`isImplicitlyReadable`). This asserts the outcome, not the mechanism.
       await expect(
         payload.find({
           collection: 'user-submissions',
