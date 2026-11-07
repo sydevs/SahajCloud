@@ -345,15 +345,20 @@ write.
   `20261107_225000_atlas_clock_copy` is the worked example: a new key lands
   only where English lacks it, a rewording only where the stored value is still
   the seeded original, and both the main row and the `latest: true` version row
-  are written. Its `down` is required, not tidy: it removes the keys the
-  previous schema does not declare, from every locale and whatever they hold,
-  which would otherwise refuse every save after a rollback.
-  This is not the backfill `src/migrations/AGENTS.md` warns against: that
-  caution is about hand-editing a _generated_ migration, where FK and
-  table-rebuild statements broke before. This one is written by hand, emits no
-  DDL, and changes keys inside one JSON column per group, as the
-  `atlas_drop_time_in_place` sweep does. The post-deploy alternative is an
-  admin typing the same English in by hand.
+  are written. Its `down` is required, not tidy, and it sweeps wider than `up`
+  wrote: the previous schema declares neither new key, so `down` drops both
+  from every locale and every version row, whatever they hold — one spared
+  because an editor reworded it refuses every save of the row holding it. A
+  rewording is the other case: the old schema declares that key, so `down`
+  reverts English alone, and only where the value is still `up`'s.
+  ⚠ **`src/migrations/AGENTS.md` is not contradicted here — this is its
+  carve-out.** Its default is no backfill inside a migration, and
+  `.claude/workflow.json` marks `src/migrations/*.ts` do-not-augment, because
+  hand-editing generated DDL has repeatedly broken foreign keys and
+  versioned-table companions. A copy migration carries no DDL at all: two JSONB
+  columns, and a snapshot that is the previous one re-stamped, so there is no
+  table rebuild to get wrong. Anything touching a column's shape still belongs
+  in a post-deploy job, as that guide says.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
