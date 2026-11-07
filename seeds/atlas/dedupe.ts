@@ -105,6 +105,18 @@ const VENUE_FIELD_OVERRIDES: Record<number, Partial<AtlasVenue>> = {
   2125: { name: 'Málnárium' },
   // Lowercase city surfaces into the rendered address (the #605 casing class).
   5755: { city: 'Sydney' },
+  // ── No venue at all (sydevs/SahajAtlasWeb bug #15) ──
+  // A placeholder street, rewritten to the town's own name: the convention the other town-only
+  // venues (Sneek, Broome, Ituiutaba…) already follow, and the one form the widget reads as "no
+  // real place" in any language, so it draws an area rather than a pin on the town's centre. The
+  // street cannot be blank — Events require one. #4106's "-" is left alone: its point is the park
+  // its venue names, so its pin is right.
+  165: { street: 'Krems', city: 'Krems' }, // "wird noch angekündigt" (to be announced)
+  174: { street: 'Salzburg' }, // "Zentrum"
+  175: { street: 'Innsbruck' }, // "Innenstadt"
+  219: { street: 'Sevenoaks' }, // "None"
+  331: { street: 'Perth' }, // "Perth CBD"
+  406: { street: 'Araguari' }, // "Centro"
 }
 
 /** Region nodes removed outright because a city already covers the place. */
