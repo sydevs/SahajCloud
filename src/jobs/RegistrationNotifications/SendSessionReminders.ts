@@ -36,9 +36,6 @@ const CLIENT_BRAND_SELECT = {
   color2: true,
   logo: true,
   supportEmail: true,
-  enabled: true,
-  site: true,
-  canonical: { owned: true, verification: true },
 } as const
 
 interface ReminderResult {

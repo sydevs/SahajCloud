@@ -34,6 +34,18 @@ import { buildRegistrationEmailDetails } from './registrationDetails'
  * `enabled`, `site` and `canonical` decide the site link: the email links to a
  * service's site only while it owns its region (`ownedHost`).
  */
+/** What a registrant email reads off the client: its brand, and its site link's ownership. */
+export const EMAIL_CLIENT_SELECT = {
+  color1: true,
+  color2: true,
+  logo: true,
+  name: true,
+  supportEmail: true,
+  enabled: true,
+  site: true,
+  canonical: { owned: true, verification: true },
+} as const
+
 export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
   OwnershipFields
 

@@ -7,6 +7,7 @@ import {
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
+import { EMAIL_CLIENT_SELECT } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
 import { relationId } from '@/lib/utilities/relationId'
@@ -155,16 +156,7 @@ async function loadEmailClient(
     // `depth: 1` so `logo` arrives as an image document rather than an id — the
     // template resolves it to a PNG, and cannot from a bare number.
     depth: 1,
-    select: {
-      color1: true,
-      color2: true,
-      logo: true,
-      name: true,
-      supportEmail: true,
-      enabled: true,
-      site: true,
-      canonical: { owned: true, verification: true },
-    },
+    select: EMAIL_CLIENT_SELECT,
     overrideAccess: true,
     disableErrors: true,
     req,
