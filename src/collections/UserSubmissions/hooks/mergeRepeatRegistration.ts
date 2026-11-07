@@ -1,6 +1,7 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
 import { appendLogEntry, asLog } from '@/fields'
+import { isActiveRegistration } from '@/lib/registrations/active'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
@@ -92,9 +93,22 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
 }
 
 /**
- * The registration a repeat signup from this sender updates, newest first.
- * `spam` and `rejected` are left out: each is a verdict on that row, which a
- * fresh signup must neither hide behind nor overturn.
+ * The statuses a repeat signup may fold into. `spam` and `rejected` are left
+ * out: each is a verdict on that row, which a fresh signup must neither hide
+ * behind nor overturn.
+ */
+const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = ['accepted', 'pending', 'failed']
+
+/**
+ * The registration a repeat signup from this sender updates.
+ *
+ * ⚠ **An active row outranks a newer inactive one**, rather than newest
+ * winning outright. A sender can hold both — legacy duplicates exist, and a
+ * `failed` row is left standing beside the seat it never confirmed — and the
+ * seat is the row to fold into: it keeps the sender on one active
+ * registration, and it is what `gateRegistration` waives `event_full` for.
+ * Taking the newest instead merged into the dead row, which left the active one
+ * untouched and the event one seat over its limit.
  */
 export async function findRepeatRegistration(
   req: PayloadRequest,
@@ -108,20 +122,22 @@ export async function findRepeatRegistration(
       and: [
         { type: { equals: 'registration' } },
         { event: { equals: eventId } },
-        { status: { in: ['accepted', 'pending', 'failed'] } },
+        { status: { in: [...MERGEABLE_STATUSES] } },
         sender,
         ...(excludeId != null ? [{ id: { not_equals: excludeId } }] : []),
       ],
     },
     sort: '-createdAt',
-    limit: 1,
     depth: 0,
+    // Unbounded on purpose: one sender's rows for one event, which is a
+    // handful even where a legacy duplicate survives. A cap here would be the
+    // number above which the active row stops being found.
     pagination: false,
     select: { activityLog: true, status: true, type: true },
     overrideAccess: true,
     req,
   })
-  return docs[0] ?? null
+  return docs.find(isActiveRegistration) ?? docs[0] ?? null
 }
 
 /** The sender, by an address the create has not yet resolved to a `users` row. */

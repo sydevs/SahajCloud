@@ -222,6 +222,50 @@ describe('a repeat registration updates the existing one', () => {
     expect(await registrationsOf(event.id)).toHaveLength(1)
   })
 
+  it('folds into the seat a sender holds, not a newer failed row', async () => {
+    const event = await createEvent({ registrationLimit: 1 })
+    const address = email()
+    const held = await register({ event: event.id, email: address, name: 'Ann' })
+    await payload.update({
+      collection: 'user-submissions',
+      id: held.id,
+      data: { status: 'accepted' },
+      overrideAccess: true,
+    })
+
+    // A manager's write skips the merge, which is how one sender comes to hold
+    // two rows for an event — the shape a legacy duplicate leaves behind.
+    // `createdAt` is set rather than left to the clock, so the ordering under
+    // test is the fixture's and not two creates a millisecond apart.
+    const dead = await payload.create({
+      collection: 'user-submissions',
+      data: createData<'user-submissions'>({
+        type: 'registration',
+        event: event.id,
+        senderEmail: address,
+        createdAt: new Date(Date.now() + 1000).toISOString(),
+      } as never),
+      overrideAccess: true,
+    })
+    await payload.update({
+      collection: 'user-submissions',
+      id: dead.id,
+      data: { status: 'failed' },
+      overrideAccess: true,
+    })
+
+    // The event is full on the one active row, and a sender updating the seat
+    // they hold takes no new one — so the gate waives `event_full` here too.
+    await expect(
+      register({ event: event.id, email: address, name: 'Ann Smith' }),
+    ).resolves.toMatchObject({ id: held.id })
+
+    const rows = (await registrationsOf(event.id)) as UserSubmission[]
+    expect(rows).toHaveLength(2)
+    expect(rows.find((row) => row.id === held.id)!.status).toBe('pending')
+    expect(rows.find((row) => row.id === dead.id)!.status).toBe('failed')
+  })
+
   it('leaves a manager’s own write alone', async () => {
     // Recording a registration by hand is deliberate, as for the gate.
     const event = await createEvent()
