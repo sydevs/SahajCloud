@@ -22,7 +22,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   -- its key's switch, its one domain, its primary page and its region claim
   -- all move across.
   UPDATE "clients" SET "name" = 'Service ' || "id" WHERE "name" IS NULL;
-  UPDATE "clients" SET "enabled" = ("_status" = 'published');
+  -- Coalesced because the column is nullable: every reader compares the flag to
+  -- true, so a NULL would withdraw that service's key with nothing to say why.
+  UPDATE "clients" SET "enabled" = coalesce("_status" = 'published', false);
   -- One domain: the first entry of the old allowlist, split on lines, commas and
   -- whitespace as the old parser split it, with scheme, port, path and a
   -- trailing dot stripped.
