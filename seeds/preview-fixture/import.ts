@@ -188,9 +188,8 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
   private async importForm(data: Fixture): Promise<void> {
     await this.logger.info('\n=== Contact form ===')
     // The five contact messages need one, because `user-submissions` requires a
-    // form for every form-backed intake — and whom it names is also what makes
-    // a manager's smaller view checkable: the region manager reads these rows
-    // and the event manager reads none.
+    // form for every form-backed intake, and `recipient` is what decides which
+    // manager reads them (`managerSubmissionScope`).
     const result = await this.upsert<{ id: Id }>(
       'forms',
       { title: { equals: data.form.title } },

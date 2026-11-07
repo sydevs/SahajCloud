@@ -88,10 +88,16 @@ describe('seed: preview-fixture', () => {
     }
   })
 
-  it('gives the two events different managers, so a reviewer can compare views', async () => {
+  it('names a different manager on each event, so the event manager is refused one', async () => {
+    // How a reviewer sees one manager's reach as smaller than the admin's, and
+    // the only way the fixture can show it: `events` read is project-wide, so
+    // no list differs, while an event assignee's write grant narrows to the
+    // events naming them (`src/plugins/access/regionSubtreeAccess.ts`). Name
+    // both events on one manager and there is nothing left to be refused.
     const { docs } = await payload.find({ collection: 'events', depth: 0, overrideAccess: true })
     const managers = new Set(docs.map((doc) => doc.manager))
 
+    expect(docs).toHaveLength(2)
     expect(managers.size).toBe(2)
   })
 
