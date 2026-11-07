@@ -37,6 +37,7 @@ const CLIENT_BRAND_SELECT = {
   logo: true,
   supportEmail: true,
   enabled: true,
+  site: true,
   canonical: { owned: true, verification: true },
 } as const
 

@@ -3,6 +3,7 @@ import type { PayloadRequest, Where } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
 import { isValidCanonicalDomain } from '@/lib/clients/canonical'
+import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -52,6 +53,8 @@ export interface ClientRow {
   id: number
   region?: unknown
   enabled?: boolean | null
+  /** The address the service is at now, which the verified page must still be. */
+  site?: { domain?: string | null; page?: string | null } | null
   canonical?: {
     owned?: boolean | null
     verification?: {
@@ -119,7 +122,7 @@ export async function loadRegionClaims<Owner>(
     // stable across requests, instead of depending on row order.
     sort: 'id',
     where: { and: [...eligible, { region: { exists: true } }] },
-    select: { region: true, canonical: true, enabled: true },
+    select: { region: true, canonical: true, enabled: true, site: true },
   })
 
   const owners = new Map<number, Owner>()
@@ -159,10 +162,22 @@ function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwn
  * directions. The domain check is the load-bearing half. See the comment
  * in {@link loadDirectOwners} for why this re-checks it, rather than
  * trusting it.
+ *
+ * ⚠ **The verified page must still be the service's address.** `verified` is
+ * kept through failures, so after a move it names the old page — where the key
+ * no longer loads — until the new page verifies. Until then the row owns
+ * nothing, and its region falls through to the next ancestor.
  */
 function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
   const verified = row.canonical?.verification?.verified
   if (!isValidCanonicalDomain(verified?.domain)) return undefined
+  if (
+    !siteHosts(row.site?.domain).includes(verified.domain) ||
+    !row.site?.page ||
+    normalizeMountPath(verified.mount ?? '/') !== normalizeMountPath(row.site.page)
+  ) {
+    return undefined
+  }
 
   return {
     clientId: row.id,
@@ -268,7 +283,7 @@ export async function canonicalOwnerForClient(
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { canonical: true },
+    select: { canonical: true, site: true },
     req,
   })
 

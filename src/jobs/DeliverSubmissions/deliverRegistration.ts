@@ -162,6 +162,7 @@ async function loadEmailClient(
       name: true,
       supportEmail: true,
       enabled: true,
+      site: true,
       canonical: { owned: true, verification: true },
     },
     overrideAccess: true,

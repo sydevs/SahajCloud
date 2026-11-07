@@ -31,11 +31,11 @@ import { buildRegistrationEmailDetails } from './registrationDetails'
 
 /**
  * The client fields the email needs; `logo` must be populated (`depth >= 1`).
- * `enabled` and `canonical` decide the site link: the email links to a
+ * `enabled`, `site` and `canonical` decide the site link: the email links to a
  * service's site only while it owns its region (`ownedSiteOrigin`).
  */
 export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
-  Pick<ClientRow, 'enabled' | 'canonical'>
+  Pick<ClientRow, 'enabled' | 'canonical' | 'site'>
 
 export async function sendRegistrationConfirmation(args: {
   payload: Payload

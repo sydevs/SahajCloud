@@ -285,6 +285,43 @@ describe('per-region canonical webUrl', () => {
       expect((await readRegion(region.london)).webUrl).toContain(LONDON_DOMAIN)
     })
 
+    it('stops owning as soon as its address moves, until the new page verifies', async () => {
+      // `verified` is kept through failures, so after a move it still names the
+      // old page — where the key no longer loads. Links must not point there.
+      const { docs } = await payload.find({
+        collection: 'clients',
+        where: { name: { equals: 'Sahaja Yoga London' } },
+        limit: 1,
+        overrideAccess: true,
+      })
+      const londonClient = docs[0]
+      const site = londonClient.site
+
+      for (const moved of [
+        { ...site, domain: 'moved-london.example' },
+        { ...site, page: '/somewhere-else' },
+      ]) {
+        await payload.update({
+          collection: 'clients',
+          id: londonClient.id,
+          data: { site: moved },
+          overrideAccess: true,
+        })
+        // Falls through to the UK client one level up.
+        expect((await readRegion(region.london)).webUrl).toBe(
+          `https://${UK_DOMAIN}/classes/?atlas=/uk/england/greater-london`,
+        )
+      }
+
+      await payload.update({
+        collection: 'clients',
+        id: londonClient.id,
+        data: { site },
+        overrideAccess: true,
+      })
+      expect((await readRegion(region.london)).webUrl).toContain(LONDON_DOMAIN)
+    })
+
     /**
      * The verification column is written by the VerifyEmbeds job with a raw
      * `pool.query`, so Payload's JSON-schema validation of `domain` never runs
