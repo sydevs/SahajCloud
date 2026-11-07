@@ -172,12 +172,13 @@ const PROVIDER_LABELS: Record<MailingListProvider, string> = {
  * the behaviour they describe is not ours to change.
  */
 const OPT_IN_NOTES: Record<MailingListProvider, string> = {
-  mailchimp: 'Opt-in is set per subscriber, by the checkbox below.',
+  mailchimp:
+    'You choose below whether each person is emailed a confirmation link before being added.',
   brevo:
-    'Contacts are added immediately. Brevo double opt-in is not supported through this integration.',
-  klaviyo: 'Governed by this list’s opt-in setting in Klaviyo, not here.',
+    'Each person is added straight away. Brevo cannot send a confirmation email first through this connection.',
+  klaviyo: 'Whether a confirmation email is sent is set on the list in Klaviyo, not here.',
   cleverreach:
-    'Opt-in is set per subscriber, by the checkbox below. A confirmation is sent through the CleverReach flow you name.',
+    'You choose below whether each person is emailed a confirmation link before being added. CleverReach sends that email through the flow you name.',
 }
 
 /**
@@ -212,7 +213,7 @@ const mailingListGroup: Field = {
       },
       admin: {
         description:
-          'Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.',
+          'Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.',
       },
       fields: [
         {
@@ -233,7 +234,7 @@ const mailingListGroup: Field = {
           admin: {
             condition: (data) => mailingListEnabled(data),
             // The opt-in note for the chosen provider, in place of a checkbox
-            // two of the three cannot honour. See `OPT_IN_NOTES`.
+            // two of the four cannot honour. See `OPT_IN_NOTES`.
             custom: { descriptions: OPT_IN_NOTES },
             components: { Description: '@/components/admin/SelectDescription' },
           },
@@ -246,7 +247,7 @@ const mailingListGroup: Field = {
           admin: {
             condition: (data) => providerShows(data, 'clientId'),
             description:
-              'From the OAuth app under Account → Extras → REST API. The secret below is that app’s client secret.',
+              'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.',
           },
         },
         {
@@ -271,7 +272,7 @@ const mailingListGroup: Field = {
           admin: {
             condition: (data) => mailingListEnabled(data),
             description:
-              'The provider secret, which for CleverReach is the OAuth app’s client secret. Checked against the provider when you save, and never readable by an API client.',
+              'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
           },
         },
         {
@@ -282,7 +283,7 @@ const mailingListGroup: Field = {
           admin: {
             condition: (data) => providerShows(data, 'doubleOptIn'),
             description:
-              'Mailchimp adds the address as `pending` and emails it a confirmation link. CleverReach adds it inactive and sends the confirmation through the flow below.',
+              'The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.',
           },
         },
         {
@@ -294,7 +295,7 @@ const mailingListGroup: Field = {
             condition: (data) =>
               providerShows(data, 'doiFlowId') && data?.mailingList?.doubleOptIn !== false,
             description:
-              'The CleverReach flow whose double opt-in email is sent. Create the form in CleverReach, then take the Flow ID it reports.',
+              'The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.',
           },
         },
       ],

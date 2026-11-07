@@ -2591,13 +2591,13 @@ export interface Client {
    */
   region?: (number | null) | Region;
   /**
-   * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
+   * Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.
    */
   mailingList?: {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * From the OAuth app under Account → Extras → REST API. The secret below is that app’s client secret.
+     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
      */
     clientId?: string | null;
     /**
@@ -2605,15 +2605,15 @@ export interface Client {
      */
     listId?: string | null;
     /**
-     * The provider secret, which for CleverReach is the OAuth app’s client secret. Checked against the provider when you save, and never readable by an API client.
+     * The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.
      */
     apiKey?: string | null;
     /**
-     * Mailchimp adds the address as `pending` and emails it a confirmation link. CleverReach adds it inactive and sends the confirmation through the flow below.
+     * The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.
      */
     doubleOptIn?: boolean | null;
     /**
-     * The CleverReach flow whose double opt-in email is sent. Create the form in CleverReach, then take the Flow ID it reports.
+     * The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.
      */
     doiFlowId?: string | null;
   };
