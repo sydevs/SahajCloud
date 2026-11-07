@@ -60,7 +60,7 @@ export const NOTIFICATION_TYPES = [
   {
     key: 'event_verification',
     title: 'Re-verification period',
-    description: 'How often we ask you to confirm the details of the programs you run',
+    description: 'How often we ask you to confirm the details of the events you run',
     frequencyOptions: ['Monthly', '3 Months', '6 Months'],
     defaultFrequency: 'Monthly',
     roles: ['program'],
@@ -68,7 +68,7 @@ export const NOTIFICATION_TYPES = [
   {
     key: 'event_registration',
     title: 'New registrations',
-    description: 'Sent when seekers sign up for a program you run',
+    description: 'Sent when seekers sign up for an event you run',
     frequencyOptions: ['Immediate', 'Daily', 'Weekly', NEVER_FREQUENCY],
     defaultFrequency: 'Daily',
     roles: ['program'],
@@ -76,7 +76,7 @@ export const NOTIFICATION_TYPES = [
   {
     key: 'new_proposals',
     title: 'New proposals',
-    description: 'Sent when a visitor proposes a new class, or a change to one',
+    description: 'Sent when a visitor proposes a new event, or a change to one',
     frequencyOptions: ['Immediate', 'Daily', 'Weekly', 'Monthly'],
     defaultFrequency: 'Daily',
     roles: EVERYONE,
@@ -92,7 +92,7 @@ export const NOTIFICATION_TYPES = [
   {
     key: 'refused_signups',
     title: 'Refused sign-ups',
-    description: 'Sent when the spam check refuses a class sign-up',
+    description: 'Sent when the spam check refuses an event sign-up',
     frequencyOptions: ['Daily', 'Weekly', 'Monthly', NEVER_FREQUENCY],
     defaultFrequency: 'Daily',
     roles: ['admin'],
@@ -100,7 +100,7 @@ export const NOTIFICATION_TYPES = [
   {
     key: 'statistics',
     title: 'Statistics',
-    description: 'How your programs and regions are doing, and what changed',
+    description: 'How your events and regions are doing, and what changed',
     frequencyOptions: ['Monthly', NEVER_FREQUENCY],
     defaultFrequency: 'Monthly',
     roles: EVERYONE,

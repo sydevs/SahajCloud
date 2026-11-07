@@ -265,7 +265,7 @@ describe('Atlas overview', () => {
       expect(data.items.progress?.total).toBe(programs)
       expect(data.items.progress!.open).toBeLessThan(programs)
       // The header counts the subtree once, not once per level of it.
-      expect(data.description).toContain(` · ${programs} programs · `)
+      expect(data.description).toContain(` · ${programs} events · `)
     })
 
     /** ⚠ A region manager sees recommendations on their own events only. */
@@ -282,7 +282,7 @@ describe('Atlas overview', () => {
       )
     })
 
-    it('offers "Your programs" for the events they manage themselves', async () => {
+    it('offers "Your events" for the events they manage themselves', async () => {
       const data = await load({ filter: 'mine' })
       expect(titles(data.items.rows.docs)).toEqual(['Region manager own program'])
       expect(data.items.counts.mine).toBe(1)
@@ -290,7 +290,7 @@ describe('Atlas overview', () => {
 
     it('scopes to one region of its own subtree', async () => {
       const data = await load({ region: managedCityId })
-      expect(data.description).toMatch(/^Managed City · \d+ programs? · \d+ managers?$/)
+      expect(data.description).toMatch(/^Managed City · \d+ events? · \d+ managers?$/)
       expect(data.breadcrumbs.map((crumb) => crumb.label)).toEqual([
         'Your regions',
         'Overview Country',
@@ -377,7 +377,7 @@ describe('Atlas overview', () => {
     })
 
     /** Live tiles count what a snapshot counts, so an event with no region counts on neither. */
-    it('totals the Countries rows in the Total programs tile, leaving out an event with no region', async () => {
+    it('totals the Countries rows in the Total events tile, leaving out an event with no region', async () => {
       const stray = await testData.createEvent(payload, {
         manager: admin.id,
         region: orphanCityId,

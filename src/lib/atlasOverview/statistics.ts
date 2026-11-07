@@ -222,7 +222,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
     analytics: [
       {
         key: 'programs',
-        label: 'Total programs',
+        label: 'Total events',
         value: programs.size,
         change: programsBefore === null ? null : programs.size - programsBefore,
         path: listPath('events', [...inScope, { verificationStage: { not_equals: 'finished' } }]),
@@ -242,7 +242,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
       },
       {
         key: 'programs-with-signup',
-        label: 'Programs with a sign-up',
+        label: 'Events with a sign-up',
         value: withSignups.length,
         of: programs.size,
         change: null,
@@ -255,7 +255,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
         : {
             id: top[0],
             registrations: top[1].now,
-            title: programs.get(top[0])!.title?.trim() || 'Untitled program',
+            title: programs.get(top[0])!.title?.trim() || 'Untitled event',
           },
   }
 }

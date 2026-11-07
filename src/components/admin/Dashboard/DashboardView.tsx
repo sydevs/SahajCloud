@@ -30,7 +30,7 @@ type DashboardChoice =
  * the admin "All Content" view (`Managers.ts`), which keeps Payload's cards.
  *
  * ⚠ **Sahaj Atlas has three homes, and the widest role wins.** The region home
- * carries a manager's own programs under "Your programs"; the program home
+ * carries a manager's own programs under "Your events"; the program home
  * carries nothing of the region.
  */
 export function dashboardChoiceFor(user: PayloadRequest['user'] | undefined): DashboardChoice {

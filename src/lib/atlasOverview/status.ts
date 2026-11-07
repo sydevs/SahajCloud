@@ -23,7 +23,7 @@ import { formatShortDate } from '@/lib/notifications/eventDetails'
  */
 export const OVERDUE_QUERY_STAGES = ['escalated', 'urgent', 'expired'] as const
 
-/** ⚠ One definition, so the Total programs tile and the Programs column agree. */
+/** ⚠ One definition, so the Total events tile and the Programs column agree. */
 export function isProgramStage(stage: string): boolean {
   return stage !== 'finished'
 }
@@ -77,7 +77,7 @@ export interface OpenItemEvent {
   proposal?: null | { changedFields: string[]; id: number; receivedAt: string }
   /** On an admin's row, the region nothing up the chain manages. */
   unmanagedRegionId?: number
-  /** A region scope's "Your programs", which the region email also leaves out. */
+  /** A region scope's "Your events", which the region email also leaves out. */
   ownEvent?: boolean
 }
 
@@ -114,7 +114,7 @@ const STATUS_TABLE = {
     counts: true,
   },
   'class-proposed': {
-    label: 'New class proposed',
+    label: 'New event proposed',
     pill: 'success',
     rank: 1,
     filter: 'review',

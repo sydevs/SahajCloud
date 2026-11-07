@@ -157,7 +157,7 @@ describe('SendDigests job', () => {
       await runDigests(payload)
       const sent = emailsTo('program@example.com')
       expect(sent).toHaveLength(1)
-      expect(String(sent[0]!.subject)).toBe('Your programs: 3 new registrations')
+      expect(String(sent[0]!.subject)).toBe('Your events: 3 new registrations')
       const html = String(sent[0]!.html)
       for (const text of ['Digest Event A', 'Digest Event B', 'Alice', 'Bob', 'Cara']) {
         expect(html).toContain(text)
@@ -230,7 +230,7 @@ describe('SendDigests job', () => {
       await runDigests(payload)
       const sent = emailsTo('both@example.com')
       expect(sent.map((email) => String(email.subject)).sort()).toEqual([
-        'Your programs: 1 open item',
+        'Your events: 1 open item',
         'Your regions: 1 open item',
       ])
 
@@ -238,7 +238,7 @@ describe('SendDigests job', () => {
       const region = sent.find((email) => String(email.subject).startsWith('Your regions'))!
       expect(String(region.html)).toContain('Their escalated program')
       expect(String(region.html)).not.toContain('Both own program')
-      const program = sent.find((email) => String(email.subject).startsWith('Your programs'))!
+      const program = sent.find((email) => String(email.subject).startsWith('Your events'))!
       expect(String(program.html)).toContain('Both own program')
 
       const marks = await watermarksOf(both.id)
@@ -263,7 +263,7 @@ describe('SendDigests job', () => {
       const sent = emailsTo('monthly@example.com')
       expect(sent).toHaveLength(1)
       const month = first.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })
-      expect(String(sent[0]!.subject)).toBe(`Your programs: ${month} analytics`)
+      expect(String(sent[0]!.subject)).toBe(`Your events: ${month} analytics`)
       const html = String(sent[0]!.html)
       expect(html).toContain('Analytics')
       expect(html).toContain('Registrations')

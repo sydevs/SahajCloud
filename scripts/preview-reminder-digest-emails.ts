@@ -285,7 +285,7 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
     note: 'the common program email: what is open, then who signed up',
     props: {
       ...SHELL,
-      heading: 'Your programs',
+      heading: 'Your events',
       openItems: { rows: OPEN_ROWS.slice(0, 2) },
       recipientName: 'Priya Deshmukh',
       registrations: buildStressGroups().slice(0, 2),
@@ -293,9 +293,9 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
         {
           heading: 'Analytics',
           tiles: [
-            { change: '+2 in 30 days', label: 'Total programs', value: '6' },
+            { change: '+2 in 30 days', label: 'Total events', value: '6' },
             { change: '+11 in 30 days', label: 'Registrations', value: '34' },
-            { label: 'Programs with a sign-up', of: '6', value: '4' },
+            { label: 'Events with a sign-up', of: '6', value: '4' },
           ],
         },
       ],
@@ -325,9 +325,9 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
         {
           heading: 'Analytics',
           tiles: [
-            { change: '+5 in 30 days', label: 'Total programs', value: '69' },
+            { change: '+5 in 30 days', label: 'Total events', value: '69' },
             { change: '-3 in 30 days', label: 'Registrations', value: '112' },
-            { label: 'Programs with a sign-up', of: '69', value: '31' },
+            { label: 'Events with a sign-up', of: '69', value: '31' },
           ],
         },
       ],
@@ -367,7 +367,7 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
     note: '~35 registrations across 7 events — how manageable is a busy week?',
     props: {
       ...SHELL,
-      heading: 'Your programs',
+      heading: 'Your events',
       recipientName: 'Lena Novak',
       registrations: buildStressGroups(),
       summary: '35 new registrations',

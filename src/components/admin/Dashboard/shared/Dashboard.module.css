@@ -28,9 +28,6 @@
 /* Statistics: flat, no border, no radius — numbers to glance at. */
 .tilesHeading {
   margin: 0 0 calc(var(--base) / 3);
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--theme-elevation-650);
 }
 .tiles {
   display: grid;
@@ -54,10 +51,7 @@ a.tileLink:hover {
   background: var(--theme-elevation-100);
 }
 .tileLabel {
-  font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--theme-elevation-500);
 }
 .tileValue {
@@ -66,13 +60,11 @@ a.tileLink:hover {
   line-height: 1.1;
 }
 .tileValue small {
-  font-size: 0.85rem;
   font-weight: 400;
   color: var(--theme-elevation-500);
 }
 .tileChange {
   min-height: 1lh;
-  font-size: 0.75rem;
   color: var(--theme-elevation-500);
 }
 
@@ -84,7 +76,6 @@ a.tileLink:hover {
   height: 20px;
   margin-inline-start: auto;
   padding-inline-start: var(--base);
-  font-size: 0.85rem;
   color: var(--theme-elevation-650);
   white-space: nowrap;
 }
@@ -124,9 +115,8 @@ a.tileLink:hover {
   align-items: flex-start;
   gap: calc(var(--base) / 3);
 }
-.itemInfo small {
+.itemSubtitle {
   display: block;
-  font-size: 0.8rem;
   color: var(--theme-elevation-500);
 }
 /* Above the stretched name link, so the icon's own tooltip can be hovered. */
@@ -154,7 +144,6 @@ a.tileLink:hover {
 }
 .statuses p {
   margin: 0;
-  font-size: 0.8rem;
   color: var(--theme-elevation-650);
 }
 .tick {
@@ -172,7 +161,7 @@ a.tileLink:hover {
 }
 .list :global(.cell-action),
 .list :global(#heading-action) {
-  /* Payload gives every cell \`min-width: 150px\`; a button needs no more than its own width. */
+  /* Payload gives every cell `min-width: 150px`; a button needs no more than its own width. */
   min-width: 0;
   width: 1%;
   white-space: nowrap;
@@ -185,6 +174,8 @@ a.tileLink:hover {
 }
 .overview :global(td:not(.cell-name)),
 .overview :global(th:not(#heading-name)) {
+  /* Payload gives every cell `min-width: 150px`; a count needs only its own width. */
+  min-width: 0;
   white-space: nowrap;
 }
 .managers {
@@ -200,7 +191,6 @@ a.tileLink:hover {
 
 .closingNote {
   margin: calc(var(--base) * 0.5) 0 0;
-  font-size: 0.85rem;
   color: var(--theme-elevation-650);
 }
 @media (max-width: 700px) {

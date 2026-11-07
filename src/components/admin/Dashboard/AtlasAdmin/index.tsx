@@ -33,7 +33,7 @@ export default async function AtlasAdmin({ req, searchParams }: AtlasAdminProps)
   return (
     <section aria-label="Sahaj Atlas overview" className={styles.home}>
       <HomeHeader
-        subtitle={`${programs} program${programs === 1 ? '' : 's'} · ${countries.totalDocs} countr${countries.totalDocs === 1 ? 'y' : 'ies'}`}
+        subtitle={`${programs} event${programs === 1 ? '' : 's'} · ${countries.totalDocs} countr${countries.totalDocs === 1 ? 'y' : 'ies'}`}
         title="Sahaj Atlas"
       />
       <StatTiles label="Verification health" tiles={statistics.health} />

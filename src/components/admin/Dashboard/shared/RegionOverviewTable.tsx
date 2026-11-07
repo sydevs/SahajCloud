@@ -65,7 +65,7 @@ export function RegionOverviewTable({
   if (docs.length === 0) {
     return (
       <CenteredNotice title={`No ${label.toLowerCase()} to show`}>
-        <p>Regions you look after will appear here once they hold a program.</p>
+        <p>Regions you look after will appear here once they hold an event.</p>
       </CenteredNotice>
     )
   }
@@ -95,7 +95,7 @@ export function RegionOverviewTable({
             </div>
           )),
           column('managers', 'Managers', (row) => managersLabel(row.managers)),
-          column('programs', 'Programs', (row) => row.programs),
+          column('programs', 'Events', (row) => row.programs),
           column('healthy', 'Healthy', (row) => (row.healthy === null ? '—' : `${row.healthy}%`)),
           column('overdue', 'Overdue', (row) =>
             row.overdue > 0 ? <ErrorPill count={row.overdue} i18n={i18n} /> : '—',

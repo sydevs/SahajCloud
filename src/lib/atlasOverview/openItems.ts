@@ -279,9 +279,7 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
       standalone.push({
         kind: 'proposal',
         id: proposal.id,
-        title:
-          readSubmissionValue(proposal.submissionData, 'name')?.trim() ||
-          'A proposed meditation class',
+        title: readSubmissionValue(proposal.submissionData, 'name')?.trim() || 'A proposed event',
         receivedAt: proposal.createdAt,
       })
       continue
@@ -309,7 +307,7 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
     rows.push({
       kind: 'event',
       id: doc.id,
-      title: doc.title?.trim() || 'Untitled program',
+      title: doc.title?.trim() || 'Untitled event',
       verificationStage: doc.verificationStage,
       draft: doc._status === 'draft',
       createdAt: doc.createdAt,

@@ -73,12 +73,12 @@ describe('openItem', () => {
         id: 55,
         kind: 'proposal',
         receivedAt: '2026-11-02T00:00:00.000Z',
-        title: 'A proposed meditation class',
+        title: 'A proposed event',
       })
       expect(status).toMatchObject({
         filter: 'review',
         key: 'class-proposed',
-        label: 'New class proposed',
+        label: 'New event proposed',
         rank: 1,
       })
       expect(status.line).toBe('Received 2 Nov 2026')

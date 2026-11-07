@@ -19,9 +19,9 @@ export function StatTiles({ label, tiles }: { label: string; tiles: StatTile[] }
   if (tiles.length === 0) return null
   return (
     <section aria-labelledby={headingId} className={styles.tileGroup}>
-      <h2 className={styles.tilesHeading} id={headingId}>
+      <h3 className={styles.tilesHeading} id={headingId}>
         {label}
-      </h2>
+      </h3>
       <ul className={styles.tiles}>
         {tiles.map((tile) => {
           const body = (

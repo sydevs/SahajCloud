@@ -57,7 +57,7 @@ export interface DigestEmailProps {
   notificationsUrl: string
   /** Formatted, e.g. "Thursday, 5 November 2026". */
   date: string
-  /** What the email is, in the reader's own terms: "Your programs". */
+  /** What the email is, in the reader's own terms: "Your events". */
   heading: string
   /** One line naming each section that is here, in order. */
   summary: string

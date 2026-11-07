@@ -80,7 +80,7 @@ export async function getAtlasRegionData(
       regionId !== undefined && tree.chainById.has(regionId)
         ? nameOf(tree, regionId)
         : 'Your regions',
-      `${programs} program${programs === 1 ? '' : 's'}`,
+      `${programs} event${programs === 1 ? '' : 's'}`,
       `${managers} manager${managers === 1 ? '' : 's'}`,
     ].join(' · '),
     regions: paginate(levelRows, query.page, query.limit),

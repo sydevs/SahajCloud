@@ -26,12 +26,12 @@ const FILTER_LABELS: Record<OpenItemFilter, string> = {
 const FILTERS: { label: string; value: OpenItemTab }[] = [
   { label: 'All', value: 'all' },
   ...OPEN_ITEM_FILTERS.map((filter) => ({ label: FILTER_LABELS[filter], value: filter })),
-  { label: 'Your programs', value: 'mine' },
+  { label: 'Your events', value: 'mine' },
 ]
 
 const KIND: Record<OpenItemsRow['kind'], { icon: LucideIcon; label: string }> = {
-  event: { icon: CalendarDays, label: 'Program' },
-  proposal: { icon: FilePlus, label: 'Proposed class' },
+  event: { icon: CalendarDays, label: 'Event' },
+  proposal: { icon: FilePlus, label: 'Proposed event' },
   refusal: { icon: UserX, label: 'Sign-up' },
 }
 
@@ -68,7 +68,7 @@ export function OpenItemsList({
   data: OpenItemsData
   /** The all-clear line, shown when nothing counts against progress. */
   emptyBanner: string
-  /** Offer the "Your programs" filter — a region home only. */
+  /** Offer the "Your events" filter — a region home only. */
   showMine?: boolean
 }) {
   const { counts, progress, query, rows } = data
@@ -112,7 +112,9 @@ export function OpenItemsList({
                         <Link href={row.href} prefetch={false}>
                           {row.title}
                         </Link>
-                        {row.subtitle ? <small>{row.subtitle}</small> : null}
+                        {row.subtitle ? (
+                          <span className={styles.itemSubtitle}>{row.subtitle}</span>
+                        ) : null}
                       </div>
                     </div>
                   )),

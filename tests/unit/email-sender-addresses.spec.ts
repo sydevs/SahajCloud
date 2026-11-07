@@ -106,7 +106,7 @@ const CASES: {
         props: {
           dashboardUrl: 'https://cloud.example.org/admin/',
           date: '5 November 2026',
-          heading: 'Your programs',
+          heading: 'Your events',
           notificationsUrl: 'https://cloud.example.org/admin/account',
           recipientName: 'Mgr',
           registrations: [

@@ -39,7 +39,7 @@ export default async function AtlasRegion({ req, searchParams }: AtlasRegionProp
       <SetStepNav nav={data.breadcrumbs} />
       <HomeHeader canCreate subtitle={data.description} title="Your regions" />
       <StatTiles label="Verification health" tiles={statistics.health} />
-      <StatTiles label="Last 30 days" tiles={statistics.analytics} />
+      <StatTiles label="Statistics • Last 30 days" tiles={statistics.analytics} />
       <SectionTabs
         active={items.query.section}
         progress={items.progress}
@@ -53,7 +53,7 @@ export default async function AtlasRegion({ req, searchParams }: AtlasRegionProp
       ) : (
         <OpenItemsList
           data={items}
-          emptyBanner="All clear. Every program in your regions is on track."
+          emptyBanner="All clear. Every event in your regions is on track."
           showMine
         />
       )}

@@ -71,7 +71,7 @@ const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' 
 
 /** What each role is called in a digest's heading and subject. */
 const ROLE_LABELS: Record<ManagerRole, string> = {
-  program: 'Your programs',
+  program: 'Your events',
   region: 'Your regions',
   admin: 'Sahaj Atlas',
 }

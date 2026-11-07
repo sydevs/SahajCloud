@@ -33,7 +33,7 @@ describe('dashboardChoiceFor', () => {
   /**
    * ⚠ Three homes, and the widest role wins. A region manager who also runs a
    * class of their own gets the region home: it carries their programs under
-   * its "Your programs" filter, where the program home carries nothing of the
+   * its "Your events" filter, where the program home carries nothing of the
    * region.
    */
   it('gives each Atlas role its own home', () => {
