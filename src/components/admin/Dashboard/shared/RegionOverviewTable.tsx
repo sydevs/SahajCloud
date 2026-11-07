@@ -11,8 +11,8 @@ import type { RegionOverviewRow } from '@/lib/atlasOverview/regions'
 import { regionLevelLabel } from '@/lib/atlasSidebar/sidebarModel'
 
 import styles from './Dashboard.module.css'
+import { IconTip } from './IconTip'
 import { PAGE_LIMITS } from './model'
-import { HoverTooltip } from '../../AtlasNav/HoverTooltip'
 import { CenteredNotice } from '../../CenteredNotice'
 import { Count, QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
@@ -27,17 +27,6 @@ const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
   region: MapIcon,
   city: Building2,
   venue: MapPin,
-}
-
-function LevelIcon({ level }: { level: RegionOverviewRow['level'] }) {
-  const Icon = LEVEL_ICON[level]
-  return (
-    <span className={styles.levelIcon}>
-      <HoverTooltip text={regionLevelLabel(level)}>
-        <Icon aria-label={regionLevelLabel(level)} role="img" size={16} />
-      </HoverTooltip>
-    </span>
-  )
 }
 
 function managersLabel({ count, names }: RegionOverviewRow['managers']): ReactNode {
@@ -92,8 +81,10 @@ export function RegionOverviewTable({
       <Table
         columns={[
           column('name', label, (row) => (
-            <div className={`${styles.itemInfo} ${styles.regionName}`}>
-              {subtree ? <LevelIcon level={row.level} /> : null}
+            <div className={`${styles.itemInfo} ${styles.titled}`}>
+              {subtree ? (
+                <IconTip icon={LEVEL_ICON[row.level]} label={regionLevelLabel(row.level)} />
+              ) : null}
               <Link
                 className={styles.stretched}
                 href={`?section=regions&region=${row.id}`}

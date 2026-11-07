@@ -113,6 +113,8 @@ describe('openItem', () => {
         label: 'Assign manager',
         target: { collection: 'events', id: 1 },
       })
+      // When it was added says nothing the pill does not.
+      expect(status.line).toBe('')
     })
 
     it('does not ask for a manager on a denied listing', () => {

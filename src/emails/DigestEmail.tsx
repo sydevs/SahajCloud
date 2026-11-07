@@ -29,8 +29,10 @@ export interface ItemTableRow {
   /** The next step's wording, linked to the page that takes it. */
   action?: null | { href: string; label: string }
   href: string
-  /** Pills and the lines under them, most urgent first. */
-  statuses: { line?: string; pillStyle: StatusPillStyle; text: string }[]
+  /** Pills, most urgent first. */
+  statuses: { pillStyle: StatusPillStyle; text: string }[]
+  /** The most urgent status's line, under the pills. */
+  line?: string
   title: string
 }
 
@@ -138,10 +140,10 @@ function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
                   }}
                 >
                   {status.text}
-                </span>
-                {status.line ? <Text style={itemLine}>{status.line}</Text> : null}
+                </span>{' '}
               </Fragment>
             ))}
+            {row.line ? <Text style={itemLine}>{row.line}</Text> : null}
           </Column>
         </Row>
       ))}

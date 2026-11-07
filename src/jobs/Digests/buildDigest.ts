@@ -115,11 +115,8 @@ function toEmailRow(item: OpenItem): ItemTableRow {
     href: target
       ? adminDocUrl(target.collection, target.id)
       : adminDocUrl(item.row.kind === 'event' ? 'events' : 'user-submissions', item.row.id),
-    statuses: item.statuses.map((status) => ({
-      line: status.line || undefined,
-      pillStyle: pillFor(status),
-      text: status.label,
-    })),
+    line: placing.line || undefined,
+    statuses: item.statuses.map((status) => ({ pillStyle: pillFor(status), text: status.label })),
     title: item.row.title,
   }
 }

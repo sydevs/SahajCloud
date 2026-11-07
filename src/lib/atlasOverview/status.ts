@@ -46,7 +46,7 @@ export interface OpenItemStatus {
   /** The pill's text, or the text beside the tick for `up-to-date`. */
   label: string
   pill: OpenItemPill
-  /** The line under the pill. */
+  /** What the pill means here; a row shows only its placing status's line. */
   line: string
   /** Lower comes first. */
   rank: number
@@ -68,6 +68,8 @@ export interface OpenItemEvent {
   updatedAt: string
   nextCheckAt?: null | string
   scheduleEnd?: null | string
+  /** "Every week on Monday at 7:00 PM" — when the program meets. */
+  timing?: string
   hasManager: boolean
   qualityOpenCount: number
   /** ⚠ Absent is not zero: the labels are read for the page alone, so the line falls back to the count. */
@@ -226,7 +228,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   if (stage === 'unverified' && !event.hasManager) {
     statuses.push(
       status('no-manager', {
-        line: `Added ${shortDate(event.createdAt)}${regionNote(event)}`,
+        line: event.unmanagedRegionId === undefined ? '' : 'No region manager',
         action: addRegionManager(event) ?? eventAction(event, 'Assign manager'),
         deadline: null,
       }),

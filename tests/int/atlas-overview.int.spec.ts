@@ -393,7 +393,7 @@ describe('Atlas overview', () => {
     it('offers to add a region manager rather than to verify', async () => {
       const data = await load()
       const row = data.items.rows.docs[0]!
-      expect(row.statuses[0]!.line).toMatch(/· no region manager$/)
+      expect(row.line).toMatch(/· no region manager$/)
       expect(row.action).toMatchObject({
         href: expect.stringContaining('/admin/collections/regions/'),
         label: 'Add region manager',
@@ -407,7 +407,7 @@ describe('Atlas overview', () => {
       expect(data.countries.docs.map((row) => row.name)).toContain('Orphan Country')
       const country = data.countries.docs.find((row) => row.name === 'Overview Country')!
       // Its own manager only, not those listed on the regions below it.
-      expect(country.managers).toEqual({ count: 1, names: ['Listed Manager'] })
+      expect(country.managers).toEqual({ count: 1, names: ['Listed M.'] })
     })
 
     it('lists a registration the spam check refused, and loses it once it is settled', async () => {

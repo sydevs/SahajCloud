@@ -8,10 +8,12 @@ import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissi
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
+import { scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import type { Event } from '@/payload-types'
 
 import { type OverviewArgs, type OverviewScope, scopeRegionIds } from './scope'
 import {
@@ -42,7 +44,18 @@ const EVENT_SELECT = {
   qualityOpenCount: true,
   manager: true,
   region: true,
-  schedule: { lastDate: true },
+  schedule: {
+    firstDate: true,
+    firstDate_tz: true,
+    lastDate: true,
+    recurrenceType: true,
+    interval: true,
+    weekdays: true,
+    monthlyMode: true,
+    monthDay: true,
+    weekNumber: true,
+    weekdayOfMonth: true,
+  },
 } as const
 
 /** The columns the listing-quality report reads. */
@@ -303,6 +316,7 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
       updatedAt: doc.updatedAt,
       nextCheckAt: doc.nextCheckAt ?? null,
       scheduleEnd: doc.schedule?.lastDate ?? null,
+      timing: scheduleOneLine(doc.schedule as Event['schedule']),
       hasManager: relationId(doc.manager) !== null,
       // A region manager sees recommendations on their own events only.
       qualityOpenCount: scope.role !== 'region' || own ? (doc.qualityOpenCount ?? 0) : 0,

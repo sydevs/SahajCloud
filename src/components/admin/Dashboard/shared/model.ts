@@ -2,7 +2,7 @@ import type { PaginatedDocs } from 'payload'
 
 import type { OpenItemFilter } from '@/lib/atlasOverview/filters'
 import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
-import type { OpenItemStatus, OverviewProgress } from '@/lib/atlasOverview/status'
+import type { OpenItemRow, OpenItemStatus, OverviewProgress } from '@/lib/atlasOverview/status'
 
 import { firstParam, pageParam } from '../../helpers/searchParams'
 
@@ -10,9 +10,14 @@ import { firstParam, pageParam } from '../../helpers/searchParams'
 export interface OpenItemsRow {
   /** Unique across the row kinds a list mixes, which share an id space. */
   id: string
+  kind: OpenItemRow['kind']
   title: string
+  /** When an event meets; empty for a submission. */
+  subtitle: string
   href: string
-  statuses: Pick<OpenItemStatus, 'key' | 'label' | 'line' | 'pill'>[]
+  statuses: Pick<OpenItemStatus, 'key' | 'label' | 'pill'>[]
+  /** The placing status's line, the one that says why the row is where it is. */
+  line: string
   action: null | { href: string; label: string }
 }
 

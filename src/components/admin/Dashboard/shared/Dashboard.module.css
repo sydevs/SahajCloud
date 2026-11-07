@@ -26,6 +26,12 @@
 }
 
 /* Statistics: flat, no border, no radius — numbers to glance at. */
+.tilesHeading {
+  margin: 0 0 calc(var(--base) / 3);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--theme-elevation-650);
+}
 .tiles {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(calc(var(--base) * 8), 1fr));
@@ -34,12 +40,18 @@
   padding: 0;
   list-style: none;
 }
-.tiles li {
+.tileLink {
   display: flex;
   flex-direction: column;
   gap: calc(var(--base) / 8);
+  height: 100%;
   padding: calc(var(--base) * 0.6) calc(var(--base) * 0.7);
   background: var(--theme-elevation-50);
+  color: inherit;
+  text-decoration: none;
+}
+a.tileLink:hover {
+  background: var(--theme-elevation-100);
 }
 .tileLabel {
   font-size: 0.75rem;
@@ -107,13 +119,20 @@
 .itemInfo a:hover {
   text-decoration: underline;
 }
-.regionName {
+.titled {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: calc(var(--base) / 3);
 }
+.itemInfo small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--theme-elevation-500);
+}
 /* Above the stretched name link, so the icon's own tooltip can be hovered. */
-.levelIcon {
+.iconTip {
+  /* Level with the first line of the title beside it. */
+  padding-top: 2px;
   position: relative;
   z-index: 1;
   display: inline-flex;
@@ -145,11 +164,17 @@
   color: var(--theme-success-500);
 }
 .list :global(.cell-item) {
-  width: 100%;
   min-width: calc(var(--base) * 10);
+}
+/* A row's pills share one line, and its line stays one line. */
+.list :global(.cell-status) {
+  white-space: nowrap;
 }
 .list :global(.cell-action),
 .list :global(#heading-action) {
+  /* Payload gives every cell \`min-width: 150px\`; a button needs no more than its own width. */
+  min-width: 0;
+  width: 1%;
   white-space: nowrap;
   text-align: end;
 }

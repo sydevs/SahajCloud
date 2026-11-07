@@ -256,32 +256,24 @@ const OPEN_ROWS: ItemTableRow[] = [
   {
     action: { href: `${ADMIN}/1041`, label: 'Verify' },
     href: `${ADMIN}/1041`,
+    line: 'Unpublishes 12 Nov 2026',
     statuses: [
-      { line: 'Unpublishes 12 Nov 2026', pillStyle: 'error', text: 'Overdue' },
-      {
-        line: 'Add photos, Improve the event description',
-        pillStyle: 'light-gray',
-        text: '2 recommendations',
-      },
+      { pillStyle: 'error', text: 'Overdue' },
+      { pillStyle: 'light-gray', text: '2 recommendations' },
     ],
     title: 'Tuesday Evening Meditation',
   },
   {
     action: { href: `${SUBMISSIONS}/5120`, label: 'Review' },
     href: `${SUBMISSIONS}/5120`,
-    statuses: [
-      {
-        line: 'Address › City, Schedule › Start Time · received 3 Nov 2026',
-        pillStyle: 'success',
-        text: 'Change proposed',
-      },
-    ],
+    line: 'Address › City, Schedule › Start Time · received 3 Nov 2026',
+    statuses: [{ pillStyle: 'success', text: 'Change proposed' }],
     title: 'Saturday Morning Meditation',
   },
   {
     action: { href: `${ADMIN}/1044`, label: 'Assign manager' },
     href: `${ADMIN}/1044`,
-    statuses: [{ line: 'Added 28 Oct 2026', pillStyle: 'warning', text: 'No manager' }],
+    statuses: [{ pillStyle: 'warning', text: 'No manager' }],
     title: 'Introduction to Meditation — Open Day',
   },
 ]
@@ -359,13 +351,8 @@ const DIGEST_SCENARIOS: DigestScenario[] = [
           {
             action: { href: `${SUBMISSIONS}/5400`, label: 'Review' },
             href: `${SUBMISSIONS}/5400`,
-            statuses: [
-              {
-                line: 'repeatedly refused sender · 4 Nov 2026',
-                pillStyle: 'success',
-                text: 'Flagged as spam',
-              },
-            ],
+            line: 'repeatedly refused sender · 4 Nov 2026',
+            statuses: [{ pillStyle: 'success', text: 'Flagged as spam' }],
             title: 'Nadia Haddad',
           },
         ],

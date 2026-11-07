@@ -1,12 +1,14 @@
 'use client'
 
 import { Banner, Button, CheckIcon, Pill, Table } from '@payloadcms/ui'
+import { CalendarDays, FilePlus, type LucideIcon, UserX } from 'lucide-react'
 import Link from 'next/link'
 
 import type { OpenItemFilter } from '@/lib/atlasOverview/filters'
 import { OPEN_ITEM_FILTERS } from '@/lib/atlasOverview/filters'
 
 import styles from './Dashboard.module.css'
+import { IconTip } from './IconTip'
 import { type OpenItemsData, type OpenItemsRow, PAGE_LIMITS, type OpenItemTab } from './model'
 import { FilterTabs, QueryPager } from '../../helpers/listControls'
 import { tableColumn } from '../../helpers/tableColumn'
@@ -26,6 +28,12 @@ const FILTERS: { label: string; value: OpenItemTab }[] = [
   ...OPEN_ITEM_FILTERS.map((filter) => ({ label: FILTER_LABELS[filter], value: filter })),
   { label: 'Your programs', value: 'mine' },
 ]
+
+const KIND: Record<OpenItemsRow['kind'], { icon: LucideIcon; label: string }> = {
+  event: { icon: CalendarDays, label: 'Program' },
+  proposal: { icon: FilePlus, label: 'Proposed class' },
+  refusal: { icon: UserX, label: 'Sign-up' },
+}
 
 function StatusPill({ status }: { status: OpenItemsRow['statuses'][number] }) {
   if (status.pill === 'check') {
@@ -98,10 +106,14 @@ export function OpenItemsList({
                   'item',
                   'Item',
                   docs.map((row) => (
-                    <div className={styles.itemInfo} key={row.id}>
-                      <Link href={row.href} prefetch={false}>
-                        {row.title}
-                      </Link>
+                    <div className={`${styles.itemInfo} ${styles.titled}`} key={row.id}>
+                      <IconTip {...KIND[row.kind]} />
+                      <div>
+                        <Link href={row.href} prefetch={false}>
+                          {row.title}
+                        </Link>
+                        {row.subtitle ? <small>{row.subtitle}</small> : null}
+                      </div>
                     </div>
                   )),
                 ),
@@ -115,14 +127,7 @@ export function OpenItemsList({
                           <StatusPill key={status.key} status={status} />
                         ))}
                       </div>
-                      {row.statuses.some((status) => status.line) && (
-                        <p>
-                          {row.statuses
-                            .map((status) => status.line)
-                            .filter(Boolean)
-                            .join(' • ')}
-                        </p>
-                      )}
+                      {row.line ? <p>{row.line}</p> : null}
                     </div>
                   )),
                 ),

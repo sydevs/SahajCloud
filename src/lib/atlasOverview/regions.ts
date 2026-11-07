@@ -26,6 +26,18 @@ export interface RegionOverviewRow {
 }
 
 /**
+ * "Anna Maria Lewis" → "Anna L.": the first name and the last one's initial.
+ * A row naming two people ("A, B") or a variant ("A - German") is cut to the first.
+ */
+function shortName(name: string): string {
+  const [person = ''] = name.split(/[,&/]| - /)
+  const words = person.split(/\s+/).filter((word) => /^\p{L}/u.test(word))
+  if (words.length === 0) return 'Unnamed manager'
+  if (words.length === 1) return words[0]!
+  return `${words[0]} ${Array.from(words.at(-1)!)[0]!.toUpperCase()}.`
+}
+
+/**
  * Both overviews, ordered. `countriesOnly` is the admin's view: a country is
  * where an ancestor's cover runs out.
  */
@@ -119,9 +131,7 @@ export async function loadRegionOverview(
       level,
       managers: {
         count: own.length,
-        names: own
-          .slice(0, 2)
-          .map((managerId) => managerName.get(managerId)?.trim() || 'Unnamed manager'),
+        names: own.slice(0, 2).map((managerId) => shortName(managerName.get(managerId) ?? '')),
       },
       programs: row.programs,
       healthy: row.programs > 0 ? Math.round((row.healthy / row.programs) * 100) : null,

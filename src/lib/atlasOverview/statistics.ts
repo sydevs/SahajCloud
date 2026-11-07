@@ -10,6 +10,8 @@
 
 import type { PayloadRequest, Where } from 'payload'
 
+import * as qs from 'qs-esm'
+
 import { getRegionTree } from '@/lib/atlas/regionTree'
 import { addDays } from '@/lib/eventVerification/periods'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
@@ -110,7 +112,13 @@ export interface StatTile {
   of?: number
   /** The 30-day change, or `null` where nothing can say. */
   change: null | number
+  /** The admin list of what the tile counts, under the admin route; absent where the reader has none. */
+  path?: `/${string}`
 }
+
+/** ⚠ An `in` list goes as one comma-joined value, which Payload splits; indexed keys make a subtree's URL kilobytes long. */
+const listPath = (collection: string, and: Where[]): `/${string}` =>
+  `/collections/${collection}${qs.stringify({ where: { and } }, { addQueryPrefix: true })}`
 
 export interface OverviewStatistics {
   /** Empty for a program manager, who has no ladder to watch. */
@@ -137,6 +145,13 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
     req.payload.kv.get<AtlasSnapshotCounts>(snapshotKey(snapshotDate(addDays(now, -WINDOW_DAYS)))),
   ])
   const regionIds = await scopeRegionIds(req, scope, tree)
+  const inScope: Where[] =
+    scope.role === 'program'
+      ? [{ manager: { equals: scope.managerId } }]
+      : [{ region: regionIds ? { in: [...regionIds].join(',') } : { exists: true } }]
+  // ⚠ Registrations appear for nobody but an admin, who alone reads a region scope with no manager.
+  const readsSubmissions =
+    scope.role === 'admin' || (scope.role === 'region' && scope.managerId === null)
 
   const { docs } = await req.payload.find({
     collection: 'events',
@@ -172,6 +187,7 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
             label,
             value,
             change: before ? value - sum(before) : null,
+            path: listPath('events', [...inScope, { verificationStage: { in: stages.join(',') } }]),
           }
         })
 
@@ -209,12 +225,20 @@ export async function loadStatistics(args: OverviewArgs): Promise<OverviewStatis
         label: 'Total programs',
         value: programs.size,
         change: programsBefore === null ? null : programs.size - programsBefore,
+        path: listPath('events', [...inScope, { verificationStage: { not_equals: 'finished' } }]),
       },
       {
         key: 'registrations',
         label: 'Registrations',
         value: signupsNow,
         change: signupsNow - signupsPrevious,
+        ...(readsSubmissions && {
+          path: listPath('user-submissions', [
+            { type: { equals: 'registration' } },
+            { createdAt: { greater_than: addDays(now, -WINDOW_DAYS).toISOString() } },
+            ...(regionIds ? [{ 'event.region': { in: [...regionIds].join(',') } }] : []),
+          ]),
+        }),
       },
       {
         key: 'programs-with-signup',
