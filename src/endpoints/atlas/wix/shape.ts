@@ -1,3 +1,4 @@
+import type { AtlasWixRouteResponse, AtlasWixSitemapEntry } from './contract'
 import type { JsonLdGraph, JsonLdNode } from '../seo/jsonLd'
 import type { AtlasSeoDocument } from '../seo/seoDocument'
 import type { AtlasSitemapResolution } from '../sitemap/resolve'
@@ -29,64 +30,7 @@ import { parseAtlasRoute } from '../seo/atlasRoute'
  *   top-level `description` or `noIndex`, so the other shape publishes neither.
  */
 
-/**
- * `GET /api/atlas/wix/route` success body.
- *
- * ⚠ **`status` is the answer about the *page*, not about this request.** A 404
- * arrives as HTTP 200 carrying `status: 404`, because an HTTP 404 would be
- * indistinguishable from the endpoint being gone — the case the router must
- * degrade for.
- */
-export type AtlasWixRouteResponse = {
-  /** `200` renders, `301` redirects to `redirect`, `404` is `notFound()`. */
-  status: 200 | 301 | 404
-  /**
-   * The **atlas route** to redirect to on a `301` — never a URL, never prefixed.
-   * The router composes `/${prefix}${redirect}`; a URL from us would send a
-   * visitor off-site whenever the canonical names another client's domain.
-   */
-  redirect: string | null
-  head: {
-    title: string
-    /**
-     * ⚠ **A union, not one object with two optional keys** — Wix reads `name`
-     * or `property`, never both. `description` and `robots` live here only: Wix
-     * honours no top-level copy.
-     */
-    metaTags: ({ name: string; content: string } | { property: string; content: string })[]
-    /**
-     * **Empty when the canonical is the page being asked for**: Wix then writes
-     * the self-canonical and Wix Multilingual the `hreflang` cluster, and ours
-     * beside them would give the page two canonicals.
-     */
-    links: { rel: string; href: string; hreflang?: string }[]
-    structuredData: JsonLdNode[]
-  }
-  /**
-   * What the page reads through `getRouterData()`. ⚠ `bodyHtml` is the one
-   * place the atlas SEO surface emits markup, escaped in `wixBody.tsx` — a Wix
-   * `html` sink sanitizes nothing.
-   */
-  data: { bodyHtml: string } | null
-  /** `ok()`'s `cache.ttl`. */
-  cacheSeconds: number
-}
-
 type WixHead = AtlasWixRouteResponse['head']
-
-/**
- * One `WixRouterSitemapEntry`.
- *
- * ⚠ **`url` is relative to the site root and DOES carry the router's prefix** —
- * the opposite of `redirect`, which the router prefixes itself. Nothing sits
- * between a sitemap entry and Wix.
- */
-export type AtlasWixSitemapEntry = {
-  url: string
-  title: string
-  /** ISO 8601 instant the document was last edited. */
-  lastmod: string
-}
 
 /** Wix's own cache is what bounds our request volume. */
 export const WIX_CACHE_SECONDS = 300

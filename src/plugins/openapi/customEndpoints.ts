@@ -17,8 +17,15 @@
  * module and the merge block in the route handler.
  */
 
+import { z } from 'zod'
+
 import { MAX_ATLAS_ROUTE_LENGTH } from '@/endpoints/atlas/seo/atlasRoute'
-import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
+import {
+  wixRouteQuery,
+  wixRouteResponse,
+  wixSitemapEntry,
+  wixSitemapQuery,
+} from '@/endpoints/atlas/wix/contract'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
@@ -237,6 +244,29 @@ const errorResponse = (description: string): OpenAPIResponse => ({
     },
   },
 })
+
+/** A Zod schema as the OpenAPI 3.1 schema object (JSON Schema 2020-12) it describes. */
+function fromZod(schema: z.ZodType): OpenAPISchemaObject {
+  const { $schema: _dialect, ...described } = z.toJSONSchema(schema, {
+    target: 'draft-2020-12',
+    reused: 'inline',
+  })
+  return described
+}
+
+/** A handler's own query schema, as the parameters it documents: one per key. */
+function queryParameters(query: z.ZodObject): OpenAPIParameter[] {
+  return Object.entries(query.shape).map(([name, field]) => {
+    const { description, ...schema } = fromZod(field as z.ZodType)
+    return {
+      name,
+      in: 'query',
+      required: !(field as z.ZodType).safeParse(undefined).success,
+      schema,
+      ...(typeof description === 'string' ? { description } : {}),
+    }
+  })
+}
 
 /** The 403 every root Atlas endpoint answers: no client guard passed, or the origin gate. */
 const ROOT_ENDPOINT_FORBIDDEN =
@@ -593,29 +623,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'page view, and the router’s own cache is what bounds the volume. Sets ' +
         '`Cache-Control: public, max-age=300, s-maxage=300`.',
       operationId: 'atlasWixRoute',
-      parameters: [
-        {
-          name: 'path',
-          in: 'query',
-          required: true,
-          schema: { type: 'string', minLength: 1, maxLength: MAX_ATLAS_ROUTE_LENGTH },
-          description:
-            'The atlas route, as the router reads it off `request.path` — `/ca/ontario`. ' +
-            'A `sahaj-atlas-probe-*` path is answered as the atlas root with ' +
-            '`robots: noindex`, which the CMS’s routing probe depends on.',
-        },
-        {
-          name: 'lang',
-          in: 'query',
-          required: false,
-          schema: { type: 'string', maxLength: 20 },
-          description:
-            'The page’s language subtag (`fr`), from `request.baseUrl` on a Multilingual ' +
-            'site. Empty means the service’s own language. Any other language gets ' +
-            '`robots: noindex` on sub-routes, since nothing in the atlas is translated; ' +
-            'one with no SEO locale is answered in English rather than refused.',
-        },
-      ],
+      parameters: queryParameters(wixRouteQuery),
       responses: {
         '200': {
           description:
@@ -656,22 +664,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'Sets `Cache-Control: public, max-age=300, s-maxage=300` on ' +
         '`Vary: Authorization`.',
       operationId: 'atlasWixSitemap',
-      parameters: [
-        {
-          name: 'prefix',
-          in: 'query',
-          required: true,
-          schema: {
-            type: 'string',
-            maxLength: WIX_PREFIX_MAX_LENGTH,
-            // The enforced rule, not a copy of it — the handler's own regex.
-            pattern: WIX_PREFIX_PATTERN.source,
-          },
-          description:
-            'The router’s dynamic-page prefix, one lowercase path segment — ' +
-            '`free-classes`. Spliced into every entry’s `url`.',
-        },
-      ],
+      parameters: queryParameters(wixSitemapQuery),
       responses: {
         '200': {
           description:
@@ -1631,120 +1624,9 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
-  /**
-   * `GET /api/atlas/wix/route` success body. Keep in lockstep with
-   * `AtlasWixRouteResponse` in `src/endpoints/atlas/wix/shape.ts`.
-   */
-  AtlasWixRouteResponse: {
-    type: 'object',
-    required: ['status', 'redirect', 'head', 'data', 'cacheSeconds'],
-    properties: {
-      status: {
-        type: 'integer',
-        enum: [200, 301, 404],
-        description:
-          'About the page, not this request: `200` renders, `301` redirects, `404` is ' +
-          '`notFound()`. The HTTP status is always 200.',
-      },
-      redirect: {
-        type: ['string', 'null'],
-        description:
-          'On a `301`, the atlas route to redirect to — never a URL and never prefixed. ' +
-          'The router composes its own prefix.',
-      },
-      head: {
-        type: 'object',
-        required: ['title', 'metaTags', 'links', 'structuredData'],
-        description: 'The `head` half of a Wix router answer, in the shape `ok()` takes.',
-        properties: {
-          title: { type: 'string', description: 'Ready for `<title>`, already plain text.' },
-          metaTags: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['content'],
-              properties: {
-                name: { type: 'string', description: 'A standard meta — `description`, `robots`.' },
-                property: { type: 'string', description: 'An Open Graph property — `og:title`.' },
-                content: { type: 'string' },
-              },
-            },
-            description:
-              'Exactly one of `name` or `property` per row. `description` and `robots` live ' +
-              'here and nowhere else — Wix honours no top-level copy of either.',
-          },
-          links: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['rel', 'href'],
-              properties: {
-                rel: { type: 'string', description: '`canonical` or `alternate`.' },
-                href: { type: 'string' },
-                hreflang: { type: 'string', description: 'On an `alternate` only.' },
-              },
-            },
-            description:
-              'Empty for the atlas root and wherever this client canonicalises on its own ' +
-              'host, so Wix writes the self-canonical and Multilingual the hreflang cluster.',
-          },
-          structuredData: {
-            type: 'array',
-            items: { type: 'object', additionalProperties: true },
-            description:
-              'JSON-LD as objects — the identical document `/api/atlas/seo` returns ' +
-              'pre-serialized as `jsonLd`. Wix serializes it itself.',
-          },
-        },
-      },
-      data: {
-        anyOf: [
-          {
-            type: 'object',
-            required: ['bodyHtml'],
-            properties: {
-              bodyHtml: {
-                type: 'string',
-                description:
-                  'The crawlable body, as escaped HTML, for `$w(…).html`. Links are real ' +
-                  '`<a>` elements. The one place this surface emits markup.',
-              },
-            },
-          },
-          { type: 'null' },
-        ],
-        description:
-          'What the router hands its page through `getRouterData()`. `null` on a `301` ' +
-          'or a `404` — there is no page to render.',
-      },
-      cacheSeconds: {
-        type: 'integer',
-        description: 'What to pass as `ok()`’s `cache.ttl`. The router’s cache bounds our volume.',
-      },
-    },
-  },
-  /** One `WixRouterSitemapEntry` from `GET /api/atlas/wix/sitemap`. */
-  AtlasWixSitemapEntry: {
-    type: 'object',
-    required: ['url', 'title', 'lastmod'],
-    properties: {
-      url: {
-        type: 'string',
-        description:
-          'Relative to the site root, **with** the router prefix — ' +
-          '`/free-classes/ca/ontario`.',
-      },
-      title: {
-        type: 'string',
-        description: 'The document’s display name, falling back to its route.',
-      },
-      lastmod: {
-        type: 'string',
-        format: 'date-time',
-        description: 'When the document was last edited — its `updatedAt`.',
-      },
-    },
-  },
+  // Both Wix bodies, from the handlers' own contract (`wix/contract.ts`).
+  AtlasWixRouteResponse: fromZod(wixRouteResponse),
+  AtlasWixSitemapEntry: fromZod(wixSitemapEntry),
   /**
    * Shape of 4xx response bodies emitted by the custom endpoints. Zod errors
    * use `{ errors: ZodIssue[] }` (each issue has at minimum `message` + `path`);

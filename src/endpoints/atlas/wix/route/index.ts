@@ -1,7 +1,5 @@
 import type { Endpoint } from 'payload'
 
-import { z } from 'zod'
-
 import { siteHosts } from '@/lib/clients/site'
 import { parseQuery, readFailureResponse, requireClientAccess } from '@/lib/endpoints'
 import { baseLanguage, DEFAULT_LOCALE, localeForLanguage } from '@/lib/locales'
@@ -9,21 +7,16 @@ import type { Client } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
-import { MAX_ATLAS_ROUTE_LENGTH, parseAtlasRoute } from '../../seo/atlasRoute'
+import { parseAtlasRoute } from '../../seo/atlasRoute'
 import { resolveAtlasSeo } from '../../seo/resolve'
+import { type AtlasWixRouteResponse, wixRouteQuery } from '../contract'
 import {
-  type AtlasWixRouteResponse,
   isProbePath,
   normalizeAtlasPath,
   routeRelation,
   wixNotFound,
   wixRouteAnswer,
 } from '../shape'
-
-const querySchema = z.object({
-  path: z.string().min(1).max(MAX_ATLAS_ROUTE_LENGTH),
-  lang: z.string().max(20).optional(),
-})
 
 /**
  * GET /api/atlas/wix/route?path=/ca/ontario&lang=en
@@ -64,7 +57,7 @@ export const atlasWixRoute: Endpoint = {
     const denied = requireClientAccess(req)
     if (denied) return denied
 
-    const parsed = parseQuery(req, querySchema)
+    const parsed = parseQuery(req, wixRouteQuery)
     if (!parsed.ok) return parsed.response
     const headers = publicReadCacheHeaders(req, ['events', 'regions'])
 

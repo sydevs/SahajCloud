@@ -1,8 +1,5 @@
 import type { Endpoint } from 'payload'
 
-import { z } from 'zod'
-
-import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '@/lib/atlas/wixPrefix'
 import { siteHosts } from '@/lib/clients/site'
 import {
   parseQuery,
@@ -15,14 +12,8 @@ import { publicReadCacheHeaders } from '@/plugins/cache'
 import { countClientRead } from '@/plugins/usage'
 
 import { resolveAtlasSitemap } from '../../sitemap/resolve'
-import { type AtlasWixSitemapEntry, wixSitemapEntries } from '../shape'
-
-const querySchema = z.object({
-  // The Install tab's own rule, so a prefix it accepts cannot be refused here.
-  prefix: z.string().min(1).max(WIX_PREFIX_MAX_LENGTH).regex(WIX_PREFIX_PATTERN, {
-    message: 'A router prefix is one lowercase path segment, e.g. free-classes.',
-  }),
-})
+import { type AtlasWixSitemapEntry, wixSitemapQuery } from '../contract'
+import { wixSitemapEntries } from '../shape'
 
 /**
  * GET /api/atlas/wix/sitemap?prefix=free-classes
@@ -46,7 +37,7 @@ export const atlasWixSitemap: Endpoint = {
     const denied = requireClientAccess(req)
     if (denied) return denied
 
-    const parsed = parseQuery(req, querySchema)
+    const parsed = parseQuery(req, wixSitemapQuery)
     if (!parsed.ok) return parsed.response
 
     const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')

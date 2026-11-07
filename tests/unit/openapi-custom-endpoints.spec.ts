@@ -609,7 +609,7 @@ describe('the Wix router endpoints are documented', () => {
     }
   })
 
-  it('keeps the response schema in lockstep with the type', () => {
+  it('publishes the shape the handlers’ contract declares', () => {
     const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as Schema
     expect(response.required?.sort()).toEqual([
       'cacheSeconds',
