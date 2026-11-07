@@ -32,7 +32,6 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
-import { claimCanonical } from './endpoints/claimCanonical'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -877,7 +876,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand, claimCanonical],
+  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
     beforeChange: [
       validateClientData,

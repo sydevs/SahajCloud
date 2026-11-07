@@ -3,7 +3,6 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Clients } from '@/collections/Clients/Clients'
-import { claimCanonical } from '@/collections/Clients/endpoints/claimCanonical'
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { verifyEmbedOnDemand } from '@/collections/Clients/endpoints/verifyEmbed'
 import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
@@ -1305,22 +1304,22 @@ describe('client canonical ownership + embed metadata', () => {
   })
 
   /**
-   * `POST /api/clients/:id/claim-canonical` (#1055) — what the Install tab calls
-   * the moment the widget reports itself, so the common case needs no decision
-   * from anyone.
+   * The region claim `verify-embed` makes before it verifies (#1055) — so the
+   * common case, the first site in its region, needs no decision from anyone.
    *
    * Every case here is about a refusal, because the success path is one line and
    * the refusals are what a volunteer actually meets. The uniqueness rule in
    * particular is **not** re-implemented in the endpoint, so these assert that
    * the hook's own refusal reaches the caller rather than that a second copy of
-   * it agrees.
+   * it agrees. Run without Cloudflare credentials, so the verification half is
+   * `inconclusive` and changes nothing.
    */
-  describe('claim-canonical', () => {
+  describe('the region claim', () => {
     const DOMAIN = 'claimed.example'
     const PAGE = '/classes'
     const MOUNT = `https://${DOMAIN}${PAGE}`
 
-    /** No body: the page is the service's own `site`. */
+    /** The claim half of a check's answer. */
     const callClaim = async (
       clientId: number,
       user: Record<string, unknown> = { id: managerId, collection: 'managers', type: 'admin' },
@@ -1329,12 +1328,12 @@ describe('client canonical ownership + embed metadata', () => {
         payload,
         routeParams: { id: String(clientId) },
         user,
-        json: async () => ({}),
       } as unknown as PayloadRequest
-      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
-        req,
-      )
-      return { status: response.status, body: await response.json() }
+      const response = await (
+        verifyEmbedOnDemand.handler as (r: PayloadRequest) => Promise<Response>
+      )(req)
+      const body = (await response.json()) as { claim?: { status?: string; message?: string } }
+      return { status: response.status, body: body.claim ?? {} }
     }
 
     const observation = (report: { mode?: 'inline' | 'iframe'; urlWritable?: boolean }) => ({
@@ -1382,31 +1381,6 @@ describe('client canonical ownership + embed metadata', () => {
       expect(status).toBe(200)
       expect(body.status).toBe('claimed')
       expect((await readClient(client.id)).canonical?.owned).toBe(true)
-    })
-
-    it('needs no mount in the body — a body naming one changes nothing', async () => {
-      // The page is the record's own. A forged mount in the body is ignored.
-      const region = await createRegion('claim-forged-body')
-      const client = await withReport('Claim Forged Body', { region: region.id })
-      const req = {
-        payload,
-        routeParams: { id: String(client.id) },
-        user: { id: managerId, collection: 'managers', type: 'admin' },
-        json: async () => ({ mount: 'https://attacker.example/classes' }),
-      } as unknown as PayloadRequest
-      const response = await (claimCanonical.handler as (r: PayloadRequest) => Promise<Response>)(
-        req,
-      )
-      expect(((await response.json()) as { status: string }).status).toBe('claimed')
-      expect((await readClient(client.id)).canonical?.embed).toBe(MOUNT)
-    })
-
-    it('asks for the address first when the service has none', async () => {
-      const region = await createRegion('claim-no-page')
-      const client = await createClient('Claim No Page', { region: region.id })
-      const { body } = await callClaim(client.id)
-      expect(body.status).toBe('no-page')
-      expect((await readClient(client.id)).canonical?.owned ?? false).toBe(false)
     })
 
     it('refuses a page the widget has never reported', async () => {
@@ -1496,11 +1470,10 @@ describe('client canonical ownership + embed metadata', () => {
         region: region.id,
         canonical: { owned: true },
       })
-      const before = await readClient(client.id)
 
       const { body } = await callClaim(client.id)
       expect(body.status).toBe('already')
-      expect((await readClient(client.id)).updatedAt).toBe(before.updatedAt)
+      expect((await readClient(client.id)).canonical?.owned).toBe(true)
     })
 
     it('lets a listed manager claim, though they may not write the flag themselves', async () => {

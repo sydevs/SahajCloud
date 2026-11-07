@@ -1,7 +1,6 @@
 import type { Step, StepId, Track, TrackMeta } from './steps'
 
-import type { ClaimCanonicalResponse } from '@/collections/Clients/endpoints/claimCanonical'
-import type { VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
+import type { ClaimResult, VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import type { InfoBannerType } from '@/components/admin/InfoBanner/InfoBanner'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { normalizeMountPath, siteHosts } from '@/lib/clients/site'
@@ -491,10 +490,9 @@ export function installProgress(milestones: Milestone[]): { done: number; total:
  * `no-class-addresses` are not here: neither is something to fix, and the status
  * table already says what each means.
  */
-const CLAIM_TITLES: Partial<Record<ClaimCanonicalResponse['status'], string>> = {
+const CLAIM_TITLES: Partial<Record<ClaimResult['status'], string>> = {
   taken: 'Another site already has this region',
   'unknown-mount': 'We have not seen this page yet',
-  'no-page': 'Add your atlas address first',
 }
 
 /**
@@ -508,7 +506,7 @@ export function checkOutcome(args: {
   /** `null` when the widget has not reported itself from this address. */
   path: string | null
   reported: boolean
-  claim: ClaimCanonicalResponse | null
+  claim: ClaimResult | null
   verify: Pick<VerifyEmbedResponse, 'status' | 'message' | 'seo'> | null
   /** `false` for a track whose search checks say nothing (`TrackMeta.searchListings`). */
   searchListings?: boolean

@@ -14,8 +14,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ClaimCanonicalResponse } from '@/collections/Clients/endpoints/claimCanonical'
-import type { VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
+import type { ClaimResult, VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import { CopyBlock } from '@/components/admin/CopyBlock'
 import { tableColumn } from '@/components/admin/helpers/tableColumn'
 import { InfoBanner } from '@/components/admin/InfoBanner'
@@ -333,27 +332,21 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
   }, [clientId])
 
   /**
-   * Confirm the embed, claim the canonical, run the SEO checks — in that order.
-   *
-   * The order is the dependency: the checks compare what a crawler sees against
-   * the canonical this service publishes, so claiming it afterwards would check
-   * the previous owner's answer. `verify-embed` runs the checks itself once the
-   * mount verifies, which is why this ends with one more read rather than a
-   * third call. Answers what both calls said, for the Check buttons to show.
+   * Claim the region, confirm the embed and run the SEO checks — one call,
+   * `verify-embed`, which does all three in that order — then re-read the row.
+   * Answers what it said, for the Check buttons to show.
    */
   const confirm = useCallback(async (): Promise<{
-    claim: ClaimCanonicalResponse | null
+    claim: ClaimResult | null
     verify: VerifyEmbedResponse | null
   }> => {
     setBusy(true)
     try {
-      // The primary page is the record's own, so the claim takes no body —
-      // and the address must be saved before it can name the right page.
+      // The check reads the saved address, so the queue is flushed first.
       await save.flush()
-      const claim = await post<ClaimCanonicalResponse>(`/api/clients/${clientId}/claim-canonical`)
       const verify = await post<VerifyEmbedResponse>(`/api/clients/${clientId}/verify-embed`)
       await reread()
-      return { claim, verify }
+      return { claim: verify?.claim ?? null, verify }
     } finally {
       setBusy(false)
     }
@@ -698,7 +691,7 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
  *
  * Saves run one at a time, in order, so a slow save cannot land after a later
  * one and undo it. `save.flush()` waits for the queue, which is what the Check
- * runs before claiming: the claim reads the saved address, not the typed one.
+ * runs before checking: the check reads the saved address, not the typed one.
  */
 function useSiteSave(clientId: number) {
   const [state, setState] = useState<SaveStatus>('idle')
