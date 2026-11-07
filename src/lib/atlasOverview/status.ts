@@ -68,7 +68,7 @@ export interface OpenItemEvent {
   updatedAt: string
   nextCheckAt?: null | string
   scheduleEnd?: null | string
-  /** "Every week on Monday at 7:00 PM" — when the program meets. */
+  /** "7:00 PM, Tuesdays, Vancouver" — when and where the event meets. */
   timing?: string
   hasManager: boolean
   qualityOpenCount: number

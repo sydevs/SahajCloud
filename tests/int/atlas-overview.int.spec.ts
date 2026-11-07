@@ -250,6 +250,9 @@ describe('Atlas overview', () => {
 
     it('sees escalated listings, unadopted ones, and their own — not a quiet one', async () => {
       const data = await load()
+      // The city it meets in closes the subtitle ("7:00 PM, Tuesdays, Managed City").
+      const escalated = data.items.rows.docs.find((row) => row.title === 'Escalated elsewhere')!
+      expect(escalated.subtitle).toMatch(/(^|, )Managed City$/)
       expect(titles(data.items.rows.docs)).toEqual([
         'Assigned program',
         'Escalated elsewhere',

@@ -8,7 +8,6 @@ import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissi
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
-import { scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
@@ -45,6 +44,7 @@ const EVENT_SELECT = {
   qualityOpenCount: true,
   manager: true,
   region: true,
+  address: { city: true },
   schedule: {
     firstDate: true,
     firstDate_tz: true,
@@ -80,6 +80,80 @@ export interface OpenItemsResult {
   items: OpenItem[]
   /** `null` for an admin, whose list has no denominator. */
   progress: null | OverviewProgress
+}
+
+const WEEKDAYS: Record<string, string> = {
+  MO: 'Monday',
+  TU: 'Tuesday',
+  WE: 'Wednesday',
+  TH: 'Thursday',
+  FR: 'Friday',
+  SA: 'Saturday',
+  SU: 'Sunday',
+}
+const NTH: Record<string, string> = { '1': '1st', '2': '2nd', '3': '3rd', '4': '4th', '-1': 'Last' }
+
+/** "Tuesdays", "Alternate Tuesdays", "Last Friday monthly" — the cadence in as few words as reads. */
+function cadence(schedule: NonNullable<Event['schedule']>, start: Date, zone: string): string {
+  const interval = schedule.interval && schedule.interval > 1 ? schedule.interval : 1
+  const days = (schedule.weekdays ?? []).map((code) => `${WEEKDAYS[code] ?? code}s`)
+  switch (schedule.recurrenceType) {
+    case 'DAILY':
+      return interval > 1 ? `Every ${interval} days` : 'Daily'
+    case 'WEEKLY': {
+      const list = days.join(' & ')
+      if (interval === 2) return `Alternate ${list}`
+      return interval > 2 ? `Every ${interval} weeks, ${list}` : list
+    }
+    case 'MONTHLY':
+      if (schedule.monthlyMode === 'weekday' && schedule.weekdayOfMonth) {
+        return `${NTH[String(schedule.weekNumber)] ?? ''} ${WEEKDAYS[schedule.weekdayOfMonth]} monthly`.trim()
+      }
+      return schedule.monthDay ? `Day ${schedule.monthDay} monthly` : 'Monthly'
+    default:
+      return new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: zone,
+        weekday: 'short',
+      }).format(start)
+  }
+}
+
+/**
+ * "7:00 PM, Tuesdays, Vancouver" — when and where an event meets, short enough
+ * to sit under its title. Manager-facing, so English, in the event's own zone.
+ */
+function eventSubtitle(schedule: Event['schedule'], place: null | string): string {
+  const zone: string = schedule?.firstDate_tz || 'UTC'
+  const start = schedule?.firstDate ? new Date(schedule.firstDate) : null
+  const when =
+    start && !Number.isNaN(start.getTime())
+      ? [
+          new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone })
+            .format(start)
+            .replace(/\u202F/g, ' '),
+          cadence(schedule!, start, zone),
+        ]
+      : []
+  return [...when, place].filter(Boolean).join(', ')
+}
+
+/** The city an event sits in: its region's, or the city above a venue, else its address's. */
+function placeOf(
+  doc: { address?: { city?: null | string } | null; region?: unknown },
+  tree: RegionTree,
+): null | string {
+  const regionId = relationId(doc.region)
+  if (regionId !== null) {
+    const id =
+      tree.levelById.get(regionId) === 'venue'
+        ? (tree.chainById.get(regionId)?.at(-2) ?? regionId)
+        : regionId
+    const name = tree.nameById.get(id)?.trim()
+    if (name) return name
+  }
+  return doc.address?.city?.trim() || null
 }
 
 /** The top-level fields a change proposal touches, in the Events config's own wording. */
@@ -328,7 +402,7 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
       updatedAt: doc.updatedAt,
       nextCheckAt: doc.nextCheckAt ?? null,
       scheduleEnd: doc.schedule?.lastDate ?? null,
-      timing: scheduleOneLine(doc.schedule as Event['schedule']),
+      timing: eventSubtitle(doc.schedule as Event['schedule'], placeOf(doc, tree)),
       hasManager: relationId(doc.manager) !== null,
       // A region manager sees recommendations on their own events only.
       qualityOpenCount: scope.role !== 'region' || own ? (doc.qualityOpenCount ?? 0) : 0,
