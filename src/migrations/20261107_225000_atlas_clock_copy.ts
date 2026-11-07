@@ -19,7 +19,9 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 //
 // ⚠ **`down` is not optional.** The previous schema does not declare the two new keys, and
 // a stored key a schema does not declare refuses every save of the global
-// (`src/globals/AGENTS.md`). `down` removes them, but only where they still hold `up`'s value.
+// (`src/globals/AGENTS.md`). So `down` removes them from every locale and every version row,
+// whatever they hold — an editor's wording of a key the old schema cannot store is not
+// theirs to keep. Only the two rewordings stay guarded on the way back.
 
 const ZONE_TIME = '%{city} time'
 const TIMES_NOTE = 'Times are local to each class. Online classes show your time (%{zone}).'
@@ -74,17 +76,21 @@ async function addKey(db: Db, column: Column, key: string, value: string): Promi
   }
 }
 
-/** Removes `key` where English still holds exactly `value`. */
-async function removeKey(db: Db, column: Column, key: string, value: string): Promise<void> {
-  for (const t of targets(column)) {
-    const col = sql.identifier(t.column)
+/**
+ * Removes `key` from every locale and every version row. `?` answers false on a scalar column,
+ * where `jsonb - text` would raise and abort the migration.
+ */
+async function removeKey(db: Db, column: Column, key: string): Promise<void> {
+  const tables = [
+    ['sy_atlas_translations_locales', column.main],
+    ['_sy_atlas_translations_v_locales', column.version],
+  ] as const
+  for (const [table, name] of tables) {
+    const col = sql.identifier(name)
     await db.execute(sql`
-      UPDATE ${sql.identifier(t.table)}
+      UPDATE ${sql.identifier(table)}
         SET ${col} = ${col} - ${key}::text
-        WHERE "_locale" = 'en'
-          AND jsonb_typeof(${col}) = 'object'
-          AND ${col} ->> ${key}::text = ${value}::text
-          ${latestOnly(t.latestOnly)}`)
+        WHERE ${col} ? ${key}`)
   }
 }
 
@@ -116,8 +122,8 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
-  await removeKey(db, EVENT_DISPLAY, 'zone_time', ZONE_TIME)
-  await removeKey(db, CALENDAR, 'times_note', TIMES_NOTE)
+  await removeKey(db, EVENT_DISPLAY, 'zone_time')
+  await removeKey(db, CALENDAR, 'times_note')
   await reword(db, COMMON_ERRORS, 'captcha_blocked', CAPTCHA_AFTER, CAPTCHA_BEFORE)
   await reword(db, REGISTRATION_FORM, 'privacy_policy', PRIVACY_AFTER, PRIVACY_BEFORE)
 }

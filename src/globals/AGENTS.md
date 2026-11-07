@@ -346,8 +346,14 @@ write.
   only where English lacks it, a rewording only where the stored value is still
   the seeded original, and both the main row and the `latest: true` version row
   are written. Its `down` is required, not tidy: it removes the keys the
-  previous schema does not declare, which would otherwise refuse every save
-  after a rollback.
+  previous schema does not declare, from every locale and whatever they hold,
+  which would otherwise refuse every save after a rollback.
+  This is not the backfill `src/migrations/AGENTS.md` warns against: that
+  caution is about hand-editing a _generated_ migration, where FK and
+  table-rebuild statements broke before. This one is written by hand, emits no
+  DDL, and changes keys inside one JSON column per group, as the
+  `atlas_drop_time_in_place` sweep does. The post-deploy alternative is an
+  admin typing the same English in by hand.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach

@@ -121,17 +121,35 @@ describe('atlas translations: the clock-label copy migration', () => {
     expect(stored.registration?.form?.privacy_policy).toBe(PRIVACY_BEFORE)
   })
 
-  it('never overwrites copy an editor wrote, in either direction', async () => {
+  it('never overwrites copy an editor wrote', async () => {
     await seedEnglish({ captcha: 'Edited by hand.', zoneTime: '%{city} clock' })
 
     await run(up)
-    let stored = await english()
+    const stored = await english()
     expect(stored.common?.errors?.captcha_blocked).toBe('Edited by hand.')
     expect(stored.event?.display?.zone_time).toBe('%{city} clock')
+  })
+
+  /**
+   * The previous schema cannot store either new key, so one left anywhere would refuse every save
+   * after a rollback — an editor's wording and a translator's locale included. A rewording is
+   * still only undone where it is `up`'s own.
+   */
+  it('removes the new keys from every locale on the way down, whatever they hold', async () => {
+    await payload.updateGlobal({
+      slug: SLUG,
+      locale: 'fr',
+      data: {
+        event: { display: { hosted_from: FRENCH_HOSTED_FROM, zone_time: 'heure de %{city}' } },
+      },
+    })
 
     await run(down)
-    stored = await english()
+
+    const stored = await english()
+    expect(stored.event?.display).toEqual({ hosted_from: HOSTED_FROM })
     expect(stored.common?.errors?.captcha_blocked).toBe('Edited by hand.')
-    expect(stored.event?.display?.zone_time).toBe('%{city} clock')
+    const french = await payload.findGlobal({ slug: SLUG, locale: 'fr', fallbackLocale: false })
+    expect(french.event?.display).toEqual({ hosted_from: FRENCH_HOSTED_FROM })
   })
 })
