@@ -8,7 +8,7 @@ import {
   type TranscriptPhase,
   transcriptPhase,
 } from '@/lib/meditations/transcriptBounds'
-import type { Transcript as TranscriptRow } from '@/payload-types'
+import type { Transcript } from '@/payload-types'
 
 /**
  * Which notice the tab shows, and the one re-render that lets `stalled` reach
@@ -28,7 +28,7 @@ import type { Transcript as TranscriptRow } from '@/payload-types'
  * row changes, which SWR renders on its own, and an unparseable or
  * already-passed `updatedAt` reads as the phase it already is.
  */
-export function useTranscriptPhase(row: TranscriptRow | undefined): TranscriptPhase {
+export function useTranscriptPhase(row: Transcript | undefined): TranscriptPhase {
   const [, recheck] = useState(0)
   const phase = transcriptPhase(row)
   const waitingSince = phase === 'pending' ? row?.updatedAt : undefined
