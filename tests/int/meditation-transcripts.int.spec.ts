@@ -15,7 +15,6 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -65,7 +64,7 @@ describe('transcripts', () => {
     const meditation = await testData.createMeditation(payload, undefined, overrides)
     await payload.delete({
       collection: 'transcripts',
-      where: transcriptSourceWhere('meditations', meditation.id),
+      where: { source: { equals: { relationTo: 'meditations', value: meditation.id } } },
       overrideAccess: true,
     })
     return meditation
@@ -92,7 +91,7 @@ describe('transcripts', () => {
         collection: 'transcripts',
         overrideAccess: false,
         user: editor as Parameters<typeof payload.find>[0]['user'],
-        where: transcriptSourceWhere('meditations', meditation.id),
+        where: { source: { equals: { relationTo: 'meditations', value: meditation.id } } },
         select: idOnlySelect(),
         depth: 0,
       })
@@ -273,7 +272,7 @@ describe('transcripts', () => {
 
       const { docs } = await payload.find({
         collection: 'transcripts',
-        where: transcriptSourceWhere('files', file.id),
+        where: { source: { equals: { relationTo: 'files', value: file.id } } },
         pagination: false,
         depth: 0,
         overrideAccess: true,

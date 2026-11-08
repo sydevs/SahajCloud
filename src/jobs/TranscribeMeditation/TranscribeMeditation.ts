@@ -7,7 +7,6 @@ import {
 } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
-import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import type { Transcript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -110,7 +109,7 @@ async function findCurrentRow(
 ): Promise<Transcript | undefined> {
   const { docs } = await req.payload.find({
     collection: 'transcripts',
-    where: transcriptSourceWhere('meditations', meditationId),
+    where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
     depth: 0,
     limit: 1,
     pagination: false,

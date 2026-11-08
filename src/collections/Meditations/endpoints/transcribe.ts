@@ -15,7 +15,6 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import { isOutsideWritableLocale } from '@/plugins/access/localeScopedWrites'
 
 const refusal = (message: string, status: number, headers?: HeadersInit): Response =>
@@ -126,7 +125,7 @@ export const meditationTranscribe: Endpoint = {
     // grant of its own (`Transcripts.ts`).
     const { docs } = await req.payload.find({
       collection: 'transcripts',
-      where: transcriptSourceWhere('meditations', id),
+      where: { source: { equals: { relationTo: 'meditations', value: id } } },
       depth: 0,
       limit: 1,
       pagination: false,
@@ -174,7 +173,7 @@ export const meditationTranscribe: Endpoint = {
         // race — with the real cause logged nowhere.
         const { errors } = await req.payload.delete({
           collection: 'transcripts',
-          where: transcriptSourceWhere('meditations', id),
+          where: { source: { equals: { relationTo: 'meditations', value: id } } },
           overrideAccess: true,
           req,
         })

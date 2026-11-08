@@ -18,7 +18,6 @@ import * as path from 'path'
 
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
-import { transcriptSourceWhere } from '@/lib/transcripts/source'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions, loadJsonData, type RunVerification } from '../lib'
@@ -212,7 +211,7 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
 
     await this.upsert(
       'transcripts',
-      transcriptSourceWhere('meditations', meditationId),
+      { source: { equals: { relationTo: 'meditations', value: meditationId } } },
       {
         source: { relationTo: 'meditations', value: meditationId },
         // These already exist, so the row carries cues from the start and

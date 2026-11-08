@@ -67,7 +67,12 @@ export const Transcripts: CollectionConfig = {
       // column here — and `unique` becomes one `UNIQUE(<target>_id, path)` per
       // target there, so one transcript per meditation and per file both hold.
       //
-      // Query it through `transcriptSourceWhere` (`@/lib/transcripts/source`).
+      // ⚠ **Query it as `{ source: { equals: { relationTo, value } } }`, the
+      // one spelling Payload resolves.** `Where` is loosely typed, so two
+      // wrong ones compile and fail only at run time: a bare `source` throws
+      // `APIError('Not supported')` when the query is built, and
+      // `source.value` ORs one raw id column per target, matching meditation 5
+      // **or** file 5.
       name: 'source',
       type: 'relationship',
       relationTo: ['meditations', 'files'],
