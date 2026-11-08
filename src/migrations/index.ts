@@ -113,6 +113,7 @@ import * as migration_20261105_181908_retire_region_hint from './20261105_181908
 import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
 import * as migration_20261105_233425_add_cleverreach_mailing_list from './20261105_233425_add_cleverreach_mailing_list';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
+import * as migration_20261108_220039_snapshot_resync from './20261108_220039_snapshot_resync';
 
 export const migrations = [
   {
@@ -683,11 +684,16 @@ export const migrations = [
   {
     up: migration_20261105_233425_add_cleverreach_mailing_list.up,
     down: migration_20261105_233425_add_cleverreach_mailing_list.down,
-    name: '20261105_233425_add_cleverreach_mailing_list'
+    name: '20261105_233425_add_cleverreach_mailing_list',
   },
   {
     up: migration_20261107_225000_atlas_clock_copy.up,
     down: migration_20261107_225000_atlas_clock_copy.down,
-    name: '20261107_225000_atlas_clock_copy'
+    name: '20261107_225000_atlas_clock_copy',
+  },
+  {
+    up: migration_20261108_220039_snapshot_resync.up,
+    down: migration_20261108_220039_snapshot_resync.down,
+    name: '20261108_220039_snapshot_resync'
   },
 ];
