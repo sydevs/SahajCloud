@@ -18,6 +18,8 @@ import type {
   UploadField,
 } from 'payload'
 
+import { valueIsValueWithRelation } from 'payload/shared'
+
 import { isRecord } from '@/lib/utilities/isRecord'
 
 /** Represents a discovered field reference to a target collection */
@@ -347,7 +349,7 @@ function isNumericString(str: string): boolean {
  * `localeValues` states.
  */
 function polymorphicId(value: unknown, targetCollection: string): number | null {
-  if (!isRecord(value) || !('relationTo' in value) || !('value' in value)) return null
+  if (!valueIsValueWithRelation(value)) return null
   return value.relationTo === targetCollection ? extractId(value.value) : null
 }
 
