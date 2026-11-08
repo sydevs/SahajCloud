@@ -122,8 +122,6 @@ export const Meditations: CollectionConfig = {
       cacheMeditationNodeWeights,
     ],
     afterChange: [syncMeditationTranscript],
-    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
-    // row cannot outlive its meditation.
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   defaultPopulate: {
