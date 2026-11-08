@@ -20,8 +20,6 @@ export const Files: CollectionConfig = {
   disableDuplicate: true,
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
-    // `transcripts.source` is `required`, so see `Transcripts.ts` for why the
-    // row cannot outlive its file.
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   admin: {
