@@ -339,6 +339,26 @@ write.
   Re-seed it — `pnpm db:migrate` is not the recovery, since an empty
   `payload_migrations` replays the whole chain and fails on its first
   `CREATE TABLE`.
+- **Production's English copy ships as a guarded data migration.** The seed
+  files reach only a fresh database, so a new key is otherwise blank in
+  production until someone types it into the admin.
+  `20261107_225000_atlas_clock_copy` is the worked example: a new key lands
+  only where English lacks it, a rewording only where the stored value is still
+  the seeded original, and both the main row and the `latest: true` version row
+  are written. Its `down` is required, not tidy, and it sweeps wider than `up`
+  wrote: the previous schema declares neither new key, so `down` drops both
+  from every locale and every version row, whatever they hold — one spared
+  because an editor reworded it refuses every save of the row holding it. A
+  rewording is the other case: the old schema declares that key, so `down`
+  reverts English alone, and only where the value is still `up`'s.
+  ⚠ **`src/migrations/AGENTS.md` is not contradicted here — this is its
+  carve-out.** Its default is no backfill inside a migration, and
+  `.claude/workflow.json` marks `src/migrations/*.ts` do-not-augment, because
+  hand-editing generated DDL has repeatedly broken foreign keys and
+  versioned-table companions. A copy migration carries no DDL at all: two JSONB
+  columns, and a snapshot that is the previous one re-stamped, so there is no
+  table rebuild to get wrong. Anything touching a column's shape still belongs
+  in a post-deploy job, as that guide says.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
