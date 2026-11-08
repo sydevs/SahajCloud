@@ -352,6 +352,11 @@ migration, surface the trade-off to the user rather than deciding it
 yourself — backfills-in-migration have historically caused FK issues. A
 post-deploy sync/job is often safer.
 
+One carve-out is settled: **English translation copy for a global ships as a
+hand-written data-only migration**, since the seed files reach only a fresh
+database. It carries no DDL, so none of the above applies to it.
+`src/globals/AGENTS.md` owns that rule and its guards.
+
 When you do edit, change only what is necessary — no defensive NULL-ing, no
 cleanup the FK cascade already handles. Design features so an unpopulated
 new column degrades gracefully until a follow-up job hydrates it.
