@@ -352,6 +352,11 @@ migration, surface the trade-off to the user rather than deciding it
 yourself — backfills-in-migration have historically caused FK issues. A
 post-deploy sync/job is often safer.
 
+One carve-out is settled: **English translation copy for a global ships as a
+hand-written data-only migration**, since the seed files reach only a fresh
+database. It carries no DDL, so none of the above applies to it.
+`src/globals/AGENTS.md` owns that rule and its guards.
+
 ⚠ **No backtick may appear inside the SQL, a `--` comment included.** The whole
 statement block is a JavaScript template literal, so one backtick closes it and
 `tsc` reports `TS1005: ',' expected` on a line that reads as valid SQL. Name a

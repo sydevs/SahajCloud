@@ -35,7 +35,7 @@
       "config": "This Atlas isn't set up correctly on this page.",
       "unavailable": "This program can’t be joined right now.",
       "share_unavailable": "There is no link to share for this meditation yet.",
-      "captcha_blocked": "This Atlas can't run on this page: its security check was blocked.",
+      "captcha_blocked": "The map can't load here right now, because its security check didn't respond. Try again later.",
       "no_events": "No events found.",
       "back_to_region": "See events in %{region}",
       "near_city": "See events near %{city}",
@@ -188,6 +188,7 @@
       "room": "Room: %{room}",
       "online": "Online",
       "hosted_from": "Hosted from %{city}",
+      "zone_time": "%{city} time",
       "distance_away": "%{distance} away",
       "distance_from_place": "%{distance} from %{place}",
       "distance_from_search": "%{distance} from the searched location",
@@ -235,7 +236,8 @@
     "pick_date": "Pick a date",
     "view_month": "Month",
     "view_week": "Week",
-    "view_list": "List"
+    "view_list": "List",
+    "times_note": "Times are local to each class. Online classes show your time (%{zone})."
   },
   "registration": {
     "form": {
@@ -250,7 +252,7 @@
       "invite_friend": "Invite a friend along",
       "online_notice": "The link to this class will be emailed to you.",
       "online_notice_title": "Online Session",
-      "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our privacy policy.",
+      "privacy_policy": "By submitting you confirm you agree to receive follow up messages about this and similar events, in accordance with our <link>privacy policy</link>.",
       "error_title": "Something went wrong",
       "captcha_retry": "The security check needs doing again. Wait for it to refresh, then register once more.",
       "subscribe": "Send me news about meditation programmes near me"
