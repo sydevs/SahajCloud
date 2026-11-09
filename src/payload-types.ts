@@ -9301,7 +9301,7 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   share_unavailable?: string;
   /**
-   * Message when the host page’s Content-Security-Policy blocked the Turnstile security check.
+   * Message shown in place of the Atlas when its security check (Turnstile) does not answer: the host page blocked it, or it was too slow.
    */
   captcha_blocked?: string;
   /**
@@ -9769,6 +9769,10 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   hosted_from?: string;
   /**
+   * Placed after a time to name the clock it is in, e.g. “8:00 pm Prague time”. Every online class time carries it, and an in-person time does when the viewer’s clock differs from the venue’s. `%{city}` = the time zone’s city.
+   */
+  zone_time?: string;
+  /**
    * List card distance from the visitor. `%{distance}` = formatted distance.
    */
   distance_away?: string;
@@ -9964,6 +9968,10 @@ export interface SyAtlasTranslationsCalendarStrings {
    * View switch: the agenda list.
    */
   view_list?: string;
+  /**
+   * Line under the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city.
+   */
+  times_note?: string;
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
@@ -10011,7 +10019,7 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    */
   online_notice_title?: string;
   /**
-   * Consent text beside the submit button.
+   * Consent text beside the submit button. Wrap the words that open the privacy policy in `<link>…</link>`; without the tags, the sentence shows with no link.
    */
   privacy_policy?: string;
   /**

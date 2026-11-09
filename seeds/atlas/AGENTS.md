@@ -292,6 +292,16 @@ apart).
 - **`VENUE_FIELD_OVERRIDES`** fixes a field where the _removed_ row held
   the better value (venue 514 keeps its correct postcode but takes 50's
   real name, `Atelier`). Kept in code so a re-extraction reproduces it.
+- **It also names the venues that have no venue** (sydevs/SahajAtlasWeb
+  bug #15). Twelve listings give only a town, so their point is the town's
+  centre — Sneek's landed on a supermarket. Six already repeat the town as
+  their street; the other six said `Zentrum`, `Innenstadt`, `Centro`,
+  `Perth CBD`, `None` or `wird noch angekündigt`, and the overrides rewrite
+  each to the town's own name. That is the form the widget reads as "no
+  real place" in any language, and draws as an area with no directions,
+  as it does every inactive listing. A street cannot be blank: Events
+  require one. #4106's `-` stays, because its point is the park its venue
+  names.
 - **Targets must be terminal.** `dedupeAtlasData` applies the map in one
   pass, so a chain would strand events on a removed row. This bit the
   Amsterdam building, which had three rows: the pre-existing `342 → 104`
@@ -539,9 +549,9 @@ Online WhatsApp Video Meditation`) or a named event (`Corso Leopold`,
   to the street. Most of the ten now restate their venue's name (#142
   `Regina Public Library, Glen Elm branch` against the venue's `Regina
 Public Library - Glen Elm Branch`), so re-check the rule against that.
-- **Keep it** when the street is a poor stand-in for the place — #293
-  (`Zentrum`), #294 (`Innenstadt`) would auto-fill to "Meditation at city
-  centre," and #371's street is the unusable `B26`.
+- **Keep it** when the street is a poor stand-in for the place — #371's
+  street is the unusable `B26`. #293 and #294 were kept when their streets
+  were `Zentrum` and `Innenstadt`, which are now the town's own name.
 
 **Blanking can collide.** Two events at one venue in the same
 time-of-day slot auto-fill to the same title, so check before blanking.

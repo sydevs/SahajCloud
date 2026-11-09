@@ -79,6 +79,7 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
  * community verdict unpublishes it.
  */
 export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
+  data,
   doc,
   previousDoc,
   req,
@@ -89,9 +90,16 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   // single-purpose collection only ever meant a registration. Here it would fire
   // on every proposal and every spawned subscribe row that names an event,
   // paying for two counts and an Events write per create.
-  if (doc.type !== 'registration') return doc
-  if (doc.eventFeedback === previousDoc?.eventFeedback) return doc
-  const eventId = relationId(doc.event)
+  //
+  // `data` first, as `gateEventFeedback` above reads it: `doc` is the
+  // `afterRead` projection, which a caller-set `select` narrows (#1093). No
+  // client may write this column — the vote's one writer is the feedback page's
+  // server action — so this is consistency, not a reachable hole. The vote is
+  // read by presence rather than `??`, because clearing it sends `null`.
+  if ((data.type ?? doc.type) !== 'registration') return doc
+  const feedback = 'eventFeedback' in data ? data.eventFeedback : doc.eventFeedback
+  if (feedback === previousDoc?.eventFeedback) return doc
+  const eventId = relationId(data.event ?? doc.event)
   if (eventId == null) return doc
 
   const trustedReq = asTrustedReq(req)
@@ -150,7 +158,7 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   // unguarded, so a throw killed the visitor's transaction: the vote was rolled
   // back behind "Could not record your answer" (#842). The denial branch still
   // unpublishes — that is the community verdict, not editor content.
-  const data: Partial<
+  const eventPatch: Partial<
     Pick<Event, 'confidenceScore' | 'systemMeta' | 'verificationStage' | '_status'>
   > = {
     confidenceScore: verdict.score,
@@ -165,7 +173,7 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   await updateEventBookkeeping({
     payload: req.payload,
     id: eventId,
-    data,
+    data: eventPatch,
     context: { skipWriteGuard: true },
     // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
     // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).

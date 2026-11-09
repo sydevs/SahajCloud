@@ -18,11 +18,8 @@
  * with the sweep as their teardown.
  *
  * ⚠ **`up` writes unqualified table names**, which is right for production,
- * where the schema is `public`. This lane gives each suite its own Postgres
- * schema, and `execute` draws from a pool, so a bare `SET search_path` would
- * land on whichever connection answered it. `withSchema` is one transaction
- * with `SET LOCAL search_path` — one connection, undone at commit. The
- * migration's statements run verbatim inside it.
+ * where the schema is `public`. `withSchema` runs it against this suite's own
+ * schema instead, and says why that takes one transaction.
  */
 import type { MigrateUpArgs } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
@@ -33,25 +30,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { up } from '@/migrations/20261101_191500_atlas_drop_time_in_place'
 
 import { createTestEnvironment } from '../utils/testHelpers'
+import { withSchema } from '../utils/withSchema'
 
 const SLUG = 'sy-atlas-translations'
 const HOSTED_FROM = 'Hosted from %{city}'
 const RETIRED = '%{time} in %{city}'
-
-/** The transaction `drizzle.transaction` hands its callback. */
-type Tx = Parameters<Parameters<Payload['db']['drizzle']['transaction']>[0]>[0]
-
-/** Runs `body` against this suite's own Postgres schema, on one connection. */
-const withSchema = async (payload: Payload, body: (tx: Tx) => Promise<void>): Promise<void> => {
-  const schema = payload.db.schemaName
-  // Without one, every statement would read `public`, where this suite has no
-  // tables — and the migration case would pass having swept nothing.
-  if (!schema) throw new Error('the suite has no isolated schema to target')
-  await payload.db.drizzle.transaction(async (tx) => {
-    await tx.execute(sql`SET LOCAL search_path TO ${sql.identifier(schema)}`)
-    await body(tx)
-  })
-}
 
 describe('atlas translations: the retired time_in_place key', () => {
   let payload: Payload
