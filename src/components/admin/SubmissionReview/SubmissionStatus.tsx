@@ -15,6 +15,7 @@ import React from 'react'
 
 import {
   OPEN_REVIEW_STATUSES,
+  isSpamStatus,
   STATUS_LABELS,
   VERDICT_LABELS,
 } from '@/collections/UserSubmissions/statuses'
@@ -40,6 +41,7 @@ const SEVERITY: Record<SubmissionStatus, Severity> = {
   // read "this was turned down" at the same glance either way.
   rejected: 'error',
   spam: 'error',
+  confirmed_spam: 'error',
   failed: 'error',
 }
 
@@ -51,7 +53,8 @@ const SEVERITY: Record<SubmissionStatus, Severity> = {
  * Written for a manager who runs meditation classes, not for whoever built
  * this: no internal vocabulary, nothing that restates the heading. `spam` has
  * no line of its own — screening's note is the reason, and a fixed line beside
- * it said the same thing twice.
+ * it said the same thing twice. `confirmed_spam` says what the confirmation
+ * changed, which screening's note cannot.
  *
  * ⚠ **`failed` means two different things.** For the three delivered intakes
  * the delivery itself failed, after its retries. For a proposal the decision
@@ -71,6 +74,7 @@ const COPY: Record<SubmissionType, Partial<Record<SubmissionStatus, string>>> = 
   registration: {
     pending: 'Waiting for the confirmation to be sent.',
     accepted: 'Registered for this event.',
+    confirmed_spam: 'An admin agreed this is spam, so the seat is free again.',
     failed: 'The confirmation could not be sent. The activity log has the error.',
   },
   proposal: {
@@ -121,20 +125,22 @@ function notesOf(result: SubmissionScreeningResult | null | undefined): string[]
 /**
  * What screening concluded, in one line — while screening is still the story.
  *
- * Only `pending` and `spam` say anything. Past those, a delivery or a person
- * decided the row, and "Passed screening" beside "Rejected" reads as the two
- * disagreeing; the activity log keeps the verdict for whoever wants it.
+ * Only `pending` and the two spam statuses say anything. Past those, a
+ * delivery or a person decided the row, and "Passed screening" beside
+ * "Rejected" reads as the two disagreeing; the activity log keeps the verdict
+ * for whoever wants it.
  */
 function screeningLine(
   result: SubmissionScreeningResult | null | undefined,
   status: SubmissionStatus,
 ): string | null {
-  if (status !== 'pending' && status !== 'spam') return null
+  const refused = isSpamStatus(status)
+  if (status !== 'pending' && !refused) return null
   const verdict = result?.verdict
   if (verdict && verdict in VERDICT_LABELS && verdict !== 'ok') {
     return `Refused by screening: ${VERDICT_LABELS[verdict]}.`
   }
-  if (status === 'spam') return 'Refused by screening.'
+  if (refused) return 'Refused by screening.'
   return verdict === 'ok' ? 'Passed screening.' : 'Waiting to be screened.'
 }
 
@@ -168,7 +174,7 @@ export const SubmissionStatus: FieldClientComponent = () => {
     type === 'proposal' && status === 'accepted' && hasManager
       ? CREATED_WITH_MANAGER
       : COPY[type]?.[status]
-  const notes = OPEN_REVIEW_STATUSES.includes(status) || status === 'spam' ? notesOf(value) : []
+  const notes = OPEN_REVIEW_STATUSES.includes(status) || isSpamStatus(status) ? notesOf(value) : []
   const screening = screeningLine(value, status)
 
   return (

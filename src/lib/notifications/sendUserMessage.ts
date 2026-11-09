@@ -63,7 +63,7 @@ export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> 
     // manager-authored, the subject is caller-supplied. Strip line breaks so
     // neither can start a second header.
     subject: stripNewlines(`[${clientName}] ${subject}`),
-    html: await renderEmail(
+    ...(await renderEmail(
       createElement(UserMessageEmail, {
         answers,
         senderEmail,
@@ -71,6 +71,6 @@ export async function sendUserMessage(args: SendUserMessageArgs): Promise<void> 
         brand,
         details: buildUserMessageDetails({ clientName, receivedAt, context }),
       }),
-    ),
+    )),
   })
 }

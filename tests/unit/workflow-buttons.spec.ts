@@ -8,11 +8,12 @@
  * the stage, what reaches `submit`, and whether a button is disabled. The stage
  * rule itself is pure and asserted directly, with no mount.
  *
- * The stand-in reproduces four `@payloadcms/ui` behaviours, read from
+ * The stand-in reproduces five `@payloadcms/ui` behaviours, read from
  * `node_modules/@payloadcms/ui/dist/`: `useDocumentInfo().id` is absent on a
  * create (`providers/DocumentInfo`), `useFormFields` selects over form state,
- * `useFormModified` is false until the form is touched, and `FormSubmit` renders
- * a `<button>` that is disabled when its `disabled` prop is true
+ * `useFormModified` is false until the form is touched, `useAuth().user` is the
+ * signed-in user or null (`providers/Auth`), and `FormSubmit` renders a
+ * `<button>` that is disabled when its `disabled` prop is true
  * (`forms/Submit/index.js` — it also disables on `processing`, which is Payload's
  * own concern and not this component's).
  */
@@ -28,7 +29,8 @@ const form: {
   modified: boolean
   operation: 'create' | 'update'
   uploadStatus: 'failed' | 'idle' | 'uploading'
-} = { fields: {}, modified: false, operation: 'create', uploadStatus: 'idle' }
+  user: null | { type: string }
+} = { fields: {}, modified: false, operation: 'create', uploadStatus: 'idle', user: null }
 
 const submit = vi.fn()
 
@@ -45,6 +47,7 @@ vi.mock('@payloadcms/ui', () => ({
   PublishButton: () => createElement('button', { type: 'button' }, 'Payload publish'),
   SaveButton: () => createElement('button', { type: 'button' }, 'Payload save'),
   SaveDraftButton: () => createElement('button', { type: 'button' }, 'Payload save draft'),
+  useAuth: () => ({ user: form.user }),
   useDocumentInfo: () => ({ uploadStatus: form.uploadStatus }),
   useForm: () => ({ submit }),
   useFormFields: (selector: (args: [Record<string, { value: unknown }>]) => unknown) =>
@@ -65,44 +68,74 @@ import WorkflowButtons from '@/components/admin/WorkflowButtons/WorkflowButtons'
 
 /** `event-imports`' own declaration, trimmed to the stages each case needs. */
 const imports: WorkflowButtonsProps = {
-  statusField: 'status',
   fallback: null,
-  stages: {
-    [CREATE_STAGE]: [{ label: 'Upload & resolve addresses', overrides: {} }],
-    resolving: [
-      { label: 'Discard', overrides: { status: 'discarded' }, confirm: 'Discard anyway?' },
-    ],
-    review: [
-      { label: 'Save changes', overrides: {} },
-      { label: 'Commit', overrides: { status: 'committing' }, confirm: 'Create these classes?' },
-    ],
-  },
+  rules: [
+    {
+      stages: {
+        [CREATE_STAGE]: [{ label: 'Upload & resolve addresses', overrides: {} }],
+        resolving: [
+          { label: 'Discard', overrides: { status: 'discarded' }, confirm: 'Discard anyway?' },
+        ],
+        review: [
+          { label: 'Save changes', overrides: {} },
+          {
+            label: 'Commit',
+            overrides: { status: 'committing' },
+            confirm: 'Create these classes?',
+          },
+        ],
+      },
+    },
+  ],
+  statusField: 'status',
 }
 
 /** Meditations' own declaration: no status field, one stage, a fallback. */
 const meditations: WorkflowButtonsProps = {
   fallback: 'saveDraft',
-  stages: {
-    [CREATE_STAGE]: [{ label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true }],
-  },
+  rules: [
+    {
+      stages: {
+        [CREATE_STAGE]: [
+          { label: 'Next step', overrides: { _status: 'draft' }, skipValidation: true },
+        ],
+      },
+    },
+  ],
 }
 
 /**
  * `user-submissions`' own declaration, trimmed. One slot serves four intakes
- * sharing one status vocabulary, so `onlyWhen` is what keeps a `contact` row
- * sitting at `pending` away from Accept and Reject.
+ * sharing one status vocabulary and two kinds of viewer, so the rules are what
+ * keep a `contact` row sitting at `pending` away from Accept and Reject, and a
+ * refused row of any intake away from a settlement only an admin may make.
  */
 const submissions: WorkflowButtonsProps = {
-  statusField: 'status',
-  onlyWhen: { field: 'type', equals: 'proposal' },
   fallback: 'save',
-  stages: {
-    pending: [
-      { label: 'Reject', overrides: { status: 'rejected' } },
-      { label: 'Accept', overrides: { status: 'accepted' } },
-    ],
-    accepted: [],
-  },
+  rules: [
+    {
+      stages: {
+        confirmed_spam: [{ label: 'Not spam', overrides: { status: 'pending' } }],
+        spam: [
+          { label: 'Not spam', overrides: { status: 'pending' } },
+          { label: 'Confirm spam', overrides: { status: 'confirmed_spam' } },
+        ],
+      },
+      when: { userType: 'admin' },
+    },
+    {
+      stages: {
+        accepted: [],
+        pending: [
+          { label: 'Reject', overrides: { status: 'rejected' } },
+          { label: 'Accept', overrides: { status: 'accepted' } },
+        ],
+        spam: [{ label: 'Reopen', overrides: { status: 'pending' } }],
+      },
+      when: { equals: 'proposal', field: 'type' },
+    },
+  ],
+  statusField: 'status',
 }
 
 describe('resolveStage', () => {
@@ -151,6 +184,7 @@ describe('WorkflowButtons', () => {
     form.modified = false
     form.operation = 'create'
     form.uploadStatus = 'idle'
+    form.user = null
     submit.mockReset()
     vi.restoreAllMocks()
 
@@ -186,12 +220,16 @@ describe('WorkflowButtons', () => {
   it('reads a label key in the admin language, falling back to the label', () => {
     render({
       fallback: null,
-      stages: {
-        __create__: [
-          { label: 'Next step', labelKey: 'general:next', overrides: {} },
-          { label: 'Kept', labelKey: 'general:missing', overrides: {} },
-        ],
-      },
+      rules: [
+        {
+          stages: {
+            __create__: [
+              { label: 'Next step', labelKey: 'general:next', overrides: {} },
+              { label: 'Kept', labelKey: 'general:missing', overrides: {} },
+            ],
+          },
+        },
+      ],
     })
 
     expect(labels()).toEqual(['Next', 'Kept'])
@@ -229,7 +267,11 @@ describe('WorkflowButtons', () => {
     form.operation = 'update'
     form.fields = { status: { value: 'committing' } }
 
-    render({ ...imports, fallback: 'save', stages: { ...imports.stages, committing: [] } })
+    render({
+      ...imports,
+      fallback: 'save',
+      rules: [{ stages: { ...imports.rules[0]!.stages, committing: [] } }],
+    })
 
     expect(labels()).toEqual([])
     expect(container.innerHTML).toBe('')
@@ -365,6 +407,59 @@ describe('WorkflowButtons', () => {
     render(submissions)
 
     expect(labels()).toEqual(['Payload save'])
+  })
+
+  /**
+   * ⚠ **A rule offering a privileged move names the viewer, or the offer is a
+   * button that can only answer 403.** `reviewMove` lets an admin alone settle
+   * a spam refusal, and `managerSubmissionScope` does admit a region manager to
+   * a refused contact row addressed to them — so an ungated spam rule would
+   * show that manager two buttons the server refuses.
+   */
+  it('keeps an admin-only settlement off a non-admin’s refused row', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'spam' }, type: { value: 'contact' } }
+    form.user = { type: 'manager' }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Payload save'])
+  })
+
+  it('offers the settlement to an admin, on an intake nobody reviews', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'spam' }, type: { value: 'contact' } }
+    form.user = { type: 'admin' }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Not spam', 'Confirm spam'])
+  })
+
+  /**
+   * An earlier rule narrows rather than claims: the admin rule names `spam`,
+   * but a non-admin falls through to the review rule's own entry for it rather
+   * than to the fallback — which is the move `reviewMove` grants a reviewer on
+   * a proposal.
+   */
+  it('falls through to the next rule when the first does not apply', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'spam' }, type: { value: 'proposal' } }
+    form.user = { type: 'manager' }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Reopen'])
+  })
+
+  it('prefers the first applying rule where both name the stage', () => {
+    form.operation = 'update'
+    form.fields = { status: { value: 'spam' }, type: { value: 'proposal' } }
+    form.user = { type: 'admin' }
+
+    render(submissions)
+
+    expect(labels()).toEqual(['Not spam', 'Confirm spam'])
   })
 
   /**

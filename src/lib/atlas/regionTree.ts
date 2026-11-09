@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+import type { Region } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -65,6 +66,7 @@ interface RegionRow {
   slug?: string | null
   name?: string | null
   breadcrumbs?: Array<{ doc?: unknown }> | null
+  level?: Region['level'] | null
 }
 
 /** Everything the single `regions` query yields, keyed by region id. */
@@ -83,6 +85,7 @@ export interface RegionTree {
    * reading slugs fresh.
    */
   nameById: Map<number, string>
+  levelById: Map<number, Region['level']>
 }
 
 /** `req.context` key for the per-request tree memo. */
@@ -132,9 +135,9 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     // also skips their afterRead hooks — this resolver's own webPath/webUrl
     // among them — so this query can't recurse back into the resolver (see
     // stripUnselectedFields: an unselected field returns before its hook runs).
-    // Anything added here must be checked against that same rule; `name` is a
-    // plain text column with no hooks, so it adds a column and nothing else.
-    select: { slug: true, name: true, breadcrumbs: true },
+    // Anything added here must be checked against that same rule; `name` and
+    // `level` are plain columns with no hooks.
+    select: { slug: true, name: true, breadcrumbs: true, level: true },
     // ⚠ Trusted: the client asked for one document's `webPath`, and this
     // table scan is ours, so the unbounded-read refusal is not theirs to
     // meet (#889).
@@ -146,9 +149,11 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
   // ids that may sort after it in `rows` — then resolve each chain to a path.
   const slugById = new Map<number, string>()
   const nameById = new Map<number, string>()
+  const levelById = new Map<number, Region['level']>()
   for (const row of rows) {
     if (typeof row.slug === 'string' && row.slug) slugById.set(row.id, row.slug)
     if (typeof row.name === 'string' && row.name) nameById.set(row.id, row.name)
+    if (row.level) levelById.set(row.id, row.level)
   }
 
   const pathById = new Map<number, string>()
@@ -159,7 +164,32 @@ async function loadRegionTree(req: PayloadRequest): Promise<RegionTree> {
     const path = buildRegionPath(chain.map((crumbId) => slugById.get(crumbId)))
     if (path !== null) pathById.set(row.id, path)
   }
-  return { pathById, chainById, nameById }
+  return { pathById, chainById, nameById, levelById }
+}
+
+/**
+ * The managers listed on each region itself, not inherited — memoized per
+ * request. ⚠ Its own query, not part of {@link getRegionTree}: `managers` is a
+ * `hasMany` relationship read through the rels table, and every `webPath` read
+ * pays for the tree.
+ */
+export function getRegionManagers(req: PayloadRequest): Promise<Map<number, number[]>> {
+  return memoizeOnRequest(req, 'atlas:regionManagers', async () => {
+    const { docs } = await req.payload.find({
+      collection: 'regions',
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      select: { managers: true },
+      req: asTrustedReq(req),
+    })
+    return new Map(
+      docs.map((doc) => [
+        doc.id,
+        (doc.managers ?? []).map(relationId).filter((id): id is number => id !== null),
+      ]),
+    )
+  })
 }
 
 /**

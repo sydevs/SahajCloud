@@ -2,14 +2,6 @@
 .registrations {
   margin: var(--base) 0 calc(var(--base) * 2);
 }
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: calc(var(--base) / 2);
-  margin-bottom: calc(var(--base) * 0.75);
-}
 /* End-aligned whether or not the filters render beside it. */
 .csv {
   margin-inline-start: auto;

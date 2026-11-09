@@ -22,7 +22,7 @@ import { describe, expect, it } from 'vitest'
 import schemaJson from '@/globals/SahajAtlasTranslations/translationsSchema.json' with { type: 'json' }
 import { EVENT_TITLE_SLOTS } from '@/lib/eventTitle/compose'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
+import { EMAIL_STRING_DEFAULTS, EMAILS_GROUP_DEFAULTS } from '@/lib/translations/emailStrings'
 import { PLURAL_CATEGORIES } from '@/lib/translations/pluralCategories'
 
 import { schemaShape } from '../utils/translationsSchemaShape'
@@ -149,9 +149,28 @@ describe('atlas translations schema', () => {
     )
   })
 
-  it('names emails exactly after EMAIL_STRING_DEFAULTS, plural families collapsed', () => {
+  const emailKeys = Object.keys(EMAIL_STRING_DEFAULTS)
+  const isRecurrence = (key: string) => key.startsWith('recurrence_')
+
+  /**
+   * ⚠ Against `EMAILS_GROUP_DEFAULTS`, not a filter spelled here: that export is
+   * what `seeds/translations/import.ts` fills the group from, and the group
+   * declares `additionalProperties: false`. A key in it the schema does not
+   * declare makes every seed run 400 on `Emails > Emails`.
+   */
+  it('names emails exactly after EMAILS_GROUP_DEFAULTS, plural families collapsed', () => {
     expect([...collapsePlurals(Object.keys(group('emails').properties ?? {}))].sort()).toEqual(
-      [...collapsePlurals(Object.keys(EMAIL_STRING_DEFAULTS))].sort(),
+      [...collapsePlurals(Object.keys(EMAILS_GROUP_DEFAULTS))].sort(),
+    )
+  })
+
+  /** ⚠ An email's schedule reads the widget's own keys, so a translator writes each once. */
+  it('names every recurrence default after a key in event.recurrence', () => {
+    expect(Object.keys(group('event', 'recurrence').properties ?? {}).sort()).toEqual(
+      emailKeys
+        .filter(isRecurrence)
+        .map((key) => key.slice('recurrence_'.length))
+        .sort(),
     )
   })
 
@@ -198,14 +217,14 @@ describe('atlas translations schema', () => {
 
   // Every other assertion here filters a list. This one states its size, so
   // none of them can pass by walking an empty schema.
-  it('declares 258 widget-facing keys across 43 leaf groups', () => {
+  it('declares 260 widget-facing keys across 43 leaf groups', () => {
     expect(schemaShape(schema).leafGroups).toBe(43)
     expect(
       declaredKeys().filter(
         (key) =>
           !key.startsWith('emails.') && !key.startsWith('event.title.') && !key.startsWith('seo.'),
       ).length,
-    ).toBe(258)
+    ).toBe(260)
   })
 
   it('describes every key, naming where it appears', () => {

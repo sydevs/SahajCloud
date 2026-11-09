@@ -113,7 +113,7 @@
             },
             "captcha_blocked": {
               "type": "string",
-              "description": "Message when the host page’s Content-Security-Policy blocked the Turnstile security check."
+              "description": "Message shown in place of the Atlas when its security check (Turnstile) does not answer: the host page blocked it, or it was too slow."
             },
             "no_events": {
               "type": "string",
@@ -716,6 +716,10 @@
               "type": "string",
               "description": "Where-line for an online class, naming the host’s city. `%{city}` = host city."
             },
+            "zone_time": {
+              "type": "string",
+              "description": "Placed after a time to name the clock it is in, e.g. “8:00 pm Prague time”. Every online class time carries it, and an in-person time does when the viewer’s clock differs from the venue’s. `%{city}` = the time zone’s city."
+            },
             "distance_away": {
               "type": "string",
               "description": "List card distance from the visitor. `%{distance}` = formatted distance."
@@ -928,6 +932,10 @@
         "view_list": {
           "type": "string",
           "description": "View switch: the agenda list."
+        },
+        "times_note": {
+          "type": "string",
+          "description": "Line under the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city."
         }
       },
       "additionalProperties": false
@@ -986,7 +994,7 @@
             },
             "privacy_policy": {
               "type": "string",
-              "description": "Consent text beside the submit button."
+              "description": "Consent text beside the submit button. Wrap the words that open the privacy policy in `<link>…</link>`; without the tags, the sentence shows with no link."
             },
             "error_title": {
               "type": "string",
@@ -1419,7 +1427,7 @@
     },
     "emails": {
       "type": "object",
-      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address, times) is never translated — only the surrounding copy is.",
+      "description": "Chrome for emails the CMS sends to registrants. Event data (title, address) is never translated; dates and times read in the registrant’s locale, and the schedule sentence comes from `event.recurrence`.",
       "properties": {
         "confirmation_subject": {
           "type": "string",

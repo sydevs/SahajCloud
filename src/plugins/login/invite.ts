@@ -61,7 +61,7 @@ export async function composeInvitations({
   only?: PendingInvitation
   payload: Payload
   req?: PayloadRequest
-}): Promise<{ from: string; html: string; subject: string }[]> {
+}): Promise<{ from: string; html: string; subject: string; text: string }[]> {
   const summaries = await summarizeGrants({
     collection: config.slug as string,
     current: config.project?.(doc) ?? undefined,
@@ -90,7 +90,7 @@ export async function composeInvitations({
     summaries.filter(namesAnything).map(async (summary) => ({
       from: emailFrom(summary.project),
       subject: stripNewlines(inviteHeading(summary, getEmailBrand(summary.project).productName)),
-      html: await renderEmail(
+      ...(await renderEmail(
         createElement(InviteEmail, {
           name: doc.name || doc.email || '',
           accepted,
@@ -104,7 +104,7 @@ export async function composeInvitations({
           responsibilities: summary.responsibilities,
           project: summary.project,
         }),
-      ),
+      )),
     })),
   )
 }

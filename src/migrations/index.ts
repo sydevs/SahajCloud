@@ -110,6 +110,8 @@ import * as migration_20261103_215150_submitter_identity from './20261103_215150
 import * as migration_20261104_180154_routing_region from './20261104_180154_routing_region';
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
+import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
+import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 
 export const migrations = [
   {
@@ -670,6 +672,16 @@ export const migrations = [
   {
     up: migration_20261105_181908_retire_region_hint.up,
     down: migration_20261105_181908_retire_region_hint.down,
-    name: '20261105_181908_retire_region_hint'
+    name: '20261105_181908_retire_region_hint',
+  },
+  {
+    up: migration_20261105_201411_atlas_digests_and_homes.up,
+    down: migration_20261105_201411_atlas_digests_and_homes.down,
+    name: '20261105_201411_atlas_digests_and_homes'
+  },
+  {
+    up: migration_20261107_225000_atlas_clock_copy.up,
+    down: migration_20261107_225000_atlas_clock_copy.down,
+    name: '20261107_225000_atlas_clock_copy'
   },
 ];

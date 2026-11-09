@@ -15,7 +15,7 @@ import type { CollectionSlug } from 'payload'
 
 import type { ProjectSlug } from '@/payload-types'
 
-import { getAllProjectCollections, isCollectionVisibleInProject } from './projects'
+import { getAllProjectCollections, isImplicitlyReadable } from './projects'
 
 // --- Internal Configuration (NOT exported - use helper functions) ---
 
@@ -334,31 +334,16 @@ export function getProjectsFromRoles(
 }
 
 /**
- * Get all collections with implicit read access for given roles
- *
- * This is a higher-level function that builds on isCollectionVisibleInProject.
- * For each role, it finds the associated project and adds all collections visible in that project.
- *
- * Includes:
- * - Project collections (collections in the role's project)
- * - Shared collections (collections not in any project, visible to all)
- *
- * @param roles - Array of role slugs
- * @returns Array of collection slugs readable by these roles
+ * Every collection these roles read with no explicit grant — what each role's
+ * project names (`isImplicitlyReadable`, the rule `hasPermission` applies).
  */
 export function getReadableCollections(roles: InternalRoleSlug[]): ContentSlug[] {
   const collections = new Set<ContentSlug>()
-
-  // Get all collections visible for each role's project
   for (const role of roles) {
     const project = getRoleProject(role)
-    // Use isCollectionVisibleInProject to check each collection
-    // This ensures we use the same visibility logic everywhere
-    getAllProjectCollections().forEach((collection) => {
-      if (isCollectionVisibleInProject(collection, project || null)) {
-        collections.add(collection)
-      }
-    })
+    for (const collection of getAllProjectCollections()) {
+      if (isImplicitlyReadable(collection, project)) collections.add(collection)
+    }
   }
 
   return Array.from(collections).sort() as ContentSlug[]
