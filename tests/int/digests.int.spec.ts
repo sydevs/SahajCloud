@@ -445,14 +445,13 @@ describe('SendDigests job', () => {
       expect(html).toContain('Essonne Digest Site')
       expect(html).toContain('Search problem')
       expect(html).toContain('Google is unable to read your map embed')
-      expect(html).toContain('There is an issue with your map embed.')
       expect(html).not.toContain('Classes')
       expect(html).toContain(`/admin/collections/clients/${client.id}/install`)
       // The missing map first: visitors see nothing at all.
       expect(html.indexOf('Missing Digest Site')).toBeLessThan(html.indexOf('Essonne Digest Site'))
       expect(html).toContain('Map not found')
       expect(html).toContain('Your map was not found on your site')
-      expect(html).toContain('No longer the home for its region’s links')
+      expect(html).toContain('so it is no longer the home for its region’s links')
       expect(html).toContain(`/admin/collections/clients/${missing.id}/install`)
       expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
 

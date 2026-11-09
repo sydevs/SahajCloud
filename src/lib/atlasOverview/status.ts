@@ -57,6 +57,8 @@ export interface OpenItemStatus {
   /** Counts against progress. Recommendations never do: they are advice. */
   counts: boolean
   action: { label: string; target: OpenItemTarget } | null
+  /** The email's sentence for this row, where it depends on the row rather than the status. */
+  prompt?: ActionPrompt
   /** When this status comes due, for the within-rank order. */
   deadline?: string | null
 }
@@ -195,7 +197,7 @@ export type OpenItemStatusKey = keyof typeof STATUS_TABLE
 function status(
   key: OpenItemStatusKey,
   own: Pick<OpenItemStatus, 'action' | 'lines'> &
-    Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'rank'>>,
+    Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'prompt' | 'rank'>>,
 ): OpenItemStatus {
   return { key, ...STATUS_TABLE[key], ...own }
 }
@@ -341,26 +343,32 @@ function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenIt
     label: 'Review',
     target: { collection: 'clients' as const, id: row.id, view: 'install' as const },
   }
-  const checked = `Checked ${shortDate(row.checkedAt)}`
+  const lines = [`Checked ${shortDate(row.checkedAt)}`]
+  const link = 'Review it'
 
   if (row.misses > 0) {
     const left = CANONICAL_FAILURE_LIMIT - row.misses
-    const region = row.releasedAt
-      ? ['No longer the home for its region’s links']
+    const found = 'Your map was not found on your site'
+    const prompt: ActionPrompt = row.releasedAt
+      ? {
+          before: `${found}, so it is no longer the home for its region’s links. `,
+          link,
+          after: '',
+        }
       : row.owned && left > 0
-        ? [`Loses its region’s links after ${left} more miss${left === 1 ? '' : 'es'}`]
-        : []
-    return [
-      status('map-not-found', {
-        lines: ['Your map was not found on your site', ...region, checked],
-        action,
-      }),
-    ]
+        ? {
+            before: `${found}. `,
+            link,
+            after: ` or it loses its region’s links after ${left} more miss${left === 1 ? '' : 'es'}.`,
+          }
+        : { before: `${found}. `, link, after: '' }
+    return [status('map-not-found', { lines, action, prompt })]
   }
   return [
     status('search-problem', {
-      lines: ['Google is unable to read your map embed', checked],
+      lines,
       action,
+      prompt: { before: 'Google is unable to read your map embed. ', link, after: '' },
     }),
   ]
 }
@@ -374,7 +382,7 @@ export function rowTarget(row: OpenItemRow): OpenItemTarget {
 
 /** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
 export interface ActionPrompt {
-  /** Words ahead of the link, for a prompt that says what is wrong first. */
+  /** Words ahead of the link, for a sentence that says what is wrong first. */
   before?: string
   link: string
   after: string
@@ -392,21 +400,12 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
   'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
-  'map-not-found': {
-    before: 'There is an issue with your map embed. ',
-    link: 'Review it',
-    after: '',
-  },
-  'search-problem': {
-    before: 'There is an issue with your map embed. ',
-    link: 'Review it',
-    after: '',
-  },
 }
 
 /** The sentence for a status's next step, or `null` when it has none. */
 export function actionPrompt(status: OpenItemStatus): ActionPrompt | null {
   if (!status.action) return null
+  if (status.prompt) return status.prompt
   if (status.action.target.collection === 'regions') {
     return { link: 'Add a region manager', after: ' so someone looks after this region.' }
   }

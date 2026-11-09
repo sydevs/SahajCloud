@@ -18,12 +18,7 @@ import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
 import type { OverviewScope } from '@/lib/atlasOverview/scope'
 import { loadStatistics, type StatTile } from '@/lib/atlasOverview/statistics'
-import {
-  actionPrompt,
-  type OpenItem,
-  type OpenItemStatus,
-  rowTarget,
-} from '@/lib/atlasOverview/status'
+import { actionPrompt, type OpenItem, type OpenItemStatus } from '@/lib/atlasOverview/status'
 import { formatLongDate } from '@/lib/notifications'
 import type { ManagerRole } from '@/lib/notifications/managerRoles'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
@@ -120,7 +115,6 @@ function pillFor(status: OpenItemStatus): StatusPillStyle {
 export function toEmailRow(item: OpenItem): ItemTableRow {
   const { placing } = item
   const prompt = actionPrompt(placing)
-  const own = rowTarget(item.row)
   return {
     action:
       placing.action && prompt
@@ -133,8 +127,6 @@ export function toEmailRow(item: OpenItem): ItemTableRow {
             ),
           }
         : null,
-    // The item itself, as on the dashboard; the next step links where it is taken.
-    href: adminDocUrl(own.collection, own.id, own.view),
     lines: placing.lines,
     statuses: item.statuses.map((status) => ({ pillStyle: pillFor(status), text: status.label })),
     subtitle: item.row.kind === 'event' ? item.row.timing || undefined : undefined,

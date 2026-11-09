@@ -310,23 +310,25 @@ describe('openItem', () => {
     })
     const review = { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } }
 
-    it('says a search problem in plain words, and sends the reader to the Install tab', () => {
+    const promptOf = (row: OpenItemRow) => actionPrompt(openItem(row, NOW).placing)
+
+    it('dates a search problem, and sends the reader to the Install tab', () => {
       const item = openItem(service(), NOW)
       expect(item.placing).toMatchObject({
         action: review,
         key: 'search-problem',
         label: 'Search problem',
-        lines: ['Google is unable to read your map embed', 'Checked 4 Nov 2026'],
+        lines: ['Checked 4 Nov 2026'],
         pill: 'warning',
       })
       expect(item.since).toBe('2026-11-04T07:00:00.000Z')
       expect(rowTarget(item.row)).toEqual({ collection: 'clients', id: 43, view: 'install' })
     })
 
-    it('names the problem before the link, where there is room for a sentence', () => {
-      expect(actionPrompt(openItem(service(), NOW).placing)).toEqual({
+    it('says what is wrong in the sentence that carries the link', () => {
+      expect(promptOf(service())).toEqual({
         after: '',
-        before: 'There is an issue with your map embed. ',
+        before: 'Google is unable to read your map embed. ',
         link: 'Review it',
       })
     })
@@ -337,23 +339,27 @@ describe('openItem', () => {
       expect(item.placing).toMatchObject({
         action: review,
         label: 'Map not found',
-        lines: ['Your map was not found on your site', 'Checked 4 Nov 2026'],
+        lines: ['Checked 4 Nov 2026'],
         pill: 'error',
         rank: 2,
+      })
+      expect(promptOf(service({ misses: 1 }))).toEqual({
+        after: '',
+        before: 'Your map was not found on your site. ',
+        link: 'Review it',
       })
     })
 
     it('counts down to the release for an owner, and says when it happened', () => {
-      expect(openItem(service({ misses: 1, owned: true }), NOW).placing.lines[1]).toBe(
-        'Loses its region’s links after 2 more misses',
+      expect(promptOf(service({ misses: 1, owned: true }))?.after).toBe(
+        ' or it loses its region’s links after 2 more misses.',
       )
-      expect(openItem(service({ misses: 2, owned: true }), NOW).placing.lines[1]).toBe(
-        'Loses its region’s links after 1 more miss',
+      expect(promptOf(service({ misses: 2, owned: true }))?.after).toBe(
+        ' or it loses its region’s links after 1 more miss.',
       )
-      expect(
-        openItem(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }), NOW).placing
-          .lines[1],
-      ).toBe('No longer the home for its region’s links')
+      expect(promptOf(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }))?.before).toBe(
+        'Your map was not found on your site, so it is no longer the home for its region’s links. ',
+      )
     })
   })
 
