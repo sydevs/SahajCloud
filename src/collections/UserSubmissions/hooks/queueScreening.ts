@@ -10,13 +10,21 @@ import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
  * queue run says `afterCommit` — see `runQueueSoon`, which owns that contract
  * and the autoRun safety net behind it.
  */
-export const queueScreening: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
+export const queueScreening: CollectionAfterChangeHook = async ({ data, doc, operation, req }) => {
   if (operation !== 'create') return doc
   // `pending` is the status a row carries while it waits to be screened. Only a
   // fresh intake is: an import, or a spec that pins a terminal status at create
   // time, has already decided, and re-screening would overwrite that decision
   // with a machine's.
-  if (doc.status !== 'pending') return doc
+  //
+  // ⚠ **Read from `data`, the input, never from `doc`** (#1093). `doc` is the
+  // `afterRead` projection, narrowed by a `select` the caller sets on the create
+  // and no gate polices — so `POST …?select[id]=true` left `doc.status`
+  // undefined and this guard returned, skipping screening altogether. Of the
+  // four hooks that request reached, this was the one that mattered: an
+  // unscreened row gets no disposable-address check, no content scan, no `spam`
+  // verdict and no abuse strike, and is delivered as though one had cleared it.
+  if (data.status !== 'pending') return doc
 
   // `user-submissions` ids are Postgres serials, and `screenSubmission` declares
   // `type: 'number'` for the row it names — so the narrowing is the task's own

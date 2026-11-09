@@ -53,15 +53,21 @@ describe('a repeat registration updates the existing one', () => {
   let client: Client
   let asClient: RestClient
 
-  const clientReq = (): PayloadRequest =>
+  const clientReq = (as: Client = client): PayloadRequest =>
     ({
       payload,
       headers: new Headers({ 'x-turnstile-token': 'tok-valid' }),
-      user: { ...client, collection: 'clients' },
+      user: { ...as, collection: 'clients' },
       context: {},
     }) as unknown as PayloadRequest
 
-  const register = (args: { event: number; email: string; name: string; startingAt?: string }) =>
+  const register = (args: {
+    as?: Client
+    email: string
+    event: number
+    name: string
+    startingAt?: string
+  }) =>
     payload.create({
       collection: 'user-submissions',
       data: {
@@ -72,8 +78,16 @@ describe('a repeat registration updates the existing one', () => {
         submissionData: [{ field: 'name', value: args.name }],
       } as never,
       overrideAccess: false,
-      req: clientReq(),
+      req: clientReq(args.as),
     }) as Promise<UserSubmission>
+
+  const setStatus = (id: number, status: UserSubmission['status']) =>
+    payload.update({
+      collection: 'user-submissions',
+      id,
+      data: { status },
+      overrideAccess: true,
+    })
 
   const registrationsOf = async (eventId: number) =>
     (
@@ -146,12 +160,7 @@ describe('a repeat registration updates the existing one', () => {
       name: 'Ann',
       startingAt: SESSION_A,
     })
-    await payload.update({
-      collection: 'user-submissions',
-      id: first.id,
-      data: { status: 'accepted' },
-      overrideAccess: true,
-    })
+    await setStatus(first.id, 'accepted')
 
     // The case differs: the sender's `users` row is keyed on the normalized
     // address, so this is the same person.
@@ -219,12 +228,7 @@ describe('a repeat registration updates the existing one', () => {
     const event = await createEvent()
     const address = email()
     const flagged = await register({ event: event.id, email: address, name: 'Ann' })
-    await payload.update({
-      collection: 'user-submissions',
-      id: flagged.id,
-      data: { status: 'spam' },
-      overrideAccess: true,
-    })
+    await setStatus(flagged.id, 'spam')
 
     const second = await register({ event: event.id, email: address, name: 'Ann' })
     expect(second.id).not.toBe(flagged.id)
@@ -260,12 +264,7 @@ describe('a repeat registration updates the existing one', () => {
       name: 'Ann',
       startingAt: SESSION_A,
     })
-    await payload.update({
-      collection: 'user-submissions',
-      id: first.id,
-      data: { status: 'accepted' },
-      overrideAccess: true,
-    })
+    await setStatus(first.id, 'accepted')
 
     await register({ event: event.id, email: address, name: 'Bo', startingAt: SESSION_B })
 
@@ -284,21 +283,14 @@ describe('a repeat registration updates the existing one', () => {
     )
     // Visible beside the entry, so an overwrite is not only machine-readable —
     // and built from the status alone, never from text the sender wrote.
-    expect(update!.cells.activity).toMatchObject({
-      sub: 'Replaced a Accepted registration',
-    })
+    expect(update!.cells.activity).toMatchObject({ sub: 'Previously Accepted' })
   })
 
   it('folds into the seat a sender holds, not a newer failed row', async () => {
     const event = await createEvent({ registrationLimit: 1 })
     const address = email()
     const held = await register({ event: event.id, email: address, name: 'Ann' })
-    await payload.update({
-      collection: 'user-submissions',
-      id: held.id,
-      data: { status: 'accepted' },
-      overrideAccess: true,
-    })
+    await setStatus(held.id, 'accepted')
 
     // A manager's write skips the merge, which is how one sender comes to hold
     // two rows for an event — the shape a legacy duplicate leaves behind.
@@ -314,12 +306,7 @@ describe('a repeat registration updates the existing one', () => {
       } as never),
       overrideAccess: true,
     })
-    await payload.update({
-      collection: 'user-submissions',
-      id: dead.id,
-      data: { status: 'failed' },
-      overrideAccess: true,
-    })
+    await setStatus(dead.id, 'failed')
 
     // The event is full on the one active row, and a sender updating the seat
     // they hold takes no new one — so the gate waives `event_full` here too.
@@ -376,21 +363,11 @@ describe('a repeat registration updates the existing one', () => {
     const first = await register({ event: event.id, email: address, name: 'Ann' })
     expect(relationId(first.client)).toBe(client.id)
 
-    const second = await payload.create({
-      collection: 'user-submissions',
-      data: {
-        type: 'registration',
-        event: event.id,
-        senderEmail: address,
-        submissionData: [{ field: 'name', value: 'Ann Smith' }],
-      } as never,
-      overrideAccess: false,
-      req: {
-        payload,
-        headers: new Headers({ 'x-turnstile-token': 'tok-valid' }),
-        user: { ...other, collection: 'clients' },
-        context: {},
-      } as unknown as PayloadRequest,
+    const second = await register({
+      as: other,
+      email: address,
+      event: event.id,
+      name: 'Ann Smith',
     })
 
     expect(second.id).toBe(first.id)
@@ -407,12 +384,7 @@ describe('a repeat registration updates the existing one', () => {
     const event = await createEvent()
     const address = email()
     const first = await register({ event: event.id, email: address, name: 'Ann' })
-    await payload.update({
-      collection: 'user-submissions',
-      id: first.id,
-      data: { status: 'accepted' },
-      overrideAccess: true,
-    })
+    await setStatus(first.id, 'accepted')
     captureMessageMock.mockClear()
 
     await register({ event: event.id, email: address, name: 'Bo' })

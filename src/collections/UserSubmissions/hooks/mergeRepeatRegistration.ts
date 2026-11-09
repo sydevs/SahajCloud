@@ -86,6 +86,9 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   // forged history `logField`'s own write lock exists to refuse. `status` is a
   // server-set enum, so it is safe to show.
   const now = new Date().toISOString()
+  // Which key submitted the update. Recorded rather than written to the row's
+  // own `client`: see the update below.
+  const submittedVia = (data.client ?? null) as number | null
   const entry: LogEntry = {
     at: now,
     type: 'registration-update',
@@ -93,9 +96,7 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     cells: {
       activity: {
         text: 'Registered again — details updated',
-        sub: existing.status
-          ? `Replaced a ${STATUS_LABELS[existing.status]} registration`
-          : undefined,
+        sub: `Previously ${STATUS_LABELS[existing.status]}`,
       },
     },
     replaced: {
@@ -104,9 +105,7 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       startingAt: existing.startingAt ?? null,
       submissionData: existing.submissionData ?? [],
     },
-    // Which key submitted the update. Recorded rather than written to the row's
-    // own `client`: see the update below.
-    submittedVia: data.client ?? null,
+    submittedVia,
   }
 
   const updated = await req.payload.update({
@@ -151,11 +150,7 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   })
 
   if (existing.status === 'accepted') {
-    reportOverwrittenConfirmation(req, {
-      eventId,
-      submissionId: existing.id,
-      submittedVia: entry.submittedVia as number | null,
-    })
+    reportOverwrittenConfirmation(req, { eventId, submissionId: existing.id, submittedVia })
   }
 
   const { id, uuid, createdAt, updatedAt } = updated
@@ -163,16 +158,13 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
 }
 
 /**
- * Report that a repeat signup replaced a registration someone had confirmed.
- *
- * ⚠ **It is reported rather than refused**, because the alternative is worse:
- * see {@link MERGEABLE_STATUSES}. So this is the half of the record a caller
- * cannot reach — the row's own log entry is capped, and enough further signups
- * for the same address and event roll the replaced values out of it.
+ * Report that a repeat signup replaced a registration someone had confirmed —
+ * the half of that record no caller can reach, for the reason the module
+ * docblock gives.
  *
  * Fingerprinted on the row, so repeats against one registration group into one
  * issue. That recurrence is the signal: a registrant correcting their own
- * details does it once or twice, and the log entries already say what changed.
+ * details does it once or twice.
  */
 function reportOverwrittenConfirmation(
   req: PayloadRequest,
