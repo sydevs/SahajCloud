@@ -21,7 +21,7 @@ import { managersSignInDirectly } from '@/plugins/previewAdmin'
  * constant.
  */
 describe('managersSignInDirectly', () => {
-  const preview = { environmentName: 'pr-662', isProduction: false }
+  const preview = { environmentName: 'SahajCloud-pr-662', isProduction: false }
 
   it('holds on a Railway preview', () => {
     expect(managersSignInDirectly(preview)).toBe(true)
@@ -55,7 +55,17 @@ describe('managersSignInDirectly', () => {
     // reached on its own public URL, with no Worker in front of it and no
     // Access app covering it — published every manager's address, roles and
     // managed records, with one-click admin sign-in beside them.
-    for (const environmentName of ['staging', 'hotfix', 'production-eu', 'pr-', 'pr-x', 'PR-1']) {
+    for (const environmentName of [
+      'staging',
+      'hotfix',
+      'production-eu',
+      'pr-',
+      'pr-x',
+      'PR-1',
+      'SahajCloud-pr-',
+      'SahajCloud-staging',
+      'Other-pr-1082',
+    ]) {
       expect(managersSignInDirectly({ ...preview, environmentName }), environmentName).toBe(false)
     }
   })

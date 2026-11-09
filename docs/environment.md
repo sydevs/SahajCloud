@@ -99,7 +99,7 @@ Production is detected by Railway's environment name, never `NODE_ENV`. Previews
 
 **Two variables a preview does need**, both a person's to set: `PREVIEW_PROXY_SECRET`, the value the Worker sends and `src/middleware.ts` compares — a preview with none refuses everything but its health route, which is the safe direction — and, in CI, the `github-ci` Access service token as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`, which the seed step and the smoke lane attach to every request. Neither is read through `serverEnv`: the first is read in the middleware bundle, which no schema describes, and the second never reaches the app at all.
 
-⚠ **Whether a deployment is a preview is read from Railway's environment name, through `railwayEnvironmentName()`.** The gate, the sign-in bypass, the login page's account list and `getServerUrl()` all read that one answer, so they cover one set by construction — and it is an allowlist, `pr-<n>`, not "any name but production": a `staging` environment is served at no fixed address and covered by no Access app, so the wider test published every manager's account there.
+⚠ **Whether a deployment is a preview is read from Railway's environment name, through `railwayEnvironmentName()`.** The gate, the sign-in bypass, the login page's account list and `getServerUrl()` all read that one answer, so they cover one set by construction — and it is an allowlist, `SahajCloud-pr-<n>`, not "any name but production": a `staging` environment is served at no fixed address and covered by no Access app, so the wider test published every manager's account there.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 

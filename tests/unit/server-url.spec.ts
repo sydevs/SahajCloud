@@ -41,7 +41,7 @@ const PREVIEW_FIXED = 'https://pr-874.cloud-preview.sydevelopers.com'
 
 /** A Railway PR preview, as Railway names and serves one. */
 const preview = {
-  RAILWAY_ENVIRONMENT_NAME: 'pr-874',
+  RAILWAY_ENVIRONMENT_NAME: 'SahajCloud-pr-874',
   RAILWAY_PUBLIC_DOMAIN: PREVIEW_RAILWAY_HOST,
   SAHAJCLOUD_URL: PRODUCTION,
 }

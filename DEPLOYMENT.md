@@ -127,7 +127,7 @@ moment the pull request exists.
 ⚠ **Railway's own address for a preview is shut.** A browser read there is sent
 on to the fixed address and anything else is refused, because Access never sees a
 request that arrives on the Railway host. Two things decide that, and neither is
-the request's own `Host`: whether this deployment is a `pr-<n>` Railway
+the request's own `Host`: whether this deployment is a `SahajCloud-pr-<n>` Railway
 environment, and whether the request carries the Worker's shared secret **by
 value**. A host test would fail open on every shape it did not recognise, and a
 presence test on the header would be opened by anyone who read the repository.

@@ -58,7 +58,7 @@ const refuse = (body: string): NextResponse =>
  * preview refuses everything but its health route — loud, and reported by the
  * smoke lane — rather than serving the whole admin panel to anyone.
  *
- * ⚠ **Production and local dev are untouched**, because neither is a `pr-<n>`
+ * ⚠ **Production and local dev are untouched**, because neither is a PR's
  * Railway environment. Nothing here runs a second string test to establish that.
  */
 function previewGate(request: NextRequest): NextResponse | null {

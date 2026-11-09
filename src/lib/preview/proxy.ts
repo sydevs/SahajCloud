@@ -103,6 +103,18 @@ export const previewNumberFromProxyHost = (host: string | undefined | null): nul
 }
 
 /**
+ * A PR preview's Railway environment name.
+ *
+ * ⚠ **Railway spells it `SahajCloud-pr-<n>`, with the project's prefix**, which a
+ * deployed preview reports at `/api/health`. A pattern of bare `pr-<n>` matched
+ * no real deployment, so the gate, the sign-in bypass and the fixed address were
+ * all switched off on every preview while every spec, written against `pr-<n>`,
+ * stayed green. The bare form stays accepted for those fixtures and for a
+ * project renamed without a prefix; nothing else widens it.
+ */
+const PREVIEW_ENVIRONMENT_NAME = /^(?:SahajCloud-)?pr-(\d+)$/
+
+/**
  * True for the Railway environment name of a PR preview, and nothing else.
  *
  * ⚠ **Every preview decision keys on this, and on nothing a caller can write.**
@@ -119,11 +131,11 @@ export const previewNumberFromProxyHost = (host: string | undefined | null): nul
  * with one-click admin sign-in beside them, on an ordinary public URL.
  */
 export const isPreviewEnvironmentName = (name: string | undefined | null): boolean =>
-  !!name && /^pr-\d+$/.test(name.trim())
+  !!name && PREVIEW_ENVIRONMENT_NAME.test(name.trim())
 
 /** The pull-request number a preview environment's name names, or `null`. */
 export const previewNumberFromEnvironmentName = (name: string | undefined | null): null | string =>
-  isPreviewEnvironmentName(name) ? name!.trim().slice('pr-'.length) : null
+  (name && PREVIEW_ENVIRONMENT_NAME.exec(name.trim())?.[1]) || null
 
 /**
  * The Cloudflare Access service-token headers, or none when either half is

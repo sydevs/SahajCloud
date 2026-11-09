@@ -41,7 +41,7 @@ async function load(env: Record<string, string | undefined>) {
 }
 
 const onPreview = (over: Record<string, string | undefined> = {}) =>
-  load({ PREVIEW_PROXY_SECRET: SECRET, RAILWAY_ENVIRONMENT_NAME: 'pr-470', ...over })
+  load({ PREVIEW_PROXY_SECRET: SECRET, RAILWAY_ENVIRONMENT_NAME: 'SahajCloud-pr-470', ...over })
 
 const request = (
   path: string,
