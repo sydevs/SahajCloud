@@ -161,6 +161,13 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   // merge replied with a timestamp from the past where a fresh signup replies
   // with now. The row keeps its own `createdAt`; the response describes this
   // request.
+  //
+  // ⚠ **That narrows the oracle rather than closing it.** `id` is a Postgres
+  // serial, and this is the surviving row's — so a caller holding the id of a
+  // signup it made itself can still tell a lower one from a fresh one. The
+  // created row's id is not the alternative: this hook deletes that row, and
+  // the contract above is what a re-sent signup keys on. What stays observable
+  // is stated in `docs/rules/api-clients.md`.
   const { id, uuid } = updated
   return { ...doc, id, uuid, status: 'pending' }
 }
