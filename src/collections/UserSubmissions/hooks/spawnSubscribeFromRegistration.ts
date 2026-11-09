@@ -31,17 +31,25 @@ import { parseOptIn, readSubmissionValue, SUBSCRIBE_OPT_IN } from '../submission
  * — same stance as the confirmation email, for the same reason.
  */
 export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async ({
+  data,
   doc,
   operation,
   req,
 }) => {
-  if (operation !== 'create' || doc.type !== 'registration') return doc
-  if (!parseOptIn(readSubmissionValue(doc.submissionData, SUBSCRIBE_OPT_IN))) return doc
+  // ⚠ **Every input here comes from `data`, never from `doc`** (#1093). `doc`
+  // is the `afterRead` projection, and a create's `select` is a caller-set query
+  // parameter no gate polices — so `POST …?select[id]=true` emptied `doc` of
+  // `type` and `submissionData`, and the registrant's ticked box recorded
+  // nothing at all. That silence is what this row exists to stop. `doc.id` is
+  // the exception, and is safe: payload returns the new row's id whatever the
+  // projection asks for.
+  if (operation !== 'create' || data.type !== 'registration') return doc
+  if (!parseOptIn(readSubmissionValue(data.submissionData, SUBSCRIBE_OPT_IN))) return doc
 
   // Nothing to subscribe. A registration may be anonymous; an opt-in with no
   // address is a caller bug, and a row nobody could ever deliver is worse than
   // no row.
-  const userId = relationId(doc.user)
+  const userId = relationId(data.user)
   if (userId == null) return doc
 
   // ⚠ Read here, not off `doc.senderEmail`: that virtual resolves under the
@@ -65,15 +73,15 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
       data: {
         type: 'subscribe',
         senderEmail,
-        event: relationId(doc.event),
+        event: relationId(data.event),
         user: userId,
-        client: relationId(doc.client),
+        client: relationId(data.client),
         status: 'pending',
         // Carried over rather than re-derived: the provider wants a name and a
         // language, and these are the registrant's own answers to both.
         submissionData: [
-          { field: 'name', value: readSubmissionValue(doc.submissionData, 'name') ?? '' },
-          { field: 'locale', value: readSubmissionValue(doc.submissionData, 'locale') ?? '' },
+          { field: 'name', value: readSubmissionValue(data.submissionData, 'name') ?? '' },
+          { field: 'locale', value: readSubmissionValue(data.submissionData, 'locale') ?? '' },
         ].filter((pair) => pair.value !== ''),
       },
       // The row is system-composed from an already-screened registration, so it
