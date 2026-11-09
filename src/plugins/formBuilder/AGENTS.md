@@ -76,6 +76,17 @@ new slot owes the same branch — the field hooks behind one included, since
 `admin.condition` hides a field without stopping its hooks. The hooks above owe
 it too, which is why both check `type` for themselves.
 
+⚠ **And an `afterChange` hook here reads that `type` — and every other guard —
+from `data`, never from `doc`** (#1093). `doc` is the `afterRead` projection, and
+a create's `select` is a query parameter the caller sets which nothing polices,
+so `POST …?select[id]=true` empties `doc` of all but `id` and switches such a
+guard off from the request. Three hooks were reachable that way at once:
+screening was never queued, the event's fullness flag never recomputed, and a
+registrant's mailing-list consent recorded nowhere. `doc.id` is the exception,
+and is safe. A hook that also runs on **update** falls back to `doc`, because
+`data` is only the patch there. `tests/unit/user-submissions-afterchange-inputs.spec.ts`
+reads these hooks' source and fails on a guard that gates on `doc`.
+
 And an option that takes a **value** rather than a function cannot branch at
 all, so it has to suit the three rather than the one: `openByDefault` is absent
 for that reason, not by oversight. A **field** branches where an option cannot —
