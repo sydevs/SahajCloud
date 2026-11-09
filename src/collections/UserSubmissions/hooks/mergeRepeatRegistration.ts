@@ -180,6 +180,14 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
  * Fingerprinted on the row, so repeats against one registration group into one
  * issue. That recurrence is the signal: a registrant correcting their own
  * details does it once or twice.
+ *
+ * **Whoever watches this service's Sentry project reads it, and the row is what
+ * they act on**: the log entry written above carries `replaced`, so the previous
+ * status, session, answers and verdict are restorable from the admin panel. The
+ * report exists because that entry is not durable — `DEFAULT_LOG_LIMIT` further
+ * signups roll it out — so an issue whose event count has passed that is one
+ * where nothing is left to restore. Mute volume with a Sentry-side rule, never
+ * in this process (`docs/rules/api-clients.md`).
  */
 function reportOverwrittenConfirmation(
   req: PayloadRequest,
