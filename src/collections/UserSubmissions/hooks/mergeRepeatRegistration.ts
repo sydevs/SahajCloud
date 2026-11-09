@@ -153,8 +153,16 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     reportOverwrittenConfirmation(req, { eventId, submissionId: existing.id, submittedVia })
   }
 
-  const { id, uuid, createdAt, updatedAt } = updated
-  return { ...doc, id, uuid, createdAt, updatedAt, status: 'pending' }
+  // ⚠ **`id` and `uuid` only, never the surviving row's timestamps.** Those two
+  // are the published contract (`docs/rules/api-clients.md`): the `uuid` keys the
+  // registrant's calendar entry, so a re-sent confirmation moves it rather than
+  // adding one. `createdAt` is not, and echoing it answered "is this address
+  // registered for this event?" for any pair a key holder cared to name — a
+  // merge replied with a timestamp from the past where a fresh signup replies
+  // with now. The row keeps its own `createdAt`; the response describes this
+  // request.
+  const { id, uuid } = updated
+  return { ...doc, id, uuid, status: 'pending' }
 }
 
 /**

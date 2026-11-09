@@ -173,6 +173,10 @@ describe('a repeat registration updates the existing one', () => {
 
     expect(second.id).toBe(first.id)
     expect(second.uuid).toBe(first.uuid)
+    // The row's own `createdAt` is not echoed: it answered "is this address
+    // registered for this event?" to anyone holding a key. The stored row still
+    // keeps it, asserted below.
+    expect(second.createdAt).not.toBe(first.createdAt)
 
     const rows = await registrationsOf(event.id)
     expect(rows).toHaveLength(1)
