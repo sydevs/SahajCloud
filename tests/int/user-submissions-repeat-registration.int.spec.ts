@@ -19,10 +19,20 @@ import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const { verifyMock } = vi.hoisted(() => ({ verifyMock: vi.fn() }))
+const { captureMessageMock, verifyMock } = vi.hoisted(() => ({
+  captureMessageMock: vi.fn(),
+  verifyMock: vi.fn(),
+}))
 
 vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
   verifyTurnstileToken: verifyMock,
+}))
+
+// `captureException` is owed as well as the message asserted below: the
+// `event_full` refusal reaches it through the Local API capture wrapper.
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
+  captureMessage: captureMessageMock,
 }))
 
 const FUTURE_WEEKLY = {
@@ -388,6 +398,50 @@ describe('a repeat registration updates the existing one', () => {
     expect(relationId(row!.client)).toBe(client.id)
     const update = asLog(row!.activityLog).find((e) => e.type === 'registration-update')
     expect(update!.submittedVia).toBe(other.id)
+  })
+
+  it('reports an overwritten confirmation outside the caller’s reach', async () => {
+    // The entry above is capped and this collection keeps no versions, so
+    // enough repeat signups roll the original values out of the only record a
+    // manager can read. This report is the one that is not reachable that way.
+    const event = await createEvent()
+    const address = email()
+    const first = await register({ event: event.id, email: address, name: 'Ann' })
+    await payload.update({
+      collection: 'user-submissions',
+      id: first.id,
+      data: { status: 'accepted' },
+      overrideAccess: true,
+    })
+    captureMessageMock.mockClear()
+
+    await register({ event: event.id, email: address, name: 'Bo' })
+
+    expect(captureMessageMock).toHaveBeenCalledTimes(1)
+    const [, options] = captureMessageMock.mock.calls[0] as [
+      string,
+      { extra: Record<string, unknown>; fingerprint: string[]; level: string },
+    ]
+    expect(options.level).toBe('warning')
+    // Keyed by the row, so repeats against one registration group rather than
+    // arriving as unrelated reports — the recurrence is the signal.
+    expect(options.fingerprint).toEqual(['mergeRepeatRegistration', String(first.id)])
+    expect(options.extra).toMatchObject({
+      eventId: event.id,
+      submissionId: first.id,
+      submittedVia: client.id,
+    })
+  })
+
+  it('does not report a repeat signup into a registration nobody confirmed', async () => {
+    const event = await createEvent()
+    const address = email()
+    await register({ event: event.id, email: address, name: 'Ann' })
+    captureMessageMock.mockClear()
+
+    await register({ event: event.id, email: address, name: 'Ann Smith' })
+
+    expect(captureMessageMock).not.toHaveBeenCalled()
   })
 
   it('leaves a manager’s own write alone', async () => {

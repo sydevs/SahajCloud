@@ -1,5 +1,7 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
+import * as Sentry from '@sentry/nextjs'
+
 import type { LogEntry } from '@/fields'
 import { appendLogEntry, asLog } from '@/fields'
 import { isActiveRegistration } from '@/lib/registrations/active'
@@ -40,8 +42,9 @@ import { STATUS_LABELS } from '../statuses'
  * `appendLogEntry` keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops
  * the oldest, and each repeat signup appends one — so that many further signups
  * for the same address and event roll the entry carrying the original values
- * out of the column, and nothing else holds them. A record outside a caller's
- * reach is still owed here.
+ * out of the column. Overwriting a *confirmed* registration therefore also
+ * reports to Sentry, which no caller can roll anything out of; see
+ * {@link reportOverwrittenConfirmation}.
  */
 export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   data,
@@ -147,14 +150,53 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     req: trusted,
   })
 
+  if (existing.status === 'accepted') {
+    reportOverwrittenConfirmation(req, {
+      eventId,
+      submissionId: existing.id,
+      submittedVia: entry.submittedVia as number | null,
+    })
+  }
+
   const { id, uuid, createdAt, updatedAt } = updated
   return { ...doc, id, uuid, createdAt, updatedAt, status: 'pending' }
+}
+
+/**
+ * Report that a repeat signup replaced a registration someone had confirmed.
+ *
+ * ⚠ **It is reported rather than refused**, because the alternative is worse:
+ * see {@link MERGEABLE_STATUSES}. So this is the half of the record a caller
+ * cannot reach — the row's own log entry is capped, and enough further signups
+ * for the same address and event roll the replaced values out of it.
+ *
+ * Fingerprinted on the row, so repeats against one registration group into one
+ * issue. That recurrence is the signal: a registrant correcting their own
+ * details does it once or twice, and the log entries already say what changed.
+ */
+function reportOverwrittenConfirmation(
+  req: PayloadRequest,
+  extra: { eventId: number; submissionId: number; submittedVia: number | null },
+) {
+  const message = 'mergeRepeatRegistration: a repeat signup replaced a confirmed registration'
+  req.payload.logger.warn({ msg: message, ...extra })
+  Sentry.captureMessage(message, {
+    extra,
+    fingerprint: ['mergeRepeatRegistration', String(extra.submissionId)],
+    level: 'warning',
+  })
 }
 
 /**
  * The statuses a repeat signup may fold into. `spam` and `rejected` are left
  * out: each is a verdict on that row, which a fresh signup must neither hide
  * behind nor overturn.
+ *
+ * ⚠ **`accepted` stays in, though the address is never verified** (#1093).
+ * Dropping it would put a confirmed registrant's own repeat signup on a second
+ * row, a second seat and a second confirmation — the defect this hook exists to
+ * fix, back for the case that happens most. So an overwrite of a confirmed
+ * registration is reported instead: {@link reportOverwrittenConfirmation}.
  */
 const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = ['accepted', 'pending', 'failed']
 
