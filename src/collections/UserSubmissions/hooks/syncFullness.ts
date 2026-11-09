@@ -15,13 +15,22 @@ import { relationId } from '@/lib/utilities/relationId'
  * recompute writes only on a real flip (see `syncEventRegistrationsFull`).
  */
 export const syncFullnessAfterChange: CollectionAfterChangeHook = async ({
+  data,
   doc,
   previousDoc,
   operation,
   req,
 }) => {
-  if (doc.type !== 'registration') return doc
-  const eventId = relationId(doc.event)
+  // ⚠ **`data` first, because `doc` is narrowable from the request** (#1093).
+  // A create's `select` is a caller-set query parameter no gate polices, and it
+  // shapes the `afterRead` projection this hook is handed — so
+  // `POST …?select[id]=true` left both reads undefined and the event's
+  // `registrationsFull` flag was never recomputed. `data` carries every column
+  // on a create; on an update it is only the patch, so `doc` still answers for a
+  // column that write did not touch. Clients hold no update here, so the
+  // narrowable half is the create.
+  if ((data.type ?? doc.type) !== 'registration') return doc
+  const eventId = relationId(data.event ?? doc.event)
   if (eventId != null) {
     await syncEventRegistrationsFull({ payload: req.payload, eventId, req })
   }
