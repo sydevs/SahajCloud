@@ -36,9 +36,12 @@ minimumReleaseAge: 0
 # (`withDOM`), which nothing imports — richtext-lexical imports the main entry —
 # and no spec sets `@vitest-environment` to happy-dom. A fix needs 21.0.4,
 # demanded by GHSA-834v-8h66-3h79 alone — any 21.x clears the other, no 20.x does,
-# 20.14.6 being the newest (checked 2026-11-02) — so it is an override past the
-# declared `^20.9.0`, which #1066 ruled out. Call paths in #1071. Do not
-# re-derive the reachability.
+# 20.14.6 being the newest (checked 2026-11-09). @payloadcms/richtext-lexical pins
+# @lexical/headless at 0.50.0 exactly, through 3.93.0, so no release reaches the
+# fix in range and only an override past the declared `^20.9.0` does — declined on
+# #1071. @lexical/headless itself declares `^21.0.4` from 0.53.0, so the gate is a
+# payload release carrying lexical 0.53: check that one version first. Call paths
+# in #1071. Do not re-derive the reachability.
 overrides:
   # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
   # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
