@@ -1504,6 +1504,7 @@ export interface Manager {
     | boolean
     | null;
   magicLinkIssuedAt?: string | null;
+  lastLoginAt?: string | null;
   pendingInvitation?:
     | {
         [k: string]: unknown;
@@ -4846,6 +4847,7 @@ export interface ManagersSelect<T extends boolean = true> {
   legacyId?: T;
   legacyData?: T;
   magicLinkIssuedAt?: T;
+  lastLoginAt?: T;
   pendingInvitation?: T;
   invitationDueAt?: T;
   updatedAt?: T;

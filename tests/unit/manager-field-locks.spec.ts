@@ -58,9 +58,10 @@ describe('Managers field read locks', () => {
   it('enumerates the collection, the plugin columns and the legacy collapsible', () => {
     // Non-vacuity first: a shallow enumeration would make the sweep below pass
     // against a wide-open collection. `legacyData` sits in a top-level
-    // `collapsible`, and the other four are appended or merged outside the tabs.
+    // `collapsible`, and the rest are appended or merged outside the tabs.
     for (const name of [
       'magicLinkIssuedAt',
+      'lastLoginAt',
       'pendingInvitation',
       'invitationDueAt',
       'email',

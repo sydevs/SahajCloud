@@ -546,6 +546,22 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       ]),
     )
 
+    // Who has signed in here since an earlier sync. Atlas stops recording
+    // sign-ins once a manager uses SahajCloud, so an `--update` keeps whichever
+    // of the two dates is later rather than rewinding theirs to Atlas's (#908).
+    const signedInHere = await this.payload.find({
+      collection: 'managers',
+      where: { and: [{ legacyId: { exists: true } }, { lastLoginAt: { exists: true } }] },
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { legacyId: true, lastLoginAt: true },
+    })
+    const lastLoginHere = new Map(
+      signedInHere.docs.map((doc) => [doc.legacyId as number, doc.lastLoginAt ?? null]),
+    )
+
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
@@ -584,6 +600,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
               manager.phoneVerified,
             ),
             notificationPreferences: prefs,
+            lastLoginAt: laterDate(lastLoginHere.get(manager.legacyId), manager.lastLoginAt),
             // No password: managers hold none since #840.
             legacyId: manager.legacyId,
             legacyData: manager,
@@ -1690,6 +1707,13 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
  * second site needs a service of its own. A wildcard keeps its apex, as the
  * one-site migration does — no domain would enforce no browser origin at all.
  */
+/** The later of two ISO timestamps, either of which may be missing. */
+function laterDate(a: string | null | undefined, b: string | null | undefined): string | null {
+  if (!a) return b ?? null
+  if (!b) return a
+  return Date.parse(a) >= Date.parse(b) ? a : b
+}
+
 function firstDomain(raw: string | null | undefined): string | null {
   for (const entry of (raw ?? '').split(/[\s,]+/)) {
     const host = normalizeCanonicalDomain(normalizeHost(entry)?.replace(/^\*\./, ''))

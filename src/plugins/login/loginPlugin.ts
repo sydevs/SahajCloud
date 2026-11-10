@@ -49,6 +49,40 @@ export const magicLinkIssuedAt: Field = {
   },
 }
 
+/**
+ * When this account last signed in — stamped by `createSession`, the one place
+ * a session is minted, so a sign-in link, the preview admin's request and a
+ * test's session all count.
+ *
+ * Nothing else records it. `sessions` loses its row on sign-out and prunes
+ * expired ones, and `updatedAt` moves on every write, the digest job's
+ * watermarks included. A region manager reads it in the manager contacts table
+ * on Regions and Events, to tell an active colleague from one who never
+ * accepted (#908).
+ *
+ * ⚠ **`update: () => false` for the reason `magicLinkIssuedAt` has it:**
+ * self-access grants an account holder update on their own row, and a manager
+ * who could write this could read as active forever. `createSession` writes it
+ * with the local API's default `overrideAccess: true`.
+ *
+ * ⚠ **The `read` lock is this field's own**, because the plugin appends it
+ * after the collection's own locker has run (`Managers/access.ts`).
+ */
+export const lastLoginAt: Field = {
+  name: 'lastLoginAt',
+  type: 'date',
+  label: 'Last signed in',
+  admin: {
+    readOnly: true,
+    position: 'sidebar',
+    date: { pickerAppearance: 'dayAndTime' },
+  },
+  access: {
+    read: selfOrAdminFieldAccess,
+    update: () => false,
+  },
+}
+
 export interface LoginPluginOptions {
   /**
    * The auth collections to wire, one entry each. An empty list wires nothing.
@@ -264,7 +298,12 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
         return {
           ...withQueue,
           ...(entry.passwordless ? { auth: withoutPasswords(withQueue.auth) } : {}),
-          fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
+          fields: [
+            ...withQueue.fields,
+            magicLinkIssuedAt,
+            lastLoginAt,
+            ...(invites ? invitationFields : []),
+          ],
           hooks: {
             ...withQueue.hooks,
             beforeOperation: [

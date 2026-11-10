@@ -20,7 +20,7 @@ export { EXPIRED_REASON, REDEEM_PATH } from './endpoints/redeem'
 export { INVITE_VALID_FOR, composeInvitations } from './invite'
 export { INVITATION_DELAY_MS } from './invitations'
 export { pageLinkUrl } from './links'
-export { loginPlugin, magicLinkIssuedAt } from './loginPlugin'
+export { lastLoginAt, loginPlugin, magicLinkIssuedAt } from './loginPlugin'
 export {
   issueMagicLink,
   magicLinkEmailSchema,

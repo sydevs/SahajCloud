@@ -42,7 +42,7 @@ export const MANAGER_PUBLIC_FIELDS = new Set(['name'])
  * array branch then re-assigns an empty array.
  *
  * ⚠ It reaches only the fields passed to it, so a field appended after this
- * runs carries its own lock. `loginPlugin`'s three machine columns are that
+ * runs carries its own lock. `loginPlugin`'s four machine columns are that
  * case; `email` and `_verified` are declared in `Managers.ts` so the merge has
  * something to attach to. `sessions` needs neither: Payload merges it in at
  * sanitize, carrying its own self-only lock.

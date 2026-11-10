@@ -121,6 +121,7 @@ import * as migration_20261110_172159_snapshot_resync from './20261110_172159_sn
 import * as migration_20261110_175935_snapshot_resync from './20261110_175935_snapshot_resync';
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
 import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185320_merge_main_snapshot_6';
+import * as migration_20261110_220603_manager_last_login from './20261110_220603_manager_last_login';
 
 export const migrations = [
   {
@@ -736,6 +737,11 @@ export const migrations = [
   {
     up: migration_20261110_185320_merge_main_snapshot_6.up,
     down: migration_20261110_185320_merge_main_snapshot_6.down,
-    name: '20261110_185320_merge_main_snapshot_6'
+    name: '20261110_185320_merge_main_snapshot_6',
+  },
+  {
+    up: migration_20261110_220603_manager_last_login.up,
+    down: migration_20261110_220603_manager_last_login.down,
+    name: '20261110_220603_manager_last_login'
   },
 ];
