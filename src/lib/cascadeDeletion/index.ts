@@ -1,4 +1,4 @@
-import type { CollectionBeforeDeleteHook, CollectionSlug, PayloadRequest } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionSlug, Payload, PayloadRequest } from 'payload'
 
 /**
  * A single cascade target: the child collection and the field on that child
@@ -114,3 +114,24 @@ function polymorphicField(req: PayloadRequest, rule: CascadeRule): boolean {
   )
   return !!field && 'relationTo' in field && Array.isArray(field.relationTo)
 }
+
+/**
+ * The `<collection>.<field>` pairs `parentCollection` deletes when one of its
+ * own rows goes, read off the `deleteChildren` hooks it registers.
+ *
+ * Derived, never declared by a caller: a list restated elsewhere drifts the day
+ * a cascade is added, and the drift re-arms the storage leak above rather than
+ * breaking a build. The structural test is here, beside the property it reads,
+ * so a second consumer gets the same answer.
+ */
+export function cascadeChildPairs(payload: Payload, parentCollection: string): Set<string> {
+  const hooks =
+    payload.collections?.[parentCollection as CollectionSlug]?.config?.hooks?.beforeDelete
+  const pairs = (hooks ?? []).flatMap((hook) =>
+    isCascadeHook(hook) ? hook.cascadeRules.map((rule) => `${rule.collection}.${rule.field}`) : [],
+  )
+  return new Set(pairs)
+}
+
+const isCascadeHook = (hook: unknown): hook is CascadeHook =>
+  typeof hook === 'function' && Array.isArray((hook as Partial<CascadeHook>).cascadeRules)
