@@ -113,6 +113,7 @@ import * as migration_20261105_181908_retire_region_hint from './20261105_181908
 import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
 import * as migration_20261105_233425_add_cleverreach_mailing_list from './20261105_233425_add_cleverreach_mailing_list';
 import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
+import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261108_220039_snapshot_resync from './20261108_220039_snapshot_resync';
 import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
@@ -692,6 +693,11 @@ export const migrations = [
     up: migration_20261106_094841_clients_one_site.up,
     down: migration_20261106_094841_clients_one_site.down,
     name: '20261106_094841_clients_one_site',
+  },
+  {
+    up: migration_20261107_213230_transcript_segment_count.up,
+    down: migration_20261107_213230_transcript_segment_count.down,
+    name: '20261107_213230_transcript_segment_count',
   },
   {
     up: migration_20261107_225000_atlas_clock_copy.up,

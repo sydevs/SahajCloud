@@ -159,6 +159,11 @@ export const Pages: CollectionConfig = {
       // which is the failure mode `serverEnv` exists to prevent elsewhere.
       web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
       app: 'wemeditate://',
+      // All three deep links read `slug`, and an include-mode `select` strips
+      // it before the afterRead field hooks run — so `?select[webUrl]=true`
+      // answered null for every published page (#1084). The publish gate's own
+      // `_status` is added by the factory.
+      inputs: ['slug'],
       buildPath: ({ platform, data, req }) => {
         // The app deep-links by bare slug; the web path is shared with the
         // live-preview panel through `buildPageWebPath`, so the two cannot
