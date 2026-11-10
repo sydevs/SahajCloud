@@ -18,6 +18,7 @@ import {
   hideUntilCreated,
   legacyMigrationFields,
   logField,
+  managerContactsField,
   publicUrlFields,
   scheduleFields,
   systemMetaField,
@@ -44,6 +45,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  eventContactsFieldAccess,
   eventManagerFieldAccess,
   isAdminManager,
   managersOnlyFieldAccess,
@@ -644,6 +646,7 @@ export const Events: CollectionConfig = {
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
               },
             },
+            managerContactsField(),
             {
               name: 'verificationStage',
               label: 'Verification Process',
@@ -674,8 +677,14 @@ export const Events: CollectionConfig = {
               // entries back as data. The builders emit these cells
               // *alongside* `stage`, `level`, and `manager`, and the row's
               // ⋯ menu shows the rest.
+              //
+              // ⚠ Each reminder entry records the address it went to, so the
+              // log reads as the manager contacts table above it does: admins,
+              // the event's manager, and the managers of its region and every
+              // region above it (#908).
               description:
                 'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+              read: eventContactsFieldAccess,
               columns: [
                 { key: 'activity', label: 'Event' },
                 { key: 'who', label: 'Who' },

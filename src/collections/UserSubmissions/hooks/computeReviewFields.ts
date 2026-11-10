@@ -57,6 +57,12 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
         trash: true,
         overrideAccess: true,
         disableErrors: true,
+        // ⚠ The one column left out: `previewEvent` copies this row whole,
+        // and a proposal is read by the managers of the region it proposes,
+        // who need not be the event's own. The log records where each
+        // reminder went, and reads only as `eventContactsFieldAccess` answers
+        // for the event (#908). Neither projection renders it.
+        select: { activityLog: false },
       })
       .catch(() => null)) as Event | null
   })

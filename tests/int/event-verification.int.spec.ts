@@ -649,6 +649,42 @@ describe('Event verification lifecycle', () => {
       const fresh = await getEvent(payload, event.id)
       expect(reminders(fresh.activityLog).filter((e) => e.stage === 'verified')).toHaveLength(1)
     })
+
+    it('hands an escalated region manager the event manager’s email, to follow up', async () => {
+      // #908 locks every field on another manager's row but `name`. The job
+      // reads the event's manager with no user, so the escalation still
+      // carries their address — this is what keeps it that way.
+      const regionManager = await testData.createManager(payload, {
+        name: 'Escalation Manager',
+        email: 'escalation-manager@example.com',
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Escalation City',
+          level: 'city',
+          mapboxId: 'escalation-city',
+          managers: [regionManager.id],
+        }),
+      })
+      const event = await createEvent({ title: 'Escalated Listing', region: city.id })
+
+      sent.length = 0
+      // verified → reminded reaches the event manager alone; reminded →
+      // escalated is the first stage that loops the region manager in.
+      await makeDue(payload, event.id)
+      await runJob(payload)
+      await makeDue(payload, event.id)
+      await runJob(payload)
+
+      const email = mailTo('escalation-manager@example.com').find((message) =>
+        message.html.includes('Escalated Listing'),
+      )
+      expect(email, 'no escalation reached the region manager').toBeDefined()
+      expect(email!.html).toContain('Event manager')
+      expect(email!.html).toContain('mailto:event-manager@example.com')
+    })
   })
 
   it('resumes a partial fan-out by sending only the un-logged recipient', async () => {

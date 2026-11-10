@@ -1,0 +1,9 @@
+/* Layout for the cells alone. The table, label and description come from the CMS theme. */
+.stacked small {
+  display: block;
+  margin-top: calc(var(--base) / 8);
+  color: var(--theme-elevation-650);
+}
+.never {
+  color: var(--theme-elevation-650);
+}

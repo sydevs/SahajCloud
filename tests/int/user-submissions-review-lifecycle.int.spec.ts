@@ -253,6 +253,23 @@ describe('User submission review lifecycle', () => {
       expect(typeof preview.region).toBe('number')
     })
 
+    it('leaves the target’s activity log out of the preview it copies', async () => {
+      // ⚠ The copy reaches every manager the proposal does, which includes a
+      // proposed region's — and the log records where each reminder went, so
+      // it reads only as `eventContactsFieldAccess` answers for the event
+      // (#908). The target is saved with a manager, so it holds an entry.
+      const target = await testData.createEvent(payload, { _status: 'published' })
+      expect(target.activityLog).not.toEqual([])
+      const created = await createProposal({
+        event: target.id,
+        proposed: { eventType: 'offline', contactName: 'Aria' },
+      })
+
+      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
+      expect(preview.title).toBe(target.title)
+      expect(preview).not.toHaveProperty('activityLog')
+    })
+
     it('previews a new-event proposal with the region Accept writes, and no photographs', async () => {
       const created = await createProposal({
         region: cityId,

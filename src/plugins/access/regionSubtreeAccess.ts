@@ -228,6 +228,52 @@ async function maySetManagerOn(
   return ownedRegionIds.includes(Number(regionId))
 }
 
+/**
+ * Whether this request's user may see who to contact about a region or an
+ * event: an admin, the event's own manager, or an active manager whose owned
+ * subtree holds the region — so a region's own managers and the managers of
+ * every region above it, and never a sub-region's.
+ *
+ * The one answer for every surface that shows a manager's contact details
+ * beyond their own row: the manager contacts table on Regions and Events
+ * (`src/components/admin/ManagerContacts/`) and the event's activity log
+ * (`eventContactsFieldAccess`). It decides about the place, never about the
+ * person being shown, so a manager assigned inside the subtree reads the same
+ * to everyone allowed there (#908).
+ *
+ * `region` and `manager` are the row's own, as stored. A caller passes what it
+ * read, never what a form posted.
+ */
+export async function mayReadManagerContacts(
+  req: PayloadRequest,
+  place: { region?: unknown; manager?: unknown },
+): Promise<boolean> {
+  if (isAdminManager(req.user)) return true
+  if (!isManager(req.user)) return false
+
+  const userId = Number(req.user.id)
+  if (relationId(place.manager) === userId) return true
+  const regionId = relationId(place.region)
+  if (regionId === null) return false
+  return (await resolveOwnedRegionIds(req, userId)).includes(regionId)
+}
+
+/**
+ * `Events.activityLog` — its reminder entries record the address each one went
+ * to, so the log reads as {@link mayReadManagerContacts} answers for the row.
+ *
+ * ⚠ **No row in hand answers for admins alone.** A `where`, a `sort`, a
+ * `distinct` and the collection-level `/api/access` all evaluate field access
+ * with no `doc`, and there is no place to judge. A read that selects the log
+ * without `region` and `manager` is judged on what it carries, so it is
+ * refused too: fail closed, rather than a second query per row.
+ */
+export const eventContactsFieldAccess: FieldAccess = ({ doc, req }) => {
+  if (isAdminManager(req.user)) return true
+  if (!doc) return false
+  return mayReadManagerContacts(req, doc as { region?: unknown; manager?: unknown })
+}
+
 /** `Regions.managers` — the row is the region, so its own id is the subtree test. */
 export const regionManagersFieldAccess: FieldAccess = ({ id, req }) => maySetManagerOn(req, id)
 

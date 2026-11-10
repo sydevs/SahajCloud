@@ -48,7 +48,9 @@ export { readLockOf } from './stripLockedFieldsOnSelfRead'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
 export {
+  eventContactsFieldAccess,
   eventManagerFieldAccess,
+  mayReadManagerContacts,
   ownedRegionFilterOptions,
   regionManagersFieldAccess,
   resolveOwnedRegionIds,

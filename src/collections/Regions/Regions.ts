@@ -2,7 +2,13 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
+import {
+  hideUntilCreated,
+  legacyMigrationFields,
+  managerContactsField,
+  publicUrlFields,
+  slugField,
+} from '@/fields'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -233,6 +239,7 @@ export const Regions: CollectionConfig = {
                 description: 'Managers responsible for this region.',
               },
             },
+            managerContactsField(),
             {
               name: 'mapboxId',
               type: 'text',

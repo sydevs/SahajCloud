@@ -1,0 +1,331 @@
+/**
+ * Who reaches a manager's contact details beyond their own row (#908).
+ *
+ * Every field on another manager but `name` is locked to that manager and to
+ * admins (`managers-access.int.spec.ts`). These are the two surfaces that hand
+ * the details back to the people who have to follow up, both behind
+ * `mayReadManagerContacts`: the contacts table under `Regions.managers` and
+ * `Events.manager`, and an event's activity log, whose reminder entries record
+ * where each one went.
+ *
+ * The tree: a country above a region above a city, with the event in the city.
+ * Each level has its own manager, the region two, and an unrelated region holds
+ * the outsider.
+ */
+import type { Payload, PayloadRequest } from 'payload'
+
+import { createLocalReq, docAccessOperation } from 'payload'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { loadManagerContacts } from '@/components/admin/ManagerContacts/data'
+import { buildReminderEntry } from '@/lib/eventVerification/log'
+import type { Event } from '@/payload-types'
+import { createSession } from '@/plugins/login'
+
+import { createData, testData } from '../utils/testData'
+import { createTestEnvironment } from '../utils/testHelpers'
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const REMINDER_DESTINATION = 'event-assignee@example.com'
+
+describe('Manager contacts (#908)', () => {
+  let payload: Payload
+  let cleanup: () => Promise<void>
+  type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
+  let admin: AuthManager
+  let countryManager: AuthManager
+  let regionManager: AuthManager
+  let coManager: AuthManager
+  let cityManager: AuthManager
+  let eventManager: AuthManager
+  let outsider: AuthManager
+  let regionId: number
+  let event: Event
+
+  const request = (user: AuthManager): Promise<PayloadRequest> =>
+    createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
+
+  beforeAll(async () => {
+    const env = await createTestEnvironment()
+    payload = env.payload
+    cleanup = env.cleanup
+
+    const manager = (name: string) =>
+      testData.createManager(payload, {
+        name,
+        email: `${name.toLowerCase().replace(/\W+/g, '-')}@example.com`,
+        roles: [],
+        currentProject: 'sahaj-atlas',
+      })
+    const [adminRow, country, region, co, city, assignee, outside] = await Promise.all([
+      testData.createManager(payload, { type: 'admin' }),
+      manager('Country Manager'),
+      manager('Region Manager'),
+      manager('Co Manager'),
+      manager('City Manager'),
+      testData.createManager(payload, {
+        name: 'Event Assignee',
+        email: REMINDER_DESTINATION,
+        roles: [],
+        currentProject: 'sahaj-atlas',
+      }),
+      manager('Outside Manager'),
+    ])
+
+    const countryRow = await payload.create({
+      collection: 'regions',
+      data: createData<'regions'>({
+        name: 'Contacts Country',
+        level: 'country',
+        mapboxId: 'country.contacts',
+        managers: [country.id],
+      }),
+    })
+    const regionRow = await payload.create({
+      collection: 'regions',
+      data: createData<'regions'>({
+        name: 'Contacts Region',
+        level: 'region',
+        parent: countryRow.id,
+        mapboxId: 'region.contacts',
+        managers: [region.id, co.id],
+      }),
+    })
+    regionId = regionRow.id
+    const cityRow = await payload.create({
+      collection: 'regions',
+      data: createData<'regions'>({
+        name: 'Contacts City',
+        level: 'city',
+        parent: regionRow.id,
+        mapboxId: 'city.contacts',
+        managers: [city.id],
+      }),
+    })
+    await payload.create({
+      collection: 'regions',
+      data: createData<'regions'>({
+        name: 'Elsewhere',
+        level: 'country',
+        mapboxId: 'country.elsewhere',
+        managers: [outside.id],
+      }),
+    })
+
+    event = await testData.createEvent(payload, {
+      title: 'Contacts Event',
+      region: cityRow.id,
+      manager: assignee.id,
+    })
+    // Written after the create, under `skipVerifyHook`: `syncVerificationOnSave`
+    // resets the log on any managed save, so a log passed to the create would
+    // be discarded and every case below would pass vacuously.
+    await payload.update({
+      collection: 'events',
+      id: event.id,
+      overrideAccess: true,
+      context: { skipVerifyHook: true },
+      data: {
+        activityLog: [
+          buildReminderEntry({
+            stage: 'verified',
+            level: 'due',
+            role: 'manager',
+            manager: { id: assignee.id, name: assignee.name },
+            channel: 'email',
+            destination: REMINDER_DESTINATION,
+            at: new Date().toISOString(),
+          }),
+        ],
+      } as never,
+    })
+
+    // Both Atlas roles are derived from the listings above, so each user is
+    // re-read once theirs exists — see `testData.authUser`.
+    ;[admin, countryManager, regionManager, coManager, cityManager, eventManager, outsider] =
+      await Promise.all(
+        [adminRow, country, region, co, city, assignee, outside].map((row) =>
+          testData.authUser(payload, row),
+        ),
+      )
+  })
+
+  afterAll(async () => {
+    await cleanup()
+  })
+
+  describe('the contacts table', () => {
+    const tableFor = async (
+      user: AuthManager,
+      collection: 'events' | 'regions',
+      id: number | string,
+      now?: Date,
+    ) => loadManagerContacts(await request(user), collection, id, now)
+    const namesIn = (rows: Awaited<ReturnType<typeof tableFor>>) => rows?.map((row) => row.name)
+
+    it('shows a region’s managers to admins, co-managers and the managers above', async () => {
+      for (const user of [admin, regionManager, coManager, countryManager]) {
+        expect(namesIn(await tableFor(user, 'regions', regionId))).toEqual([
+          'Region Manager',
+          'Co Manager',
+        ])
+      }
+    })
+
+    it('shows a region’s managers to nobody below it or outside it', async () => {
+      // Downward only: a city manager reads the region above them by name, in
+      // the picker, and no further.
+      for (const user of [cityManager, eventManager, outsider]) {
+        expect(await tableFor(user, 'regions', regionId)).toBeNull()
+      }
+    })
+
+    it('shows an event’s manager to them and to every manager of a region above it', async () => {
+      for (const user of [admin, eventManager, cityManager, regionManager, countryManager]) {
+        expect(namesIn(await tableFor(user, 'events', event.id))).toEqual(['Event Assignee'])
+      }
+      expect(await tableFor(outsider, 'events', event.id)).toBeNull()
+    })
+
+    it('carries the name, a mailto-ready email and the last sign-in, nothing else', async () => {
+      const rows = await tableFor(countryManager, 'events', event.id)
+      expect(rows).toHaveLength(1)
+      expect(Object.keys(rows![0]!).sort()).toEqual(['email', 'id', 'lastSignIn', 'name'])
+      expect(rows![0]!.email).toBe(REMINDER_DESTINATION)
+    })
+
+    it('says how long ago each manager last signed in, and "never" for one who has not', async () => {
+      const now = new Date()
+      await payload.update({
+        collection: 'managers',
+        id: coManager.id,
+        overrideAccess: true,
+        data: { lastLoginAt: new Date(now.getTime() - 21 * DAY_MS).toISOString() },
+      })
+
+      const rows = await tableFor(regionManager, 'regions', regionId, now)
+      const byName = Object.fromEntries(rows!.map((row) => [row.name, row.lastSignIn]))
+      expect(byName['Co Manager']).toMatchObject({ ago: '3 weeks ago' })
+      expect(byName['Region Manager']).toBeNull()
+    })
+
+    it('answers the create screen, and an unknown row, with nothing', async () => {
+      expect(await tableFor(admin, 'regions', 'create')).toBeNull()
+      expect(await tableFor(admin, 'events', 987654)).toBeNull()
+    })
+  })
+
+  describe('an event’s activity log', () => {
+    const readAs = async (user: AuthManager) =>
+      payload.findByID({
+        collection: 'events',
+        id: event.id,
+        depth: 0,
+        overrideAccess: false,
+        req: await request(user),
+      })
+
+    it('is read by admins, the event’s manager and every manager above it', async () => {
+      for (const user of [admin, eventManager, cityManager, regionManager, countryManager]) {
+        const read = await readAs(user)
+        expect(JSON.stringify(read.activityLog)).toContain(REMINDER_DESTINATION)
+      }
+    })
+
+    it('is absent for a manager outside the region, who still reads the event', async () => {
+      const read = await readAs(outsider)
+      expect(read.title).toBe('Contacts Event')
+      expect(read).not.toHaveProperty('activityLog')
+    })
+
+    it('is offered in the admin form to the same managers, and not to the outsider', async () => {
+      const readable = async (user: AuthManager) => {
+        const { fields } = await docAccessOperation({
+          id: event.id,
+          collection: payload.collections.events,
+          req: await request(user),
+        })
+        if (fields === true) return true
+        const field = fields.activityLog
+        return field === true || field?.read === true
+      }
+      expect(await readable(cityManager)).toBe(true)
+      expect(await readable(outsider)).toBe(false)
+    })
+
+    it('reaches version history for a manager who holds it', async () => {
+      // A versions read hands the lock the version's own row, so it judges the
+      // same region and manager the document holds.
+      const { docs } = await payload.findVersions({
+        collection: 'events',
+        where: { parent: { equals: event.id } },
+        sort: '-updatedAt',
+        limit: 1,
+        overrideAccess: false,
+        req: await request(cityManager),
+      })
+      expect(JSON.stringify(docs[0]?.version.activityLog)).toContain(REMINDER_DESTINATION)
+    })
+
+    it('cannot be filtered on by anyone but an admin, since a query has no row to judge', async () => {
+      const where = { 'activityLog.destination': { equals: REMINDER_DESTINATION } }
+      await expect(
+        payload.find({
+          collection: 'events',
+          where,
+          overrideAccess: false,
+          req: await request(cityManager),
+        }),
+      ).rejects.toThrow(/cannot be queried/i)
+      await expect(
+        payload.find({
+          collection: 'events',
+          where,
+          overrideAccess: false,
+          req: await request(admin),
+        }),
+      ).resolves.toBeDefined()
+    })
+  })
+
+  describe('lastLoginAt', () => {
+    it('is stamped by minting a session, which every sign-in does', async () => {
+      const before = Date.now()
+      await createSession(payload, 'managers', outsider.id)
+
+      const row = await payload.findByID({
+        collection: 'managers',
+        id: outsider.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(row.lastLoginAt).toBeTruthy()
+      expect(new Date(row.lastLoginAt!).getTime()).toBeGreaterThanOrEqual(before - 1000)
+      expect(row.lastLoginAt).toBe(row.sessions?.at(-1)?.createdAt)
+    })
+
+    it('is not the account holder’s to write', async () => {
+      const { lastLoginAt } = await payload.findByID({
+        collection: 'managers',
+        id: outsider.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      await payload.update({
+        collection: 'managers',
+        id: outsider.id,
+        data: { lastLoginAt: '2099-01-01T00:00:00.000Z' },
+        overrideAccess: false,
+        req: await request(outsider),
+      })
+
+      const after = await payload.findByID({
+        collection: 'managers',
+        id: outsider.id,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(after.lastLoginAt).toBe(lastLoginAt)
+    })
+  })
+})
