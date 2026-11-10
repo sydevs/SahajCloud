@@ -1,6 +1,7 @@
+import type { SignInNotice } from './SignInForm'
 import type { PayloadRequest } from 'payload'
 
-import { Button } from '@payloadcms/ui'
+import { Banner, Button, Card } from '@payloadcms/ui'
 
 import { MANAGER_INACTIVE } from '@/collections/Managers/login'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -18,7 +19,8 @@ import styles from './SignIn.module.css'
 const PICKER_LIMIT = 25
 
 /**
- * The accounts in this preview, each a button that signs you in as it.
+ * The accounts in this preview, each a Payload `Card` whose button signs you in
+ * as it. On a preview this replaces the email form: nobody there reads mail.
  *
  * ⚠ **Rendered only where `previewSignInHere()` holds** — see the caller. It is
  * an anonymous list of every account in the environment, which is exactly what
@@ -26,14 +28,21 @@ const PICKER_LIMIT = 25
  * because Cloudflare Access and the proxy gate decided who may ask before the
  * request arrived.
  *
- * ⚠ **A row submits the page's own Server Action.** Its `signedIn` branch sets
- * the session cookie and
- * `redirect()`s, so signing in as a manager and typing their address into the
- * form are one implementation — and nothing here builds a response carrying a
- * `user`, whose `roles` would arrive flat and default-locale because three
+ * ⚠ **A card submits the page's own Server Action.** Its `signedIn` branch sets
+ * the session cookie and `redirect()`s, so the picker and the live form share
+ * one implementation — and nothing here builds a response carrying a `user`,
+ * whose `roles` would arrive flat and default-locale because three
  * auth-*response* hooks resolve them.
  */
-export async function PreviewPicker({ req, returnTo }: { req: PayloadRequest; returnTo?: string }) {
+export async function PreviewPicker({
+  notice,
+  req,
+  returnTo,
+}: {
+  notice: SignInNotice | null
+  req: PayloadRequest
+  returnTo?: string
+}) {
   const { payload } = req
   const { docs } = await payload.find({
     collection: 'managers',
@@ -45,88 +54,82 @@ export async function PreviewPicker({ req, returnTo }: { req: PayloadRequest; re
     select: { currentProject: true, email: true, name: true, type: true },
     // ⚠ **Only accounts a click can actually sign in.** `issueMagicLink`
     // refuses an inactive manager (`isEligible`) and an unaccepted one (the
-    // `_verified` guard), and the row's Server Action discards the outcome — so
-    // an offered row that cannot sign in just re-renders the page, saying
+    // `_verified` guard), and the Server Action discards the outcome — so an
+    // offered card that cannot sign in just re-renders the page, saying
     // nothing. Not offering it is the honest surface.
     where: { _verified: { equals: true }, type: { not_equals: MANAGER_INACTIVE } },
   })
 
-  const rows: { email: string; name?: null | string; summaries: GrantSummary[]; type: unknown }[] =
-    []
+  const rows: { email: string; title: string }[] = []
   for (const doc of docs) {
+    // ⚠ Its own copy per row, and sequentially: `createLocalReq` assigns
+    // `locale` onto the request it is handed, and this read asks for every
+    // locale (#609, #982).
+    const summaries = await summarizeGrants({
+      collection: 'managers',
+      current: doc.currentProject ?? undefined,
+      id: doc.id,
+      payload,
+      req: localeIsolatedReq(req),
+      type: doc.type,
+    })
     rows.push({
       email: doc.email,
-      name: doc.name,
-      // ⚠ Its own copy per row, and sequentially: `createLocalReq` assigns
-      // `locale` onto the request it is handed, and this read asks for every
-      // locale (#609, #982).
-      summaries: await summarizeGrants({
-        collection: 'managers',
-        current: doc.currentProject ?? undefined,
-        id: doc.id,
-        payload,
-        req: localeIsolatedReq(req),
-        type: doc.type,
-      }),
-      type: doc.type,
+      title: `${doc.name || doc.email} · ${reach(summaries)}`,
     })
   }
 
   return (
-    <div className={styles.picker}>
+    <div className={styles.stack}>
       <h2>Sign in to this preview</h2>
-      <p>
-        Every account in this preview, with the access it holds. One click signs you in as it. This
-        list exists on previews only.
-      </p>
-      {rows.map((row) => (
-        <form action={signInAsAction} key={row.email}>
-          <input name="email" type="hidden" value={row.email} />
-          {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
-          <div className={styles.pickerRow}>
-            <div>
-              <strong>{row.name || row.email}</strong>
-              <span className={styles.pickerMeta}>
-                {row.email} · {row.type === 'admin' ? 'Administrator' : 'Manager'}
-              </span>
-              <Grants summaries={row.summaries} />
-            </div>
-            <Button buttonStyle="secondary" size="small" type="submit">
-              Sign in
-            </Button>
-          </div>
-        </form>
-      ))}
-      {docs.length === PICKER_LIMIT ? (
-        <p>Showing the first {PICKER_LIMIT} accounts. Type an address below for any other.</p>
+      <p>Choose an account to sign in as. This list exists on previews only.</p>
+      {notice ? (
+        <Banner type={notice.tone}>
+          <strong>{notice.title}</strong> {notice.message}
+        </Banner>
       ) : null}
+      <div className={styles.list}>
+        {rows.map((row) => (
+          <form action={signInAsAction} key={row.email}>
+            <input name="email" type="hidden" value={row.email} />
+            {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
+            <Card
+              actions={
+                <Button buttonStyle="primary" type="submit">
+                  Sign in
+                </Button>
+              }
+              title={row.title}
+            />
+          </form>
+        ))}
+      </div>
+      {docs.length === PICKER_LIMIT ? <p>Showing the first {PICKER_LIMIT} accounts.</p> : null}
     </div>
   )
 }
 
-/** One account's roles per locale, and the documents naming it. */
-function Grants({ summaries }: { summaries: GrantSummary[] }) {
-  const lines: string[] = []
+/**
+ * One account's reach in a few words: what it manages, else its roles. Which
+ * account manages what is how a reviewer picks one, so this is the one detail
+ * kept on the card.
+ */
+function reach(summaries: GrantSummary[]): string {
+  if (summaries.some((summary) => summary.fullAccess)) return 'Administrator'
 
-  for (const summary of summaries) {
-    if (summary.fullAccess) lines.push('Full access to every collection')
-    for (const grant of summary.grants) lines.push(`${grant.locale}: ${grant.roles.join(', ')}`)
-    for (const responsibility of summary.responsibilities) {
-      const label =
-        responsibility.items.length === 1 ? responsibility.singular : responsibility.label
-      lines.push(`${label}: ${responsibility.items.map((item) => item.title).join(', ')}`)
-    }
-  }
-
-  if (lines.length === 0) return <span className={styles.pickerMeta}>No roles, no listings</span>
-
-  return (
-    <ul className={styles.pickerGrants}>
-      {lines.map((line) => (
-        <li key={line}>{line}</li>
-      ))}
-    </ul>
+  const managed = summaries.flatMap((summary) =>
+    summary.responsibilities.map(
+      (responsibility) =>
+        `${responsibility.items.length === 1 ? responsibility.singular : responsibility.label}: ` +
+        responsibility.items.map((item) => item.title).join(', '),
+    ),
   )
+  if (managed.length > 0) return managed.join('; ')
+
+  const roles = [
+    ...new Set(summaries.flatMap((summary) => summary.grants.flatMap((grant) => grant.roles))),
+  ]
+  return roles.length > 0 ? roles.join(', ') : 'No roles'
 }
 
 export default PreviewPicker

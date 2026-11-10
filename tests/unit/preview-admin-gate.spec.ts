@@ -88,5 +88,9 @@ describe('the sign-in view', () => {
     // Whitespace-insensitive: Prettier breaks the ternary over three lines
     // once the props are long enough, and has already done so once.
     expect(view.replace(/\s+/g, '')).toContain('previewSignInHere()?(<PreviewPicker')
+    // The picker replaces the email form there: one sign-in surface per page.
+    expect(view.replace(/\s+/g, '')).toMatch(
+      /previewSignInHere\(\)\?\(<PreviewPicker.*?\/>\):\(<SignInForm/,
+    )
   })
 })

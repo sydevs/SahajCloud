@@ -58,7 +58,7 @@ const MALFORMED: SignInOutcome = {
  * implementation — see `issueMagicLink`.
  */
 /**
- * The preview picker's row submit. A `<form action>` must resolve to `void`, so
+ * The preview picker's card submit. A `<form action>` must resolve to `void`, so
  * this adapts the shape and nothing else — the outcome is unobservable anyway,
  * since the branch that matters `redirect()`s by throwing.
  */

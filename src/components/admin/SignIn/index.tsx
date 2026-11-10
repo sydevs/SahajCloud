@@ -38,8 +38,8 @@ import { firstParam } from '../helpers/searchParams'
  * the visitor first asked for — and a visitor who is already signed in is sent
  * there directly. `returnPath` is the one rule for both.
  *
- * ⚠ **On a Railway preview, and only there, the picker lists every account.**
- * `previewSignInHere()` is the one gate on that block — the same predicate that
+ * ⚠ **On a Railway preview, and only there, the picker replaces the form.**
+ * `previewSignInHere()` is the one gate on that branch — the same predicate that
  * turns `previewAutoSignIn` on, so the list and the sign-in it offers cannot
  * disagree. The live view is unchanged.
  */
@@ -84,13 +84,14 @@ export default async function SignInView({
             {shown.submitLabel}
           </Button>
         </form>
+      ) : previewSignInHere() ? (
+        <PreviewPicker
+          notice={shown ?? linkNotice(error)}
+          req={initPageResult.req}
+          returnTo={returnTo}
+        />
       ) : (
-        <>
-          {previewSignInHere() ? (
-            <PreviewPicker req={initPageResult.req} returnTo={returnTo} />
-          ) : null}
-          <SignInForm notice={shown ?? linkNotice(error)} returnTo={returnTo} />
-        </>
+        <SignInForm notice={shown ?? linkNotice(error)} returnTo={returnTo} />
       )}
     </>
   )
