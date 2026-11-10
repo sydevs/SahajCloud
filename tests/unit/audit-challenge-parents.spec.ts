@@ -33,14 +33,17 @@ const service = (
 })
 
 // The endpoint's own builder over the active services, as `challengeParentAllowlist` calls it.
+const allowlistOf = (clients: AuditedClient[]) =>
+  allowedParentHosts(
+    ['https://sahajatlas.com', 'https://wemeditate.com'],
+    clients.filter((c) => c.enabled).map((c) => c.site?.domain),
+  )
+
+const refuse = (clients: AuditedClient[]) =>
+  refusedMounts(storedMounts(clients), allowlistOf(clients), clients)
+
 const audit = (clients: AuditedClient[]) =>
-  refusedMounts(
-    storedMounts(clients),
-    allowedParentHosts(
-      ['https://sahajatlas.com', 'https://wemeditate.com'],
-      clients.filter((c) => c.enabled).map((c) => c.site?.domain),
-    ),
-  ).map(({ client, mount }) => [client.id, mount])
+  refuse(clients).map(({ client, mount }) => [client.id, mount])
 
 describe('refusedMounts', () => {
   it('passes a mount whose host is another service’s domain — the allowlist is global', () => {
@@ -91,6 +94,24 @@ describe('refusedMounts', () => {
       [1, 'https://sahajayoga.it/mappa'],
       [2, 'https://other.example/old'],
     ])
+  })
+
+  it('names the disabled service whose domain owns a refused host', () => {
+    expect(
+      refuse([
+        service(1, null, { 'https://sahajayoga.it/mappa': record('inline') }),
+        service(2, 'sahajayoga.it', {}, false),
+      ]).map(({ client, mount, ownedBy }) => [client.id, mount, ownedBy?.id ?? null]),
+    ).toEqual([[1, 'https://sahajayoga.it/mappa', 2]])
+  })
+
+  it('leaves a refused host no disabled service owns unattributed', () => {
+    expect(
+      refuse([
+        service(1, null, { 'https://partner.example/map': record('inline') }),
+        service(2, 'sahajayoga.it', {}, false),
+      ]).map(({ ownedBy }) => ownedBy),
+    ).toEqual([undefined])
   })
 
   it('passes a first-party host', () => {

@@ -4,7 +4,8 @@
  *
  * A refused parent gets no captcha, and the widget then shows `error.captcha_blocked` in place of
  * the whole atlas. Each row needs a human decision: give an existing service the right
- * `site.domain`, or give the host a service and key of its own.
+ * `site.domain`, give the host a service and key of its own, or re-enable the disabled service a
+ * row already names as the host's owner.
  *
  * **Read-only, always.** There is no `--force`, and the boot runs no schema push, no pending
  * migration and no `onInit`, whatever `NODE_ENV` says.
@@ -68,15 +69,19 @@ async function main(): Promise<void> {
     overrideAccess: true,
     select: { name: true, enabled: true, site: { domain: true }, embedMetadata: true },
   })
-  const mounts = storedMounts(docs as AuditedClient[])
+  const services = docs as AuditedClient[]
+  const mounts = storedMounts(services)
   const patterns = await challengeParentAllowlist(payload)
-  const refused = refusedMounts(mounts, patterns)
+  const refused = refusedMounts(mounts, patterns, services)
 
   console.log(`Allowlist: ${[...new Set(patterns)].join(', ')}\n`)
-  for (const { client, mount, record } of refused) {
+  for (const { client, mount, ownedBy, record } of refused) {
     console.log(
       `  ${client.enabled ? '' : '[disabled] '}clients/${client.id} ${JSON.stringify(client.name)}` +
-        `  domain=${client.site?.domain || '—'}  ${record.mode}  ${mount}  lastSeen=${record.lastSeen}`,
+        `  domain=${client.site?.domain || '—'}  ${record.mode}  ${mount}  lastSeen=${record.lastSeen}` +
+        (ownedBy
+          ? `\n      host owned by disabled clients/${ownedBy.id} ${JSON.stringify(ownedBy.name)} — enable it`
+          : ''),
     )
   }
   if (refused.length === 0) {
