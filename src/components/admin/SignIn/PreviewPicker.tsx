@@ -1,7 +1,7 @@
 import type { SignInNotice } from './SignInForm'
 import type { PayloadRequest } from 'payload'
 
-import { Banner, Button, Card } from '@payloadcms/ui'
+import { Banner, ChevronIcon } from '@payloadcms/ui'
 
 import { MANAGER_INACTIVE } from '@/collections/Managers/login'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -19,8 +19,7 @@ import styles from './SignIn.module.css'
 const PICKER_LIMIT = 25
 
 /**
- * The accounts in this preview, each a Payload `Card` whose button signs you in
- * as it. On a preview this replaces the email form: nobody there reads mail.
+ * The accounts in this preview, each a button that signs you in as it. On a preview this replaces the email form: nobody there reads mail.
  *
  * ⚠ **Rendered only where `previewSignInHere()` holds** — see the caller. It is
  * an anonymous list of every account in the environment, which is exactly what
@@ -60,7 +59,7 @@ export async function PreviewPicker({
     where: { _verified: { equals: true }, type: { not_equals: MANAGER_INACTIVE } },
   })
 
-  const rows: { email: string; title: string }[] = []
+  const rows: { email: string; name: string; reach: string }[] = []
   for (const doc of docs) {
     // ⚠ Its own copy per row, and sequentially: `createLocalReq` assigns
     // `locale` onto the request it is handed, and this read asks for every
@@ -75,7 +74,8 @@ export async function PreviewPicker({
     })
     rows.push({
       email: doc.email,
-      title: `${doc.name || doc.email} · ${reach(summaries)}`,
+      name: doc.name || doc.email,
+      reach: reach(summaries),
     })
   }
 
@@ -93,19 +93,29 @@ export async function PreviewPicker({
           <form action={signInAsAction} key={row.email}>
             <input name="email" type="hidden" value={row.email} />
             {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
-            <Card
-              actions={
-                <Button buttonStyle="primary" type="submit">
-                  Sign in
-                </Button>
-              }
-              title={row.title}
-            />
+            <AccountButton name={row.name} reach={row.reach} />
           </form>
         ))}
       </div>
       {docs.length === PICKER_LIMIT ? <p>Showing the first {PICKER_LIMIT} accounts.</p> : null}
     </div>
+  )
+}
+
+/**
+ * One picker row: the account's name over its reach, with a chevron. Payload has
+ * no list-row button — `Card` sets its title as a small h5 and cannot hold a
+ * subtitle — so this is the one hand-styled piece of the view.
+ */
+function AccountButton({ name, reach }: { name: string; reach: string }) {
+  return (
+    <button className={styles.account} type="submit">
+      <span className={styles.accountText}>
+        <strong>{name}</strong>
+        <span className={styles.accountReach}>{reach}</span>
+      </span>
+      <ChevronIcon direction="right" />
+    </button>
   )
 }
 
