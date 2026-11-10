@@ -6,7 +6,8 @@ import { parseOptIn, readSubmissionValue, SUBSCRIBE_OPT_IN } from '../submission
 
 /**
  * afterChange (create): a registration whose registrant ticked the mailing-list
- * box spawns a linked subscribe-type row, in the same request.
+ * box spawns a linked subscribe-type row, in the same request — one per
+ * `(user, event)`, however many times that registrant signs up.
  *
  * **This replaces the `mailingListSubscribedAt` timestamp**, and the difference
  * is the whole point: a timestamp recorded that somebody had consented and
@@ -67,13 +68,43 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   const senderEmail = sender?.email?.trim() ?? ''
   if (!senderEmail) return doc
 
+  const eventId = relationId(data.event)
+
+  // ⚠ **One consent row per `(user, event)`.** A repeat signup is a create —
+  // `mergeRepeatRegistration` folds it in and then deletes the new row — so
+  // this hook fires again on every signup, and without the check the provider
+  // is asked to subscribe the same address once per attempt.
+  //
+  // Any status counts, `failed`, `rejected` and `spam` included: each is an
+  // answer about this person's consent, and a second row would neither deliver
+  // what the first could not nor overturn a refusal.
+  const { docs: held } = await req.payload.find({
+    collection: 'user-submissions',
+    where: {
+      and: [
+        { type: { equals: 'subscribe' } },
+        { user: { equals: userId } },
+        { event: { equals: eventId } },
+      ],
+    },
+    limit: 1,
+    depth: 0,
+    // `req` carries the client this signup arrived on, and
+    // `validateClientQueryParamsHook` answers 400 to a client read naming no
+    // `select` — `overrideAccess` does not reach a `beforeOperation` hook.
+    select: { type: true },
+    overrideAccess: true,
+    req,
+  })
+  if (held.length > 0) return doc
+
   try {
     await req.payload.create({
       collection: 'user-submissions',
       data: {
         type: 'subscribe',
         senderEmail,
-        event: relationId(data.event),
+        event: eventId,
         user: userId,
         client: relationId(data.client),
         status: 'pending',
