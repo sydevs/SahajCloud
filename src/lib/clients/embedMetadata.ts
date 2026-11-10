@@ -61,16 +61,15 @@ export interface EmbedMountRecord extends EmbedMountObservation {
 export type EmbedMetadata = Record<string, EmbedMountRecord>
 
 /**
- * Upper bound on stored mounts per client. A forged report can only ever assert
- * viability for a mount someone already designated canonical, but it can still
- * invent keys — this caps what that costs us. Far above any real site's embed
- * count.
+ * Upper bound on stored mounts per client. A forged report can invent keys on
+ * the service's own domain — this caps what that costs us. Far above any real
+ * site's embed count.
  *
  * A bound on *storage*, never on which mounts are knowable (#639): a client at
  * the cap still reports a new mount, evicting the least-recently-seen to make
  * room, so which 50 are held reflects what is currently live rather than what
- * arrived first. The one mount it will not spend is the designated canonical —
- * see {@link MergeEmbedReportArgs.pinned}.
+ * arrived first. The primary page's report gets no protection: only fifty newer
+ * pages can push it out, and its next page load reports it again.
  */
 export const MAX_EMBED_MOUNTS = 50
 
@@ -134,7 +133,7 @@ export type MountKeyResult =
  * the widget is misbehaving, and quietly cleaning it up would hide that.
  *
  * Returns the normalized `origin + pathname` key plus the bare `host`, which
- * the caller checks against the client's `allowedDomains`.
+ * the caller checks against the client's domain (`siteHosts`).
  */
 export function parseMountKey(raw: string): MountKeyResult {
   if (raw.length > MAX_MOUNT_KEY_LENGTH) return { ok: false, reason: 'too_long' }
@@ -238,24 +237,23 @@ function isRecentlySeen(lastSeen: string, at: string): boolean {
 
 /**
  * Drop least-recently-seen mounts until at most {@link MAX_EMBED_MOUNTS}
- * remain. Keys in `protectedKeys` are never evicted, whatever their `lastSeen`
- * — see {@link MergeEmbedReportArgs.pinned} for who is in that set and why.
- * Protection removes candidates rather than raising the cap, so a protected
- * mount costs an ordinary one its place.
+ * remain, sparing `kept` — the mount just reported, which a clock running
+ * behind would otherwise make look oldest, deleting the very write we came to
+ * make.
  *
  * Evicts the whole overflow, not one mount: a record written before the cap
- * existed — or before a mount was pinned — can start out above it.
+ * existed can start out above it.
  *
  * The comparator can't see a NaN: every record here has been through
  * {@link sanitizeEmbedMetadata}, which rejects an unparseable `lastSeen`, and
  * the one record this pass added was stamped from the caller's clock.
  */
-function evictOldest(metadata: EmbedMetadata, protectedKeys: Set<string>): string[] {
+function evictOldest(metadata: EmbedMetadata, kept: string): string[] {
   const keys = Object.keys(metadata)
   if (keys.length <= MAX_EMBED_MOUNTS) return []
 
   const evicted = keys
-    .filter((key) => !protectedKeys.has(key))
+    .filter((key) => key !== kept)
     .sort((a, b) => Date.parse(metadata[a].lastSeen) - Date.parse(metadata[b].lastSeen))
     .slice(0, keys.length - MAX_EMBED_MOUNTS)
 
@@ -271,23 +269,6 @@ export interface MergeEmbedReportArgs {
   observation: EmbedMountObservation
   /** ISO timestamp to stamp as `lastSeen`. */
   at: string
-  /**
-   * A mount that must survive eviction whatever its `lastSeen` — in practice
-   * the client's `canonical.embed`, the one an operator designated.
-   *
-   * Eviction is keyed on recency, and recency is a proxy for "still live" that
-   * a canonical page can fail: it is one page competing with however many the
-   * site's traffic touches, and a quiet week of it against fifty churning
-   * soft-404s would drop it. Losing it doesn't just cost the record — the
-   * picker's selected option and the verification job's subject both resolve
-   * through this key, so the live canonical URL would lose the mount it is
-   * built from.
-   *
-   * The mount just reported is protected too, for a different reason: a clock
-   * running behind would otherwise make the new record look oldest and delete
-   * the very write we came to make.
-   */
-  pinned?: string | null
 }
 
 export interface MergeEmbedReportResult {
@@ -306,7 +287,7 @@ export interface MergeEmbedReportResult {
  * reports from different pages of one site produce two keys.
  */
 export function mergeEmbedReport(args: MergeEmbedReportArgs): MergeEmbedReportResult {
-  const { stored, key, observation, at, pinned } = args
+  const { stored, key, observation, at } = args
   const { metadata: current, dropped } = sanitizeEmbedMetadata(stored)
   const existing = current[key]
 
@@ -321,6 +302,5 @@ export function mergeEmbedReport(args: MergeEmbedReportArgs): MergeEmbedReportRe
   }
 
   const metadata: EmbedMetadata = { ...current, [key]: { ...observation, lastSeen: at } }
-  const protectedKeys = new Set(pinned ? [key, pinned] : [key])
-  return { metadata, changed: true, evicted: evictOldest(metadata, protectedKeys) }
+  return { metadata, changed: true, evicted: evictOldest(metadata, key) }
 }

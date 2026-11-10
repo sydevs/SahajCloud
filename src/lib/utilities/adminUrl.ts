@@ -25,12 +25,20 @@ export function adminUrl(path: `/${string}`): string {
   })
 }
 
-/** Absolute URL of a document's admin edit page. */
-export function adminDocUrl(collection: CollectionSlug, id: number | string): string {
-  return adminUrl(`/collections/${collection}/${id}`)
+/** Absolute URL of a document's admin edit page, or of one of its own views (`install`). */
+export function adminDocUrl(
+  collection: CollectionSlug,
+  id: number | string,
+  view?: string,
+): string {
+  return adminUrl(`/collections/${collection}/${id}${view ? `/${view}` : ''}`)
 }
 
 /** The same page as a path, for a signed link that must not carry a host. */
-export function adminDocPath(collection: CollectionSlug, id: number | string): string {
-  return new URL(adminDocUrl(collection, id)).pathname
+export function adminDocPath(
+  collection: CollectionSlug,
+  id: number | string,
+  view?: string,
+): string {
+  return new URL(adminDocUrl(collection, id, view)).pathname
 }

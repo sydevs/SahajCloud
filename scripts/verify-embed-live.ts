@@ -105,8 +105,8 @@ async function main(): Promise<void> {
 
     console.log(`${ok ? '✓' : '✗'} ${testCase.label}  →  ${outcome}  (${elapsed})`)
     if (result.status === 'verified') {
-      const { domain, mount, routing, widgetVersion } = result.embed
-      console.log(`    domain=${domain} mount=${mount} routing=${routing} v=${widgetVersion}`)
+      const { domain, mount, widgetVersion } = result.embed
+      console.log(`    domain=${domain} mount=${mount} v=${widgetVersion}`)
     } else if (result.detail) {
       console.log(`    ${result.detail}`)
     }

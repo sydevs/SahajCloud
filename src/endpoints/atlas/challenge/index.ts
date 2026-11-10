@@ -12,17 +12,17 @@ import {
   readChallengeRequest,
 } from './challengeRequest'
 
-/** Every published client's raw `allowedDomains`. About 31 rows, one query per frame load. */
-async function publishedClientDomains(req: PayloadRequest): Promise<Array<string | null>> {
+/** Every active client's `site.domain`. About 31 rows, one query per frame load. */
+async function activeClientDomains(req: PayloadRequest): Promise<Array<string | null>> {
   const { docs } = await req.payload.find({
     collection: 'clients',
-    where: { _status: { equals: 'published' } },
-    select: { allowedDomains: true },
+    where: { enabled: { equals: true } },
+    select: { site: { domain: true } },
     pagination: false,
     depth: 0,
     overrideAccess: true,
   })
-  return docs.map((doc) => doc.allowedDomains ?? null)
+  return docs.map((doc) => doc.site?.domain ?? null)
 }
 
 function respond(config: ChallengeConfig, status: number): Response {
@@ -49,7 +49,7 @@ function respond(config: ChallengeConfig, status: number): Response {
  * of the Turnstile credential.
  *
  * **Only an allowed parent gets a challenge.** `parent` must be an origin whose host is in some
- * published client's `allowedDomains`, a first-party frontend, or loopback (`challengeRequest.ts`),
+ * active client's `site.domain`, a first-party frontend, or loopback (`challengeRequest.ts`),
  * and the page posts every message to exactly that origin (`challengeDocument.ts`). The browser
  * then refuses to deliver a token to any other parent, whatever the frame URL claims.
  *
@@ -88,7 +88,7 @@ export const atlasChallenge: Endpoint = {
     try {
       patterns = allowedParentHosts(
         [serverEnv.SAHAJATLAS_URL, serverEnv.WEMEDITATE_WEB_URL],
-        await publishedClientDomains(req),
+        await activeClientDomains(req),
       )
     } catch (error) {
       req.payload.logger.error({

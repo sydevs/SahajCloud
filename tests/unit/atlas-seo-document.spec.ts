@@ -273,7 +273,7 @@ describe('buildEventSeo', () => {
     if (seo.type !== 'event') throw new Error('expected an event')
     expect(seo.content.address).toBeNull()
     expect(seo.content.onlineUrl).toBe('https://meet.example/abc')
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph[0].eventAttendanceMode).toBe('https://schema.org/OnlineEventAttendanceMode')
     expect(graph[0].location).toEqual({
       '@type': 'VirtualLocation',
@@ -283,7 +283,7 @@ describe('buildEventSeo', () => {
 
   it('emits a Place with coordinates for an offline class', () => {
     const seo = buildEventSeo({ ...base, event: makeEvent() })
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph[0].location).toMatchObject({
       '@type': 'Place',
       name: 'Friends Meeting House',
@@ -294,7 +294,7 @@ describe('buildEventSeo', () => {
 
   it('translates the recurrence into a schema.org Schedule', () => {
     const seo = buildEventSeo({ ...base, event: makeEvent() })
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph[0].eventSchedule).toMatchObject({
       '@type': 'Schedule',
       repeatFrequency: 'P1W',
@@ -312,7 +312,7 @@ describe('buildEventSeo', () => {
     const seo = buildEventSeo({ ...base, event: makeEvent({ inactive: true }) })
     if (seo.type !== 'event') throw new Error('expected an event')
     expect(seo.content.schedule).toMatchObject({ oneLine: '', startDate: null, inactive: true })
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph[0]).not.toHaveProperty('eventSchedule')
     expect(graph[0]).not.toHaveProperty('startDate')
   })
@@ -382,7 +382,7 @@ describe('buildRegionSeo', () => {
     if (seo.type !== 'region') throw new Error('expected a region')
     expect(seo.content.eventCount).toBe(137)
     expect(seo.content.events).toHaveLength(1)
-    const list = (JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]).find(
+    const list = (seo.jsonLdGraph['@graph'] as Record<string, never>[]).find(
       (node) => node['@type'] === 'ItemList',
     )
     expect(list?.numberOfItems).toBe(137)
@@ -390,9 +390,9 @@ describe('buildRegionSeo', () => {
 
   it('types the place node by region level', () => {
     const typeOf = (level: string) =>
-      (
-        JSON.parse(buildRegionSeo({ ...base, level }).jsonLd)['@graph'] as Record<string, never>[]
-      )[0]['@type']
+      (buildRegionSeo({ ...base, level }).jsonLdGraph['@graph'] as Record<string, never>[])[0][
+        '@type'
+      ]
     expect(typeOf('country')).toBe('Country')
     expect(typeOf('region')).toBe('AdministrativeArea')
     expect(typeOf('city')).toBe('City')
@@ -401,7 +401,7 @@ describe('buildRegionSeo', () => {
 
   it('omits the ItemList entirely when a region lists nothing', () => {
     const seo = buildRegionSeo({ ...base, events: [], eventCount: 0 })
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph.some((node) => node['@type'] === 'ItemList')).toBe(false)
   })
 
@@ -430,7 +430,7 @@ describe('buildRootSeo', () => {
   })
 
   it('describes the atlas as a WebSite, not a Place or an Event', () => {
-    const graph = JSON.parse(buildRootSeo(base).jsonLd)['@graph'] as Record<string, never>[]
+    const graph = buildRootSeo(base).jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph).toHaveLength(1)
     expect(graph[0]['@type']).toBe('WebSite')
     expect(graph[0].url).toBe(base.canonical)
@@ -442,7 +442,7 @@ describe('buildRootSeo', () => {
   it('emits no breadcrumbs at all', () => {
     const seo = buildRootSeo(base)
     expect(seo.breadcrumbs).toEqual([])
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph.some((node) => node['@type'] === 'BreadcrumbList')).toBe(false)
   })
 
@@ -486,7 +486,7 @@ describe('buildRootSeo', () => {
     const seo = buildRootSeo({ ...base, canonical: null })
     expect(seo.alternates).toEqual([])
     expect(seo.openGraph['og:url']).toBeUndefined()
-    const graph = JSON.parse(seo.jsonLd)['@graph'] as Record<string, never>[]
+    const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]
     expect(graph[0].url).toBeUndefined()
   })
 })

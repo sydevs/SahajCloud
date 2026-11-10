@@ -83,7 +83,7 @@ describe('Event feedback (registrant voting)', () => {
       user: {
         id: 4242,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
       },
       // Both, as `createPayloadRequest` sets them on a real REST request —

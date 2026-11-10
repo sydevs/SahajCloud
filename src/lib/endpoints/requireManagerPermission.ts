@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 import type { PermissionCheckArgs } from '@/plugins/access'
 import { holdsCollectionPermission } from '@/plugins/access'
 
+import { errorResponse } from './errorResponse'
 import { requireActiveManager } from './requireActiveManager'
 
 type PermissionGate = {
@@ -32,7 +33,7 @@ export function requireCollectionPermission({
   forbidden,
 }: PermissionGate): Response | null {
   if (!holdsCollectionPermission({ req, collection, operation })) {
-    return Response.json({ errors: [{ message: forbidden }] }, { status: 403 })
+    return errorResponse(forbidden, 403)
   }
   return null
 }

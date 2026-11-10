@@ -25,7 +25,7 @@ vi.mock('@/lib/lectures/nirmalaVidyaApi', async (importOriginal) => {
   }
 })
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', enabled: true }
 
 type ResponseBody = { docs: MeditationCardData[]; source: string; relevanceCount: number }
 
@@ -34,7 +34,7 @@ async function callEndpoint(
   lectureId: number | string,
   query: Record<string, string | number> = {},
   options: {
-    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
+    user?: { id: number | string; collection: string; enabled?: boolean } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: ResponseBody | unknown }> {
   const searchParams = new URLSearchParams()
@@ -287,7 +287,7 @@ describe('lectureRelatedMeditations endpoint', () => {
         payload,
         anchorLecture.id,
         { limit: 10 },
-        { user: { id: 999, collection: 'clients', _status: 'draft' } },
+        { user: { id: 999, collection: 'clients', enabled: false } },
       )
       expect(status).toBe(403)
     })

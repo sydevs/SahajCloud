@@ -157,6 +157,19 @@ export const Managers: CollectionConfig = {
                 description: 'Events this manager owns.',
               },
             },
+            {
+              name: 'managedClients',
+              type: 'join',
+              collection: 'clients',
+              on: 'managers',
+              // ⚠ Atlas services only: this join is the `atlas-service-manager`
+              // role, and a manager listed on an app's key looks after no atlas.
+              where: { roles: { contains: 'sahaj-atlas-client' } },
+              admin: {
+                condition: hideUntilCreated,
+                description: 'Sahaj Atlas services — websites — this manager looks after.',
+              },
+            },
           ],
         },
         {

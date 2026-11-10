@@ -37,8 +37,10 @@ export const bypassPermissions: BypassPermissionFunction = (user, context) => {
   if (user.collection === 'clients') {
     const client = user as unknown as Client
 
-    // Unpublished (draft) client blocking — publish/unpublish is the auth gate
-    if (client._status !== 'published') return 'deny'
+    // An inactive service's key authenticates and is then refused everything.
+    // `enabled` is the switch (`Clients.enabled`); `true` only, so a row that
+    // predates the column, or a mock without it, is refused rather than let in.
+    if (client.enabled !== true) return 'deny'
 
     // Fall through to self-access check below
   }

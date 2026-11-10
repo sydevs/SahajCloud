@@ -49,14 +49,13 @@ describe('per-region canonical webUrl', () => {
    *
    * The host and mount a canonical URL is built from live in
    * `canonical.verification.verified` — job-written from what the CMS observed
-   * on the live page — not in the declaration. `canonical.embed` only nominates
-   * which reported mount is the candidate, so both have to be set for a client
-   * to actually own anything (#633's trust boundary, consumed by #634).
+   * on the live page — not in the service's own `site`, which only says which
+   * page is meant. Both `canonical.owned` and a verified snapshot are needed for
+   * a client to actually own anything (#633's trust boundary, consumed by #634).
    *
-   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644).
-   * `verified.routing` is what the widget said about itself, and it shapes no
-   * URL — so a `path` owner here is one the probe has promoted, which is the
-   * only way a client gets path-shaped canonical URLs.
+   * **The routing shape comes from `routingProbe`, a sibling of `verified`** (#644)
+   * — so a `path` owner here is one the probe has promoted, which is the only
+   * way a client gets path-shaped canonical URLs.
    */
   const createOwner = async (args: {
     name: string
@@ -71,17 +70,17 @@ describe('per-region canonical webUrl', () => {
       name,
       roles: ['sahaj-atlas-client'],
       region: regionId,
+      site: { domain, page: mount },
       canonical: {
-        enabled,
-        embed: `https://${domain}${mount}`,
+        owned: enabled,
         verification: {
-          verified: { domain, mount, routing, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
+          verified: { domain, mount, widgetVersion: 2, at: '2026-08-18T00:00:00.000Z' },
           failureCount: 0,
           attempts: [],
           routingProbe: { at: '2026-08-18T00:00:00.000Z', verdict: routing, failedAttempts: 0 },
         },
       },
-      _status: 'published',
+      enabled: true,
     } as never)
     return doc.id
   }
@@ -198,12 +197,9 @@ describe('per-region canonical webUrl', () => {
     })
 
     /**
-     * The shape follows the probe's verdict, not the widget's self-report (#644).
-     *
-     * `verified.routing` stays `path` throughout here, so a URL that changed
-     * shape can only have read `routingProbe`. This is the circularity the ticket
-     * removed: the marker copies the script tag's parameter, which is a request,
-     * not an observation of the host's server.
+     * The shape follows the probe's verdict, not the widget's self-report (#644):
+     * nothing else changes here, so a URL that changed shape can only have read
+     * `routingProbe`.
      */
     it('re-shapes a public URL when the probe verdict is demoted, with no other change', async () => {
       const { docs } = await payload.find({
@@ -214,7 +210,6 @@ describe('per-region canonical webUrl', () => {
       })
       const londonClient = docs[0]
       const verification = londonClient.canonical!.verification!
-      expect(verification.verified?.routing).toBe('path')
 
       const setVerdict = async (verdict: 'query' | 'path') => {
         await payload.update({
@@ -251,13 +246,13 @@ describe('per-region canonical webUrl', () => {
       expect(parisEvent.webUrl).toBe(`${WEMEDITATE_BASE}/france/paris/${event.paris}`)
     })
 
-    it('never lets a client with canonical.enabled false own anything', async () => {
+    it('never lets a client with canonical.owned false own anything', async () => {
       const france = await readRegion(region.france)
       expect(france.webUrl).toBe(`${WEMEDITATE_BASE}/france`)
       expect(france.webUrl).not.toContain('sahajayoga.fr')
     })
 
-    it('stops owning as soon as the client is unpublished', async () => {
+    it('stops owning as soon as the client is switched off', async () => {
       const { docs } = await payload.find({
         collection: 'clients',
         where: { name: { equals: 'Sahaja Yoga London' } },
@@ -268,7 +263,7 @@ describe('per-region canonical webUrl', () => {
       await payload.update({
         collection: 'clients',
         id: londonClient.id,
-        data: { _status: 'draft' } as never,
+        data: { enabled: false },
         overrideAccess: true,
       })
 
@@ -279,7 +274,44 @@ describe('per-region canonical webUrl', () => {
       await payload.update({
         collection: 'clients',
         id: londonClient.id,
-        data: { _status: 'published' } as never,
+        data: { enabled: true },
+        overrideAccess: true,
+      })
+      expect((await readRegion(region.london)).webUrl).toContain(LONDON_DOMAIN)
+    })
+
+    it('stops owning as soon as its address moves, until the new page verifies', async () => {
+      // `verified` is kept through failures, so after a move it still names the
+      // old page — where the key no longer loads. Links must not point there.
+      const { docs } = await payload.find({
+        collection: 'clients',
+        where: { name: { equals: 'Sahaja Yoga London' } },
+        limit: 1,
+        overrideAccess: true,
+      })
+      const londonClient = docs[0]
+      const site = londonClient.site
+
+      for (const moved of [
+        { ...site, domain: 'moved-london.example' },
+        { ...site, page: '/somewhere-else' },
+      ]) {
+        await payload.update({
+          collection: 'clients',
+          id: londonClient.id,
+          data: { site: moved },
+          overrideAccess: true,
+        })
+        // Falls through to the UK client one level up.
+        expect((await readRegion(region.london)).webUrl).toBe(
+          `https://${UK_DOMAIN}/classes/?atlas=/uk/england/greater-london`,
+        )
+      }
+
+      await payload.update({
+        collection: 'clients',
+        id: londonClient.id,
+        data: { site },
         overrideAccess: true,
       })
       expect((await readRegion(region.london)).webUrl).toContain(LONDON_DOMAIN)
@@ -289,7 +321,7 @@ describe('per-region canonical webUrl', () => {
      * The verification column is written by the VerifyEmbeds job with a raw
      * `pool.query`, so Payload's JSON-schema validation of `domain` never runs
      * on that write — and `splitMountKey` records `url.host`, which keeps a
-     * port that `allowedDomains` (port-stripped) would have let through.
+     * port that the origin check (port-stripped) would have let through.
      *
      * A canonical URL naming a port nobody chose is not one we publish. The
      * region must fall through as though it had no owner.
@@ -314,7 +346,6 @@ describe('per-region canonical webUrl', () => {
         verified: {
           domain: `${LONDON_DOMAIN}:8080`,
           mount: '/map',
-          routing: 'path',
           widgetVersion: 2,
           at: '2026-08-18T00:00:00.000Z',
         },

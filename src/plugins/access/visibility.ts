@@ -10,7 +10,7 @@
 
 import type { BypassPermissionFunction, ContentSlug, TypedAuthUser } from './types'
 
-import { isCollectionVisibleInProject } from './config'
+import { isCollectionVisibleInProject, opensCollection } from './config'
 import { hasAnyPermission } from './permissions'
 
 /**
@@ -18,7 +18,7 @@ import { hasAnyPermission } from './permissions'
  * No wrappers - used directly throughout the plugin
  *
  * Collection/global is hidden if:
- * - User has no permission for checkOperations
+ * - User has no permission for checkOperations, and no listing that opens it
  * - User's currentProject doesn't match allowed projects
  *
  * @param slug - Collection or global slug
@@ -47,7 +47,7 @@ export function createHidden(slug: ContentSlug, bypassFn?: BypassPermissionFunct
       },
       bypassFn,
     )
-    if (!hasWrite) return true
+    if (!hasWrite && (user.type === 'inactive' || !opensCollection(user, slug))) return true
 
     // Check project visibility using unified logic
     return !isCollectionVisibleInProject(slug, user.currentProject ?? null)

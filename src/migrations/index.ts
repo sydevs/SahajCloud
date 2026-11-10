@@ -113,6 +113,7 @@ import * as migration_20261104_182008_merge_1075_main_snapshot from './20261104_
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
 import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
+import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
 import * as migration_20261107_220312_merge_1075_main_snapshot_2 from './20261107_220312_merge_1075_main_snapshot_2';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261108_220101_merge_1075_main_snapshot_3 from './20261108_220101_merge_1075_main_snapshot_3';
@@ -692,6 +693,11 @@ export const migrations = [
     up: migration_20261105_201411_atlas_digests_and_homes.up,
     down: migration_20261105_201411_atlas_digests_and_homes.down,
     name: '20261105_201411_atlas_digests_and_homes',
+  },
+  {
+    up: migration_20261106_094841_clients_one_site.up,
+    down: migration_20261106_094841_clients_one_site.down,
+    name: '20261106_094841_clients_one_site',
   },
   {
     up: migration_20261107_220312_merge_1075_main_snapshot_2.up,

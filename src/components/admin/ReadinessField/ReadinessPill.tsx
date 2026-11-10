@@ -1,17 +1,16 @@
 'use client'
 
-import type { SummaryTone } from './summary'
-
 import React from 'react'
 
-import { toneToColor } from './summary'
+import type { Tone } from '@/components/admin/helpers/tones'
+import { TONE_SURFACES } from '@/components/admin/helpers/tones'
 
 interface ReadinessPillProps {
-  tone: SummaryTone
+  tone: Tone
   size?: 'default' | 'large'
 }
 
-function getIcon(tone: SummaryTone, size: number): React.ReactNode {
+function getIcon(tone: Tone, size: number): React.ReactNode {
   switch (tone) {
     case 'success':
       return (
@@ -79,7 +78,7 @@ function getIcon(tone: SummaryTone, size: number): React.ReactNode {
   }
 }
 
-const ARIA_LABELS: Record<SummaryTone, string> = {
+const ARIA_LABELS: Record<Tone, string> = {
   success: 'All passing',
   warning: 'Partially ready',
   danger: 'Not ready',
@@ -87,7 +86,7 @@ const ARIA_LABELS: Record<SummaryTone, string> = {
 }
 
 export const ReadinessPill: React.FC<ReadinessPillProps> = ({ tone, size = 'default' }) => {
-  const { bg, fg, border } = toneToColor(tone)
+  const { bg, fg, border } = TONE_SURFACES[tone]
   const pillSize = size === 'large' ? 30 : 20
   const iconSize = size === 'large' ? 15 : 10
   return (

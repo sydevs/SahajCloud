@@ -405,7 +405,14 @@ describe('API', () => {
       // Test the virtual field exists with correct configuration
       const clientsCollection = payload.config.collections.find((c) => c.slug === 'clients')
 
-      const usageField = clientsCollection?.fields.find((f: any) => f.name === 'usage') as any
+      // `usage` is a named tab now, inside the edit view's tabs, so walk for it.
+      const findNamed = (fields: any[] = [], name: string): any =>
+        fields
+          .map((f) =>
+            f.name === name ? f : findNamed([...(f.fields ?? []), ...(f.tabs ?? [])], name),
+          )
+          .find(Boolean)
+      const usageField = findNamed(clientsCollection?.fields as any[], 'usage')
 
       const abuseScoreField = usageField?.fields?.find((f: any) => f.name === 'abuseScore')
 
