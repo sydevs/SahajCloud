@@ -122,6 +122,7 @@ import * as migration_20261110_175935_snapshot_resync from './20261110_175935_sn
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
 import * as migration_20261110_185146_localize_lesson_intro_audio_and_subtitles from './20261110_185146_localize_lesson_intro_audio_and_subtitles';
 import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185320_merge_main_snapshot_6';
+import * as migration_20261110_201010_merge_main_snapshot_7 from './20261110_201010_merge_main_snapshot_7';
 
 export const migrations = [
   {
@@ -742,6 +743,11 @@ export const migrations = [
   {
     up: migration_20261110_185320_merge_main_snapshot_6.up,
     down: migration_20261110_185320_merge_main_snapshot_6.down,
-    name: '20261110_185320_merge_main_snapshot_6'
+    name: '20261110_185320_merge_main_snapshot_6',
+  },
+  {
+    up: migration_20261110_201010_merge_main_snapshot_7.up,
+    down: migration_20261110_201010_merge_main_snapshot_7.down,
+    name: '20261110_201010_merge_main_snapshot_7'
   },
 ];
