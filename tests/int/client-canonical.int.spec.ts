@@ -233,6 +233,30 @@ describe('client canonical ownership + embed metadata', () => {
   // ── validateCanonicalOwnership ────────────────────────────────────────────
 
   describe('validateCanonicalOwnership', () => {
+    it('releases a reactivated owner whose region another site took meanwhile', async () => {
+      const region = await createRegion('reactivate-taken')
+      const first = await createClient('Reactivated Owner', {
+        region: region.id,
+        canonical: { owned: true },
+      })
+      await payload.update({
+        collection: 'clients',
+        id: first.id,
+        data: { enabled: false },
+        overrideAccess: true,
+      })
+      await createClient('Took Over', { region: region.id, canonical: { owned: true } })
+
+      const back = await payload.update({
+        collection: 'clients',
+        id: first.id,
+        data: { enabled: true },
+        overrideAccess: true,
+      })
+      expect(back.enabled).toBe(true)
+      expect(back.canonical?.owned).toBe(false)
+    })
+
     it('does not count an inactive owner as the incumbent', async () => {
       // It owns nothing by the read rule, and nothing else would ever clear it.
       const region = await createRegion('inactive-incumbent')

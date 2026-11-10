@@ -48,9 +48,13 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
     return data
   }
 
-  if (!data.canonical?.owned || wasOwned) return data
+  // An inactive owner is no incumbent, so another site may have taken the region
+  // meanwhile: coming back releases it, as a move does, rather than making two.
+  const reactivated = before && wasOwned && before.enabled !== true && data.enabled === true
+  if (!data.canonical?.owned || (wasOwned && !reactivated)) return data
 
   if (region == null) {
+    if (reactivated) return data
     const fallbackId = await getCanonicalFallbackClientId(req)
     if (before?.id != null && fallbackId === before.id) return data
     throw new ValidationError({
@@ -81,6 +85,11 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
     overrideAccess: true,
     req,
   })
+
+  if (incumbents.length > 0 && reactivated) {
+    data.canonical = { ...data.canonical, owned: false }
+    return data
+  }
 
   if (incumbents.length > 0) {
     throw new ValidationError({
