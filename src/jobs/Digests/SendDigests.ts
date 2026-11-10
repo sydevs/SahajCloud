@@ -1,6 +1,5 @@
 import type { Payload, TaskConfig } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
 import { createElement } from 'react'
 
 import { DigestEmail, type DigestEmailProps } from '@/emails/DigestEmail'
@@ -10,6 +9,7 @@ import { managerRoles } from '@/lib/notifications/managerRoles'
 import { headerDisplayName, stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { DigestWatermarks, Manager, TaskSendDigests } from '@/payload-types'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
+import { capture } from '@/plugins/sentry/capture'
 
 import { buildDigest } from './buildDigest'
 
@@ -160,15 +160,12 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
             manager.digestWatermarks = next
           } catch (error) {
             result.failed += 1
-            Sentry.withScope((scope) => {
-              scope.setContext('sendDigests', { managerId: manager.id, role })
-              Sentry.captureException(error)
-            })
-            payload.logger.warn({
-              error: error instanceof Error ? error.message : String(error),
-              managerId: manager.id,
-              msg: 'SendDigests: per-role failure — continuing',
-              role,
+            capture({
+              error,
+              message: 'SendDigests: per-role failure — continuing',
+              extra: { managerId: manager.id, role },
+              level: 'warning',
+              logger: payload.logger,
             })
           }
         }

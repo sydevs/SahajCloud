@@ -265,12 +265,22 @@ copy resolves to a different version, so a capture through it reads an empty
 carrier and is dropped without error. That is why `@sentry/react` is not a
 direct dependency.
 
-**A server report goes through one of two bodies, by deep path**: `captureFailure`
-for an exception, `captureNotice` for anything else. Neither takes the SDK's own
-export name, so a reader cannot mistake one for `Sentry.captureMessage` sitting
-beside it. `src/plugins/sentry/index.ts` says why neither is in the barrel. A
-message capture may not reach the SDK itself —
-`tests/unit/sentry-capture-notice.spec.ts` fails a second spelling.
+**Every server report goes through one body, by deep path**: `capture`
+(`src/plugins/sentry/capture.ts`), which takes an exception, a message, or
+both, and owns the never-throw guard, the tags, the level default and the
+optional log mirror. `captureFailure` is the one layer above it — it classifies
+a **routed** failure from a `CaptureSource` and reports through the same body,
+so a site without a source cannot end up under a different policy. Neither
+takes the SDK's own export name, so a reader cannot mistake one for
+`Sentry.captureMessage` sitting beside it. `src/plugins/sentry/index.ts` says
+why neither is in the barrel.
+
+⚠ **No server site reaches the SDK itself** — `tests/unit/sentry-capture.spec.ts`
+fails a second spelling of either entry point. The three browser reporters
+(`clientLogger`, `ErrorBoundary`, `global-error`) are its only exceptions, and
+are listed there: each carries a console mirror and a `getClient()` check the
+server body does not have, and `clientLogger` is the browser's own equivalent of
+that body rather than one of its callers.
 
 ## Organization rules
 

@@ -1,8 +1,6 @@
 import type { ReminderWindow } from './reminderWindow'
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
 import { runClock } from '@/lib/jobs/runClock'
@@ -12,6 +10,7 @@ import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
+import { capture } from '@/plugins/sentry/capture'
 import type { EventSchedule } from '@/types/schedule'
 
 import { reminderWindow, reminderWindowWhere, withinReminderWindow } from './reminderWindow'
@@ -344,14 +343,12 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
           await remindForEvent({ payload, req, event, now, window, clientCache, result })
         } catch (error) {
           result.failed++
-          Sentry.withScope((scope) => {
-            scope.setContext('sendSessionReminders', { eventId: event.id })
-            Sentry.captureException(error)
-          })
-          payload.logger.warn({
-            msg: 'SendSessionReminders: per-event failure — continuing',
-            eventId: event.id,
-            error: error instanceof Error ? error.message : String(error),
+          capture({
+            error,
+            message: 'SendSessionReminders: per-event failure — continuing',
+            extra: { eventId: event.id },
+            level: 'warning',
+            logger: payload.logger,
           })
         }
       }

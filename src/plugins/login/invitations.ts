@@ -2,8 +2,6 @@ import type { PendingInvitation } from './grantSummary'
 import type { LoginCollectionConfig, LoginDocument } from './types'
 import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import {
   NEVER_FREQUENCY,
   notificationFrequency,
@@ -11,6 +9,7 @@ import {
 import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
+import { capture } from '@/plugins/sentry/capture'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
 import { composeInvitations } from './invite'
@@ -223,11 +222,11 @@ export function sendInvitationsTask(config: LoginCollectionConfig): TaskConfig<'
           else output.skipped++
         } catch (error) {
           output.failed++
-          Sentry.captureException(error, { extra: { managerId: doc.id } })
-          payload.logger.error({
-            msg: 'sendInvitations: invitation failed',
-            err: error,
-            managerId: doc.id,
+          capture({
+            error,
+            message: 'sendInvitations: invitation failed',
+            extra: { managerId: doc.id },
+            logger: payload.logger,
           })
         }
       }

@@ -1,27 +1,29 @@
 /**
- * The one capture body behind every exception this plugin reports: Payload's
+ * How a **routed** failure is classified before `capture` reports it: Payload's
  * root `afterError` hook, the Local API wrapper and every failed job run
  * (#1039), and the two managers sign-in paths — the page's action and the
- * magic-link endpoint. A second copy of the exclusions would let one site report
- * what another deliberately drops.
+ * magic-link endpoint. Each hands an error and one of four `CaptureSource`
+ * values; the level, the tags, the extras and the fingerprint are derived here.
+ * A second copy of the exclusions would let one site report what another
+ * deliberately drops.
  *
- * ⚠ **Never throws.** Every site calls this while already handling a failure,
- * and a telemetry error must not replace the one the caller is dealing with.
+ * ⚠ **This classifies; it does not send.** `capture` owns the never-throw
+ * guard, the tags and the one call into the SDK, so an ordinary site reporting
+ * without a `source` cannot end up with a different policy.
  *
- * ⚠ **Not gated on `NEXT_PUBLIC_SENTRY_DSN`**, unlike `sentryPlugin`: the
- * sign-in action reaches this without the plugin, and `captureException` is a
- * no-op on an uninitialised SDK.
+ * ⚠ **Never throws**, and keeps its own `try` for that: the three readers it
+ * derives from — the cast-error map, the rejection describer and the validation
+ * reader — run before `capture` is reached. Every site calls this while already
+ * handling a failure.
  */
 import type { PayloadRequest } from 'payload'
-
-import * as Sentry from '@sentry/nextjs'
 
 import { mapPostgresCastError } from '@/lib/databaseErrors'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { validationFieldErrors } from '@/lib/utilities/validationFailure'
 
+import { capture } from './capture'
 import { describeRejectedCredential } from './credentialRejection'
-import { captureTags } from './tags'
 
 /**
  * The `capture_source` tag. A routed failure and a swallowed admin write can
@@ -91,7 +93,8 @@ export const captureFailure = ({
     // carries localised labels.
     const fields = validationFieldErrors(error)?.map(({ path }) => path)
 
-    Sentry.captureException(error, {
+    return capture({
+      error,
       // A swallowed admin write, or a scheduled publish that never happened, is
       // the whole incident whatever its status.
       // ⚠ **Accepted risk: a rejected credential's level is caller-triggerable**
@@ -110,8 +113,9 @@ export const captureFailure = ({
             id: String(req.user.id),
             email: 'email' in req.user ? String(req.user.email) : undefined,
           }
-        : (actingUser ?? (rejected?.ip ? { ip_address: rejected.ip } : undefined)),
-      tags: captureTags({
+        : actingUser,
+      ip: rejected?.ip,
+      tags: {
         locale: req?.locale,
         collection,
         target,
@@ -119,7 +123,7 @@ export const captureFailure = ({
         job_id: job?.id,
         capture_source: source,
         ...rejected?.tags,
-      }),
+      },
       extra: defined({
         status,
         url: req?.url,
@@ -129,9 +133,6 @@ export const captureFailure = ({
       // A rejected key opens one issue per collection, wherever it was denied.
       fingerprint: rejected?.fingerprint,
     })
-    // A nested write rethrows the same instance through both wrappers; the SDK's
-    // `__sentry_captured__` mark drops each repeat, so nothing here dedupes.
-    return true
   } catch {
     return false
   }

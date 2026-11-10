@@ -7,7 +7,7 @@ import type { Payload, TaskConfig } from 'payload'
 
 import { serverEnv } from '@/lib/env'
 import type { Client } from '@/payload-types'
-import { captureNotice } from '@/plugins/sentry/captureNotice'
+import { capture } from '@/plugins/sentry/capture'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
@@ -87,7 +87,7 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
   // Report to Sentry if DSN is configured and we have milestones to report
   if (serverEnv.NEXT_PUBLIC_SENTRY_DSN && milestonesToReport.length > 0) {
     for (const report of milestonesToReport) {
-      captureNotice({
+      capture({
         message:
           report.milestone === 'first_high_usage'
             ? `API abuse milestone: First high-usage day for "${report.clientName}"`

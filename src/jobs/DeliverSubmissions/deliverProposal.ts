@@ -8,7 +8,7 @@ import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'
 import { adminDocUrl } from '@/lib/utilities/adminUrl'
 import { relationId } from '@/lib/utilities/relationId'
-import { captureNotice } from '@/plugins/sentry/captureNotice'
+import { capture } from '@/plugins/sentry/capture'
 
 /**
  * Deliver a proposal: email the responsible manager that there is something to
@@ -41,7 +41,7 @@ export async function deliverProposal({
     // `info`, not a warning: the system contact is the last rung of the routing
     // ladder above rather than a failure of it, and the admin home already
     // lists a proposal that reached it (`adminProposalsWhere`).
-    captureNotice({
+    capture({
       message: 'deliverProposal: no manager to notify',
       extra: { submissionId: submission.id, eventId },
       level: 'info',

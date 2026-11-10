@@ -10,6 +10,7 @@ import {
 } from '@/lib/events/updateEventWithoutValidation'
 import { asNotificationLog } from '@/lib/eventVerification/log'
 
+import { capturedFrom } from '../utils/sentryCapture'
 import {
   expectEventWriteRefused,
   storeEventOverImageLimit,
@@ -18,13 +19,6 @@ import {
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
-
-// Hoisted so the vi.mock factory (hoisted above imports) can close over it, while
-// the tests can still assert what context the handler attached to the Sentry scope.
-const { setContextMock, setTagMock } = vi.hoisted(() => ({
-  setContextMock: vi.fn(),
-  setTagMock: vi.fn(),
-}))
 
 // Mocking the helper rather than `@/lib/env` keeps the bootstrapped Payload
 // instance's own env intact. Default `true` leaves every other case here
@@ -36,10 +30,6 @@ vi.mock('@/jobs/ExpireEvents/featureFlag', () => ({
 }))
 
 vi.mock('@sentry/nextjs', () => ({
-  withScope: vi.fn(
-    (callback: (scope: { setContext: typeof setContextMock; setTag: typeof setTagMock }) => void) =>
-      callback({ setContext: setContextMock, setTag: setTagMock }),
-  ),
   captureException: vi.fn(),
   // `resolveRecipients` reports a missing region manager this way, so any stage
   // that escalates to the region (`escalated` onward) reaches it. Without the
@@ -150,7 +140,7 @@ describe('ExpireEvents job', () => {
       // The failure is caught, counted, and reported to Sentry tagged with the event id.
       expect(result.failed).toBe(1)
       expect(Sentry.captureException).toHaveBeenCalledTimes(1)
-      expect(setContextMock).toHaveBeenCalledWith('expireEvents', {
+      expect(capturedFrom(vi.mocked(Sentry.captureException)).extra).toMatchObject({
         eventId: failing.id,
         dueSince: DUE,
       })
@@ -576,8 +566,8 @@ describe('ExpireEvents job', () => {
     })
 
     // Whether a failure repeats is read off this tag's own occurrence history in
-    // Sentry, so the tag is what has to be there — a context field is not
-    // indexed and cannot be filtered on.
+    // Sentry, so the tag is what has to be there — an extra is not indexed and
+    // cannot be filtered on.
     it('tags a per-event failure with the event id, and reports its watermark', async () => {
       const dueSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       const event = await createDueEvent(payload, 'Long Overdue', {}, dueSince)
@@ -586,11 +576,9 @@ describe('ExpireEvents job', () => {
       try {
         await runTask(payload)
 
-        expect(setTagMock).toHaveBeenCalledWith('expire_events.event_id', String(event.id))
-        expect(setContextMock).toHaveBeenCalledWith('expireEvents', {
-          eventId: event.id,
-          dueSince,
-        })
+        const reported = capturedFrom(vi.mocked(Sentry.captureException))
+        expect(reported.tags).toMatchObject({ 'expire_events.event_id': String(event.id) })
+        expect(reported.extra).toMatchObject({ eventId: event.id, dueSince })
       } finally {
         spy.mockRestore()
       }

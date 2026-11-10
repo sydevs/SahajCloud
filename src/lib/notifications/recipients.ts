@@ -3,7 +3,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager, Region } from '@/payload-types'
-import { captureNotice } from '@/plugins/sentry/captureNotice'
+import { capture } from '@/plugins/sentry/capture'
 
 const PLATFORM_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp',
@@ -187,7 +187,7 @@ export async function resolveRecipients(args: {
         regionName: region.regionName,
       })
     } else {
-      captureNotice({
+      capture({
         message:
           'ExpireEvents: no region manager (distinct from the event manager) found to escalate to',
         extra: {
