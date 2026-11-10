@@ -982,6 +982,33 @@ describe('client canonical ownership + embed metadata', () => {
       expect(output.disabled).toBeGreaterThanOrEqual(1)
     })
 
+    it('gives a recovered site its region back, unless another site took it', async () => {
+      const failUntilReleased = async (id: number) => {
+        await run(failed, daysAfter(200))
+        await run(failed, daysAfter(202))
+        await run(failed, daysAfter(206))
+        expect((await read(id)).canonical?.verification?.releasedAt).toBeTruthy()
+      }
+
+      const recovers = await createOwner('Recovers', 'verify-recovers')
+      await failUntilReleased(recovers)
+      await run(verified, daysAfter(220))
+      let doc = await read(recovers)
+      expect(doc.canonical?.owned).toBe(true)
+      expect(doc.canonical?.verification?.releasedAt).toBeUndefined()
+
+      const loses = await createOwner('Loses', 'verify-loses')
+      await run(failed, daysAfter(300))
+      await run(failed, daysAfter(302))
+      await run(failed, daysAfter(306))
+      const { region } = await read(loses)
+      await createClient('Took It', { region: region as number, canonical: { owned: true } })
+      await run(verified, daysAfter(320))
+      doc = await read(loses)
+      expect(doc.canonical?.owned).toBe(false)
+      expect(doc.canonical?.verification?.failureCount).toBe(0)
+    })
+
     // The rule the whole design leans on: our integration breaking is not their embed breaking.
     it('changes nothing on an inconclusive run', async () => {
       const id = await createOwner('Verify Inconclusive', 'verify-incon')

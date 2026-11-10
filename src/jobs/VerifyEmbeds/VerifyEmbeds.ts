@@ -1,5 +1,7 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
+import { APIError } from 'payload'
+
 import { primaryPageUrl } from '@/lib/clients/site'
 import type {
   CanonicalVerification,
@@ -99,6 +101,26 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
   return docs
 }
 
+/**
+ * Give a recovered site back the region its misses released. Once the page is
+ * found again its open item is gone, so nothing would prompt anyone to do this.
+ * The ownership hook refuses if another site has taken the region meanwhile,
+ * and that is an answer: the region stays with it.
+ */
+async function reclaimRegion(payload: Payload, id: number): Promise<void> {
+  try {
+    await payload.update({
+      collection: 'clients',
+      id,
+      data: { canonical: { owned: true } },
+      overrideAccess: true,
+    })
+  } catch (error) {
+    if (!(error instanceof APIError)) throw error
+    payload.logger.info({ msg: 'VerifyEmbeds: recovered service did not reclaim', clientId: id })
+  }
+}
+
 /** Injectable so tests can drive the ladder without a browser or a Cloudflare account. */
 export interface VerifyEmbedsDeps extends RenderDeps {
   verify?: (mountKey: string) => Promise<VerificationResult>
@@ -168,6 +190,11 @@ export async function runVerifyEmbeds(args: {
         error: error instanceof Error ? error.message : String(error),
       })
       continue
+    }
+
+    // The map is back: the region returns to it, as a press of Check would do.
+    if (outcome.status === 'verified' && current?.releasedAt) {
+      await reclaimRegion(payload, client.id)
     }
 
     // No mail: the open-items digest reads the snapshot just written.
