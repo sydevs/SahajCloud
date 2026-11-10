@@ -232,8 +232,8 @@ type Verdict = { status: SeoCheckResult['status']; detail?: string }
  * Longest `detail` stored.
  *
  * ⚠ **A `detail` quotes the remote page**, so its length is the other end's
- * choice. Bounded here, where every verdict is built, rather than at the row,
- * the tab and the email.
+ * choice. Bounded here, where every verdict is built, rather than at the row
+ * and the tab.
  */
 const MAX_DETAIL_LENGTH = 300
 
@@ -363,7 +363,7 @@ export async function siteListsUrl(args: {
  * ⚠ **Half the SSRF bound, and the reason it is a bound rather than a filter.**
  * The `Sitemap:` lines and `<loc>` children are URLs a third party chose, and
  * unrestricted they make this a reachability oracle for the Railway network:
- * the stored, emailed verdict differs between "a document answered" and
+ * the stored verdict differs between "a document answered" and
  * "nothing did". A sitemap on another domain is deliberately not followed.
  *
  * ⚠ **The other half is {@link FetchPageOptions.hosts}**, which applies this
@@ -466,7 +466,7 @@ async function checkPage(
   // ⚠ **Bounded to the mount's own host, like every sitemap fetch, and for a
   // sharper reason.** Two failures quote what came back, so a mount that 302s to
   // an internal address would read that address's title and canonical into the
-  // stored detail and the manager's mail.
+  // stored detail a manager is shown.
   const [seo, fetched] = await Promise.all([
     resolvers.resolveSeo(page.route),
     get(page.url, { hosts: siteHosts(URL.parse(page.url)?.hostname), signal }),

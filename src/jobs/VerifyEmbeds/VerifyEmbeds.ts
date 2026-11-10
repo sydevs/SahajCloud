@@ -47,7 +47,7 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * Not `Client` — a selected read returns only what it asked for, and typing it as the full document
  * would let a later edit reach for a field this query never fetched.
  */
-type DueClient = Pick<Client, 'id' | 'name' | 'canonical' | 'site' | 'language'>
+type DueClient = Pick<Client, 'id' | 'canonical' | 'site' | 'language'>
 
 /** The task's output, off its `outputSchema` below. */
 type VerifyResult = TaskVerifyEmbeds['output']
@@ -87,7 +87,6 @@ async function dueClients(payload: Payload, req: PayloadRequest, now: Date): Pro
     },
     depth: 0,
     select: {
-      name: true,
       canonical: true,
       site: true,
       // The SEO checks resolve expectations in it.
@@ -124,7 +123,7 @@ export async function runVerifyEmbeds(args: {
     disabled: 0,
     pathPromoted: 0,
     pathDemoted: 0,
-    seoNewFailures: 0,
+    seoFailing: 0,
   }
 
   const pool = getPgPool(req)
@@ -140,7 +139,7 @@ export async function runVerifyEmbeds(args: {
 
     result.processed++
     const current = client.canonical?.verification as CanonicalVerification | null
-    const { outcome, transition, probeResult, verification, newFailures } = await verifyMount({
+    const { outcome, transition, probeResult, verification, seo } = await verifyMount({
       req,
       client,
       current,
@@ -155,14 +154,9 @@ export async function runVerifyEmbeds(args: {
     })
     result[outcome.status]++
 
-    // Every service is checked, but only an owner has anything to lose: the
-    // write clears `owned` either way, and only a cleared one is news.
-    const released = transition.disable && Boolean(client.canonical?.owned)
-    const stored = released ? { ...verification, releasedAt: now.toISOString() } : verification
-
     try {
       await pool.query(updateSql(schema), [
-        JSON.stringify(stored),
+        JSON.stringify(verification),
         transition.nextVerifyAt,
         transition.disable,
         client.id,
@@ -177,7 +171,7 @@ export async function runVerifyEmbeds(args: {
     }
 
     // No mail: the open-items digest reads the snapshot just written.
-    if (newFailures.length > 0) result.seoNewFailures++
+    if (seo.some((check) => check.status === 'fail')) result.seoFailing++
 
     // Counted after the write, not before: an owner whose row could not be
     // persisted has not changed its verdict, whatever the fold said.
@@ -199,7 +193,9 @@ export async function runVerifyEmbeds(args: {
       })
     }
 
-    if (released) {
+    // Every service is checked, but only an owner has anything to lose: the
+    // write clears `owned` either way, and only a cleared one is news.
+    if (transition.released) {
       result.disabled++
       payload.logger.warn({
         msg: 'VerifyEmbeds: region ownership released after repeated failures',
@@ -231,7 +227,7 @@ export const VerifyEmbeds: TaskConfig<'verifyEmbeds'> = {
     // ⚠ Services whose pages stopped publishing our metadata. Counted apart from
     // `failed`, never added to it: the embed is present and publishing, and
     // `failed` would read as ownership at risk.
-    { name: 'seoNewFailures', type: 'number', required: true },
+    { name: 'seoFailing', type: 'number', required: true },
   ],
   schedule: [{ cron: '0 3 * * *', queue: 'nightly' }],
   handler: async ({ req }) => {

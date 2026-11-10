@@ -56,7 +56,7 @@ const codePoint = (entity: string, code: number): string =>
  * ⚠ **One decoder, because two disagreed.** The SEO checks (#1055) compare a
  * whole `<title>`, and `Don't` comes back as `Don&#x27;t` from one serializer
  * and `Don&#39;t` from another — a decoder missing either reports a correct
- * page as wrong, and emails a manager about it.
+ * page as wrong, and puts it on a manager's list.
  *
  * `&amp;` is decoded **last**, so `&amp;lt;` yields `&lt;` rather than `<`. A
  * comparison, never a sanitizer: nothing it returns is re-emitted as markup.

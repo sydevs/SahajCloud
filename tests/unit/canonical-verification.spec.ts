@@ -61,6 +61,17 @@ describe('nextVerificationState', () => {
     expect(t.verification.failureCount).toBe(0)
   })
 
+  it('releases only a service that held its region', () => {
+    const third = { verified, failureCount: 2, attempts: [] }
+    const owner = nextVerificationState({ current: third, result: failed, now, owned: true })
+    expect(owner).toMatchObject({ disable: true, released: true })
+    expect(owner.verification.releasedAt).toBe(now.toISOString())
+
+    const other = nextVerificationState({ current: third, result: failed, now, owned: false })
+    expect(other).toMatchObject({ disable: true, released: false })
+    expect(other.verification).not.toHaveProperty('releasedAt')
+  })
+
   it('keeps a release through further failures', () => {
     const releasedAt = '2026-11-01T03:00:00.000Z'
     const t = nextVerificationState({

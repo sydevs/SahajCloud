@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   EMPTY_VERIFICATION,
   nextSeoCheckState,
-  seoFailureKey,
   type SeoCheckResult,
 } from '../../src/lib/clients/verification'
 import {
@@ -559,7 +558,7 @@ describe('nextSeoCheckState', () => {
       results: [failure('/', 'title')],
       now: new Date('2026-11-01T00:00:00Z'),
     })
-    expect(folded.verification.failureCount).toBe(1)
+    expect(folded.failureCount).toBe(1)
   })
 
   it('leaves the siblings it does not own exactly as they were', () => {
@@ -578,78 +577,35 @@ describe('nextSeoCheckState', () => {
       results: [],
       now: new Date('2026-11-01T00:00:00Z'),
     })
-    expect(folded.verification.verified).toEqual(current.verified)
-    expect(folded.verification.routingProbe).toEqual(current.routingProbe)
+    expect(folded.verified).toEqual(current.verified)
+    expect(folded.routingProbe).toEqual(current.routingProbe)
   })
 
-  it('reports a failure nobody has been told about', () => {
-    const folded = nextSeoCheckState({
-      current: EMPTY_VERIFICATION,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-01T00:00:00Z'),
-    })
-    expect(folded.newFailures.map(seoFailureKey)).toEqual(['/#title'])
-  })
-
-  it('stays quiet about a failure already reported', () => {
-    const first = nextSeoCheckState({
-      current: EMPTY_VERIFICATION,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-01T00:00:00Z'),
-    })
-    const second = nextSeoCheckState({
-      current: first.verification,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-02T00:00:00Z'),
-    })
-    expect(second.newFailures).toEqual([])
-  })
-
-  it('reports it again after it was fixed and broke again', () => {
-    const broken = nextSeoCheckState({
-      current: EMPTY_VERIFICATION,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-01T00:00:00Z'),
-    })
-    const fixed = nextSeoCheckState({
-      current: broken.verification,
-      results: [{ route: '/', check: 'title', status: 'pass' }],
-      now: new Date('2026-11-02T00:00:00Z'),
-    })
-    const again = nextSeoCheckState({
-      current: fixed.verification,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-03T00:00:00Z'),
-    })
-    expect(again.newFailures.map(seoFailureKey)).toEqual(['/#title'])
-  })
-
-  it('keeps a failure through a run that could not look, and mails it once', () => {
+  it('keeps a failure through a run that could not look', () => {
     const broken = nextSeoCheckState({
       current: EMPTY_VERIFICATION,
       results: [failure('/', 'title')],
       now: new Date('2026-11-01T00:00:00Z'),
     })
     const timedOut = nextSeoCheckState({
-      current: broken.verification,
+      current: broken,
       results: [{ route: '/', check: 'title', status: 'skipped', detail: 'timed out' }],
       now: new Date('2026-11-02T00:00:00Z'),
     })
-    expect(timedOut.verification.seo?.results[0]?.status).toBe('fail')
-    const again = nextSeoCheckState({
-      current: timedOut.verification,
-      results: [failure('/', 'title')],
-      now: new Date('2026-11-03T00:00:00Z'),
-    })
-    expect(again.newFailures).toEqual([])
+    expect(timedOut.seo?.results[0]?.status).toBe('fail')
   })
 
   it('tells the same check on two pages apart', () => {
-    const folded = nextSeoCheckState({
+    const broken = nextSeoCheckState({
       current: EMPTY_VERIFICATION,
-      results: [failure('/', 'title'), failure('/ca', 'title')],
+      results: [failure('/', 'title')],
       now: new Date('2026-11-01T00:00:00Z'),
     })
-    expect(folded.newFailures.map(seoFailureKey)).toEqual(['/#title', '/ca#title'])
+    const timedOut = nextSeoCheckState({
+      current: broken,
+      results: [{ route: '/ca', check: 'title', status: 'skipped', detail: 'timed out' }],
+      now: new Date('2026-11-02T00:00:00Z'),
+    })
+    expect(timedOut.seo?.results[0]?.status).toBe('skipped')
   })
 })

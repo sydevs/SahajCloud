@@ -11066,7 +11066,7 @@ export interface TaskVerifyEmbeds {
     disabled: number;
     pathPromoted: number;
     pathDemoted: number;
-    seoNewFailures: number;
+    seoFailing: number;
   };
 }
 /**

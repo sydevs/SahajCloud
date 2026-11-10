@@ -234,7 +234,7 @@ export async function buildDigest(args: {
   let closingNote: DigestEmailProps['closingNote'] = null
   const wholeList = due('open_items')
   const newProposals = due('new_proposals')
-  const newRefusals = role === 'admin' && due('refused_signups')
+  const newRefusals = due('refused_signups')
 
   if (wholeList || newProposals || newRefusals) {
     await section('open items', async () => {
@@ -265,7 +265,7 @@ export async function buildDigest(args: {
   }
 
   let registrations: DigestEmailProps['registrations']
-  if (role === 'program' && due('event_registration')) {
+  if (due('event_registration')) {
     await section('registrations', async () => {
       const groups = await registrationGroups({
         managerId: manager.id,

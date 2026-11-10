@@ -107,7 +107,7 @@ async function runSeoChecksForClient(args: {
  */
 export async function verifyMount(args: {
   req: PayloadRequest
-  client: Pick<Client, 'id' | 'language' | 'site'>
+  client: Pick<Client, 'canonical' | 'id' | 'language' | 'site'>
   current: CanonicalVerification | null
   mount: string
   now: Date
@@ -120,7 +120,13 @@ export async function verifyMount(args: {
   const { req, client, current, mount, now, verify, probe, runSeo, countsStrikes } = args
 
   const outcome = await verify(mount)
-  const transition = nextVerificationState({ current, result: outcome, now, countsStrikes })
+  const transition = nextVerificationState({
+    current,
+    result: outcome,
+    now,
+    countsStrikes,
+    owned: Boolean(client.canonical?.owned),
+  })
   const verified = transition.verification.verified
 
   const checkSeo =
@@ -156,9 +162,6 @@ export async function verifyMount(args: {
     now,
   })
 
-  if (!seo) {
-    return { outcome, transition, probeResult, verification: probed, seo: [], newFailures: [] }
-  }
-  const { verification, newFailures } = nextSeoCheckState({ current: probed, results: seo, now })
-  return { outcome, transition, probeResult, verification, seo, newFailures }
+  const verification = seo ? nextSeoCheckState({ current: probed, results: seo, now }) : probed
+  return { outcome, transition, probeResult, verification, seo: seo ?? [] }
 }

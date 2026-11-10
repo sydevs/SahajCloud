@@ -7,7 +7,7 @@ import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedCh
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
-import { hasSearchListings, primaryPageUrl } from '@/lib/clients/site'
+import { hasSearchListings, ownedHost, primaryPageUrl } from '@/lib/clients/site'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -261,9 +261,10 @@ async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
  * ⚠ **A track with no search listings is never a search problem**, whatever
  * the snapshot holds, as on the Install tab (`installModel.ts`).
  */
-async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
+async function readServiceRows(
+  args: OverviewArgs & { scope: Extract<OverviewScope, { role: 'admin' | 'service' }> },
+): Promise<OpenItemRow[]> {
   const { req, scope } = args
-  if (scope.role !== 'service' && scope.role !== 'admin') return []
   const { docs } = await req.payload.find({
     collection: 'clients',
     where: {
@@ -275,12 +276,14 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
     },
     depth: 0,
     limit: LIST_READ_LIMIT,
+    pagination: false,
     sort: 'name',
     overrideAccess: args.overrideAccess,
     req: localeIsolatedReq(req),
     select: {
       name: true,
       updatedAt: true,
+      enabled: true,
       site: { domain: true, page: true, track: true },
       canonical: { owned: true, verification: true },
     },
@@ -288,27 +291,31 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
   return docs.flatMap((doc): OpenItemRow[] => {
     const verification = doc.canonical?.verification
     // Only a service with a page is checked, so only one can have missed.
-    const pageUrl = primaryPageUrl(doc.site)
-    const misses = pageUrl ? (verification?.failureCount ?? 0) : 0
+    const missingOn = verification?.failureCount ? primaryPageUrl(doc.site) : null
     const seo = verification?.seo
     const searchProblem =
       hasSearchListings(doc.site?.track) &&
       (seo?.results ?? []).some((result) => result.status === 'fail')
-    if (!misses && !searchProblem) return []
+    if (!missingOn && !searchProblem) return []
     return [
       {
         kind: 'service',
         id: doc.id,
         title: doc.name?.trim() || 'Untitled service',
-        checkedAt: (misses ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
-        misses,
-        pageUrl,
-        owned: Boolean(doc.canonical?.owned),
+        checkedAt: (missingOn ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
+        missingOn,
+        owned: ownedHost(doc) !== null,
         releasedAt: verification?.releasedAt ?? null,
       },
     ]
   })
 }
+
+/** An admin's are the same for every admin, and the digest asks once per admin. */
+const loadAdminServiceRows = (args: OverviewArgs & { scope: { role: 'admin' } }) =>
+  memoizeOnRequest(args.req, `atlasOverview:adminServices:${args.overrideAccess}`, () =>
+    readServiceRows(args),
+  )
 
 /** A region scope's own events — inside `?region=` when it names one. */
 function ownEventsWhere(scope: OverviewScope, regionIds: null | Set<number>): Where[] {
@@ -372,7 +379,7 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   const { now, req, scope } = args
   // A service's list is its websites alone: no events, no region tree.
   if (scope.role === 'service') {
-    const rows = await loadServiceRows(args)
+    const rows = await readServiceRows({ ...args, scope })
     return { items: sortOpenItems(rows.map((row) => openItem(row, now))), progress: null }
   }
 
@@ -477,7 +484,11 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   }
 
   if (scope.role === 'admin') {
-    rows.push(...(await loadRefusals(req)), ...(await loadServiceRows(args)))
+    const [refusals, services] = await Promise.all([
+      loadRefusals(req),
+      loadAdminServiceRows({ ...args, scope }),
+    ])
+    rows.push(...refusals, ...services)
   }
 
   const items = sortOpenItems(rows.map((row) => openItem(row, now)))

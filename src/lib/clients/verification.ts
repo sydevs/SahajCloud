@@ -66,8 +66,8 @@ export type SeoCheckId = (typeof SEO_CHECK_IDS)[number]
  *
  * ⚠ **`skipped` is not `fail`, and conflating them is the whole hazard here.**
  * A page we could not fetch or a locale with no copy is no evidence the install
- * is wrong, and both are common mid-setup. Only `fail` is shown as a problem or
- * emailed — the split `inconclusive` makes for the mount ladder above.
+ * is wrong, and both are common mid-setup. Only `fail` is shown as a problem —
+ * the split `inconclusive` makes for the mount ladder above.
  */
 export const SEO_CHECK_STATUSES = ['pass', 'fail', 'skipped'] as const
 
@@ -103,8 +103,7 @@ export const CANONICAL_FAILURE_LIMIT = 3
  * Consecutive negative probes before a client on `path` is returned to `query`.
  *
  * **Its own constant and its own counter, never `failureCount`.** That one
- * becomes `disable` — canonical ownership switched off, plus an email to the
- * service's manager. A routing negative means the embed is *present and
+ * becomes `disable` — canonical ownership switched off. A routing negative means the embed is *present and
  * publishing*, just in the uglier `?atlas=` shape, so it must never reach it.
  */
 export const ROUTING_PROBE_FAILURE_LIMIT = 3
@@ -141,8 +140,10 @@ export interface VerificationTransition {
   verification: CanonicalVerification
   /** When to look again. */
   nextVerifyAt: string
-  /** True when this run exhausted the failure budget — disable and notify. */
+  /** True when this run exhausted the failure budget — disable. */
   disable: boolean
+  /** True when that cost the service its region, which the digest then says. */
+  released: boolean
 }
 
 export const EMPTY_VERIFICATION: CanonicalVerification = {
@@ -178,8 +179,10 @@ export function nextVerificationState(args: {
   now: Date
   /** `false` for a press of Check; see above. */
   countsStrikes?: boolean
+  /** Whether the service holds its region now, so that a release can be told from nothing. */
+  owned?: boolean
 }): VerificationTransition {
-  const { current, result, now, countsStrikes = true } = args
+  const { current, result, now, countsStrikes = true, owned = false } = args
   const previous = current ?? EMPTY_VERIFICATION
   const at = now.toISOString()
 
@@ -195,6 +198,7 @@ export function nextVerificationState(args: {
       verification: { ...previous, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INCONCLUSIVE_RETRY_MS).toISOString(),
       disable: false,
+      released: false,
     }
   }
 
@@ -207,6 +211,7 @@ export function nextVerificationState(args: {
       verification: { ...kept, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
       disable: false,
+      released: false,
     }
   }
 
@@ -215,10 +220,14 @@ export function nextVerificationState(args: {
   // that has been down for days isn't probed on the same cadence as a healthy one.
   const backoff = VERIFY_INTERVAL_MS * 2 ** Math.min(failureCount - 1, 3)
 
+  const disable = failureCount >= CANONICAL_FAILURE_LIMIT
+  const released = disable && owned
+
   return {
-    verification: { ...previous, failureCount, attempts },
+    verification: { ...previous, failureCount, attempts, ...(released && { releasedAt: at }) },
     nextVerifyAt: new Date(now.getTime() + backoff).toISOString(),
-    disable: failureCount >= CANONICAL_FAILURE_LIMIT,
+    disable,
+    released,
   }
 }
 
@@ -262,31 +271,27 @@ export function nextRoutingProbeState(args: {
 }
 
 /** A failure's identity: the page **and** the check, two different things to fix. */
-export function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): string {
+function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): string {
   return `${result.route}#${result.check}`
 }
 
 /**
- * Fold one SEO-check run into the stored state, and say which failures are new.
+ * Fold one SEO-check run into the stored state.
  *
  * ⚠ **This never touches `failureCount`, and must not.** That counter becomes
  * `disable`, which withdraws the public URLs, and a failing SEO check means the
  * embed is *present and publishing* — the category error `routingProbe` keeps
  * its own counter to avoid (#644).
  *
- * **"One email per new failure" needs no second column.** The previous snapshot
- * is the record of what was reported, so a site that stays broken is mailed
- * once, and one that breaks again after a fix is mailed again.
- *
  * ⚠ **A `skipped` check keeps the failure it had**, as an `inconclusive` render
  * changes nothing: a fetch that timed out once is no evidence of a fix, and
- * dropping the failure would mail it again on the next run.
+ * dropping the failure would take the open item off the list for a night.
  */
 export function nextSeoCheckState(args: {
   current: CanonicalVerification | null | undefined
   results: SeoCheckResult[]
   now: Date
-}): { verification: CanonicalVerification; newFailures: SeoCheckResult[] } {
+}): CanonicalVerification {
   const { current, now } = args
   const previous = current ?? EMPTY_VERIFICATION
 
@@ -298,16 +303,10 @@ export function nextSeoCheckState(args: {
   const results = args.results.map((result) =>
     result.status === 'skipped' ? (failedBefore.get(seoFailureKey(result)) ?? result) : result,
   )
-  const newFailures = results.filter(
-    (result) => result.status === 'fail' && !failedBefore.has(seoFailureKey(result)),
-  )
 
-  return {
-    // Spread `previous` first: `verified`, `failureCount` and `routingProbe` are
-    // siblings this function does not own.
-    verification: { ...previous, seo: { at: now.toISOString(), results } },
-    newFailures,
-  }
+  // Spread `previous` first: `verified`, `failureCount` and `routingProbe` are
+  // siblings this function does not own.
+  return { ...previous, seo: { at: now.toISOString(), results } }
 }
 
 /**

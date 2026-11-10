@@ -1,3 +1,5 @@
+import type { Row } from './overlay'
+
 /**
  * Curation decisions that are ids, not data: which Atlas events never become
  * listings, which surviving listing inherits a removed one's registrants, and
@@ -117,9 +119,6 @@ export const CLIENT_SPLITS: readonly {
   },
 ]
 
-type GeoRow = { legacyId: number; level?: unknown; name?: unknown; parent?: unknown }
-type ClientRow = { legacyId: number; config?: unknown; location?: unknown }
-
 /**
  * Apply both client decisions: drop the excluded services, and give each split
  * site its own row, taken out of its source's domain list.
@@ -128,7 +127,7 @@ type ClientRow = { legacyId: number; config?: unknown; location?: unknown }
  * matches no row, or more than one, throws: the import would otherwise put the
  * site on its country.
  */
-export function applyClientDecisions<C extends ClientRow>(clients: C[], regions: GeoRow[]): C[] {
+export function applyClientDecisions(clients: Row[], regions: Row[]): Row[] {
   const out = clients.filter((client) => !EXCLUDED_CLIENT_LEGACY_IDS.has(client.legacyId))
 
   for (const split of CLIENT_SPLITS) {
@@ -166,7 +165,6 @@ export function applyClientDecisions<C extends ClientRow>(clients: C[], regions:
       clientId: null,
       config: { ...config, domain: split.domain },
       location: { level: 'region', legacyId: matches[0].legacyId },
-      splitFrom: split.from,
     })
   }
 

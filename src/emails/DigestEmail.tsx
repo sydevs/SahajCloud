@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Fragment } from 'react'
 import { Column, Link, Row, Section, Text } from 'react-email'
 
+import type { ActionPrompt } from '@/lib/atlasOverview/status'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -27,14 +28,7 @@ export type StatusPillStyle = keyof typeof PILL_COLORS
 /** One open item: title, schedule and next step on the left; pills and their line on the right. */
 export interface ItemTableRow {
   /** The next step as a sentence, its link to the page that takes it. */
-  action?: null | {
-    after: string
-    before?: string
-    href: string
-    /** An opening clause with a link of its own, e.g. to the reader's site. */
-    lead?: { href: string; link: string; text: string }
-    link: string
-  }
+  action?: null | (ActionPrompt & { href: string })
   /** Pills, most urgent first. */
   statuses: { pillStyle: StatusPillStyle; text: string }[]
   /** The most urgent status's lines, one fact each, under the pills — the dashboard's own. */

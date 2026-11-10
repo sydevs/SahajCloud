@@ -296,15 +296,15 @@ describe('openItem', () => {
   })
 
   describe('a service with a problem on its site (#1055)', () => {
+    const PAGE = 'https://yogaessonne.fr/carte'
     const service = (
       overrides: Partial<Extract<OpenItemRow, { kind: 'service' }>> = {},
     ): OpenItemRow => ({
       checkedAt: '2026-11-04T07:00:00.000Z',
       id: 43,
       kind: 'service',
-      misses: 0,
+      missingOn: null,
       owned: false,
-      pageUrl: 'https://yogaessonne.fr/carte',
       releasedAt: null,
       title: 'Yoga Essonne',
       ...overrides,
@@ -313,7 +313,7 @@ describe('openItem', () => {
 
     const promptOf = (row: OpenItemRow) => actionPrompt(openItem(row, NOW).placing)
     const lead = {
-      href: 'https://yogaessonne.fr/carte',
+      href: PAGE,
       link: 'your site',
       text: 'The map was not detected on ',
     }
@@ -340,7 +340,7 @@ describe('openItem', () => {
     })
 
     it('reports a missing map instead, ranked with Overdue', () => {
-      const item = openItem(service({ misses: 1 }), NOW)
+      const item = openItem(service({ missingOn: PAGE }), NOW)
       expect(item.statuses.map((s) => s.key)).toEqual(['map-not-found'])
       expect(item.placing).toMatchObject({
         action: review,
@@ -349,7 +349,7 @@ describe('openItem', () => {
         pill: 'error',
         rank: 2,
       })
-      expect(promptOf(service({ misses: 1 }))).toEqual({
+      expect(promptOf(service({ missingOn: PAGE }))).toEqual({
         after: '',
         before: '. ',
         lead,
@@ -358,7 +358,7 @@ describe('openItem', () => {
     })
 
     it('tells an owner what the map is keeping, with no count of the misses', () => {
-      expect(promptOf(service({ misses: 1, owned: true }))).toEqual({
+      expect(promptOf(service({ missingOn: PAGE, owned: true }))).toEqual({
         after: ' so that we can continue to send search engines (Google) to your website.',
         before: '. ',
         lead,
@@ -367,7 +367,9 @@ describe('openItem', () => {
     })
 
     it('says what has been lost once the region is released', () => {
-      expect(promptOf(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }))).toEqual({
+      expect(
+        promptOf(service({ missingOn: PAGE, releasedAt: '2026-11-03T03:00:00.000Z' })),
+      ).toEqual({
         after: ', and contact us if you need help.',
         before: ', so we can no longer send search engines (Google) to your website. ',
         lead,

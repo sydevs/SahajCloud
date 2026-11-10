@@ -111,7 +111,7 @@ export function managerJoins(
             collection: field.collection as CollectionSlug,
             name: field.name,
             on: field.on,
-            ...(field.where ? { where: field.where } : {}),
+            where: field.where,
           },
         ]
       : [],

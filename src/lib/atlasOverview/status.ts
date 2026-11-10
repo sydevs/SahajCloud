@@ -95,10 +95,8 @@ export type OpenItemRow =
       title: string
       /** When the check this row reports last ran. */
       checkedAt: string
-      /** Nightly checks in a row that did not find the map; 0 when the last one did. */
-      misses: number
-      /** The page the map belongs on. */
-      pageUrl: null | string
+      /** The page the map belongs on, while the nightly check cannot find it there. */
+      missingOn: null | string
       /** Whether the site still holds its region's links, which the third miss releases. */
       owned: boolean
       /** When the misses released the region, or `null`. */
@@ -330,7 +328,6 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   return statuses
 }
 
-/** What each SEO check is, as a line names it. */
 /**
  * What is wrong with a service's map, said in a volunteer's terms (#1055): which
  * page and which check is the Install tab's to say, and the row links there.
@@ -340,15 +337,12 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
  * result describes a page that is not there.
  */
 function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
-  const action = {
-    label: 'Review',
-    target: { collection: 'clients' as const, id: row.id, view: 'install' as const },
-  }
+  const action = { label: 'Review', target: rowTarget(row) }
   const lines = [`Checked ${shortDate(row.checkedAt)}`]
   const link = 'Review it'
 
-  if (row.misses > 0 && row.pageUrl) {
-    const lead = { text: 'The map was not detected on ', link: 'your site', href: row.pageUrl }
+  if (row.missingOn) {
+    const lead = { text: 'The map was not detected on ', link: 'your site', href: row.missingOn }
     const prompt: ActionPrompt = row.releasedAt
       ? {
           lead,
@@ -416,38 +410,29 @@ export function actionPrompt(status: OpenItemStatus): ActionPrompt | null {
   return PROMPTS[status.key] ?? { link: status.action.label, after: '.' }
 }
 
+function rowStatuses(row: OpenItemRow, now: Date): OpenItemStatus[] {
+  if (row.kind === 'event') return eventStatuses(row, now)
+  if (row.kind === 'service') return serviceStatuses(row)
+  const action = { label: 'Review', target: rowTarget(row) }
+  const received = `Received ${shortDate(row.receivedAt)}`
+  if (row.kind === 'proposal') {
+    return [status('class-proposed', { lines: [received], action, deadline: row.receivedAt })]
+  }
+  return [
+    status('confirmed-spam-pending', {
+      lines: [row.reason.charAt(0).toUpperCase() + row.reason.slice(1), received],
+      action,
+      deadline: row.receivedAt,
+    }),
+  ]
+}
+
 /**
  * One row with every status it has, placed by the lowest rank — an event can
  * be two problems at once, and hiding one is how it never gets fixed.
  */
 export function openItem(row: OpenItemRow, now: Date): OpenItem {
-  const review = {
-    label: 'Review',
-    target: { collection: 'user-submissions' as const, id: row.id },
-  }
-  const statuses =
-    row.kind === 'event'
-      ? eventStatuses(row, now)
-      : row.kind === 'service'
-        ? serviceStatuses(row)
-        : row.kind === 'proposal'
-          ? [
-              status('class-proposed', {
-                lines: [`Received ${shortDate(row.receivedAt)}`],
-                action: review,
-                deadline: row.receivedAt,
-              }),
-            ]
-          : [
-              status('confirmed-spam-pending', {
-                lines: [
-                  row.reason.charAt(0).toUpperCase() + row.reason.slice(1),
-                  `Received ${shortDate(row.receivedAt)}`,
-                ],
-                action: review,
-                deadline: row.receivedAt,
-              }),
-            ]
+  const statuses = rowStatuses(row, now)
 
   const rank = Math.min(...statuses.map((s) => s.rank))
   const deadlines = statuses

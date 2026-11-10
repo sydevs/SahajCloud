@@ -196,7 +196,6 @@ describe('the client decisions (#1055)', () => {
       clientId: null,
       config: { domain: 'yogaessonne.fr', locale: 'fr' },
       location: { level: 'region', legacyId: 83 },
-      splitFrom: 32,
     })
   })
 
