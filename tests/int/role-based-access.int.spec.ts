@@ -399,6 +399,15 @@ describe('Role-Based Access Control', () => {
         const manager = await testData.authUser(payload, created)
         expect(virtualRoles(manager)).toEqual(['atlas-service-manager'])
 
+        // Payload 404s a hidden collection's document route, so this is what
+        // opens the Install tab to them.
+        const hidden = payload.collections.clients.config.admin.hidden as (args: {
+          user: unknown
+        }) => boolean
+        expect(hidden({ user: manager })).toBe(false)
+        const unlisted = await testData.createManager(payload, { roles: [] })
+        expect(hidden({ user: await testData.authUser(payload, unlisted) })).toBe(true)
+
         // The role adds no `clients` grant: the listing is what reaches a row.
         const read = await payload.find({
           collection: 'clients',

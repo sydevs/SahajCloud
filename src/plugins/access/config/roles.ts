@@ -132,7 +132,11 @@ const ROLES = {
     label: 'Atlas Service Manager',
     description: 'Looks after the Sahaj Atlas services — the websites — they are listed on',
     project: 'sahaj-atlas' as const,
-    virtual: { join: 'managedClients' as const },
+    // ⚠ `opens`, because `createHidden` hides a collection from a role with no
+    // write grant there, and Payload answers a hidden collection's document
+    // route with a 404: without it, the digest's link and the Install tab are
+    // closed to the very people they are written for.
+    virtual: { join: 'managedClients' as const, opens: 'clients' as const },
     // No `clients` grant: `clients` is restricted, and the listed services
     // already reach them through document-level access, which is exactly the
     // scope. The role adds the project, and the "Your websites" digest
@@ -286,6 +290,14 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
 export function getJoinProject(join: string): ProjectSlug | undefined {
   const role = getRoleSlugs().find((slug) => virtualJoinOf(slug) === join)
   return role ? getRoleProject(role) : undefined
+}
+
+/** Whether a listing opens this collection's admin pages to a manager with no write grant on it. */
+export function opensCollection(user: VirtualRoleUser, collection: string): boolean {
+  return virtualRoles(user).some((role) => {
+    const { virtual } = ROLES[role] as { virtual?: { opens?: string } }
+    return virtual?.opens === collection
+  })
 }
 
 /** The join a derived role is read off, or nothing for a role that is stored. */
