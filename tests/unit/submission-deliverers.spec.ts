@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+
+vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
+
+vi.mock('@/lib/env/deploymentEnvironment', () => ({ deploymentEnvironment: () => 'test' }))
 
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
@@ -80,5 +86,40 @@ describe('deliverProposal', () => {
 
     expect(sendEmail).toHaveBeenCalledOnce()
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  /**
+   * This submission names no event and sits in no region, so it falls to the
+   * system contact — the one branch that reports.
+   *
+   * ⚠ **`info` is the answer, not an omission.** The system contact is the last
+   * rung of the routing ladder rather than a failure of it, and the admin home
+   * already lists a proposal that reached it. Promoting this to `warning` pages
+   * whoever watches the project about a route working as designed.
+   */
+  it('reports an unrouted proposal as a notice, tagged with the deployment', async () => {
+    sentry.captureMessage.mockClear()
+    const { payload } = stubEmailPayload()
+
+    await DELIVERERS.proposal.deliver({
+      req: { payload } as never,
+      submission: {
+        id: 3,
+        type: 'proposal',
+        senderEmail: 'aria@example.com',
+        proposed: { eventType: 'offline' },
+        submissionData: [],
+      } as unknown as UserSubmission,
+    })
+
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    const [message, context] = sentry.captureMessage.mock.calls[0] as [
+      string,
+      { extra: Record<string, unknown>; level: string; tags: Record<string, string> },
+    ]
+    expect(message).toBe('deliverProposal: no manager to notify')
+    expect(context.level).toBe('info')
+    expect(context.tags).toMatchObject({ environment: 'test' })
+    expect(context.extra).toMatchObject({ submissionId: 3 })
   })
 })
