@@ -22,7 +22,8 @@ minimumReleaseAge: 0
 # Transitive-security overrides (Dependabot alerts, #563). Only leaves still
 # flagged after an in-range parent refresh (`pnpm update`) are pinned here; every
 # bump stays within the package's existing major (patch/minor, API-stable), with
-# one deliberate exception, marked ⚠ below.
+# one deliberate exception, marked ⚠ below. An entry is a last resort: an
+# advisory nothing can reach is carried, not overridden (#1101).
 # picomatch/minimatch are scoped to the vulnerable major so the other major line
 # (already patched) is left untouched.
 #
@@ -30,18 +31,27 @@ minimumReleaseAge: 0
 # names `>=3.0.4`, and 3.0.3 is the newest version ever published (checked
 # 2026-10-14). Both parents are build-time. Do not re-derive this.
 #
-# `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) gets no entry either.
-# Both need HTML parsed through it, and nothing shipped parses any:
-# @lexical/headless@0.50.0 touches happy-dom only in its `./dom` subpath
-# (`withDOM`), which nothing imports — richtext-lexical imports the main entry —
-# and no spec sets `@vitest-environment` to happy-dom. A fix needs 21.0.4,
-# demanded by GHSA-834v-8h66-3h79 alone — any 21.x clears the other, no 20.x does,
-# 20.14.6 being the newest (checked 2026-11-09). @payloadcms/richtext-lexical pins
-# @lexical/headless at 0.50.0 exactly, through 3.93.0, so no release reaches the
-# fix in range and only an override past the declared `^20.9.0` does — declined on
-# #1071. @lexical/headless itself declares `^21.0.4` from 0.53.0, so the gate is a
-# payload release carrying lexical 0.53: check that one version first. Call paths
-# in #1071. Do not re-derive the reachability.
+# `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) gets no entry either,
+# and needs none: neither advisory is reachable. Both need HTML parsed through
+# it, and nothing here parses any: @lexical/headless@0.50.0 uses happy-dom only
+# in its `./dom` subpath (`withDOM`), which nothing imports — richtext-lexical
+# imports the main entry — and no spec sets `@vitest-environment` to happy-dom.
+# Call paths in #1071. Do not re-derive the reachability.
+#
+# A fix needs happy-dom 21: GHSA-834v-8h66-3h79 names 21.0.4, any 21.x clears the
+# other, and no 20.x clears either (20.14.6 is the newest 20.x, checked
+# 2026-11-10). Nothing in the tree asks for 21 yet.
+#
+# So check one version, and only this one: payload's. @payloadcms/richtext-lexical
+# pins twelve lexical packages at 0.50.0 exactly, 3.93.0 included, and
+# @lexical/headless asks for `^21.0.4` from 0.53.0 up. A payload release carrying
+# lexical 0.53 therefore clears both with nothing added here.
+#
+# Upgrading @lexical/headless by itself is not that route, and costs more than it
+# saves. It is pinned exactly, so it takes an override, and 0.53.0 wants lexical
+# 0.53.0 exactly while richtext-lexical wants 0.50.0 — two copies of lexical in
+# one tree, which its editor cannot run on. #1071 declined the simpler override
+# (happy-dom past the declared `^20.9.0`) for less.
 overrides:
   # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
   # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
