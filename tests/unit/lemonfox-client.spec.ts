@@ -10,10 +10,12 @@
  * the unset case the lane's default, and it is checked there.
  *
  * Nothing here re-tests `normalizeLemonfoxResponse` — `lemonfox-response.spec.ts`
- * owns it.
+ * owns it. The prompt cases assert the client sends what `glossaryPrompt`
+ * builds, never what is in it: `glossary.spec.ts` owns the list.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { glossaryPrompt } from '@/collections/MeditationTranscripts/glossary'
 import { lemonfoxLanguage } from '@/jobs/TranscribeMeditation/lemonfox/languages'
 import { requestLemonfoxTranscript } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { LOCALES } from '@/lib/locales'
@@ -72,7 +74,45 @@ describe('requestLemonfoxTranscript', () => {
       fetchFn: fetchFn as unknown as typeof fetch,
     })
 
-    expect((await sentForm(fetchFn)).get('language')).toBeNull()
+    const form = await sentForm(fetchFn)
+    expect(form.get('language')).toBeNull()
+    // Nor a prompt: the word list is per language, and English spellings would
+    // bias a transcript in any other.
+    expect(form.get('prompt')).toBeNull()
+  })
+
+  /**
+   * The nudge the library's 126 transcripts were made with and a live run was
+   * not, which is why a live run wrote `muladhara` and `condalini` (#1084).
+   * Built from the locale, so no caller can forget it.
+   */
+  it('sends the glossary spellings as the prompt', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(okResponse())
+
+    await requestLemonfoxTranscript({
+      apiKey: 'lf-test-key',
+      audioUrl: AUDIO_URL,
+      locale: 'en',
+      fetchFn: fetchFn as unknown as typeof fetch,
+    })
+
+    expect((await sentForm(fetchFn)).get('prompt')).toBe(glossaryPrompt('en'))
+  })
+
+  it('sends no prompt for a language no glossary entry claims', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(okResponse())
+
+    await requestLemonfoxTranscript({
+      apiKey: 'lf-test-key',
+      audioUrl: AUDIO_URL,
+      locale: 'ru',
+      fetchFn: fetchFn as unknown as typeof fetch,
+    })
+
+    const form = await sentForm(fetchFn)
+    expect(form.get('prompt')).toBeNull()
+    // The language still goes, so the vendor is not left detecting one.
+    expect(form.get('language')).toBe('russian')
   })
 
   it('authenticates as a bearer token', async () => {

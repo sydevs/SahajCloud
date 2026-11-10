@@ -23,9 +23,9 @@ import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
  * what makes the two byte-identical by construction.
  *
  * A region's pair derives from the document id alone, so nothing extra has to be
- * co-selected. An event's derives from `region` and `_status`, which the
- * `ensureVirtualFieldDeps` beforeOperation hook adds back — `region` is named
- * explicitly anyway, matching the seo endpoint's selects.
+ * co-selected. An event's derives from `region` and `_status`, which the fields'
+ * own declarations add back — `region` is named explicitly anyway, matching the
+ * seo endpoint's selects.
  */
 const REGION_SELECT: SelectType = {
   webPath: true,
