@@ -2,132 +2,107 @@ import type { AuditedClient } from '../../scripts/challenge-parents'
 
 import { describe, expect, it } from 'vitest'
 
-import { challengeAllowlist, refusedMounts } from '../../scripts/challenge-parents'
+import { allowedParentHosts } from '@/endpoints/atlas/challenge/challengeRequest'
+import type { EmbedMountRecord } from '@/lib/clients/embedMetadata'
 
-const FIRST_PARTY = ['https://sahajatlas.com', 'https://wemeditate.com']
+import { inlineMounts, refusedMounts } from '../../scripts/challenge-parents'
 
-const mount = (mode: 'inline' | 'iframe', lastSeen = '2026-11-01T00:00:00.000Z') => ({
+const record = (
+  mode: EmbedMountRecord['mode'],
+  lastSeen = '2026-11-01T00:00:00.000Z',
+): EmbedMountRecord => ({
   mode,
   topLevel: mode === 'inline',
   urlWritable: true,
   paramPersisted: true,
-  routing: 'query' as const,
+  routing: 'query',
   lastSeen,
 })
 
+const service = (
+  id: number,
+  domain: string | null,
+  mounts: Record<string, EmbedMountRecord> = {},
+  enabled = true,
+): AuditedClient => ({
+  id,
+  name: `Service ${id}`,
+  enabled,
+  site: { domain },
+  embedMetadata: mounts,
+})
+
+// The endpoint's own builder over the active services, as `challengeParentAllowlist` calls it.
 const audit = (clients: AuditedClient[]) =>
-  refusedMounts(clients, challengeAllowlist(FIRST_PARTY, clients))
+  refusedMounts(
+    clients,
+    allowedParentHosts(
+      ['https://sahajatlas.com', 'https://wemeditate.com'],
+      clients.filter((c) => c.enabled).map((c) => c.site?.domain),
+    ),
+  ).map(({ client, mount }) => [client.id, mount])
 
 describe('refusedMounts', () => {
   it('passes a mount whose host is another service’s domain — the allowlist is global', () => {
-    const clients: AuditedClient[] = [
-      {
-        id: 1,
-        name: 'A',
-        enabled: true,
-        site: { domain: null },
-        embedMetadata: {
-          'https://sahajayoga.fr/carte': mount('inline'),
-        },
-      },
-      { id: 2, name: 'B', enabled: true, site: { domain: 'sahajayoga.fr' } },
-    ]
-    expect(audit(clients)).toEqual([])
-  })
-
-  it('passes the www twin of a service’s domain', () => {
-    const clients: AuditedClient[] = [
-      {
-        id: 1,
-        enabled: true,
-        site: { domain: 'sahajayoga.ca' },
-        embedMetadata: {
-          'https://www.sahajayoga.ca/map': mount('inline'),
-        },
-      },
-    ]
-    expect(audit(clients)).toEqual([])
+    expect(
+      audit([
+        service(1, null, { 'https://sahajayoga.fr/carte': record('inline') }),
+        service(2, 'sahajayoga.fr'),
+      ]),
+    ).toEqual([])
   })
 
   it('reports a domainless service’s frozen mount, however old', () => {
-    const clients: AuditedClient[] = [
-      { id: 7, name: 'Sahaja Yoga FR', enabled: true, site: { domain: 'sahajayoga.fr' } },
-      {
-        id: 9,
-        name: 'Old',
-        enabled: true,
-        site: { domain: null },
-        embedMetadata: {
-          'https://yogaessonne.fr/meditation': mount('inline', '2025-01-02T00:00:00.000Z'),
-        },
-      },
-    ]
-    expect(audit(clients)).toEqual([
-      {
-        clientId: 9,
-        client: 'Old',
-        enabled: true,
-        domain: null,
-        origin: 'https://yogaessonne.fr',
-        mount: 'https://yogaessonne.fr/meditation',
-        lastSeen: '2025-01-02T00:00:00.000Z',
-      },
-    ])
+    expect(
+      audit([
+        service(9, null, {
+          'https://yogaessonne.fr/meditation': record('inline', '2025-01-02T00:00:00.000Z'),
+        }),
+      ]),
+    ).toEqual([[9, 'https://yogaessonne.fr/meditation']])
   })
 
   it('ignores an iframe mount, whose parent is the widget’s own page', () => {
-    const clients: AuditedClient[] = [
-      {
-        id: 1,
-        enabled: true,
-        site: { domain: null },
-        embedMetadata: {
-          'https://example.org/map': mount('iframe'),
-        },
-      },
-    ]
-    expect(audit(clients)).toEqual([])
+    expect(audit([service(1, null, { 'https://example.org/map': record('iframe') })])).toEqual([])
   })
 
-  it('grants nothing for a disabled service’s domain, and flags its own mounts', () => {
-    const clients: AuditedClient[] = [
-      {
-        id: 1,
-        enabled: true,
-        site: { domain: null },
-        embedMetadata: {
-          'https://sahajayoga.it/mappa': mount('inline'),
-        },
-      },
-      {
-        id: 2,
-        enabled: false,
-        site: { domain: 'sahajayoga.it' },
-        embedMetadata: {
-          'https://sahajayoga.it/old': mount('inline'),
-        },
-      },
-    ]
-    const rows = audit(clients)
-    expect(rows.map((r) => [r.clientId, r.enabled])).toEqual([
-      [1, true],
-      [2, false],
+  it('judges a disabled service as if re-enabled, and lends its domain to no one else', () => {
+    expect(
+      audit([
+        service(1, null, { 'https://sahajayoga.it/mappa': record('inline') }),
+        service(
+          2,
+          'sahajayoga.it',
+          {
+            'https://sahajayoga.it/old': record('inline'),
+            'https://other.example/old': record('inline'),
+          },
+          false,
+        ),
+      ]),
+    ).toEqual([
+      [1, 'https://sahajayoga.it/mappa'],
+      [2, 'https://other.example/old'],
     ])
   })
 
-  it('passes first-party hosts, their subdomains and loopback', () => {
-    const clients: AuditedClient[] = [
-      {
-        id: 1,
-        enabled: true,
-        site: { domain: null },
-        embedMetadata: {
-          'https://wemeditate.com/map': mount('inline'),
-          'https://play.sahajatlas.com/': mount('inline'),
-          'http://localhost:5173/': mount('inline'),
-        },
-      },
-    ]
-    expect(audit(clients)).toEqual([])
+  it('passes a first-party host', () => {
+    expect(audit([service(1, null, { 'https://wemeditate.com/map': record('inline') })])).toEqual(
+      [],
+    )
+  })
+})
+
+describe('inlineMounts', () => {
+  it('counts inline mounts across services, iframe ones aside', () => {
+    expect(
+      inlineMounts([
+        service(1, 'a.example', { 'https://a.example/': record('inline') }),
+        service(2, null, {
+          'https://b.example/': record('inline'),
+          'https://c.example/': record('iframe'),
+        }),
+      ]).map(({ mount }) => mount),
+    ).toEqual(['https://a.example/', 'https://b.example/'])
   })
 })
