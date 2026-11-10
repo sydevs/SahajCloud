@@ -354,7 +354,7 @@ function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenIt
           lead,
           before: ', so we can no longer send search engines (Google) to your website. ',
           link,
-          after: ', and contact us if you need help',
+          after: ', and contact us if you need help.',
         }
       : {
           lead,

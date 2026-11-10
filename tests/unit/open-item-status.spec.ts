@@ -368,7 +368,7 @@ describe('openItem', () => {
 
     it('says what has been lost once the region is released', () => {
       expect(promptOf(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }))).toEqual({
-        after: ', and contact us if you need help',
+        after: ', and contact us if you need help.',
         before: ', so we can no longer send search engines (Google) to your website. ',
         lead,
         link: 'Review it',
