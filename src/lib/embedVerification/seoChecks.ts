@@ -502,6 +502,20 @@ async function checkPage(
     }))
   }
 
+  // ⚠ **A page the CMS describes as another site's is not this install's to
+  // publish.** A service that owns no region gets the atlas surface's canonical
+  // on its root, and a host declines an answer like that by design (WordPress
+  // keeps its own head). So is the first Check of a new install, whose `verified`
+  // is not written yet. Comparing would report a correct install as broken.
+  const canonicalHost = seo.canonical ? URL.parse(seo.canonical)?.hostname : null
+  if (canonicalHost && !siteHosts(URL.parse(page.url)?.hostname).includes(canonicalHost)) {
+    return PAGE_CHECKS.map((check) => ({
+      route: page.route,
+      check,
+      ...skip('This site is not the home for its region’s links yet.'),
+    }))
+  }
+
   const verdicts = comparePage({ seo, snapshot: parsePageHtml(fetched.body), pageUrl: page.url })
   return PAGE_CHECKS.map((check) => ({ route: page.route, check, ...verdicts[check] }))
 }

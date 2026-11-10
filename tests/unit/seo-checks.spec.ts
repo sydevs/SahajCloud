@@ -492,8 +492,8 @@ describe('runSeoChecks', () => {
 
   it('fails every page check when the mount redirects off-host', async () => {
     // Two of comparePage's failures quote what came back, so following the hop
-    // would put another host's title and canonical in the manager's warning
-    // mail. A redirecting mount is also a real answer, not "we could not look".
+    // would store another host's title and canonical for a manager to read.
+    // A redirecting mount is also a real answer, not "we could not look".
     const results = await runSeoChecks({
       verified: VERIFIED,
       resolvers,
@@ -533,6 +533,31 @@ describe('runSeoChecks', () => {
     // for reasons that have nothing to do with us.
     expect(results.filter((result) => result.check === 'sitemap')).toHaveLength(1)
     expect(results.find((result) => result.check === 'sitemap')?.route).toBe('/ca/ontario')
+  })
+
+  it('skips a page the CMS describes as another site\u2019s, rather than failing it', async () => {
+    const results = await runSeoChecks({
+      verified: VERIFIED,
+      resolvers: {
+        ...resolvers,
+        resolveSeo: async () =>
+          ({
+            ...regionSeo({ canonical: 'https://wemeditate.com/map' }),
+            type: 'root',
+            id: null,
+            route: '/',
+          }) as unknown as AtlasSeoDocument,
+        resolveSitemap: async () => [],
+      },
+      fetchFn: async () => ({
+        ok: true,
+        status: 200,
+        body: pageHtml({ canonical: 'https://sahajayoga.ca/classes', title: 'Accueil' }),
+      }),
+    })
+    const root = results.filter((result) => result.route === '/')
+    expect(root.length).toBeGreaterThan(0)
+    expect(root.every((result) => result.status === 'skipped')).toBe(true)
   })
 
   it('skips every check on a page it could not fetch, rather than failing it', async () => {
