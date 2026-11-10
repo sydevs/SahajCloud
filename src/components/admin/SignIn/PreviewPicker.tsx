@@ -2,6 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { Button } from '@payloadcms/ui'
 
+import { MANAGER_INACTIVE } from '@/collections/Managers/login'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { GrantSummary } from '@/plugins/login'
 import { summarizeGrants } from '@/plugins/login'
@@ -47,7 +48,7 @@ export async function PreviewPicker({ req, returnTo }: { req: PayloadRequest; re
     // `_verified` guard), and the row's Server Action discards the outcome — so
     // an offered row that cannot sign in just re-renders the page, saying
     // nothing. Not offering it is the honest surface.
-    where: { _verified: { equals: true }, type: { not_equals: 'inactive' } },
+    where: { _verified: { equals: true }, type: { not_equals: MANAGER_INACTIVE } },
   })
 
   const rows: { email: string; name?: null | string; summaries: GrantSummary[]; type: unknown }[] =
