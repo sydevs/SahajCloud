@@ -120,6 +120,7 @@ import * as migration_20261108_220039_snapshot_resync from './20261108_220039_sn
 import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
 import * as migration_20261110_175935_snapshot_resync from './20261110_175935_snapshot_resync';
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
+import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185320_merge_main_snapshot_6';
 
 export const migrations = [
   {
@@ -730,6 +731,11 @@ export const migrations = [
   {
     up: migration_20261110_180359_merge_1075_main_snapshot_5.up,
     down: migration_20261110_180359_merge_1075_main_snapshot_5.down,
-    name: '20261110_180359_merge_1075_main_snapshot_5'
+    name: '20261110_180359_merge_1075_main_snapshot_5',
+  },
+  {
+    up: migration_20261110_185320_merge_main_snapshot_6.up,
+    down: migration_20261110_185320_merge_main_snapshot_6.down,
+    name: '20261110_185320_merge_main_snapshot_6'
   },
 ];
