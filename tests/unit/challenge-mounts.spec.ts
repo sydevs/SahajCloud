@@ -1,11 +1,11 @@
-import type { AuditedClient } from '../../scripts/challenge-parents'
+import type { AuditedClient } from '../../scripts/challenge-mounts'
 
 import { describe, expect, it } from 'vitest'
 
 import { allowedParentHosts } from '@/endpoints/atlas/challenge/challengeRequest'
 import type { EmbedMountRecord } from '@/lib/clients/embedMetadata'
 
-import { refusedMounts, storedMounts } from '../../scripts/challenge-parents'
+import { refusedMounts, storedMounts } from '../../scripts/challenge-mounts'
 
 const record = (
   mode: EmbedMountRecord['mode'],

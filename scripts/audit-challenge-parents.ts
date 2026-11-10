@@ -16,7 +16,7 @@
  * Against production: `railway run --service SahajCloud -- env DATABASE_URL=<Postgres
  * DATABASE_PUBLIC_URL> pnpm tsx scripts/audit-challenge-parents.ts`.
  */
-import type { AuditedClient } from './challenge-parents'
+import type { AuditedClient } from './challenge-mounts'
 import type { Payload } from 'payload'
 
 import dotenv from 'dotenv'
@@ -25,7 +25,7 @@ import { getPayload } from 'payload'
 import { challengeParentAllowlist } from '../src/endpoints/atlas/challenge/allowlist'
 import { originOf } from '../src/lib/utilities/url'
 import { normalizeHost } from '../src/plugins/usage/originEnforcement'
-import { refusedMounts, storedMounts } from './challenge-parents'
+import { refusedMounts, storedMounts } from './challenge-mounts'
 
 /**
  * The adapter properties the read-only boot turns off, asserted present before they are written.
