@@ -5,6 +5,7 @@
  * the job that calls the vendor, and the writer that must know whether
  * transcription is available before it promises one.
  */
+import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { serverEnv } from '@/lib/env'
 import type { LocaleCode } from '@/lib/locales'
 
@@ -51,7 +52,10 @@ export async function requestLemonfoxTranscript({
 }: {
   apiKey: string
   audioUrl: string
-  /** The meditation's locale. Mapped here, so no caller repeats the mapping. */
+  /**
+   * The meditation's locale. The language mapping and the glossary prompt are
+   * both built here, so no caller repeats either.
+   */
   locale?: LocaleCode
   fetchFn?: typeof fetch
 }): Promise<unknown> {
@@ -59,6 +63,9 @@ export async function requestLemonfoxTranscript({
   form.append('file', audioUrl)
   const language = locale ? lemonfoxLanguage(locale) : undefined
   if (language) form.append('language', language)
+  // Our own spellings, so the vendor writes them rather than an IAST variant (#1084).
+  const prompt = locale ? glossaryPrompt(locale) : undefined
+  if (prompt) form.append('prompt', prompt)
   // The only format carrying timings. No `timestamp_granularities[]`: nothing
   // stores word timings, and asking for them is 85% of the body for nobody.
   form.append('response_format', 'verbose_json')

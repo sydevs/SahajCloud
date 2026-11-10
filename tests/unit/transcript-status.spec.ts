@@ -9,14 +9,12 @@ import { describe, expect, it } from 'vitest'
 
 import { deriveTranscriptStatus, transcriptJobError } from '@/collections/Transcripts/status'
 
-const cues = [{ text: 'Let the thoughts settle.', start: 0, end: 1000 }]
-
 describe('deriveTranscriptStatus', () => {
-  it('reads completed off the cues, whatever the job says', () => {
+  it('reads completed off the stored cue count, whatever the job says', () => {
     // A run can finish having written nothing — its recording was replaced —
     // so the cues decide this one, not the job.
-    expect(deriveTranscriptStatus(cues, null)).toBe('completed')
-    expect(deriveTranscriptStatus(cues, { completedAt: null, hasError: true })).toBe('completed')
+    expect(deriveTranscriptStatus(1, null)).toBe('completed')
+    expect(deriveTranscriptStatus(12, { completedAt: null, hasError: true })).toBe('completed')
   })
 
   it('calls a row with no job failed', () => {
@@ -40,10 +38,27 @@ describe('deriveTranscriptStatus', () => {
     expect(deriveTranscriptStatus(null, {})).toBe('processing')
   })
 
-  it('treats an empty cue array as no transcript', () => {
-    // The column is null until a run writes it, but a normaliser that ever
-    // answered `[]` must not read as a finished transcript.
-    expect(deriveTranscriptStatus([], { completedAt: null, hasError: false })).toBe('processing')
+  it('treats a zero count as no transcript', () => {
+    // `stampSegmentCount` writes 0 for a column holding nothing, and a run that
+    // wrote no cue must not read as a finished transcript.
+    expect(deriveTranscriptStatus(0, { completedAt: null, hasError: false })).toBe('processing')
+  })
+
+  it('reads a count the cues cannot give it as no transcript', () => {
+    // The column is null on a row written before it existed, and a `select`
+    // that drops it leaves `undefined`. Neither may read as completed — only
+    // the migration's backfill makes the first case rare rather than wrong.
+    expect(deriveTranscriptStatus(null, { completedAt: null, hasError: false })).toBe('processing')
+    expect(deriveTranscriptStatus(undefined, { completedAt: null, hasError: false })).toBe(
+      'processing',
+    )
+    // The cues themselves are not a count, so handing them over answers no.
+    expect(
+      deriveTranscriptStatus([{ content: 'Let the thoughts settle.' }], {
+        completedAt: null,
+        hasError: false,
+      }),
+    ).toBe('processing')
   })
 })
 

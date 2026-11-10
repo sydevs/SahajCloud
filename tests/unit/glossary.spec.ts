@@ -5,14 +5,15 @@
  * Fixture pre-mortem: the cases below assume `glossary.json` is a flat array
  * of `{ heard, written, language }` whose `language` is a list of base
  * languages — `en`, never `en-AU` — and that every entry names `en` and none
- * names `ru`. Verified against
+ * names `ru`. The prompt cases assume one more: every entry names `pt` as well
+ * as `en`, so the two languages' prompts are the same string. Verified against
  * `src/collections/Transcripts/glossary.json` and
- * `src/lib/locales/index.ts`. The last `describe` asserts both rather than
- * trusting them.
+ * `src/lib/locales/index.ts`. The `glossary.json` `describe` asserts the shape
+ * rather than trusting it.
  */
 import { describe, expect, it } from 'vitest'
 
-import { applyGlossary, GLOSSARY } from '@/collections/Transcripts/glossary'
+import { applyGlossary, GLOSSARY, glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { baseLanguage, LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {
@@ -26,6 +27,34 @@ describe('applyGlossary', () => {
     ['the swadhisthana', 'the Swadhisthana'],
   ])('rewrites %j to %j', (heard, written) => {
     expect(applyGlossary(heard, 'en')).toBe(written)
+  })
+
+  it.each([
+    ['at the muladhara', 'at the Mooladhara'],
+    ['the condalini rises', 'the Kundalini rises'],
+    ['the kundalinee rises', 'the Kundalini rises'],
+    ['the svadhisthana', 'the Swadhisthana'],
+    ['the ajna chakra', 'the Agnya chakra'],
+  ])('rewrites the IAST form %j to %j', (heard, written) => {
+    // What a request carrying no prompt wrote (#1084). The prompt makes these
+    // less likely; this pass is what guarantees they never reach a reader.
+    expect(applyGlossary(heard, 'en')).toBe(written)
+  })
+
+  it.each([
+    ['the manipura', 'the Manipur'],
+    ['the vishuddha', 'the Vishuddhi'],
+  ])('writes the classical name %j our way, giving %j', (heard, written) => {
+    // Our spelling wins wherever it does not contradict the narration (#1087
+    // review): `Manipur` and `Vishuddhi` are the word the narrator said, so
+    // they are endings. `Nabhi` is a different word for the same chakra.
+    expect(applyGlossary(heard, 'en')).toBe(written)
+    expect(applyGlossary(written, 'en')).toBe(written)
+  })
+
+  it('still writes no synonym, so Nabhi never replaces Manipur', () => {
+    expect(applyGlossary('the manipura chakra', 'en')).toBe('the Manipur chakra')
+    expect(applyGlossary('Nabhi, Vishuddhi and Agnya', 'en')).toBe('Nabhi, Vishuddhi and Agnya')
   })
 
   it('leaves an already-correct form alone, so the pass is idempotent', () => {
@@ -163,5 +192,51 @@ describe('glossary.json', () => {
         seen.add(key)
       }
     }
+  })
+})
+
+describe('glossaryPrompt', () => {
+  const english = glossaryPrompt('en')
+
+  it('names our own spellings, not the forms they correct', () => {
+    expect(english).toContain('Mooladhara')
+    expect(english).toContain('Kundalini')
+    expect(english).toContain('Sahasrara')
+    // The prompt tells the vendor what to write, so a heard form in it would
+    // ask for the misspelling this list exists to replace.
+    expect(english).not.toContain('muladhara')
+    expect(english).not.toContain('condalini')
+  })
+
+  it('names each spelling once, however many forms correct to it', () => {
+    // `kundalini`, `condalini` and `kundalinee` all write `Kundalini`.
+    expect(english?.match(/Kundalini/g)).toHaveLength(1)
+  })
+
+  it('carries today’s whole list, so nothing is silently cut', () => {
+    // The cap bounds a list that grows; it fires on nothing today. When this
+    // fails the list has outgrown the window and the cap dropped its tail —
+    // decide what to leave out rather than raising the cap.
+    for (const entry of GLOSSARY.filter((row) => row.language.includes('en'))) {
+      expect(english, entry.written).toContain(entry.written)
+    }
+  })
+
+  it('stays inside the prompt window', () => {
+    // The literal, not the module's own constant: asserting against that would
+    // hold for any cap, including one past the window.
+    expect(english?.length).toBeLessThanOrEqual(448)
+  })
+
+  it('answers nothing for a language no entry claims', () => {
+    // Russian wants its own script, so there is no prompt to send — the same
+    // condition under which the pass is a no-op.
+    expect(glossaryPrompt('ru')).toBeUndefined()
+  })
+
+  it('answers a regional locale through its base language', () => {
+    // No entry names a region, so without the reduction both are undefined.
+    expect(glossaryPrompt('en-AU')).toBe(english)
+    expect(glossaryPrompt('pt-BR')).toBe(english)
   })
 })
