@@ -9,10 +9,12 @@ import {
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/meditations/transcript'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
 import { queueTranscription } from './hooks/queueTranscription'
+import { stampSegmentCount } from './hooks/stampSegmentCount'
 import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from './status'
 
 /**
@@ -90,7 +92,7 @@ export const MeditationTranscripts: CollectionConfig = {
   },
   hooks: {
     afterChange: [queueTranscription],
-    beforeChange: [applyGlossaryToSegments],
+    beforeChange: [applyGlossaryToSegments, stampSegmentCount],
   },
   fields: [
     {
@@ -131,6 +133,14 @@ export const MeditationTranscripts: CollectionConfig = {
       schema: transcriptSegmentsSchema.nullable(),
     }),
     {
+      // How many cues `segments` holds, written by `stampSegmentCount` on every
+      // write that names the column. It exists so `status` can be derived
+      // without co-selecting the cues — see that hook, and `status.ts`.
+      name: 'segmentCount',
+      type: 'number',
+      admin: { hidden: true, readOnly: true },
+    },
+    {
       // The run, kept so a reader can see what happened to it.
       // `deleteJobOnComplete` is off for this reason (`payload.config.ts`).
       //
@@ -148,12 +158,17 @@ export const MeditationTranscripts: CollectionConfig = {
       name: 'status',
       type: 'select',
       virtual: true,
+      // Derived on read, so a `select` naming it without these made every
+      // finished transcript read `failed` (#1084). It reads the stored count
+      // rather than the cues, so a reader asking whether a transcript is ready
+      // is not served the whole `segments` column to hear it.
+      custom: virtualFieldInputs('segmentCount', 'job'),
       options: [...TRANSCRIPT_STATUSES],
       admin: { readOnly: true },
       hooks: {
         afterRead: [
           async ({ data, req }) =>
-            deriveTranscriptStatus(data?.segments, await loadTranscriptJob(req, data?.job)),
+            deriveTranscriptStatus(data?.segmentCount, await loadTranscriptJob(req, data?.job)),
         ],
       },
     },
@@ -164,6 +179,7 @@ export const MeditationTranscripts: CollectionConfig = {
       name: 'error',
       type: 'textarea',
       virtual: true,
+      custom: virtualFieldInputs('job'),
       admin: { readOnly: true },
       hooks: {
         afterRead: [

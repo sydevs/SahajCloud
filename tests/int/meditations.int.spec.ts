@@ -493,6 +493,51 @@ describe('Meditations Collection', () => {
     })
   })
 
+  /**
+   * `durationMinutes` is computed from `duration` and `title` from
+   * `subtleSystemNodeWeights`, and an include-mode `select` strips both before
+   * the afterRead field hooks run. An API client must send a `select`
+   * (`docs/rules/api-clients.md`), so without the `beforeOperation` declaration
+   * `?select[durationMinutes]=true` answered null for every meditation (#1084).
+   * `MEDITATION_CARD_SELECT` compensates by hand; an external caller cannot.
+   */
+  describe('the computed fields survive a select', () => {
+    it('answers the same durationMinutes and title as a read selecting nothing', async () => {
+      // `anahat`, not the `pingala` the case above already created — the slug
+      // is unique and both nodes live in this file's one environment.
+      const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'anahat' })
+      const frame = await testData.createFrame(payload, { subtleSystemNode: node.id })
+      const created = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+      // The weights cache the title derives from is written by this save.
+      await payload.update({
+        collection: 'meditations',
+        id: created.id,
+        data: { frames: [{ id: frame.id, timestamp: 0 }] as unknown as Meditation['frames'] },
+        locale: 'en',
+      })
+
+      const [whole, selected] = await Promise.all([
+        payload.findByID({ collection: 'meditations', id: created.id, locale: 'en' }),
+        payload.findByID({
+          collection: 'meditations',
+          id: created.id,
+          locale: 'en',
+          select: { durationMinutes: true, title: true },
+        }),
+      ])
+
+      // Pinned against the unselected read and against a non-null literal:
+      // both null would otherwise agree, which is the defect itself.
+      expect(selected.durationMinutes).toBe(whole.durationMinutes)
+      expect(selected.durationMinutes).toBe(1)
+      expect(selected.title).toBe(whole.title)
+      expect(selected.title).toBe('Meditation for Anahat')
+    })
+  })
+
   describe('Admin list view select (#459)', () => {
     // Mirrors the field `select` the admin list view builds when
     // `enableListViewSelectAPI` is on: transformColumnsToSelect(defaultColumns)
