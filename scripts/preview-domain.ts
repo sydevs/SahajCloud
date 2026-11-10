@@ -38,9 +38,9 @@ import {
   previewHostname,
   previewNumberFromProxyHost,
 } from '../src/lib/preview/proxy'
+import { cfFetch, requireEnv } from './lib/cloudflare'
 import { sweepTargets, type PreviewDomain, type PullRequestState } from './preview-domain-plan'
 
-const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 const WORKER_NAME = process.env.PREVIEW_WORKER_NAME || 'sahajcloud-preview-proxy'
 /** A PR reopened within the day keeps its address, and its certificate. */
 const SWEEP_GRACE_MS = 24 * 60 * 60_000
@@ -59,72 +59,7 @@ const REACHABLE_POLL_MS = 10_000
  */
 const RAILWAY_HOST = /^[a-z0-9-]+\.(?:up\.)?railway\.app$/i
 
-interface CloudflareEnvelope {
-  errors?: { code?: number; message?: string }[]
-  result?: unknown
-  success?: boolean
-}
-
-class CloudflareError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-  ) {
-    super(message)
-    this.name = 'CloudflareError'
-  }
-}
-
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
-
-/** Named as in `cleanup-preview-assets.ts` and `setup-stream-webhook.ts`, so one grep finds all three. */
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim()
-  if (!value) {
-    console.error(`${name} is not set. See this script's header for the full list.`)
-    process.exit(1)
-  }
-  return value
-}
-
-async function cfFetch(
-  method: 'DELETE' | 'GET' | 'PUT',
-  path: string,
-  init?: { body?: string; contentType?: string },
-): Promise<CloudflareEnvelope> {
-  const res = await fetch(`${CF_API_BASE}${path}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${requireEnv('CLOUDFLARE_API_KEY')}`,
-      ...(init?.body ? { 'Content-Type': init.contentType ?? 'application/json' } : {}),
-    },
-    body: init?.body,
-  })
-
-  // A KV write answers with an empty body on success, and an edge error page is
-  // not JSON at all — so neither a missing body nor an unparseable one may lose
-  // the status, which is the only thing that then says what went wrong.
-  const text = await res.text()
-  let parsed: CloudflareEnvelope = {}
-  try {
-    if (text) parsed = JSON.parse(text) as CloudflareEnvelope
-  } catch {
-    if (!res.ok) {
-      throw new CloudflareError(`Cloudflare ${method} ${path}: HTTP ${res.status}`, res.status)
-    }
-  }
-
-  // ⚠ `||`, not `&&`. Cloudflare answers some failures 200 with
-  // `success: false`, which an `&&` accepted silently.
-  if (!res.ok || parsed.success === false) {
-    const detail = parsed.errors?.map((e) => `${e.code}: ${e.message}`).join('; ')
-    throw new CloudflareError(
-      `Cloudflare ${method} ${path}: HTTP ${res.status}${detail ? ` — ${detail}` : ''}`,
-      res.status,
-    )
-  }
-  return parsed
-}
 
 /** Wait until the fixed address completes a TLS handshake and answers anything at all. */
 async function waitReachable(hostname: string): Promise<void> {
