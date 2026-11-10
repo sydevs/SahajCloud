@@ -39,6 +39,7 @@ import type { Event } from '@/payload-types'
 import { Temporal } from '@js-temporal/polyfill'
 import dotenv from 'dotenv'
 
+import { ownedHost } from '@/lib/clients/site'
 import { isValidLocale } from '@/lib/locales'
 import { createCaptureTransport } from './mailpit-transport'
 
@@ -212,7 +213,11 @@ const brandedClient: EmailClient = {
   color1: '#7B4EA8',
   color2: '#B08BD4',
   logo: null, // no Cloudflare image locally: falls back to the Atlas icon
-  websiteUrl: 'https://www.sahajayogalondon.example',
+  enabled: true,
+  canonical: {
+    owned: true,
+    verification: { verified: { domain: 'www.sahajayogalondon.example', mount: '/classes' } },
+  },
   supportEmail: 'hello@sahajayogalondon.example',
 }
 
@@ -226,8 +231,9 @@ const partialClient: EmailClient = {
   color1: '#0F766E',
   color2: null,
   logo: null,
-  websiteUrl: null,
   supportEmail: null,
+  enabled: true,
+  canonical: null,
 }
 
 /**
@@ -293,7 +299,7 @@ async function selectFromDatabase(): Promise<Scenario[]> {
   const { default: config } = await import('../src/payload.config')
   const payload = await getPayload({ config })
 
-  const published = { _status: { equals: 'published' } }
+  const published = { enabled: { equals: true } }
 
   const { docs: clients } = await payload.find({
     collection: 'clients',
@@ -307,7 +313,7 @@ async function selectFromDatabase(): Promise<Scenario[]> {
   // Best-branded service first, so the sample shows the most configured state
   // the database actually contains.
   const score = (c: (typeof clients)[number]) =>
-    [c.logo, c.websiteUrl, c.supportEmail, c.color1 && c.color1 !== '#000000'].filter(Boolean)
+    [c.logo, ownedHost(c), c.supportEmail, c.color1 && c.color1 !== '#000000'].filter(Boolean)
       .length
   const ranked = [...clients].sort((a, b) => score(b) - score(a))
 

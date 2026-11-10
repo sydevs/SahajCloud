@@ -59,7 +59,7 @@ describe('client reads of a global (#710)', () => {
    * atlas one.
    */
   function clientReq(
-    opts: { allowedDomains?: string | null; origin?: string; roles?: string[] } = {},
+    opts: { domain?: string | null; origin?: string; roles?: string[] } = {},
   ): PayloadRequest {
     const headers = new Headers()
     if (opts.origin) headers.set('origin', opts.origin)
@@ -72,9 +72,9 @@ describe('client reads of a global (#710)', () => {
       user: {
         id: testClient.id,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: opts.roles ?? ['sahaj-atlas-client'],
-        allowedDomains: opts.allowedDomains ?? null,
+        site: { domain: opts.domain ?? null },
       },
     } as unknown as PayloadRequest
   }
@@ -196,30 +196,30 @@ describe('client reads of a global (#710)', () => {
   })
 
   describe('origin enforcement', () => {
-    it('refuses a global read from an origin outside a non-empty allowedDomains', async () => {
+    it('refuses a global read from an origin that is not the service’s domain', async () => {
       await expect(
         payload.findGlobal({
           slug: 'sy-atlas-config',
           select: { availableLocales: true },
           depth: 1,
-          req: clientReq({ allowedDomains: 'allowed.org', origin: 'https://evil.org' }),
+          req: clientReq({ domain: 'allowed.org', origin: 'https://evil.org' }),
           overrideAccess: false,
         }),
       ).rejects.toThrow(/origin is not allowed/)
     })
 
-    it('allows a global read from an origin on the list', async () => {
+    it('allows a global read from the service’s own domain', async () => {
       const result = await payload.findGlobal({
         slug: 'sy-atlas-config',
         select: { availableLocales: true },
         depth: 1,
-        req: clientReq({ allowedDomains: 'allowed.org', origin: 'https://allowed.org' }),
+        req: clientReq({ domain: 'allowed.org', origin: 'https://allowed.org' }),
         overrideAccess: false,
       })
       expect(result).toBeDefined()
     })
 
-    it('allows a global read when allowedDomains is empty (the default)', async () => {
+    it('allows a global read for a service with no domain (an app’s key)', async () => {
       const result = await payload.findGlobal({
         slug: 'sy-atlas-config',
         select: { availableLocales: true },

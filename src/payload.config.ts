@@ -48,6 +48,8 @@ import { cancelStaleJobs, payloadJobsOverrides } from './collections/PayloadJobs
 import { atlasChallenge } from './endpoints/atlas/challenge'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
+import { atlasWixRoute } from './endpoints/atlas/wix/route'
+import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { JOB_AUTO_RUN } from './jobs/queues'
@@ -101,7 +103,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // CORS is intentionally open. Per-client origin enforcement is server-side:
     // `validateClientOriginHook` (usagePlugin) checks each request's Origin/Referer
-    // against the client's `allowedDomains`, and the API key gates access. CORS
+    // against the client's `site.domain`, and the API key gates access. CORS
     // preflight is anonymous — the browser omits Authorization, so the server
     // cannot return a per-client allowlist at preflight time. `origins: '*'` lets
     // embedded Atlas widgets' preflight succeed on any host page; Payload omits
@@ -188,7 +190,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `docs/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
-    endpoints: [atlasSeo, atlasSitemap, atlasChallenge],
+    endpoints: [atlasSeo, atlasSitemap, atlasChallenge, atlasWixRoute, atlasWixSitemap],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).

@@ -17,6 +17,14 @@ export type MailingListProvider = NonNullable<MailingListConfig['provider']>
  */
 export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo', 'cleverreach'] as const
 
+/** What each provider is called, in the select and on the Install tab. */
+export const MAILING_LIST_PROVIDER_LABELS: Record<MailingListProvider, string> = {
+  mailchimp: 'Mailchimp',
+  brevo: 'Brevo',
+  klaviyo: 'Klaviyo',
+  cleverreach: 'CleverReach',
+}
+
 /**
  * What one subscribe attempt produced.
  *

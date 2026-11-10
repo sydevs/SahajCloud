@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { Fragment } from 'react'
 import { Column, Link, Row, Section, Text } from 'react-email'
 
+import type { ActionPrompt } from '@/lib/atlasOverview/status'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -26,9 +27,8 @@ export type StatusPillStyle = keyof typeof PILL_COLORS
 
 /** One open item: title, schedule and next step on the left; pills and their line on the right. */
 export interface ItemTableRow {
-  /** The next step as a sentence, its opening words linked to the page that takes it. */
-  action?: null | { after: string; href: string; link: string }
-  href: string
+  /** The next step as a sentence, its link to the page that takes it. */
+  action?: null | (ActionPrompt & { href: string })
   /** Pills, most urgent first. */
   statuses: { pillStyle: StatusPillStyle; text: string }[]
   /** The most urgent status's lines, one fact each, under the pills — the dashboard's own. */
@@ -119,15 +119,22 @@ function ItemTable({ accent, rows }: { accent: string; rows: ItemTableRow[] }) {
   if (rows.length === 0) return null
   return (
     <Section style={{ margin: '0 0 8px' }}>
-      {rows.map((row) => (
-        <Row key={row.href} style={itemRow}>
+      {rows.map((row, index) => (
+        <Row key={index} style={itemRow}>
           <Column style={itemMain}>
-            <Link href={row.href} style={{ ...itemTitle, color: accent }}>
-              {row.title}
-            </Link>
+            <Text style={itemTitle}>{row.title}</Text>
             {row.subtitle ? <Text style={itemSubtitle}>{row.subtitle}</Text> : null}
             {row.action ? (
               <Text style={itemAction}>
+                {row.action.lead ? (
+                  <>
+                    {row.action.lead.text}
+                    <Link href={row.action.lead.href} style={{ color: accent }}>
+                      {row.action.lead.link}
+                    </Link>
+                  </>
+                ) : null}
+                {row.action.before}
                 <Link href={row.action.href} style={{ color: accent }}>
                   {row.action.link}
                 </Link>
@@ -344,7 +351,7 @@ const itemSide: CSSProperties = {
   verticalAlign: 'top',
   width: '38%',
 }
-const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, textDecoration: 'none' }
+const itemTitle: CSSProperties = { fontSize: '15px', fontWeight: 600, margin: 0 }
 const itemSubtitle: CSSProperties = { color: '#6b7280', fontSize: '13px', margin: '2px 0 0' }
 const itemPills: CSSProperties = { fontSize: '12px', lineHeight: '22px', margin: 0 }
 const pill: CSSProperties = {

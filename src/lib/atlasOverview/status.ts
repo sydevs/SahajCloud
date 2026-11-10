@@ -37,8 +37,10 @@ export function countPrograms(byStage: Record<string, number | undefined>): numb
 }
 
 export interface OpenItemTarget {
-  collection: 'events' | 'regions' | 'user-submissions'
+  collection: 'clients' | 'events' | 'regions' | 'user-submissions'
   id: number
+  /** A document view of its own, e.g. a service's Install tab. */
+  view?: 'install'
 }
 
 export interface OpenItemStatus {
@@ -54,6 +56,8 @@ export interface OpenItemStatus {
   /** Counts against progress. Recommendations never do: they are advice. */
   counts: boolean
   action: { label: string; target: OpenItemTarget } | null
+  /** The email's sentence for this row, where it depends on the row rather than the status. */
+  prompt?: ActionPrompt
   /** When this status comes due, for the within-rank order. */
   deadline?: string | null
 }
@@ -85,6 +89,19 @@ export type OpenItemRow =
   | ({ kind: 'event' } & OpenItemEvent)
   | { kind: 'proposal'; id: number; title: string; receivedAt: string }
   | { kind: 'refusal'; id: number; title: string; reason: string; receivedAt: string }
+  | {
+      kind: 'service'
+      id: number
+      title: string
+      /** When the check this row reports last ran. */
+      checkedAt: string
+      /** The page the map belongs on, while the nightly check cannot find it there. */
+      missingOn: null | string
+      /** Whether the site still holds its region's links, which the third miss releases. */
+      owned: boolean
+      /** When the misses released the region, or `null`. */
+      releasedAt: null | string
+    }
 
 /** One row, with every status it has and the one that places it. */
 export interface OpenItem {
@@ -144,6 +161,22 @@ const STATUS_TABLE = {
     filter: 'no-manager',
     counts: true,
   },
+  // In no filter: a service row sits only in a service's and an admin's list.
+  // Ranked with Overdue: visitors to the site see no map at all.
+  'map-not-found': {
+    label: 'Map not found',
+    pill: 'error',
+    rank: 2,
+    filter: null,
+    counts: true,
+  },
+  'search-problem': {
+    label: 'Search problem',
+    pill: 'warning',
+    rank: 3,
+    filter: null,
+    counts: true,
+  },
   // Advice, never a deadline.
   recommendations: {
     label: 'Recommendations',
@@ -163,7 +196,7 @@ export type OpenItemStatusKey = keyof typeof STATUS_TABLE
 function status(
   key: OpenItemStatusKey,
   own: Pick<OpenItemStatus, 'action' | 'lines'> &
-    Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'rank'>>,
+    Partial<Pick<OpenItemStatus, 'deadline' | 'label' | 'prompt' | 'rank'>>,
 ): OpenItemStatus {
   return { key, ...STATUS_TABLE[key], ...own }
 }
@@ -295,8 +328,60 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
   return statuses
 }
 
+/**
+ * What is wrong with a service's map, said in a volunteer's terms (#1055): which
+ * page and which check is the Install tab's to say, and the row links there.
+ *
+ * ⚠ **A missing map outranks a search problem, and hides it.** The SEO checks
+ * run only on a pass that found the map, so while it is missing their stored
+ * result describes a page that is not there.
+ */
+function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
+  const action = { label: 'Review', target: rowTarget(row) }
+  const lines = [`Checked ${shortDate(row.checkedAt)}`]
+  const link = 'Review it'
+
+  if (row.missingOn) {
+    const lead = { text: 'The map was not detected on ', link: 'your site', href: row.missingOn }
+    const prompt: ActionPrompt = row.releasedAt
+      ? {
+          lead,
+          before: ', so we can no longer send search engines (Google) to your website. ',
+          link,
+          after: ', and contact us if you need help.',
+        }
+      : {
+          lead,
+          before: '. ',
+          link,
+          after: row.owned
+            ? ' so that we can continue to send search engines (Google) to your website.'
+            : '',
+        }
+    return [status('map-not-found', { lines, action, prompt })]
+  }
+  return [
+    status('search-problem', {
+      lines,
+      action,
+      prompt: { before: 'Google is unable to read your map embed. ', link, after: '' },
+    }),
+  ]
+}
+
+/** The document a row is, which its title links to. */
+export function rowTarget(row: OpenItemRow): OpenItemTarget {
+  if (row.kind === 'event') return { collection: 'events', id: row.id }
+  if (row.kind === 'service') return { collection: 'clients', id: row.id, view: 'install' }
+  return { collection: 'user-submissions', id: row.id }
+}
+
 /** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
 export interface ActionPrompt {
+  /** A clause opening the sentence with a link of its own, to somewhere other than the CMS. */
+  lead?: { href: string; link: string; text: string }
+  /** Words ahead of the link, for a sentence that says what is wrong first. */
+  before?: string
   link: string
   after: string
 }
@@ -318,10 +403,28 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
 /** The sentence for a status's next step, or `null` when it has none. */
 export function actionPrompt(status: OpenItemStatus): ActionPrompt | null {
   if (!status.action) return null
+  if (status.prompt) return status.prompt
   if (status.action.target.collection === 'regions') {
     return { link: 'Add a region manager', after: ' so someone looks after this region.' }
   }
   return PROMPTS[status.key] ?? { link: status.action.label, after: '.' }
+}
+
+function rowStatuses(row: OpenItemRow, now: Date): OpenItemStatus[] {
+  if (row.kind === 'event') return eventStatuses(row, now)
+  if (row.kind === 'service') return serviceStatuses(row)
+  const action = { label: 'Review', target: rowTarget(row) }
+  const received = `Received ${shortDate(row.receivedAt)}`
+  if (row.kind === 'proposal') {
+    return [status('class-proposed', { lines: [received], action, deadline: row.receivedAt })]
+  }
+  return [
+    status('confirmed-spam-pending', {
+      lines: [row.reason.charAt(0).toUpperCase() + row.reason.slice(1), received],
+      action,
+      deadline: row.receivedAt,
+    }),
+  ]
 }
 
 /**
@@ -329,31 +432,7 @@ export function actionPrompt(status: OpenItemStatus): ActionPrompt | null {
  * be two problems at once, and hiding one is how it never gets fixed.
  */
 export function openItem(row: OpenItemRow, now: Date): OpenItem {
-  const review = {
-    label: 'Review',
-    target: { collection: 'user-submissions' as const, id: row.id },
-  }
-  const statuses =
-    row.kind === 'event'
-      ? eventStatuses(row, now)
-      : row.kind === 'proposal'
-        ? [
-            status('class-proposed', {
-              lines: [`Received ${shortDate(row.receivedAt)}`],
-              action: review,
-              deadline: row.receivedAt,
-            }),
-          ]
-        : [
-            status('confirmed-spam-pending', {
-              lines: [
-                row.reason.charAt(0).toUpperCase() + row.reason.slice(1),
-                `Received ${shortDate(row.receivedAt)}`,
-              ],
-              action: review,
-              deadline: row.receivedAt,
-            }),
-          ]
+  const statuses = rowStatuses(row, now)
 
   const rank = Math.min(...statuses.map((s) => s.rank))
   const deadlines = statuses
@@ -366,7 +445,12 @@ export function openItem(row: OpenItemRow, now: Date): OpenItem {
     placing: statuses.find((s) => s.rank === rank)!,
     rank,
     deadline: deadlines[0] ?? null,
-    since: row.kind === 'event' ? row.createdAt : row.receivedAt,
+    since:
+      row.kind === 'event'
+        ? row.createdAt
+        : row.kind === 'service'
+          ? row.checkedAt
+          : row.receivedAt,
     counts: statuses.some((s) => s.counts),
     filters: [...new Set(statuses.flatMap((s) => (s.filter === null ? [] : [s.filter])))],
   }

@@ -1,96 +1,11 @@
-import type { SitemapCandidate } from './sitemapUrls'
 import type { AtlasSitemapResponse } from '../../responseTypes'
-import type { Endpoint, PayloadRequest, SelectType } from 'payload'
+import type { Endpoint } from 'payload'
 
-import { APIError } from 'payload'
-
-import { andWhere, notFinishedWhere } from '@/collections/Events/lifecycle/finished'
-import { getCanonicalFallbackOwner, getRegionOwners } from '@/lib/atlas/regionOwners'
-import { getRegionTree } from '@/lib/atlas/regionTree'
-import { requireActiveClient } from '@/lib/endpoints'
+import { readFailureResponse, requireClientAccess, requireIntegerClientId } from '@/lib/endpoints'
 import { publicReadCacheHeaders } from '@/plugins/cache'
-import { assertClientOriginAllowed, countClientRead } from '@/plugins/usage'
-import { asTrustedReq } from '@/plugins/usage/hooks'
+import { countClientRead } from '@/plugins/usage'
 
-import { fallbackRegionIds, ownedRegionIds, sitemapUrls } from './sitemapUrls'
-
-/**
- * The fields one sitemap row is built from. `webPath` / `webUrl` are the same
- * virtual fields `GET /api/atlas/seo` reads its `route` / `canonical` from —
- * reading them here, rather than composing a URL from the owner's domain, is
- * what makes the two byte-identical by construction.
- *
- * A region's pair derives from the document id alone, so nothing extra has to be
- * co-selected. An event's derives from `region` and `_status`, which the
- * `ensureVirtualFieldDeps` beforeOperation hook adds back — `region` is named
- * explicitly anyway, matching the seo endpoint's selects.
- */
-const REGION_SELECT: SelectType = { webPath: true, webUrl: true, updatedAt: true }
-const EVENT_SELECT: SelectType = { webPath: true, webUrl: true, updatedAt: true, region: true }
-
-/** The standard error envelope, so every refusal here reads the same. */
-function errorResponse(message: string, status: number): Response {
-  return Response.json({ errors: [{ message }] }, { status })
-}
-
-/**
- * Every publishable document in the given regions: the regions themselves, and
- * the classes attached to them.
- *
- * Both reads are unpaginated. The corpus is ~595 regions and ~653 events in
- * total and a client owns a subtree of it, so a page boundary would be a limit
- * invented for its own sake — and a truncated sitemap is worse than a slow one,
- * because nothing in the response would say it had been cut. If it ever needs
- * bounding, a cursor is easier to add than to remove.
- *
- * Both forward the caller's `req` with `overrideAccess: false`, so the client's
- * own access rules still apply — published-only. They forward it **trusted**,
- * because the corpus bound above is this endpoint's judgement rather than the
- * caller's (#889).
- *
- * ⚠ **That bypass is why the events read ANDs `notFinishedWhere` itself.**
- * `excludeFinishedEvents` stands down for a trusted req, so leaving the filter
- * to the hook would publish finished classes. A finished class stays reachable
- * by direct link, but a sitemap is a list of pages we are asking a crawler to
- * index, and a class that no longer happens is not one of them.
- *
- * ⚠ **The `regions` read is not redundant with the region tree**, though it
- * looks it: resolving ownership has already loaded every region's `pathById`,
- * so a future optimization is bound to notice that the paths are in memory and
- * try to build `loc` as `canonicalUrlBase(owner) + path`. That would make this
- * endpoint the *second* implementation of the URL rule — the exact thing #650
- * exists to prevent — and the byte-identity case in
- * `tests/int/atlas-sitemap.int.spec.ts` is what would catch it. Reading the
- * document's own `webUrl` is the point, and it is also where `updatedAt` (the
- * `lastmod` a consumer cannot derive) comes from.
- */
-async function ownedDocuments(
-  req: PayloadRequest,
-  regionIds: number[],
-): Promise<SitemapCandidate[]> {
-  const trustedReq = asTrustedReq(req)
-  const [regions, events] = await Promise.all([
-    req.payload.find({
-      collection: 'regions',
-      where: { id: { in: regionIds } },
-      pagination: false,
-      depth: 0,
-      select: REGION_SELECT,
-      overrideAccess: false,
-      req: trustedReq,
-    }),
-    req.payload.find({
-      collection: 'events',
-      where: andWhere({ region: { in: regionIds } }, notFinishedWhere(new Date())),
-      pagination: false,
-      depth: 0,
-      select: EVENT_SELECT,
-      overrideAccess: false,
-      req: trustedReq,
-    }),
-  ])
-  return [...(regions.docs as SitemapCandidate[]), ...(events.docs as SitemapCandidate[])]
-}
+import { resolveAtlasSitemap } from './resolve'
 
 /**
  * GET /api/atlas/sitemap
@@ -136,7 +51,7 @@ async function ownedDocuments(
  * Registered at the config root rather than on a collection because the answer
  * spans regions *and* events, so no collection owns it — which means the usage
  * plugin's `beforeOperation` gates don't fire for the handler itself and
- * `assertClientOriginAllowed` is called directly (see `docs/rules/endpoints.md`).
+ * `requireClientAccess` stands in for them (see `docs/rules/endpoints.md`).
  * The collection reads it forwards *do* run them, so published-only access and
  * project visibility apply as usual, and the meter is idempotent per request, so
  * they add nothing to the one count (#891).
@@ -147,34 +62,15 @@ export const atlasSitemap: Endpoint = {
   path: '/atlas/sitemap',
   method: 'get',
   handler: async (req) => {
-    const denied = requireActiveClient(req)
+    const denied = requireClientAccess(req)
     if (denied) return denied
 
-    try {
-      assertClientOriginAllowed(req)
-    } catch (error) {
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      throw error
-    }
-
-    // `requireActiveClient` has established a published `clients` user. Payload
-    // types `id` as `string | number` (its Mongo adapter uses strings) while
-    // this database is Postgres, so this converts rather than asserting:
-    // `CanonicalOwner.clientId` is a number, and `'7' === 7` is false, so a
-    // string id would match no owner and answer "you own nothing".
-    //
-    // That answer is **indistinguishable from the legitimate empty one** — a
-    // client that owns no subtree gets `urls: []` by design — so an unusable id
-    // has to fail loudly. A consumer told it owns nothing publishes an empty
-    // sitemap, which is how a site asks to be de-indexed.
-    const clientId = Number(req.user?.id)
-    if (!Number.isInteger(clientId)) {
-      req.payload.logger.error({
-        msg: 'atlasSitemap: client id is not an integer',
-        clientId: req.user?.id,
-      })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
-    }
+    // The gate has established a published `clients` user; this is
+    // the id that read leaves on the request. Its docblock carries why an
+    // unusable one must fail loudly rather than answer "you own nothing".
+    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    if (!caller.ok) return caller.response
+    const { clientId } = caller
 
     // A root endpoint runs no collection `beforeOperation` hook, so it counts
     // itself (#891). The reads below happen to count it too — the region tree is
@@ -184,43 +80,16 @@ export const atlasSitemap: Endpoint = {
     await countClientRead(req)
 
     try {
-      // Two memoized reads; the fallback lookup is the one `sy-atlas-config`
-      // read #652 adds.
-      const [ownerById, fallbackOwner] = await Promise.all([
-        getRegionOwners(req),
-        getCanonicalFallbackOwner(req),
-      ])
-
-      // The one branch. For the fallback client the answer is the *complement*
-      // of the ownership map plus whatever it declares itself; for everyone
-      // else it is the lookup it always was. The region tree is read inside
-      // that branch because only it takes a complement — every other client,
-      // including the `{ urls: [] }` case, would pay a `regions` query to
-      // compute a set it never looks at.
-      const regionIds =
-        fallbackOwner?.clientId === clientId
-          ? fallbackRegionIds((await getRegionTree(req)).chainById.keys(), ownerById, clientId)
-          : ownedRegionIds(ownerById, clientId)
-      // Nothing owned means nothing to enumerate — and, more usefully, no reads
-      // at all: `id: { in: [] }` would be two round trips to learn what the
-      // ownership map already said.
-      const docs = regionIds.length === 0 ? [] : await ownedDocuments(req, regionIds)
-
       const body: AtlasSitemapResponse = {
         generated: new Date().toISOString(),
-        urls: sitemapUrls(docs),
+        urls: (await resolveAtlasSitemap({ req, clientId })).urls,
       }
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      // The forwarded reads run the client-query gates, which throw APIError —
-      // surface status + message verbatim rather than reporting a server fault.
-      if (error instanceof APIError) return errorResponse(error.message, error.status)
-      req.payload.logger.error({
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
         msg: 'atlasSitemap: read failed',
         clientId,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return errorResponse('Failed to build the sitemap for this client.', 500)
     }
   },
 }

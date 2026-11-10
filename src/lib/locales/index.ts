@@ -70,6 +70,25 @@ export function isValidLocale(code: string): code is LocaleCode {
 }
 
 /**
+ * The locale a language code names, for a caller holding a language rather
+ * than a locale — `Clients.language`, or a Wix site's `request.baseUrl`.
+ *
+ * ⚠ **A language is not a locale.** Two of ours (`pt-BR`, `en-AU`) have no bare
+ * form, so `isValidLocale` alone sends every Portuguese site to English. A bare
+ * subtag takes the first matching locale in `LOCALES` order — which is why `en`
+ * precedes `en-AU` there — and an unknown one takes the default, since the page
+ * still has to render.
+ */
+export function localeForLanguage(lang: string | null | undefined): LocaleCode {
+  if (!lang) return DEFAULT_LOCALE
+  if (isValidLocale(lang)) return lang
+
+  const subtag = lang.split('-')[0].toLowerCase()
+  const match = LOCALES.find((locale) => baseLanguage(locale.code) === subtag)
+  return match?.code ?? DEFAULT_LOCALE
+}
+
+/**
  * The language of a code that need not be a locale, for a caller holding one.
  *
  * ⚠ **An admin locale is not a language.** `pt-BR` and `en-AU` are two of the

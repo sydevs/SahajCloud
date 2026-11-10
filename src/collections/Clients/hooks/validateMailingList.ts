@@ -33,9 +33,9 @@ const CREDENTIAL_KEYS = [
  * watching. A typo in an API key is an operator's mistake to see while they are
  * still looking at the form.
  *
- * ⚠ **The change gate is load-bearing, not an optimisation.** `clients` runs
- * `versions: { drafts: true, maxPerDoc: 1 }`, so this hook fires on every draft
- * and autosave. Without the gate, editing a client's colours would make the
+ * ⚠ **The change gate is load-bearing, not an optimisation.** This hook fires on
+ * every save of the row — the Install tab saves each choice as it is made.
+ * Without the gate, editing a client's colours would make the
  * save depend on a third party being reachable — an outage at Mailchimp would
  * lock every client document in the CMS.
  */
