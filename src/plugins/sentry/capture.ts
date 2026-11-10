@@ -24,7 +24,7 @@ import type { Payload } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-/** Pino's name for each level. Sentry spells one of them `warning`. */
+/** The logger's name for each level. Sentry spells one of them `warning`. */
 const LOG_METHOD = { error: 'error', info: 'info', warning: 'warn' } as const
 
 export type CaptureLevel = keyof typeof LOG_METHOD
@@ -99,8 +99,11 @@ export const capture = (args: CaptureArgs): boolean => {
   // tailing. `describeRejectedCredential` guards its own mirror the same way.
   if (logger) {
     try {
-      // ⚠ `err`, pino's own serializer key, so the log line carries the stack
-      // the message alone drops.
+      // ⚠ **The error itself, not its message**, so the line carries the stack.
+      // `workerSafeLogger` is the one logger here (`src/payload.config.ts`) and
+      // reduces an Error to name/message/stack/cause under any key — it has no
+      // pino serializers, and no `redact`, so do not reason from pino's rules
+      // about what a key does here.
       logger[LOG_METHOD[level]]({
         msg: message,
         ...extra,

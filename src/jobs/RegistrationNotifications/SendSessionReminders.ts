@@ -347,7 +347,6 @@ export const SendSessionReminders: TaskConfig<'sendSessionReminders'> = {
             error,
             message: 'SendSessionReminders: per-event failure — continuing',
             extra: { eventId: event.id },
-            level: 'warning',
             logger: payload.logger,
           })
         }

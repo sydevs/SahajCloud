@@ -12,6 +12,7 @@ import { JobCancelledError, ValidationError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { captureFailure } from '@/plugins/sentry/captureFailure'
 import { installJobCapture } from '@/plugins/sentry/jobCapture'
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
@@ -397,6 +398,25 @@ describe('a job run of ours that fails', () => {
     ).rejects.toThrow()
 
     expect(sentry.captureException).not.toHaveBeenCalled()
+  })
+})
+
+describe('the never-throw guarantee', () => {
+  /**
+   * ⚠ The status default used to be a parameter default, evaluated before the
+   * body's `try`. `errorStatus` reads the error's own `status`, so a throwing
+   * getter escaped the guard every caller relies on — each one is already
+   * handling a failure and has nothing to do with a second.
+   */
+  it('survives an error whose own `status` throws', () => {
+    const hostile = new Error('write failed')
+    Object.defineProperty(hostile, 'status', {
+      get() {
+        throw new Error('status is not readable')
+      },
+    })
+
+    expect(captureFailure({ error: hostile, source: 'localApi' })).toBe(false)
   })
 })
 

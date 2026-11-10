@@ -422,7 +422,6 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
           // repeat from a one-off. Deriving that here cannot work — a stale
           // import is armed at a watermark years past on its first examination.
           tags: { 'expire_events.event_id': String(id) },
-          level: 'warning',
           logger: req.payload.logger,
         })
       }

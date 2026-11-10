@@ -64,7 +64,7 @@ export const captureFailure = ({
   error,
   req,
   source,
-  status = errorStatus(error),
+  status,
   expected = false,
   job,
   target,
@@ -78,6 +78,11 @@ export const captureFailure = ({
     // runs. `docs/architecture.md` has the trade. (sydevs/SahajCloud#670)
     if (mapPostgresCastError(error)) return false
 
+    // ⚠ Resolved inside the `try`, not as a parameter default: `errorStatus`
+    // reads the error's own `status`, and a default is evaluated before the
+    // body — so a throwing getter would escape the never-throw guarantee.
+    const answered = status ?? errorStatus(error)
+
     // A presented-and-rejected credential is a broken integration, not traffic —
     // only below 500, and only on the hook: the other sites hold an acting user
     // or no request at all.
@@ -85,8 +90,8 @@ export const captureFailure = ({
     // `NEXT_PUBLIC_SENTRY_DSN` never gets from the hook. `requireActiveClient`'s
     // path has no such gate (#743).
     const rejected =
-      req && status < 500 && source === 'afterError'
-        ? describeRejectedCredential(req, { status, source: 'sentryPlugin' })
+      req && answered < 500 && source === 'afterError'
+        ? describeRejectedCredential(req, { status: answered, source: 'sentryPlugin' })
         : null
 
     // ⚠ **The field PATHS, never the message**: a `ValidationError`'s message
@@ -102,7 +107,7 @@ export const captureFailure = ({
       // `auth_outcome`, never by dropping the level. (#734)
       level: expected
         ? 'warning'
-        : source === 'localApi' || source === 'job' || rejected || status >= 500
+        : source === 'localApi' || source === 'job' || rejected || answered >= 500
           ? 'error'
           : 'warning',
       // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`** — the
@@ -125,7 +130,7 @@ export const captureFailure = ({
         ...rejected?.tags,
       },
       extra: defined({
-        status,
+        status: answered,
         url: req?.url,
         fields: fields?.length ? fields : undefined,
         userAgent: rejected?.userAgent,

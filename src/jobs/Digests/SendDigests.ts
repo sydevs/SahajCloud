@@ -164,7 +164,6 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
               error,
               message: 'SendDigests: per-role failure — continuing',
               extra: { managerId: manager.id, role },
-              level: 'warning',
               logger: payload.logger,
             })
           }
