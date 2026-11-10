@@ -11,13 +11,19 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
  * derives as `failed`: the exact defect #1084 reported, on all 121 of
  * production's completed rows. The count is a pure projection of a column in
  * the same table, so no foreign key and no second table is involved.
+ *
+ * ⚠ **The table is named `transcripts` here, not `meditation_transcripts`.**
+ * #1043's rename carries an earlier timestamp, so on a database that runs the
+ * whole chain this statement arrives after it and the old name no longer
+ * resolves. A database that already recorded this migration keeps whichever
+ * name it ran under, so both orders hold.
  */
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "meditation_transcripts" ADD COLUMN "segment_count" numeric;`)
+   ALTER TABLE "transcripts" ADD COLUMN "segment_count" numeric;`)
 
   await db.execute(sql`
-   UPDATE "meditation_transcripts"
+   UPDATE "transcripts"
       SET "segment_count" = CASE
             WHEN jsonb_typeof("segments") = 'array' THEN jsonb_array_length("segments")
             ELSE 0
@@ -26,5 +32,5 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
   await db.execute(sql`
-   ALTER TABLE "meditation_transcripts" DROP COLUMN "segment_count";`)
+   ALTER TABLE "transcripts" DROP COLUMN "segment_count";`)
 }

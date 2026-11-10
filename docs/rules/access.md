@@ -64,7 +64,7 @@ This only works because the authenticated user loads **four times**, not once. `
 | ---------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                             | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`                      | **Yes**           | The collection read gate does                                                                      |
-| `MeditationTranscript/transcriptModel.ts` → `/api/meditation-transcripts`          | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
+| `MeditationTranscript/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
 | `MeditationTranscript/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`          | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
 | `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                          | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
@@ -274,6 +274,37 @@ It is deliberately **wider** than `adminOnlyFieldAccess`, which is the wrong too
 | Visible in `/api/docs`          | Add it to a project's `collections` (`docs/rules/openapi.md`)                       |
 
 Both public intakes' POSTs are `x-internal` for exactly this reason: neither sits in a project.
+
+### A child row whose parent's state no `Where` can reach
+
+The published-only clause and Payload's trash filter are both **per collection**, so a child
+carrying neither answers for a parent that refuses to be read at all — which handed every client
+key a draft meditation's full spoken text and the R2 key it plays from (#968). The fix was a
+`Where` over the parent relationship, spelled against the relationship rather than a resolved id
+list because the same clause is combined into the join query (`sanitizeJoinQuery`), where an id
+list would cost a second round trip on every parent row.
+
+⚠ **That fix is unavailable once the parent is polymorphic.** Payload resolves `source`,
+`source.relationTo` and `source.value` on a `relationTo` array and throws
+`APIError('Not supported')` on anything deeper, so `source._status` cannot be written in any form.
+`transcripts` is that case (#1043).
+
+**So on `transcripts` the narrowing is gone and nothing replaced it** (#1075). A client whose
+project names the collection reads every row, a draft or trashed meditation's included. Project
+membership is the whole gate, and the collection sits in `wemeditate-web` and `wemeditate-app` —
+`sahaj-atlas` reads none.
+
+⚠ **That reopens #968 deliberately, and it is wider than the cues.** The row also carries
+`audioFilename`, which `getR2Url` turns into a **public, unsigned** delivery URL, so the exposure
+is the recording of an unpublished meditation and not only its text. The owner priced both on
+#1075: a transcript holds no personal data, and a client reading one is one that reads the
+recording. **Say which of the two a later reader is relying on** — "already reads the recording"
+is true of a published meditation and not of a draft.
+
+**A later child row in this shape owes the same judgement, not the same answer.** Weigh what the
+row holds before leaving it on project membership. The two narrower homes both cost something: a
+client-key refusal puts "who may read this" in a second place, and a per-role grant leaves a
+silently broken admin tab for the next role nobody lists.
 
 ## Adding a new role
 

@@ -13,7 +13,7 @@ import { z } from 'zod'
  */
 /**
  * The one cue shape for every timed phrase this app stores. The two readers
- * below keep it open; `meditation-transcripts` closes it, because that column
+ * below keep it open; `transcripts` closes it, because that column
  * has a single internal writer and no row written under an earlier shape.
  */
 export const subtitleCue = {

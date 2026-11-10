@@ -26,17 +26,20 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
   // there would pay the vendor to re-transcribe the whole library.
   if (Array.isArray(doc.segments) && doc.segments.length > 0) return doc
 
-  const meditation = doc.meditation == null ? null : extractID(doc.meditation)
+  // ⚠ **Only a `meditations`-sourced row has a run to queue.** The task's input
+  // is a `meditationId`, so a `files`-sourced row would start a run that can
+  // resolve nothing.
+  if (doc.source?.relationTo !== 'meditations') return doc
 
   const job = await req.payload.jobs.queue({
     task: 'transcribeMeditation',
-    input: { meditationId: Number(meditation), audioFilename: doc.audioFilename },
+    input: { meditationId: Number(extractID(doc.source.value)), audioFilename: doc.audioFilename },
     queue: 'transcription',
     req,
   })
 
   await req.payload.update({
-    collection: 'meditation-transcripts',
+    collection: 'transcripts',
     id: doc.id,
     data: { job: job.id },
     depth: 0,

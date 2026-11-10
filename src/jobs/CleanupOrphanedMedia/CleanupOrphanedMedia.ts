@@ -577,7 +577,13 @@ async function getAllReferencedIds(
 
   // Scan regular field references
   for (const [collectionSlug, collectionRefs] of byCollection) {
-    await scanCollectionForReferences(payload, collectionSlug, collectionRefs, referencedIds)
+    await scanCollectionForReferences(
+      payload,
+      collectionSlug,
+      collectionRefs,
+      referencedIds,
+      targetCollection,
+    )
   }
 
   // Scan Lexical content for block references
@@ -656,6 +662,7 @@ async function scanCollectionForReferences(
   collectionSlug: string,
   references: FieldReference[],
   referencedIds: Set<number>,
+  targetCollection: string,
 ): Promise<void> {
   await forEachStoredDoc(
     payload,
@@ -663,7 +670,7 @@ async function scanCollectionForReferences(
     references.map((ref) => ref.fieldPath),
     (doc) => {
       for (const ref of references) {
-        for (const id of extractIdsFromDocument(doc, ref)) referencedIds.add(id)
+        for (const id of extractIdsFromDocument(doc, ref, targetCollection)) referencedIds.add(id)
       }
     },
   )

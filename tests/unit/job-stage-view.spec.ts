@@ -7,7 +7,7 @@
  * upgrade that adds one, where a regex over the installed `.d.ts` could not.
  *
  * The declaration cases below are inline literals, but the pair that matters
- * most is read off the real `meditation-transcripts` config: that the
+ * most is read off the real `transcripts` config: that the
  * collection declares `processing`, and that the virtual `status` field can
  * actually hold it. Stated as two inline fixtures those two facts could drift
  * apart silently, and the row stranded behind a waiting view is what drift
@@ -19,7 +19,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { MeditationTranscripts } from '@/collections/MeditationTranscripts/MeditationTranscripts'
+import { Transcripts } from '@/collections/Transcripts/Transcripts'
 import {
   type JobStageConfig,
   jobStageWait,
@@ -61,8 +61,7 @@ const fieldNamed = (collection: Collection, name: string) => {
   return field as { defaultValue?: unknown; options?: unknown }
 }
 
-const statusField = (collection: Collection = MeditationTranscripts) =>
-  fieldNamed(collection, 'status')
+const statusField = (collection: Collection = Transcripts) => fieldNamed(collection, 'status')
 
 const stageConfig = (collection: Collection): JobStageConfig => {
   const config = readJobStageConfig(collection.admin?.custom)
@@ -70,7 +69,7 @@ const stageConfig = (collection: Collection): JobStageConfig => {
   return config
 }
 
-const transcriptConfig = (): JobStageConfig => stageConfig(MeditationTranscripts)
+const transcriptConfig = (): JobStageConfig => stageConfig(Transcripts)
 
 describe('readJobStageConfig', () => {
   it('reads a declaration, keeping `progressField` only when one is given', () => {
@@ -233,7 +232,7 @@ describe('jobStageWait', () => {
 describe('the view itself', () => {
   it('names neither of the collections it was written for', () => {
     for (const file of VIEW_FILES) {
-      expect(codeOf(file)).not.toMatch(/event-imports|eventImports|meditation-transcripts/)
+      expect(codeOf(file)).not.toMatch(/event-imports|eventImports|transcripts/)
     }
   })
 
@@ -257,7 +256,7 @@ describe('the view itself', () => {
   })
 })
 
-describe('meditation-transcripts', () => {
+describe('transcripts', () => {
   it('declares `processing` as its only running stage, behind the stall window', () => {
     expect(transcriptConfig()).toEqual({
       runningStages: ['processing'],
@@ -292,7 +291,7 @@ describe('meditation-transcripts', () => {
   })
 
   it('registers the view on its default edit route', () => {
-    expect(MeditationTranscripts.admin?.components?.views?.edit).toEqual({
+    expect(Transcripts.admin?.components?.views?.edit).toEqual({
       default: { Component: '@/components/admin/JobStageView/JobStageView' },
     })
   })

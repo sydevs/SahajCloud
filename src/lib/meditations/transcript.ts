@@ -1,6 +1,6 @@
 /**
  * The timestamped transcript of a meditation's recording, as stored on
- * `meditation-transcripts`.
+ * `transcripts`.
  */
 import { z } from 'zod'
 
