@@ -11,7 +11,7 @@ import { expectEventWriteRefused, storeEventOverImageLimit } from '../utils/stor
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-type TestUser = { id: number | string; collection: string; _status?: string; roles?: string[] }
+type TestUser = { id: number | string; collection: string; enabled?: boolean; roles?: string[] }
 
 const FUTURE_ONE_OFF = {
   firstDate: '2027-01-06T10:00:00.000Z',
@@ -97,7 +97,7 @@ describe('registrationsFull signal (#599)', () => {
     client = {
       id: clientDoc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
     const region = await payload.create({

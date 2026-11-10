@@ -168,7 +168,8 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               aria-checked={isSelected}
               aria-label={option.label}
               disabled={isDisabled}
-              tabIndex={isMulti || isSelected ? 0 : -1}
+              // A radio group with nothing chosen still needs one tab stop.
+              tabIndex={isMulti || isSelected || (!hasValue && index === 0) ? 0 : -1}
               onClick={() => handleSelect(option.value)}
               onKeyDown={(e) => handleKeyDown(e, option.value, index)}
               style={{

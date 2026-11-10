@@ -31,8 +31,8 @@ const FALLBACK_MEMO_KEY = 'atlas:mailingListFallback'
 /**
  * A client whose list can take an address: the same non-blank fields
  * `isMailingListConfigured` demands at delivery, so a half-filled list is never
- * offered and never hides a complete one further up. A draft client has not
- * been signed off.
+ * offered and never hides a complete one further up. An inactive service is
+ * not signed off.
  */
 const LIST_ELIGIBLE = [
   { 'mailingList.enabled': { equals: true } },
@@ -41,7 +41,7 @@ const LIST_ELIGIBLE = [
   { 'mailingList.listId': { not_equals: '' } },
   { 'mailingList.apiKey': { exists: true } },
   { 'mailingList.apiKey': { not_equals: '' } },
-  { _status: { equals: 'published' } },
+  { enabled: { equals: true } },
 ] as const
 
 async function loadMailingListOwners(req: PayloadRequest): Promise<Map<number, number>> {

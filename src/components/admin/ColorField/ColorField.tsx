@@ -5,6 +5,8 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
+import { isBrandColor } from '@/lib/clients/appearance'
+
 /**
  * Color Field Component
  *
@@ -25,7 +27,14 @@ import React, { useCallback } from 'react'
  * ```
  */
 export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
-  const { name, label, localized, required, admin: { description, className, style } = {} } = field
+  const {
+    name,
+    label,
+    localized,
+    required,
+    admin: { description, className, style, custom } = {},
+  } = field
+  const fallback = (custom as { colorFallback?: string } | undefined)?.colorFallback
 
   const { value, setValue, showError } = useField<string>()
 
@@ -49,6 +58,8 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     .join(' ')
 
   const fieldId = `field-${name.replace(/\./g, '__')}`
+  const unset = Boolean(fallback) && !isBrandColor(value)
+  const shown = unset && fallback ? fallback : value || '#000000'
 
   return (
     <div className={fieldClasses} id={fieldId} style={style}>
@@ -59,7 +70,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
 
         <input
           type="color"
-          value={value || '#000000'}
+          value={shown}
           onChange={handleChange}
           disabled={readOnly}
           style={{
@@ -74,6 +85,15 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         />
       </div>
 
+      {fallback ? (
+        <div className="field-description" style={{ display: 'flex', gap: 'var(--base)' }}>
+          {unset ? (
+            <span>Atlas default ({fallback.toUpperCase()})</span>
+          ) : (
+            <span>Custom ({value?.toUpperCase()})</span>
+          )}
+        </div>
+      ) : null}
       <FieldDescription description={description} path={name} />
     </div>
   )

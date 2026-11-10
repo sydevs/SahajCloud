@@ -72,8 +72,10 @@ function resolveClientLogoUrl(logo: Client['logo']): string | null {
  * Resolve the branding for an email sent on behalf of a **client service**.
  *
  * Registrant-facing mail is branded with the service the registration came
- * from, not with Sahaj Atlas itself. Each field falls back independently to the
- * `sahaj-atlas` project brand, so a client that has configured only a colour
+ * from, not with Sahaj Atlas itself. Each field falls back independently: the
+ * name and colours to the `sahaj-atlas` project brand, the logo to the We
+ * Meditate icon — the default logo the Install tab previews for a service with
+ * none (`DEFAULT_SERVICE_LOGO`) — so a client that has configured only a colour
  * still gets a sensible product name and icon.
  *
  * Only the client-scoped path is new — `getEmailBrand` and every manager/auth
@@ -95,6 +97,6 @@ export function getClientEmailBrand(
       // for the gradient, so inheriting the project's dark keeps BrandColors whole.
       dark: fallback.colors.dark,
     },
-    iconUrl: resolveClientLogoUrl(client.logo) ?? fallback.iconUrl,
+    iconUrl: resolveClientLogoUrl(client.logo) ?? getEmailBrand('wemeditate-web').iconUrl,
   }
 }

@@ -298,3 +298,43 @@ describe('every path-bearing admin view gates itself', { timeout: TIMEOUT }, () 
     expect(views.filter(([, view]) => !callsTheGuard(view)).map(([key]) => key)).toEqual([])
   })
 })
+
+/**
+ * The Install tab's registration (#1055).
+ *
+ * ⚠ **A document view, not a root one.** `isCustomAdminView` — and the guard
+ * above it — only reach `admin.components.views`, so nothing there covers this
+ * one. Payload routes to a document view only with read access to the row,
+ * which for `clients` is the document-manager path, and `InstallView` re-reads
+ * the row with `overrideAccess: false` anyway because it reveals the API key.
+ *
+ * Pinned because the whole feature is one config key: a `path` lost in a
+ * refactor leaves the tab unroutable with every test still green.
+ */
+describe('the Install tab is registered on clients', { timeout: TIMEOUT }, () => {
+  const installView = async () => {
+    const sanitized = await config
+    const clients = sanitized.collections.find((collection) => collection.slug === 'clients')
+    return (
+      clients?.admin?.components?.views?.edit as
+        | Record<string, { Component?: unknown; path?: string; tab?: { label?: unknown } }>
+        | undefined
+    )?.install
+  }
+
+  it('registers a document view at its own path', async () => {
+    const view = await installView()
+    expect(view).toBeDefined()
+    expect(view?.path).toBe('/install')
+  })
+
+  it('labels the tab, or there is nothing to click', async () => {
+    expect((await installView())?.tab?.label).toBe('Install')
+  })
+
+  it('names a component the import map resolves', async () => {
+    const view = await installView()
+    const path = parsePayloadComponent(view?.Component as never).path
+    expect(resolveSpec(path, IMPORT_MAP), `${path} is not in the import map`).toBeTruthy()
+  })
+})

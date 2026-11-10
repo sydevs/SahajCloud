@@ -15,6 +15,8 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createElement } from 'react'
 
 import { RegistrationConfirmationEmail } from '@/emails/RegistrationConfirmationEmail'
+import type { OwnershipFields } from '@/lib/clients/site'
+import { ownedHost } from '@/lib/clients/site'
 import type { LocaleCode } from '@/lib/locales'
 import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
 import { interpolate, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -24,11 +26,25 @@ import { getClientEmailBrand, getEmailBrand, renderEmail, USER_EMAIL_FROM } from
 
 import { buildRegistrationEmailDetails } from './registrationDetails'
 
-/** The client fields the email needs; `logo` must be populated (`depth >= 1`). */
-export type EmailClient = Pick<
-  Client,
-  'color1' | 'color2' | 'logo' | 'name' | 'supportEmail' | 'websiteUrl'
->
+/**
+ * The client fields the email needs; `logo` must be populated (`depth >= 1`).
+ * `enabled`, `site` and `canonical` decide the site link: the email links to a
+ * service's site only while it owns its region (`ownedHost`).
+ */
+/** What a registrant email reads off the client: its brand, and its site link's ownership. */
+export const EMAIL_CLIENT_SELECT = {
+  color1: true,
+  color2: true,
+  logo: true,
+  name: true,
+  supportEmail: true,
+  enabled: true,
+  site: true,
+  canonical: { owned: true, verification: true },
+} as const
+
+export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
+  OwnershipFields
 
 export async function sendRegistrationConfirmation(args: {
   payload: Payload
@@ -64,6 +80,8 @@ export async function sendRegistrationConfirmation(args: {
     uid: registrationUuid ? `registration-${registrationUuid}` : null,
   })
 
+  const siteHost = client ? ownedHost(client) : null
+
   await payload.sendEmail({
     to: registrantEmail,
     // Resend verifies senders per domain, so we can't send as the client. The
@@ -82,7 +100,7 @@ export async function sendRegistrationConfirmation(args: {
         strings,
         details,
         locale,
-        websiteUrl: client?.websiteUrl,
+        websiteUrl: siteHost ? `https://${siteHost}` : null,
       }),
     )),
     ...(calendar && {

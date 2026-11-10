@@ -357,6 +357,12 @@ hand-written data-only migration**, since the seed files reach only a fresh
 database. It carries no DDL, so none of the above applies to it.
 `src/globals/AGENTS.md` owns that rule and its guards.
 
+⚠ **No backtick may appear inside the SQL, a `--` comment included.** The whole
+statement block is a JavaScript template literal, so one backtick closes it and
+`tsc` reports `TS1005: ',' expected` on a line that reads as valid SQL. Name a
+column in double quotes, and write "the down migration" rather than quoting a
+symbol.
+
 When you do edit, change only what is necessary — no defensive NULL-ing, no
 cleanup the FK cascade already handles. Design features so an unpopulated
 new column degrades gracefully until a follow-up job hydrates it.

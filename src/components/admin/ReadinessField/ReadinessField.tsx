@@ -1,11 +1,11 @@
 'use client'
 
-import type { SummaryTone } from './summary'
 import type { JSONFieldClientComponent } from 'payload'
 
 import { Button, Collapsible, useField, useLocale } from '@payloadcms/ui'
 import React from 'react'
 
+import type { Tone } from '@/components/admin/helpers/tones'
 import type { ReadinessFieldAdminCustom } from '@/lib/status/virtualReadinessField'
 import type { ReadinessReport } from '@/payload-types'
 
@@ -29,7 +29,7 @@ export type ReadinessFieldCustom = ReadinessFieldAdminCustom
  * green when every required group passes, amber when there's some document-level
  * progress, red when there's none, neutral when there are no required groups.
  */
-function sectionTone(report: ReadinessReport | null): SummaryTone {
+function sectionTone(report: ReadinessReport | null): Tone {
   if (!report || report.summary.total === 0) return 'neutral'
   if (report.passing) return 'success'
   return report.progress.passing > 0 ? 'warning' : 'danger'

@@ -24,9 +24,10 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * fires through `payload.find` and the custom Atlas endpoints, and that a
  * disallowed origin yields a 403.
  *
- * `req.user.allowedDomains` is set on the mock user exactly as production
- * provides it — the API-key auth loads the full client doc as `req.user`, and the
- * hook only reads that field (it never re-queries).
+ * `req.user.site.domain` is set on the mock user exactly as production provides
+ * it — the API-key auth loads the full client doc as `req.user`, and the hook
+ * only reads that field (it never re-queries). A service is one site: its domain
+ * and that domain's www twin, and no other browser origin.
  */
 const SCHEDULE = {
   firstDate: '2025-01-06T10:00:00.000Z',
@@ -43,9 +44,9 @@ describe('client Origin/Referer enforcement', () => {
   let narratorId: number
   let eventId: number
 
-  // Build a client request carrying the given allowlist + origin/referer headers.
+  // Build a client request for a service on `domain`, with origin/referer headers.
   function clientReq(opts: {
-    allowedDomains?: string | null
+    domain?: string | null
     origin?: string
     referer?: string
   }): PayloadRequest {
@@ -59,9 +60,9 @@ describe('client Origin/Referer enforcement', () => {
       user: {
         id: clientId,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
-        allowedDomains: opts.allowedDomains ?? null,
+        site: { domain: opts.domain ?? null },
       },
     } as unknown as PayloadRequest
   }
@@ -123,76 +124,89 @@ describe('client Origin/Referer enforcement', () => {
     await cleanup()
   })
 
-  describe('non-empty allowedDomains', () => {
-    const allowedDomains = 'allowed.org\n*.wild.org'
+  describe('a service with a domain', () => {
+    const domain = 'allowed.org'
 
-    it('rejects with 403 when the Origin host is not in the list', async () => {
+    it('rejects with 403 when the Origin host is another site', async () => {
       await expect(
-        findNarrators(clientReq({ allowedDomains, origin: 'https://evil.org' })),
+        findNarrators(clientReq({ domain, origin: 'https://evil.org' })),
       ).rejects.toMatchObject({ status: 403 })
     })
 
-    it('allows when the Origin host matches exactly', async () => {
-      const result = await findNarrators(
-        clientReq({ allowedDomains, origin: 'https://allowed.org' }),
-      )
+    it('allows when the Origin host is the domain', async () => {
+      const result = await findNarrators(clientReq({ domain, origin: 'https://allowed.org' }))
       expect(result.docs.map((d) => d.id)).toContain(narratorId)
+    })
+
+    it('allows the www twin of the domain, both ways round', async () => {
+      const www = await findNarrators(clientReq({ domain, origin: 'https://www.allowed.org' }))
+      expect(www.docs.map((d) => d.id)).toContain(narratorId)
+      const apex = await findNarrators(
+        clientReq({ domain: 'www.allowed.org', origin: 'https://allowed.org' }),
+      )
+      expect(apex.docs.map((d) => d.id)).toContain(narratorId)
+    })
+
+    it('rejects any other subdomain — one domain, no wildcards', async () => {
+      await expect(
+        findNarrators(clientReq({ domain, origin: 'https://sub.allowed.org' })),
+      ).rejects.toMatchObject({ status: 403 })
     })
 
     it('allows when only the Referer matches (no Origin header)', async () => {
       const result = await findNarrators(
-        clientReq({ allowedDomains, referer: 'https://allowed.org/widget?x=1' }),
+        clientReq({ domain, referer: 'https://allowed.org/widget?x=1' }),
       )
       expect(result.docs.map((d) => d.id)).toContain(narratorId)
-    })
-
-    it('allows a subdomain via a *. wildcard entry', async () => {
-      const result = await findNarrators(
-        clientReq({ allowedDomains, origin: 'https://sub.wild.org' }),
-      )
-      expect(result.docs.map((d) => d.id)).toContain(narratorId)
-    })
-
-    it('rejects the apex of a *. wildcard entry with 403', async () => {
-      await expect(
-        findNarrators(clientReq({ allowedDomains, origin: 'https://wild.org' })),
-      ).rejects.toMatchObject({ status: 403 })
     })
 
     it('allows when no Origin/Referer is present (server-to-server)', async () => {
-      const result = await findNarrators(clientReq({ allowedDomains }))
+      const result = await findNarrators(clientReq({ domain }))
       expect(result.docs.map((d) => d.id)).toContain(narratorId)
     })
   })
 
-  describe('empty allowedDomains', () => {
-    it('allows any origin when the list is null', async () => {
+  describe('a service with no domain', () => {
+    it('allows any origin — an app key has no browser origin to check', async () => {
       const result = await findNarrators(
-        clientReq({ allowedDomains: null, origin: 'https://anything.example' }),
+        clientReq({ domain: null, origin: 'https://anything.example' }),
       )
       expect(result.docs.map((d) => d.id)).toContain(narratorId)
     })
+  })
 
-    it('allows any origin when the list is blank/whitespace', async () => {
-      const result = await findNarrators(
-        clientReq({ allowedDomains: '   \n  ', origin: 'https://anything.example' }),
-      )
-      expect(result.docs.map((d) => d.id)).toContain(narratorId)
+  // The two branches `siteHosts` answers `[]` for. Collapsing them turns the gate
+  // off for the second, which is the opposite of what a wildcard asked for.
+  describe('a service whose domain names no host', () => {
+    it('rejects every origin for a wildcard domain, apex and subdomain alike', async () => {
+      const domain = '*.allowed.org'
+      await expect(
+        findNarrators(clientReq({ domain, origin: 'https://sub.allowed.org' })),
+      ).rejects.toMatchObject({ status: 403 })
+      await expect(
+        findNarrators(clientReq({ domain, origin: 'https://allowed.org' })),
+      ).rejects.toMatchObject({ status: 403 })
+    })
+
+    it('rejects a server-to-server read too — there is no origin to allow', async () => {
+      await expect(findNarrators(clientReq({ domain: '*' }))).rejects.toMatchObject({
+        status: 403,
+      })
     })
   })
 
   describe('custom Atlas endpoints', () => {
-    const allowedDomains = 'allowed.org'
+    const domain = 'allowed.org'
 
     it('geojson: 403 for a disallowed origin', async () => {
-      const req = clientReq({ allowedDomains, origin: 'https://evil.org' })
+      const req = clientReq({ domain, origin: 'https://evil.org' })
       req.query = { select: { title: true }, depth: 1 }
       const res = (await eventsGeoJson.handler(req)) as Response
       expect(res.status).toBe(403)
     })
 
     it('geojson: 200 for an allowed origin', async () => {
-      const req = clientReq({ allowedDomains, origin: 'https://allowed.org' })
+      const req = clientReq({ domain, origin: 'https://allowed.org' })
       req.query = { select: { title: true }, depth: 1 }
       const res = (await eventsGeoJson.handler(req)) as Response
       expect(res.status).toBe(200)
@@ -214,7 +228,7 @@ describe('client Origin/Referer enforcement', () => {
 
     it('register: 403 for a disallowed origin', async () => {
       await expect(
-        register(clientReq({ allowedDomains, origin: 'https://evil.org' }), 'reg@evil.org'),
+        register(clientReq({ domain, origin: 'https://evil.org' }), 'reg@evil.org'),
       ).rejects.toMatchObject({ status: 403 })
     })
 
@@ -223,7 +237,7 @@ describe('client Origin/Referer enforcement', () => {
       // (mailchecker) happens to blacklist allowed.org, and this test is about
       // origins, not email screening.
       const doc = await register(
-        clientReq({ allowedDomains, origin: 'https://allowed.org' }),
+        clientReq({ domain, origin: 'https://allowed.org' }),
         'reg@example.com',
       )
       expect(doc.uuid).toBeTruthy()

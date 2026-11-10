@@ -65,6 +65,7 @@ export {
   getProjectOptions,
   isValidProject,
   // Access control functions (from config/roles.ts)
+  getJoinProject,
   getRoleProject,
   getProjectCollections,
   getAllProjectCollections,

@@ -322,8 +322,8 @@ Never paste a secret into git or email.
   screen. The test site key `1x00000000000000000000AA` pairs with the test secret above.
   ⚠ **The production key's hostname list in the Cloudflare dashboard is this service's host
   alone** (`cloud.sydevelopers.com`), since the challenge always renders here — no partner
-  hostname, no `localhost`. Which pages may receive a token is decided by `clients.allowedDomains`
-  instead (`docs/rules/api-clients.md`).
+  hostname, no `localhost`. Which pages may receive a token is decided by each service's
+  `site.domain` instead (`docs/rules/api-clients.md`).
 
 ### Frontend URLs
 
@@ -387,12 +387,37 @@ No row carries `canonical.verification.routingProbe` before the deploy that intr
 the widget's own self-report into the field that shapes public URLs, which is the boundary #633
 drew — and every existing embed has to be re-verified by hand regardless.
 
-Press **Verify now** on each enabled canonical owner (Clients → the service → **SEO**) after the
+Press **Check again** on each canonical owner (Services → the service → **Install**) after the
 deploy. One positive probe promotes a host that serves the widget under the mount's subtree back
 to `path`. Left alone, the nightly `VerifyEmbeds` job gets there on its own `nextVerifyAt`
 watermark, which in backoff can be up to 8 days out. A host that serves the subtree but refuses
 headless renders stays on `query` — see "Routing is derived, never configured" in
 [`docs/rules/clients.md`](./docs/rules/clients.md).
+
+### ⚠ Before the deploy: one site per service (#1055 follow-up)
+
+The `20261106_094841_clients_one_site` migration replaces drafts with `enabled`, and
+`allowedDomains` with one `site.domain` — **the first entry of the old list** (split on lines,
+commas and spaces). Every other entry stops being an allowed origin on deploy, and is recorded
+in the service's notes. Two services hold more than one today, so before deploying:
+
+1. **Split Sahaja Yoga FR.** `yogaessonne.fr` needs a service of its own. Create it, give its
+   managers the new key, and have the site install it **before** the deploy — otherwise its map
+   stops loading the moment the migration runs (only `sahajayoga.fr` is kept).
+2. **Delete the legacy Sahaj Atlas services** ("Sahaj Atlas", "Sahaj Atlas Dev"). They are not
+   needed, and the migration would keep only `syatlas.pages.dev` from the first.
+3. **Publish or discard any unpublished draft edit.** Drafts never reached the main row, and the
+   migration drops the version tables they live in. List them first:
+   `select v.parent_id from _clients_v v join clients c on c.id = v.parent_id where v.latest and
+v.version__status = 'draft' and v.updated_at > c.updated_at;`
+
+Read the domain lists first: `select id, name, allowed_domains from clients where allowed_domains
+~ '[,*[:space:]]' or allowed_domains !~ '[.]';` on production.
+
+After the deploy, each service's address, region and status show on its Install tab. A wildcard
+keeps its apex (`*.sahajayoga.ca` becomes `sahajayoga.ca`). A service whose old list named no
+usable host (an `n/a`) has no domain until someone sets one there — its key then enforces no
+browser origin, as an app's key does — and its notes say so.
 
 ## Verifying Deployments
 

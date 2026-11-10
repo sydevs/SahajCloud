@@ -48,13 +48,16 @@ Almost every endpoint belongs to a collection and lives in its `endpoints/` fold
 
 ```typescript
 // src/payload.config.ts
+import { atlasChallenge } from './endpoints/atlas/challenge'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
+import { atlasWixRoute } from './endpoints/atlas/wix/route'
+import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 
-endpoints: [atlasSeo, atlasSitemap, atlasChallenge],
+endpoints: [atlasSeo, atlasSitemap, atlasChallenge, atlasWixRoute, atlasWixSitemap],
 ```
 
-The bar is high. Three endpoints clear it: `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/challenge` (#1072) is an HTML document the Atlas widget frames to render its captcha, gated by every client's `allowedDomains` at once rather than by one row.
+The bar is high. Five endpoints clear it, over three resources. `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055) are Wix-shaped **serializers** over those same two resolutions, so they inherit the same answer: a Wix Velo router needs JSON-LD as objects, the crawlable body as HTML, and `description`/`robots` as `metaTags` rows, each of which would break a current reader of the published shapes. ⚠ **A resolution therefore carries what every shape needs, and each shape serializes its own way out** — `resolveAtlasSeo` answers `AtlasSeoDocument`, with the JSON-LD as a graph, and `GET /api/atlas/seo` is the one surface that escapes it into a string. Pushing a serialization into the resolution makes the other shape parse it back out. They clear the bar because they serialize an ownerless resource, not because a second shape is reason enough for a second endpoint — a new shape over a **collection's** resource still belongs in that collection's folder. `GET /api/atlas/challenge` (#1072) is an HTML document the Atlas widget frames to render its captcha, gated by every active client's domain at once rather than by one row.
 
 ⚠ **The challenge page is the one root endpoint with no client guard, no meter and no OpenAPI entry**, all for one reason: a frame navigation carries no `Authorization` header, so it is anonymous by construction, and it is a page rather than an API a third party integrates. Its docblock says so, as the rule below requires.
 
@@ -76,10 +79,10 @@ Those supporting modules are single-owner code and belong here, not in `src/lib/
 
 **A root endpoint loses the usage plugin's `beforeOperation` hooks**, since those only run on collection operations:
 
-- **Origin enforcement.** Call `assertClientOriginAllowed(req)` from `@/plugins/usage` directly, right after `requireActiveClient`, and map the thrown `APIError` to a response. Don't rely on an incidental collection read to trigger it — `clients` itself is excluded from the plugin, so reading the caller's own record wouldn't fire it either.
-- **Usage tracking.** Nothing here counts the route, so call `countClientRead(req)` from `@/plugins/usage` once, after the gates. It is idempotent per request, so a forwarded collection read adds nothing — and a route that reads no metered collection at all (`GET /api/atlas/seo`'s root) would otherwise count nothing (#891). A **collection** endpoint needs no such call: its own reads count it. See "One request, one count" in `docs/rules/api-clients.md`.
+- **Origin enforcement.** The plugin's check has to be called by hand, and it throws rather than returning — so call **`requireClientAccess`** (`@/lib/endpoints`) in place of `requireActiveClient`: it runs the published-client guard, then `assertClientOriginAllowed(req)`, and maps the thrown `APIError` to the standard envelope. Don't hand-roll the pair; five handlers each carried their own copy of the try/catch before the helper existed. Don't rely on an incidental collection read to trigger the check either — `clients` itself is excluded from the plugin, so reading the caller's own record wouldn't fire it.
+- **Usage tracking.** Nothing here counts the route, so call `countClientRead(req)` from `@/plugins/usage` once, after the gates **and after the query parse** — which is why `requireClientAccess` does not fold it in: counted at the gate, an unreadable query parameter would cost a quota unit. It is idempotent per request, so a forwarded collection read adds nothing — and a route that reads no metered collection at all (`GET /api/atlas/seo`'s root) would otherwise count nothing (#891). A **collection** endpoint needs no such call: its own reads count it. See "One request, one count" in `docs/rules/api-clients.md`.
 
-Everything else still applies: `requireActiveClient` as the first statement, and an OpenAPI entry — see the root-path note in `docs/rules/openapi.md`, since project visibility cannot be derived from a path segment naming no collection.
+Everything else still applies: the client gate as the first statement, and an OpenAPI entry — see the root-path note in `docs/rules/openapi.md`, since project visibility cannot be derived from a path segment naming no collection.
 
 ## Registration
 
@@ -117,7 +120,7 @@ Every new public (client-facing) collection endpoint needs all three. A PR that 
 
 ### 1. Authenticate the caller
 
-Public endpoints serve **published API clients**. Gate every handler with `requireActiveClient` (from `@/lib/endpoints`) as its first statement, and short-circuit on a non-null return:
+Public endpoints serve **active API clients** (`Clients.enabled`). Gate every handler with `requireActiveClient` (from `@/lib/endpoints`) as its first statement, and short-circuit on a non-null return:
 
 ```typescript
 import { requireActiveClient } from '@/lib/endpoints'
@@ -129,7 +132,7 @@ handler: async (req) => {
 }
 ```
 
-`requireActiveClient` returns `403` unless the caller is a **published** `clients` user. Don't hand-roll the check — it is the single source for the guard's shape and message. An endpoint that must skip it (internal or admin-only) needs a comment saying why.
+`requireActiveClient` returns `403` unless the caller is an **active** `clients` user. Don't hand-roll the check — it is the single source for the guard's shape and message. A **root** endpoint calls `requireClientAccess` instead, which is this guard plus the origin check it owes (above). An endpoint that must skip it (internal or admin-only) needs a comment saying why.
 
 ⚠ **Hand-rolling it also costs you the rejected-credential signal.** A `403` this guard _returns_ never reaches Payload's `afterError` hook, so the guard reports a presented-and-rejected API key itself (#743) — see `docs/rules/api-clients.md`. A hand-rolled check is silent, and a dead integration hammering the endpoint stays invisible.
 

@@ -86,7 +86,7 @@ describe('per-locale role scoping', () => {
     const client = testData.dummyUser('clients', {
       id: 2,
       roles: ['wemeditate-web-client'],
-      _status: 'published',
+      enabled: true,
     })
 
     for (const locale of ['fr', 'de', 'union', undefined] as const) {
