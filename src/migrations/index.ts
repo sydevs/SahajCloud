@@ -117,6 +117,7 @@ import * as migration_20261106_094841_clients_one_site from './20261106_094841_c
 import * as migration_20261107_220312_merge_1075_main_snapshot_2 from './20261107_220312_merge_1075_main_snapshot_2';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261108_220101_merge_1075_main_snapshot_3 from './20261108_220101_merge_1075_main_snapshot_3';
+import * as migration_20261110_172005_merge_1075_main_snapshot_4 from './20261110_172005_merge_1075_main_snapshot_4';
 
 export const migrations = [
   {
@@ -712,6 +713,11 @@ export const migrations = [
   {
     up: migration_20261108_220101_merge_1075_main_snapshot_3.up,
     down: migration_20261108_220101_merge_1075_main_snapshot_3.down,
-    name: '20261108_220101_merge_1075_main_snapshot_3'
+    name: '20261108_220101_merge_1075_main_snapshot_3',
+  },
+  {
+    up: migration_20261110_172005_merge_1075_main_snapshot_4.up,
+    down: migration_20261110_172005_merge_1075_main_snapshot_4.down,
+    name: '20261110_172005_merge_1075_main_snapshot_4'
   },
 ];
