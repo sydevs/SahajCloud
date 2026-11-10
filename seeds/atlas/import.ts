@@ -1701,12 +1701,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
   }
 }
 
-/**
- * The first host a legacy `config.domain` names, or `null`. Atlas held one host
- * or a list; a service is one site now, so only the first is kept, and any
- * second site needs a service of its own. A wildcard keeps its apex, as the
- * one-site migration does — no domain would enforce no browser origin at all.
- */
 /** The later of two ISO timestamps, either of which may be missing. */
 function laterDate(a: string | null | undefined, b: string | null | undefined): string | null {
   if (!a) return b ?? null
@@ -1714,6 +1708,12 @@ function laterDate(a: string | null | undefined, b: string | null | undefined): 
   return Date.parse(a) >= Date.parse(b) ? a : b
 }
 
+/**
+ * The first host a legacy `config.domain` names, or `null`. Atlas held one host
+ * or a list; a service is one site now, so only the first is kept, and any
+ * second site needs a service of its own. A wildcard keeps its apex, as the
+ * one-site migration does — no domain would enforce no browser origin at all.
+ */
 function firstDomain(raw: string | null | undefined): string | null {
   for (const entry of (raw ?? '').split(/[\s,]+/)) {
     const host = normalizeCanonicalDomain(normalizeHost(entry)?.replace(/^\*\./, ''))
