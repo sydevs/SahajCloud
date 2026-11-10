@@ -328,7 +328,7 @@ export function createClientAuthenticatedRequest(
     user: {
       id: clientId,
       collection: 'clients' as const,
-      _status: 'published',
+      enabled: true,
       roles,
     } as unknown as PayloadRequest['user'],
   }

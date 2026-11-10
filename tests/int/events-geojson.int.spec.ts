@@ -13,7 +13,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
 type TestUser = {
   id: number | string
   collection: string
-  _status?: 'published' | 'draft'
+  enabled?: boolean
   roles?: string[]
 } | null
 
@@ -79,7 +79,7 @@ describe('eventsGeoJson endpoint', () => {
     client = {
       id: clientDoc.id,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
     }
 
@@ -165,7 +165,7 @@ describe('eventsGeoJson endpoint', () => {
       const { status } = await callGeoJson(SELECT, {
         id: client!.id,
         collection: 'clients',
-        _status: 'draft',
+        enabled: false,
         roles: ['sahaj-atlas-client'],
       })
       expect(status).toBe(403)

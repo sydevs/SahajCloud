@@ -33,12 +33,7 @@ export {
 } from './hooks'
 
 // Origin/Referer enforcement helpers (for testing)
-export {
-  extractRequestHost,
-  isHostAllowed,
-  normalizeHost,
-  parseAllowedDomains,
-} from './originEnforcement'
+export { extractRequestHost, isHostAllowed, normalizeHost } from './originEnforcement'
 
 // Raw-SQL seam — the pg pool behind Payload's adapter plus its schema, quoted.
 // Shared by anything that has to write a `clients` row outside the request

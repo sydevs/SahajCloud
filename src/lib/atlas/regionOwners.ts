@@ -2,7 +2,7 @@ import type { CanonicalTarget } from './canonicalUrl'
 import type { PayloadRequest, Where } from 'payload'
 
 import type { RoutingMode } from '@/lib/clients/canonical'
-import { isValidCanonicalDomain } from '@/lib/clients/canonical'
+import { verifiedHomeHost } from '@/lib/clients/site'
 import { serverEnv } from '@/lib/env'
 import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
@@ -13,9 +13,10 @@ import { getRegionTree } from './regionTree'
 /**
  * Which client owns the canonical URLs for each region (#634).
  *
- * A client declares ownership of one region (`canonical.enabled`, `region`,
- * and `canonical.embed`, enforced unique per region by
- * `validateCanonicalOwnership`). That ownership then covers the whole
+ * A client owns one region (`canonical.owned` and `region`, enforced unique per
+ * region by `validateCanonicalOwnership`). The flag is the server's: the
+ * Install tab's claim sets it, and the VerifyEmbeds job clears it after
+ * repeated failures. That ownership then covers the whole
  * subtree beneath it. A sub-region, and an event inside it, resolve to the
  * same owner, with the **nearest** ancestor winning over a more distant
  * one: Greater London under `sahajayogalondon.co.uk`, not
@@ -23,14 +24,11 @@ import { getRegionTree } from './regionTree'
  *
  * **The host and mount come from `canonical.verification.verified`, and the
  * routing shape from the `routingProbe` verdict beside it — never from the
- * declaration itself.** `canonical.embed` only *nominates*
- * one of the mounts the widget reported, and the report endpoint is
- * reachable by anyone holding a published key from an allowed origin
- * (#633). Only the verification job writes `verified`, from what it
- * observed loading the page itself, so a forged report can nominate a
- * mount, but can never reshape a public URL. An enabled client whose embed
- * has not yet verified therefore owns nothing, and falls through to the
- * next ancestor.
+ * service's own `site`.** `site` is what its managers typed. Only the
+ * verification job writes `verified`, from what it observed loading the page
+ * itself, so neither a manager nor a forged report can reshape a public URL. An
+ * owning client whose page has not verified therefore owns nothing, and falls
+ * through to the next ancestor.
  *
  * This loads lazily, and memoizes separately from the region tree, so a
  * read that only wants `webPath` (the widget's geojson feed selects
@@ -53,8 +51,11 @@ export interface CanonicalOwner {
 export interface ClientRow {
   id: number
   region?: unknown
+  enabled?: boolean | null
+  /** The address the service is at now, which the verified page must still be. */
+  site?: { domain?: string | null; page?: string | null } | null
   canonical?: {
-    enabled?: boolean | null
+    owned?: boolean | null
     verification?: {
       verified?: {
         domain?: string | null
@@ -78,15 +79,17 @@ const FALLBACK_CLIENT_MEMO_KEY = 'atlas:canonicalFallbackClientId'
 /**
  * Which clients may own a canonical, as `where` clauses.
  *
- * One definition, because both readers below apply it, and a third
- * condition added to only one of them would silently let the fallback keep
- * the old rule. `_status` is explicit, rather than left to the default
- * `draft: false`. A draft-only client has not been signed off as
- * canonical-viable, which is a correctness rule, not a read mode.
+ * ⚠ **The one definition of region ownership**, with {@link canonicalOwnerFrom}
+ * for the verified host it publishes on and `ownedHost` (`@/lib/clients/site`) for a row
+ * already in hand. Every reader applies these — canonical URLs, the sitemap,
+ * the SEO root, the fallback client, registrant emails — so a third condition
+ * added to only one of them would let that reader keep the old rule. An
+ * inactive service has not been signed off, which is a correctness rule, not a
+ * read mode.
  */
 const CANONICAL_ELIGIBLE = [
-  { 'canonical.enabled': { equals: true } },
-  { _status: { equals: 'published' } },
+  { 'canonical.owned': { equals: true } },
+  { enabled: { equals: true } },
 ] as const
 
 /**
@@ -118,7 +121,7 @@ export async function loadRegionClaims<Owner>(
     // stable across requests, instead of depending on row order.
     sort: 'id',
     where: { and: [...eligible, { region: { exists: true } }] },
-    select: { region: true, canonical: true },
+    select: { region: true, canonical: true, enabled: true, site: true },
   })
 
   const owners = new Map<number, Owner>()
@@ -158,15 +161,20 @@ function loadDirectOwners(req: PayloadRequest): Promise<Map<number, CanonicalOwn
  * directions. The domain check is the load-bearing half. See the comment
  * in {@link loadDirectOwners} for why this re-checks it, rather than
  * trusting it.
+ *
+ * ⚠ **The verified page must still be the service's address.** `verified` is
+ * kept through failures, so after a move it names the old page — where the key
+ * no longer loads — until the new page verifies. Until then the row owns
+ * nothing, and its region falls through to the next ancestor.
  */
 function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
-  const verified = row.canonical?.verification?.verified
-  if (!isValidCanonicalDomain(verified?.domain)) return undefined
+  const domain = verifiedHomeHost(row)
+  if (!domain) return undefined
 
   return {
     clientId: row.id,
-    domain: verified.domain,
-    mount: verified.mount ?? '/',
+    domain,
+    mount: row.canonical?.verification?.verified?.mount ?? '/',
     // Derived, not reported (#644): the probe is what the host's server
     // actually does. The resolver reads the row with its own `select`, which
     // does not run the `canonical.routing` hook, so the default is applied here.
@@ -252,7 +260,7 @@ export async function canonicalOwnerForClient(
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { canonical: true },
+    select: { canonical: true, site: true },
     req,
   })
 
@@ -348,7 +356,7 @@ export function getRegionOwners(req: PayloadRequest): Promise<Map<number, Canoni
 export function canonicalTargetFor(owner: CanonicalOwner | undefined): CanonicalTarget {
   // An owner whose verified host is not a bare host cannot make a
   // canonical URL — see `canonicalTargetForHost`. (A port survives
-  // `allowedDomains`, which compares port-stripped hostnames.) Treat this
+  // the origin check, which compares port-stripped hostnames.) Treat this
   // as no owner, rather than publishing a host nobody chose.
   const owned = owner ? canonicalTargetForHost(owner, owner.routing) : null
   if (owned) return owned

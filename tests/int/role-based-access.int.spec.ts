@@ -375,6 +375,50 @@ describe('Role-Based Access Control', () => {
       })
     })
 
+    describe('Services — the derived `atlas-service-manager` role (#1055)', () => {
+      it('derives from an atlas service, never from an app key, and grants no service of its own', async () => {
+        const created = await testData.createManager(payload, {
+          name: 'Derived Service Manager',
+          roles: [],
+        })
+        const app = await testData.createClient(payload, created.id, {
+          name: 'Derived App Key',
+          roles: ['wemeditate-app-client'],
+        })
+        expect(virtualRoles(await testData.authUser(payload, created))).toEqual([])
+
+        const mine = await testData.createClient(payload, created.id, {
+          name: 'Derived Atlas Site',
+          roles: ['sahaj-atlas-client'],
+        })
+        const stranger = await testData.createManager(payload, { roles: [] })
+        const other = await testData.createClient(payload, stranger.id, {
+          name: 'Derived Other Site',
+          roles: ['sahaj-atlas-client'],
+        })
+        const manager = await testData.authUser(payload, created)
+        expect(virtualRoles(manager)).toEqual(['atlas-service-manager'])
+
+        // Payload 404s a hidden collection's document route, so this is what
+        // opens the Install tab to them.
+        const hidden = payload.collections.clients.config.admin.hidden as (args: {
+          user: unknown
+        }) => boolean
+        expect(hidden({ user: manager })).toBe(false)
+        const unlisted = await testData.createManager(payload, { roles: [] })
+        expect(hidden({ user: await testData.authUser(payload, unlisted) })).toBe(true)
+
+        // The role adds no `clients` grant: the listing is what reaches a row.
+        const read = await payload.find({
+          collection: 'clients',
+          where: { id: { in: [mine.id, other.id, app.id] } },
+          user: manager,
+          overrideAccess: false,
+        })
+        expect(read.docs.map((doc) => doc.id).sort()).toEqual([mine.id, app.id].sort())
+      })
+    })
+
     describe('Pages — the derived `page-editor` role', () => {
       // `authUser`, not the create response: the role is read off the
       // `managedPages` join, which only a re-read carries.
@@ -1780,7 +1824,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // Create a draft page (default status is draft)
@@ -1821,7 +1865,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for ID Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       const draftPage = await payload.create({
@@ -1856,7 +1900,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Published Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // Create and publish a page
@@ -1918,9 +1962,9 @@ describe('Role-Based Access Control', () => {
       const draftClient = await testData.createClient(payload, admin.id, {
         name: 'Draft (unpublished) API Client',
         roles: ['wemeditate-web-client'],
-        _status: 'draft',
+        enabled: false,
       })
-      expect(draftClient._status).toBe('draft')
+      expect(draftClient.enabled).toBe(false)
 
       // ...but publish/unpublish is the auth gate, so the bypass denies it.
       expect(
@@ -1961,7 +2005,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Preview Client for Draft Page Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       const draftPage = await payload.create({
@@ -2001,7 +2045,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       const publishedCard = await testData.createAppCard(payload, {
@@ -2036,7 +2080,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Web Client for Cards Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // Attempt to list app-cards as web client - should throw Forbidden
@@ -2059,7 +2103,7 @@ describe('Role-Based Access Control', () => {
         const client = await testData.createClient(payload, admin.id, {
           name: 'App Client for Lectures Read Test',
           roles: ['wemeditate-app-client'],
-          _status: 'published',
+          enabled: true,
         })
 
         const lecture = await testData.createLecture(payload, undefined, {
@@ -2151,7 +2195,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Meditation Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // Create a draft meditation using testData helper (handles file upload)
@@ -2202,7 +2246,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Preview Client for Draft Meditation Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       const draftMeditation = await testData.createMeditation(payload, undefined, {
@@ -2239,7 +2283,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, admin.id, {
         name: 'Test API Client for Non-Draft Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // Create a narrator (not a draft-enabled collection)
@@ -2501,7 +2545,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, versionAdmin.id, {
         name: 'Atlas Client for Version History Test',
         roles: ['sahaj-atlas-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       // The ordinary read is already Forbidden — this is the baseline the
@@ -2536,7 +2580,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, versionAdmin.id, {
         name: 'Web Client for Version History Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       const published = await payload.find({
@@ -2852,7 +2896,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, versionAdmin.id, {
         name: 'Web Client for Global Version History Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
 
       await expect(
@@ -2872,7 +2916,7 @@ describe('Role-Based Access Control', () => {
       const client = await testData.createClient(payload, versionAdmin.id, {
         name: 'Preview Client for Version History Test',
         roles: ['wemeditate-web-client'],
-        _status: 'published',
+        enabled: true,
       })
       const previewReq = await createTrustedPreviewRequest(
         payload,

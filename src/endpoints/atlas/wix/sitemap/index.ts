@@ -1,0 +1,63 @@
+import type { Endpoint } from 'payload'
+
+import { siteHosts } from '@/lib/clients/site'
+import {
+  parseQuery,
+  readFailureResponse,
+  requireClientAccess,
+  requireIntegerClientId,
+} from '@/lib/endpoints'
+import type { Client } from '@/payload-types'
+import { publicReadCacheHeaders } from '@/plugins/cache'
+import { countClientRead } from '@/plugins/usage'
+
+import { resolveAtlasSitemap } from '../../sitemap/resolve'
+import { type AtlasWixSitemapEntry, wixSitemapQuery } from '../contract'
+import { wixSitemapEntries } from '../shape'
+
+/**
+ * GET /api/atlas/wix/sitemap?prefix=free-classes
+ *
+ * Every atlas page this client owns, as Velo `*_SiteMap` entries (#1055) — the
+ * resolution `GET /api/atlas/sitemap` answers from, so a Wix sitemap and its
+ * pages' canonicals cannot name different URLs.
+ *
+ * - **An array, not an envelope**, returned verbatim by the generated function.
+ *   No `generated` timestamp: Wix caches whole responses, and it is the one
+ *   field that moves between two identical answers.
+ * - A client with no `site.domain` has no host, and gets `[]` — an answer, not
+ *   an error.
+ *
+ * A root endpoint, so the gates are called by hand (`docs/rules/endpoints.md`).
+ */
+export const atlasWixSitemap: Endpoint = {
+  path: '/atlas/wix/sitemap',
+  method: 'get',
+  handler: async (req) => {
+    const denied = requireClientAccess(req)
+    if (denied) return denied
+
+    const parsed = parseQuery(req, wixSitemapQuery)
+    if (!parsed.ok) return parsed.response
+
+    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    if (!caller.ok) return caller.response
+    const { clientId } = caller
+
+    await countClientRead(req)
+
+    try {
+      const body: AtlasWixSitemapEntry[] = wixSitemapEntries({
+        resolution: await resolveAtlasSitemap({ req, clientId }),
+        prefix: parsed.data.prefix,
+        hosts: siteHosts((req.user as Client | undefined)?.site?.domain),
+      })
+      return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
+    } catch (error) {
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
+        msg: 'atlasWixSitemap: read failed',
+        clientId,
+      })
+    }
+  },
+}

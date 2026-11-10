@@ -21,7 +21,7 @@
  *   second implementation of #640 free to disagree with the first.
  */
 
-import type { JsonLdNode } from './jsonLd'
+import type { JsonLdGraph, JsonLdNode } from './jsonLd'
 import type { AtlasSeoAddress } from '../../responseTypes'
 import type {
   AtlasSeoAlternate,
@@ -40,7 +40,19 @@ import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { getLocalTimeHHMM } from '@/lib/schedule/scheduleHooks'
 import type { Event } from '@/payload-types'
 
-import { breadcrumbList, compactNode, jsonLdEscape, jsonLdGraph } from './jsonLd'
+import { breadcrumbList, compactNode, jsonLdGraph } from './jsonLd'
+
+/** Distributive, so each union member keeps its own `content` narrowing. */
+type WithGraph<T> = T extends unknown ? Omit<T, 'jsonLd'> & { jsonLdGraph: JsonLdGraph } : never
+
+/**
+ * One resolved SEO answer, carrying its JSON-LD as **objects**.
+ *
+ * ⚠ **This is the internal shape; the published one is derived from it.** Only
+ * `GET /api/atlas/seo` needs the pre-escaped string, so it escapes on the way
+ * out and no surface parses its own output back (#1055).
+ */
+export type AtlasSeoDocument = WithGraph<AtlasSeoResponse>
 
 /**
  * A rich-text value as plain-text paragraphs; `[]` when it is empty, absent or
@@ -384,7 +396,7 @@ function eventNode(input: EventSeoInput, content: AtlasSeoEventContent): JsonLdN
 }
 
 /** The SEO answer for an event route. */
-export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
+export function buildEventSeo(input: EventSeoInput): AtlasSeoDocument {
   const { event, route, canonical, breadcrumbs, images, locale, locales } = input
   const paragraphs = lexicalToParagraphs(event.description)
   const content: AtlasSeoEventContent = {
@@ -421,7 +433,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
       locale,
       image: content.images[0] ?? null,
     }),
-    jsonLd: jsonLdEscape(jsonLdGraph([eventNode(input, content), breadcrumbList(breadcrumbs)])),
+    jsonLdGraph: jsonLdGraph([eventNode(input, content), breadcrumbList(breadcrumbs)]),
     breadcrumbs,
     content,
   }
@@ -440,7 +452,7 @@ export function buildEventSeo(input: EventSeoInput): AtlasSeoResponse {
  * tells a crawler nothing it does not already have — the same rule
  * {@link breadcrumbList} applies everywhere else.
  */
-export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
+export function buildRootSeo(input: RootSeoInput): AtlasSeoDocument {
   const { title, canonical, locale, locales } = input
   // The bound applies to the `<meta>` value alone, exactly as it does for an
   // event: `content.paragraphs` keeps the operator's full sentence, since
@@ -463,23 +475,21 @@ export function buildRootSeo(input: RootSeoInput): AtlasSeoResponse {
     canonical,
     alternates: hreflangAlternates(canonical, locales),
     openGraph: openGraph({ title, description, canonical, locale, image: null }),
-    jsonLd: jsonLdEscape(
-      jsonLdGraph([
-        compactNode({
-          '@type': 'WebSite',
-          name: title,
-          url: canonical ?? undefined,
-          description: description ?? undefined,
-        }),
-      ]),
-    ),
+    jsonLdGraph: jsonLdGraph([
+      compactNode({
+        '@type': 'WebSite',
+        name: title,
+        url: canonical ?? undefined,
+        description: description ?? undefined,
+      }),
+    ]),
     breadcrumbs: [],
     content: { paragraphs },
   }
 }
 
 /** The SEO answer for a region route. */
-export function buildRegionSeo(input: RegionSeoInput): AtlasSeoResponse {
+export function buildRegionSeo(input: RegionSeoInput): AtlasSeoDocument {
   const {
     id,
     name,
@@ -523,31 +533,29 @@ export function buildRegionSeo(input: RegionSeoInput): AtlasSeoResponse {
     canonical,
     alternates: hreflangAlternates(canonical, locales),
     openGraph: openGraph({ title, description: null, canonical, locale, image: null }),
-    jsonLd: jsonLdEscape(
-      jsonLdGraph([
-        compactNode({
-          '@type': SCHEMA_PLACE_TYPE[level] ?? 'Place',
-          name,
-          url: canonical ?? undefined,
-          description: subtitle ?? undefined,
-        }),
-        breadcrumbList(breadcrumbs),
-        events.length > 0
-          ? {
-              '@type': 'ItemList',
-              numberOfItems: eventCount,
-              itemListElement: events.map((card, index) =>
-                compactNode({
-                  '@type': 'ListItem',
-                  position: index + 1,
-                  url: card.url ?? undefined,
-                  name: card.title,
-                }),
-              ),
-            }
-          : null,
-      ]),
-    ),
+    jsonLdGraph: jsonLdGraph([
+      compactNode({
+        '@type': SCHEMA_PLACE_TYPE[level] ?? 'Place',
+        name,
+        url: canonical ?? undefined,
+        description: subtitle ?? undefined,
+      }),
+      breadcrumbList(breadcrumbs),
+      events.length > 0
+        ? {
+            '@type': 'ItemList',
+            numberOfItems: eventCount,
+            itemListElement: events.map((card, index) =>
+              compactNode({
+                '@type': 'ListItem',
+                position: index + 1,
+                url: card.url ?? undefined,
+                name: card.title,
+              }),
+            ),
+          }
+        : null,
+    ]),
     breadcrumbs,
     content,
   }

@@ -3,6 +3,8 @@ import type { PayloadRequest } from 'payload'
 
 import { z } from 'zod'
 
+import { errorResponse } from './errorResponse'
+
 /**
  * Validate a JSON request body against a Zod `schema` — the POST counterpart to
  * {@link parseQuery}. Custom Payload endpoints don't get `req.data` populated, so
@@ -25,10 +27,7 @@ export async function parseBody<S extends z.ZodTypeAny>(
   } catch {
     return {
       ok: false,
-      response: Response.json(
-        { errors: [{ message: 'Request body must be valid JSON.' }] },
-        { status: 400 },
-      ),
+      response: errorResponse('Request body must be valid JSON.', 400),
     }
   }
 

@@ -1,11 +1,11 @@
 /**
  * Canonical-ownership vocabulary for the Sahaj Atlas white-label program (#633).
  *
- * A client may declare that it owns the canonical URLs for its `region` — the
- * page a seeker should land on for events in that region. The declaration is
- * now a single choice (`canonical.embed`): which of the embeds the widget has
- * reported owns those URLs. Host, mount and routing all follow from it, and are
- * filled in by the verification job from what it observed on the live page.
+ * A client may own the canonical URLs for its `region` — the page a seeker
+ * should land on for events in that region (`canonical.owned`, set by the
+ * Install tab's claim). The page is the service's primary page (`site`); the
+ * host, mount and routing a URL is built from are filled in by the verification
+ * job from what it observed on the live page.
  *
  * Shared by the `Clients` field definitions, the observed-mount metadata
  * (`./embedMetadata`), the verification state (`./verification`), and the
@@ -14,7 +14,7 @@
  */
 
 // Deep import, not the `@/plugins/usage` barrel, and load-bearing: this module is
-// reached from the admin picker (a client component), and the barrel re-exports
+// reached from the Install tab (a client component), and the barrel re-exports
 // the pg-pool seam — which drags `pg` into the browser bundle and fails the
 // Next.js build. `originEnforcement` is pure and type-only at its edges.
 // See the barrel note in `src/AGENTS.md`.
@@ -39,9 +39,8 @@ export const ROUTING_MODE_OPTIONS = ROUTING_MODES.map((value) => ({
 
 /**
  * A bare host: lowercase letters, digits, dots and dashes only — no scheme, no
- * port, no path. `allowedDomains` is a newline-separated textarea and is
- * genuinely multi-valued in the data, so the canonical host is stated once,
- * on its own, rather than inferred from it.
+ * port, no path — the shape of `site.domain`, and of the host every canonical
+ * URL names.
  */
 export const CANONICAL_DOMAIN_PATTERN = /^[a-z0-9.-]+$/
 

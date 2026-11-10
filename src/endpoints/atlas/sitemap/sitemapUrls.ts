@@ -18,6 +18,9 @@ export interface SitemapCandidate {
   /** The document's canonical URL. Null when no owner can publish one. */
   webUrl?: string | null
   updatedAt?: string | null
+  /** A region's display name; an event's is `title`. */
+  name?: string | null
+  title?: string | null
 }
 
 /**

@@ -2,13 +2,15 @@
 
 import React from 'react'
 
+import { TONE_COLORS } from '@/components/admin/helpers/tones'
+
 interface StatusIconProps {
   passed: boolean
   title?: string
 }
 
 export const StatusIcon: React.FC<StatusIconProps> = ({ passed, title }) => {
-  const color = passed ? 'var(--theme-success-500, #10b981)' : 'var(--theme-error-500, #ef4444)'
+  const color = TONE_COLORS[passed ? 'success' : 'danger']
   const label = passed ? 'Passing' : 'Failing'
   return (
     <span
