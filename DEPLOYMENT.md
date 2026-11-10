@@ -124,6 +124,11 @@ moment the pull request exists.
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
 | The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
 
+⚠ **The address step needs more of `CLOUDFLARE_API_KEY` than Images and Stream.** It writes
+KV and attaches a Custom Domain, so that token carries Workers KV Storage:Edit, Workers
+Scripts:Edit and Zone:Read as well. Too narrow, and Cloudflare answers the KV write
+`401 10000: Authentication error`, which reads as a wrong token rather than a narrow one.
+
 ⚠ **Railway's own address for a preview is shut.** A browser read there is sent
 on to the fixed address and anything else is refused, because Access never sees a
 request that arrives on the Railway host. Two things decide that, and neither is
@@ -346,7 +351,8 @@ Never paste a secret into git or email.
 - `CLOUDFLARE_ACCOUNT_ID` — derives the R2 endpoint
 - `CLOUDFLARE_R2_DELIVERY_URL` — public delivery URL, e.g. `https://assets.sydevelopers.com`
 - `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
-- `CLOUDFLARE_API_KEY` — one token for Images and Stream
+- `CLOUDFLARE_API_KEY` — one token for Images, Stream, and the per-PR preview address
+  (Workers KV Storage:Edit, Workers Scripts:Edit, Zone:Read)
 - `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — enable purge-on-write; unset, every purge is a silent no-op (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
 
 ### Sentry and Resend
