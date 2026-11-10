@@ -26,6 +26,16 @@ import { originOf } from '../src/lib/utilities/url'
 import { normalizeHost } from '../src/plugins/usage/originEnforcement'
 import { refusedMounts, storedMounts } from './challenge-parents'
 
+/**
+ * The adapter properties the read-only boot turns off, asserted present before they are written.
+ *
+ * ⚠ **Presence is the only check worth making.** A write to a renamed key lands on a fresh
+ * property and reads back as whatever it was set to, so reading one back proves nothing. `connect`
+ * pushes the dev schema, or applies `prodMigrations` under `NODE_ENV=production`, so a Payload
+ * rename has to fail here rather than leave this audit a writer against production.
+ */
+const READ_ONLY_KEYS = ['push', 'prodMigrations', 'connect'] as const
+
 async function loadPayload(): Promise<Payload> {
   const { default: configPromise } = await import('../src/payload.config')
   const payload = await getPayload({
@@ -33,8 +43,14 @@ async function loadPayload(): Promise<Payload> {
     disableDBConnect: true,
     disableOnInit: true,
   })
-  // `connect` pushes the dev schema, or applies `prodMigrations` under NODE_ENV=production.
-  const db = payload.db as typeof payload.db & { push?: boolean; prodMigrations?: unknown }
+  const db = payload.db as typeof payload.db & { prodMigrations?: unknown; push?: boolean }
+  for (const key of READ_ONLY_KEYS) {
+    if (!(key in db)) {
+      throw new Error(
+        `payload.db has no \`${key}\`: this audit can no longer prove its boot is read-only.`,
+      )
+    }
+  }
   db.push = false
   db.prodMigrations = undefined
   await db.connect?.()
