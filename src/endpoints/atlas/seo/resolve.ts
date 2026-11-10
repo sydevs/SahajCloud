@@ -61,8 +61,8 @@ const REGION_SELECT: SelectType = {
 
 /**
  * Fields a listing card needs. `region` and `_status` back `webPath` /
- * `webUrl`; the `ensureVirtualFieldDeps` beforeOperation hook keeps them present
- * even when a caller selects the URL fields without them.
+ * `webUrl`; those fields declare both, so `virtualFieldsPlugin` keeps them
+ * present even when a caller selects the URL fields without them.
  */
 const EVENT_CARD_SELECT: SelectType = {
   title: true,

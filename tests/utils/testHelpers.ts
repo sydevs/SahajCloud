@@ -24,6 +24,7 @@ import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { managersLoginHere } from '@/plugins/previewAdmin'
 import { usagePlugin } from '@/plugins/usage'
+import { virtualFieldsPlugin } from '@/plugins/virtualFields'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { EmailTestAdapter } from './emailTestAdapter'
@@ -170,6 +171,11 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       // Bulk class import: the `imports` collection and its task, with the
       // Events hooks it adds (mirrors the real config).
       eventImportPlugin,
+      // The `select` repair built from each field's own declaration. Late, as
+      // in payload.config.ts. ⚠ It has to be here at all: without it every
+      // computed field reads `null` under a `select` in this lane only, and the
+      // #1084 cases would be asserting the defect they were written against.
+      virtualFieldsPlugin,
       // Passwordless sign-in: the magic-link field plus its endpoints
       // (mirrors the real payload.config.ts, including which collections it serves
       // and how the preview exchange is resolved — `preview-secret-exchange.int.spec.ts`
