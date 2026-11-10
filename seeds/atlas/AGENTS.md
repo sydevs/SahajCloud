@@ -135,8 +135,9 @@ docblock says (`railway run` with the public `DATABASE_URL`), must print no refu
 mount from an enabled service but one: `http://lane.test/` on "Sahaj Atlas (Local Test
 Key)", a test run's row its domainless service can never refresh. A refused host is a
 service whose `site.domain` is missing or wrong — the import writes it on create only,
-so a fix made on the Install tab survives every re-sync — or a second site, which needs
-a `CLIENT_SPLITS` row ([sync/merges.ts](sync/merges.ts)). The audit sees only stored
+so a fix made on the Install tab survives every re-sync — a second site, which needs
+a `CLIENT_SPLITS` row ([sync/merges.ts](sync/merges.ts)), or a disabled service that
+already holds the host, which the row names so the fix is to enable it. The audit sees only stored
 mounts, and a service stores only its own domain's, so once the WordPress sites run the
 new widget the proof is a registration: submit one from a WordPress host site and
 confirm it reaches `user-submissions`.
