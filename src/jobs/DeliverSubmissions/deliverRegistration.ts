@@ -4,13 +4,14 @@ import {
   readSubmissionValue,
   registrationAnswers,
 } from '@/collections/UserSubmissions/submissionData'
-import { asLog } from '@/fields'
+import { asLog, hasLogEntryType } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { EMAIL_CLIENT_SELECT } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -137,8 +138,15 @@ async function notifyManager(args: {
       // `mergeRepeatRegistration` appends this entry and puts the row back to
       // `pending`, which re-queues delivery — so without the flag a weekly
       // class's manager is told somebody new signed up every time a registrant
-      // corrects an answer.
-      isUpdate: asLog(submission.activityLog).some((entry) => entry.type === 'registration-update'),
+      // corrects an answer. That re-queue is why reading a capped log is
+      // enough: the delivery this decides is the one the merge just asked for,
+      // not one years of reminders later.
+      //
+      // ⚠ **Not the `delivery` entry, though it would read as the more general
+      // "already announced".** `DeliverSubmissions` logs one per *attempt*,
+      // failures included, so a retry of a first registration carries one —
+      // and would announce a brand-new signup as an update.
+      isUpdate: hasLogEntryType(asLog(submission.activityLog), REGISTRATION_UPDATE_LOG_TYPE),
     })
   } catch (error) {
     req.payload.logger.error({

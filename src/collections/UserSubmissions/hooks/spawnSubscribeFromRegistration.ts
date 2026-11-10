@@ -1,6 +1,7 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { parseOptIn, readSubmissionValue, SUBSCRIBE_OPT_IN } from '../submissionData'
 
@@ -53,6 +54,42 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   const userId = relationId(data.user)
   if (userId == null) return doc
 
+  const eventId = relationId(data.event)
+
+  // ⚠ **One consent row per `(user, event)`.** A repeat signup is a create —
+  // `mergeRepeatRegistration` folds it in and then deletes the new row — so
+  // this hook fires again on every signup, and without the check the provider
+  // is asked to subscribe the same address once per attempt.
+  //
+  // Any status counts, `failed`, `rejected` and `spam` included: each is an
+  // answer about this person's consent, and a second row would neither deliver
+  // what the first could not nor overturn a refusal.
+  //
+  // Above the `users` read, which a repeat signup then never pays for. Both
+  // inputs come from `data`, so nothing sequences it after that read.
+  const { docs: held } = await req.payload.find({
+    collection: 'user-submissions',
+    where: {
+      and: [
+        { type: { equals: 'subscribe' } },
+        { user: { equals: userId } },
+        { event: { equals: eventId } },
+      ],
+    },
+    limit: 1,
+    // `pagination: false` so drizzle skips the `COUNT(DISTINCT …)` it otherwise
+    // runs beside every `find` — a second statement, inside the create's own
+    // open transaction, for a total this discards.
+    pagination: false,
+    depth: 0,
+    overrideAccess: true,
+    // Ours, not the caller's: `validateClientQueryParamsHook` is a
+    // `beforeOperation` hook, so `overrideAccess` does not reach it and a
+    // client read naming no `select` answers 400.
+    req: asTrustedReq(req),
+  })
+  if (held.length > 0) return doc
+
   // ⚠ Read here, not off `doc.senderEmail`: that virtual resolves under the
   // caller's access, and a client cannot read `users`, so on every real create
   // it is absent. `req` because the user row was upserted in this transaction.
@@ -67,36 +104,6 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   })
   const senderEmail = sender?.email?.trim() ?? ''
   if (!senderEmail) return doc
-
-  const eventId = relationId(data.event)
-
-  // ⚠ **One consent row per `(user, event)`.** A repeat signup is a create —
-  // `mergeRepeatRegistration` folds it in and then deletes the new row — so
-  // this hook fires again on every signup, and without the check the provider
-  // is asked to subscribe the same address once per attempt.
-  //
-  // Any status counts, `failed`, `rejected` and `spam` included: each is an
-  // answer about this person's consent, and a second row would neither deliver
-  // what the first could not nor overturn a refusal.
-  const { docs: held } = await req.payload.find({
-    collection: 'user-submissions',
-    where: {
-      and: [
-        { type: { equals: 'subscribe' } },
-        { user: { equals: userId } },
-        { event: { equals: eventId } },
-      ],
-    },
-    limit: 1,
-    depth: 0,
-    // `req` carries the client this signup arrived on, and
-    // `validateClientQueryParamsHook` answers 400 to a client read naming no
-    // `select` — `overrideAccess` does not reach a `beforeOperation` hook.
-    select: { type: true },
-    overrideAccess: true,
-    req,
-  })
-  if (held.length > 0) return doc
 
   try {
     await req.payload.create({

@@ -360,18 +360,13 @@ describe('EventRegistrationEmail', () => {
   })
 
   /**
-   * The wording is the whole difference. A manager acting on an update needs
-   * the current answers and the same two buttons, so a second template would
-   * be two places to keep one notice.
+   * The wording is the whole difference, which is what makes this one template
+   * rather than two. The case above pins the same fragments for the default
+   * state, so this is the other arm of that pair.
    */
-  it('keeps the facts, the answers and both CTAs identical in the update state', async () => {
-    const [made, updated] = await Promise.all(
-      [false, true].map(async (isUpdate) => {
-        const { html } = await renderEmail(
-          createElement(EventRegistrationEmail, { ...props, isUpdate }),
-        )
-        return html
-      }),
+  it('keeps the facts, the answers and both CTAs in the update state', async () => {
+    const { html } = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, isUpdate: true }),
     )
 
     for (const fragment of [
@@ -385,8 +380,7 @@ describe('EventRegistrationEmail', () => {
       'View event',
       'https://cloud.test/admin/collections/events/42',
     ]) {
-      expect(made, `new registration should carry ${fragment}`).toContain(fragment)
-      expect(updated, `an update should carry ${fragment}`).toContain(fragment)
+      expect(html, `an update should carry ${fragment}`).toContain(fragment)
     }
   })
 })

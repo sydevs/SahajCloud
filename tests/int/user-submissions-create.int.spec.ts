@@ -150,6 +150,16 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
   })
 
   describe('per-type creates', () => {
+    /** The consent rows an event's registrations spawned. */
+    const consentRowsFor = async (eventId: number) =>
+      (
+        await payload.find({
+          collection: 'user-submissions',
+          where: { type: { equals: 'subscribe' }, event: { equals: eventId } },
+          depth: 0,
+        })
+      ).docs
+
     it('accepts a contact submission and returns its uuid', async () => {
       const doc = await send({
         type: 'contact',
@@ -220,11 +230,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         submissionData: [{ field: 'subscribe', value: 'yes' }],
       })
 
-      const { docs } = await payload.find({
-        collection: 'user-submissions',
-        where: { type: { equals: 'subscribe' }, event: { equals: event.id } },
-        depth: 0,
-      })
+      const docs = await consentRowsFor(event.id)
       expect(docs).toHaveLength(1)
       expect(docs[0]!.user).toBe(typeof doc.user === 'object' ? doc.user?.id : doc.user)
       expect(docs[0]!.senderEmail).toBe('opt.in@example.com')
@@ -254,11 +260,7 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         submissionData: [{ field: 'subscribe', value: 'yes' }],
       })
 
-      const { docs } = await payload.find({
-        collection: 'user-submissions',
-        where: { type: { equals: 'subscribe' }, event: { equals: event.id } },
-        depth: 0,
-      })
+      const docs = await consentRowsFor(event.id)
       expect(docs).toHaveLength(1)
       expect(docs[0]!.id).not.toBe(held.id)
     })

@@ -69,35 +69,34 @@ interface Scenario {
   isUpdate?: boolean
 }
 
-const SCENARIOS: Scenario[] = [
-  {
-    label: 'manager · full',
-    note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
-    recipient: managerRecipient,
-    event: { id: 1042, title: 'Tuesday Evening Meditation' },
-    registrantName: 'Jo Smith',
-    registrantEmail: 'jo.smith@example.com',
-    startingAt: daysFromNow(5),
-    questions: {
-      experience: 'No, this is my first time',
-      referral: 'A friend recommended it',
-      questions: 'Can I bring my partner along?',
-    },
+/**
+ * The named-manager scenario, and the base the update state is spread from —
+ * so the two differ by the wording alone, which is the thing they exist to
+ * compare.
+ */
+const fullManager: Scenario = {
+  label: 'manager · full',
+  note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
+  recipient: managerRecipient,
+  event: { id: 1042, title: 'Tuesday Evening Meditation' },
+  registrantName: 'Jo Smith',
+  registrantEmail: 'jo.smith@example.com',
+  startingAt: daysFromNow(5),
+  questions: {
+    experience: 'No, this is my first time',
+    referral: 'A friend recommended it',
+    questions: 'Can I bring my partner along?',
   },
+}
+
+const SCENARIOS: Scenario[] = [
+  fullManager,
   {
+    ...fullManager,
     label: 'manager · update',
-    note: 'a repeat signup folded into the registration the sender already held — update wording in the Subject, heading, preview text and intro, with the same facts and answers',
-    recipient: managerRecipient,
-    event: { id: 1042, title: 'Tuesday Evening Meditation' },
-    registrantName: 'Jo Smith',
-    registrantEmail: 'jo.smith@example.com',
+    note: 'the same signup, folded into the registration the sender already held — update wording in the Subject, heading, preview text and intro, with every fact and answer unchanged',
     startingAt: daysFromNow(12),
     isUpdate: true,
-    questions: {
-      experience: 'No, this is my first time',
-      referral: 'A friend recommended it',
-      questions: 'Can I bring my partner along?',
-    },
   },
   {
     label: 'override · neutral greeting',

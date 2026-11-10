@@ -94,27 +94,19 @@ describe('a repeat registration updates the existing one', () => {
       overrideAccess: true,
     })
 
-  const registrationsOf = async (eventId: number) =>
+  const rowsOf = async (type: UserSubmission['type'], eventId: number) =>
     (
       await payload.find({
         collection: 'user-submissions',
-        where: { and: [{ type: { equals: 'registration' } }, { event: { equals: eventId } }] },
+        where: { and: [{ type: { equals: type } }, { event: { equals: eventId } }] },
         depth: 0,
         pagination: false,
         overrideAccess: true,
       })
     ).docs
 
-  const consentRowsOf = async (eventId: number) =>
-    (
-      await payload.find({
-        collection: 'user-submissions',
-        where: { and: [{ type: { equals: 'subscribe' } }, { event: { equals: eventId } }] },
-        depth: 0,
-        pagination: false,
-        overrideAccess: true,
-      })
-    ).docs
+  const registrationsOf = (eventId: number) => rowsOf('registration', eventId)
+  const consentRowsOf = (eventId: number) => rowsOf('subscribe', eventId)
 
   const createEvent = async (overrides: Record<string, unknown> = {}): Promise<Event> => {
     const event = await testData.createEvent(payload, {
@@ -479,6 +471,10 @@ describe('a repeat registration updates the existing one', () => {
      * Every status counts. Each is an answer about this person's consent, and
      * a second row would neither deliver what the first could not nor
      * overturn a refusal (#1099, decision 2A).
+     *
+     * The hook's `where` names no status at all, so these four are one code
+     * path. The list is the decision, pinned so narrowing it later has to be
+     * deliberate.
      */
     it.each(['failed', 'rejected', 'spam', 'accepted'] as const)(
       'does not spawn a second one beside a consent row at %s',

@@ -79,10 +79,8 @@ interface EventRegistrationEmailProps {
  * the registrant (pre-filled with a quoted recap); their answers to the event's
  * registration questions are forwarded below.
  *
- * `isUpdate` swaps the heading, the preview text and the intro paragraph. The
- * facts, the forwarded answers and both buttons are the same either way — the
- * manager wants the current answers whichever brought the mail — so the two
- * states are one template rather than two.
+ * `isUpdate` changes the wording only: a manager acting on an update needs the
+ * same facts and the same two buttons, so this is one template, not two.
  */
 export function EventRegistrationEmail({
   recipientName,

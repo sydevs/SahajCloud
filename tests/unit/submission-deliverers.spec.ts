@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
 import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
+import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import type { UserSubmission } from '@/payload-types'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
@@ -63,15 +64,13 @@ describe('deliveredStatus', () => {
  * The manager notice's wording, decided from the row's own activity log.
  *
  * ⚠ **The fixture event carries `registrationNotificationEmail`**, so
- * `resolveRegistrationRecipient` returns an override address on the `email`
- * channel at `Immediate` and never reads a manager — the one routing shape
- * reachable with no `managers` row to stub. Verified against
- * `src/collections/Events/Events.ts`, where the override address and its
- * `Immediate` cadence are declared together.
+ * `resolveRegistrationRecipient` takes the override-address branch and never
+ * reads a manager — the one routing shape reachable with no `managers` row to
+ * stub. Verified against `src/collections/Events/Events.ts`, which declares
+ * that address beside its `Immediate` cadence.
  *
- * Both sends are asserted on, because `deliverRegistration` sends the
- * registrant's confirmation first and only the second message is the
- * manager's.
+ * The registrant's confirmation goes out first, so the manager's notice is the
+ * last send.
  */
 describe('deliverRegistration', () => {
   const EVENT = {
@@ -125,7 +124,7 @@ describe('deliverRegistration', () => {
     const { subject, html } = await deliver([
       {
         at: '2026-11-10T09:00:00.000Z',
-        type: 'registration-update',
+        type: REGISTRATION_UPDATE_LOG_TYPE,
         key: '2026-11-10T09:00:00.000Z',
         cells: { activity: { text: 'Registered again — details updated' } },
       },
@@ -136,17 +135,19 @@ describe('deliverRegistration', () => {
   })
 
   /**
-   * ⚠ `hasLogEntry` matches `type` **and** `key`, and the merge writes the
-   * timestamp as the key — so the read is on `type` alone, and an entry of
-   * another kind must not be mistaken for an update.
+   * ⚠ **A `delivery` entry is not an update.** `DeliverSubmissions` logs one
+   * per attempt, failures included, so a retried first registration carries
+   * one — and reading "has this been delivered" rather than "has this been
+   * merged" would announce a brand-new signup as an update.
    */
-  it('words a signup whose log carries only other entries as a new registration', async () => {
+  it('words a retried first signup as a new registration', async () => {
     const { subject } = await deliver([
       {
         at: '2026-11-10T09:00:00.000Z',
         type: 'delivery',
-        key: 'attempt-1',
-        cells: { activity: { text: 'Delivered' } },
+        key: '2026-11-10T09:00:00.000Z',
+        ok: false,
+        cells: { activity: { text: 'Delivery failed: smtp timeout' } },
       },
     ])
 
