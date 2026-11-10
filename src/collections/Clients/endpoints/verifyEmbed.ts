@@ -15,7 +15,14 @@ import type { Client } from '@/payload-types'
 
 /** Whether this check made the service's site the home for its region's links, and why not. */
 export interface ClaimResult {
-  status: 'claimed' | 'already' | 'worldwide' | 'no-class-addresses' | 'taken' | 'unknown-mount'
+  status:
+    | 'claimed'
+    | 'already'
+    | 'worldwide'
+    | 'no-class-addresses'
+    | 'not-claimed'
+    | 'taken'
+    | 'unknown-mount'
   /** A sentence for the Install tab to render verbatim. */
   message: string
 }
@@ -214,9 +221,18 @@ async function claimRegion(req: PayloadRequest, client: Client): Promise<ClaimRe
     if (!(error instanceof APIError)) throw error
     // The hook's own sentence names the incumbent; `message` is only Payload's
     // generic "field is invalid" summary.
-    const said =
-      (error.data as { errors?: Array<{ message?: string }> } | undefined)?.errors?.[0]?.message ??
-      error.message
+    const errors = (
+      error.data as { errors?: Array<{ message?: string; path?: string }> } | undefined
+    )?.errors
+    const said = errors?.[0]?.message ?? error.message
+    // Only the ownership rule means someone else holds it: a row failing another
+    // validator would otherwise send a volunteer to chase a conflict that is not there.
+    if (!errors?.some((entry) => entry.path === 'canonical.owned')) {
+      return {
+        status: 'not-claimed',
+        message: `We could not update this service, so nothing was changed. Ask a maintainer to take a look. (${said})`,
+      }
+    }
     return {
       status: 'taken',
       message: `Another site is already the home for this region’s atlas links, so nothing was changed. Ask a maintainer which site should have them. (${said})`,
