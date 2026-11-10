@@ -35,9 +35,12 @@ pnpm seed storyblok --clear-cache # Re-download assets
 
 ## Panel structure
 
-`lessons.title` and `lessons.panels` are localized (#977), and this importer
-names no locale, so everything it writes lands in English. A Storyblok story in
-another language would need `locale` passed through, which no caller does today.
+`lessons.title`, `lessons.panels` (#977), `lessons.introAudio` and
+`lessons.introSubtitles` (#1016) are all localized, and this importer writes
+English for all of them: the lesson upsert names `locale: 'en'`, and
+`attachLessonFiles` names no locale, which resolves to the default locale —
+English — and so agrees with it. A Storyblok story in another language would
+need `locale` passed through both, which no caller does today.
 
 The Storyblok `Intro_stories` array maps to the Payload `panels` array:
 
