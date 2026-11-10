@@ -10,7 +10,7 @@ MCP topology.
 | ----------------- | ------------ | ------------------------------------------------ | ----- | ------------------------------------------- |
 | `payloadcms-docs` | (built-in)   | —                                                | None  | Search PayloadCMS 3.0 documentation         |
 | `cloudflare-docs` | stdio bridge | `mcp-remote https://docs.mcp.cloudflare.com/mcp` | None  | Search Cloudflare R2 / Stream / Images docs |
-| `playwright`      | stdio        | `@playwright/mcp@0.0.84`                         | None  | Run headless-browser checks against the UI  |
+| `playwright`      | stdio        | `@playwright/mcp@latest`                         | None  | Run headless-browser checks against the UI  |
 | `sentry`          | HTTP         | `https://mcp.sentry.dev/mcp`                     | OAuth | Query production error monitoring           |
 | `github`          | HTTP         | `https://api.githubcopilot.com/mcp/`             | OAuth | Search GitHub issues, PRs, and code         |
 
@@ -18,8 +18,8 @@ MCP topology.
 
 The server runs headless with `--isolated`: each session starts with a fresh, in-memory browser
 profile, so admin cookies never carry over from another session. Click and type by the element
-references in `browser_snapshot`, not by CSS selectors. The version is pinned. SahajAtlasWeb and
-WeMeditateWeb pin the same version, so bump all three together.
+references in `browser_snapshot`, not by CSS selectors. SahajAtlasWeb and WeMeditateWeb run the
+same server.
 
 ## Authentication
 
