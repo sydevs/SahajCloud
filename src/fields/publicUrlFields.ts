@@ -1,5 +1,7 @@
 import type { Field, FieldHook, PayloadRequest, TextField } from 'payload'
 
+import { virtualFieldInputs } from '@/plugins/virtualFields'
+
 /**
  * A base URL — a literal, or a resolver.
  *
@@ -54,6 +56,17 @@ export interface PublicUrlFieldsOptions {
   requirePublished?: boolean
   /** Label for the collapsible the fields are grouped into. Default `Public Links`. */
   label?: string
+  /**
+   * The stored fields `buildPath`, a resolver `web`/`app` and `exposeWhen`
+   * read, so `virtualFieldsPlugin` keeps all three fields resolvable under an
+   * include-mode `select`. `_status` is added whenever `requirePublished` is
+   * on.
+   *
+   * Required rather than optional: a collection that declares nothing reads
+   * `null` for every published document under a `select`, with nothing saying
+   * so — which is #1084. Pass `[]` for a path built from `id` alone.
+   */
+  inputs: readonly string[]
 }
 
 /**
@@ -121,11 +134,12 @@ function computeHook(
 }
 
 /** A virtual, read-only, list-hidden text field carrying a computed URL/path. */
-function virtualUrlField(name: string, hook: FieldHook): TextField {
+function virtualUrlField(name: string, hook: FieldHook, inputs: readonly string[]): TextField {
   return {
     name,
     type: 'text',
     virtual: true,
+    custom: virtualFieldInputs(...inputs),
     admin: { readOnly: true, disableListColumn: true, disableListFilter: true },
     hooks: { afterRead: [hook] },
   }
@@ -153,6 +167,7 @@ function virtualUrlField(name: string, hook: FieldHook): TextField {
  *   web: () => (process.env.WEMEDITATE_WEB_URL ? `${process.env.WEMEDITATE_WEB_URL}/` : null),
  *   app: 'wemeditate://',
  *   buildPath: ({ platform, data }) => (data?.slug ? `wisdom/${data.slug}` : null),
+ *   inputs: ['slug'],
  * })
  */
 export function publicUrlFields({
@@ -162,12 +177,15 @@ export function publicUrlFields({
   exposeWhen,
   requirePublished = true,
   label = 'Public Links',
+  inputs,
 }: PublicUrlFieldsOptions): Field[] {
   const config: HookConfig = { buildPath, exposeWhen, requirePublished }
+  // The publish gate is this factory's own, so the caller never names `_status`.
+  const declared = requirePublished ? [...inputs, '_status'] : inputs
   const fields: TextField[] = [
-    virtualUrlField('webPath', computeHook('web', null, config)),
-    virtualUrlField('webUrl', computeHook('web', web, config)),
-    virtualUrlField('appUrl', computeHook('app', app, config)),
+    virtualUrlField('webPath', computeHook('web', null, config), declared),
+    virtualUrlField('webUrl', computeHook('web', web, config), declared),
+    virtualUrlField('appUrl', computeHook('app', app, config), declared),
   ]
 
   return [{ label, type: 'collapsible', admin: { initCollapsed: true }, fields }]

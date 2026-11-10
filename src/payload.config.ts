@@ -41,6 +41,7 @@ import {
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 import { uploadErrorPlugin } from '@/plugins/uploadErrors'
 import { usagePlugin } from '@/plugins/usage'
+import { virtualFieldsPlugin } from '@/plugins/virtualFields'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
@@ -362,6 +363,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Rule). Read-header emission lives in `src/middleware.ts` (built-in REST
       // reads) + the `publicReadCacheHeaders` decorator (custom endpoints).
       cachePlugin,
+      // Put a computed field's stored inputs back into an include-mode
+      // `select`, wherever a field declares them (#1084). Late in the list, so
+      // a declaring field a plugin above added is collected too; it only
+      // appends a `beforeOperation` hook, so nothing after it is affected.
+      virtualFieldsPlugin,
       // Passwordless sign-in (#837): the magic-link field plus the request and
       // consume endpoints, for every collection the option names. Before
       // accessPlugin, which must stay last.

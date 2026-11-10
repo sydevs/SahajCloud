@@ -112,6 +112,8 @@ fields: [
 | `hlsUrlField({ collection })`                      | HLS manifest (`hlsUrl`), `null` for non-video |
 | `mp4UrlField({ collection })`                      | MP4 download (`mp4Url`), `null` for non-video |
 
+Each factory declares the stored fields its own `afterRead` reads — `filename`, plus `mimeType` where the hook routes on it — with `virtualFieldInputs(...)` on the field's `custom`. `virtualFieldsPlugin` reads that off the built config and puts them back into an include-mode `select`, which strips them before field hooks run. ⚠ **That is what retires the `url`→`filename` co-select every caller on these eight collections used to owe** (`docs/rules/endpoints.md`, #1084), and it has to live in the factory: no collection knows what a shared field reads. A new factory here owes a declaration, and a hook that starts reading another column owes it an entry.
+
 ## R2 S3 adapter (`r2NativeAdapter.ts`)
 
 `storagePlugin.ts` builds the S3 client and passes it in:

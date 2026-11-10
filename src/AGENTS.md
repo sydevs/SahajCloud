@@ -23,6 +23,12 @@ split into `plugins/`, `jobs/`, and shared utilities).
 
 One self-contained folder per plugin/adapter, with a public API via an
 `index.ts` barrel: `access/`, `storage/`, `usage/`, `openapi/`, `email/`,
+`virtualFields/` (a computed field declares the stored fields its `afterRead`
+reads with `virtualFieldInputs(...)` on its own `custom`, and the plugin mounts
+the `beforeOperation` hook that puts them back into an include-mode `select`,
+which strips them first. The declaration is on the **field** because a
+per-collection one is a thing to forget: that is how #1084 happened, and it is
+what retires the `url`→`filename` co-select on the eight upload collections),
 `eventImport/` (the bulk class import: the `imports` collection, the job that
 turns its CSV rows into draft classes, and the Events hooks that keep an
 import's status current),

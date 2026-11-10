@@ -21,6 +21,7 @@ import {
 } from '@/lib/meditations/frames'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 import { KeyframeData } from '@/types/frames'
 
 import { meditationLectures } from './endpoints/lectures'
@@ -324,6 +325,7 @@ export const Meditations: CollectionConfig = {
               type: 'number',
               label: 'Duration (minutes)',
               virtual: true,
+              custom: virtualFieldInputs('duration'),
               admin: {
                 readOnly: true,
                 hidden: true,
@@ -373,6 +375,7 @@ export const Meditations: CollectionConfig = {
               // subtle-system node (see ./hooks/fallbackTitle). Virtual: no DB
               // column, computed on read, so it can't be set or queried.
               virtual: true,
+              custom: virtualFieldInputs('subtleSystemNodeWeights'),
               admin: {
                 readOnly: true,
                 description:
