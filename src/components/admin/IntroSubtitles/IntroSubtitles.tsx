@@ -16,11 +16,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { Subtitles } from '@/lib/utilities/subtitles'
 
-import {
-  introAudioFilenameUrl,
-  introSubtitlesUrl,
-  uploadFileId,
-} from './introSubtitlesModel'
+import { introAudioFilenameUrl, introSubtitlesUrl, uploadFileId } from './introSubtitlesModel'
 
 type Props = {
   /** Name of the sibling upload field that holds the recording. */

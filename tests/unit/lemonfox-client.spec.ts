@@ -51,9 +51,10 @@ describe('requestLemonfoxTranscript', () => {
     expect(form.get('language')).toBe('portuguese')
   })
 
-  // Nothing stores word timings since #957, and asking for them was most of
-  // the response body.
-  it('asks for no word timings', async () => {
+  // Word timings are most of the response body, so only the caller that groups
+  // them into cues pays for them. The meditation job is the caller that does
+  // not, and its request body must stay exactly what it was (#1016).
+  it('asks for no word timings unless the caller does', async () => {
     const fetchFn = vi.fn().mockResolvedValue(okResponse())
 
     await requestLemonfoxTranscript({
@@ -63,6 +64,43 @@ describe('requestLemonfoxTranscript', () => {
     })
 
     expect((await sentForm(fetchFn)).get('timestamp_granularities[]')).toBeNull()
+  })
+
+  it('asks for word timings when the caller opts in', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(okResponse())
+
+    await requestLemonfoxTranscript({
+      apiKey: 'lf-test-key',
+      audioUrl: AUDIO_URL,
+      wordTimings: true,
+      fetchFn: fetchFn as unknown as typeof fetch,
+    })
+
+    const form = await sentForm(fetchFn)
+    expect(form.get('timestamp_granularities[]')).toBe('word')
+    // The format still carries the segments, which the opt-in only adds to.
+    expect(form.get('response_format')).toBe('verbose_json')
+  })
+
+  // ⚠ The default bound suits a queued job with nobody waiting. A synchronous
+  // admin POST through our zone has Cloudflare's 100 s origin limit ahead of
+  // it, so it passes its own — and a bound this client ignored would make that
+  // request answer 524 rather than refuse (`Files/endpoints/subtitles.ts`).
+  it('abandons the call at the bound the caller passes', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(okResponse())
+
+    await requestLemonfoxTranscript({
+      apiKey: 'lf-test-key',
+      audioUrl: AUDIO_URL,
+      timeoutMs: 50,
+      fetchFn: fetchFn as unknown as typeof fetch,
+    })
+
+    const [, init] = fetchFn.mock.calls[0] as [string, RequestInit]
+    const signal = init.signal as AbortSignal
+    expect(signal.aborted).toBe(false)
+    await new Promise((resolve) => setTimeout(resolve, 120))
+    expect(signal.aborted).toBe(true)
   })
 
   it('names no language when the caller has none, so the vendor detects one', async () => {

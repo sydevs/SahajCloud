@@ -1,12 +1,12 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from '@/lib/lemonfox/transcribe'
-import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
 import type { Transcript } from '@/payload-types'
 import { getR2Url } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'

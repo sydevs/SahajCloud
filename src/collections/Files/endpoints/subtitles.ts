@@ -1,12 +1,12 @@
 import type { Endpoint } from 'payload'
 
 import { requireManagerPermission } from '@/lib/endpoints'
+import { normalizeLemonfoxWords } from '@/lib/lemonfox/normalize'
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from '@/lib/lemonfox/transcribe'
-import { normalizeLemonfoxWords } from '@/lib/lemonfox/words'
 import { isValidLocale } from '@/lib/locales'
 import { groupWordsIntoCues, type Subtitles } from '@/lib/utilities/subtitles'
 
@@ -82,8 +82,10 @@ export const fileSubtitles: Endpoint = {
     if (!file) return refusal('File not found.', 404)
 
     if (file.mimeType !== 'audio/mpeg') {
+      // Worded so the admin knows the recording is wrong rather than the
+      // server, and with no offer to retry: pressing again cannot help.
       return refusal(
-        'Subtitles can only be made from an MP3 recording. Attach one and try again.',
+        'Subtitles can only be made from an MP3 recording, and this file is not one.',
         415,
       )
     }
@@ -110,7 +112,10 @@ export const fileSubtitles: Endpoint = {
     if (!apiKey) return refusal(TRANSCRIPTION_UNAVAILABLE_ERROR, 503)
 
     if (!file.url) {
-      return refusal('This recording has no public URL, so the subtitles service cannot fetch it.', 409)
+      return refusal(
+        'This recording has no public URL, so the subtitles service cannot fetch it.',
+        409,
+      )
     }
 
     let cues: Subtitles

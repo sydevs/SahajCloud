@@ -171,11 +171,13 @@ No loose files at the root — every file lives in a named folder:
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
   booting it. `lemonfox/` holds the whole vendor seam: `transcribe.ts` (the
-  HTTP call and the key behind it), `languages.ts`, and the two readers of
-  the vendor's undocumented `verbose_json` — `normalize.ts` for segments and
-  `words.ts` for word timings. The client moved here once it had two
-  consumers, the transcription task and the subtitles endpoint (#1016);
-  `tests/unit/lib-boundary.spec.ts` is what refused it with one
+  HTTP call and the key behind it), `languages.ts`, and `normalize.ts`, which
+  reads the vendor's undocumented `verbose_json` both ways — segments for a
+  transcript, words for the subtitles grouper. The client moved here once it
+  had two consumers, the transcription task and the subtitles endpoint
+  (#1016), and the word reader shares `normalize.ts` rather than taking a
+  module of its own for the same reason: with one consumer,
+  `tests/unit/lib-boundary.spec.ts` refuses it here
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,

@@ -34,3 +34,29 @@ meditation or the article included.
 `CleanupOrphanedMedia` reads `locale: 'all'` for exactly this reason: a
 file referenced only by a French panel would otherwise read as an orphan
 and be trashed. See `src/jobs/CleanupOrphanedMedia/AGENTS.md`.
+
+## `introAudio` and `introSubtitles` are per locale too (#1016)
+
+Same rule, same reason: one recording and one cue set were shared across all
+19 languages, so a step narrated in English subtitled every language. Neither
+may be `required`, for the `title` reason above. The migration carries a
+hand-written backfill into the `en` row — the generated delta drops both base
+columns without reading them, which would empty all 28 recordings and all 28
+cue sets.
+
+**`introAudio` carries `filterOptions: { mimeType: { equals: 'audio/mpeg' } }`,
+and must never carry a custom `validate`.** `validateFilterOptions` lives inside
+Payload's own `relationship` validator, installed only where the field supplies
+none, so a validator here would narrow the picker and enforce nothing
+(`src/collections/AGENTS.md`).
+
+**The cues are made, not typed.** `POST /api/files/:id/subtitles` transcribes
+the attached MP3 in the request's locale and groups the words into cues of at
+most 30 characters; `src/components/admin/IntroSubtitles/` is the control above
+the editor. The endpoint is keyed on the **`files`** id because that row is
+always saved while the lesson is not.
+
+**Launch Readiness turns mostly red here, by design.** Judged on a locale's own
+value, `intro-audio-set` and `intro-subtitles-set` are red in 18 of 19 locales
+for every step from day one. That is the existing gap made visible, not a
+regression.

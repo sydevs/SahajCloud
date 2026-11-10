@@ -1,6 +1,6 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Three of the four call sites that carry the fix build a URL
+ * option (#701). Five of the six call sites that carry the fix build a URL
  * or an SWR key from `useLocale().code`, and only a browser can observe them
  * end to end — so the string each one builds is pinned here instead.
  *
@@ -8,7 +8,7 @@
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The fourth site, `fetchRelationshipDocs`, is pinned in
+ * The sixth site, `fetchRelationshipDocs`, is pinned in
  * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
  *
  * `submissionActionUrl` was one of them until #909 moved submission review onto
@@ -19,6 +19,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
+import {
+  introAudioFilenameUrl,
+  introSubtitlesUrl,
+} from '../../src/components/admin/IntroSubtitles/introSubtitlesModel'
 import {
   transcribeUrl,
   transcriptUrl,
@@ -80,6 +84,47 @@ describe('transcriptUrl', () => {
 
   it('refuses to build a URL with no meditation', () => {
     expect(transcriptUrl(undefined, 'fr')).toBeNull()
+  })
+})
+
+/**
+ * The fourth and fifth sites (#1016). The locale is a permission here as well,
+ * and one thing more: it decides which language the cues are transcribed in and
+ * recorded as, so a request naming none would write English cues into whatever
+ * locale the admin was editing.
+ */
+describe('introSubtitlesUrl', () => {
+  it('names the locale, because the endpoint gates on it', () => {
+    expect(introSubtitlesUrl(7, 'fr')).toBe('/api/files/7/subtitles?locale=fr')
+  })
+
+  it('encodes the locale', () => {
+    expect(introSubtitlesUrl(7, 'pt-BR')).toBe('/api/files/7/subtitles?locale=pt-BR')
+  })
+
+  it('refuses to build a URL with no locale', () => {
+    expect(introSubtitlesUrl(7, undefined)).toBeNull()
+    expect(introSubtitlesUrl(7, '')).toBeNull()
+  })
+
+  it('refuses to build a URL with no file', () => {
+    expect(introSubtitlesUrl(undefined, 'fr')).toBeNull()
+    expect(introSubtitlesUrl(null, 'fr')).toBeNull()
+  })
+})
+
+describe('introAudioFilenameUrl', () => {
+  it('names the locale, and asks for the filename alone', () => {
+    const url = introAudioFilenameUrl(7, 'fr')
+
+    expect(url).toContain('/api/files/7?')
+    expect(url).toContain('locale=fr')
+    expect(url).toContain(`select${encodeURIComponent('[filename]')}=true`)
+  })
+
+  it('refuses to build a URL with no locale or no file', () => {
+    expect(introAudioFilenameUrl(7, undefined)).toBeNull()
+    expect(introAudioFilenameUrl(undefined, 'fr')).toBeNull()
   })
 })
 

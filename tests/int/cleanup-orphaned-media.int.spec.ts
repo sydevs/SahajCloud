@@ -840,6 +840,28 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, videoFile.id)).toBe(false)
     })
 
+    // `introAudio` became localized in #1016, and the job needed no change for
+    // it: `schemaUtils` reads each field's own `localized` flag while walking
+    // the schema, and the scan reads `locale: 'all'`. This asserts that rather
+    // than restating it — a recording attached in Czech alone is in use.
+    it('preserves a recording referenced only by a non-English intro audio', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
     it('preserves an image referenced only by an unpublished draft', async () => {
       // A draft save writes the versions table alone, so the main row never sees it.
       const image = await testData.createMediaImage(payload)
