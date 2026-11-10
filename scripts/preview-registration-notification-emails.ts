@@ -95,7 +95,6 @@ const SCENARIOS: Scenario[] = [
     ...fullManager,
     label: 'manager · update',
     note: 'the same signup, folded into the registration the sender already held — update wording in the Subject, heading, preview text and intro, with every fact and answer unchanged',
-    startingAt: daysFromNow(12),
     isUpdate: true,
   },
   {
