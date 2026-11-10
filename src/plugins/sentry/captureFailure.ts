@@ -17,11 +17,11 @@ import type { PayloadRequest } from 'payload'
 import * as Sentry from '@sentry/nextjs'
 
 import { mapPostgresCastError } from '@/lib/databaseErrors'
-import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { validationFieldErrors } from '@/lib/utilities/validationFailure'
 
 import { describeRejectedCredential } from './credentialRejection'
+import { captureTags } from './tags'
 
 /**
  * The `capture_source` tag. A routed failure and a swallowed admin write can
@@ -55,14 +55,6 @@ export const errorStatus = (error: unknown): number =>
 
 const defined = (record: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined))
-
-/** A tag is a non-empty string or absent: Sentry has no use for `null` or `''`. */
-const tagsOf = (record: Record<string, unknown>): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(record).filter(
-      (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '',
-    ),
-  )
 
 /** Report a failed operation. Returns whether an event was sent. */
 export const captureFailure = ({
@@ -119,8 +111,7 @@ export const captureFailure = ({
             email: 'email' in req.user ? String(req.user.email) : undefined,
           }
         : (actingUser ?? (rejected?.ip ? { ip_address: rejected.ip } : undefined)),
-      tags: tagsOf({
-        environment: deploymentEnvironment(),
+      tags: captureTags({
         locale: req?.locale,
         collection,
         target,

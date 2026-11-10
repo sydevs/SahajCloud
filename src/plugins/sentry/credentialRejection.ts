@@ -17,11 +17,8 @@
  */
 import type { PayloadRequest } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
-import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
-
 import { classifyAuthAttempt } from './authAttempt'
+import { captureMessage } from './captureMessage'
 
 /**
  * The one string both denial paths log and capture.
@@ -130,8 +127,8 @@ export const describeRejectedCredential = (
  * 500, and this runs on the request's denial path rather than its error path.
  *
  * ⚠ **Not gated on `NEXT_PUBLIC_SENTRY_DSN`**, unlike `sentryPlugin`, which
- * returns the config untouched without one. `Sentry.captureMessage` is a no-op
- * on an uninitialised SDK, and the WARN line is the half a local run can see.
+ * returns the config untouched without one. The capture is a no-op on an
+ * uninitialised SDK, and the WARN line is the half a local run can see.
  */
 export const reportRejectedCredential = (req: PayloadRequest): void => {
   // Inlined, not a parameter: the guard is the only caller and returns exactly
@@ -143,24 +140,15 @@ export const reportRejectedCredential = (req: PayloadRequest): void => {
     const rejected = describeRejectedCredential(req, { status, source: 'requireActiveClient' })
     if (!rejected) return
 
-    Sentry.withScope((scope) => {
-      scope.setLevel('error')
-      Object.entries({
-        environment: deploymentEnvironment(),
-        ...rejected.tags,
-      }).forEach(([key, value]) => {
-        if (value) scope.setTag(key, value)
-      })
-      scope.setExtra('status', status)
-      scope.setExtra('url', req.url)
-      scope.setExtra('userAgent', rejected.userAgent)
-      // ⚠ **The IP belongs on `user.ip_address`, never in an `extra`.**
-      // `sendDefaultPii: false` and the project's "Prevent Storing of IP
-      // Addresses" setting both act on that field alone; an `extra` is opaque
-      // context no scrubber reaches.
-      if (rejected.ip) scope.setUser({ ip_address: rejected.ip })
-      scope.setFingerprint(rejected.fingerprint)
-      Sentry.captureMessage(CREDENTIAL_REJECTED_MESSAGE, 'error')
+    captureMessage({
+      message: CREDENTIAL_REJECTED_MESSAGE,
+      extra: { status, url: req.url, userAgent: rejected.userAgent },
+      fingerprint: rejected.fingerprint,
+      // A dead integration is a broken caller, not traffic — the whole point of
+      // #734. The throwing path reaches the same level through `rejected`.
+      level: 'error',
+      tags: rejected.tags,
+      user: rejected.ip ? { ip_address: rejected.ip } : undefined,
     })
   } catch {
     // Deliberately silent. The caller is mid-denial and has no way to handle

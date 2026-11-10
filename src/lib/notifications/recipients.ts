@@ -1,10 +1,9 @@
 import type { EventManagerContact, NotificationChannel, ResolvedRecipient } from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Manager, Region } from '@/payload-types'
+import { captureMessage } from '@/plugins/sentry/captureMessage'
 
 const PLATFORM_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp',
@@ -188,15 +187,16 @@ export async function resolveRecipients(args: {
         regionName: region.regionName,
       })
     } else {
-      const message =
-        'ExpireEvents: no region manager (distinct from the event manager) found to escalate to'
-      const extra = {
-        eventId: event.id,
-        regionId: relationId(event.region),
-        eventManagerId: eventManager?.id ?? null,
-      }
-      payload.logger.warn({ msg: message, ...extra })
-      Sentry.captureMessage(message, { level: 'warning', extra })
+      captureMessage({
+        message:
+          'ExpireEvents: no region manager (distinct from the event manager) found to escalate to',
+        extra: {
+          eventId: event.id,
+          regionId: relationId(event.region),
+          eventManagerId: eventManager?.id ?? null,
+        },
+        logger: payload.logger,
+      })
     }
   }
 

@@ -5,10 +5,9 @@
  */
 import type { Payload, TaskConfig } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import { serverEnv } from '@/lib/env'
 import type { Client } from '@/payload-types'
+import { captureMessage } from '@/plugins/sentry/captureMessage'
 
 import { HIGH_USAGE_THRESHOLD } from './constants'
 import { getPgPool, quotedDbSchema } from './db'
@@ -88,22 +87,21 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
   // Report to Sentry if DSN is configured and we have milestones to report
   if (serverEnv.NEXT_PUBLIC_SENTRY_DSN && milestonesToReport.length > 0) {
     for (const report of milestonesToReport) {
-      Sentry.withScope((scope) => {
-        scope.setTag('clientId', String(report.clientId))
-        scope.setTag('milestone', report.milestone)
-        scope.setLevel('warning')
-        scope.setContext('abuse_details', {
-          clientName: report.clientName,
-          highUsageDays: report.highUsageDays,
-          threshold: HIGH_USAGE_THRESHOLD,
-        })
-
-        const message =
+      captureMessage({
+        message:
           report.milestone === 'first_high_usage'
             ? `API abuse milestone: First high-usage day for "${report.clientName}"`
-            : `API abuse milestone: "${report.clientName}" is now a persistent abuser (${report.highUsageDays} days)`
-
-        Sentry.captureMessage(message)
+            : `API abuse milestone: "${report.clientName}" is now a persistent abuser (${report.highUsageDays} days)`,
+        contexts: {
+          abuse_details: {
+            clientName: report.clientName,
+            highUsageDays: report.highUsageDays,
+            threshold: HIGH_USAGE_THRESHOLD,
+          },
+        },
+        // No logger: the one aggregate line below covers the whole run, rather
+        // than repeating each report.
+        tags: { clientId: String(report.clientId), milestone: report.milestone },
       })
     }
 
