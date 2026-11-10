@@ -17,9 +17,8 @@
   "kv_namespaces": [
     {
       "binding": "PREVIEW_HOSTS",
-      // Replace with the namespace id `wrangler kv namespace create PREVIEW_HOSTS`
-      // prints. It is an account-scoped identifier, not a credential.
-      "id": "REPLACE_WITH_PREVIEW_HOSTS_NAMESPACE_ID",
+      // An account-scoped identifier, not a credential.
+      "id": "9c43446be07544ae933284c8967b5d20",
     },
   ],
   // PREVIEW_PROXY_SECRET is a Worker secret (`wrangler secret put`), so it is
