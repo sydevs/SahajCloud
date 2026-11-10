@@ -59,7 +59,7 @@ export async function PreviewPicker({
     where: { _verified: { equals: true }, type: { not_equals: MANAGER_INACTIVE } },
   })
 
-  const rows: { email: string; name: string; reach: string }[] = []
+  const rows: { email: string; name: null | string; reach: string }[] = []
   for (const doc of docs) {
     // ⚠ Its own copy per row, and sequentially: `createLocalReq` assigns
     // `locale` onto the request it is handed, and this read asks for every
@@ -74,7 +74,7 @@ export async function PreviewPicker({
     })
     rows.push({
       email: doc.email,
-      name: doc.name || doc.email,
+      name: doc.name || null,
       reach: reach(summaries),
     })
   }
@@ -93,7 +93,7 @@ export async function PreviewPicker({
           <form action={signInAsAction} key={row.email}>
             <input name="email" type="hidden" value={row.email} />
             {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
-            <AccountButton name={row.name} reach={row.reach} />
+            <AccountButton email={row.email} name={row.name} reach={row.reach} />
           </form>
         ))}
       </div>
@@ -103,15 +103,26 @@ export async function PreviewPicker({
 }
 
 /**
- * One picker row: the account's name over its reach, with a chevron. Payload has
+ * One picker row: the account's name and address over its reach, with a chevron. Payload has
  * no list-row button — `Card` sets its title as a small h5 and cannot hold a
  * subtitle — so this is the one hand-styled piece of the view.
  */
-function AccountButton({ name, reach }: { name: string; reach: string }) {
+function AccountButton({
+  email,
+  name,
+  reach,
+}: {
+  email: string
+  name: null | string
+  reach: string
+}) {
   return (
     <button className={styles.account} type="submit">
       <span className={styles.accountText}>
-        <strong>{name}</strong>
+        <span>
+          <strong>{name ?? email}</strong>
+          {name ? <span className={styles.accountEmail}>{email}</span> : null}
+        </span>
         <span className={styles.accountReach}>{reach}</span>
       </span>
       <ChevronIcon direction="right" />
