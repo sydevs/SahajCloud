@@ -13,7 +13,7 @@
  * the fixtures make about the real configuration, both verified:
  *
  * - The body shape is `{ segments: [{ text, start, end }] }` in seconds.
- *   Checked against `src/collections/MeditationTranscripts/lemonfox.ts`, the
+ *   Checked against `src/lib/lemonfox/normalize.ts`, the
  *   one normaliser, which is the real code under these assertions.
  * - `LEMONFOX_API_KEY` is `''` in `vitest.config.mts`, so the unmocked key
  *   reader returns `undefined`. The mock's default overrides that on purpose:
@@ -32,7 +32,7 @@ import {
   RETRANSCRIBE_COOLDOWN_MS,
   TRANSCRIPTION_STALL_MS,
 } from '@/lib/meditations/transcriptBounds'
-import type { Meditation, MeditationTranscript } from '@/payload-types'
+import type { Meditation, Transcript } from '@/payload-types'
 
 import {
   createRestClient,
@@ -126,10 +126,10 @@ describe('meditation transcription', () => {
   const createMeditation = (locale = 'en'): Promise<Meditation> =>
     testData.createMeditation(payload, deps, { frames, locale } as never)
 
-  const transcriptOf = async (meditationId: number): Promise<MeditationTranscript | undefined> => {
+  const transcriptOf = async (meditationId: number): Promise<Transcript | undefined> => {
     const { docs } = await payload.find({
-      collection: 'meditation-transcripts',
-      where: { meditation: { equals: meditationId } },
+      collection: 'transcripts',
+      where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
       depth: 0,
       pagination: false,
       overrideAccess: true,
@@ -208,7 +208,7 @@ describe('meditation transcription', () => {
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
 
-      // The task writes `meditation-transcripts`, never the meditation. A write
+      // The task writes `transcripts`, never the meditation. A write
       // there would push out a version an editor restores from.
       expect(await versionCount(meditation.id)).toBe(before)
       const after = await payload.findByID({
@@ -454,7 +454,7 @@ describe('meditation transcription', () => {
       caller(`/api/meditations/${meditationId}/transcribe?locale=${locale}`, { method: 'POST' })
 
     /** Mark the run behind this meditation's transcript errored, so the row reads `failed`. */
-    const failTheRun = async (meditationId: number): Promise<MeditationTranscript> => {
+    const failTheRun = async (meditationId: number): Promise<Transcript> => {
       const row = await transcriptOf(meditationId)
       await payload.update({
         collection: 'payload-jobs',
@@ -468,7 +468,7 @@ describe('meditation transcription', () => {
     /** Put the last request behind the cooldown, which `createdAt` alone decides. */
     const backdate = (transcriptId: number) =>
       payload.update({
-        collection: 'meditation-transcripts',
+        collection: 'transcripts',
         id: transcriptId,
         data: {
           createdAt: new Date(Date.now() - RETRANSCRIBE_COOLDOWN_MS - 1000).toISOString(),
@@ -510,7 +510,7 @@ describe('meditation transcription', () => {
         const meditation = await createMeditation()
         const original = await transcriptOf(meditation.id)
         await payload.delete({
-          collection: 'meditation-transcripts',
+          collection: 'transcripts',
           id: original!.id,
           overrideAccess: true,
         })
@@ -703,8 +703,8 @@ describe('meditation transcription', () => {
 
         expect([first.status, second.status].sort()).toEqual([200, 409])
         const { totalDocs } = await payload.find({
-          collection: 'meditation-transcripts',
-          where: { meditation: { equals: meditation.id } },
+          collection: 'transcripts',
+          where: { source: { equals: { relationTo: 'meditations', value: meditation.id } } },
           depth: 0,
           overrideAccess: true,
         })

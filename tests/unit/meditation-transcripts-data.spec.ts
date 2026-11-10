@@ -19,7 +19,7 @@ import path from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyGlossary } from '@/collections/MeditationTranscripts/glossary'
+import { applyGlossary } from '@/collections/Transcripts/glossary'
 import { getLocaleLabel, LOCALES, type LocaleCode } from '@/lib/locales'
 import { transcriptSegmentsSchema } from '@/lib/meditations/transcript'
 

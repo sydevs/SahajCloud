@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { stampSegmentCount } from '@/collections/MeditationTranscripts/hooks/stampSegmentCount'
+import { stampSegmentCount } from '@/collections/Transcripts/hooks/stampSegmentCount'
 
 const run = (data: Record<string, unknown>) =>
   stampSegmentCount({ data } as never) as Record<string, unknown>

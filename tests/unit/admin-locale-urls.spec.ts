@@ -50,11 +50,19 @@ describe('framesByNarratorKey', () => {
 })
 
 describe('transcriptUrl', () => {
-  it('names the locale, and filters on the meditation', () => {
+  /**
+   * ⚠ **The object form, both halves of it.** `source` is polymorphic, so a
+   * bare `[source][equals]=7` throws `Not supported` server-side and
+   * `[source][value][equals]=7` matches the **file** of that number as well.
+   * Both fail at run time only, because `Where` is loosely typed.
+   */
+  it('names the locale, and filters on the meditation as its own target', () => {
     const url = transcriptUrl(7, 'fr')
 
     expect(url).toContain('locale=fr')
-    expect(url).toContain(`where${encodeURIComponent('[meditation][equals]')}=7`)
+    expect(url).toContain(`where${encodeURIComponent('[source][equals][relationTo]')}=meditations`)
+    expect(url).toContain(`where${encodeURIComponent('[source][equals][value]')}=7`)
+    expect(url).not.toContain(encodeURIComponent('[source][value]'))
   })
 
   it('encodes the locale', () => {
