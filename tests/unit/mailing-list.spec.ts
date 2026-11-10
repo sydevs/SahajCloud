@@ -391,18 +391,30 @@ describe('subscribeToMailingList', () => {
     })
 
     /**
-     * The one leg that can have landed before it was reported failed: the
-     * receiver is upserted by then, so a retry sends a second confirmation.
-     * Retryable is the ticket's mapping; the exposure is the PR's question.
+     * ⚠ The one leg that can have landed before it was reported failed: the
+     * receiver is upserted by then and `activated` stays 0 either way, so a
+     * retry on anything but a 429 mails the same person twice. A 429 is the one
+     * status saying CleverReach never processed the send.
      */
-    it('reports a failed confirmation send as retryable, receiver already upserted', async () => {
+    it('retries a throttled confirmation send and not a failed one', async () => {
       fetchMock.mockImplementation(
-        cleverreachAnswers({ send: answer(503, { error: { message: 'busy' } }) }),
+        cleverreachAnswers({ send: answer(429, { error: { message: 'slow down' } }) }),
       )
       await expect(subscribe(CLEVERREACH)).resolves.toEqual(
         expect.objectContaining({ code: 'provider_unavailable', retryable: true }),
       )
       expect(called(fetchMock, '/receivers/upsert')).toBe(true)
+
+      for (const status of [500, 503, 400]) {
+        fetchMock.mockClear()
+        fetchMock.mockImplementation(
+          cleverreachAnswers({ send: answer(status, { error: { message: 'busy' } }) }),
+        )
+        await expect(subscribe(CLEVERREACH)).resolves.toEqual(
+          expect.objectContaining({ ok: false, retryable: false, message: 'busy' }),
+        )
+        expect(called(fetchMock, '/receivers/upsert')).toBe(true)
+      }
     })
 
     it('refuses a config with no client ID, or no flow ID, before calling anything', async () => {

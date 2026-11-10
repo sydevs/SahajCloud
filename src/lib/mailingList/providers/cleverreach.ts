@@ -112,7 +112,7 @@ async function subscribeCleverReach(args: SubscribeArgs): Promise<MailingListRes
         ...(Object.keys(doidata).length > 0 ? { doidata } : {}),
       },
     })
-    if (!send.ok) return statusFailure(send.status, await readError(send))
+    if (!send.ok) return sendFailure(send.status, await readError(send))
 
     return { ok: true, status: 'pending' }
   } catch (error) {
@@ -204,6 +204,21 @@ async function accessToken(
     return refused('CleverReach issued no access token for that client ID and secret.')
   }
   return body.access_token
+}
+
+/**
+ * What a refused confirmation send leaves behind.
+ *
+ * ⚠ By this call the receiver is already on the group with `activated` at 0,
+ * which reads the same whether the mail went out or not. So only a status that
+ * says CleverReach did **not** process the call earns another attempt, and 429
+ * is the one that says it: anything else, a 5xx included, is retried into a
+ * second confirmation mail to the same person. Stopping costs one subscription,
+ * which the visitor completes by submitting the form again.
+ */
+function sendFailure(status: number, message: string): MailingListFailure {
+  const failure = statusFailure(status, message)
+  return status === 429 ? failure : { ...failure, retryable: false }
 }
 
 /** A refusal this adapter reaches on its own, before or instead of a call. */

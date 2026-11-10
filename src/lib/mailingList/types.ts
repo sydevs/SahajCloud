@@ -67,7 +67,14 @@ export type MailingListFailureCode =
   | 'not_configured'
   /** The provider refused our credentials or the request itself. */
   | 'provider_rejected'
-  /** The provider was unreachable or timed out. The one retryable failure. */
+  /**
+   * The provider was unreachable, timed out, or had a bad moment.
+   *
+   * The only code a retry can help, and even then not always: a call whose
+   * side effect may already have landed is refused terminally under this same
+   * code, because what happened to the provider is not what a retry would
+   * cost. CleverReach's confirmation send is that case.
+   */
   | 'provider_unavailable'
 
 /** What every adapter is handed. */
