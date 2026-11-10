@@ -112,11 +112,16 @@ import * as migration_20261104_180154_routing_region from './20261104_180154_rou
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
 import * as migration_20261105_181908_retire_region_hint from './20261105_181908_retire_region_hint';
 import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_201411_atlas_digests_and_homes';
+import * as migration_20261105_233425_add_cleverreach_mailing_list from './20261105_233425_add_cleverreach_mailing_list';
 import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
 import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
+import * as migration_20261108_220039_snapshot_resync from './20261108_220039_snapshot_resync';
+import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
+import * as migration_20261110_175935_snapshot_resync from './20261110_175935_snapshot_resync';
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
 import * as migration_20261110_185146_localize_lesson_intro_audio_and_subtitles from './20261110_185146_localize_lesson_intro_audio_and_subtitles';
+import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185320_merge_main_snapshot_6';
 
 export const migrations = [
   {
@@ -690,6 +695,11 @@ export const migrations = [
     name: '20261105_201411_atlas_digests_and_homes',
   },
   {
+    up: migration_20261105_233425_add_cleverreach_mailing_list.up,
+    down: migration_20261105_233425_add_cleverreach_mailing_list.down,
+    name: '20261105_233425_add_cleverreach_mailing_list',
+  },
+  {
     up: migration_20261106_094841_clients_one_site.up,
     down: migration_20261106_094841_clients_one_site.down,
     name: '20261106_094841_clients_one_site',
@@ -705,6 +715,21 @@ export const migrations = [
     name: '20261107_225000_atlas_clock_copy',
   },
   {
+    up: migration_20261108_220039_snapshot_resync.up,
+    down: migration_20261108_220039_snapshot_resync.down,
+    name: '20261108_220039_snapshot_resync',
+  },
+  {
+    up: migration_20261110_172159_snapshot_resync.up,
+    down: migration_20261110_172159_snapshot_resync.down,
+    name: '20261110_172159_snapshot_resync',
+  },
+  {
+    up: migration_20261110_175935_snapshot_resync.up,
+    down: migration_20261110_175935_snapshot_resync.down,
+    name: '20261110_175935_snapshot_resync',
+  },
+  {
     up: migration_20261110_180359_merge_1075_main_snapshot_5.up,
     down: migration_20261110_180359_merge_1075_main_snapshot_5.down,
     name: '20261110_180359_merge_1075_main_snapshot_5',
@@ -712,6 +737,11 @@ export const migrations = [
   {
     up: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.up,
     down: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.down,
-    name: '20261110_185146_localize_lesson_intro_audio_and_subtitles'
+    name: '20261110_185146_localize_lesson_intro_audio_and_subtitles',
+  },
+  {
+    up: migration_20261110_185320_merge_main_snapshot_6.up,
+    down: migration_20261110_185320_merge_main_snapshot_6.down,
+    name: '20261110_185320_merge_main_snapshot_6'
   },
 ];
