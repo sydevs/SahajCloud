@@ -190,6 +190,23 @@ describe('normalizeLemonfoxWords', () => {
     expect(words.map((word) => word.content)).toEqual(['Place', 'attention.'])
   })
 
+  // `words: []` is present but carries nothing, so it is a segment that carries
+  // none — the bucketed top-level words are the only ones it can have.
+  it('buckets top-level words into a segment whose own list is empty', () => {
+    const words = normalizeLemonfoxWords({
+      segments: [
+        { start: 0, end: 1, text: 'Place', words: [] },
+        { start: 1.4, end: 2.5, text: 'attention.', words: [] },
+      ],
+      words: [
+        { word: 'Place', start: 0.1, end: 0.6 },
+        { word: 'attention.', start: 1.4, end: 2.5 },
+      ],
+    })
+
+    expect(words.map((word) => word.content)).toEqual(['Place', 'attention.'])
+  })
+
   it('answers words in spoken order, whatever order the segments arrive in', () => {
     const words = normalizeLemonfoxWords({
       segments: [

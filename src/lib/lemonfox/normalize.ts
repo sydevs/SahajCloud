@@ -112,7 +112,11 @@ export function normalizeLemonfoxWords(raw: unknown): TimedWord[] {
     // ⚠ Inside this branch only: `assignWordsToSegments` indexes by segment, so
     // it has nothing to bucket into when there are none.
     const buckets = assignWordsToSegments(segments, topLevel)
-    words = segments.flatMap((segment, index) => segment.words ?? buckets[index]!)
+    // `?.length`, not `??`: a segment carrying `words: []` carries none, and
+    // keeping that empty list would drop the words bucketed into it.
+    words = segments.flatMap((segment, index) =>
+      segment.words?.length ? segment.words : buckets[index]!,
+    )
   }
 
   return words.flatMap((word) => {
