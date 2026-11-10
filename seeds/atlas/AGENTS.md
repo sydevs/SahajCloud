@@ -130,6 +130,12 @@ deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
 role, and any manager a non-Atlas client or form names), and never touches a
 client Atlas did not create. Every event gets a fresh verification lease.
 
+Then prove no embed lost its captcha (#1077): `pnpm tsx scripts/audit-challenge-parents.ts`
+under `railway run --service SahajCloud` must print no refused inline mount from an
+enabled service. A refused host is a service whose `site.domain` is missing or wrong —
+the import writes it on create only, so a fix made on the Install tab survives every
+re-sync — or a second site, which needs a `CLIENT_SPLITS` row ([sync/merges.ts](sync/merges.ts)).
+
 ### What the overlay carries
 
 `extract.ts` reads Atlas mechanically, so every value below is curation,
