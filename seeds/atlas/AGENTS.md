@@ -130,11 +130,16 @@ deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
 role, and any manager a non-Atlas client or form names), and never touches a
 client Atlas did not create. Every event gets a fresh verification lease.
 
-Then prove no embed lost its captcha (#1077): `pnpm tsx scripts/audit-challenge-parents.ts`
-under `railway run --service SahajCloud` must print no refused inline mount from an
-enabled service. A refused host is a service whose `site.domain` is missing or wrong —
-the import writes it on create only, so a fix made on the Install tab survives every
-re-sync — or a second site, which needs a `CLIENT_SPLITS` row ([sync/merges.ts](sync/merges.ts)).
+Then check the captcha (#1077). `scripts/audit-challenge-parents.ts`, run as its
+docblock says (`railway run` with the public `DATABASE_URL`), must print no refused
+mount from an enabled service but one: `http://lane.test/` on "Sahaj Atlas (Local Test
+Key)", a test run's row its domainless service can never refresh. A refused host is a
+service whose `site.domain` is missing or wrong — the import writes it on create only,
+so a fix made on the Install tab survives every re-sync — or a second site, which needs
+a `CLIENT_SPLITS` row ([sync/merges.ts](sync/merges.ts)). The audit sees only stored
+mounts, and a service stores only its own domain's, so once the WordPress sites run the
+new widget the proof is a registration: submit one from a WordPress host site and
+confirm it reaches `user-submissions`.
 
 ### What the overlay carries
 
@@ -482,9 +487,9 @@ the clients table, ahead of the overlay:
 
 ⚠ **Production's "Yoga Essonne" (`clients/43`) was created by hand before
 the split existed**, so it needs `legacyId: -32` before the next `atlas
---update`. Without it the import creates a second "Yoga Essonne", and
-`atlas-reset` refuses while a service SahajCloud made itself points at a
-region.
+--update`. Production carries it (checked 2026-11-10). Without it the import
+creates a second "Yoga Essonne", and `atlas-reset` refuses while a service
+SahajCloud made itself points at a region.
 
 ## One-offs, and the duplicate-class guard
 
