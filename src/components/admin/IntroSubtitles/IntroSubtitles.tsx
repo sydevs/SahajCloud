@@ -14,9 +14,11 @@ import {
 import { Captions, Undo2 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
+import { refusalMessage } from '@/components/admin/helpers/payloadListFetcher'
+import { relationId } from '@/lib/utilities/relationId'
 import type { Subtitles } from '@/lib/utilities/subtitles'
 
-import { introAudioFilenameUrl, introSubtitlesUrl, uploadFileId } from './introSubtitlesModel'
+import { introSubtitlesUrl } from './introSubtitlesModel'
 
 type Props = {
   /** Name of the sibling upload field that holds the recording. */
@@ -26,7 +28,7 @@ type Props = {
 type Run =
   | { status: 'idle' }
   | { status: 'running' }
-  | { status: 'done'; lines: number; previous: Subtitles | null }
+  | { status: 'done'; lines: number; previous: Subtitles | null; reused: boolean }
   | { status: 'error'; message: string }
 
 const REPLACE_MODAL = 'intro-subtitles-replace'
@@ -59,10 +61,18 @@ export function IntroSubtitles({ sourceField }: Props) {
   const { code: locale } = useLocale()
   const { openModal } = useModal()
 
-  const audioId = uploadFileId(audio)
-  const filename = useAudioFilename(audioId, locale)
+  const audioId = relationId(audio)
+  // Off the form value, not a read of its own: the edit view populates an
+  // upload field, so the filename is already here — and Payload's own upload
+  // card is rendering it directly above this control. A bare id (no
+  // population) falls through to the generic wording below.
+  const filename = audioFilename(audio)
   const hasSubtitles = Array.isArray(subtitles) && subtitles.length > 0
-  const audioChanged = audioId !== uploadFileId(savedAudio)
+  // shortcut: an unsaved swap only — form state against the saved value, so a
+  // recording replaced and saved without re-running shows no warning on the
+  // next visit. Upgrade when the cues carry the file they came from, the way
+  // `transcripts.audioFilename` does for a meditation.
+  const audioChanged = audioId !== relationId(savedAudio)
 
   const [run, setRun] = useState<Run>({ status: 'idle' })
   // One request at a time, and the one in flight is abandoned when the field
@@ -80,7 +90,7 @@ export function IntroSubtitles({ sourceField }: Props) {
 
     const controller = new AbortController()
     inFlight.current = controller
-    const previous = hasSubtitles ? subtitles : null
+    const previous = subtitles ?? null
     setRun({ status: 'running' })
 
     try {
@@ -89,27 +99,28 @@ export function IntroSubtitles({ sourceField }: Props) {
         method: 'POST',
         signal: controller.signal,
       })
-      const body = (await response.json().catch(() => null)) as {
-        cues?: Subtitles
-        errors?: { message?: string }[]
-      } | null
+      const body: unknown = await response.json().catch(() => null)
+      const { cues, reused } = (body ?? {}) as { cues?: Subtitles; reused?: boolean }
 
       if (controller.signal.aborted) return
-      if (!response.ok || !body?.cues) {
-        setRun({ status: 'error', message: body?.errors?.[0]?.message ?? FAILED })
+      if (!response.ok || !cues) {
+        // The endpoint's own sentence, where it sent one: it says which
+        // recording is wrong and whether retrying can help, and a status code
+        // alone names the wrong layer.
+        setRun({ status: 'error', message: refusalMessage(body) ?? FAILED })
         return
       }
-      setValue(body.cues)
-      setRun({ status: 'done', lines: body.cues.length, previous })
-    } catch (error) {
-      if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
-        return
-      }
+      setValue(cues)
+      setRun({ status: 'done', lines: cues.length, previous, reused: reused === true })
+    } catch {
+      // A `fetch` abandoned through this controller leaves the signal aborted,
+      // so this covers the `AbortError` throw as well as the latch's own abort.
+      if (controller.signal.aborted) return
       setRun({ status: 'error', message: FAILED })
     } finally {
       if (inFlight.current === controller) inFlight.current = null
     }
-  }, [audioId, hasSubtitles, locale, setValue, subtitles])
+  }, [audioId, locale, setValue, subtitles])
 
   // Abandon a run the field has moved on from, in either dimension. Resetting
   // to idle as well, because the banner above the editor would otherwise
@@ -122,9 +133,16 @@ export function IntroSubtitles({ sourceField }: Props) {
     inFlight.current?.abort()
     inFlight.current = null
     setRun({ status: 'idle' })
-    // Only a recording attached in this session starts a run by itself, so
-    // opening a step that has audio but no cues never spends one.
-    if (previous.locale === locale && audioId && !hasSubtitles) void transcribe()
+    // ⚠ **`audioChanged`, not "the locale held still".** Only a recording
+    // attached in this session starts a run by itself — a run costs money, so
+    // nothing but a person's own edit may buy one. Reading the previous render
+    // instead is not the same test, and a locale switch is where they part:
+    // Payload changes `useLocale()` first and replaces the form state in a
+    // later commit (`initialState` is gated on `localeIsLoading`), so the new
+    // locale's own recording arrives as an audio change with the locale
+    // already settled — and a step with audio and no cues, which is the normal
+    // state in 18 locales, would transcribe itself on a language switch.
+    if (audioChanged && audioId && !hasSubtitles) void transcribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire on the latch moving only
   }, [audioId, locale])
 
@@ -159,9 +177,19 @@ export function IntroSubtitles({ sourceField }: Props) {
       )}
 
       {run.status === 'done' && (
-        <Banner type="success">
-          Made {run.lines} subtitle lines from {recording}. Check the words below, fix any mistakes,
-          then save.{' '}
+        <Banner type={run.reused ? 'info' : 'success'}>
+          {/* ⚠ One cue row per recording, so a second ask answers with the
+              first run's cues rather than making new ones — and reporting
+              "Made N lines" for that would claim work the server declined.
+              The modal above offers a replace, so this is where that offer is
+              kept honest. */}
+          {run.reused
+            ? `These are the ${run.lines} subtitle lines already made for `
+            : `Made ${run.lines} subtitle lines from `}
+          {recording}
+          {run.reused
+            ? '. Making them again would answer with these same lines. Edit the words below, then save.'
+            : '. Check the words below, fix any mistakes, then save.'}{' '}
           <Button
             buttonStyle="subtle"
             icon={<Undo2 size={14} />}
@@ -178,32 +206,31 @@ export function IntroSubtitles({ sourceField }: Props) {
         </Banner>
       )}
 
-      {run.status === 'idle' && hasSubtitles && audioChanged && (
-        <Banner type="warning">
-          The intro audio changed. The subtitles below still follow the old recording.{' '}
+      {run.status === 'idle' &&
+        (hasSubtitles && audioChanged ? (
+          <Banner type="warning">
+            The intro audio changed. The subtitles below still follow the old recording.{' '}
+            <Button
+              buttonStyle="secondary"
+              margin={false}
+              onClick={() => openModal(REPLACE_MODAL)}
+              size="small"
+            >
+              Make new subtitles
+            </Button>
+          </Banner>
+        ) : (
           <Button
-            buttonStyle="secondary"
+            buttonStyle={hasSubtitles ? 'subtle' : 'secondary'}
+            icon={<Captions size={16} />}
+            iconPosition="left"
             margin={false}
-            onClick={() => openModal(REPLACE_MODAL)}
+            onClick={() => (hasSubtitles ? openModal(REPLACE_MODAL) : void transcribe())}
             size="small"
           >
-            Make new subtitles
+            {hasSubtitles ? 'Make again from audio' : 'Make subtitles from audio'}
           </Button>
-        </Banner>
-      )}
-
-      {run.status === 'idle' && !(hasSubtitles && audioChanged) && (
-        <Button
-          buttonStyle={hasSubtitles ? 'subtle' : 'secondary'}
-          icon={<Captions size={16} />}
-          iconPosition="left"
-          margin={false}
-          onClick={() => (hasSubtitles ? openModal(REPLACE_MODAL) : void transcribe())}
-          size="small"
-        >
-          {hasSubtitles ? 'Make again from audio' : 'Make subtitles from audio'}
-        </Button>
-      )}
+        ))}
 
       <ConfirmationModal
         body="New subtitles will replace the ones below, including any corrections made by hand. You can undo this until you save."
@@ -218,23 +245,16 @@ export function IntroSubtitles({ sourceField }: Props) {
   )
 }
 
-/** The recording's filename, for the sentence that names it. */
-function useAudioFilename(id: number | string | null, locale: string | undefined): string | null {
-  const [filename, setFilename] = useState<string | null>(null)
-
-  useEffect(() => {
-    setFilename(null)
-    const url = introAudioFilenameUrl(id, locale)
-    if (!url) return
-    const controller = new AbortController()
-    fetch(url, { credentials: 'include', signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((doc: { filename?: string } | null) => setFilename(doc?.filename ?? null))
-      .catch(() => {})
-    return () => controller.abort()
-  }, [id, locale])
-
-  return filename
+/**
+ * An upload field's filename, when the form value arrived populated.
+ *
+ * `null` for a bare id, which is what a form state built at `depth: 0` holds —
+ * the caller falls back to generic wording rather than reading the row.
+ */
+function audioFilename(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || !('filename' in value)) return null
+  const { filename } = value as { filename: unknown }
+  return typeof filename === 'string' && filename ? filename : null
 }
 
 export default IntroSubtitles

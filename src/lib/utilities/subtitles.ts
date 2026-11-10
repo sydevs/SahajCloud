@@ -76,10 +76,7 @@ export const SUBTITLE_CUE_MAX_CHARS = 30
  * the next one. A single word longer than the limit is its own cue and exceeds
  * it — splitting a word mid-syllable reads worse than one long line.
  */
-export function groupWordsIntoCues(
-  words: readonly TimedWord[],
-  maxChars: number = SUBTITLE_CUE_MAX_CHARS,
-): Subtitles {
+export function groupWordsIntoCues(words: readonly TimedWord[]): Subtitles {
   const cues: Subtitles = []
   let line: TimedWord[] = []
   let length = 0
@@ -100,11 +97,12 @@ export function groupWordsIntoCues(
   for (const word of words) {
     const content = word.content.trim()
     if (!content) continue
-    // The space this word would need, which the first word of a cue does not.
-    const added = line.length === 0 ? content.length : content.length + 1
-    if (line.length > 0 && length + added > maxChars) flush()
+    // The space before this word is what the limit has to account for, and the
+    // first word of a cue needs none. Measured after the flush, never before:
+    // a length computed against the old line is one too big for the new one.
+    if (line.length > 0 && length + content.length + 1 > SUBTITLE_CUE_MAX_CHARS) flush()
     line.push({ ...word, content })
-    length += line.length === 1 ? content.length : added
+    length += line.length === 1 ? content.length : content.length + 1
   }
   flush()
 

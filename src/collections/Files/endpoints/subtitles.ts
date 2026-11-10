@@ -1,6 +1,6 @@
 import type { Endpoint, PayloadRequest } from 'payload'
 
-import { requireManagerPermission } from '@/lib/endpoints'
+import { errorResponse, requireManagerPermission } from '@/lib/endpoints'
 import { normalizeLemonfoxWords } from '@/lib/lemonfox/normalize'
 import {
   lemonfoxApiKey,
@@ -9,9 +9,7 @@ import {
 } from '@/lib/lemonfox/transcribe'
 import { isValidLocale } from '@/lib/locales'
 import { groupWordsIntoCues, type Subtitles } from '@/lib/utilities/subtitles'
-
-const refusal = (message: string, status: number): Response =>
-  Response.json({ errors: [{ message }] }, { status })
+import { originOf } from '@/lib/utilities/url'
 
 /**
  * ⚠ **Under Cloudflare's 100 s origin-response limit.** This is a synchronous
@@ -31,6 +29,12 @@ const VENDOR_TIMEOUT_MS = 90 * 1000
  * than the lesson's, because that row is always saved while the lesson being
  * edited is not.
  *
+ * ⚠ **The gated collection is declared here, never taken from the request.**
+ * `videos.subtitles` is the same cue column on another collection and the
+ * obvious second caller, and serving it means a second declared target — never
+ * a `collection` query parameter, which would let a caller pick whichever
+ * grant it happens to hold (`docs/rules/endpoints.md`).
+ *
  * ⚠ **No `requireActiveClient`, because no API client may call this.** It is
  * admin-panel only, gated on the authority to edit a Path Step in the request's
  * locale, and so deliberately absent from the OpenAPI spec —
@@ -38,7 +42,10 @@ const VENDOR_TIMEOUT_MS = 90 * 1000
  *
  * ⚠ **A run costs money, so the server decides whether to pay for one.** A
  * `transcripts` row that already carries this file's cues answers from them and
- * pays nothing; a failed run writes no row, so the next press pays once.
+ * pays nothing; a failed run writes no row, so the next press pays once. That
+ * reuse is keyed on the **file**, not on (file, language): cues are a property
+ * of the recording, and the row's `language` records which run made them —
+ * it is what the glossary pass keys on, not a cache key.
  *
  * ⚠ **An endpoint inherits no transaction.** Nothing here needs one: the single
  * write is the create, and the vendor call happens before it.
@@ -56,14 +63,14 @@ export const fileSubtitles: Endpoint = {
     if (denied) return denied
 
     const id = Number(req.routeParams?.id)
-    if (!Number.isInteger(id) || id <= 0) return refusal('Invalid file id.', 400)
+    if (!Number.isInteger(id) || id <= 0) return errorResponse('Invalid file id.', 400)
 
     // The gate above proved `lessons: update` in this locale, and the cue row
     // records which language it was written in — so an unresolvable locale
     // cannot reach the vendor or the row. `?locale=all` is the realistic case.
     const locale = req.locale
     if (!locale || !isValidLocale(locale)) {
-      return refusal('Choose a language in the admin panel before making subtitles.', 400)
+      return errorResponse('Choose a language in the admin panel before making subtitles.', 400)
     }
 
     // `overrideAccess` here and on the reads and the write below: the gate above
@@ -79,26 +86,33 @@ export const fileSubtitles: Endpoint = {
       select: { filename: true, mimeType: true, url: true },
       req,
     })
-    if (!file) return refusal('File not found.', 404)
+    if (!file) return errorResponse('File not found.', 404)
 
     if (file.mimeType !== 'audio/mpeg') {
       // Worded so the admin knows the recording is wrong rather than the
       // server, and with no offer to retry: pressing again cannot help.
-      return refusal(
+      return errorResponse(
         'Subtitles can only be made from an MP3 recording, and this file is not one.',
         415,
       )
     }
 
-    const stored = await storedCuesFor(req, id)
-    if (stored) return Response.json({ cues: stored, reused: true })
+    const existing = await storedCuesFor(req, id)
+    if (existing) return Response.json({ cues: existing, reused: true })
 
     const apiKey = lemonfoxApiKey()
-    if (!apiKey) return refusal(TRANSCRIPTION_UNAVAILABLE_ERROR, 503)
+    if (!apiKey) return errorResponse(TRANSCRIPTION_UNAVAILABLE_ERROR, 503)
 
-    if (!file.url) {
-      return refusal(
-        'This recording has no public URL, so the subtitles service cannot fetch it.',
+    // ⚠ **An absolute URL, not merely a non-empty one.** The vendor fetches
+    // this itself, so a host is the whole requirement — and with no Cloudflare
+    // credentials `url` is the relative `/api/files/file/<name>`
+    // (`storage/urlFields.ts`), which a non-empty test passes and the vendor
+    // then cannot resolve. That is local dev, where this refusal is the honest
+    // answer rather than an opaque vendor error.
+    const audioUrl = file.url
+    if (!audioUrl || !originOf(audioUrl)) {
+      return errorResponse(
+        'This recording has no public address, so the subtitles service cannot fetch it.',
         409,
       )
     }
@@ -107,7 +121,7 @@ export const fileSubtitles: Endpoint = {
     try {
       const body = await requestLemonfoxTranscript({
         apiKey,
-        audioUrl: file.url,
+        audioUrl,
         locale,
         timeoutMs: VENDOR_TIMEOUT_MS,
         wordTimings: true,
@@ -124,18 +138,22 @@ export const fileSubtitles: Endpoint = {
       // 502, because the failure is the vendor's rather than this request's —
       // and the reason is returned rather than swallowed, since the admin is
       // the one who decides whether to press the button again.
-      return refusal(`Could not make subtitles: ${reason}`, 502)
+      return errorResponse(`Could not make subtitles: ${reason}`, 502)
     }
 
     if (cues.length === 0) {
-      return refusal('No speech was recognised in this recording, so there are no subtitles.', 422)
+      return errorResponse(
+        'No speech was recognised in this recording, so there are no subtitles.',
+        422,
+      )
     }
 
     // No row on a failure, so this is below the vendor call. A row the delete
     // cascade on `files` takes with its file (`Files.ts`), and one
     // `queueTranscription` deliberately queues nothing for.
+    let stored: Subtitles
     try {
-      await req.payload.create({
+      const created = await req.payload.create({
         collection: 'transcripts',
         data: {
           audioFilename: file.filename,
@@ -148,6 +166,12 @@ export const fileSubtitles: Endpoint = {
         overrideAccess: true,
         req,
       })
+      // ⚠ **The row's cues, not the ones just sent.** `applyGlossaryToSegments`
+      // is a `beforeChange` hook on `transcripts`, so it rewrites the vendor's
+      // spellings to ours on the way in (#1084) — answering with what was sent
+      // would hand the admin uncorrected words on the first press and the
+      // corrected ones on the second.
+      stored = (created.segments as Subtitles | null) ?? cues
     } catch (error) {
       // ⚠ **`source` is `unique`, so two admins pressing at once race here**
       // and the loser's insert is refused. Re-read rather than reporting it:
@@ -164,7 +188,7 @@ export const fileSubtitles: Endpoint = {
       throw error
     }
 
-    return Response.json({ cues, reused: false })
+    return Response.json({ cues: stored, reused: false })
   },
 }
 
@@ -182,6 +206,11 @@ async function storedCuesFor(req: PayloadRequest, fileId: number): Promise<Subti
   const { docs } = await req.payload.find({
     collection: 'transcripts',
     where: { source: { equals: { relationTo: 'files', value: fileId } } },
+    // The cues are the whole answer, and a bounded `select` is what keeps the
+    // two virtual fields' `afterRead` hooks — and the `payload-jobs` read one
+    // of them can make — out of a call that wants one column
+    // (`docs/rules/endpoints.md`).
+    select: { segments: true },
     depth: 0,
     limit: 1,
     pagination: false,

@@ -862,6 +862,65 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, recording.id)).toBe(false)
     })
 
+    // ⚠ **A cascade child is not a user of its parent.** `transcripts.source`
+    // points at the `files` row the cue set belongs to, and `Files.ts` deletes
+    // that row when the file goes — so the pointer cannot be the reason the
+    // file is still in use. The reference walk saw it as one, and a recording
+    // that had ever had cues made was never trashed again: measured before the
+    // fix at `exists: true, trashed: false` with no lesson referencing it in
+    // any locale (#1016). The subtitles endpoint is what made `file`-sourced
+    // rows reachable, which is why this case lands with it.
+    it('trashes a recording whose only reference is its own cue row', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      await payload.create({
+        collection: 'transcripts',
+        data: {
+          audioFilename: recording.filename,
+          language: 'en',
+          provider: 'lemonfox',
+          segments: [{ content: 'Close your eyes', startTimeMs: 0, endTimeMs: 1200 }],
+          source: { relationTo: 'files', value: recording.id },
+        },
+        overrideAccess: true,
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileInTrash(payload, recording.id)).toBe(true)
+    })
+
+    // The other half, and the one that makes the fix safe: the skip is the
+    // exact cascade field, so a lesson's own reference still protects the file
+    // even while a cue row names it too.
+    it('still preserves a recording a lesson references, cue row or not', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+      await payload.create({
+        collection: 'transcripts',
+        data: {
+          audioFilename: recording.filename,
+          language: 'cs',
+          provider: 'lemonfox',
+          segments: [{ content: 'Zavři oči', startTimeMs: 0, endTimeMs: 1200 }],
+          source: { relationTo: 'files', value: recording.id },
+        },
+        overrideAccess: true,
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
     it('preserves an image referenced only by an unpublished draft', async () => {
       // A draft save writes the versions table alone, so the main row never sees it.
       const image = await testData.createMediaImage(payload)

@@ -52,8 +52,25 @@ export interface CascadeRule {
  * }
  * ```
  */
-export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteHook {
-  return async ({ collection, id, req }) => {
+/**
+ * The hook, carrying the rules it was built with.
+ *
+ * ⚠ **Read by `CleanupOrphanedMedia`, which must not mistake a child for a
+ * user.** A cascade child's pointer at its parent is deleted *with* the
+ * parent, so it can never be the reason the parent is still in use — but the
+ * orphan sweep discovers references by walking every collection's fields, and
+ * `transcripts.source` reads exactly like a reference to the `files` row it
+ * depends on. Without this, one cue row made a recording immortal: no lesson
+ * referenced it in any locale, and the nightly sweep still counted it in use
+ * (#1016). The rules are published here rather than restated there, so a new
+ * cascade cannot arm the same leak silently.
+ */
+export type CascadeHook = CollectionBeforeDeleteHook & {
+  cascadeRules: readonly CascadeRule[]
+}
+
+export function deleteChildren(...rules: CascadeRule[]): CascadeHook {
+  const cascade: CollectionBeforeDeleteHook = async ({ collection, id, req }) => {
     for (const rule of rules) {
       await req.payload.delete({
         collection: rule.collection,
@@ -72,6 +89,8 @@ export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteH
       })
     }
   }
+
+  return Object.assign(cascade, { cascadeRules: rules })
 }
 
 /**

@@ -3,6 +3,7 @@
 import { Button, toast, useAuth, useDocumentInfo, useLocale } from '@payloadcms/ui'
 import React, { useCallback, useState } from 'react'
 
+import { refusalMessage } from '@/components/admin/helpers/payloadListFetcher'
 import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
 
 import { mayTranscribeLocale, transcribeUrl } from './transcriptModel'
@@ -59,11 +60,9 @@ export const RetryTranscript: React.FC<{
         return
       }
       const response = await fetch(url, { credentials: 'include', method: 'POST' })
-      const body = (await response.json().catch(() => null)) as {
-        errors?: { message?: string }[]
-      } | null
+      const body: unknown = await response.json().catch(() => null)
       if (!response.ok) {
-        toast.error(body?.errors?.[0]?.message ?? FAILED)
+        toast.error(refusalMessage(body) ?? FAILED)
         // ⚠ **A refusal can mean the row moved on.** A run slower than the
         // stall bound that then finishes reads `stalled` here and `completed`
         // on the server — and nothing polls a phase that offers this button,

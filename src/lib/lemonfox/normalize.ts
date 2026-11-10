@@ -2,6 +2,13 @@
  * Here rather than beside the HTTP client, because three writers share it: a
  * live transcription, the import of the library's existing transcript files,
  * and the subtitles endpoint. Nothing in this module fetches.
+ *
+ * ⚠ `normalizeLemonfoxResponse` still throws `ExpectedJobFailure` for a
+ * recording with no speech, which is a `src/jobs/` concept in a module two
+ * non-job callers now share. `normalizeLemonfoxWords` deliberately does not:
+ * it answers `[]` and leaves the wording to its caller. Moving that decision
+ * out to `TranscribeMeditation` is the follow-up; nothing depends on it today
+ * because the endpoint calls only the words half.
  */
 import { z } from 'zod'
 
@@ -102,10 +109,10 @@ export function normalizeLemonfoxWords(raw: unknown): TimedWord[] {
   if (segments.length === 0) {
     words = topLevel
   } else {
-    const filler = segments.some((segment) => !segment.words)
-      ? assignWordsToSegments(segments, topLevel)
-      : segments.map<RawWord[]>(() => [])
-    words = segments.flatMap((segment, index) => segment.words ?? filler[index] ?? [])
+    // ⚠ Inside this branch only: `assignWordsToSegments` indexes by segment, so
+    // it has nothing to bucket into when there are none.
+    const buckets = assignWordsToSegments(segments, topLevel)
+    words = segments.flatMap((segment, index) => segment.words ?? buckets[index]!)
   }
 
   return words.flatMap((word) => {

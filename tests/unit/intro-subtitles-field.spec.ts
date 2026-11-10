@@ -153,6 +153,34 @@ describe('the intro-subtitles control', () => {
       .filter(([, init]) => isPost(init as RequestInit | undefined))
       .map(([url]) => String(url))
 
+  // The control reads the filename off the form value rather than fetching it:
+  // the edit view already populated the upload field, and Payload's own upload
+  // card is rendering that same name directly above. A read of its own was a
+  // round trip for one bolded word, paid even by a reader the control renders
+  // nothing for — hooks run before the permission guard.
+  it('makes no request of its own until a run starts', () => {
+    render()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('names the recording when the form value arrived populated', async () => {
+    stub.audio = { id: 42, filename: 'step-1-intro.mp3' }
+    stub.savedAudio = { id: 42, filename: 'step-1-intro.mp3' }
+    render()
+    await press()
+
+    expect(container.textContent).toContain('step-1-intro.mp3')
+    expect(posts()).toEqual(['/api/files/42/subtitles?locale=en'])
+  })
+
+  it('falls back to generic wording for a bare id', async () => {
+    render()
+    await press()
+
+    expect(container.textContent).toContain('the intro audio')
+  })
+
   it('renders nothing without a recording', () => {
     stub.audio = null
     stub.savedAudio = null
@@ -258,6 +286,37 @@ describe('the intro-subtitles control', () => {
     expect(container.querySelector('[data-spinner]')).not.toBeNull()
   })
 
+  // ⚠ `transcripts.source` is unique, so one recording has one cue row: a
+  // second ask answers with the first run's cues rather than making new ones.
+  // "Made N subtitle lines" would claim work the server declined — and the
+  // replace modal above has just promised exactly that work.
+  it('does not claim to have made cues the server answered from its store', async () => {
+    fetchMock.mockResolvedValue({
+      json: async () => ({ cues: CUES, reused: true }),
+      ok: true,
+      status: 200,
+    })
+    render()
+    await press()
+
+    expect(stub.setValue).toHaveBeenCalledWith(CUES)
+    expect(container.textContent).toContain('already made')
+    expect(container.textContent).not.toContain('Made 2 subtitle lines')
+  })
+
+  it('says it made the cues when the server did make them', async () => {
+    fetchMock.mockResolvedValue({
+      json: async () => ({ cues: CUES, reused: false }),
+      ok: true,
+      status: 200,
+    })
+    render()
+    await press()
+
+    expect(container.textContent).toContain('Made 2 subtitle lines')
+    expect(container.textContent).not.toContain('already made')
+  })
+
   it('reports the endpoint refusal in the words the endpoint chose', async () => {
     fetchMock.mockResolvedValue({
       json: async () => ({
@@ -301,6 +360,26 @@ describe('the intro-subtitles control', () => {
     })
 
     expect(posts()).toEqual(['/api/files/77/subtitles?locale=en'])
+  })
+
+  // ⚠ The sequence a language switch really produces. Payload changes
+  // `useLocale()` first and replaces the form state in a later commit, so the
+  // new locale's own recording arrives as an audio change with the locale
+  // already settled. A condition reading "the locale held still since the last
+  // render" cannot tell that from a person attaching a file, and a step with
+  // audio and no cues — normal in 18 locales — would buy a run on every switch.
+  it('does not run by itself when a locale switch loads another recording', async () => {
+    render()
+
+    // Commit 1: the locale context moves; form state is still the old one.
+    stub.locale = 'de'
+    render()
+    // Commit 2: the German form state arrives — a new audio id, locale settled.
+    stub.audio = 77
+    stub.savedAudio = 77
+    render()
+
+    expect(posts()).toHaveLength(0)
   })
 
   it('never runs by itself over cues that already exist', async () => {

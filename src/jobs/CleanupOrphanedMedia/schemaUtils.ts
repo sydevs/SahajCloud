@@ -9,6 +9,7 @@ import type {
   ArrayField,
   Block,
   CollapsibleField,
+  CollectionSlug,
   Field,
   GroupField,
   Payload,
@@ -20,6 +21,7 @@ import type {
 
 import { valueIsValueWithRelation } from 'payload/shared'
 
+import type { CascadeHook } from '@/lib/cascadeDeletion'
 import { isRecord } from '@/lib/utilities/isRecord'
 
 /** Represents a discovered field reference to a target collection */
@@ -305,6 +307,7 @@ export function discoverReferencesForCollection(
   targetCollection: string,
 ): FieldReference[] {
   const references: FieldReference[] = []
+  const dependents = cascadeChildrenOf(payload, targetCollection)
 
   // Iterate through all collections
   for (const [slug, collection] of Object.entries(payload.collections)) {
@@ -323,8 +326,39 @@ export function discoverReferencesForCollection(
     }
   }
 
-  return references
+  // ⚠ **A cascade child is not a user of its parent.** Its pointer is deleted
+  // *with* the parent, so it can never be the reason the parent is still in
+  // use — but it reads exactly like a reference to the walk above.
+  // `transcripts.source` is the live case: one cue row made a recording
+  // immortal, with no lesson referencing it in any locale (#1016).
+  //
+  // The exact field, never the whole collection: another field on the same
+  // child would be a genuine reference, and dropping it would trash a file in
+  // use — the one direction of this job's mistakes that destroys something.
+  return references.filter(
+    (reference) => !dependents.has(`${reference.collection}.${reference.fieldPath}`),
+  )
 }
+
+/**
+ * The `<collection>.<field>` pairs `targetCollection` deletes when one of its
+ * own rows goes, read off the `deleteChildren` hooks it registers.
+ *
+ * Derived, never declared here: a list restated in this file is a list that
+ * drifts the day a cascade is added, and the drift re-arms a storage leak
+ * rather than breaking a build (`@/lib/cascadeDeletion`).
+ */
+function cascadeChildrenOf(payload: Payload, targetCollection: string): Set<string> {
+  const hooks =
+    payload.collections?.[targetCollection as CollectionSlug]?.config?.hooks?.beforeDelete
+  const pairs = (hooks ?? []).flatMap((hook) =>
+    isCascadeHook(hook) ? hook.cascadeRules.map((rule) => `${rule.collection}.${rule.field}`) : [],
+  )
+  return new Set(pairs)
+}
+
+const isCascadeHook = (hook: unknown): hook is CascadeHook =>
+  typeof hook === 'function' && Array.isArray((hook as Partial<CascadeHook>).cascadeRules)
 
 /**
  * Check if a string contains only digits (fully numeric).

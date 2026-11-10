@@ -52,6 +52,26 @@ vi.mock('@/lib/lemonfox/transcribe', async (importOriginal) => ({
 }))
 
 /**
+ * The recording's public address, which is storage's business and not
+ * subtitles'. `CLOUDFLARE_R2_DELIVERY_URL` is unset in the lane, so the real
+ * `getR2Url` answers `undefined` and `files.url` falls back to the **relative**
+ * `/api/files/file/<name>` — which the endpoint refuses, because the vendor
+ * fetches that address itself and cannot resolve one with no host.
+ *
+ * Mocked at `r2NativeAdapter`, which is where `urlFields.ts` imports it from,
+ * so the virtual `url` field resolves through the mock and every case below
+ * sends the shape production sends.
+ */
+const storage = vi.hoisted(() => ({
+  getR2Url: vi.fn<(filename: string) => string | undefined>(),
+}))
+
+vi.mock('@/plugins/storage/r2NativeAdapter', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/plugins/storage/r2NativeAdapter')>()),
+  ...storage,
+}))
+
+/**
  * Word timings in the provider's seconds, long enough that the grouper has to
  * break them into more than one cue.
  */
@@ -93,6 +113,7 @@ describe('intro subtitles', () => {
     vi.clearAllMocks()
     lemonfox.lemonfoxApiKey.mockReturnValue('lf-test-key')
     lemonfox.requestLemonfoxTranscript.mockResolvedValue(VENDOR_BODY)
+    storage.getR2Url.mockImplementation((filename) => `https://assets.test/${filename}`)
   })
 
   const createRecording = (name = 'audio-42s.mp3'): Promise<File> =>
@@ -356,6 +377,67 @@ describe('intro subtitles', () => {
         overrideAccess: true,
       })
       expect(totalDocs).toBe(1)
+    })
+
+    // ⚠ `applyGlossaryToSegments` is a `beforeChange` hook on `transcripts`, so
+    // the row holds our spellings while the vendor's body holds its own (#1084).
+    // Answering with what was sent would hand the admin uncorrected words on the
+    // first press and corrected ones on the second, for one recording.
+    it('answers with the stored cues, after the glossary has corrected them', async () => {
+      lemonfox.requestLemonfoxTranscript.mockResolvedValue({
+        segments: [
+          {
+            start: 0,
+            end: 1.2,
+            text: ' mooladhara',
+            words: [{ word: 'mooladhara', start: 0.1, end: 1.2 }],
+          },
+        ],
+      })
+      const recording = await createRecording()
+
+      const { body } = await rest(`/api/files/${recording.id}/subtitles?locale=cs`, {
+        method: 'post',
+      })
+
+      const cues = body.cues as Subtitles
+      expect(cues[0]!.content).toBe('Mooladhara')
+      // And the second press agrees with the first, rather than differing by
+      // exactly the correction.
+      const again = await rest(`/api/files/${recording.id}/subtitles?locale=cs`, {
+        method: 'post',
+      })
+      expect(again.body.cues).toEqual(cues)
+      expect((await transcriptOf(recording.id))?.segments).toEqual(cues)
+    })
+
+    // ⚠ The vendor fetches this address itself, so a host is the whole
+    // requirement — and with no delivery URL configured `files.url` is the
+    // relative `/api/files/file/<name>`, which a non-empty test passes and the
+    // vendor then cannot resolve. That is local dev, and this is the refusal it
+    // gets instead of an opaque vendor error.
+    it('refuses a recording whose address has no host', async () => {
+      storage.getR2Url.mockReturnValue(undefined)
+      const recording = await createRecording()
+
+      const { status, body } = await rest(`/api/files/${recording.id}/subtitles?locale=cs`, {
+        method: 'post',
+      })
+
+      expect(status).toBe(409)
+      expect(message(body)).toMatch(/public address/)
+      expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
+      expect(await transcriptOf(recording.id)).toBeUndefined()
+    })
+
+    it('sends the vendor an absolute address', async () => {
+      const recording = await createRecording()
+
+      await rest(`/api/files/${recording.id}/subtitles?locale=cs`, { method: 'post' })
+
+      expect(lemonfox.requestLemonfoxTranscript).toHaveBeenCalledWith(
+        expect.objectContaining({ audioUrl: expect.stringMatching(/^https:\/\//) }),
+      )
     })
 
     it('refuses an id that is not a file id', async () => {
