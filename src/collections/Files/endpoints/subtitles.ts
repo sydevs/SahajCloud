@@ -1,4 +1,4 @@
-import type { Endpoint } from 'payload'
+import type { Endpoint, PayloadRequest } from 'payload'
 
 import { requireManagerPermission } from '@/lib/endpoints'
 import { normalizeLemonfoxWords } from '@/lib/lemonfox/normalize'
@@ -90,23 +90,8 @@ export const fileSubtitles: Endpoint = {
       )
     }
 
-    // ⚠ **`source` is polymorphic, so this is the one spelling Payload
-    // resolves.** A bare `source` throws, and `source.value` would also match
-    // the meditation of this number (`Transcripts.ts`).
-    const { docs } = await req.payload.find({
-      collection: 'transcripts',
-      where: { source: { equals: { relationTo: 'files', value: id } } },
-      depth: 0,
-      limit: 1,
-      pagination: false,
-      overrideAccess: true,
-      req,
-    })
-    const existing = docs[0]
-    const storedCues = existing?.segments
-    if (Array.isArray(storedCues) && storedCues.length > 0) {
-      return Response.json({ cues: storedCues as Subtitles, reused: true })
-    }
+    const stored = await storedCuesFor(req, id)
+    if (stored) return Response.json({ cues: stored, reused: true })
 
     const apiKey = lemonfoxApiKey()
     if (!apiKey) return refusal(TRANSCRIPTION_UNAVAILABLE_ERROR, 503)
@@ -149,20 +134,60 @@ export const fileSubtitles: Endpoint = {
     // No row on a failure, so this is below the vendor call. A row the delete
     // cascade on `files` takes with its file (`Files.ts`), and one
     // `queueTranscription` deliberately queues nothing for.
-    await req.payload.create({
-      collection: 'transcripts',
-      data: {
-        audioFilename: file.filename,
-        language: locale,
-        provider: 'lemonfox',
-        segments: cues,
-        source: { relationTo: 'files', value: id },
-      },
-      depth: 0,
-      overrideAccess: true,
-      req,
-    })
+    try {
+      await req.payload.create({
+        collection: 'transcripts',
+        data: {
+          audioFilename: file.filename,
+          language: locale,
+          provider: 'lemonfox',
+          segments: cues,
+          source: { relationTo: 'files', value: id },
+        },
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+    } catch (error) {
+      // ⚠ **`source` is `unique`, so two admins pressing at once race here**
+      // and the loser's insert is refused. Re-read rather than reporting it:
+      // the winner's row is cues for this same recording, which is what this
+      // caller asked for — and an unhandled throw here answers 500 for a
+      // request that succeeded in every way the caller can see.
+      //
+      // Re-reading, rather than matching the constraint's own error: that
+      // match is a Postgres `detail` string for a polymorphic relationship
+      // (`Meditations/endpoints/transcribe.ts` carries why), and a row that
+      // now exists is the same answer whatever refused the insert.
+      const winner = await storedCuesFor(req, id)
+      if (winner) return Response.json({ cues: winner, reused: true })
+      throw error
+    }
 
     return Response.json({ cues, reused: false })
   },
+}
+
+/**
+ * The cues already stored for this file, or `null` when there are none.
+ *
+ * ⚠ **`source` is polymorphic, so this is the one spelling Payload resolves.**
+ * A bare `source` throws when the query is built, and `source.value` would
+ * match the **meditation** of this number as well (`Transcripts.ts`).
+ *
+ * `overrideAccess`, because the handler's gate is this read's authority and
+ * `transcripts` carries no grant of its own.
+ */
+async function storedCuesFor(req: PayloadRequest, fileId: number): Promise<Subtitles | null> {
+  const { docs } = await req.payload.find({
+    collection: 'transcripts',
+    where: { source: { equals: { relationTo: 'files', value: fileId } } },
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  const cues = docs[0]?.segments
+  return Array.isArray(cues) && cues.length > 0 ? (cues as Subtitles) : null
 }

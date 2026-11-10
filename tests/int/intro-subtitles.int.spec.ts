@@ -332,6 +332,32 @@ describe('intro subtitles', () => {
       expect(lemonfox.requestLemonfoxTranscript).toHaveBeenCalledTimes(1)
     })
 
+    // ⚠ `source` is `unique`, so two admins pressing at once race on the
+    // insert. The loser answers from the winner's row: those cues are for this
+    // same recording, and an unhandled refusal there is a 500 for a request
+    // that succeeded in every way the caller can see.
+    it('answers from the winner when two runs race on the same file', async () => {
+      const recording = await createRecording()
+
+      const [first, second] = await Promise.all([
+        rest(`/api/files/${recording.id}/subtitles?locale=cs`, { method: 'post' }),
+        rest(`/api/files/${recording.id}/subtitles?locale=cs`, { method: 'post' }),
+      ])
+
+      expect(first.status).toBe(200)
+      expect(second.status).toBe(200)
+      expect(first.body.cues).toEqual(second.body.cues)
+      // One row, not two, and nothing left half-written.
+      const { totalDocs } = await payload.find({
+        collection: 'transcripts',
+        where: { source: { equals: { relationTo: 'files', value: recording.id } } },
+        depth: 0,
+        limit: 0,
+        overrideAccess: true,
+      })
+      expect(totalDocs).toBe(1)
+    })
+
     it('refuses an id that is not a file id', async () => {
       const { status } = await rest('/api/files/not-a-number/subtitles?locale=cs', {
         method: 'post',
