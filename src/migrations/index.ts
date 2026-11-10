@@ -117,6 +117,7 @@ import * as migration_20261107_213230_transcript_segment_count from './20261107_
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261108_220039_snapshot_resync from './20261108_220039_snapshot_resync';
 import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
+import * as migration_20261110_175935_snapshot_resync from './20261110_175935_snapshot_resync';
 
 export const migrations = [
   {
@@ -712,6 +713,11 @@ export const migrations = [
   {
     up: migration_20261110_172159_snapshot_resync.up,
     down: migration_20261110_172159_snapshot_resync.down,
-    name: '20261110_172159_snapshot_resync'
+    name: '20261110_172159_snapshot_resync',
+  },
+  {
+    up: migration_20261110_175935_snapshot_resync.up,
+    down: migration_20261110_175935_snapshot_resync.down,
+    name: '20261110_175935_snapshot_resync'
   },
 ];
