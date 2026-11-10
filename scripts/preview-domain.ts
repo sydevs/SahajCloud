@@ -23,7 +23,9 @@
  *
  * Env required:
  *   CLOUDFLARE_ACCOUNT_ID
- *   CLOUDFLARE_API_KEY          Workers Scripts:Edit, Workers KV:Edit, Zone:Read
+ *   CLOUDFLARE_API_KEY          Workers KV Storage:Edit, Workers Scripts:Edit,
+ *                               Zone:Read, and the zone's Workers Routes:Edit — the
+ *                               Custom Domain attach needs that last one
  *   CLOUDFLARE_ZONE_ID          the sydevelopers.com zone
  *   PREVIEW_KV_NAMESPACE_ID     the Worker's PREVIEW_HOSTS namespace
  * Also for `sweep`:
