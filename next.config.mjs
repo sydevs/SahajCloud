@@ -1,6 +1,29 @@
 import { withPayload } from '@payloadcms/next/withPayload'
 import { withSentryConfig } from '@sentry/nextjs'
 
+/**
+ * The public host a Railway PR preview is served at, or `null` off a preview.
+ *
+ * ⚠ **Every Server Action on a preview needs this.** The Cloudflare Worker
+ * reaches Railway under Railway's own host, so Next sees `x-forwarded-host:
+ * <app>.up.railway.app` against `Origin: pr-<n>.cloud-preview…` and aborts the
+ * action as cross-site — a 500 on the sign-in picker, and on every admin save.
+ * Only this PR's host, and only on a preview build: production listing a
+ * same-site preview origin would let unmerged code post as a production user.
+ *
+ * ⚠ Repeats `PREVIEW_ENVIRONMENT_NAME` and `PREVIEW_DOMAIN_SUFFIX`
+ * (`src/lib/preview/proxy.ts`), which a `.mjs` config cannot import.
+ * `tests/unit/next-config-server-actions.spec.ts` asserts they agree.
+ */
+export function previewPublicHost(environmentName) {
+  const pr = /^(?:SahajCloud-)?pr-(\d+)$/.exec(environmentName?.trim() ?? '')?.[1]
+  return pr ? `pr-${pr}.cloud-preview.sydevelopers.com` : null
+}
+
+const previewHost = previewPublicHost(
+  process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT,
+)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Self-hosted build: bundle only the traced production files and a small
@@ -33,6 +56,9 @@ const nextConfig = {
     // Railpack restores `.next/cache`, so a store corrupted there panics
     // every later build. Dev's store is elsewhere. #932
     turbopackFileSystemCacheForBuild: false,
+    // Read at build time, which Railway runs per environment — see
+    // `previewPublicHost` above.
+    ...(previewHost ? { serverActions: { allowedOrigins: [previewHost] } } : {}),
   },
   // Keep dev and test files out of the standalone trace. Otherwise Next
   // copies these large directories into `.next/standalone`, and a local
