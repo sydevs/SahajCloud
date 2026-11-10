@@ -1,4 +1,3 @@
-import type { ManagerContactRow } from './types'
 import type { PayloadRequest } from 'payload'
 
 import { formatShortDate, humanDurationSince } from '@/lib/notifications/eventDetails'
@@ -8,6 +7,15 @@ import { relationId } from '@/plugins/access/documentManagers'
 
 /** The collections that carry the table — each names its managers differently. */
 export type ManagerContactsCollection = 'events' | 'regions'
+
+/** One manager, as the contacts table shows them. */
+export type ManagerContactRow = {
+  id: number
+  name: string
+  email: string
+  /** Formatted here, because only the server knows what "now" is for the read. */
+  lastSignIn: { ago: string; on: string } | null
+}
 
 /** The place the gate judges, and who is named there, off the stored row. */
 async function readPlace(

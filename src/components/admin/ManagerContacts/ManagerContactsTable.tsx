@@ -1,6 +1,6 @@
 'use client'
 
-import type { ManagerContactRow } from './types'
+import type { ManagerContactRow } from './data'
 
 import { FieldDescription, FieldLabel, Table } from '@payloadcms/ui'
 
