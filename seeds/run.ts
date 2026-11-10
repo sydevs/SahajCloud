@@ -245,6 +245,16 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
   }
 }
 
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+/** Enough of a refusal to recognise it, and not enough to bury the advice under it. */
+const excerpt = (body: string): string => {
+  const flat = body.replace(/\s+/g, ' ').trim()
+  if (!flat) return '(empty body)'
+  return flat.length > 300 ? `${flat.slice(0, 300)}…` : flat
+}
+
 /**
  * Ask a gated preview to sign the provisioned admin in, and return the session.
  *
@@ -259,23 +269,35 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
  * `/api/seed/<script>` admits only an admin manager, which is why this asks for
  * the provisioned admin rather than any of the fixture's managers.
  */
-async function previewSignIn(baseUrl: string): Promise<null | string> {
+async function previewSignIn(baseUrl: string): Promise<{ detail?: string; token?: string }> {
+  const route = `${baseUrl}/api/managers/request-magic-link`
+  let response: Response
   try {
-    const response = await fetch(`${baseUrl}/api/managers/request-magic-link`, {
+    response = await fetch(route, {
       method: 'POST',
       headers: { ...accessHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: PREVIEW_ADMIN_ADDRESS }),
     })
-    if (!response.ok) return null
-    const { token } = (await response.json()) as { token?: string }
-    if (!token) return null
-    console.log(`🔐 Signed in as ${PREVIEW_ADMIN_ADDRESS} — this target is a preview\n`)
-    return token
-  } catch {
-    // Unreachable target, or an Access login page where JSON was expected. The
-    // credential error below says what to set.
-    return null
+  } catch (error) {
+    return { detail: `POST ${route} did not answer: ${errorMessage(error)}` }
   }
+
+  const body = await response.text().catch(errorMessage)
+  const answered = `POST ${route} answered HTTP ${response.status}`
+  if (!response.ok) return { detail: `${answered}: ${excerpt(body)}` }
+
+  let token: string | undefined
+  try {
+    token = (JSON.parse(body) as { token?: string }).token
+  } catch {
+    return { detail: `${answered} with a body that is not JSON: ${excerpt(body)}` }
+  }
+  if (!token) {
+    return { detail: `${answered} and no token, so this target signs nobody in: ${excerpt(body)}` }
+  }
+
+  console.log(`🔐 Signed in as ${PREVIEW_ADMIN_ADDRESS} — this target is a preview\n`)
+  return { token }
 }
 
 /**
@@ -300,11 +322,16 @@ async function authenticate(baseUrl: string): Promise<string | null> {
   }
 
   const supplied = seedEnv.ADMIN_TOKEN
-  const token = supplied ?? (await previewSignIn(baseUrl))
+  const attempted = supplied ? undefined : await previewSignIn(baseUrl)
+  const token = supplied ?? attempted?.token
 
   if (!token) {
     throw new Error(
-      'Missing authentication credentials.\n' +
+      // The refusal leads, because it is usually the whole answer: a gate 403,
+      // an Access login page and a target with the sign-in off all used to
+      // arrive as the ADMIN_TOKEN advice below, which is wrong for each of them.
+      (attempted?.detail ? `${attempted.detail}\n\n` : '') +
+        'Missing authentication credentials.\n' +
         'A preview of this repo signs its own admin in, so a run against one needs ' +
         'only CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET.\n' +
         'Otherwise set ADMIN_TOKEN to a manager session token. Request a sign-in link at ' +
