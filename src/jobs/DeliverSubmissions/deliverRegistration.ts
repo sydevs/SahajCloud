@@ -135,22 +135,17 @@ async function notifyManager(args: {
       startingAt: submission.startingAt,
       timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz || 'UTC',
       answers: registrationAnswers(submission.submissionData),
-      // `mergeRepeatRegistration` appends this entry and puts the row back to
-      // `pending`, which re-queues delivery — so without the flag a weekly
-      // class's manager is told somebody new signed up every time a registrant
-      // corrects an answer. That re-queue is why reading a capped log is
-      // enough: the delivery this decides is the one the merge just asked for,
-      // not one years of reminders later.
+      // The merge puts the row back to `pending`, which re-queues this
+      // delivery, so the entry read here is seconds old — inside the log's cap.
       //
-      // ⚠ **Not the `delivery` entry, though it would read as the more general
-      // "already announced".** `DeliverSubmissions` logs one per *attempt*,
-      // failures included, so a retry of a first registration carries one —
-      // and would announce a brand-new signup as an update.
+      // ⚠ **Not the `delivery` entry.** `DeliverSubmissions` logs one per
+      // *attempt*, failures included, so a retried first signup carries one and
+      // would be announced as an update.
       //
       // shortcut: this answers "was the row folded into", not "was this manager
       // told", so a recipient switched from `Never` to `Immediate` between two
-      // signups reads "Updated" for the first notice they ever get. Upgrade
-      // when a manager notice logs its own entry to read back.
+      // signups reads "Updated" for their first notice. Upgrade when a manager
+      // notice logs its own entry to read back.
       isUpdate: hasLogEntryType(asLog(submission.activityLog), REGISTRATION_UPDATE_LOG_TYPE),
     })
   } catch (error) {
