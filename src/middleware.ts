@@ -95,7 +95,11 @@ function previewGate(request: NextRequest): NextResponse | null {
     // A person who followed Railway's own address is sent on, path and query
     // intact, so the Access login they land on returns them where they meant to
     // go.
-    return NextResponse.redirect(`${fixed}${nextUrl.pathname}${nextUrl.search}`)
+    //
+    // ⚠ **The `302` is explicit**: `NextResponse.redirect` defaults to 307, and
+    // #1081's criterion B and its `curl -i` step both read 302. Nothing here
+    // needs 307's method guarantee — the branch serves GET and HEAD only.
+    return NextResponse.redirect(`${fixed}${nextUrl.pathname}${nextUrl.search}`, 302)
   }
 
   return refuse(`This preview is served at ${fixed}.`)

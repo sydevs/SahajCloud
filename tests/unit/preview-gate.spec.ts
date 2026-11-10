@@ -97,7 +97,9 @@ describe('the preview gate', () => {
 
     const response = middleware(request('/admin/collections/events?limit=5'))
 
-    expect(response.status).toBe(307)
+    // 302, not `NextResponse.redirect`'s own 307: #1081's criterion B and the
+    // `curl -i` step that confirms it both name 302.
+    expect(response.status).toBe(302)
     expect(response.headers.get('location')).toBe(`${FIXED}/admin/collections/events?limit=5`)
   })
 
