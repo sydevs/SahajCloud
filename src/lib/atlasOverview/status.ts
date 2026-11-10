@@ -10,7 +10,6 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
-import { CANONICAL_FAILURE_LIMIT } from '@/lib/clients/verification'
 import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
@@ -98,6 +97,8 @@ export type OpenItemRow =
       checkedAt: string
       /** Nightly checks in a row that did not find the map; 0 when the last one did. */
       misses: number
+      /** The page the map belongs on. */
+      pageUrl: null | string
       /** Whether the site still holds its region's links, which the third miss releases. */
       owned: boolean
       /** When the misses released the region, or `null`. */
@@ -346,22 +347,23 @@ function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenIt
   const lines = [`Checked ${shortDate(row.checkedAt)}`]
   const link = 'Review it'
 
-  if (row.misses > 0) {
-    const left = CANONICAL_FAILURE_LIMIT - row.misses
-    const found = 'Your map was not found on your site'
+  if (row.misses > 0 && row.pageUrl) {
+    const lead = { text: 'The map was not detected on ', link: 'your site', href: row.pageUrl }
     const prompt: ActionPrompt = row.releasedAt
       ? {
-          before: `${found}, so it is no longer the home for its region’s links. `,
+          lead,
+          before: ', so we can no longer send search engines (Google) to your website. ',
           link,
-          after: '',
+          after: ', and contact us if you need help',
         }
-      : row.owned && left > 0
-        ? {
-            before: `${found}. `,
-            link,
-            after: ` or it loses its region’s links after ${left} more miss${left === 1 ? '' : 'es'}.`,
-          }
-        : { before: `${found}. `, link, after: '' }
+      : {
+          lead,
+          before: '. ',
+          link,
+          after: row.owned
+            ? ' so that we can continue to send search engines (Google) to your website.'
+            : '',
+        }
     return [status('map-not-found', { lines, action, prompt })]
   }
   return [
@@ -382,6 +384,8 @@ export function rowTarget(row: OpenItemRow): OpenItemTarget {
 
 /** A next step said as a sentence, for a surface with room for one: the link, then the rest. */
 export interface ActionPrompt {
+  /** A clause opening the sentence with a link of its own, to somewhere other than the CMS. */
+  lead?: { href: string; link: string; text: string }
   /** Words ahead of the link, for a sentence that says what is wrong first. */
   before?: string
   link: string

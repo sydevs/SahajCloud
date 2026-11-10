@@ -304,6 +304,7 @@ describe('openItem', () => {
       kind: 'service',
       misses: 0,
       owned: false,
+      pageUrl: 'https://yogaessonne.fr/carte',
       releasedAt: null,
       title: 'Yoga Essonne',
       ...overrides,
@@ -311,6 +312,11 @@ describe('openItem', () => {
     const review = { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } }
 
     const promptOf = (row: OpenItemRow) => actionPrompt(openItem(row, NOW).placing)
+    const lead = {
+      href: 'https://yogaessonne.fr/carte',
+      link: 'your site',
+      text: 'The map was not detected on ',
+    }
 
     it('dates a search problem, and sends the reader to the Install tab', () => {
       const item = openItem(service(), NOW)
@@ -345,21 +351,28 @@ describe('openItem', () => {
       })
       expect(promptOf(service({ misses: 1 }))).toEqual({
         after: '',
-        before: 'Your map was not found on your site. ',
+        before: '. ',
+        lead,
         link: 'Review it',
       })
     })
 
-    it('counts down to the release for an owner, and says when it happened', () => {
-      expect(promptOf(service({ misses: 1, owned: true }))?.after).toBe(
-        ' or it loses its region’s links after 2 more misses.',
-      )
-      expect(promptOf(service({ misses: 2, owned: true }))?.after).toBe(
-        ' or it loses its region’s links after 1 more miss.',
-      )
-      expect(promptOf(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }))?.before).toBe(
-        'Your map was not found on your site, so it is no longer the home for its region’s links. ',
-      )
+    it('tells an owner what the map is keeping, with no count of the misses', () => {
+      expect(promptOf(service({ misses: 1, owned: true }))).toEqual({
+        after: ' so that we can continue to send search engines (Google) to your website.',
+        before: '. ',
+        lead,
+        link: 'Review it',
+      })
+    })
+
+    it('says what has been lost once the region is released', () => {
+      expect(promptOf(service({ misses: 3, releasedAt: '2026-11-03T03:00:00.000Z' }))).toEqual({
+        after: ', and contact us if you need help',
+        before: ', so we can no longer send search engines (Google) to your website. ',
+        lead,
+        link: 'Review it',
+      })
     })
   })
 

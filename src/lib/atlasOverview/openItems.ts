@@ -7,7 +7,7 @@ import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedCh
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
-import { hasSearchListings } from '@/lib/clients/site'
+import { hasSearchListings, primaryPageUrl } from '@/lib/clients/site'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -281,14 +281,15 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
     select: {
       name: true,
       updatedAt: true,
-      site: { page: true, track: true },
+      site: { domain: true, page: true, track: true },
       canonical: { owned: true, verification: true },
     },
   })
   return docs.flatMap((doc): OpenItemRow[] => {
     const verification = doc.canonical?.verification
     // Only a service with a page is checked, so only one can have missed.
-    const misses = doc.site?.page ? (verification?.failureCount ?? 0) : 0
+    const pageUrl = primaryPageUrl(doc.site)
+    const misses = pageUrl ? (verification?.failureCount ?? 0) : 0
     const seo = verification?.seo
     const searchProblem =
       hasSearchListings(doc.site?.track) &&
@@ -301,6 +302,7 @@ async function loadServiceRows(args: OverviewArgs): Promise<OpenItemRow[]> {
         title: doc.name?.trim() || 'Untitled service',
         checkedAt: (misses ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
         misses,
+        pageUrl,
         owned: Boolean(doc.canonical?.owned),
         releasedAt: verification?.releasedAt ?? null,
       },

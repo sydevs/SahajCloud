@@ -450,8 +450,9 @@ describe('SendDigests job', () => {
       // The missing map first: visitors see nothing at all.
       expect(html.indexOf('Missing Digest Site')).toBeLessThan(html.indexOf('Essonne Digest Site'))
       expect(html).toContain('Map not found')
-      expect(html).toContain('Your map was not found on your site')
-      expect(html).toContain('so it is no longer the home for its region’s links')
+      expect(html).toContain('The map was not detected on')
+      expect(html).toContain('href="https://missing-digest.example/carte"')
+      expect(html).toContain('so we can no longer send search engines (Google) to your website')
       expect(html).toContain(`/admin/collections/clients/${missing.id}/install`)
       expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
 
