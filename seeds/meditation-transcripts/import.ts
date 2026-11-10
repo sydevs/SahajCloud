@@ -84,16 +84,16 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
   protected async setup(): Promise<void> {
     if (this.options.dryRun) return
 
-    // ⚠ Preloading is what makes the natural key load-bearing: once a
-    // collection is in the cache, a key the cache does not hold goes straight
-    // to `payload.create` with no fallback find, and the `unique` index on
-    // `meditation` refuses it. So the cache's own key — `String(doc.meditation)`
-    // at depth 0 — has to agree with what `extractNaturalKeyValue` derives from
-    // the `where` below, and nothing but a re-seed proves that it does.
-    await Promise.all([
-      this.preloadCollection('meditation-transcripts', 'meditation'),
-      this.loadLibrary(),
-    ])
+    // ⚠ **`transcripts` cannot be preloaded.** The cache keys on
+    // `String(doc[naturalKey])` at depth 0, and `source` is polymorphic — so
+    // every row's key would be the `{ relationTo, value }` object the preload
+    // refuses outright. A preloaded collection takes no fallback find, so every
+    // entry would reach `payload.create` and trip the unique index.
+    //
+    // TODO: the fallback find costs one unbounded round trip per entry. One
+    // `select: { source: true }, depth: 0` page into a local map would do it in
+    // one, at the price of reimplementing `upsert`'s skip/update reporting.
+    await this.loadLibrary()
   }
 
   protected async import(): Promise<void> {
@@ -210,10 +210,10 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
     }
 
     await this.upsert(
-      'meditation-transcripts',
-      { meditation: { equals: meditationId } },
+      'transcripts',
+      { source: { equals: { relationTo: 'meditations', value: meditationId } } },
       {
-        meditation: meditationId,
+        source: { relationTo: 'meditations', value: meditationId },
         // These already exist, so the row carries cues from the start and
         // `queueTranscription` asks for nothing. `status` derives `completed`
         // from them, and there is no job row to read an error off.

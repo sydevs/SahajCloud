@@ -179,7 +179,7 @@ describe('no ui field shares a name with a sibling', { timeout: TIMEOUT }, () =>
 /**
  * The view that cannot render without a readable declaration. The Transcript
  * panel is deliberately not here: it is registered on `meditations` but reads
- * `meditation-transcripts`' declaration, so a collection registering it owes
+ * `transcripts`' declaration, so a collection registering it owes
  * nothing. Its own two specs refuse to load if that declaration goes missing.
  */
 const JOB_STAGE_VIEW = '@/components/admin/JobStageView/JobStageView'
@@ -234,7 +234,7 @@ describe('a declared job stage is a readable one', { timeout: TIMEOUT }, () => {
 
     expect(registered.map((collection) => collection.slug).sort()).toEqual([
       'imports',
-      'meditation-transcripts',
+      'transcripts',
     ])
   })
 })

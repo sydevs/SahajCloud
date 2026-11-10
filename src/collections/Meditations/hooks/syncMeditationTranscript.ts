@@ -20,10 +20,10 @@ export const syncMeditationTranscript: CollectionAfterChangeHook = async ({
   const audioFilename = doc.filename
   if (!audioFilename || previousDoc?.filename === audioFilename) return doc
 
-  // `meditation` is unique, so there is at most one row to find.
+  // `source` is unique, so there is at most one row to find.
   const { docs } = await req.payload.find({
-    collection: 'meditation-transcripts',
-    where: { meditation: { equals: Number(doc.id) } },
+    collection: 'transcripts',
+    where: { source: { equals: { relationTo: 'meditations', value: Number(doc.id) } } },
     depth: 0,
     limit: 1,
     pagination: false,
@@ -35,7 +35,7 @@ export const syncMeditationTranscript: CollectionAfterChangeHook = async ({
   if (existing) {
     if (existing.audioFilename === audioFilename) return doc
     await req.payload.delete({
-      collection: 'meditation-transcripts',
+      collection: 'transcripts',
       id: existing.id,
       overrideAccess: true,
       req,
@@ -43,8 +43,12 @@ export const syncMeditationTranscript: CollectionAfterChangeHook = async ({
   }
 
   await req.payload.create({
-    collection: 'meditation-transcripts',
-    data: { meditation: Number(doc.id), audioFilename, language: doc.locale },
+    collection: 'transcripts',
+    data: {
+      source: { relationTo: 'meditations', value: Number(doc.id) },
+      audioFilename,
+      language: doc.locale,
+    },
     depth: 0,
     overrideAccess: true,
     req,

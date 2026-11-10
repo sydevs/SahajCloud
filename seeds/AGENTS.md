@@ -89,26 +89,26 @@ Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`.
 Atlas's floors ride in its build manifest instead (`data` below), because they
 change with every refresh:
 
-| Script                 | Collection             | Items | Paginated? | Dependencies            |
-| ---------------------- | ---------------------- | ----- | ---------- | ----------------------- |
-| tags                   | user-choices           | 27    | No         | None                    |
-| tags                   | music-tags             | 7     | No         | None                    |
-| wemeditate             | authors                | 18    | No         | None                    |
-| wemeditate             | albums                 | 8     | No         | None                    |
-| wemeditate             | music                  | 27    | No         | albums                  |
-| wemeditate             | pages                  | 60    | Yes        | authors                 |
-| meditations            | narrators              | 2     | No         | None                    |
-| meditations            | frames                 | 60    | Yes        | None                    |
-| meditations            | meditations            | 73    | Yes        | narrators, frames, tags |
-| meditation-transcripts | meditation-transcripts | 126   | No         | meditations             |
-| storyblok              | lessons                | 17    | Yes        | None                    |
-| storyblok              | lectures               | 0     | No         | None                    |
-| atlas                  | managers               | data  | No         | None                    |
-| atlas                  | regions                | data  | No         | managers                |
-| atlas                  | users                  | data  | Yes        | None                    |
-| atlas                  | events                 | data  | Yes        | managers, regions       |
-| atlas                  | user-submissions       | data  | Yes        | events, users           |
-| atlas                  | clients                | data  | No         | managers                |
+| Script                 | Collection       | Items | Paginated? | Dependencies            |
+| ---------------------- | ---------------- | ----- | ---------- | ----------------------- |
+| tags                   | user-choices     | 27    | No         | None                    |
+| tags                   | music-tags       | 7     | No         | None                    |
+| wemeditate             | authors          | 18    | No         | None                    |
+| wemeditate             | albums           | 8     | No         | None                    |
+| wemeditate             | music            | 27    | No         | albums                  |
+| wemeditate             | pages            | 60    | Yes        | authors                 |
+| meditations            | narrators        | 2     | No         | None                    |
+| meditations            | frames           | 60    | Yes        | None                    |
+| meditations            | meditations      | 73    | Yes        | narrators, frames, tags |
+| meditation-transcripts | transcripts      | 126   | No         | meditations             |
+| storyblok              | lessons          | 17    | Yes        | None                    |
+| storyblok              | lectures         | 0     | No         | None                    |
+| atlas                  | managers         | data  | No         | None                    |
+| atlas                  | regions          | data  | No         | managers                |
+| atlas                  | users            | data  | Yes        | None                    |
+| atlas                  | events           | data  | Yes        | managers, regions       |
+| atlas                  | user-submissions | data  | Yes        | events, users           |
+| atlas                  | clients          | data  | No         | managers                |
 
 **Meditations note**: targeting `collection=meditations` also runs
 `narrators`, `frames`, and `tags` in bulk (unpaginated) in the same
@@ -127,7 +127,7 @@ automatically — printing per-batch progress as it goes.
 | storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                             | lessons, images, files                                      |
 | wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                          | pages, authors, page-tags, albums                           |
 | meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json         | meditations, frames, music, narrators                       |
-| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from     | meditation-transcripts                                      |
+| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from     | transcripts                                                 |
 | tags                   | `pnpm seed tags`                   | None                                               | user-choices, music-tags                                    |
 | atlas                  | `pnpm seed atlas`                  | `pnpm atlas:sync build` (local data, below)        | managers, regions, users, events, user-submissions, clients |
 | atlas-reset            | `pnpm seed atlas-reset`            | ⚠ Destructive — run only by name, before a re-sync | events, regions, users, user-submissions (emptied)          |
@@ -225,7 +225,7 @@ git diff --exit-code seeds/meditation-transcripts/data.json   # reproducible
 ```
 
 The conversion runs each file through `normalizeLemonfoxResponse`
-(`src/collections/MeditationTranscripts/lemonfox.ts`), not a hand-written
+(`src/lib/lemonfox/normalize.ts`), not a hand-written
 `.map()`, so one definition of "what a phrase is" serves this import and the
 live transcription — and the 86,571 word timings are dropped by the code that
 will drop them at runtime.

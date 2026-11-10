@@ -35,7 +35,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
 import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript } from '@/payload-types'
+import type { Transcript } from '@/payload-types'
 
 const PREVIEW_ORIGIN = 'https://preview.example'
 
@@ -107,12 +107,12 @@ const cue = (content: string, startTimeMs: number, endTimeMs: number) => ({
 /**
  * A row as the collection answers it. Typed against the generated row, so a
  * schema change fails `pnpm typecheck:tests` rather than at runtime — the
- * shape it assumes is `src/collections/MeditationTranscripts/MeditationTranscripts.ts`,
+ * shape it assumes is `src/collections/Transcripts/Transcripts.ts`,
  * whose `status` and `error` are virtual and whose `segments` is nullable.
  */
-const row = (overrides: Partial<MeditationTranscript> = {}): MeditationTranscript => ({
+const row = (overrides: Partial<Transcript> = {}): Transcript => ({
   id: 1,
-  meditation: 7,
+  source: { relationTo: 'meditations', value: 7 },
   audioFilename: 'calm.mp3',
   provider: 'lemonfox',
   language: 'en',
@@ -273,7 +273,7 @@ describe('the Transcript tab', () => {
   })
 
   describe('the notices', () => {
-    const renderRow = (overrides: Partial<MeditationTranscript>) => {
+    const renderRow = (overrides: Partial<Transcript>) => {
       stub.swr = { data: { docs: [row(overrides)] }, error: undefined }
       render()
     }
@@ -362,7 +362,12 @@ describe('the Transcript tab', () => {
       render()
 
       expect(stub.swrCalls[0].key).toContain('locale=cs')
-      expect(stub.swrCalls[0].key).toContain(`where${encodeURIComponent('[meditation][equals]')}=7`)
+      expect(stub.swrCalls[0].key).toContain(
+        `where${encodeURIComponent('[source][equals][relationTo]')}=meditations`,
+      )
+      expect(stub.swrCalls[0].key).toContain(
+        `where${encodeURIComponent('[source][equals][value]')}=7`,
+      )
     })
 
     it('builds no URL, makes no request and reports it without a locale (#701)', () => {
@@ -406,7 +411,7 @@ describe('the Transcript tab', () => {
    * and SWR.
    */
   describe('the Transcribe-again control', () => {
-    const renderRow = (overrides: Partial<MeditationTranscript>) => {
+    const renderRow = (overrides: Partial<Transcript>) => {
       stub.swr = { data: { docs: [row(overrides)] }, error: undefined }
       render()
     }

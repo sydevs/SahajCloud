@@ -482,7 +482,7 @@ describe('rootEndpointPathsFrom', () => {
   })
 })
 
-describe('meditation-transcripts (OpenAPI)', () => {
+describe('transcripts (OpenAPI)', () => {
   // ⚠ **ALWAYS_HIDDEN_COLLECTIONS is now the only tier hiding it.** The
   // collection joined the two projects that carry `meditations`, so the project
   // tier publishes it — a transcript is read alongside its recording, and the
@@ -493,14 +493,14 @@ describe('meditation-transcripts (OpenAPI)', () => {
       openapi: '3.1.0',
       info: { title: 't', version: '1' },
       paths: {
-        '/api/meditation-transcripts': { get: {}, post: {} },
-        '/api/meditation-transcripts/{id}': { get: {} },
+        '/api/transcripts': { get: {}, post: {} },
+        '/api/transcripts/{id}': { get: {} },
       },
       components: { schemas: {} },
     }) as unknown as OpenAPISpec
 
   const expectHidden = (filtered: OpenAPISpec, tier: string) => {
-    for (const path of ['/api/meditation-transcripts', '/api/meditation-transcripts/{id}']) {
+    for (const path of ['/api/transcripts', '/api/transcripts/{id}']) {
       const operations = filtered.paths?.[path] as Record<string, Record<string, unknown>>
       expect(operations, `${path} is missing for ${tier}`).toBeDefined()
       for (const [method, operation] of Object.entries(operations)) {
@@ -513,7 +513,7 @@ describe('meditation-transcripts (OpenAPI)', () => {
   }
 
   it('is a collection the spec never publishes', () => {
-    expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('meditation-transcripts')
+    expect(ALWAYS_HIDDEN_COLLECTIONS).toContain('transcripts')
   })
 
   // Read from the config rather than listed here, so a fourth project cannot

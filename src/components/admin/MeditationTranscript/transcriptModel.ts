@@ -35,8 +35,15 @@ export const transcriptUrl = (
   locale: string | undefined,
 ): string | null =>
   meditationId && locale
-    ? `/api/meditation-transcripts${qs.stringify(
-        { depth: 0, limit: 1, locale, where: { meditation: { equals: meditationId } } },
+    ? `/api/transcripts${qs.stringify(
+        {
+          depth: 0,
+          limit: 1,
+          locale,
+          // `qs` serialises the nested object, and `sanitizeQueryValue` reads
+          // it back through the same guard the Local API uses.
+          where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+        },
         { addQueryPrefix: true },
       )}`
     : null

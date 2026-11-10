@@ -7,10 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  deriveTranscriptStatus,
-  transcriptJobError,
-} from '@/collections/MeditationTranscripts/status'
+import { deriveTranscriptStatus, transcriptJobError } from '@/collections/Transcripts/status'
 
 describe('deriveTranscriptStatus', () => {
   it('reads completed off the stored cue count, whatever the job says', () => {
