@@ -30,25 +30,18 @@ const VENDOR_TIMEOUT_MS = 90 * 1000
  * edited is not.
  *
  * ⚠ **The gated collection is declared here, never taken from the request.**
- * `videos.subtitles` is the same cue column on another collection and the
- * obvious second caller, and serving it means a second declared target — never
- * a `collection` query parameter, which would let a caller pick whichever
- * grant it happens to hold (`docs/rules/endpoints.md`).
+ * `videos.subtitles` is the same cue column elsewhere and the obvious second
+ * caller; serving it means a second declared target (`docs/rules/endpoints.md`).
  *
- * ⚠ **No `requireActiveClient`, because no API client may call this.** It is
- * admin-panel only, gated on the authority to edit a Path Step in the request's
- * locale, and so deliberately absent from the OpenAPI spec —
- * `tests/unit/openapi-custom-endpoints.spec.ts` holds that.
+ * ⚠ **No `requireActiveClient`: admin-panel only**, so no API client may call
+ * it, and it is absent from the OpenAPI spec
+ * (`tests/unit/openapi-custom-endpoints.spec.ts`).
  *
  * ⚠ **A run costs money, so the server decides whether to pay for one.** A
- * `transcripts` row that already carries this file's cues answers from them and
- * pays nothing; a failed run writes no row, so the next press pays once. That
- * reuse is keyed on the **file**, not on (file, language): cues are a property
- * of the recording, and the row's `language` records which run made them —
- * it is what the glossary pass keys on, not a cache key.
- *
- * ⚠ **An endpoint inherits no transaction.** Nothing here needs one: the single
- * write is the create, and the vendor call happens before it.
+ * `transcripts` row already carrying this file's cues answers from them; a
+ * failed run writes no row, so the next press pays once. Keyed on the **file**,
+ * not on (file, language): cues are a property of the recording, and the row's
+ * `language` records which run made them rather than keying the reuse.
  */
 export const fileSubtitles: Endpoint = {
   path: '/:id/subtitles',
@@ -90,7 +83,7 @@ export const fileSubtitles: Endpoint = {
 
     if (file.mimeType !== 'audio/mpeg') {
       // Worded so the admin knows the recording is wrong rather than the
-      // server, and with no offer to retry: pressing again cannot help.
+      // server, and offers no retry: pressing again cannot help.
       return errorResponse(
         'Subtitles can only be made from an MP3 recording, and this file is not one.',
         415,
@@ -104,11 +97,9 @@ export const fileSubtitles: Endpoint = {
     if (!apiKey) return errorResponse(TRANSCRIPTION_UNAVAILABLE_ERROR, 503)
 
     // ⚠ **An absolute URL, not merely a non-empty one.** The vendor fetches
-    // this itself, so a host is the whole requirement — and with no Cloudflare
-    // credentials `url` is the relative `/api/files/file/<name>`
-    // (`storage/urlFields.ts`), which a non-empty test passes and the vendor
-    // then cannot resolve. That is local dev, where this refusal is the honest
-    // answer rather than an opaque vendor error.
+    // this itself, and with no Cloudflare credentials `url` is the relative
+    // `/api/files/file/<name>` (`storage/urlFields.ts`) — which a non-empty
+    // test passes and the vendor then cannot resolve.
     const audioUrl = file.url
     if (!audioUrl || !originOf(audioUrl)) {
       return errorResponse(
@@ -135,9 +126,8 @@ export const fileSubtitles: Endpoint = {
         locale,
         error: reason,
       })
-      // 502, because the failure is the vendor's rather than this request's —
-      // and the reason is returned rather than swallowed, since the admin is
-      // the one who decides whether to press the button again.
+      // 502, because the failure is the vendor's rather than this request's.
+      // The reason reaches the admin, who decides whether to press again.
       return errorResponse(`Could not make subtitles: ${reason}`, 502)
     }
 
@@ -174,15 +164,9 @@ export const fileSubtitles: Endpoint = {
       stored = (created.segments as Subtitles | null) ?? cues
     } catch (error) {
       // ⚠ **`source` is `unique`, so two admins pressing at once race here**
-      // and the loser's insert is refused. Re-read rather than reporting it:
-      // the winner's row is cues for this same recording, which is what this
-      // caller asked for — and an unhandled throw here answers 500 for a
-      // request that succeeded in every way the caller can see.
-      //
-      // Re-reading, rather than matching the constraint's own error: that
-      // match is a Postgres `detail` string for a polymorphic relationship
-      // (`Meditations/endpoints/transcribe.ts` carries why), and a row that
-      // now exists is the same answer whatever refused the insert.
+      // and the loser's insert is refused. The winner's row is cues for this
+      // same recording, which is what this caller asked for, so re-read it
+      // rather than answering 500 for a request that succeeded.
       const winner = await storedCuesFor(req, id)
       if (winner) return Response.json({ cues: winner, reused: true })
       throw error
