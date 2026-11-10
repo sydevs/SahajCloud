@@ -13,24 +13,32 @@ import { originOf } from '../src/lib/utilities/url'
 
 export type AuditedClient = Pick<Client, 'id' | 'name' | 'enabled' | 'site' | 'embedMetadata'>
 
-export interface InlineMount {
+export interface StoredMount {
   client: AuditedClient
-  /** The stored key: the host page's origin + pathname. */
+  /** The stored key: the widget document's origin + pathname. */
   mount: string
   record: EmbedMountRecord
 }
 
-/** Every stored `inline` mount. An `iframe` mount's parent is the widget's own page. */
-export function inlineMounts(clients: readonly AuditedClient[]): InlineMount[] {
+/**
+ * Every stored mount, whatever its mode.
+ *
+ * ⚠ **An `iframe` mount is judged too.** The widget sends its own document's origin as the
+ * challenge's parent, and that is the mount key's origin in a frame as well. A frame on
+ * `sahajatlas.com` passes as a built-in host.
+ */
+export function storedMounts(clients: readonly AuditedClient[]): StoredMount[] {
   return clients.flatMap((client) =>
-    Object.entries(client.embedMetadata ?? {})
-      .filter(([, record]) => record.mode === 'inline')
-      .map(([mount, record]) => ({ client, mount, record })),
+    Object.entries(client.embedMetadata ?? {}).map(([mount, record]) => ({
+      client,
+      mount,
+      record,
+    })),
   )
 }
 
 /**
- * Every stored inline mount whose origin the challenge refuses, from every service.
+ * The mounts whose origin the challenge refuses.
  *
  * ⚠ **One global allowlist.** A mount on service A's page passes when its host is service B's
  * domain — never test a mount against its own service's domain alone.
@@ -43,10 +51,10 @@ export function inlineMounts(clients: readonly AuditedClient[]): InlineMount[] {
  * from one names an embed that would still break.
  */
 export function refusedMounts(
-  clients: readonly AuditedClient[],
+  mounts: readonly StoredMount[],
   patterns: readonly string[],
-): InlineMount[] {
-  return inlineMounts(clients)
+): StoredMount[] {
+  return mounts
     .filter(({ client, mount }) => {
       const allowed = client.enabled ? patterns : [...patterns, ...siteHosts(client.site?.domain)]
       return !isParentAllowed(originOf(mount), allowed)

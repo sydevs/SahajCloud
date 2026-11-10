@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { allowedParentHosts } from '@/endpoints/atlas/challenge/challengeRequest'
 import type { EmbedMountRecord } from '@/lib/clients/embedMetadata'
 
-import { inlineMounts, refusedMounts } from '../../scripts/challenge-parents'
+import { refusedMounts, storedMounts } from '../../scripts/challenge-parents'
 
 const record = (
   mode: EmbedMountRecord['mode'],
@@ -35,7 +35,7 @@ const service = (
 // The endpoint's own builder over the active services, as `challengeParentAllowlist` calls it.
 const audit = (clients: AuditedClient[]) =>
   refusedMounts(
-    clients,
+    storedMounts(clients),
     allowedParentHosts(
       ['https://sahajatlas.com', 'https://wemeditate.com'],
       clients.filter((c) => c.enabled).map((c) => c.site?.domain),
@@ -62,8 +62,15 @@ describe('refusedMounts', () => {
     ).toEqual([[9, 'https://yogaessonne.fr/meditation']])
   })
 
-  it('ignores an iframe mount, whose parent is the widget’s own page', () => {
-    expect(audit([service(1, null, { 'https://example.org/map': record('iframe') })])).toEqual([])
+  it('judges an iframe mount by its own origin, which is what the widget sends', () => {
+    expect(
+      audit([
+        service(1, null, {
+          'https://sahajatlas.com/fr': record('iframe'),
+          'https://partner.example/map': record('iframe'),
+        }),
+      ]),
+    ).toEqual([[1, 'https://partner.example/map']])
   })
 
   it('judges a disabled service as if re-enabled, and lends its domain to no one else', () => {
@@ -93,16 +100,20 @@ describe('refusedMounts', () => {
   })
 })
 
-describe('inlineMounts', () => {
-  it('counts inline mounts across services, iframe ones aside', () => {
+describe('storedMounts', () => {
+  it('lists every mount of every service, whatever its mode', () => {
     expect(
-      inlineMounts([
+      storedMounts([
         service(1, 'a.example', { 'https://a.example/': record('inline') }),
         service(2, null, {
           'https://b.example/': record('inline'),
           'https://c.example/': record('iframe'),
         }),
-      ]).map(({ mount }) => mount),
-    ).toEqual(['https://a.example/', 'https://b.example/'])
+      ]).map(({ client, mount }) => [client.id, mount]),
+    ).toEqual([
+      [1, 'https://a.example/'],
+      [2, 'https://b.example/'],
+      [2, 'https://c.example/'],
+    ])
   })
 })
