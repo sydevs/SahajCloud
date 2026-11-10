@@ -53,14 +53,22 @@ export async function cfFetch(
     body: init?.body,
   })
 
-  // A KV write answers 200 with an empty body, and an edge error page is not
-  // JSON at all, so neither shape may reach the caller as a parse failure.
   const text = await res.text()
   let parsed: CloudflareEnvelope = {}
-  try {
-    if (text) parsed = JSON.parse(text) as CloudflareEnvelope
-  } catch {
-    parsed = {}
+  if (text) {
+    try {
+      parsed = JSON.parse(text) as CloudflareEnvelope
+    } catch {
+      // ⚠ **An empty body is fine; an unparseable one is not.** A KV write
+      // answers 200 with nothing, so `{}` has to be a valid reading of that —
+      // but reading an edge error page the same way hands the caller an empty
+      // envelope, and `setup-stream-webhook.ts` would take it for "nothing
+      // registered" and overwrite the live webhook without `--force`.
+      throw new CloudflareError(
+        `Cloudflare ${method} ${path}: HTTP ${res.status}, and the body is not JSON`,
+        res.status,
+      )
+    }
   }
 
   if (!res.ok || parsed.success === false) {

@@ -47,6 +47,12 @@ describe('cfFetch', () => {
     await expect(cfFetch('PUT', '/accounts/a/storage/kv')).resolves.toEqual({})
   })
 
+  it('refuses an unparseable body on a 200, which no caller may read as empty', async () => {
+    respond('<html>just a moment…</html>', { status: 200 })
+
+    await expect(cfFetch('GET', '/accounts/a/stream/webhook')).rejects.toThrow(/not JSON/)
+  })
+
   it('sends a Content-Type only with a body', async () => {
     respond('{}', { status: 200 })
     await cfFetch('GET', '/accounts/a/stream')
