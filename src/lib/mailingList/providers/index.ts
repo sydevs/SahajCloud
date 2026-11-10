@@ -1,6 +1,7 @@
 import type { MailingListAdapter, MailingListProvider } from '../types'
 
 import { brevoAdapter } from './brevo'
+import { cleverreachAdapter } from './cleverreach'
 import { klaviyoAdapter } from './klaviyo'
 import { mailchimpAdapter } from './mailchimp'
 
@@ -15,6 +16,7 @@ export const MAILING_LIST_ADAPTERS: Record<MailingListProvider, MailingListAdapt
   mailchimp: mailchimpAdapter,
   brevo: brevoAdapter,
   klaviyo: klaviyoAdapter,
+  cleverreach: cleverreachAdapter,
 }
 
 /**

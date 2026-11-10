@@ -7,7 +7,7 @@ import { PROVIDER_TIMEOUT_MS } from './types'
  * Whether a client's list is usable at all — the one definition, so the
  * delivery job and the save-time validator agree on what "configured" means.
  *
- * All three credentials are `required` on the field while `enabled` is on, so
+ * Each credential it reads is `required` on the field while `enabled` is on, so
  * this is belt-and-braces for a row written before the group existed, or one an
  * `overrideAccess` writer assembled by hand.
  */
