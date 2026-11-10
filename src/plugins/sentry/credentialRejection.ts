@@ -18,7 +18,7 @@
 import type { PayloadRequest } from 'payload'
 
 import { classifyAuthAttempt } from './authAttempt'
-import { captureMessage } from './captureMessage'
+import { captureNotice } from './captureNotice'
 
 /**
  * The one string both denial paths log and capture.
@@ -127,7 +127,7 @@ export const describeRejectedCredential = (
  * 500, and this runs on the request's denial path rather than its error path.
  *
  * ⚠ **Not gated on `NEXT_PUBLIC_SENTRY_DSN`**, unlike `sentryPlugin`, which
- * returns the config untouched without one — `captureMessage` owns that rule.
+ * returns the config untouched without one — `captureNotice` owns that rule.
  * What is this function's own is the WARN line, which `describeRejectedCredential`
  * writes either way, so a local run sees the denial.
  */
@@ -141,7 +141,7 @@ export const reportRejectedCredential = (req: PayloadRequest): void => {
     const rejected = describeRejectedCredential(req, { status, source: 'requireActiveClient' })
     if (!rejected) return
 
-    captureMessage({
+    captureNotice({
       message: CREDENTIAL_REJECTED_MESSAGE,
       extra: { status, url: req.url, userAgent: rejected.userAgent },
       fingerprint: rejected.fingerprint,

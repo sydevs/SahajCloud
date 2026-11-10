@@ -14,7 +14,7 @@
  *
  * ⚠ Neither capture body is here, and nor is `captureTags`. `captureFailure`'s
  * callers outside this folder — the managers sign-in action and the magic-link
- * endpoint — and every caller of `captureMessage` import by deep path, so they
+ * endpoint — and every caller of `captureNotice` import by deep path, so they
  * do not pull the plugin, its env parse, or the Local API wrapper in behind
  * them.
  */

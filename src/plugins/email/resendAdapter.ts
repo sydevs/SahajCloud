@@ -7,7 +7,7 @@ import { Resend } from 'resend'
 
 import { serverEnv } from '@/lib/env'
 import { headerDisplayName } from '@/lib/utilities/emailSafeText'
-import { captureMessage } from '@/plugins/sentry/captureMessage'
+import { captureNotice } from '@/plugins/sentry/captureNotice'
 
 import { getEmailBrand } from './brand'
 import { MANAGER_EMAIL_FROM } from './senders'
@@ -126,7 +126,7 @@ export const resendAdapter = (): EmailAdapter => {
         // carries the detail, in the log system that is meant to hold it.
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
-          captureMessage({
+          captureNotice({
             message: 'Email dropped: Resend client not initialized',
             level: 'error',
           })
@@ -172,7 +172,7 @@ export const resendAdapter = (): EmailAdapter => {
             error: error.message,
             name: error.name,
           })
-          captureMessage({
+          captureNotice({
             message: 'Email dropped: Resend API error',
             extra: { error: error.message, name: error.name },
             level: 'error',

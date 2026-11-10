@@ -20,7 +20,7 @@ import { captureTags } from './tags'
 /** Pino's name for each level. Sentry spells one of them `warning`. */
 const LOG_METHOD = { error: 'error', info: 'info', warning: 'warn' } as const
 
-interface CaptureMessageArgs {
+interface CaptureNoticeArgs {
   message: string
   extra?: Record<string, unknown>
   fingerprint?: string[]
@@ -38,7 +38,7 @@ interface CaptureMessageArgs {
   tags?: Record<string, unknown>
 }
 
-export const captureMessage = ({
+export const captureNotice = ({
   message,
   extra,
   fingerprint,
@@ -46,7 +46,7 @@ export const captureMessage = ({
   level = 'warning',
   logger,
   tags,
-}: CaptureMessageArgs): void => {
+}: CaptureNoticeArgs): void => {
   // ⚠ **Its own `try`, on purpose.** A logger that throws must not cost the
   // caller its Sentry event — the half that survives a deploy nobody is
   // tailing. `describeRejectedCredential` guards its own mirror the same way.
