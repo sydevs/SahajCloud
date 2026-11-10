@@ -124,6 +124,37 @@ describe('Pages Collection', () => {
     })
   })
 
+  /**
+   * `webPath`, `webUrl` and `appUrl` are computed on read from `slug` and the
+   * publish gate's `_status`, and an include-mode `select` strips both before
+   * the afterRead field hooks run. An API client must send a `select`
+   * (`docs/rules/api-clients.md`), so without the `beforeOperation` declaration
+   * `?select[webUrl]=true` answered null for every published page (#1084).
+   */
+  describe('the deep links survive a select', () => {
+    it('answers the same webPath as a read selecting nothing', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Selected Deep Link Page',
+        _status: 'published',
+      })
+
+      const [whole, selected] = await Promise.all([
+        payload.findByID({ collection: 'pages', id: page.id }),
+        payload.findByID({
+          collection: 'pages',
+          id: page.id,
+          select: { webPath: true, webUrl: true },
+        }),
+      ])
+
+      // Pinned against the unselected read and against a non-null literal:
+      // both null would otherwise agree, which is the defect itself.
+      expect(selected.webPath).toBe(whole.webPath)
+      expect(selected.webPath).toBe('selected-deep-link-page')
+      expect(selected.webUrl).toBe(whole.webUrl)
+    })
+  })
+
   describe('QuoteBlock Structure', () => {
     it('returns structured QuoteBlock with separate text, credit, and caption fields', async () => {
       const content = createLexicalWithQuoteBlock({
