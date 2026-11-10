@@ -120,7 +120,7 @@ export function buildInstallModel(args: {
     }
   }
 
-  // Section 3 only: its steps are done in order. The follow-on steps are not,
+  // The install steps only: they are done in order. The follow-on steps are not,
   // so one passing there says nothing about another.
   if (track) inferEarlierSteps(stepStatus, track.steps)
 
