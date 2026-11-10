@@ -60,6 +60,101 @@ describe('deliveredStatus', () => {
 })
 
 /**
+ * The manager notice's wording, decided from the row's own activity log.
+ *
+ * ⚠ **The fixture event carries `registrationNotificationEmail`**, so
+ * `resolveRegistrationRecipient` returns an override address on the `email`
+ * channel at `Immediate` and never reads a manager — the one routing shape
+ * reachable with no `managers` row to stub. Verified against
+ * `src/collections/Events/Events.ts`, where the override address and its
+ * `Immediate` cadence are declared together.
+ *
+ * Both sends are asserted on, because `deliverRegistration` sends the
+ * registrant's confirmation first and only the second message is the
+ * manager's.
+ */
+describe('deliverRegistration', () => {
+  const EVENT = {
+    id: 42,
+    title: 'Tuesday Evening Meditation',
+    eventType: 'offline',
+    registrationNotificationEmail: 'events-team@example.org',
+    registrationNotificationFrequency: 'Immediate',
+    schedule: { firstDate: '2027-01-06T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+  }
+
+  const deliver = async (activityLog: unknown[]) => {
+    const { payload, sendEmail } = stubEmailPayload()
+    const req = {
+      payload: Object.assign(payload, { findByID: async () => EVENT }),
+    }
+
+    const outcome = await DELIVERERS.registration.deliver({
+      req: req as never,
+      submission: {
+        id: 7,
+        type: 'registration',
+        senderEmail: 'sam@example.com',
+        event: EVENT.id,
+        uuid: 'f0e1d2c3-b4a5-4968-8778-695a4b3c2d1e',
+        startingAt: '2027-01-13T10:00:00.000Z',
+        submissionData: [{ field: 'name', value: 'Sam Seeker' }],
+        activityLog,
+      } as unknown as UserSubmission,
+    })
+
+    expect(outcome).toMatchObject({ ok: true })
+    const managerMessage = sendEmail.mock.calls.at(-1)![0]
+    expect(managerMessage.to).toBe(EVENT.registrationNotificationEmail)
+    return managerMessage
+  }
+
+  it('words a first signup as a new registration', async () => {
+    const { subject, html } = await deliver([])
+
+    expect(subject).toBe('New registration: Tuesday Evening Meditation')
+    expect(html).toContain('New event registration')
+  })
+
+  /**
+   * The discriminator is the entry `mergeRepeatRegistration` appends when it
+   * folds a repeat signup into the row the sender already held. The merge also
+   * puts that row back to `pending`, which is what re-queues this delivery.
+   */
+  it('words a repeat signup as an update', async () => {
+    const { subject, html } = await deliver([
+      {
+        at: '2026-11-10T09:00:00.000Z',
+        type: 'registration-update',
+        key: '2026-11-10T09:00:00.000Z',
+        cells: { activity: { text: 'Registered again — details updated' } },
+      },
+    ])
+
+    expect(subject).toBe('Updated registration: Tuesday Evening Meditation')
+    expect(html).toContain('Updated event registration')
+  })
+
+  /**
+   * ⚠ `hasLogEntry` matches `type` **and** `key`, and the merge writes the
+   * timestamp as the key — so the read is on `type` alone, and an entry of
+   * another kind must not be mistaken for an update.
+   */
+  it('words a signup whose log carries only other entries as a new registration', async () => {
+    const { subject } = await deliver([
+      {
+        at: '2026-11-10T09:00:00.000Z',
+        type: 'delivery',
+        key: 'attempt-1',
+        cells: { activity: { text: 'Delivered' } },
+      },
+    ])
+
+    expect(subject).toBe('New registration: Tuesday Evening Meditation')
+  })
+})
+
+/**
  * The one deliverer whose success does not settle its row, driven for real —
  * so the registry entry above is pinned to a deliverer that genuinely sends.
  */

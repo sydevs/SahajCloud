@@ -4,6 +4,7 @@ import {
   readSubmissionValue,
   registrationAnswers,
 } from '@/collections/UserSubmissions/submissionData'
+import { asLog } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -92,7 +93,8 @@ export async function deliverRegistration({
 
 /**
  * Tell the event's manager — or the per-event override address — that somebody
- * registered. Best-effort, for the reason in this module's docblock.
+ * registered, or changed a registration they already held. Best-effort, for the
+ * reason in this module's docblock.
  *
  * Only the `Immediate` cadence delivers here; a summary cadence belongs to the
  * digest run, and `Never` sends nothing.
@@ -132,6 +134,11 @@ async function notifyManager(args: {
       startingAt: submission.startingAt,
       timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz || 'UTC',
       answers: registrationAnswers(submission.submissionData),
+      // `mergeRepeatRegistration` appends this entry and puts the row back to
+      // `pending`, which re-queues delivery — so without the flag a weekly
+      // class's manager is told somebody new signed up every time a registrant
+      // corrects an answer.
+      isUpdate: asLog(submission.activityLog).some((entry) => entry.type === 'registration-update'),
     })
   } catch (error) {
     req.payload.logger.error({
