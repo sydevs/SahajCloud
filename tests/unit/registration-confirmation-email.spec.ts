@@ -195,9 +195,10 @@ describe('RegistrationConfirmationEmail — localization', () => {
 })
 
 describe('RegistrationConfirmationEmail — client branding', () => {
-  it('uses the client service name and colour when configured', async () => {
+  it('uses the client service title and colour when configured', async () => {
     const brand = getClientEmailBrand({
-      name: 'Sahaja Yoga London',
+      title: 'Sahaja Yoga London',
+      site: { domain: 'sahajayogalondon.example' },
       color1: '#123456',
       color2: '#654321',
       logo: null,
@@ -211,11 +212,27 @@ describe('RegistrationConfirmationEmail — client branding', () => {
     expect(html).toContain('Visit Sahaja Yoga London')
   })
 
+  it('names a service with no title by its site domain', () => {
+    const brand = getClientEmailBrand({
+      title: '  ',
+      site: { domain: 'sahajayogalondon.example' },
+      color1: null,
+      color2: null,
+      logo: null,
+    })
+
+    expect(brand.productName).toBe('sahajayogalondon.example')
+  })
+
   it('falls back to the Atlas project brand for an unconfigured client', async () => {
     const fallback = getEmailBrand('sahaj-atlas')
-    // `Clients.name` is required by the schema, so the reachable "unconfigured"
-    // state is an empty string, not null.
-    const brand = getClientEmailBrand({ name: '', color1: null, color2: null, logo: null })
+    const brand = getClientEmailBrand({
+      title: null,
+      site: null,
+      color1: null,
+      color2: null,
+      logo: null,
+    })
 
     expect(brand.productName).toBe(fallback.productName)
     expect(brand.colors.primary).toBe(fallback.colors.primary)

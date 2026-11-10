@@ -175,7 +175,7 @@ describe('atlasSeo endpoint', () => {
     // on the live page — so both halves have to be set for a client to own
     // anything (#633's trust boundary, consumed by #640).
     await testData.createClient(payload, managerId, {
-      name: 'UK Atlas Client',
+      label: 'UK Atlas Client',
       roles: ['sahaj-atlas-client'],
       region: region.uk,
       site: { domain: OWNER_DOMAIN, page: OWNER_MOUNT },
@@ -198,7 +198,7 @@ describe('atlasSeo endpoint', () => {
     } as never)
 
     const clientDoc = await testData.createClient(payload, managerId, {
-      name: 'Atlas SEO Reader',
+      label: 'Atlas SEO Reader',
       roles: ['sahaj-atlas-client'],
     })
     client = {
@@ -761,7 +761,7 @@ describe('atlasSeo endpoint', () => {
     it('publishes the calling client’s own mount page, with no route appended', async () => {
       const owner = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'UK Atlas Client' } },
+        where: { label: { equals: 'UK Atlas Client' } },
         limit: 1,
         depth: 0,
         overrideAccess: true,

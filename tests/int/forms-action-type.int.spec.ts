@@ -71,7 +71,7 @@ describe('Forms action types', () => {
       name: 'Form Author',
       email: 'form-author@example.com',
     })
-    client = await testData.createClient(payload, manager.id, { name: 'Newsletter Client' })
+    client = await testData.createClient(payload, manager.id, { label: 'Newsletter Client' })
   })
 
   afterAll(async () => {

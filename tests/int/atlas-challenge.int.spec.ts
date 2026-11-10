@@ -33,17 +33,17 @@ describe('atlasChallenge endpoint', () => {
 
     const manager = await testData.createManager(payload, { name: 'Challenge Manager' })
     await testData.createClient(payload, manager.id, {
-      name: 'Partner',
+      label: 'Partner',
       roles: ['sahaj-atlas-client'],
       site: { domain: 'partner.org' },
     })
     // No domain: API reads from any origin, but nothing here (#1072, question 1).
     await testData.createClient(payload, manager.id, {
-      name: 'Open Client',
+      label: 'Open Client',
       roles: ['sahaj-atlas-client'],
     })
     await testData.createClient(payload, manager.id, {
-      name: 'Inactive Client',
+      label: 'Inactive Client',
       roles: ['sahaj-atlas-client'],
       site: { domain: 'draft-only.org' },
       enabled: false,

@@ -77,7 +77,7 @@ describe('Atlas report-issue form', () => {
       roles: ['web-translator'],
     })
     atlasClient = await testData.createClient(payload, recipient.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
       enabled: true,
     })

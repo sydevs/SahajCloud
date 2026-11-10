@@ -89,7 +89,7 @@ describe('client Origin/Referer enforcement', () => {
     })
     managerId = manager.id
     const clientDoc = await testData.createClient(payload, managerId, {
-      name: 'Atlas Origin Client',
+      label: 'Atlas Origin Client',
       roles: ['sahaj-atlas-client'],
     })
     clientId = clientDoc.id

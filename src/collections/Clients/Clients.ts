@@ -380,6 +380,17 @@ const mailingListGroup: Field = {
       },
     },
     {
+      // `site` is `admin.disabled`, so it cannot be a list column itself.
+      name: 'domain',
+      type: 'text',
+      label: 'Domain',
+      virtual: true,
+      admin: { position: 'sidebar', readOnly: true },
+      hooks: {
+        afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
+      },
+    },
+    {
       name: 'clientId',
       type: 'text',
       label: 'Client ID',
@@ -456,8 +467,8 @@ export const Clients: CollectionConfig = {
   },
   admin: {
     group: 'System',
-    useAsTitle: 'name',
-    defaultColumns: ['name', 'enabled'],
+    useAsTitle: 'label',
+    defaultColumns: ['label', 'domain', 'enabled'],
     components: {
       views: {
         edit: {
@@ -532,12 +543,25 @@ export const Clients: CollectionConfig = {
           admin: { condition: adminTabs },
           fields: [
             {
-              name: 'name',
+              name: 'label',
               type: 'text',
               required: true,
-              label: 'Client Name',
+              label: 'Internal Name',
               admin: {
-                description: 'Client organization or application name',
+                description:
+                  'How this service is known inside SahajCloud. Never shown to the public.',
+              },
+            },
+            {
+              // Optional: `clientPublicTitle` falls back to `site.domain` at read
+              // time rather than copying it in, so a later domain change is not
+              // frozen behind a stale title.
+              name: 'title',
+              type: 'text',
+              label: 'Public Title',
+              admin: {
+                description:
+                  'The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.',
               },
             },
             {
@@ -907,6 +931,17 @@ export const Clients: CollectionConfig = {
       type: 'textarea',
       virtual: true,
       admin: { disabled: true },
+      hooks: {
+        afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
+      },
+    },
+    {
+      // `site` is `admin.disabled`, so it cannot be a list column itself.
+      name: 'domain',
+      type: 'text',
+      label: 'Domain',
+      virtual: true,
+      admin: { position: 'sidebar', readOnly: true },
       hooks: {
         afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
       },

@@ -2375,9 +2375,13 @@ export interface User {
 export interface Client {
   id: number;
   /**
-   * Client organization or application name
+   * How this service is known inside SahajCloud. Never shown to the public.
    */
-  name: string;
+  label: string;
+  /**
+   * The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.
+   */
+  title?: string | null;
   /**
    * This service’s API key works only while this is on.
    */
@@ -2419,6 +2423,7 @@ export interface Client {
   mailingList?: {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
+    domain?: string | null;
     /**
      * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
      */
@@ -2676,6 +2681,7 @@ export interface Client {
       )
     | null;
   allowedDomains?: string | null;
+  domain?: string | null;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
@@ -4871,7 +4877,8 @@ export interface ManagersSelect<T extends boolean = true> {
  * via the `definition` "clients_select".
  */
 export interface ClientsSelect<T extends boolean = true> {
-  name?: T;
+  label?: T;
+  title?: T;
   enabled?: T;
   notes?: T;
   roles?: T;
@@ -4888,6 +4895,7 @@ export interface ClientsSelect<T extends boolean = true> {
     | {
         enabled?: T;
         provider?: T;
+        domain?: T;
         clientId?: T;
         listId?: T;
         apiKey?: T;
@@ -4926,6 +4934,7 @@ export interface ClientsSelect<T extends boolean = true> {
       };
   language?: T;
   allowedDomains?: T;
+  domain?: T;
   clientId?: T;
   legacyId?: T;
   legacyData?: T;

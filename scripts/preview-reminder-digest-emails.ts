@@ -102,7 +102,7 @@ const offlineEvent = {
 
 /** A branded client service. */
 const brandedClient: EmailClient = {
-  name: 'Sahaja Yoga London',
+  title: 'Sahaja Yoga London',
   color1: '#7B4EA8',
   color2: '#B08BD4',
   logo: null, // no Cloudflare image locally: falls back to the Atlas icon

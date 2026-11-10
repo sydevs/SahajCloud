@@ -88,11 +88,11 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
       email: 'submissions-admin@example.com',
     })
     client = await testData.createClient(payload, manager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
     })
     otherClient = await testData.createClient(payload, manager.id, {
-      name: 'Another Service',
+      label: 'Another Service',
       roles: ['sahaj-atlas-client'],
     })
 
