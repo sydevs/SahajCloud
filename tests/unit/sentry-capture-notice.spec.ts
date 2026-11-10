@@ -19,6 +19,7 @@ vi.mock('@/lib/env/deploymentEnvironment', () => ({
 }))
 
 import { captureNotice } from '@/plugins/sentry/captureNotice'
+import { captureTags } from '@/plugins/sentry/tags'
 
 import { sourceFiles, sourceOf, SRC } from '../utils/importGraph'
 import { capturedFrom } from '../utils/sentryCapture'
@@ -52,7 +53,7 @@ describe('a reported message', () => {
   })
 
   it('drops a tag Sentry has no use for, rather than sending it empty', () => {
-    captureNotice({ message: 'milestone', tags: { blank: '', missing: null, zero: 0 } })
+    captureNotice({ message: 'milestone', tags: { blank: '', missing: undefined } })
     expect(captured().tags).toEqual({ environment: 'pr-1100' })
   })
 
@@ -79,6 +80,19 @@ describe('a reported message', () => {
       extra: { submissionId: 42 },
       fingerprint: ['mergeRepeatRegistration', '42'],
     })
+  })
+})
+
+describe('the tags both bodies send', () => {
+  it('drops a value Sentry cannot tag with, which only the exception body can pass', () => {
+    expect(captureTags({ job_id: 7, aborted: null, kept: 'yes' })).toEqual({
+      environment: 'pr-1100',
+      kept: 'yes',
+    })
+  })
+
+  it('tags the deployment for a body that brings nothing', () => {
+    expect(captureTags()).toEqual({ environment: 'pr-1100' })
   })
 })
 

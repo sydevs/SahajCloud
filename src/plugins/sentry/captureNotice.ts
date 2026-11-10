@@ -35,7 +35,7 @@ interface CaptureNoticeArgs {
   level?: keyof typeof LOG_METHOD
   /** Opt-in: a site that writes its own log line leaves this out. */
   logger?: Pick<Payload['logger'], 'error' | 'info' | 'warn'>
-  tags?: Record<string, unknown>
+  tags?: Record<string, string | undefined>
 }
 
 export const captureNotice = ({
