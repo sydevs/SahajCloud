@@ -2,12 +2,14 @@ import type { PayloadRequest } from 'payload'
 
 import { reportRejectedCredential } from '@/plugins/sentry/credentialRejection'
 
+import { errorResponse } from './errorResponse'
+
 /**
- * Published-client auth guard shared by the public client endpoints.
+ * Active-client auth guard shared by the public client endpoints.
  *
  * Returns a `403` {@link Response} when the request is **not** authenticated as
- * a published `clients` user, or `null` when the caller is allowed through.
- * Publish/unpublish is the auth gate: a draft (unpublished) client is denied.
+ * an active `clients` user, or `null` when the caller is allowed through.
+ * `Clients.enabled` is the auth gate: an inactive service's key is denied.
  * This is the single source for the guard's shape and message — handlers
  * short-circuit on a non-null return:
  *
@@ -23,12 +25,9 @@ import { reportRejectedCredential } from '@/plugins/sentry/credentialRejection'
  * credential stays silent — `reportRejectedCredential` decides.
  */
 export function requireActiveClient(req: PayloadRequest): Response | null {
-  if (req.user?.collection !== 'clients' || req.user._status !== 'published') {
+  if (req.user?.collection !== 'clients' || req.user.enabled !== true) {
     reportRejectedCredential(req)
-    return Response.json(
-      { errors: [{ message: 'You are not allowed to perform this action.' }] },
-      { status: 403 },
-    )
+    return errorResponse('You are not allowed to perform this action.', 403)
   }
   return null
 }

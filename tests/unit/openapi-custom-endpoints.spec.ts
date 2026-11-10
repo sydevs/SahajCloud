@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '../../src/lib/atlas/wixPrefix'
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
@@ -263,7 +264,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     for (const code of ['query_or_fragment', 'invalid_url', 'unsupported_scheme']) {
       expect(post?.responses?.['400']?.description).toContain(code)
     }
-    expect(post?.responses?.['403']?.description).toContain('allowedDomains')
+    expect(post?.responses?.['403']?.description).toContain('client’s domain')
   })
 
   // `clients` is in ALWAYS_HIDDEN_COLLECTIONS and belongs to no project, so
@@ -534,5 +535,94 @@ describe('meditation-transcripts (OpenAPI)', () => {
   // `framesByNarrator` is listed because it admits published clients.
   it('publishes neither transcript endpoint', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
+  })
+})
+
+/**
+ * `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055).
+ *
+ * The two Wix-shaped serializers. Pinned here for the same reason every other
+ * path is: `payload-oapi` generates nothing for a custom endpoint, so a path
+ * missing from the shim is invisible in `/api/docs` with nothing failing.
+ */
+describe('the Wix router endpoints are documented', () => {
+  type Operation = {
+    parameters?: { name: string; required?: boolean }[]
+    responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>
+  }
+  type Schema = {
+    required?: string[]
+    enum?: unknown[]
+    anyOf?: Schema[]
+    properties?: Record<string, Schema>
+  }
+
+  const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as Operation | undefined
+  const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as Operation | undefined
+
+  it('registers both paths', () => {
+    expect(route).toBeDefined()
+    expect(sitemap).toBeDefined()
+  })
+
+  it('documents every query parameter each handler reads', () => {
+    expect(route?.parameters?.map((parameter) => parameter.name)).toEqual(['path', 'lang'])
+    expect(sitemap?.parameters?.map((parameter) => parameter.name)).toEqual(['prefix'])
+  })
+
+  it('publishes the prefix rule the handler enforces, never a copy of it', () => {
+    // Three copies of this regex meant the tab could accept a prefix the
+    // endpoint then 400s, which is the failure the tab exists to prevent.
+    const prefix = sitemap?.parameters?.[0] as { schema?: { pattern?: string; maxLength?: number } }
+    expect(prefix.schema?.pattern).toBe(WIX_PREFIX_PATTERN.source)
+    expect(prefix.schema?.maxLength).toBe(WIX_PREFIX_MAX_LENGTH)
+  })
+
+  it('declares `prefix` required, since the handler refuses without it', () => {
+    expect(sitemap?.parameters?.[0]?.required).toBe(true)
+    expect(route?.parameters?.[0]?.required).toBe(true)
+    expect(route?.parameters?.[1]?.required).toBe(false)
+  })
+
+  it('answers the route endpoint with the Wix response schema', () => {
+    expect(route?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
+      $ref: '#/components/schemas/AtlasWixRouteResponse',
+    })
+  })
+
+  it('answers the sitemap endpoint with a bare array, as Wix returns one', () => {
+    expect(sitemap?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
+      type: 'array',
+      items: { $ref: '#/components/schemas/AtlasWixSitemapEntry' },
+    })
+  })
+
+  it('documents the refusals each handler can really make', () => {
+    for (const operation of [route, sitemap]) {
+      expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '403', '500'])
+    }
+  })
+
+  it('declares every schema the two paths reference', () => {
+    for (const name of ['AtlasWixRouteResponse', 'AtlasWixSitemapEntry']) {
+      expect(CUSTOM_ENDPOINT_SCHEMAS[name], `${name} is not declared`).toBeDefined()
+    }
+  })
+
+  it('publishes the shape the handlers’ contract declares', () => {
+    const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as Schema
+    expect(response.required?.sort()).toEqual([
+      'cacheSeconds',
+      'data',
+      'head',
+      'redirect',
+      'status',
+    ])
+    expect(response.properties?.status?.enum).toEqual([200, 301, 404])
+    // The page code reads `bodyHtml` and nothing else off `data`.
+    expect(response.properties?.data?.anyOf?.[0]?.required).toEqual(['bodyHtml'])
+
+    const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as Schema
+    expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])
   })
 })

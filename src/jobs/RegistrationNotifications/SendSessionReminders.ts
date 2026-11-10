@@ -36,7 +36,6 @@ const CLIENT_BRAND_SELECT = {
   color1: true,
   color2: true,
   logo: true,
-  websiteUrl: true,
   supportEmail: true,
 } as const
 

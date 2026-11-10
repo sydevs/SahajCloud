@@ -17,6 +17,15 @@
  * module and the merge block in the route handler.
  */
 
+import { z } from 'zod'
+
+import { MAX_ATLAS_ROUTE_LENGTH } from '@/endpoints/atlas/seo/atlasRoute'
+import {
+  wixRouteQuery,
+  wixRouteResponse,
+  wixSitemapEntry,
+  wixSitemapQuery,
+} from '@/endpoints/atlas/wix/contract'
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
@@ -236,6 +245,34 @@ const errorResponse = (description: string): OpenAPIResponse => ({
   },
 })
 
+/** A Zod schema as the OpenAPI 3.1 schema object (JSON Schema 2020-12) it describes. */
+function fromZod(schema: z.ZodType): OpenAPISchemaObject {
+  const { $schema: _dialect, ...described } = z.toJSONSchema(schema, {
+    target: 'draft-2020-12',
+    reused: 'inline',
+  })
+  return described
+}
+
+/** A handler's own query schema, as the parameters it documents: one per key. */
+function queryParameters(query: z.ZodObject): OpenAPIParameter[] {
+  return Object.entries(query.shape).map(([name, field]) => {
+    const { description, ...schema } = fromZod(field as z.ZodType)
+    return {
+      name,
+      in: 'query',
+      required: !(field as z.ZodType).safeParse(undefined).success,
+      schema,
+      ...(typeof description === 'string' ? { description } : {}),
+    }
+  })
+}
+
+/** The 403 every root Atlas endpoint answers: no client guard passed, or the origin gate. */
+const ROOT_ENDPOINT_FORBIDDEN =
+  'Caller is not an active API client, or its `Origin`/`Referer` is not in the client’s ' +
+  'domain (`site.domain`, or its www twin).'
+
 /**
  * Query parameters for `GET /api/events/geojson` — the standard client read
  * params (forwarded straight into the events read, so the same `select`/
@@ -365,7 +402,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`select` missing, or `populate` missing at `depth > 1`.'),
-        '403': errorResponse('Caller is not a published API client.'),
+        '403': errorResponse('Caller is not an active API client.'),
       },
     },
   },
@@ -390,7 +427,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'only — a query string or fragment is rejected (`400`), not silently stripped, ' +
         'because the widget already strips them and a payload carrying either means it ' +
         'is misbehaving. Both the request `Origin`/`Referer` **and** the reported ' +
-        '`url`’s host must be in the client’s `allowedDomains`. The report is ' +
+        '`url`’s host must be in the client’s domain (`site.domain`, or its www twin). The report is ' +
         'observation only: it decides whether a mount currently *qualifies* as ' +
         'canonical, never which mount *is* canonical — a human sets that on the ' +
         'client. Repeating a recent identical observation is answered `updated: false` ' +
@@ -419,8 +456,8 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             '`unsupported_scheme`, `query_or_fragment`, `credentials`, or `too_long`.',
         ),
         '403': errorResponse(
-          'Caller is not a published API client, its `Origin`/`Referer` is not in the ' +
-            'client’s `allowedDomains`, or the reported `url` is on a host that is not.',
+          'Caller is not an active API client, its `Origin`/`Referer` is not the ' +
+            'client’s domain, or the reported `url` is on a host that is not.',
         ),
       },
     },
@@ -504,10 +541,7 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
           },
         },
         '400': errorResponse('`route` is missing/too long, or `locale` is not a known locale.'),
-        '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
-        ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '404': errorResponse(
           'Either the route names a region or class that does not exist — an unknown ' +
             'slug, an unpublished or missing event — or the string is not a route we ' +
@@ -564,10 +598,89 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
             },
           },
         },
-        '403': errorResponse(
-          'Caller is not a published API client, or its `Origin`/`Referer` is not in ' +
-            'the client’s `allowedDomains`.',
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
+        '500': errorResponse('The sitemap could not be built.'),
+      },
+    },
+  },
+
+  '/api/atlas/wix/route': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'One atlas route, shaped for a Wix Velo router',
+      description:
+        'The same resolution `GET /api/atlas/seo` answers, in the shape a Wix Velo ' +
+        'router hands to `ok()` / `redirect()` / `notFound()`. Use this **only** from a ' +
+        'Wix site: every other host wants `/api/atlas/seo`. The CMS generates the ' +
+        '`backend/routers.js` that calls this, on the service’s Install tab — do not ' +
+        'hand-write it.\n\n' +
+        '**Every page answer is HTTP 200**, with the page’s own answer in `status`: the ' +
+        'router has to render something for every path Wix hands it, and an HTTP 404 ' +
+        'here is indistinguishable from the endpoint being gone. A view route ' +
+        '(`/gb/london/calendar`, `/search`) renders and publishes its canonical; a moved ' +
+        'route (`/events/1204`, a re-slugged country) is a `301`.\n\n' +
+        'Cache the answer for `cacheSeconds` — a server-rendered site reads this once per ' +
+        'page view, and the router’s own cache is what bounds the volume. Sets ' +
+        '`Cache-Control: public, max-age=300, s-maxage=300`.',
+      operationId: 'atlasWixRoute',
+      parameters: queryParameters(wixRouteQuery),
+      responses: {
+        '200': {
+          description:
+            'The page to render, the route to redirect to, or `status: 404`. Always 200.',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/AtlasWixRouteResponse' },
+            },
+          },
+        },
+        '400': errorResponse(
+          `\`path\` is missing, empty, or over ${MAX_ATLAS_ROUTE_LENGTH} characters.`,
         ),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
+        '500': errorResponse('The page metadata could not be built.'),
+      },
+    },
+  },
+
+  '/api/atlas/wix/sitemap': {
+    get: {
+      tags: ['Atlas'],
+      summary: 'Every atlas page this client owns, as Wix sitemap entries',
+      description:
+        'The same ownership resolution `GET /api/atlas/sitemap` answers, as the list a ' +
+        'Velo `*_SiteMap` function returns. Use this **only** from a Wix site.\n\n' +
+        '**An array, not an envelope**, because that is what Wix returns. ' +
+        '`/api/atlas/sitemap`’s `generated` timestamp is deliberately absent — it is the ' +
+        'one field that moves between two otherwise identical answers, and Wix caches ' +
+        'whole responses.\n\n' +
+        '**Every `url` is relative and carries `prefix`** — `/free-classes/ca/ontario` — ' +
+        'which is the opposite of `redirect` on `/api/atlas/wix/route`: a redirect passes ' +
+        'through the router, which composes its own prefix, and a sitemap entry does not. ' +
+        '**Only pages on this client’s own site** (`site.domain`, or its www twin) are ' +
+        'listed; a client with no domain gets `[]`, which is an answer rather than an ' +
+        'error. Finished classes are excluded, and a document whose canonical cannot be ' +
+        'published is omitted rather than sent empty — both as on `/api/atlas/sitemap`. ' +
+        'Sets `Cache-Control: public, max-age=300, s-maxage=300` on ' +
+        '`Vary: Authorization`.',
+      operationId: 'atlasWixSitemap',
+      parameters: queryParameters(wixSitemapQuery),
+      responses: {
+        '200': {
+          description:
+            'Every page this client owns on its own site, ascending by route. Empty when ' +
+            'it owns none, or has no domain.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/AtlasWixSitemapEntry' },
+              },
+            },
+          },
+        },
+        '400': errorResponse('`prefix` is missing, or not one lowercase path segment.'),
+        '403': errorResponse(ROOT_ENDPOINT_FORBIDDEN),
         '500': errorResponse('The sitemap could not be built.'),
       },
     },
@@ -1511,6 +1624,9 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
       },
     },
   },
+  // Both Wix bodies, from the handlers' own contract (`wix/contract.ts`).
+  AtlasWixRouteResponse: fromZod(wixRouteResponse),
+  AtlasWixSitemapEntry: fromZod(wixSitemapEntry),
   /**
    * Shape of 4xx response bodies emitted by the custom endpoints. Zod errors
    * use `{ errors: ZodIssue[] }` (each issue has at minimum `message` + `path`);

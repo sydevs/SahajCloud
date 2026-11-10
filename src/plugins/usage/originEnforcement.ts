@@ -2,9 +2,9 @@
  * Origin / Referer enforcement helpers for API-client requests.
  *
  * Pure functions (no Payload bootstrap) backing `validateClientOriginHook` in
- * `./hooks.ts`. They reduce a request's browser origin and a client's
- * `allowedDomains` allowlist to comparable bare hosts and decide whether the
- * request is allowed. Matching is exact-host or `*.`-wildcard; see
+ * `./hooks.ts`. They reduce a request's browser origin and a client's hosts
+ * (`siteHosts`) to comparable bare hosts and decide whether the request is
+ * allowed. Matching is exact-host or `*.`-wildcard; see
  * `docs/rules/api-clients.md` for the contract.
  */
 import type { PayloadRequest } from 'payload'
@@ -43,19 +43,6 @@ export function normalizeHost(raw: string | null | undefined): string | null {
   if (!host || host.includes('*')) return null
 
   return wildcard ? `*.${host}` : host
-}
-
-/**
- * Parse a client's newline-separated `allowedDomains` textarea into a list of
- * normalized host patterns. Also tolerates comma separators and blank lines.
- * Empty / unset input yields `[]` — the caller treats that as "allow all".
- */
-export function parseAllowedDomains(raw: string | null | undefined): string[] {
-  if (!raw) return []
-  return raw
-    .split(/[\r\n,]+/)
-    .map((line) => normalizeHost(line))
-    .filter((host): host is string => host !== null)
 }
 
 /**

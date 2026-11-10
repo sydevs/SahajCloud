@@ -1,0 +1,39 @@
+/* A single value, on one line with its Copy button, under the sentence that uses it. */
+.value {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.25);
+  margin: calc(var(--base) * 0.25) 0 calc(var(--base) * 0.5);
+}
+
+.code {
+  padding: calc(var(--base) * 0.15) calc(var(--base) * 0.4);
+  background: var(--theme-elevation-50);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.block {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  margin: var(--base) 0 calc(var(--base) * 0.5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+}
+
+.header :global(.field-label) {
+  margin: 0;
+}
+
+/* Monaco lays out against this container, which otherwise keeps its content height. */
+.block :global(.code-editor) {
+  height: 100%;
+  margin-bottom: calc(var(--base) * 0.5);
+}

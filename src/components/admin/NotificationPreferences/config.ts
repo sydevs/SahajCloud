@@ -38,7 +38,10 @@ interface NotificationTypeShape<Key extends string = string> {
   roles: readonly ManagerRole[]
 }
 
-const EVERYONE: readonly ManagerRole[] = ['program', 'region', 'admin']
+const EVERYONE: readonly ManagerRole[] = ['program', 'region', 'service', 'admin']
+
+/** The hats that look after events. A service's managers look after its website. */
+const EVENT_ROLES: readonly ManagerRole[] = ['program', 'region', 'admin']
 
 /**
  * One flat list of seven rows, with no role headings.
@@ -79,7 +82,7 @@ export const NOTIFICATION_TYPES = [
     description: 'Sent when a visitor proposes a new event, or a change to one',
     frequencyOptions: ['Immediate', 'Daily', 'Weekly', 'Monthly'],
     defaultFrequency: 'Daily',
-    roles: EVERYONE,
+    roles: EVENT_ROLES,
   },
   {
     key: 'open_items',
@@ -103,7 +106,7 @@ export const NOTIFICATION_TYPES = [
     description: 'How your events and regions are doing, and what changed',
     frequencyOptions: ['Monthly', NEVER_FREQUENCY],
     defaultFrequency: 'Monthly',
-    roles: EVERYONE,
+    roles: EVENT_ROLES,
   },
 ] as const satisfies readonly NotificationTypeShape[]
 

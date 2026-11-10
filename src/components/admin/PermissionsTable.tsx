@@ -25,7 +25,9 @@ import type { PermissionLevel } from '@/plugins/access/types'
  * For managers, also displays allowed projects in the table footer.
  *
  * This component is rendered as afterInput for the roles field.
- * Works for both managers (localized roles) and clients (non-localized roles).
+ * Works for both managers (localized roles) and clients (non-localized roles),
+ * and renders the same for both: the roles' projects, and so the collections
+ * they read, in the footer.
  *
  * ⚠ The field's value holds the stored roles only, so the derived roles are
  * merged in here too, or a manager's table would omit access they hold.
@@ -34,13 +36,10 @@ import type { PermissionLevel } from '@/plugins/access/types'
  */
 export const PermissionsTable: FieldClientComponent = () => {
   const { value: storedRoles } = useField<RoleSlug[]>()
-  const { collectionSlug, savedDocumentData } = useDocumentInfo()
+  const { savedDocumentData } = useDocumentInfo()
 
-  // Determine if this is a client (API client) or manager (admin user)
-  const isClient = collectionSlug === 'clients'
-
-  // No `isClient` arm: `clients` declares neither join, so `virtualRoles`
-  // already answers `[]` for one.
+  // Managers and clients render alike. `clients` declares neither join, so
+  // `virtualRoles` answers `[]` for one.
   const derivedRoles = useMemo(() => virtualRoles(savedDocumentData ?? {}), [savedDocumentData])
 
   // Compute permissions and projects from roles
@@ -70,25 +69,28 @@ export const PermissionsTable: FieldClientComponent = () => {
       Object.entries(merged).map(([k, v]) => [k, Array.from(v)]),
     )
 
-    // Compute projects for managers only
-    const projects = isClient
-      ? []
-      : [
-          ...new Set(
-            roles
-              .map((roleSlug) => getRoleProject(roleSlug))
-              .filter((project) => project !== undefined),
-          ),
-        ]
+    const projects = [
+      ...new Set(
+        roles
+          .map((roleSlug) => getRoleProject(roleSlug))
+          .filter((project) => project !== undefined),
+      ),
+    ]
 
     // Compute readable collections using helper
     // Filter out collections that already have explicit permissions
     const readableCollections = getReadableCollections(roles)
 
     return { permissions, projects, readableCollections }
-  }, [storedRoles, derivedRoles, isClient])
+  }, [storedRoles, derivedRoles])
 
-  if (!permissions || Object.keys(permissions).length === 0) {
+  const granted = Object.entries(permissions)
+    .filter(([, perms]) => Array.isArray(perms) && perms.length > 0)
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  // A role with no write grant still reads its project, so the footer alone
+  // is a table worth showing.
+  if (granted.length === 0 && projects.length === 0) {
     return (
       <div
         style={{
@@ -123,34 +125,33 @@ export const PermissionsTable: FieldClientComponent = () => {
           fontSize: '13px',
         }}
       >
-        <thead>
-          <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
-            <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Collection</th>
-            <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Operations</th>
-          </tr>
-        </thead>
+        {granted.length > 0 ? (
+          <thead>
+            <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
+              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Collection</th>
+              <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Operations</th>
+            </tr>
+          </thead>
+        ) : null}
         <tbody>
-          {Object.entries(permissions)
-            .filter(([, perms]) => Array.isArray(perms) && perms.length > 0)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([collection, perms]) => (
-              <tr key={collection} style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
-                <td style={{ ...cellStyle, fontWeight: 500, textTransform: 'capitalize' }}>
-                  {collection.replace(/-/g, ' ')}
-                </td>
-                <td style={cellStyle}>
-                  <div style={pillRowStyle}>
-                    {(perms as PermissionLevel[]).map((op) => (
-                      <Pill key={op} pillStyle={getOperationPillStyle(op)}>
-                        {op}
-                      </Pill>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+          {granted.map(([collection, perms]) => (
+            <tr key={collection} style={{ borderTop: '1px solid var(--theme-elevation-150)' }}>
+              <td style={{ ...cellStyle, fontWeight: 500, textTransform: 'capitalize' }}>
+                {collection.replace(/-/g, ' ')}
+              </td>
+              <td style={cellStyle}>
+                <div style={pillRowStyle}>
+                  {(perms as PermissionLevel[]).map((op) => (
+                    <Pill key={op} pillStyle={getOperationPillStyle(op)}>
+                      {op}
+                    </Pill>
+                  ))}
+                </div>
+              </td>
+            </tr>
+          ))}
         </tbody>
-        {!isClient && projects.length > 0 && (
+        {projects.length > 0 && (
           <tfoot>
             <tr
               style={{

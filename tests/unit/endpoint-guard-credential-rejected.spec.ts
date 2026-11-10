@@ -53,7 +53,7 @@ const logger = { warn: vi.fn(), info: vi.fn() }
  */
 const buildRequest = (
   authorization: string | null,
-  user?: { collection: string; _status?: string },
+  user?: { collection: string; enabled?: boolean },
 ): PayloadRequest => {
   const headers = new Headers({ 'user-agent': USER_AGENT, 'cf-connecting-ip': IP })
   if (authorization !== null) headers.set('authorization', authorization)
@@ -169,12 +169,12 @@ describe('a denial that presented no credential', () => {
 })
 
 describe('a denial by a caller who did authenticate', () => {
-  it('stays silent for an unpublished client — the key worked, the state did not', () => {
-    // A draft client authenticates and is then denied on `_status`. Its
+  it('stays silent for an inactive client — the key worked, the state did not', () => {
+    // An inactive client authenticates and is then denied on `enabled`. Its
     // credential is not what is wrong, so reporting it would name a working
     // integration as a broken one.
     const denied = requireActiveClient(
-      buildRequest(`clients API-Key ${KEY}`, { collection: 'clients', _status: 'draft' }),
+      buildRequest(`clients API-Key ${KEY}`, { collection: 'clients', enabled: false }),
     )
 
     expect(denied?.status).toBe(403)
@@ -225,7 +225,7 @@ describe('reporting never costs the caller its 403', () => {
 describe('a published client', () => {
   it('is allowed through, and reports nothing', () => {
     const denied = requireActiveClient(
-      buildRequest(`clients API-Key ${KEY}`, { collection: 'clients', _status: 'published' }),
+      buildRequest(`clients API-Key ${KEY}`, { collection: 'clients', enabled: true }),
     )
 
     expect(denied).toBeNull()
