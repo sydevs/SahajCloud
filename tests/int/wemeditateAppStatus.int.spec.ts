@@ -204,6 +204,9 @@ describe('WeMeditateAppStatus Global', () => {
         step: 1,
         meditation: { relationTo: 'meditations', value: meditation.id },
         introAudio: introAudio.id,
+        // ⚠ One cue, not an empty array: an empty array is truthy, so
+        // `intro-subtitles-set` tests the length and nothing else would.
+        introSubtitles: [{ content: 'Close your eyes', startTimeMs: 0, endTimeMs: 1200 }],
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }, { title: 'p2' }],
       } as Partial<Lesson>)
@@ -213,6 +216,9 @@ describe('WeMeditateAppStatus Global', () => {
         unit: 'Unit 1',
         step: 2,
         panels: [{ title: 'p1' }],
+        // ⚠ An empty array, not an absent one: it is truthy, so a check reading
+        // truthiness would report this step as having subtitles.
+        introSubtitles: [],
       } as Partial<Lesson>)
     })
 
@@ -240,6 +246,7 @@ describe('WeMeditateAppStatus Global', () => {
           'lesson-title-set',
           'panels-set',
           'intro-audio-set',
+          'intro-subtitles-set',
           'meditation-set',
           'article-localized',
           'article-has-lecture-link',
@@ -251,10 +258,12 @@ describe('WeMeditateAppStatus Global', () => {
       expect(partial).toBeDefined()
       const partialFailing = partial!.checks.filter((c) => !c.passed).map((c) => c.key)
       // createLesson auto-supplies a default meditation + icon, so those checks pass.
-      // The partial lesson omits introAudio + article, so those three checks fail.
+      // The partial lesson omits the recording, the cues and the article, so
+      // those four checks fail.
       expect(partialFailing).toEqual(
         expect.arrayContaining([
           'intro-audio-set',
+          'intro-subtitles-set',
           'article-localized',
           'article-has-lecture-link',
         ]),
@@ -614,6 +623,7 @@ describe('WeMeditateAppStatus Global', () => {
         type: 'lesson',
         _status: 'published',
       })
+      const englishIntroAudio = await testData.createFile(payload, {}, 'audio-42s.mp3')
       englishOnlyLesson = await testData.createLesson(payload, {
         title: 'English-only lesson',
         unit: 'Unit 3',
@@ -621,6 +631,9 @@ describe('WeMeditateAppStatus Global', () => {
         meditation: { relationTo: 'meditations', value: lessonMeditation.id },
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }],
+        // Both became localized in #1016, so both now answer per locale here.
+        introAudio: englishIntroAudio.id,
+        introSubtitles: [{ content: 'English line', startTimeMs: 0, endTimeMs: 900 }],
       } as Partial<Lesson>)
 
       const choiceMeditation = await testData.createMeditation(payload, undefined, {
@@ -662,16 +675,23 @@ describe('WeMeditateAppStatus Global', () => {
       expect(en.checks['meditation-set']).toBe(true)
       expect(en.checks['article-localized']).toBe(true)
       expect(en.checks['article-has-lecture-link']).toBe(true)
+      expect(en.checks['intro-audio-set']).toBe(true)
+      expect(en.checks['intro-subtitles-set']).toBe(true)
 
-      // The lesson carries no French title, panels, meditation or article, so
-      // every check reading one reports red — they would all pass off the
-      // English fallback.
+      // The lesson carries no French title, panels, meditation, article,
+      // recording or cues, so every check reading one reports red — they would
+      // all pass off the English fallback.
       const fr = await read('fr')
       expect(fr.checks['lesson-title-set']).toBe(false)
       expect(fr.checks['panels-set']).toBe(false)
       expect(fr.checks['meditation-set']).toBe(false)
       expect(fr.checks['article-localized']).toBe(false)
       expect(fr.checks['article-has-lecture-link']).toBe(false)
+      // ⚠ Both of these were locale-blind before #1016, so both lines are the
+      // whole of what "they answer per locale now" means. `prepare` already
+      // read `fallbackLocale: false`, so neither needed a change there.
+      expect(fr.checks['intro-audio-set']).toBe(false)
+      expect(fr.checks['intro-subtitles-set']).toBe(false)
       // `icon` is not localized, so that one is locale-blind.
       expect(fr.checks['icon-set']).toBe(true)
       // `lessons.title` is localized too (#977), so the row keeps the fallback
