@@ -48,6 +48,8 @@ export async function deliverSubscribe({
     name: readSubmissionValue(submission.submissionData, 'name'),
     locale: readSubmissionValue(submission.submissionData, 'locale'),
     source: submission.event != null ? 'event-registration' : 'subscribe-form',
+    userAgent: readSubmissionValue(submission.submissionData, 'userAgent'),
+    hostUrl: readSubmissionValue(submission.submissionData, 'hostUrl'),
   })
 
   if (result.ok) {

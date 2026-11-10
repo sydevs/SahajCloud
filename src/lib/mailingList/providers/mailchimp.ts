@@ -5,8 +5,9 @@ import type {
   SubscribeArgs,
 } from '../types'
 
+import { postJson, providerError } from '../http'
 import { probeCredentials } from '../probe'
-import { transportFailure } from '../types'
+import { statusFailure } from '../types'
 
 /**
  * Mailchimp's datacenter is carried in the key's own suffix (`…-us14`), so the
@@ -42,29 +43,21 @@ async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingListResul
     }
   }
 
-  let response: Response
-  try {
-    response = await fetch(
-      `https://${dc}.api.mailchimp.com/3.0/lists/${encodeURIComponent(config.listId ?? '')}/members`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: authHeader(apiKey),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email_address: email,
-          status: config.doubleOptIn === false ? 'subscribed' : 'pending',
-          ...(name ? { merge_fields: { FNAME: name } } : {}),
-          ...(locale ? { language: locale } : {}),
-          ...(source ? { tags: [source] } : {}),
-        }),
-        signal,
+  const response = await postJson(
+    `https://${dc}.api.mailchimp.com/3.0/lists/${encodeURIComponent(config.listId ?? '')}/members`,
+    {
+      headers: { Authorization: authHeader(apiKey) },
+      body: {
+        email_address: email,
+        status: config.doubleOptIn === false ? 'subscribed' : 'pending',
+        ...(name ? { merge_fields: { FNAME: name } } : {}),
+        ...(locale ? { language: locale } : {}),
+        ...(source ? { tags: [source] } : {}),
       },
-    )
-  } catch (error) {
-    return transportFailure(error)
-  }
+      signal,
+    },
+  )
+  if ('code' in response) return response
 
   if (response.ok) {
     return { ok: true, status: config.doubleOptIn === false ? 'subscribed' : 'pending' }
@@ -88,35 +81,15 @@ async function subscribeMailchimp(args: SubscribeArgs): Promise<MailingListResul
     }
   }
 
-  // 5xx and 429 are the provider having a bad moment; a 4xx is us being wrong,
-  // and will be wrong identically next time.
-  const retryable = response.status >= 500 || response.status === 429
-  return {
-    ok: false,
-    code: retryable ? 'provider_unavailable' : 'provider_rejected',
-    message: detail,
-    retryable,
-  }
+  return statusFailure(response.status, detail)
 }
 
-/**
- * Mailchimp's error body, as one sentence.
- *
- * Never throws: this runs on the failure path, and a provider answering
- * something unparseable must not turn a clean 400 into an exception the caller
- * reads as a transport failure.
- */
-export async function readError(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as { title?: unknown; detail?: unknown }
-    const parts = [body.title, body.detail].filter(
-      (part): part is string => typeof part === 'string' && part.trim() !== '',
-    )
-    if (parts.length > 0) return parts.join(': ')
-  } catch {
-    // Fall through to the status line.
-  }
-  return `Mailchimp answered ${response.status}.`
+/** Mailchimp's error body, as one sentence. */
+export function readError(response: Response): Promise<string> {
+  return providerError<{ title?: unknown; detail?: unknown }>(response, 'Mailchimp', (body) => [
+    body.title,
+    body.detail,
+  ])
 }
 
 /** Mailchimp's documented Basic form: any username, the key as password. */
