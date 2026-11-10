@@ -42,7 +42,9 @@ export {
   isAdminManager,
   isManager,
   managersOnlyFieldAccess,
+  selfOrAdminFieldAccess,
 } from './adminOnly'
+export { readLockOf } from './stripLockedFieldsOnSelfRead'
 export { restrictUploadToAdmin } from './restrictUploadToAdmin'
 export { restrictPayloadSystemEntities } from './systemEntities'
 export {

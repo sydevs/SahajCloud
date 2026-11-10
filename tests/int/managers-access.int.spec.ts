@@ -19,11 +19,12 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Client, Event, Manager, Region } from '@/payload-types'
-import { bypassPermissions, hasPermission } from '@/plugins/access'
+import { bypassPermissions, hasPermission, readLockOf } from '@/plugins/access'
 
 import { testData } from '../utils/testData'
 import {
@@ -42,6 +43,7 @@ const REMINDER_DESTINATION = 'reminded-manager@example.com'
 describe('Managers access (#821)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let adminUser: Manager
   type AuthManager = Awaited<ReturnType<typeof testData.authUser>>
   let eventManager: AuthManager
   let atlasManager: AuthManager
@@ -73,16 +75,33 @@ describe('Managers access (#821)', () => {
     const env = await createTestEnvironment()
     payload = env.payload
     cleanup = env.cleanup
+    adminUser = env.adminUser
 
     const listedOnRegion = await testData.createManager(payload, {
       name: 'Event Manager',
       email: 'event-manager@example.com',
       roles: [],
+      // Every locked field carries a value, so the field-lock read-backs below
+      // assert a deletion rather than an empty column. The three machine
+      // columns are `update: () => false`, which a create does not consult.
+      language: 'en',
+      contactDetails: [{ platform: 'whatsapp', identifier: '+15550000001', verified: true }],
+      notificationPreferences: { event_verification: { frequency: 'Monthly', method: 'email' } },
+      legacyId: 4242,
+      legacyData: { phone: '+15550000001' },
+      magicLinkIssuedAt: new Date().toISOString(),
+      // Seeded so the column is non-null even if nothing assigns this manager.
+      // The invitation queue rewrites both when the region below names them.
+      pendingInvitation: { regions: [1] },
+      invitationDueAt: new Date().toISOString(),
     })
     const listedElsewhere = await testData.createManager(payload, {
       name: 'Atlas Manager',
       email: 'atlas-manager@example.com',
       roles: [],
+      // The self-read case asserts these come back, so they have to be set.
+      contactDetails: [{ platform: 'telegram', identifier: '@atlas-manager' }],
+      notificationPreferences: { invitation: { frequency: 'Never' } },
     })
     const assignedOnly = await testData.createManager(payload, {
       name: 'Event-only Manager',
@@ -315,8 +334,61 @@ describe('Managers access (#821)', () => {
     })
   })
 
+  // The unit sweep (`tests/unit/manager-field-locks.spec.ts`) reads the config
+  // a plugin sees, which is the only place `loginPlugin`'s appended columns
+  // exist. It therefore cannot see the auth columns Payload merges in at
+  // sanitize, so those are swept here, where the config is the booted one.
+  describe('the sanitized collection', () => {
+    it('answers "no" for every field but the picker title and the timestamps', async () => {
+      // ⚠ **The locks are EVALUATED, not counted.** "Carries a read function"
+      // is not the property: the base `_verified` field ships
+      // `read: defaultAccess`, which is `Boolean(user)` — a function, and wide
+      // open. A sweep that only asked whether a lock existed passed with that
+      // field readable by every Atlas region manager.
+      //
+      // `createdAt` / `updatedAt` are Payload's own, appended outside `fields`,
+      // so the locker never reaches them — which is why they are named here and
+      // not in `MANAGER_PUBLIC_FIELDS`.
+      const readable: string[] = []
+      for (const field of payload.collections.managers.config.flattenedFields) {
+        // A hidden field is dropped from every read unless the caller passes
+        // `showHiddenFields`, which no client or picker read does — that is
+        // what covers `salt`, `hash` and the reset-password columns.
+        if (field.hidden === true) continue
+        const lock = readLockOf(field)
+        const allowed = lock
+          ? await lock({
+              id: eventManager.id,
+              data: {},
+              doc: { id: eventManager.id } as never,
+              siblingData: {},
+              req: managerReq(atlasManager),
+            })
+          : true
+        if (allowed) readable.push(field.name)
+      }
+
+      expect(readable.sort()).toEqual(['createdAt', 'name', 'updatedAt'])
+    })
+
+    it('keeps Payload’s own labels on the two base fields it redeclares', () => {
+      // ⚠ `sanitizeFields` labels a field from its name BEFORE `mergeBaseFields`
+      // runs, and the merge lets ours win — so redeclaring `_verified` bare put
+      // a column headed `_verified` in the list view, in every locale.
+      const labels = Object.fromEntries(
+        payload.collections.managers.config.flattenedFields
+          .filter((field) => field.name === 'email' || field.name === '_verified')
+          .map((field) => [field.name, field.label]),
+      )
+
+      expect(typeof labels.email).toBe('function')
+      expect(typeof labels._verified).toBe('function')
+    })
+  })
+
   describe('an Atlas region manager', () => {
-    it('still reads managers, through the explicit grant', async () => {
+    /** Another manager's row, as the picker's own read returns it. */
+    const readOther = async (): Promise<Manager> => {
       const { docs } = await payload.find({
         collection: 'managers',
         depth: 0,
@@ -324,10 +396,134 @@ describe('Managers access (#821)', () => {
         overrideAccess: false,
         req: managerReq(atlasManager),
       })
-
+      const other = docs.find((doc) => doc.id === eventManager.id)
       // The picker lists OTHER managers, so a self-scoped result would be a
       // regression rather than a pass.
-      expect(docs.some((doc) => doc.id === eventManager.id)).toBe(true)
+      expect(other).toBeDefined()
+      return other!
+    }
+
+    it('still reads managers, through the explicit grant', async () => {
+      // What the `Events.manager` and `Regions.managers` pickers render:
+      // `admin.useAsTitle` is `name`, so the grant has to survive the locks.
+      expect((await readOther()).name).toBe('Event Manager')
+    })
+
+    it('reads nothing on another manager but the title and the timestamps', async () => {
+      // ⚠ A denied `array` comes back as `[]`, not absent: access control
+      // deletes the key and the array branch then re-assigns an empty array
+      // (`payload/dist/fields/hooks/afterRead/promise.js`). `toBeUndefined()`
+      // would fail here against a correct implementation.
+      const other = await readOther()
+      expect(Object.keys(other).sort()).toEqual([
+        'collection',
+        'contactDetails',
+        'createdAt',
+        'id',
+        'name',
+        'sessions',
+        'updatedAt',
+      ])
+      expect(other.contactDetails).toEqual([])
+      expect(other.sessions).toEqual([])
+    })
+
+    it('reads none of the machine columns on another manager, asking by name', async () => {
+      // A `select` is how a caller asks for a field directly rather than
+      // taking what a list happens to return.
+      const { docs } = await payload.find({
+        collection: 'managers',
+        select: {
+          name: true,
+          email: true,
+          _verified: true,
+          magicLinkIssuedAt: true,
+          pendingInvitation: true,
+          invitationDueAt: true,
+          legacyId: true,
+          legacyData: true,
+          notificationPreferences: true,
+        },
+        depth: 0,
+        pagination: false,
+        overrideAccess: false,
+        req: managerReq(atlasManager),
+      })
+
+      const other = docs.find((doc) => doc.id === eventManager.id)
+      expect(other).toBeDefined()
+      expect(Object.keys(other!).sort()).toEqual(['collection', 'id', 'name'])
+    })
+
+    it('still reads its own row whole', async () => {
+      const self = await payload.findByID({
+        collection: 'managers',
+        id: atlasManager.id,
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(atlasManager),
+      })
+
+      expect(self.email).toBe('atlas-manager@example.com')
+      expect(self.type).toBe('manager')
+      // Set on this fixture below, so the key being present is a read and not
+      // an empty column.
+      expect(self.notificationPreferences).toMatchObject({ invitation: { frequency: 'Never' } })
+      expect(self.contactDetails).toHaveLength(1)
+    })
+
+    it('is offered its own locked inputs in the admin, and not another row’s', async () => {
+      // What the edit view renders from. ⚠ `getEntityPermissions` calls
+      // `populateFieldPermissions` with no `id`, only the fetched row as `doc`,
+      // so a lock reading `id` alone answers "unreadable" for the holder's own
+      // document — and `RenderFields` renders nothing for a field with no read
+      // permission, which would leave this manager's Contact tab empty.
+      const readableOn = async (id: number, names: string[]): Promise<string[]> => {
+        const { fields } = await docAccessOperation({
+          id,
+          collection: payload.collections.managers,
+          req: managerReq(atlasManager),
+        })
+        // `sanitizePermissions` collapses a set whose every operation is true to
+        // a bare `true`. It cannot here — `type` and `roles` carry
+        // `update: adminOnlyFieldAccess` — so narrowing it is not a fallback.
+        if (fields === true) throw new Error('every field allowed: the update locks are gone')
+        return names.filter((name) => {
+          const field = fields[name]
+          return field === true || field?.read === true
+        })
+      }
+
+      const asked = ['name', 'email', 'contactDetails', 'notificationPreferences']
+      expect(await readableOn(atlasManager.id, asked)).toEqual(asked)
+      expect(await readableOn(eventManager.id, asked)).toEqual(['name'])
+    })
+
+    it('is the only thing narrowing the read — an admin still sees every field', async () => {
+      // Non-vacuity for the three cases above: the fixture really does hold a
+      // value in every field they assert is gone, and the locks are what
+      // withhold them rather than an empty row.
+      const whole = await payload.findByID({
+        collection: 'managers',
+        id: eventManager.id,
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(adminUser),
+      })
+
+      expect(whole.email).toBe('event-manager@example.com')
+      expect(whole.type).toBe('manager')
+      expect(whole.contactDetails).toHaveLength(1)
+      expect(whole.notificationPreferences).toMatchObject({
+        event_verification: { frequency: 'Monthly' },
+      })
+      expect(whole.legacyId).toBe(4242)
+      expect(whole.legacyData).toMatchObject({ phone: '+15550000001' })
+      expect(whole.magicLinkIssuedAt).toBeTruthy()
+      // The invitation queue owns this column's shape, so only its presence is
+      // this spec's business.
+      expect(whole.pendingInvitation).toBeTruthy()
+      expect(whole.invitationDueAt).toBeTruthy()
     })
   })
 
