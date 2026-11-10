@@ -293,6 +293,10 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
     saveSite()
   }, [address, saveSite])
   useEffect(() => {
+    // ⚠ A stored address is live: `site.domain` is the key's whole origin
+    // allowlist, so a half-typed edit saved on a pause turns away every visitor.
+    // Changing one waits for the field to lose focus, or for Check.
+    if (stored.current.domain) return
     const timer = setTimeout(saveAddress, ADDRESS_SAVE_DELAY_MS)
     return () => clearTimeout(timer)
   }, [saveAddress])
@@ -540,7 +544,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         {activeTrack ? (
           <section className={styles.section}>
             <h3 className={styles.heading}>2. Where should the atlas live?</h3>
-            <div className={styles.urlField}>
+            <div className={styles.urlField} onBlur={saveAddress}>
               <TextInput
                 // Payload's error tooltip truncates a sentence, so the whole
                 // message goes in the description and the tooltip stays short.
