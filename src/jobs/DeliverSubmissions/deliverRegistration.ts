@@ -146,6 +146,11 @@ async function notifyManager(args: {
       // "already announced".** `DeliverSubmissions` logs one per *attempt*,
       // failures included, so a retry of a first registration carries one —
       // and would announce a brand-new signup as an update.
+      //
+      // shortcut: this answers "was the row folded into", not "was this manager
+      // told", so a recipient switched from `Never` to `Immediate` between two
+      // signups reads "Updated" for the first notice they ever get. Upgrade
+      // when a manager notice logs its own entry to read back.
       isUpdate: hasLogEntryType(asLog(submission.activityLog), REGISTRATION_UPDATE_LOG_TYPE),
     })
   } catch (error) {

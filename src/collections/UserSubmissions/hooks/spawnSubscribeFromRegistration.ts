@@ -74,6 +74,11 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
     //
     // Above the `users` read, which a repeat signup then never pays for. Both
     // inputs come from `data`, so nothing sequences it after that read.
+    //
+    // shortcut: check-then-create, so two signups landing together can still
+    // leave two rows. Turnstile's single-use token closes most of the window.
+    // Upgrade to a partial unique index — this pair is nullable and the other
+    // intakes must stay duplicable — once duplicates are worth a migration.
     const { docs: held } = await req.payload.find({
       collection: 'user-submissions',
       where: {
