@@ -6,12 +6,14 @@ import { resolveOwnedRegionIds } from '@/plugins/access/regionSubtreeAccess'
 /**
  * Whose overview this is.
  *
- * ⚠ **A role, never a user.** One manager can wear all three hats, and each
+ * ⚠ **A role, never a user.** One manager can wear all four hats, and each
  * sees a different list, so every loader is told which.
  */
 export type OverviewScope =
   | { role: 'admin' }
   | { role: 'program'; managerId: number }
+  /** The services a manager is listed on; only the digest reads it. */
+  | { role: 'service'; managerId: number }
   | {
       role: 'region'
       /** `null` for an admin viewing a region, who has no owned set to intersect. */

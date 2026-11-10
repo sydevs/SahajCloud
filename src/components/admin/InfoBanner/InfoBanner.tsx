@@ -1,60 +1,90 @@
 'use client'
 
-import type { UIFieldClientComponent } from 'payload'
+import type { UIFieldClientProps } from 'payload'
 
-import { Banner, InfoIcon, WarningIcon } from '@payloadcms/ui'
+import { Banner, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
 import { GraduationCap } from 'lucide-react'
 import React from 'react'
 
-/** Banner variants supported by Payload's `Banner`. */
-type BannerType = 'default' | 'error' | 'info' | 'success'
+/** The `Banner` types Payload styles: `info` has no rule of its own, so it is `default`. */
+export type InfoBannerType = 'default' | 'error' | 'success' | 'warning'
 
-interface InfoBannerConfig {
-  /** Named icon — a string, since `admin.custom` is serialized to the client. */
-  icon?: string
-  title?: string
-  text?: string
-  type?: BannerType
+const TYPE_ICONS: Record<InfoBannerType, React.FC> = {
+  default: InfoIcon,
+  error: ErrorIcon,
+  success: SuccessIcon,
+  warning: WarningIcon,
 }
 
 /**
- * Icon registry — `custom.icon` is a string, so it maps to a component here.
- * `tutorial` uses lucide's GraduationCap (Payload's icon set ships no teaching
- * glyph) sized to sit alongside Payload's own ~24px icons; it inherits the
- * banner's text colour via `currentColor`. `info`/`warning` reuse Payload's
- * theme-coloured icons.
+ * The icons a `ui` field can name in `admin.custom`, which is serialized and so
+ * holds a string. Payload ships no teaching glyph, so `tutorial` is lucide's,
+ * sized to sit beside Payload's own ~24px icons.
  */
-const ICONS: Record<string, React.FC> = {
+const NAMED_ICONS: Record<string, React.FC> = {
   tutorial: () => <GraduationCap size={22} aria-hidden />,
   info: InfoIcon,
   warning: WarningIcon,
 }
 
-/**
- * Generic informational `Banner` for a `ui` field — configured entirely through
- * the field's `admin.custom`:
- *   { icon?: 'tutorial' | 'info' | 'warning', title?, text?, type? }
- *
- * The icon is laid out inside the banner's content (not Payload's `icon` slot,
- * which is a bare flex row with no gap/alignment — fine for one-line banners but
- * it strands a small icon at the top-left beside multi-line text). A flex row
- * with `flex-shrink: 0` keeps the icon full-size and top-aligned with the title.
- */
-export const InfoBanner: UIFieldClientComponent = ({ field }) => {
+/** A `ui` field's `admin.custom`: `{ icon?: 'tutorial' | 'info' | 'warning', title?, text?, type? }`. */
+interface InfoBannerConfig {
+  icon?: string
+  title?: string
+  text?: string
+  type?: InfoBannerType | 'info'
+}
+
+export interface InfoBannerProps {
+  type?: InfoBannerType
+  /** Replaces the type's own icon; `null` shows none. */
+  icon?: React.ReactNode | null
+  title?: React.ReactNode
+  /** The description, one or two short sentences. */
+  children?: React.ReactNode
+  /** A link or button after the description. */
+  action?: React.ReactNode
+  /** Set when registered as a `ui` field, which configures the banner through `admin.custom`. */
+  field?: UIFieldClientProps['field']
+}
+
+function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
   const { icon, title, text, type = 'default' } = (field?.admin?.custom ?? {}) as InfoBannerConfig
   if (!title && !text) return null
-  const Icon = icon ? ICONS[icon] : undefined
+  const Icon = icon ? NAMED_ICONS[icon] : undefined
+  return {
+    icon: Icon ? <Icon /> : null,
+    title,
+    children: text,
+    type: type === 'info' ? 'default' : type,
+  }
+}
+
+/**
+ * Payload's `Banner` with an icon, a bold title and a short description — the
+ * one notice shape the admin panel uses.
+ *
+ * The icon sits inside the content rather than in `Banner`'s own `icon` slot,
+ * which is a bare flex row with no gap or alignment: fine beside one line, but
+ * beside a title and a sentence it strands a small icon at the top left.
+ */
+export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactElement | null {
+  const banner = field ? fromField(field) : props
+  if (!banner) return null
+  const { type = 'default', icon, title, children, action } = banner
+  const Icon = TYPE_ICONS[type]
   return (
     <Banner type={type}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'calc(var(--base) * 0.5)' }}>
-        {Icon ? (
-          <span style={{ display: 'flex', flexShrink: 0, marginTop: '2px' }} aria-hidden>
-            <Icon />
+        {icon === null ? null : (
+          <span aria-hidden style={{ display: 'flex', flexShrink: 0, marginTop: '2px' }}>
+            {icon ?? <Icon />}
           </span>
-        ) : null}
+        )}
         <div>
           {title ? <div style={{ fontWeight: 600 }}>{title}</div> : null}
-          {text ? <div>{text}</div> : null}
+          {children ? <div>{children}</div> : null}
+          {action ? <div style={{ marginTop: 'calc(var(--base) * 0.25)' }}>{action}</div> : null}
         </div>
       </div>
     </Banner>

@@ -33,6 +33,8 @@ export {
   // Type generation
   getRoleSlugs,
   // Role helper functions
+  getJoinProject,
+  opensCollection,
   getRoleProject,
   getPermissionsForRole,
   getRoleOptions,

@@ -8,7 +8,7 @@ import type { Client, Meditation, Song, SongTag } from '@/payload-types'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', enabled: true }
 
 type SongDoc = { id: number; title?: string | null; url?: string | null; tags?: number[] }
 type SongsBody = {
@@ -34,7 +34,7 @@ async function callEndpoint(
   meditationId: number | string,
   query: { select?: Record<string, boolean> } = {},
   options: {
-    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
+    user?: { id: number | string; collection: string; enabled?: boolean } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: SongsBody | unknown }> {
   const req = {
@@ -247,7 +247,7 @@ describe('meditationSongs endpoint', () => {
         payload,
         meditation.id,
         {},
-        { user: { id: client.id, collection: 'clients', _status: 'published' } },
+        { user: { id: client.id, collection: 'clients', enabled: true } },
       )
       expect(status).toBe(200)
 
@@ -291,7 +291,7 @@ describe('meditationSongs endpoint', () => {
         payload,
         meditation.id,
         {},
-        { user: { id: 999, collection: 'clients', _status: 'draft' } },
+        { user: { id: 999, collection: 'clients', enabled: false } },
       )
       expect(status).toBe(403)
     })

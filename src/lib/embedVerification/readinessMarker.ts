@@ -10,7 +10,7 @@ import { ROUTING_MODES } from '@/lib/clients/canonical'
  * **What this proves, precisely.** It detects an embed that is *installed but not working* — the
  * case a report can never reveal, because the report is sent by the same widget whose health is in
  * question. It does **not** prove the page is honest: the attribute carries no nonce, and any host
- * that can run our script can hand-write it. The trust boundary stays `allowedDomains`, server
+ * that can run our script can hand-write it. The trust boundary stays the service's domain, server
  * side. What it does buy against a *third party* holding a stolen key is real, though: they can
  * claim a mount on the client's domain in a report, but they cannot make that domain serve a
  * marker they control.
@@ -38,13 +38,41 @@ export interface ReadinessMarker {
 const HTML_TAG_RE = /<html\b[^>]*>/i
 const ATTR_RE = new RegExp(`${READY_ATTR}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i')
 
-/** Decode the handful of entities an HTML serializer puts inside an attribute value. */
-function decodeAttribute(raw: string): string {
-  return raw
-    .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)))
-    .replace(/&amp;/g, '&')
+/** The named entities an HTML serializer writes. `&amp;` is applied last — see below. */
+const NAMED_ENTITIES: Record<string, string> = {
+  '&quot;': '"',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&apos;': "'",
+}
+
+/** A numeric reference as its character, or left as written when no character has that number. */
+const codePoint = (entity: string, code: number): string =>
+  code <= 0x10ffff ? String.fromCodePoint(code) : entity
+
+/**
+ * Decode the entities a host's template escaped on the way out.
+ *
+ * ⚠ **One decoder, because two disagreed.** The SEO checks (#1055) compare a
+ * whole `<title>`, and `Don't` comes back as `Don&#x27;t` from one serializer
+ * and `Don&#39;t` from another — a decoder missing either reports a correct
+ * page as wrong, and puts it on a manager's list.
+ *
+ * `&amp;` is decoded **last**, so `&amp;lt;` yields `&lt;` rather than `<`. A
+ * comparison, never a sanitizer: nothing it returns is re-emitted as markup.
+ */
+export function decodeEntities(raw: string): string {
+  return (
+    raw
+      .replace(
+        /&(?:quot|lt|gt|apos);/gi,
+        (entity) => NAMED_ENTITIES[entity.toLowerCase()] ?? entity,
+      )
+      // ⚠ Guarded: `fromCodePoint` throws past U+10FFFF, and the page is a stranger's.
+      .replace(/&#(\d+);/g, (entity, code: string) => codePoint(entity, Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (entity, code: string) => codePoint(entity, parseInt(code, 16)))
+      .replace(/&amp;/g, '&')
+  )
 }
 
 /**
@@ -63,7 +91,7 @@ export function parseReadinessMarker(html: string): ReadinessMarker | null {
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(decodeAttribute(raw))
+    parsed = JSON.parse(decodeEntities(raw))
   } catch {
     return null
   }

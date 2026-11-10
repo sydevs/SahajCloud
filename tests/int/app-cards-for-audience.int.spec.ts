@@ -9,7 +9,7 @@ import type { AppCard, Audience, Client, Image } from '@/payload-types'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', enabled: true }
 
 // `audiences` is a required, non-empty comma-separated list of IDs.
 // Tests that do not exercise a specific eligibility scenario still need to
@@ -18,7 +18,7 @@ const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published'
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
-  user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null,
+  user?: { id: number | string; collection: string; enabled?: boolean } | null,
   options: { skipDefaultAudiences?: boolean; defaultAudiences?: string } = {},
 ): Promise<{ status: number; headers: Headers; body: unknown }> {
   const finalQuery = options.skipDefaultAudiences
@@ -330,7 +330,7 @@ describe('appCardsForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { targetSection: 'hero', limit: 5 },
-        { id: 999, collection: 'clients', _status: 'draft' },
+        { id: 999, collection: 'clients', enabled: false },
         { defaultAudiences: allEligible },
       )
       expect(status).toBe(403)
@@ -571,7 +571,7 @@ describe('appCardsForAudience endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         { targetSection: 'hero', limit: 5 },
-        { id: client.id, collection: 'clients', _status: 'published' },
+        { id: client.id, collection: 'clients', enabled: true },
         { defaultAudiences: allEligible },
       )
       expect(status).toBe(200)

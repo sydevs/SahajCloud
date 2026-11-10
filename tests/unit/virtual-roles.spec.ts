@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { managerRoles } from '@/lib/notifications/managerRoles'
 import { bypassPermissions } from '@/plugins/access/bypassPermissions'
 import { getRoleOptions, virtualRoles } from '@/plugins/access/config'
 import { hasPermission } from '@/plugins/access/permissions'
@@ -31,6 +32,7 @@ const manager = (overrides: Partial<TypedAuthUser> = {}): TypedAuthUser =>
 const listedOnRegion = manager({ managedRegions: { docs: [3] } })
 const assignedAnEvent = manager({ managedEvents: { docs: [9] } })
 const listedOnPage = manager({ managedPages: { docs: [5] } })
+const listedOnService = manager({ managedClients: { docs: [4] } })
 
 /**
  * ⚠ `locale` is passed through, never defaulted. A default parameter would
@@ -52,6 +54,7 @@ describe('virtualRoles', () => {
     expect(virtualRoles({ managedEvents: { docs: [9] } })).toEqual(['atlas-event-manager'])
     expect(virtualRoles({ managedPages: { docs: [5] } })).toEqual(['page-editor'])
     expect(virtualRoles({ managedPages: { docs: [] } })).toEqual([])
+    expect(virtualRoles({ managedClients: { docs: [4] } })).toEqual(['atlas-service-manager'])
     expect(virtualRoles({ managedRegions: { docs: [3] }, managedEvents: { docs: [9] } })).toEqual([
       'atlas-region-manager',
       'atlas-event-manager',
@@ -135,11 +138,20 @@ describe('a derived role in hasPermission', () => {
     expect(may(assignedAnEvent, 'events', 'read', 'en')).toBe(true)
   })
 
+  it('gives a service manager the Atlas project and no `clients` grant (#1055)', () => {
+    // Their own services reach them through document-level access instead.
+    expect(may(listedOnService, 'clients', 'read', 'en')).toBe(false)
+    expect(may(listedOnService, 'clients', 'update', 'en')).toBe(false)
+    expect(may(listedOnService, 'events', 'read', 'en')).toBe(true)
+    expect(may(listedOnService, 'events', 'update', 'en')).toBe(false)
+    expect(managerRoles(listedOnService)).toEqual(['service'])
+  })
+
   it('leaves a client untouched — its roles are flat and carry no join', () => {
     const client = {
       id: 2,
       collection: 'clients',
-      _status: 'published',
+      enabled: true,
       roles: ['sahaj-atlas-client'],
       managedRegions: { docs: [3] },
     } as unknown as TypedAuthUser

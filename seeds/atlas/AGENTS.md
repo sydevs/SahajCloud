@@ -456,6 +456,30 @@ Slug"/"mapboxId" means exactly this. **A re-sync avoids all of it by
 running `atlas-reset` first** (above, "Re-syncing a target"); the reports
 remain for a target seeded on top of an earlier import without one.
 
+## Services: one site each (#1055)
+
+A SahajCloud service is one site, and Atlas let one service list several.
+`prepareRaw` applies two decisions from [sync/merges.ts](sync/merges.ts) to
+the clients table, ahead of the overlay:
+
+- **`EXCLUDED_CLIENT_LEGACY_IDS`** leaves out Atlas's own two services, "Sahaj
+  Atlas Dev" (#33, `localhost`) and "Sahaj Atlas" (#66, the legacy widget
+  hosts). Both were deleted from production on 2026-11-07, and the importer
+  never deletes, so leaving them out of the data is what keeps them deleted.
+  SahajCloud's own "Sahaj Atlas" service (`clients/8`, no `legacyId`) holds the
+  live key and is never touched.
+- **`CLIENT_SPLITS`** gives a second site its own row: `yogaessonne.fr` leaves
+  Sahaja Yoga FR (#32) as "Yoga Essonne", legacy id **-32**, under
+  Ile-de-France. ⚠ A split's id is negative so no Atlas row can take it. Its
+  region is found by name under the source's country, because Atlas renumbers
+  geo nodes, and the build throws if none or several match.
+
+⚠ **Production's "Yoga Essonne" (`clients/43`) was created by hand before
+the split existed**, so it needs `legacyId: -32` before the next `atlas
+--update`. Without it the import creates a second "Yoga Essonne", and
+`atlas-reset` refuses while a service SahajCloud made itself points at a
+region.
+
 ## One-offs, and the duplicate-class guard
 
 **Atlas stores a one-off as an open-ended daily.** A `single` or `concert`

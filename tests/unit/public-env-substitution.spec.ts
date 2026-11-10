@@ -120,8 +120,8 @@ describe('browser code reads NEXT_PUBLIC_* as a literal member expression', () =
     const reached = clientReachableFiles().map((file) => relative(SRC, file))
     const entries = new Set(clientEntries().map((file) => relative(SRC, file)))
 
-    // `model.ts` is two hops out, through CanonicalEmbedPicker.
-    expect(reached).toContain('components/admin/CanonicalEmbedPicker/model.ts')
+    // `site.ts` is two hops out: the Install tab, then its model.
+    expect(reached).toContain('lib/clients/site.ts')
     expect(reached.filter((file) => !entries.has(file)).length).toBeGreaterThan(20)
   })
 

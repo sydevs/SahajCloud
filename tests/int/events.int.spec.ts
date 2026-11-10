@@ -27,7 +27,7 @@ describe('Events collection', () => {
   // thing keeping them out of the listing.
   // ──────────────────────────────────────────────────────────────────────────
   describe('finished events in client list reads', () => {
-    let clientUser: { id: number; collection: 'clients'; _status: 'published'; roles: string[] }
+    let clientUser: { id: number; collection: 'clients'; enabled: true; roles: string[] }
     let finishedId: number
     let runningId: number
 
@@ -43,7 +43,7 @@ describe('Events collection', () => {
       clientUser = {
         id: clientDoc.id,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
       }
 

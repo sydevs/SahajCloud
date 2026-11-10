@@ -42,11 +42,9 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * A verified host + mount + routing, as a {@link CanonicalTarget}, or `null`
  * when the host is not one we are willing to publish.
  *
- * Named for the role rather than the caller, because two callers fill it from
- * different records: the resolver, from a client's
- * `canonical.verification.verified`, and the admin picker, from the embed an
- * operator is about to choose. Both must produce the same URL — a picker that
- * previews a shape the resolver does not emit is worse than no preview.
+ * Named for the role rather than the caller: the resolver fills it from an
+ * owner, and the SEO checks from `canonical.verification.verified`, and both
+ * must produce the same URL.
  *
  * The scheme is stated here, not carried: a canonical URL a crawler should
  * follow is https, so it is ours to state rather than an operator's to mistype.
@@ -59,7 +57,7 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * `splitMountKey` records `url.host`, which keeps a port.
  *
  * A mount of `https://example.org:8080/` therefore stores `example.org:8080` —
- * past `allowedDomains`, which compares port-stripped hostnames — and would
+ * past the origin check, which compares port-stripped hostnames — and would
  * interpolate into a public canonical naming a port nobody chose. Refusing it
  * here means such a client owns nothing and falls through to the next ancestor,
  * which is the honest answer: we cannot express that page as a canonical host.
@@ -68,14 +66,10 @@ export const ATLAS_QUERY_PARAM = 'atlas'
  * verifier loads the mount URL itself, so dropping it would verify `:8080` and
  * publish `:443` — a page we never looked at.
  *
- * **`routing` is a separate argument, and required, on purpose** (#644). The
- * host record carries a `routing` key of its own — what the widget said about
- * itself — and while this function read it off the same object, passing a
- * `VerifiedEmbed` straight in compiled and quietly shaped a public URL from
- * that self-report. That was the circularity #644 removed, and a comment is not
- * what should be holding it: every caller now has to say where its routing
- * verdict came from, and `verification.routingProbe.verdict` is the only thing
- * that answers.
+ * **`routing` is a separate argument, and required, on purpose** (#644): every
+ * caller has to say where its routing verdict came from, and
+ * `verification.routingProbe.verdict` is the only thing that answers — never
+ * the widget's report about itself.
  */
 export function canonicalTargetForHost(
   host: { domain: string; mount?: string | null },

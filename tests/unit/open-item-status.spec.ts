@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { OpenItemEvent, OpenItemRow } from '@/lib/atlasOverview/status'
-import { actionPrompt, openItem, overviewProgress, sortOpenItems } from '@/lib/atlasOverview/status'
+import {
+  actionPrompt,
+  openItem,
+  overviewProgress,
+  rowTarget,
+  sortOpenItems,
+} from '@/lib/atlasOverview/status'
 
 const NOW = new Date('2026-11-05T12:00:00.000Z')
 
@@ -286,6 +292,89 @@ describe('openItem', () => {
       )
       const without = openItem(event({ id: 2, verificationStage: 'expired' }), NOW)
       expect(sortOpenItems([without, withDeadline]).map((item) => item.row.id)).toEqual([1, 2])
+    })
+  })
+
+  describe('a service with a problem on its site (#1055)', () => {
+    const PAGE = 'https://yogaessonne.fr/carte'
+    const service = (
+      overrides: Partial<Extract<OpenItemRow, { kind: 'service' }>> = {},
+    ): OpenItemRow => ({
+      checkedAt: '2026-11-04T07:00:00.000Z',
+      id: 43,
+      kind: 'service',
+      missingOn: null,
+      owned: false,
+      releasedAt: null,
+      title: 'Yoga Essonne',
+      ...overrides,
+    })
+    const review = { label: 'Review', target: { collection: 'clients', id: 43, view: 'install' } }
+
+    const promptOf = (row: OpenItemRow) => actionPrompt(openItem(row, NOW).placing)
+    const lead = {
+      href: PAGE,
+      link: 'your site',
+      text: 'The map was not detected on ',
+    }
+
+    it('dates a search problem, and sends the reader to the Install tab', () => {
+      const item = openItem(service(), NOW)
+      expect(item.placing).toMatchObject({
+        action: review,
+        key: 'search-problem',
+        label: 'Search problem',
+        lines: ['Checked 4 Nov 2026'],
+        pill: 'warning',
+      })
+      expect(item.since).toBe('2026-11-04T07:00:00.000Z')
+      expect(rowTarget(item.row)).toEqual({ collection: 'clients', id: 43, view: 'install' })
+    })
+
+    it('says what is wrong in the sentence that carries the link', () => {
+      expect(promptOf(service())).toEqual({
+        after: '',
+        before: 'Google is unable to read your map embed. ',
+        link: 'Review it',
+      })
+    })
+
+    it('reports a missing map instead, ranked with Overdue', () => {
+      const item = openItem(service({ missingOn: PAGE }), NOW)
+      expect(item.statuses.map((s) => s.key)).toEqual(['map-not-found'])
+      expect(item.placing).toMatchObject({
+        action: review,
+        label: 'Map not found',
+        lines: ['Checked 4 Nov 2026'],
+        pill: 'error',
+        rank: 2,
+      })
+      expect(promptOf(service({ missingOn: PAGE }))).toEqual({
+        after: '',
+        before: '. ',
+        lead,
+        link: 'Review it',
+      })
+    })
+
+    it('tells an owner what the map is keeping, with no count of the misses', () => {
+      expect(promptOf(service({ missingOn: PAGE, owned: true }))).toEqual({
+        after: ' so that we can continue to send search engines (Google) to your website.',
+        before: '. ',
+        lead,
+        link: 'Review it',
+      })
+    })
+
+    it('says what has been lost once the region is released', () => {
+      expect(
+        promptOf(service({ missingOn: PAGE, releasedAt: '2026-11-03T03:00:00.000Z' })),
+      ).toEqual({
+        after: ', and contact us if you need help.',
+        before: ', so we can no longer send search engines (Google) to your website. ',
+        lead,
+        link: 'Review it',
+      })
     })
   })
 

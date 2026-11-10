@@ -66,10 +66,10 @@ const ROLES = {
   // --- Derived manager roles (never stored) ---
   //
   // Each is `virtual`: nobody assigns them, `virtualRoles` resolves them from
-  // the `managedPages` / `managedRegions` / `managedEvents` joins on every
-  // request, and the listing is therefore the only record of who holds one.
-  // Removing someone from a page, a region or an event withdraws the role on
-  // their next request.
+  // the `managedPages` / `managedRegions` / `managedEvents` / `managedClients`
+  // joins on every request, and the listing is therefore the only record of
+  // who holds one. Removing someone from a page, a region, an event or a
+  // service withdraws the role on their next request.
   'page-editor': {
     label: 'Page Editor',
     description: 'Edits the We Meditate pages they are assigned to',
@@ -127,6 +127,21 @@ const ROLES = {
       events: ['update', 'delete'] as PermissionLevel[],
       'user-submissions': ['read', 'update'] as PermissionLevel[],
     },
+  },
+  'atlas-service-manager': {
+    label: 'Atlas Service Manager',
+    description: 'Looks after the Sahaj Atlas services — the websites — they are listed on',
+    project: 'sahaj-atlas' as const,
+    // ⚠ `opens`, because `createHidden` hides a collection from a role with no
+    // write grant there, and Payload answers a hidden collection's document
+    // route with a 404: without it, the digest's link and the Install tab are
+    // closed to the very people they are written for.
+    virtual: { join: 'managedClients' as const, opens: 'clients' as const },
+    // No `clients` grant: `clients` is restricted, and the listed services
+    // already reach them through document-level access, which is exactly the
+    // scope. The role adds the project, and the "Your websites" digest
+    // (`managerRoles`).
+    permissions: {},
   },
 
   // Client roles (renamed with -client suffix)
@@ -261,10 +276,27 @@ export function getRoleOptions(allowedRoles: InternalRoleSlug[]) {
     if (virtualJoinOf(roleSlug) !== undefined) {
       throw new Error(
         `Role "${roleSlug}" is derived from a listing and cannot be assigned. ` +
-          'Add or remove the manager on the page, region or event instead.',
+          'Add or remove the manager on the page, region, event or service instead.',
       )
     }
     return { label: roleConfig.label, value: roleSlug }
+  })
+}
+
+/**
+ * The project of the role a listing derives, by its join's name — how a
+ * document in no project, a service, still belongs to one (`grantSummary.ts`).
+ */
+export function getJoinProject(join: string): ProjectSlug | undefined {
+  const role = getRoleSlugs().find((slug) => virtualJoinOf(slug) === join)
+  return role ? getRoleProject(role) : undefined
+}
+
+/** Whether a listing opens this collection's admin pages to a manager with no write grant on it. */
+export function opensCollection(user: VirtualRoleUser, collection: string): boolean {
+  return virtualRoles(user).some((role) => {
+    const { virtual } = ROLES[role] as { virtual?: { opens?: string } }
+    return virtual?.opens === collection
   })
 }
 
@@ -277,7 +309,7 @@ function virtualJoinOf(role: InternalRoleSlug): keyof VirtualRoleUser | undefine
 /**
  * The roles a manager holds by being listed, rather than by assignment.
  *
- * Being named on a page, a region or an event *is* the role, so there is nothing to
+ * Being named on a page, a region, an event or a service *is* the role, so there is nothing to
  * keep in step: the grant appears on the request after the listing is saved
  * and is gone from the next request after it is removed. Which join each role
  * is read off is declared beside the role, so adding one is a table edit.

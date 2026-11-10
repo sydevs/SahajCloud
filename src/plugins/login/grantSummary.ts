@@ -1,4 +1,4 @@
-import type { CollectionSlug, Field, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, Field, Payload, PayloadRequest, Where } from 'payload'
 
 import { flattenAllFields } from 'payload'
 
@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { ProjectSlug } from '@/payload-types'
 import {
+  getJoinProject,
   getProjectCollections,
   getProjectSlugs,
   getRoleLabel,
@@ -20,8 +21,8 @@ import { DEFAULT_EMAIL_PROJECT } from '@/plugins/email'
  * What an invitation can honestly say about the access it grants.
  *
  * Two vocabularies: the account's `roles` and `type`, and the documents that
- * name it as a manager — the targets of the `managedPages`, `managedRegions`
- * and `managedEvents` joins.
+ * name it as a manager — the targets of the `managedPages`, `managedRegions`,
+ * `managedEvents` and `managedClients` joins.
  *
  * ⚠ **Reads `managers` directly**, through `hydrateLocalizedRoles` and the
  * collection's join fields, so this is the one part of the login plugin that is
@@ -93,17 +94,26 @@ export const MANAGERS_COLLECTION = 'managers'
 
 /**
  * The manager joins declared among `fields`: which collection names a manager,
- * and through which of its fields.
+ * through which of its fields, and which of its documents count.
  *
  * Takes raw fields so the plugin can read them from the unsanitized config,
  * before Payload flattens anything. A polymorphic join (`collection` as an
  * array) is skipped — there is no one title field to list it by, and `managers`
  * declares none.
  */
-export function managerJoins(fields: Field[]): { collection: CollectionSlug; on: string }[] {
+export function managerJoins(
+  fields: Field[],
+): { collection: CollectionSlug; name: string; on: string; where?: Where }[] {
   return flattenAllFields({ fields }).flatMap((field) =>
     field.type === 'join' && typeof field.collection === 'string'
-      ? [{ collection: field.collection as CollectionSlug, on: field.on }]
+      ? [
+          {
+            collection: field.collection as CollectionSlug,
+            name: field.name,
+            on: field.on,
+            where: field.where,
+          },
+        ]
       : [],
   )
 }
@@ -192,13 +202,17 @@ export async function summarizeGrants({
       if (project) (part(project).roles[locale] ??= []).push(slug)
     }
   }
-  for (const { collection: slug, responsibility } of managed) {
+  for (const { collection: slug, join, responsibility } of managed) {
     const candidates = getProjectSlugs().filter((project) =>
       (getProjectCollections(project) as string[]).includes(slug),
     )
+    // A collection in no project — `clients` is restricted — goes with the
+    // project of the role its listing derives, so a service is a Sahaj Atlas
+    // invitation rather than the default brand's.
     const project =
       candidates.find((candidate) => heldProjects.has(candidate)) ??
       candidates[0] ??
+      getJoinProject(join) ??
       DEFAULT_EMAIL_PROJECT
     part(project).responsibilities.push(responsibility)
   }
@@ -249,7 +263,7 @@ async function readManaged(
   id: number | string,
   req: PayloadRequest | undefined,
   only: PendingInvitation | undefined,
-): Promise<{ collection: CollectionSlug; responsibility: Responsibility }[]> {
+): Promise<{ collection: CollectionSlug; join: string; responsibility: Responsibility }[]> {
   const found = []
 
   for (const join of managerJoins(payload.collections[MANAGERS_COLLECTION].config.fields)) {
@@ -263,8 +277,14 @@ async function readManaged(
       collection: join.collection,
       // `in` matches a hasMany `managers` and a single `manager` alike, and
       // re-checking it is what drops an assignment undone since it was queued.
+      // The join's own `where` too, so a document it does not count — an app's
+      // key, on `managedClients` — is never announced.
       where: {
-        and: [{ [join.on]: { in: [id] } }, ...(ids ? [{ id: { in: ids } }] : [])],
+        and: [
+          { [join.on]: { in: [id] } },
+          ...(join.where ? [join.where] : []),
+          ...(ids ? [{ id: { in: ids } }] : []),
+        ],
       },
       pagination: false,
       sort: titleField,
@@ -294,6 +314,7 @@ async function readManaged(
     const { plural, singular } = config.labels ?? {}
     found.push({
       collection: join.collection,
+      join: join.name,
       responsibility: {
         label: typeof plural === 'string' ? plural : join.collection,
         singular: typeof singular === 'string' ? singular : join.collection,

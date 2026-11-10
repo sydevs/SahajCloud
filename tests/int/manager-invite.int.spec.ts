@@ -208,6 +208,48 @@ describe('manager invitation', () => {
       expect(sent!.html).toContain(`href="${webUrl}"`)
     })
 
+    it('invites a manager listed on an atlas service, as Sahaj Atlas (#1055)', async () => {
+      const manager = await bare()
+      emailAdapter.clearCapturedEmails()
+
+      // `clients` sits in no project, so the brand comes from the role the
+      // listing derives, `atlas-service-manager`.
+      const service = await testData.createClient(payload, admin.id, {
+        name: 'Invite Atlas Site Two',
+        roles: ['sahaj-atlas-client'],
+      })
+      await payload.update({
+        collection: 'clients',
+        id: service.id,
+        data: { managers: [admin.id, manager.id] },
+        user: admin,
+      })
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.subject).toBe("You've been invited to look after Invite Atlas Site Two")
+      expect(sent[0]!.html).toContain('on Sahaj Atlas')
+    })
+
+    it("announces nothing for an app's key, which looks after no atlas", async () => {
+      const manager = await bare()
+      const app = await testData.createClient(payload, admin.id, {
+        name: 'Invite App Key',
+        roles: ['wemeditate-app-client'],
+      })
+      emailAdapter.clearCapturedEmails()
+      await payload.update({
+        collection: 'clients',
+        id: app.id,
+        data: { managers: [admin.id, manager.id] },
+        user: admin,
+      })
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
+    })
+
     it('collapses assignments made in quick succession into one invitation', async () => {
       const manager = await bare()
       emailAdapter.clearCapturedEmails()
