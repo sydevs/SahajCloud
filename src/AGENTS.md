@@ -170,11 +170,12 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. `lemonfox/` holds only what does **not** fetch: `normalize.ts`
-  turns the vendor's `verbose_json` into this app's cue shape, for the
-  transcription task and the transcript seed alike. The HTTP client stays in
-  `jobs/TranscribeMeditation/lemonfox/`, which has one consumer until
-  sydevs/SahajCloud#1016's subtitles endpoint becomes its second
+  booting it. `lemonfox/` holds the whole vendor seam: `transcribe.ts` (the
+  HTTP call and the key behind it), `languages.ts`, and the two readers of
+  the vendor's undocumented `verbose_json` — `normalize.ts` for segments and
+  `words.ts` for word timings. The client moved here once it had two
+  consumers, the transcription task and the subtitles endpoint (#1016);
+  `tests/unit/lib-boundary.spec.ts` is what refused it with one
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,

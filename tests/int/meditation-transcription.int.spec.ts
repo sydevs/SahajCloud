@@ -8,7 +8,7 @@
  * and lives in `tests/unit/transcript-status.spec.ts`.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
- * `@/jobs/TranscribeMeditation/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
+ * `@/lib/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
  * suite can drive a completed run and **cannot** make a paid call. Two claims
  * the fixtures make about the real configuration, both verified:
  *
@@ -52,8 +52,8 @@ const lemonfox = vi.hoisted(() => ({
 
 // Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
 // unavailable case asserts the row carries the real one.
-vi.mock('@/jobs/TranscribeMeditation/lemonfox/transcribe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/jobs/TranscribeMeditation/lemonfox/transcribe')>()),
+vi.mock('@/lib/lemonfox/transcribe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/lemonfox/transcribe')>()),
   ...lemonfox,
 }))
 

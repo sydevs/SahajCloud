@@ -10,6 +10,8 @@ import {
   previewUrlField,
 } from '@/plugins/storage/urlFields'
 
+import { fileSubtitles } from './endpoints/subtitles'
+
 export const Files: CollectionConfig = {
   slug: 'files',
   labels: {
@@ -18,6 +20,7 @@ export const Files: CollectionConfig = {
   },
   trash: true,
   disableDuplicate: true,
+  endpoints: [fileSubtitles],
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],

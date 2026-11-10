@@ -7,6 +7,12 @@ import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
 
+/**
+ * One constant, so the picker and Payload's save-time `validateFilterOptions`
+ * can never narrow differently (`src/collections/AGENTS.md`).
+ */
+const INTRO_AUDIO_FILTER = { mimeType: { equals: 'audio/mpeg' } } as const
+
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
   trash: true,
@@ -127,8 +133,17 @@ export const Lessons: CollectionConfig = {
               type: 'upload',
               relationTo: 'files',
               label: 'Intro Audio',
+              // Not `required`, for the reason `title` is not: see above.
+              localized: true,
+              // Narrows the picker, and Payload's own `relationship` validator
+              // enforces it on save through `validateFilterOptions` — which a
+              // custom `validate` here would silently disarm
+              // (`src/collections/AGENTS.md`). The subtitles endpoint keeps its
+              // own mime check: the field's upload tab can create a non-audio
+              // row before this is validated.
+              filterOptions: INTRO_AUDIO_FILTER,
               admin: {
-                description: 'Audio introduction to this lesson.',
+                description: 'Audio introduction to this lesson. MP3 only.',
               },
             },
             jsonField({
@@ -136,9 +151,19 @@ export const Lessons: CollectionConfig = {
               label: 'Intro Subtitles',
               schemaTitle: 'Subtitles',
               schema: subtitlesSchema,
+              // Not `required`, for the reason `title` is not: see above.
+              localized: true,
               admin: {
                 description:
-                  'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
+                  'Made from the intro audio in the language you are editing. Fix any wrong words, then save.',
+                components: {
+                  beforeInput: [
+                    {
+                      path: '@/components/admin/IntroSubtitles',
+                      clientProps: { sourceField: 'introAudio' },
+                    },
+                  ],
+                },
               },
             }),
           ],

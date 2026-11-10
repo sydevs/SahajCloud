@@ -4,7 +4,7 @@
  *
  * Fixture pre-mortem: the error bodies below claim Lemonfox answers an
  * OpenAI-shaped `{ error: { message } }`. That claim is only read back by
- * `readErrorMessage` in `src/jobs/TranscribeMeditation/lemonfox/transcribe.ts`, which this spec and
+ * `readErrorMessage` in `src/lib/lemonfox/transcribe.ts`, which this spec and
  * that module are the two halves of, so nothing here depends on repo config.
  * The key cases do: `LEMONFOX_API_KEY: ''` in `vitest.config.mts` is what makes
  * the unset case the lane's default, and it is checked there.
@@ -16,8 +16,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { glossaryPrompt } from '@/collections/Transcripts/glossary'
-import { lemonfoxLanguage } from '@/jobs/TranscribeMeditation/lemonfox/languages'
-import { requestLemonfoxTranscript } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
+import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
+import { requestLemonfoxTranscript } from '@/lib/lemonfox/transcribe'
 import { LOCALES } from '@/lib/locales'
 
 const AUDIO_URL = 'https://media.example.test/meditations/evening-calm-abc123.mp3'
@@ -197,7 +197,7 @@ describe('lemonfoxApiKey', () => {
   })
 
   const read = async (): Promise<string | undefined> => {
-    const { lemonfoxApiKey } = await import('@/jobs/TranscribeMeditation/lemonfox/transcribe')
+    const { lemonfoxApiKey } = await import('@/lib/lemonfox/transcribe')
     return lemonfoxApiKey()
   }
 

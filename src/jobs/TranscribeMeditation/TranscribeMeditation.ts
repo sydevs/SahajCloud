@@ -4,7 +4,7 @@ import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
-} from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
+} from '@/lib/lemonfox/transcribe'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { normalizeLemonfoxResponse } from '@/lib/lemonfox/normalize'
 import type { Transcript } from '@/payload-types'
