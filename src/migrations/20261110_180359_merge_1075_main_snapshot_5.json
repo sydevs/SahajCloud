@@ -2121,6 +2121,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "segment_count": {
+          "name": "segment_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
         "job_id": {
           "name": "job_id",
           "type": "integer",
@@ -28740,6 +28746,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "6fad1df5-a480-4429-96ee-4da7e1900503",
+  "id": "44ada43c-b88c-422b-957f-c967ca0b855b",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

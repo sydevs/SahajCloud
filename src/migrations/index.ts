@@ -115,7 +115,7 @@ import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_2
 import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
 import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
-import * as migration_20261110_172005_merge_1075_main_snapshot_4 from './20261110_172005_merge_1075_main_snapshot_4';
+import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
 
 export const migrations = [
   {
@@ -704,8 +704,8 @@ export const migrations = [
     name: '20261107_225000_atlas_clock_copy',
   },
   {
-    up: migration_20261110_172005_merge_1075_main_snapshot_4.up,
-    down: migration_20261110_172005_merge_1075_main_snapshot_4.down,
-    name: '20261110_172005_merge_1075_main_snapshot_4'
+    up: migration_20261110_180359_merge_1075_main_snapshot_5.up,
+    down: migration_20261110_180359_merge_1075_main_snapshot_5.down,
+    name: '20261110_180359_merge_1075_main_snapshot_5'
   },
 ];
