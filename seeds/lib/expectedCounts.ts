@@ -364,13 +364,13 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   ],
   'meditation-transcripts': [
     {
-      slug: 'meditation-transcripts',
+      slug: 'transcripts',
       totalItems: 126,
       // No uploads, and each row is one small insert. Pagination would also
       // re-upload the whole 1 MB data file on every batch.
       requiresPagination: false,
       dependencies: ['meditations'],
-      naturalKey: 'meditation',
+      naturalKey: 'source',
     },
   ],
   storyblok: [

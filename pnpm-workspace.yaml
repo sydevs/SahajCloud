@@ -21,8 +21,11 @@ minimumReleaseAge: 0
 
 # Transitive-security overrides (Dependabot alerts, #563). Only leaves still
 # flagged after an in-range parent refresh (`pnpm update`) are pinned here; every
-# bump stays within the package's existing major (patch/minor, API-stable), with
-# one deliberate exception, marked ⚠ below.
+# bump stays within the package's existing major (patch/minor, API-stable),
+# except where marked ⚠ below. An entry is a last resort — prefer a parent
+# release that carries the fix — but unreachability alone does not keep an
+# advisory open once upstream's own later release declares the newer major
+# (#1101).
 # picomatch/minimatch are scoped to the vulnerable major so the other major line
 # (already patched) is left untouched.
 #
@@ -30,15 +33,27 @@ minimumReleaseAge: 0
 # names `>=3.0.4`, and 3.0.3 is the newest version ever published (checked
 # 2026-10-14). Both parents are build-time. Do not re-derive this.
 #
-# `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) gets no entry either.
-# Both need HTML parsed through it, and nothing shipped parses any:
-# @lexical/headless@0.50.0 touches happy-dom only in its `./dom` subpath
-# (`withDOM`), which nothing imports — richtext-lexical imports the main entry —
-# and no spec sets `@vitest-environment` to happy-dom. A fix needs 21.0.4,
-# demanded by GHSA-834v-8h66-3h79 alone — any 21.x clears the other, no 20.x does,
-# 20.14.6 being the newest (checked 2026-11-02) — so it is an override past the
-# declared `^20.9.0`, which #1066 ruled out. Call paths in #1071. Do not
-# re-derive the reachability.
+# `happy-dom` (GHSA-834v-8h66-3h79, GHSA-c8p4-j97h-3vg8) has an entry, marked
+# ⚠ below, and neither advisory was ever reachable here. Both need HTML parsed
+# through happy-dom, and nothing here parses any: @lexical/headless@0.50.0 uses
+# happy-dom only in its `./dom` subpath (`withDOM`), which nothing imports —
+# richtext-lexical imports the main entry — and no spec sets
+# `@vitest-environment` to happy-dom. Call paths in #1071. Do not re-derive the
+# reachability.
+#
+# It is pinned anyway because the alternative is waiting with both highs open. A
+# fix needs happy-dom 21 — GHSA-834v-8h66-3h79 names 21.0.4, any 21.x clears the
+# other, and no 20.x clears either (20.14.6 is the newest 20.x, checked
+# 2026-11-10) — and nothing in the tree asks for 21 on its own.
+#
+# One version will drop the entry, and only this one: payload's.
+# @payloadcms/richtext-lexical pins twelve lexical packages at 0.50.0 exactly,
+# 3.93.0 included, and @lexical/headless asks for `^21.0.4` itself from 0.53.0 up.
+#
+# Upgrading @lexical/headless alone is not that route. It is pinned exactly, so it
+# takes an override of its own, and 0.53.0 wants lexical 0.53.0 exactly while
+# richtext-lexical wants 0.50.0 — two copies of lexical in one tree, which its
+# editor cannot run on.
 overrides:
   # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
   # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
@@ -67,7 +82,7 @@ overrides:
   # degenerate private-cache directive) is reachable: undici is the HTTP client every
   # server-side fetch uses. Same major, patch-only.
   undici: '^7.29.1'
-  # ⚠ The one override past a declared major. GHSA-v53p-9fqp-m79j and
+  # ⚠ Past a declared major. GHSA-v53p-9fqp-m79j and
   # GHSA-prgh-xp8r-p3m5 are fixed in 10.0.6, and the only range still capping at
   # 9.x is @payloadcms/email-nodemailer@3.90.2's `^9.1.1`. Taken deliberately
   # (#931): the adapter calls `createTransport`, `sendMail` and `verify`, which
@@ -75,6 +90,11 @@ overrides:
   # Mailpit transport and the preview scripts — production mail goes through
   # `resendAdapter()`. Drop this line once the adapter declares `^10`.
   nodemailer: '^10.1.1'
+  # ⚠ Past a declared major: @lexical/headless@0.50.0 asks `^20.9.0`. Taken
+  # deliberately (#1101) on upstream's own statement that 21 fits the symbols it
+  # uses — 0.53.0 asks for `^21.0.4`. Drop this line once richtext-lexical
+  # carries lexical 0.53.
+  happy-dom: '^21.0.4'
 
 patchedDependencies:
   # `payload migrate:create` crashes with "Cannot read properties of undefined

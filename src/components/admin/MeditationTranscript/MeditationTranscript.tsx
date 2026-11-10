@@ -15,7 +15,7 @@ import {
   type TranscriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import type { MeditationTranscript as TranscriptRow } from '@/payload-types'
+import type { Transcript } from '@/payload-types'
 
 import styles from './MeditationTranscript.module.css'
 import { RetryTranscript } from './RetryTranscript'
@@ -31,11 +31,11 @@ import { useTranscriptPhase } from './useTranscriptPhase'
 
 const POLL_INTERVAL_MS = 3000
 
-type TranscriptList = PayloadList<TranscriptRow>
+type TranscriptList = PayloadList<Transcript>
 
-const readTranscripts = payloadListFetcher<TranscriptRow>
+const readTranscripts = payloadListFetcher<Transcript>
 
-const rowOf = (list: TranscriptList | undefined): TranscriptRow | undefined => list?.docs?.[0]
+const rowOf = (list: TranscriptList | undefined): Transcript | undefined => list?.docs?.[0]
 
 /**
  * Poll only while a transcription is on its way. The stall bound settles the

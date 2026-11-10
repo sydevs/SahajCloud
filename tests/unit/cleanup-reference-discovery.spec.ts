@@ -34,6 +34,11 @@ function reference(fieldPath: string, localizedAt: number[]): FieldReference {
   }
 }
 
+/** The same reference, as the walk records it for a polymorphic field. */
+function polymorphicReference(fieldPath: string): FieldReference {
+  return { ...reference(fieldPath, []), relationTo: ['meditations', 'files'] }
+}
+
 describe('discoverReferencesForCollection', () => {
   it('records the localized array, not the item it holds', () => {
     const fields: Field[] = [{ name: 'panels', type: 'array', localized: true, fields: [media] }]
@@ -84,7 +89,7 @@ describe('extractIdsFromDocument', () => {
   it('reads every language of a localized array', () => {
     const doc = { panels: { en: [{ media: 1 }], fr: [{ media: 2 }] } }
 
-    const ids = extractIdsFromDocument(doc, reference('panels.*.media', [0]))
+    const ids = extractIdsFromDocument(doc, reference('panels.*.media', [0]), 'files')
 
     expect([...ids].sort()).toEqual([1, 2])
   })
@@ -94,7 +99,7 @@ describe('extractIdsFromDocument', () => {
     // value under `en` is the reference — not a translation of the group.
     const doc = { translations: { en: 7, fr: 8 } }
 
-    const ids = extractIdsFromDocument(doc, reference('translations.en', []))
+    const ids = extractIdsFromDocument(doc, reference('translations.en', []), 'files')
 
     expect([...ids]).toEqual([7])
   })
@@ -102,9 +107,45 @@ describe('extractIdsFromDocument', () => {
   it('reads a field under a named tab', () => {
     const doc = { default: { media: 9 } }
 
-    const ids = extractIdsFromDocument(doc, reference('default.media', []))
+    const ids = extractIdsFromDocument(doc, reference('default.media', []), 'files')
 
     expect([...ids]).toEqual([9])
+  })
+
+  /**
+   * ⚠ **A polymorphic value is `{ relationTo, value }` at depth 0**, so a
+   * reader that only knows `.id` answers nothing and the file reads as an
+   * orphan — which the job trashes. `transcripts.source` is the live case:
+   * a transcript's hold on its recording would be invisible (#1043).
+   */
+  it('reads the id a polymorphic value carries for this target', () => {
+    const doc = { source: { relationTo: 'files', value: 11 } }
+
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
+
+    expect([...ids]).toEqual([11])
+  })
+
+  /**
+   * ⚠ **And the other half, which a blind `obj.value` would get wrong.** Each
+   * collection numbers its own rows, so reading the id without checking the
+   * target would let meditation 11 protect file 11 from the sweep — worse than
+   * the bug above, because it keeps a file nothing references.
+   */
+  it('ignores a polymorphic value naming another collection', () => {
+    const doc = { source: { relationTo: 'meditations', value: 11 } }
+
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
+
+    expect([...ids]).toEqual([])
+  })
+
+  it('reads a populated polymorphic value for this target', () => {
+    const doc = { source: { relationTo: 'files', value: { id: 12, filename: 'cues.mp3' } } }
+
+    const ids = extractIdsFromDocument(doc, polymorphicReference('source'), 'files')
+
+    expect([...ids]).toEqual([12])
   })
 })
 

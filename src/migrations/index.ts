@@ -106,6 +106,7 @@ import * as migration_20261027_190500_pages_blank_slug_to_null from './20261027_
 import * as migration_20261101_191500_atlas_drop_time_in_place from './20261101_191500_atlas_drop_time_in_place';
 import * as migration_20261101_202242_block_submitter from './20261101_202242_block_submitter';
 import * as migration_20261102_213524_derive_atlas_roles from './20261102_213524_derive_atlas_roles';
+import * as migration_20261102_225511_rename_transcripts from './20261102_225511_rename_transcripts';
 import * as migration_20261103_215150_submitter_identity from './20261103_215150_submitter_identity';
 import * as migration_20261104_180154_routing_region from './20261104_180154_routing_region';
 import * as migration_20261104_185158_snapshot_resync from './20261104_185158_snapshot_resync';
@@ -114,6 +115,7 @@ import * as migration_20261105_201411_atlas_digests_and_homes from './20261105_2
 import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
 import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
+import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
 
 export const migrations = [
   {
@@ -657,6 +659,11 @@ export const migrations = [
     name: '20261102_213524_derive_atlas_roles',
   },
   {
+    up: migration_20261102_225511_rename_transcripts.up,
+    down: migration_20261102_225511_rename_transcripts.down,
+    name: '20261102_225511_rename_transcripts',
+  },
+  {
     up: migration_20261103_215150_submitter_identity.up,
     down: migration_20261103_215150_submitter_identity.down,
     name: '20261103_215150_submitter_identity',
@@ -694,6 +701,11 @@ export const migrations = [
   {
     up: migration_20261107_225000_atlas_clock_copy.up,
     down: migration_20261107_225000_atlas_clock_copy.down,
-    name: '20261107_225000_atlas_clock_copy'
+    name: '20261107_225000_atlas_clock_copy',
+  },
+  {
+    up: migration_20261110_180359_merge_1075_main_snapshot_5.up,
+    down: migration_20261110_180359_merge_1075_main_snapshot_5.down,
+    name: '20261110_180359_merge_1075_main_snapshot_5'
   },
 ];

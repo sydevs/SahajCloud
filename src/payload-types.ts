@@ -788,7 +788,7 @@ export interface Config {
   collections: {
     pages: Page;
     meditations: Meditation;
-    'meditation-transcripts': MeditationTranscript;
+    transcripts: Transcript;
     songs: Song;
     albums: Album;
     videos: Video;
@@ -820,7 +820,7 @@ export interface Config {
   };
   collectionsJoins: {
     meditations: {
-      transcript: 'meditation-transcripts';
+      transcript: 'transcripts';
     };
     albums: {
       songs: 'songs';
@@ -870,7 +870,7 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     meditations: MeditationsSelect<false> | MeditationsSelect<true>;
-    'meditation-transcripts': MeditationTranscriptsSelect<false> | MeditationTranscriptsSelect<true>;
+    transcripts: TranscriptsSelect<false> | TranscriptsSelect<true>;
     songs: SongsSelect<false> | SongsSelect<true>;
     albums: AlbumsSelect<false> | AlbumsSelect<true>;
     videos: VideosSelect<false> | VideosSelect<true>;
@@ -2983,7 +2983,7 @@ export interface Meditation {
   subtleSystemNodeWeights?: MeditationNodeWeights;
   durationMinutes?: number | null;
   transcript?: {
-    docs?: (number | MeditationTranscript)[];
+    docs?: (number | Transcript)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -3123,11 +3123,19 @@ export interface Album {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-transcripts".
+ * via the `definition` "transcripts".
  */
-export interface MeditationTranscript {
+export interface Transcript {
   id: number;
-  meditation?: (number | null) | Meditation;
+  source:
+    | {
+        relationTo: 'meditations';
+        value: number | Meditation;
+      }
+    | {
+        relationTo: 'files';
+        value: number | File;
+      };
   audioFilename?: string | null;
   provider?: 'lemonfox' | null;
   language:
@@ -3157,6 +3165,31 @@ export interface MeditationTranscript {
   error?: string | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files".
+ */
+export interface File {
+  id: number;
+  createdAt: string;
+  hlsUrl?: string | null;
+  mp4Url?: string | null;
+  previewUrl?: string | null;
+  _objectKey?: string | null;
+  updatedAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -3371,31 +3404,6 @@ export interface Lesson {
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
-}
-/**
- * Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "files".
- */
-export interface File {
-  id: number;
-  createdAt: string;
-  hlsUrl?: string | null;
-  mp4Url?: string | null;
-  previewUrl?: string | null;
-  _objectKey?: string | null;
-  updatedAt: string;
-  deletedAt?: string | null;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4248,8 +4256,8 @@ export interface PayloadLockedDocument {
         value: number | Meditation;
       } | null)
     | ({
-        relationTo: 'meditation-transcripts';
-        value: number | MeditationTranscript;
+        relationTo: 'transcripts';
+        value: number | Transcript;
       } | null)
     | ({
         relationTo: 'songs';
@@ -4461,10 +4469,10 @@ export interface MeditationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "meditation-transcripts_select".
+ * via the `definition` "transcripts_select".
  */
-export interface MeditationTranscriptsSelect<T extends boolean = true> {
-  meditation?: T;
+export interface TranscriptsSelect<T extends boolean = true> {
+  source?: T;
   audioFilename?: T;
   provider?: T;
   language?: T;

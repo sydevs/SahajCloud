@@ -11,13 +11,13 @@ import { Lectures } from './Lectures/Lectures'
 import { Lessons } from './Lessons/Lessons'
 import { Managers } from './Managers/Managers'
 import { Meditations } from './Meditations/Meditations'
-import { MeditationTranscripts } from './MeditationTranscripts/MeditationTranscripts'
 import { Narrators } from './Narrators/Narrators'
 import { Pages } from './Pages/Pages'
 import { Regions } from './Regions/Regions'
 import { Songs } from './Songs/Songs'
 import { SongTags } from './SongTags/SongTags'
 import { SubtleSystemNodes } from './SubtleSystemNodes/SubtleSystemNodes'
+import { Transcripts } from './Transcripts/Transcripts'
 import { UserChoices } from './UserChoices/UserChoices'
 import { Users } from './Users/Users'
 import { Videos } from './Videos/Videos'
@@ -27,7 +27,7 @@ export const collections = [
   // Content
   Pages,
   Meditations,
-  MeditationTranscripts,
+  Transcripts,
   Songs,
   Albums,
   Videos,
@@ -59,7 +59,7 @@ export {
   // Content
   Pages,
   Meditations,
-  MeditationTranscripts,
+  Transcripts,
   Songs,
   Albums,
   Videos,

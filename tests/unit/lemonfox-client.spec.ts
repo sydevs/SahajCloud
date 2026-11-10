@@ -15,7 +15,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { glossaryPrompt } from '@/collections/MeditationTranscripts/glossary'
+import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { lemonfoxLanguage } from '@/jobs/TranscribeMeditation/lemonfox/languages'
 import { requestLemonfoxTranscript } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
 import { LOCALES } from '@/lib/locales'

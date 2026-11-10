@@ -7,17 +7,13 @@
  * languages — `en`, never `en-AU` — and that every entry names `en` and none
  * names `ru`. The prompt cases assume one more: every entry names `pt` as well
  * as `en`, so the two languages' prompts are the same string. Verified against
- * `src/collections/MeditationTranscripts/glossary.json` and
+ * `src/collections/Transcripts/glossary.json` and
  * `src/lib/locales/index.ts`. The `glossary.json` `describe` asserts the shape
  * rather than trusting it.
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  applyGlossary,
-  GLOSSARY,
-  glossaryPrompt,
-} from '@/collections/MeditationTranscripts/glossary'
+import { applyGlossary, GLOSSARY, glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { baseLanguage, LOCALES } from '@/lib/locales'
 
 describe('applyGlossary', () => {
