@@ -35,18 +35,18 @@ describe('atlasChallenge endpoint', () => {
     await testData.createClient(payload, manager.id, {
       name: 'Partner',
       roles: ['sahaj-atlas-client'],
-      allowedDomains: 'partner.org\n*.chapter.example',
+      site: { domain: 'partner.org' },
     })
-    // Empty list: API reads from any origin, but nothing here (#1072, question 1).
+    // No domain: API reads from any origin, but nothing here (#1072, question 1).
     await testData.createClient(payload, manager.id, {
       name: 'Open Client',
       roles: ['sahaj-atlas-client'],
     })
     await testData.createClient(payload, manager.id, {
-      name: 'Unpublished Client',
+      name: 'Inactive Client',
       roles: ['sahaj-atlas-client'],
-      allowedDomains: 'draft-only.org',
-      _status: 'draft',
+      site: { domain: 'draft-only.org' },
+      enabled: false,
     })
   })
 
@@ -54,7 +54,7 @@ describe('atlasChallenge endpoint', () => {
     await cleanup()
   })
 
-  it.each(['https://partner.org', 'https://lyon.chapter.example', 'http://localhost:5174'])(
+  it.each(['https://partner.org', 'https://www.partner.org', 'http://localhost:5174'])(
     'renders the challenge for %s, pinned to that parent',
     async (parent) => {
       const { status, headers, html } = await call({ parent, theme: 'dark', language: 'fr' })
@@ -73,9 +73,9 @@ describe('atlasChallenge endpoint', () => {
   )
 
   it.each([
-    ['a host no published client lists', 'https://www.example.org'],
-    ['a host only an unpublished client lists', 'https://draft-only.org'],
-    ['the apex of a wildcard entry', 'https://chapter.example'],
+    ['a host no active client has', 'https://www.example.org'],
+    ['a host only an inactive client has', 'https://draft-only.org'],
+    ['another subdomain of a client’s domain', 'https://lyon.partner.org'],
     ['a parent that is not a bare origin', 'https://partner.org/page'],
   ])('refuses %s, uncached', async (_case, parent) => {
     const { status, headers, html } = await call({ parent })

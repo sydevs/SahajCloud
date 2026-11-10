@@ -167,7 +167,7 @@ describe('canonicalTargetForHost rejects anything that is not a bare host', () =
     expect(canonicalTargetForHost(selfReport, 'query')?.routing).toBe('query')
   })
 
-  // The realistic one: `allowedDomains` compares port-stripped hostnames, so a
+  // The realistic one: the origin check compares port-stripped hostnames, so a
   // mount of `https://example.org:8080/` passes that gate and is recorded with
   // its port intact.
   it.each([

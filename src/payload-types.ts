@@ -774,6 +774,7 @@ export type RoleSlug =
   | 'page-editor'
   | 'atlas-region-manager'
   | 'atlas-event-manager'
+  | 'atlas-service-manager'
   | 'wemeditate-web-client'
   | 'wemeditate-app-client'
   | 'sahaj-atlas-client';
@@ -850,6 +851,7 @@ export interface Config {
       managedPages: 'pages';
       managedRegions: 'regions';
       managedEvents: 'events';
+      managedClients: 'clients';
     };
     regions: {
       events: 'events';
@@ -1271,6 +1273,14 @@ export interface Manager {
    */
   managedEvents?: {
     docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  /**
+   * Sahaj Atlas services — websites — this manager looks after.
+   */
+  managedClients?: {
+    docs?: (number | Client)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -2369,36 +2379,107 @@ export interface Client {
    */
   name: string;
   /**
-   * What domains are associated with this client. Put each domain on a new line.
+   * This service’s API key works only while this is on.
    */
-  allowedDomains?: string | null;
+  enabled?: boolean | null;
   /**
-   * Hex color code (e.g., #FF5733)
+   * Purpose and usage notes for this client
    */
+  notes?: string | null;
+  /**
+   * What this service’s API key may read and write, in every locale.
+   */
+  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
+  /**
+   * Users who can manage this client
+   */
+  managers: (number | Manager)[];
+  /**
+   * Primary user contact for this client. Only needed when more than one manager is assigned.
+   */
+  primaryContact?: (number | null) | Manager;
+  /**
+   * Where the map opens, and the region whose atlas links this service’s site becomes the home for. Leave empty for a worldwide map.
+   */
+  region?: (number | null) | Region;
   color1?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
   color2?: string | null;
-  /**
-   * Hex color code (e.g., #FF5733)
-   */
   color3?: string | null;
   /**
    * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
    */
   logo?: (number | null) | Image;
   /**
-   * Linked from the footer of registrant emails.
-   */
-  websiteUrl?: string | null;
-  /**
-   * Reply-To on registrant emails, so replies reach this service rather than us.
+   * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
    */
   supportEmail?: string | null;
   /**
-   * Primary language for this service (any language).
+   * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
    */
+  mailingList?: {
+    enabled?: boolean | null;
+    provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
+    /**
+     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
+     */
+    listId?: string | null;
+    /**
+     * The provider secret. Checked against the provider when you save, and never readable by an API client.
+     */
+    apiKey?: string | null;
+    /**
+     * Mailchimp adds the address as `pending` and emails it a confirmation link.
+     */
+    doubleOptIn?: boolean | null;
+  };
+  usage?: {
+    abuseScore?: ClientAbuseScore;
+    /**
+     * Today's request count
+     */
+    dailyRequests?: number | null;
+    /**
+     * Maximum historical request count
+     */
+    peakDailyRequests?: number | null;
+    /**
+     * Last API call timestamp
+     */
+    lastRequestAt?: string | null;
+    /**
+     * Lifetime total requests (never resets)
+     */
+    totalRequests?: number | null;
+    /**
+     * Count of days exceeding threshold
+     */
+    highUsageDays?: number | null;
+    /**
+     * Last date threshold was exceeded
+     */
+    lastHighUsageAt?: string | null;
+    /**
+     * First API request (tracking start)
+     */
+    firstRequestAt?: string | null;
+  };
+  canonical?: {
+    owned?: boolean | null;
+    verification?: ClientCanonicalVerification;
+    /**
+     * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
+     */
+    routing?: ('query' | 'path') | null;
+    nextVerifyAt?: string | null;
+    embed?: string | null;
+  };
+  embedMetadata?: ClientEmbedMetadata;
+  site?: {
+    domain?: string | null;
+    page?: string | null;
+    track?: ('custom' | 'wp-selfhosted' | 'wp-com' | 'wix' | 'squarespace' | 'iframe') | null;
+    embedHeight?: ('fixed' | 'screen' | 'window') | null;
+  };
   language?:
     | (
         | 'ab'
@@ -2586,107 +2667,11 @@ export interface Client {
         | 'zu'
       )
     | null;
-  /**
-   * Atlas geographic scope for this service.
-   */
-  region?: (number | null) | Region;
-  /**
-   * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
-   */
-  mailingList?: {
-    enabled?: boolean | null;
-    provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
-    /**
-     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
-     */
-    listId?: string | null;
-    /**
-     * The provider secret. Checked against the provider when you save, and never readable by an API client.
-     */
-    apiKey?: string | null;
-    /**
-     * Mailchimp adds the address as `pending` and emails it a confirmation link.
-     */
-    doubleOptIn?: boolean | null;
-  };
-  /**
-   * Declares that this service owns the canonical Atlas URLs for its region. Off by default, and nothing resolves differently until it is switched on.
-   */
-  canonical?: {
-    /**
-     * At most one service per region may own them. Requires a region and one of the embeds this service has reported — the CMS then loads that page itself to confirm the widget is really there, and only a verified embed ever yields a canonical URL.
-     */
-    enabled?: boolean | null;
-    /**
-     * Which of the embeds this service reported owns the canonical URLs. Domain, mount and routing all come from this one choice.
-     */
-    embed?: string | null;
-    verification?: ClientCanonicalVerification;
-    /**
-     * Derived, never chosen: “Path segment” once the CMS has seen this host serve the atlas under the embed’s own subtree, “Query parameter” otherwise.
-     */
-    routing?: ('query' | 'path') | null;
-    nextVerifyAt?: string | null;
-  };
-  embedMetadata?: ClientEmbedMetadata;
-  /**
-   * Purpose and usage notes for this client
-   */
-  notes?: string | null;
-  /**
-   * Assign API client roles. Roles apply to all locales.
-   */
-  roles?: ('wemeditate-web-client' | 'wemeditate-app-client' | 'sahaj-atlas-client')[] | null;
-  /**
-   * Users who can manage this client
-   */
-  managers: (number | Manager)[];
-  /**
-   * Primary user contact for this client. Only needed when more than one manager is assigned.
-   */
-  primaryContact?: (number | null) | Manager;
+  allowedDomains?: string | null;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
   clientId?: string | null;
-  /**
-   * Timestamp of last API key generation
-   */
-  keyGeneratedAt?: string | null;
-  /**
-   * API usage statistics
-   */
-  usage?: {
-    abuseScore?: ClientAbuseScore;
-    /**
-     * Today's request count
-     */
-    dailyRequests?: number | null;
-    /**
-     * Maximum historical request count
-     */
-    peakDailyRequests?: number | null;
-    /**
-     * Last API call timestamp
-     */
-    lastRequestAt?: string | null;
-    /**
-     * Lifetime total requests (never resets)
-     */
-    totalRequests?: number | null;
-    /**
-     * Count of days exceeding threshold
-     */
-    highUsageDays?: number | null;
-    /**
-     * Last date threshold was exceeded
-     */
-    lastHighUsageAt?: string | null;
-    /**
-     * First API request (tracking start)
-     */
-    firstRequestAt?: string | null;
-  };
   legacyId?: number | null;
   legacyData?:
     | {
@@ -2699,42 +2684,11 @@ export interface Client {
     | null;
   updatedAt: string;
   createdAt: string;
-  _status?: ('draft' | 'published') | null;
   enableAPIKey?: boolean | null;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
   hasAPIKey?: boolean | null;
   collection: 'clients';
-}
-export interface ClientCanonicalVerification {
-  verified: {
-    domain: string;
-    mount: string;
-    routing?: 'query' | 'path';
-    widgetVersion: number;
-    at: string;
-  } | null;
-  failureCount: number;
-  routingProbe?: {
-    at: string;
-    verdict: 'query' | 'path';
-    failedAttempts: number;
-  };
-  attempts: {
-    at: string;
-    status: 'verified' | 'failed' | 'inconclusive';
-    reason?: 'dns' | 'http' | 'marker-absent' | 'not-configured' | 'provider-error' | 'quota' | 'bot-challenge';
-  }[];
-}
-export interface ClientEmbedMetadata {
-  [k: string]: {
-    mode: 'inline' | 'iframe';
-    topLevel: boolean;
-    urlWritable: boolean;
-    paramPersisted: boolean;
-    routing: 'query' | 'path';
-    lastSeen: string;
-  };
 }
 export interface ClientAbuseScore {
   /**
@@ -2758,6 +2712,45 @@ export interface ClientAbuseScore {
      * Current-spike contribution (0-30).
      */
     current: number;
+  };
+}
+export interface ClientCanonicalVerification {
+  verified: {
+    domain: string;
+    mount: string;
+    widgetVersion: number;
+    at: string;
+  } | null;
+  failureCount: number;
+  releasedAt?: string;
+  routingProbe?: {
+    at: string;
+    verdict: 'query' | 'path';
+    failedAttempts: number;
+  };
+  seo?: {
+    at: string;
+    results: {
+      route: string;
+      check: 'title' | 'canonical' | 'json-ld' | 'body' | 'sitemap';
+      status: 'pass' | 'fail' | 'skipped';
+      detail?: string;
+    }[];
+  };
+  attempts: {
+    at: string;
+    status: 'verified' | 'failed' | 'inconclusive';
+    reason?: 'dns' | 'http' | 'marker-absent' | 'not-configured' | 'provider-error' | 'quota' | 'bot-challenge';
+  }[];
+}
+export interface ClientEmbedMetadata {
+  [k: string]: {
+    mode: 'inline' | 'iframe';
+    topLevel: boolean;
+    urlWritable: boolean;
+    paramPersisted: boolean;
+    routing: 'query' | 'path';
+    lastSeen: string;
   };
 }
 /**
@@ -4820,6 +4813,7 @@ export interface ManagersSelect<T extends boolean = true> {
   managedPages?: T;
   managedRegions?: T;
   managedEvents?: T;
+  managedClients?: T;
   language?: T;
   contactDetails?:
     | T
@@ -4860,15 +4854,17 @@ export interface ManagersSelect<T extends boolean = true> {
  */
 export interface ClientsSelect<T extends boolean = true> {
   name?: T;
-  allowedDomains?: T;
+  enabled?: T;
+  notes?: T;
+  roles?: T;
+  managers?: T;
+  primaryContact?: T;
+  region?: T;
   color1?: T;
   color2?: T;
   color3?: T;
   logo?: T;
-  websiteUrl?: T;
   supportEmail?: T;
-  language?: T;
-  region?: T;
   mailingList?:
     | T
     | {
@@ -4878,22 +4874,6 @@ export interface ClientsSelect<T extends boolean = true> {
         apiKey?: T;
         doubleOptIn?: T;
       };
-  canonical?:
-    | T
-    | {
-        enabled?: T;
-        embed?: T;
-        verification?: T;
-        routing?: T;
-        nextVerifyAt?: T;
-      };
-  embedMetadata?: T;
-  notes?: T;
-  roles?: T;
-  managers?: T;
-  primaryContact?: T;
-  clientId?: T;
-  keyGeneratedAt?: T;
   usage?:
     | T
     | {
@@ -4906,11 +4886,31 @@ export interface ClientsSelect<T extends boolean = true> {
         lastHighUsageAt?: T;
         firstRequestAt?: T;
       };
+  canonical?:
+    | T
+    | {
+        owned?: T;
+        verification?: T;
+        routing?: T;
+        nextVerifyAt?: T;
+        embed?: T;
+      };
+  embedMetadata?: T;
+  site?:
+    | T
+    | {
+        domain?: T;
+        page?: T;
+        track?: T;
+        embedHeight?: T;
+      };
+  language?: T;
+  allowedDomains?: T;
+  clientId?: T;
   legacyId?: T;
   legacyData?: T;
   updatedAt?: T;
   createdAt?: T;
-  _status?: T;
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
@@ -11066,6 +11066,7 @@ export interface TaskVerifyEmbeds {
     disabled: number;
     pathPromoted: number;
     pathDemoted: number;
+    seoFailing: number;
   };
 }
 /**

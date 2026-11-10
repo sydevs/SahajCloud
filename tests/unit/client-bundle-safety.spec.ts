@@ -74,14 +74,14 @@ describe('admin client components stay out of the server bundle', () => {
   // above by having no cases at all. It also pins the swap itself: the
   // `'use client'` files this spec used to list by hand are still entries — the
   // third is the status cell, which moved with the review surface (#796). The
-  // fourth, `CanonicalEmbedPicker/model.ts`, carries no directive — it is not
-  // an entry and never was one, only a module reached from the picker.
+  // canonical embed picker that used to sit here is gone; the Install tab and
+  // the colour field are the `clients` edit view's browser entries now.
   it('derives entries that cover the ones it used to list', () => {
     expect(entries.length).toBeGreaterThan(50)
     expect(entries).toEqual(
       expect.arrayContaining([
-        'components/admin/CanonicalEmbedPicker/CanonicalEmbedPicker.tsx',
-        'components/admin/CanonicalEmbedPicker/Description.tsx',
+        'components/admin/InstallGuide/InstallGuide.tsx',
+        'components/admin/ColorField/ColorField.tsx',
         'components/admin/SubmissionReview/SubmissionStatus.tsx',
       ]),
     )

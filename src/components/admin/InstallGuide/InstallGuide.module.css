@@ -1,0 +1,362 @@
+/*
+ * The Install tab.
+ *
+ * Every colour and size is a Payload variable, so the tab follows the panel's
+ * own theme and elevation scale rather than inventing a second one
+ * (`docs/rules/admin-ui.md`). The two columns copy the Edit view's
+ * `document-fields` layout: a bordered main column and a sticky sidebar, which
+ * stack below Payload's own mid breakpoint.
+ */
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: calc(var(--base) * 2);
+  padding: calc(var(--base) * 1.5) var(--gutter-h) var(--spacing-view-bottom);
+  border-right: 1px solid var(--theme-elevation-100);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  width: 33.33%;
+  min-width: 325px;
+  display: grid;
+  gap: var(--base);
+  justify-items: start;
+  padding: calc(var(--base) * 1.5) var(--gutter-h) var(--spacing-view-bottom);
+}
+
+@media (max-width: 1024px) {
+  .layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .main {
+    border-right: 0;
+    border-bottom: 1px solid var(--theme-elevation-100);
+  }
+
+  .sidebar {
+    position: static;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* Payload's Banner carries its own bottom margin; spacing here comes from gaps. */
+.banners {
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+}
+
+.banners :global(.banner) {
+  margin: 0;
+}
+
+.section {
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+}
+
+.heading {
+  margin: 0 0 calc(var(--base) * 0.25);
+}
+
+/* ToggleGroup never wraps on its own, and four 120px segments overflow a phone. */
+.choice :global([role='radiogroup']) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.choice + :global(.field-description) {
+  margin-top: 0;
+}
+
+.urlField {
+  max-width: none;
+}
+
+.urlField .problem {
+  color: var(--theme-error-500);
+}
+
+.steps {
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.steps :global(.collapsible) {
+  margin: 0;
+}
+
+/* Payload sizes the actions slot for one icon button; this one holds a label. */
+.steps :global(.collapsible__actions) {
+  width: auto;
+}
+
+.stepTitle {
+  font-weight: 600;
+}
+
+.statePass,
+.stateFail,
+.stateQuiet {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.25);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.statePass {
+  color: var(--theme-success-500);
+}
+
+.stateFail {
+  color: var(--theme-error-500);
+}
+
+.stateQuiet {
+  color: var(--theme-elevation-500);
+}
+
+/* The header has no room for the quiet label beside a title on a phone. */
+@media (max-width: 768px) {
+  .stateQuiet {
+    display: none;
+  }
+}
+
+.noticeGutter {
+  padding-top: calc(var(--base) * 1.5);
+}
+
+.actions {
+  margin: 0;
+  padding-left: calc(var(--base) * 1);
+}
+
+.stepNotice {
+  margin-bottom: var(--base);
+}
+
+.stepNotice :global(.banner) {
+  margin: 0;
+}
+
+.subItems {
+  margin: calc(var(--base) * 0.25) 0 0;
+  padding-left: calc(var(--base) * 1);
+  list-style: disc;
+}
+
+.actions li + li {
+  margin-top: calc(var(--base) * 0.25);
+}
+
+.stepMessages {
+  color: var(--theme-error-500);
+  margin: var(--base) 0 0;
+  padding-left: calc(var(--base) * 1);
+}
+
+.intro {
+  margin: 0;
+  color: var(--theme-elevation-650);
+}
+
+.checkRow {
+  display: flex;
+  margin-top: calc(var(--base) * 0.5);
+}
+
+.result :global(.banner) {
+  margin: 0;
+}
+
+/* The sidebar sizes children to their content; a result banner should span it. */
+.sidebar .result {
+  justify-self: stretch;
+}
+
+/* A text-link button inside a banner: Payload's 'none' style keeps the banner's font. */
+.inlineAction {
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  text-decoration: underline;
+  color: inherit;
+}
+
+.inlineChoice {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+  margin: calc(var(--base) * 0.5) 0;
+}
+
+.inlineChoice :global(.field-description) {
+  margin: 0;
+}
+
+/* A file to download, right under the instruction that uses it. */
+.inlineValue {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: calc(var(--base) * 0.25);
+  margin: calc(var(--base) * 0.25) 0 calc(var(--base) * 0.5);
+}
+
+/* A name inside a sentence, in a step a developer follows. */
+.inlineMark {
+  padding: 0 calc(var(--base) * 0.2);
+  background: var(--theme-elevation-50);
+  border-radius: var(--style-radius-s);
+  font-size: 0.92em;
+}
+
+/* The progress table fills the sidebar, which otherwise sizes children to content. */
+.progress {
+  justify-self: stretch;
+  display: grid;
+  gap: calc(var(--base) * 0.5);
+}
+
+.progressHeader {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+}
+
+.progressCount {
+  font-weight: 600;
+  color: var(--theme-elevation-800);
+}
+
+.progressComplete {
+  font-weight: 600;
+  color: var(--theme-success-500);
+}
+
+.progress :global(.table) {
+  margin: 0;
+}
+
+.milestone {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: calc(var(--base) * 0.4);
+}
+
+.milestoneLabel,
+.milestoneNa {
+  display: block;
+}
+
+.milestoneNa {
+  color: var(--theme-elevation-500);
+}
+
+.milestoneNote {
+  display: block;
+  font-size: 0.85em;
+  line-height: 1.35;
+  color: var(--theme-elevation-500);
+  overflow-wrap: anywhere;
+}
+
+.statusDone,
+.statusFailed {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusDone {
+  color: var(--theme-success-500);
+}
+
+.statusFailed {
+  color: var(--theme-error-500);
+}
+
+.statusTodo,
+.statusNa {
+  color: var(--theme-elevation-500);
+}
+
+.statusTodo {
+  white-space: nowrap;
+}
+
+/* Whether the last choice was kept: quiet, beside the section heading. */
+.saveState,
+.saveError {
+  margin-left: calc(var(--base) * 0.5);
+  font-size: 0.6em;
+  font-weight: 400;
+  vertical-align: middle;
+  color: var(--theme-elevation-500);
+}
+
+.saveError {
+  color: var(--theme-error-500);
+}
+
+/* "Make it yours": the logo and the three colours, as four small tiles. */
+.appearance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--base);
+  margin: var(--base) 0;
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
+  margin: 0;
+
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+}
+
+/* A third of the first tiles' size: 48px, at Payload's 20px base. */
+.tileLogo,
+.tileColor {
+  flex: none;
+  display: block;
+  width: calc(var(--base) * 2.4);
+  height: calc(var(--base) * 2.4);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+}
+
+.tileLogo {
+  padding: calc(var(--base) * 0.25);
+  object-fit: contain;
+  background: var(--theme-elevation-0);
+}
+
+.tileNote {
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--theme-elevation-500);
+}
+
+.appearanceTable {
+  margin-bottom: var(--base);
+}

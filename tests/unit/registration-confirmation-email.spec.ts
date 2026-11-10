@@ -219,6 +219,9 @@ describe('RegistrationConfirmationEmail — client branding', () => {
 
     expect(brand.productName).toBe(fallback.productName)
     expect(brand.colors.primary).toBe(fallback.colors.primary)
+    // The logo is the one field that does not fall back to Sahaj Atlas: a service
+    // with none is shown with the We Meditate icon, as the Install tab previews it.
+    expect(brand.iconUrl).toBe(getEmailBrand('wemeditate-web').iconUrl)
 
     const html = await render({ brand })
     expect(html).toContain(fallback.productName)

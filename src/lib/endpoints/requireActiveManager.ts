@@ -1,5 +1,7 @@
 import type { PayloadRequest } from 'payload'
 
+import { errorResponse } from './errorResponse'
+
 /**
  * Admin-endpoint auth guard: the caller must be an **active** `managers` user.
  * The self-service counterpart to {@link requireActiveClient} (which guards
@@ -21,10 +23,7 @@ import type { PayloadRequest } from 'payload'
 export function requireActiveManager(req: PayloadRequest): Response | null {
   const user = req.user
   if (user?.collection !== 'managers' || (user as { type?: string }).type === 'inactive') {
-    return Response.json(
-      { errors: [{ message: 'You are not allowed to perform this action.' }] },
-      { status: 403 },
-    )
+    return errorResponse('You are not allowed to perform this action.', 403)
   }
   return null
 }

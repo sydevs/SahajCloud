@@ -16,14 +16,14 @@ const AUDIENCE_DEFAULTS = {
   country: 'US',
 }
 
-const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', _status: 'published' }
+const DEFAULT_CLIENT_USER = { id: 0, collection: 'clients', enabled: true }
 
 async function callEndpoint(
   payload: Payload,
   query: Record<string, string | number | boolean>,
   options: {
     skipAudienceDefaults?: boolean
-    user?: { id: number | string; collection: string; _status?: 'published' | 'draft' } | null
+    user?: { id: number | string; collection: string; enabled?: boolean } | null
   } = {},
 ): Promise<{ status: number; headers: Headers; body: { audiences?: number[]; errors?: unknown } }> {
   const finalQuery = options.skipAudienceDefaults ? query : { ...AUDIENCE_DEFAULTS, ...query }
@@ -111,7 +111,7 @@ describe('audiencesForUser endpoint', () => {
       const { status } = await callEndpoint(
         payload,
         {},
-        { user: { id: 999, collection: 'clients', _status: 'draft' } },
+        { user: { id: 999, collection: 'clients', enabled: false } },
       )
       expect(status).toBe(403)
     })
@@ -160,7 +160,7 @@ describe('audiencesForUser endpoint', () => {
         payload,
         { pathProgress: 0 },
         {
-          user: { id: client.id, collection: 'clients', _status: 'published' },
+          user: { id: client.id, collection: 'clients', enabled: true },
         },
       )
       expect(status).toBe(200)

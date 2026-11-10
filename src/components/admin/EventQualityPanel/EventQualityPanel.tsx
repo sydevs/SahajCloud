@@ -6,8 +6,8 @@ import type { JSONFieldClientComponent } from 'payload'
 import { useField } from '@payloadcms/ui'
 import React from 'react'
 
+import { ratioTone, TONE_SURFACES } from '@/components/admin/helpers/tones'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
-import { summaryTone, toneToColor } from '@/components/admin/ReadinessField/summary'
 import type { QualitySkipReason } from '@/lib/eventQuality/types'
 import type { EventQualityReport } from '@/payload-types'
 
@@ -136,7 +136,7 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
     )
   }
 
-  const { fg } = toneToColor(summaryTone(model.resolved, model.total))
+  const { fg } = TONE_SURFACES[ratioTone(model.resolved, model.total)]
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 0.6)' }}>

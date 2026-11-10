@@ -3,10 +3,10 @@ import { virtualRoles } from '@/plugins/access/config'
 import type { VirtualRoleUser } from '@/plugins/access/types'
 
 /**
- * The three hats an Atlas manager can wear — not access role slugs: `admin` is
- * a manager `type`, and the other two derive from listings.
+ * The four hats an Atlas manager can wear — not access role slugs: `admin` is
+ * a manager `type`, and the other three derive from listings.
  */
-export type ManagerRole = 'admin' | 'program' | 'region'
+export type ManagerRole = 'admin' | 'program' | 'region' | 'service'
 
 /**
  * Which roles a manager holds, in the order a reader meets them.
@@ -22,6 +22,7 @@ export function managerRoles(
   const roles: ManagerRole[] = []
   if (derived.includes('atlas-event-manager')) roles.push('program')
   if (derived.includes('atlas-region-manager')) roles.push('region')
+  if (derived.includes('atlas-service-manager')) roles.push('service')
   if (user.type === 'admin') roles.push('admin')
   return roles
 }

@@ -3,7 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
-import { parseQuery, requireActiveClient } from '@/lib/endpoints'
+import { parseQuery, requireActiveClient, requireClientAccess } from '@/lib/endpoints'
 
 /** Build a minimal `req` stub carrying just the fields the helpers read. */
 const reqWith = (parts: Partial<PayloadRequest>): PayloadRequest =>
@@ -26,7 +26,7 @@ describe('requireActiveClient', () => {
 
   it('returns a 403 when the client is a draft (unpublished)', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', _status: 'draft' } as never }),
+      reqWith({ user: { collection: 'clients', enabled: false } as never }),
     )
     expect(denied?.status).toBe(403)
   })
@@ -40,7 +40,47 @@ describe('requireActiveClient', () => {
 
   it('returns null for a published client', () => {
     const denied = requireActiveClient(
-      reqWith({ user: { collection: 'clients', _status: 'published' } as never }),
+      reqWith({ user: { collection: 'clients', enabled: true } as never }),
+    )
+    expect(denied).toBeNull()
+  })
+})
+
+describe('requireClientAccess', () => {
+  /** An active client whose one site is `allowed.test`, so every other host is refused. */
+  const publishedClient = {
+    collection: 'clients',
+    enabled: true,
+    id: 7,
+    site: { domain: 'allowed.test' },
+  }
+  const loggerReq = (parts: Partial<PayloadRequest>): PayloadRequest =>
+    reqWith({ payload: { logger: { warn: () => undefined } } as never, ...parts })
+
+  it('returns the auth refusal before it reaches the origin check', () => {
+    const denied = requireClientAccess(loggerReq({ user: null }))
+    expect(denied?.status).toBe(403)
+  })
+
+  it('maps the origin refusal onto the standard envelope', async () => {
+    const denied = requireClientAccess(
+      loggerReq({
+        user: publishedClient as never,
+        headers: new Headers({ origin: 'https://attacker.test' }),
+      }),
+    )
+    expect(denied?.status).toBe(403)
+    expect(await denied?.json()).toEqual({
+      errors: [{ message: 'This origin is not allowed for this API client.' }],
+    })
+  })
+
+  it('returns null for a published client on an allowed origin', () => {
+    const denied = requireClientAccess(
+      loggerReq({
+        user: publishedClient as never,
+        headers: new Headers({ origin: 'https://allowed.test' }),
+      }),
     )
     expect(denied).toBeNull()
   })

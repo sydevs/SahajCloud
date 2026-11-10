@@ -16,7 +16,7 @@ type CallerUser = {
   id: number | string
   collection: string
   type?: string
-  _status?: 'published' | 'draft'
+  enabled?: boolean
   roles?: unknown
 } | null
 
@@ -113,7 +113,7 @@ describe('framesByNarrator endpoint', () => {
       const { status } = await callEndpoint(payload, String(maleNarrator.id), {
         id: 1,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['sahaj-atlas-client'],
       })
       expect(status).toBe(403)
@@ -123,7 +123,7 @@ describe('framesByNarrator endpoint', () => {
       const { status } = await callEndpoint(payload, String(maleNarrator.id), {
         id: 1,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: [],
       })
       expect(status).toBe(403)
@@ -144,7 +144,7 @@ describe('framesByNarrator endpoint', () => {
       const { status, body } = await callEndpoint(payload, String(maleNarrator.id), {
         id: framesClient.id,
         collection: 'clients',
-        _status: 'published',
+        enabled: true,
         roles: ['wemeditate-app-client'],
       })
       expect(status).toBe(200)

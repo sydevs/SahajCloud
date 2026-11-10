@@ -5,6 +5,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendDigests } from '@/jobs/Digests/SendDigests'
+import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -370,6 +371,94 @@ describe('SendDigests job', () => {
         /\d+ sign-ups? filed as spam in the last 7 days View http/,
       )
       expect((await watermarksOf(adminId)).admin?.refused_signups).toBeTruthy()
+    })
+  })
+
+  /**
+   * A missing map and a failing SEO check send no mail of their own (#1055):
+   * each is an open item, read by the service's own managers under "Your
+   * websites" and by an admin in their list.
+   */
+  describe('a service with a problem on its site', () => {
+    it("reaches the service's managers and the admins, at the open-items pace", async () => {
+      const managerId = await createManager('websites@example.com', {
+        open_items: { frequency: 'Weekly' },
+      })
+      await createManager(
+        'websites-admin@example.com',
+        {
+          new_proposals: { frequency: 'Never', method: '' },
+          open_items: { frequency: 'Weekly' },
+          refused_signups: { frequency: 'Never', method: '' },
+          statistics: { frequency: 'Never', method: '' },
+        },
+        'admin',
+      )
+      const client = await testData.createClient(payload, managerId, {
+        canonical: {
+          verification: {
+            ...EMPTY_VERIFICATION,
+            seo: {
+              at: '2026-11-08T07:00:00.000Z',
+              results: [
+                {
+                  check: 'title',
+                  detail: 'expected “Classes”, found “Home”',
+                  route: '/',
+                  status: 'fail',
+                },
+                { check: 'canonical', route: '/', status: 'pass' },
+              ],
+            },
+          },
+        },
+        name: 'Essonne Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'essonne-digest.example', page: '/carte', track: 'custom' },
+      })
+
+      // Its map gone three nights running, after which the region was released.
+      const missing = await testData.createClient(payload, managerId, {
+        canonical: {
+          verification: {
+            ...EMPTY_VERIFICATION,
+            attempts: [
+              { at: '2026-11-08T03:00:00.000Z', reason: 'marker-absent', status: 'failed' },
+            ],
+            failureCount: 3,
+            releasedAt: '2026-11-08T03:00:00.000Z',
+          },
+        },
+        name: 'Missing Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'missing-digest.example', page: '/carte', track: 'custom' },
+      })
+
+      // A Monday, for the Weekly anchor.
+      emailAdapter.clearCapturedEmails()
+      await runDigests(payload, new Date('2026-11-09T07:00:00.000Z'))
+
+      const sent = emailsTo('websites@example.com')
+      expect(sent).toHaveLength(1)
+      expect(String(sent[0]!.subject)).toBe('Your websites: 2 open items')
+      const html = String(sent[0]!.html)
+      expect(html).toContain('Essonne Digest Site')
+      expect(html).toContain('Search problem')
+      expect(html).toContain('Google is unable to read your map embed')
+      expect(html).not.toContain('Classes')
+      expect(html).toContain(`/admin/collections/clients/${client.id}/install`)
+      // The missing map first: visitors see nothing at all.
+      expect(html.indexOf('Missing Digest Site')).toBeLessThan(html.indexOf('Essonne Digest Site'))
+      expect(html).toContain('Map not found')
+      expect(html).toContain('The map was not detected on')
+      expect(html).toContain('href="https://missing-digest.example/carte"')
+      expect(html).toContain('so we can no longer send search engines (Google) to your website')
+      expect(html).toContain(`/admin/collections/clients/${missing.id}/install`)
+      expect((await watermarksOf(managerId)).service?.open_items).toBeTruthy()
+
+      const admin = emailsTo('websites-admin@example.com')
+      expect(admin).toHaveLength(1)
+      expect(String(admin[0]!.html)).toContain('Essonne Digest Site')
     })
   })
 

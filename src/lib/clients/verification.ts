@@ -11,9 +11,9 @@ import type { ClientCanonicalVerification } from '@/payload-types'
  * or touches Payload, so the three-strikes rule, the `inconclusive` exemption
  * and the backoff are unit-testable on their own.
  *
- * ⚠ **Keep this module free of heavy runtime imports.** `CanonicalEmbedPicker`
- * is a `'use client'` component and value-imports {@link splitMountKey} from
- * here, so a top-level import lands in an admin browser chunk. That is why the
+ * ⚠ **Keep this module free of heavy runtime imports.** The Install tab is a
+ * `'use client'` component and reaches {@link splitMountKey} here through
+ * `@/lib/clients/site`, so a top-level import lands in an admin browser chunk. That is why the
  * `jsonSchema` call moved to `Clients.ts` — declaring it here would ship `zod`
  * to the browser to describe a shape only the server validates.
  *
@@ -46,6 +46,32 @@ export const VERIFICATION_INCONCLUSIVE_REASONS = [
 export type VerificationInconclusiveReason = (typeof VERIFICATION_INCONCLUSIVE_REASONS)[number]
 
 /**
+ * What each post-install SEO check looks at (#1055). Each is something a
+ * volunteer can get wrong at a step the Install tab names, and nothing else — a
+ * failure naming no step to redo is a red light with no action behind it.
+ *
+ * - `title`, `canonical` — the rendered value is the endpoint's (the page
+ *   itself, where it answered no canonical). Fails when the router is not
+ *   calling us, or discards `head`.
+ * - `json-ld` — a `ld+json` block is present at all.
+ * - `body` — the crawlable children are present.
+ * - `sitemap` — a sitemap the site publishes lists the sampled page. Fails when
+ *   the site was never republished after the router was added.
+ */
+export const SEO_CHECK_IDS = ['title', 'canonical', 'json-ld', 'body', 'sitemap'] as const
+export type SeoCheckId = (typeof SEO_CHECK_IDS)[number]
+
+/**
+ * How one check came out.
+ *
+ * ⚠ **`skipped` is not `fail`, and conflating them is the whole hazard here.**
+ * A page we could not fetch or a locale with no copy is no evidence the install
+ * is wrong, and both are common mid-setup. Only `fail` is shown as a problem —
+ * the split `inconclusive` makes for the mount ladder above.
+ */
+export const SEO_CHECK_STATUSES = ['pass', 'fail', 'skipped'] as const
+
+/**
  * The stored `canonical.verification` column, straight off the generated type.
  *
  * The chain is one-directional and worth stating, because it is easy to read the
@@ -64,6 +90,9 @@ export type CanonicalVerification = ClientCanonicalVerification
 /** What the verifier observed on the live page. Job-written, never typed by hand. */
 export type VerifiedEmbed = NonNullable<CanonicalVerification['verified']>
 
+/** One check's outcome on one page, off the generated type like its siblings. */
+export type SeoCheckResult = NonNullable<CanonicalVerification['seo']>['results'][number]
+
 /** One attempt, newest first in {@link CanonicalVerification.attempts}. */
 export type VerificationAttempt = CanonicalVerification['attempts'][number]
 
@@ -74,8 +103,7 @@ export const CANONICAL_FAILURE_LIMIT = 3
  * Consecutive negative probes before a client on `path` is returned to `query`.
  *
  * **Its own constant and its own counter, never `failureCount`.** That one
- * becomes `disable` — canonical ownership switched off, plus an email to the
- * service's manager. A routing negative means the embed is *present and
+ * becomes `disable` — canonical ownership switched off. A routing negative means the embed is *present and
  * publishing*, just in the uglier `?atlas=` shape, so it must never reach it.
  */
 export const ROUTING_PROBE_FAILURE_LIMIT = 3
@@ -112,8 +140,10 @@ export interface VerificationTransition {
   verification: CanonicalVerification
   /** When to look again. */
   nextVerifyAt: string
-  /** True when this run exhausted the failure budget — disable and notify. */
+  /** True when this run exhausted the failure budget — disable. */
   disable: boolean
+  /** True when that cost the service its region, which the digest then says. */
+  released: boolean
 }
 
 export const EMPTY_VERIFICATION: CanonicalVerification = {
@@ -134,6 +164,11 @@ export const EMPTY_VERIFICATION: CanonicalVerification = {
  * - **inconclusive** — logged, but the counter and the last good snapshot are
  *   left exactly as they were; retry in an hour.
  *
+ * ⚠ **A strike is the scheduled run's alone** (`countsStrikes`). A press of
+ * Check is an observation: its failure is logged and retried like an
+ * inconclusive one, so pressing on a broken page cannot run the budget down
+ * and release ownership early. Its success still resets the counter.
+ *
  * `verified` is deliberately **not** cleared on failure. It is the last thing we
  * actually confirmed, and keeping it lets the admin panel say what is now broken
  * rather than going blank at the moment that matters most.
@@ -142,8 +177,12 @@ export function nextVerificationState(args: {
   current: CanonicalVerification | null | undefined
   result: VerificationResult
   now: Date
+  /** `false` for a press of Check; see above. */
+  countsStrikes?: boolean
+  /** Whether the service holds its region now, so that a release can be told from nothing. */
+  owned?: boolean
 }): VerificationTransition {
-  const { current, result, now } = args
+  const { current, result, now, countsStrikes = true, owned = false } = args
   const previous = current ?? EMPTY_VERIFICATION
   const at = now.toISOString()
 
@@ -154,21 +193,25 @@ export function nextVerificationState(args: {
   }
   const attempts = [attempt, ...previous.attempts].slice(0, MAX_VERIFICATION_ATTEMPTS)
 
-  if (result.status === 'inconclusive') {
+  if (result.status === 'inconclusive' || (result.status === 'failed' && !countsStrikes)) {
     return {
       verification: { ...previous, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INCONCLUSIVE_RETRY_MS).toISOString(),
       disable: false,
+      released: false,
     }
   }
 
   if (result.status === 'verified') {
+    // A success ends a release: the map is back, so nothing is missing any more.
+    const { releasedAt: _released, ...kept } = previous
     return {
       // Spread `previous` first: `routingProbe` is a sibling this function does not
       // own, and a success must not clear the routing verdict beside it.
-      verification: { ...previous, verified: result.embed, failureCount: 0, attempts },
+      verification: { ...kept, verified: result.embed, failureCount: 0, attempts },
       nextVerifyAt: new Date(now.getTime() + VERIFY_INTERVAL_MS).toISOString(),
       disable: false,
+      released: false,
     }
   }
 
@@ -177,10 +220,14 @@ export function nextVerificationState(args: {
   // that has been down for days isn't probed on the same cadence as a healthy one.
   const backoff = VERIFY_INTERVAL_MS * 2 ** Math.min(failureCount - 1, 3)
 
+  const disable = failureCount >= CANONICAL_FAILURE_LIMIT
+  const released = disable && owned
+
   return {
-    verification: { ...previous, failureCount, attempts },
+    verification: { ...previous, failureCount, attempts, ...(released && { releasedAt: at }) },
     nextVerifyAt: new Date(now.getTime() + backoff).toISOString(),
-    disable: failureCount >= CANONICAL_FAILURE_LIMIT,
+    disable,
+    released,
   }
 }
 
@@ -223,6 +270,45 @@ export function nextRoutingProbeState(args: {
   return { ...previous, routingProbe: { at, verdict, failedAttempts } }
 }
 
+/** A failure's identity: the page **and** the check, two different things to fix. */
+function seoFailureKey(result: Pick<SeoCheckResult, 'route' | 'check'>): string {
+  return `${result.route}#${result.check}`
+}
+
+/**
+ * Fold one SEO-check run into the stored state.
+ *
+ * ⚠ **This never touches `failureCount`, and must not.** That counter becomes
+ * `disable`, which withdraws the public URLs, and a failing SEO check means the
+ * embed is *present and publishing* — the category error `routingProbe` keeps
+ * its own counter to avoid (#644).
+ *
+ * ⚠ **A `skipped` check keeps the failure it had**, as an `inconclusive` render
+ * changes nothing: a fetch that timed out once is no evidence of a fix, and
+ * dropping the failure would take the open item off the list for a night.
+ */
+export function nextSeoCheckState(args: {
+  current: CanonicalVerification | null | undefined
+  results: SeoCheckResult[]
+  now: Date
+}): CanonicalVerification {
+  const { current, now } = args
+  const previous = current ?? EMPTY_VERIFICATION
+
+  const failedBefore = new Map(
+    (previous.seo?.results ?? [])
+      .filter((result) => result.status === 'fail')
+      .map((result) => [seoFailureKey(result), result]),
+  )
+  const results = args.results.map((result) =>
+    result.status === 'skipped' ? (failedBefore.get(seoFailureKey(result)) ?? result) : result,
+  )
+
+  // Spread `previous` first: `verified`, `failureCount` and `routingProbe` are
+  // siblings this function does not own.
+  return { ...previous, seo: { at: now.toISOString(), results } }
+}
+
 /**
  * **How to read the routing verdict:** `verification?.routingProbe?.verdict ??
  * 'query'`, at the call site. There is deliberately no accessor wrapping it.
@@ -231,11 +317,10 @@ export function nextRoutingProbeState(args: {
  * mount's own subtree; `query` otherwise, which is what nearly every client
  * publishes today and is a perfectly good canonical (see `canonicalUrl.ts`).
  *
- * **There is no second answer to disagree with it.** `verified.routing` — the
- * readiness marker's copy of the widget's own script parameter — is no longer
- * written at all, so the record carries the observation and nothing else. The
- * widget's report is still kept as a report, per mount, in `embedMetadata`.
- * (#644)
+ * **There is no second answer to disagree with it.** The readiness marker's
+ * copy of the widget's own script parameter is not recorded on `verified`, so
+ * the record carries the observation and nothing else. The widget's report is
+ * still kept as a report, per mount, in `embedMetadata`. (#644)
  *
  * The default belongs to the read path: the `canonical.routing` field's
  * `afterRead` hook (`Clients.ts`) is what the widget reads, and it applies it
@@ -243,10 +328,8 @@ export function nextRoutingProbeState(args: {
  * write, or have just written, and never read through Payload at all.
  *
  * Canonical URLs are built by `@/lib/atlas/canonicalUrl` — `buildCanonicalUrl`
- * over a `canonicalTargetForHost(verified, routing)` target. The routing
- * argument is separate and required precisely so that
- * `canonicalTargetForHost(verified)`, which would shape a URL from the widget's
- * self-report, no longer compiles (#644).
+ * over a `canonicalTargetForHost(verified, routing)` target, the routing
+ * argument required so every caller names where its verdict came from (#644).
  *
  * There used to be a second builder here, and the two disagreed in a way that
  * mattered: this one emitted the Atlas path with its leading slash stripped and
@@ -260,12 +343,21 @@ export function nextRoutingProbeState(args: {
  */
 
 /**
+ * What every probe segment starts with.
+ *
+ * ⚠ **Exported because a host has to recognise it**: the Wix router answers a
+ * probe path as the atlas root (#1055), and a second spelling there would break
+ * the probe silently the day either side changed.
+ */
+export const PROBE_SEGMENT_PREFIX = 'sahaj-atlas-probe-'
+
+/**
  * Split a mount key back into the host and the page path.
  *
  * The key is `origin + pathname` (`https://sahajayoga.nl/?p=123`), so the URL parser does the
  * work — `host` keeps a port if there is one, and `search` preserves the WordPress permalink the
- * report contract allows through. Shared because the picker renders from it and the verifier
- * builds its `VerifiedEmbed` from it; they must agree.
+ * report contract allows through. Shared because the Install tab matches reports with it and the
+ * verifier builds its `VerifiedEmbed` from it; they must agree.
  */
 export function splitMountKey(key: string): { domain: string; mount: string } | null {
   try {

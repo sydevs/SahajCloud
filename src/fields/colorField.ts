@@ -14,6 +14,13 @@ export interface ColorFieldOptions {
   name?: string
   label?: string
   required?: boolean
+  /**
+   * The colour a consumer uses while this one is unset. With one, nothing is
+   * stored by default — a stored default would read as a choice — and the
+   * picker shows this colour, named as the default, until someone picks
+   * another.
+   */
+  fallback?: string
   access?: {
     create?: FieldAccess
     read?: FieldAccess
@@ -38,7 +45,14 @@ export interface ColorFieldOptions {
  * ```
  */
 export function colorField(options: ColorFieldOptions = {}): Field {
-  const { name = 'color', label = 'Color', required = false, access, admin = {} } = options
+  const {
+    name = 'color',
+    label = 'Color',
+    required = false,
+    access,
+    admin = {},
+    fallback,
+  } = options
 
   return {
     name,
@@ -46,11 +60,12 @@ export function colorField(options: ColorFieldOptions = {}): Field {
     type: 'text',
     required,
     validate: hexColorValidation,
-    defaultValue: '#000000',
+    ...(fallback ? {} : { defaultValue: '#000000' }),
     ...(access ? { access } : {}),
     admin: {
-      description: admin.description || 'Hex color code (e.g., #FF5733)',
+      description: admin.description || (fallback ? undefined : 'Hex color code (e.g., #FF5733)'),
       position: admin.position,
+      ...(fallback ? { custom: { colorFallback: fallback } } : {}),
       ...(admin.condition ? { condition: admin.condition } : {}),
       components: {
         Field: '@/components/admin/ColorField/ColorField',
