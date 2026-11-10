@@ -255,6 +255,11 @@ copy resolves to a different version, so a capture through it reads an empty
 carrier and is dropped without error. That is why `@sentry/react` is not a
 direct dependency.
 
+**A server report goes through one of two bodies, by deep path**: `captureFailure`
+for an exception, `captureMessage` for anything else. `src/plugins/sentry/index.ts`
+says why neither is in the barrel. A message capture may not reach the SDK itself —
+`tests/unit/sentry-capture-message.spec.ts` fails a second spelling.
+
 ## Organization rules
 
 1. **`src/plugins/`** holds every module registered in `payload.config.ts`.

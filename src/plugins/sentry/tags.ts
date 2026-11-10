@@ -1,11 +1,14 @@
 /**
- * The tags every capture this service sends carries, with the deployment
- * attached.
+ * The tags both capture bodies send, shared so neither can spell one
+ * differently.
  *
- * Shared so one capture body cannot report a deployment another leaves
- * untagged: a report with no `environment` cannot be filtered beside the ones
- * it sits next to in Sentry, and a PR preview's own events then read as
- * production's (#733).
+ * ⚠ **The `environment` tag is not the event's `environment` field.** The field
+ * is what Sentry's environment selector and its alert rules read, and
+ * `Sentry.init` sets it on every event; this is the searchable copy beside it.
+ *
+ * ⚠ **Server-side only.** `deploymentEnvironment` reads the environment at run
+ * time, which a browser bundle cannot — there `Sentry.init` carries
+ * `clientDeploymentEnvironment()` instead (#733).
  */
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
 

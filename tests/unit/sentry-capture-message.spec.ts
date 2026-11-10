@@ -2,10 +2,8 @@
  * The capture body behind every message this service reports, plus the rule
  * that keeps it the only one.
  *
- * The per-site specs (`endpoint-guard-credential-rejected.spec.ts`,
- * `user-submissions-repeat-registration.int.spec.ts`,
- * `expire-events.int.spec.ts`) each drive one caller through its own path. This
- * one covers what no caller can show: the defaults a site leaves out, and what
+ * The per-site specs each drive one caller through its own path. This one
+ * covers what no caller can show: the defaults a site leaves out, and what
  * happens when the SDK throws.
  */
 import { relative } from 'node:path'
@@ -23,27 +21,11 @@ vi.mock('@/lib/env/deploymentEnvironment', () => ({
 import { captureMessage } from '@/plugins/sentry/captureMessage'
 
 import { sourceFiles, sourceOf, SRC } from '../utils/importGraph'
+import { capturedFrom } from '../utils/sentryCapture'
 
-/** The capture context the body handed the SDK on its latest call. */
-const captured = () =>
-  (sentry.captureMessage.mock.calls.at(-1)?.[1] ?? {}) as {
-    contexts?: Record<string, unknown>
-    extra?: Record<string, unknown>
-    fingerprint?: string[]
-    level?: string
-    tags?: Record<string, string>
-    user?: Record<string, string>
-  }
+const captured = () => capturedFrom(sentry.captureMessage)
 
-/**
- * Fixture pre-mortem — what the two stubs above and below assume:
- *
- * - `deploymentEnvironment()` is the one thing `captureTags` reads, and
- *   `pr-<number>` is a real answer from it. Checked against
- *   `src/lib/env/deploymentEnvironment.ts`.
- * - A logger exposes `warn`, `error` and `info`. Checked against the
- *   `Pick<Payload['logger'], …>` the body takes, so `tsc` holds it.
- */
+/** Fixture pre-mortem: `pr-1100` is a real `deploymentEnvironment()` answer — checked against `src/lib/env/deploymentEnvironment.ts`. */
 const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
 beforeEach(() => {
@@ -74,20 +56,28 @@ describe('a reported message', () => {
     expect(captured().tags).toEqual({ environment: 'pr-1100' })
   })
 
-  it('passes a fingerprint, named contexts and a user through untouched', () => {
+  it('puts a caller’s IP where the scrubbers reach it, and nowhere else', () => {
+    captureMessage({ message: 'credential rejected', extra: { status: 403 }, ip: '203.0.113.7' })
+
+    expect(captured().user).toEqual({ ip_address: '203.0.113.7' })
+    expect(captured().extra).not.toHaveProperty('ip')
+  })
+
+  it('sends no user for a site that names no IP', () => {
+    captureMessage({ message: 'no region manager' })
+    expect(captured().user).toBeUndefined()
+  })
+
+  it('passes a fingerprint and extras through untouched', () => {
     captureMessage({
       message: 'a repeat signup replaced a confirmed registration',
-      contexts: { abuse_details: { threshold: 1000 } },
       extra: { submissionId: 42 },
       fingerprint: ['mergeRepeatRegistration', '42'],
-      user: { ip_address: '203.0.113.7' },
     })
 
     expect(captured()).toMatchObject({
-      contexts: { abuse_details: { threshold: 1000 } },
       extra: { submissionId: 42 },
       fingerprint: ['mergeRepeatRegistration', '42'],
-      user: { ip_address: '203.0.113.7' },
     })
   })
 })
@@ -115,13 +105,13 @@ describe('a telemetry failure', () => {
 })
 
 /**
- * A second spelling is what this refactor removed, and nothing else would stop
- * the sixth one arriving: the defaults and the mirror above are invisible to a
- * site that calls the SDK directly.
- *
- * ⚠ **`Sentry.captureException` is deliberately not covered.** `captureFailure`
- * reports a routed failure and cannot express a per-item failure inside a job
- * run that continues, so five sites still capture an exception themselves.
+ * ⚠ **`Sentry.captureException` is deliberately not covered.** Nine sites still
+ * capture an exception themselves. Three run in the browser, where `captureTags`
+ * cannot read the deployment at all. The other six want free-form tags, a named
+ * context, or a `CaptureSource` for a per-item failure inside a run that
+ * continues — none of which `captureFailure` can express, and its
+ * `mapPostgresCastError` exclusion is tuned for a routed request rather than a
+ * job. Reaching them is one change to that body, not this one.
  */
 describe('nothing outside the plugin captures a message itself', () => {
   it('leaves `Sentry.captureMessage` to the one body', () => {

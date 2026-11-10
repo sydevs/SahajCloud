@@ -92,12 +92,10 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
           report.milestone === 'first_high_usage'
             ? `API abuse milestone: First high-usage day for "${report.clientName}"`
             : `API abuse milestone: "${report.clientName}" is now a persistent abuser (${report.highUsageDays} days)`,
-        contexts: {
-          abuse_details: {
-            clientName: report.clientName,
-            highUsageDays: report.highUsageDays,
-            threshold: HIGH_USAGE_THRESHOLD,
-          },
+        extra: {
+          clientName: report.clientName,
+          highUsageDays: report.highUsageDays,
+          threshold: HIGH_USAGE_THRESHOLD,
         },
         // No logger: the one aggregate line below covers the whole run, rather
         // than repeating each report.

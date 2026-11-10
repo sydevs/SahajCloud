@@ -15,6 +15,8 @@ import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { installJobCapture } from '@/plugins/sentry/jobCapture'
 import { installLocalApiCapture } from '@/plugins/sentry/localApiCapture'
 
+import { capturedFrom } from '../utils/sentryCapture'
+
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({
@@ -22,14 +24,7 @@ vi.mock('@sentry/nextjs', () => ({
 }))
 
 /** The capture context `captureFailure` handed the SDK on its latest call. */
-const captured = () =>
-  (sentry.captureException.mock.calls.at(-1)?.[1] ?? {}) as {
-    extra?: Record<string, unknown>
-    fingerprint?: string[]
-    level?: string
-    tags?: Record<string, unknown>
-    user?: Record<string, unknown>
-  }
+const captured = () => capturedFrom(sentry.captureException)
 
 vi.mock('@/lib/env/deploymentEnvironment', () => ({
   deploymentEnvironment: () => 'test',

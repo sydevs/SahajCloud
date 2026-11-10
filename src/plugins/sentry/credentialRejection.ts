@@ -127,8 +127,9 @@ export const describeRejectedCredential = (
  * 500, and this runs on the request's denial path rather than its error path.
  *
  * ⚠ **Not gated on `NEXT_PUBLIC_SENTRY_DSN`**, unlike `sentryPlugin`, which
- * returns the config untouched without one. The capture is a no-op on an
- * uninitialised SDK, and the WARN line is the half a local run can see.
+ * returns the config untouched without one — `captureMessage` owns that rule.
+ * What is this function's own is the WARN line, which `describeRejectedCredential`
+ * writes either way, so a local run sees the denial.
  */
 export const reportRejectedCredential = (req: PayloadRequest): void => {
   // Inlined, not a parameter: the guard is the only caller and returns exactly
@@ -147,11 +148,10 @@ export const reportRejectedCredential = (req: PayloadRequest): void => {
       // A dead integration is a broken caller, not traffic — the whole point of
       // #734. The throwing path reaches the same level through `rejected`.
       level: 'error',
+      ip: rejected.ip,
       tags: rejected.tags,
-      user: rejected.ip ? { ip_address: rejected.ip } : undefined,
     })
   } catch {
-    // Deliberately silent. The caller is mid-denial and has no way to handle
-    // this, and a logger that just failed cannot report its own failure.
+    // Deliberately silent: the caller is mid-denial and has no way to handle this.
   }
 }

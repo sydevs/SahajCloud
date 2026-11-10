@@ -13,6 +13,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireActiveClient } from '@/lib/endpoints'
 
+import { capturedFrom } from '../utils/sentryCapture'
+
 const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
@@ -55,14 +57,7 @@ const buildRequest = (
 }
 
 /** The capture context the shared body handed the SDK on its latest call. */
-const captured = () =>
-  (sentry.captureMessage.mock.calls.at(-1)?.[1] ?? {}) as {
-    extra?: Record<string, unknown>
-    fingerprint?: string[]
-    level?: string
-    tags?: Record<string, string>
-    user?: Record<string, string>
-  }
+const captured = () => capturedFrom(sentry.captureMessage)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -105,6 +100,8 @@ describe('a denial whose credential was rejected', () => {
 
   it('mirrors the denial to the application log at WARN, naming this path', () => {
     expect(logger.warn).toHaveBeenCalledOnce()
+    // One spelling across both sinks, so neither query splits (#734).
+    expect(logger.warn.mock.calls[0]![0].keyFingerprint).toBe(captured().tags?.key_fingerprint)
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
         msg: 'API credential presented and rejected',
@@ -113,7 +110,7 @@ describe('a denial whose credential was rejected', () => {
         url: URL,
         authCollection: 'clients',
         authScheme: 'API-Key',
-        keyFingerprint: captured().tags?.key_fingerprint,
+        keyFingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
         userAgent: USER_AGENT,
         ip: IP,
       }),

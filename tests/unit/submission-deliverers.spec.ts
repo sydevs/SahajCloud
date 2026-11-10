@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
 
@@ -12,6 +12,11 @@ import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
 import type { UserSubmission } from '@/payload-types'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
+import { capturedFrom } from '../utils/sentryCapture'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 /**
  * The delivery registry is total over the submission types.
@@ -88,17 +93,9 @@ describe('deliverProposal', () => {
     expect(outcome).toMatchObject({ ok: true })
   })
 
-  /**
-   * This submission names no event and sits in no region, so it falls to the
-   * system contact — the one branch that reports.
-   *
-   * ⚠ **`info` is the answer, not an omission.** The system contact is the last
-   * rung of the routing ladder rather than a failure of it, and the admin home
-   * already lists a proposal that reached it. Promoting this to `warning` pages
-   * whoever watches the project about a route working as designed.
-   */
+  // This submission names no event and sits in no region, so it falls to the
+  // system contact — the one branch that reports.
   it('reports an unrouted proposal as a notice, tagged with the deployment', async () => {
-    sentry.captureMessage.mockClear()
     const { payload } = stubEmailPayload()
 
     await DELIVERERS.proposal.deliver({
@@ -113,11 +110,8 @@ describe('deliverProposal', () => {
     })
 
     expect(sentry.captureMessage).toHaveBeenCalledOnce()
-    const [message, context] = sentry.captureMessage.mock.calls[0] as [
-      string,
-      { extra: Record<string, unknown>; level: string; tags: Record<string, string> },
-    ]
-    expect(message).toBe('deliverProposal: no manager to notify')
+    expect(sentry.captureMessage.mock.calls[0]![0]).toBe('deliverProposal: no manager to notify')
+    const context = capturedFrom(sentry.captureMessage)
     expect(context.level).toBe('info')
     expect(context.tags).toMatchObject({ environment: 'test' })
     expect(context.extra).toMatchObject({ submissionId: 3 })
