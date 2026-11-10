@@ -126,7 +126,8 @@ moment the pull request exists.
 
 ⚠ **The address step needs more of `CLOUDFLARE_API_KEY` than Images and Stream.** It writes
 KV and attaches a Custom Domain, so that token carries Workers KV Storage:Edit, Workers
-Scripts:Edit and Zone:Read as well. Too narrow, and Cloudflare answers the KV write
+Scripts:Edit, Zone:Read and Workers Routes:Edit on the zone as well — attaching a Custom
+Domain needs the zone's Workers Routes:Edit. Too narrow, and Cloudflare answers the KV write
 `401 10000: Authentication error`, which reads as a wrong token rather than a narrow one.
 
 ⚠ **Railway's own address for a preview is shut.** A browser read there is sent
@@ -352,7 +353,7 @@ Never paste a secret into git or email.
 - `CLOUDFLARE_R2_DELIVERY_URL` — public delivery URL, e.g. `https://assets.sydevelopers.com`
 - `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET`
 - `CLOUDFLARE_API_KEY` — one token for Images, Stream, and the per-PR preview address
-  (Workers KV Storage:Edit, Workers Scripts:Edit, Zone:Read)
+  (Workers KV Storage:Edit, Workers Scripts:Edit, Zone:Read, zone Workers Routes:Edit)
 - `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_CACHE_PURGE_TOKEN` — enable purge-on-write; unset, every purge is a silent no-op (see [Edge Cache](#edge-cache-cloudflare-cache-rule))
 
 ### Sentry and Resend

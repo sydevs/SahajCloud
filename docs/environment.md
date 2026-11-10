@@ -23,7 +23,7 @@ R2 is used in both dev and prod. Local file storage applies automatically when c
 - `CLOUDFLARE_ACCOUNT_ID` (Account Home) — derives the S3 endpoint: `https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`, region `auto`.
 - `CLOUDFLARE_R2_DELIVERY_URL`, `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL` — public delivery base URLs (copy the base from any existing delivery or player URL, drop the id).
 - `CLOUDFLARE_API_KEY` — token with Images + Stream edit scope, plus Workers KV Storage:Edit,
-  Workers Scripts:Edit and Zone:Read for the per-PR preview address. ⚠ Too narrow, and
+  Workers Scripts:Edit, Zone:Read and the zone's Workers Routes:Edit for the per-PR preview address. ⚠ Too narrow, and
   Cloudflare answers the KV write `401 10000: Authentication error` — a shape that reads as a
   wrong token rather than a narrow one.
 - `CLOUDFLARE_STREAM_WEBHOOK_SECRET` — HMAC secret for the Stream webhook (production only).
