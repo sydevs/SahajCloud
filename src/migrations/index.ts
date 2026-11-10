@@ -115,6 +115,7 @@ import * as migration_20261105_233425_add_cleverreach_mailing_list from './20261
 import * as migration_20261106_094841_clients_one_site from './20261106_094841_clients_one_site';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261108_220039_snapshot_resync from './20261108_220039_snapshot_resync';
+import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
 
 export const migrations = [
   {
@@ -700,6 +701,11 @@ export const migrations = [
   {
     up: migration_20261108_220039_snapshot_resync.up,
     down: migration_20261108_220039_snapshot_resync.down,
-    name: '20261108_220039_snapshot_resync'
+    name: '20261108_220039_snapshot_resync',
+  },
+  {
+    up: migration_20261110_172159_snapshot_resync.up,
+    down: migration_20261110_172159_snapshot_resync.down,
+    name: '20261110_172159_snapshot_resync'
   },
 ];
