@@ -2414,23 +2414,31 @@ export interface Client {
    */
   supportEmail?: string | null;
   /**
-   * Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.
+   * Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.
    */
   mailingList?: {
     enabled?: boolean | null;
-    provider?: ('mailchimp' | 'brevo' | 'klaviyo') | null;
+    provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.
+     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
+     */
+    clientId?: string | null;
+    /**
+     * Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.
      */
     listId?: string | null;
     /**
-     * The provider secret. Checked against the provider when you save, and never readable by an API client.
+     * The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.
      */
     apiKey?: string | null;
     /**
-     * Mailchimp adds the address as `pending` and emails it a confirmation link.
+     * The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.
      */
     doubleOptIn?: boolean | null;
+    /**
+     * The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.
+     */
+    doiFlowId?: string | null;
   };
   usage?: {
     abuseScore?: ClientAbuseScore;
@@ -4880,9 +4888,11 @@ export interface ClientsSelect<T extends boolean = true> {
     | {
         enabled?: T;
         provider?: T;
+        clientId?: T;
         listId?: T;
         apiKey?: T;
         doubleOptIn?: T;
+        doiFlowId?: T;
       };
   usage?:
     | T

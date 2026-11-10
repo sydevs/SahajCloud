@@ -15,13 +15,14 @@ export type MailingListProvider = NonNullable<MailingListConfig['provider']>
  * union, so a provider offered here with no adapter — or an adapter for one no
  * longer offered — fails to compile.
  */
-export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo'] as const
+export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo', 'cleverreach'] as const
 
 /** What each provider is called, in the select and on the Install tab. */
 export const MAILING_LIST_PROVIDER_LABELS: Record<MailingListProvider, string> = {
   mailchimp: 'Mailchimp',
   brevo: 'Brevo',
   klaviyo: 'Klaviyo',
+  cleverreach: 'CleverReach',
 }
 
 /**
@@ -30,11 +31,11 @@ export const MAILING_LIST_PROVIDER_LABELS: Record<MailingListProvider, string> =
  * The success arm carries the status the provider can actually **justify**,
  * which is why there are three of them rather than a boolean:
  *
- * - `subscribed` — the address is on the list now (Mailchimp with double
- *   opt-in off, Brevo always, and either provider for an address already there
- *   — idempotent, and it does not leak list membership).
+ * - `subscribed` — the address is on the list now (Mailchimp and CleverReach
+ *   with double opt-in off, Brevo always, and any of the three for an address
+ *   already there — idempotent, and it does not leak list membership).
  * - `pending` — accepted, and the provider is waiting on the person to confirm
- *   (Mailchimp with double opt-in on).
+ *   (Mailchimp and CleverReach with double opt-in on).
  * - `accepted` — **Klaviyo only.** Its subscribe job answers 202 with no
  *   per-profile result, so the adapter genuinely cannot tell "newly
  *   subscribed" from "already there" from "previously unsubscribed" inline.
@@ -48,6 +49,9 @@ export const MAILING_LIST_PROVIDER_LABELS: Record<MailingListProvider, string> =
 export type MailingListResult =
   | { ok: true; status: 'subscribed' | 'pending' | 'accepted' }
   | { ok: false; code: MailingListFailureCode; message: string; retryable: boolean }
+
+/** The failure arm alone, for a helper or a caller that can only refuse. */
+export type MailingListFailure = Extract<MailingListResult, { ok: false }>
 
 export type MailingListFailureCode =
   /**
@@ -63,7 +67,14 @@ export type MailingListFailureCode =
   | 'not_configured'
   /** The provider refused our credentials or the request itself. */
   | 'provider_rejected'
-  /** The provider was unreachable or timed out. The one retryable failure. */
+  /**
+   * The provider was unreachable, timed out, or had a bad moment.
+   *
+   * The only code a retry can help, and even then not always: a call whose
+   * side effect may already have landed is refused terminally under this same
+   * code, because what happened to the provider is not what a retry would
+   * cost. CleverReach's confirmation send is that case.
+   */
   | 'provider_unavailable'
 
 /** What every adapter is handed. */
@@ -77,6 +88,15 @@ export interface SubscribeArgs {
   locale?: string
   /** A short provenance tag — `event-registration`, a form's slug. */
   source?: string
+  /**
+   * Client-reported request context off the submission row
+   * (`CLIENT_CONTEXT_KEYS`), for a provider that keeps a record of the opt-in.
+   * Passed whenever the row carries them, like `locale` above. Nothing starts
+   * storing a visitor's IP for this: an incomplete record is worth more than a
+   * new column of personal data (#1086).
+   */
+  userAgent?: string
+  hostUrl?: string
   /** Bounds every provider call. A hung third party must not hold a job open. */
   signal: AbortSignal
 }
@@ -112,7 +132,26 @@ export const PROVIDER_TIMEOUT_MS = 8000
  * abort, a DNS failure and a socket reset are all "the provider was not there",
  * which is the one failure worth retrying.
  */
-export function transportFailure(error: unknown): MailingListResult {
+export function transportFailure(error: unknown): MailingListFailure {
   const message = error instanceof Error ? error.message : String(error)
   return { ok: false, code: 'provider_unavailable', message, retryable: true }
+}
+
+/**
+ * Narrow a refusal status onto the failure union.
+ *
+ * `transportFailure`'s twin, shared for the same reason: 5xx and 429 are the
+ * provider having a bad moment, and any other status is us being wrong, which
+ * will be wrong identically next time. A provider's own compliance answer — the
+ * words it reports an opt-out in — is read before this, by the adapter that
+ * knows them.
+ */
+export function statusFailure(status: number, message: string): MailingListFailure {
+  const retryable = status >= 500 || status === 429
+  return {
+    ok: false,
+    code: retryable ? 'provider_unavailable' : 'provider_rejected',
+    message,
+    retryable,
+  }
 }
