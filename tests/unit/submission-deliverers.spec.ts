@@ -113,7 +113,6 @@ describe('deliverProposal', () => {
     expect(sentry.captureMessage.mock.calls[0]![0]).toBe('deliverProposal: no manager to notify')
     const context = capturedFrom(sentry.captureMessage)
     expect(context.level).toBe('info')
-    expect(context.tags).toMatchObject({ environment: 'test' })
     expect(context.extra).toMatchObject({ submissionId: 3 })
   })
 })

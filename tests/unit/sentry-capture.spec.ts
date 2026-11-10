@@ -17,10 +17,6 @@ vi.mock('@sentry/nextjs', () => ({
   captureMessage: sentry.captureMessage,
 }))
 
-vi.mock('@/lib/env/deploymentEnvironment', () => ({
-  deploymentEnvironment: () => 'pr-1100',
-}))
-
 import { capture } from '@/plugins/sentry/capture'
 
 import { sourceFiles, sourceOf, SRC } from '../utils/importGraph'
@@ -29,7 +25,6 @@ import { capturedFrom } from '../utils/sentryCapture'
 const captured = () => capturedFrom(sentry.captureMessage)
 const capturedError = () => capturedFrom(sentry.captureException)
 
-/** Fixture pre-mortem: `pr-1100` is a real `deploymentEnvironment()` answer — checked against `src/lib/env/deploymentEnvironment.ts`. */
 const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
 beforeEach(() => {
@@ -70,25 +65,29 @@ describe('the level a site leaves out', () => {
   })
 })
 
-describe('the tags every report carries', () => {
-  it('carries the deployment, so one report filters beside the next', () => {
-    capture({ message: 'something to know about' })
-    expect(captured().tags).toEqual({ environment: 'pr-1100' })
+describe('the tags a report carries', () => {
+  it('sends only what the site brought', () => {
+    capture({ message: 'milestone', tags: { clientId: '7', milestone: 'first' } })
+    expect(captured().tags).toEqual({ clientId: '7', milestone: 'first' })
   })
 
-  it('keeps the deployment when a site brings tags of its own', () => {
-    capture({ message: 'milestone', tags: { clientId: '7', milestone: 'first' } })
-    expect(captured().tags).toEqual({ clientId: '7', environment: 'pr-1100', milestone: 'first' })
+  /**
+   * ⚠ The deployment is the event's own `environment` FIELD, set by
+   * `Sentry.init`. A tag beside it filtered nothing the field did not.
+   */
+  it('adds no deployment tag of its own', () => {
+    capture({ message: 'something to know about' })
+    expect(captured().tags).toEqual({})
   })
 
   it('drops a tag Sentry has no use for, rather than sending it empty', () => {
-    capture({ message: 'milestone', tags: { blank: '', missing: undefined } })
-    expect(captured().tags).toEqual({ environment: 'pr-1100' })
+    capture({ message: 'milestone', tags: { blank: '', kept: 'yes', missing: undefined } })
+    expect(captured().tags).toEqual({ kept: 'yes' })
   })
 
   it('tags an exception the same way, through the same body', () => {
     capture({ error: new Error('cache write failed'), message: 'cache', tags: { issue: '390' } })
-    expect(capturedError().tags).toEqual({ environment: 'pr-1100', issue: '390' })
+    expect(capturedError().tags).toEqual({ issue: '390' })
   })
 })
 

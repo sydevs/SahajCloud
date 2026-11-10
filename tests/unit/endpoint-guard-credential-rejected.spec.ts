@@ -89,7 +89,6 @@ describe('a denial whose credential was rejected', () => {
       auth_collection: 'clients',
       auth_scheme: 'API-Key',
       key_fingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
-      environment: 'test',
     })
     expect(captured().extra).toMatchObject({ userAgent: USER_AGENT, url: URL, status: 403 })
     // The IP goes on Sentry's own user field, where `sendDefaultPii: false` and

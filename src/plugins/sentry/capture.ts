@@ -24,23 +24,25 @@ import type { Payload } from 'payload'
 
 import * as Sentry from '@sentry/nextjs'
 
-import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
-
 /** Pino's name for each level. Sentry spells one of them `warning`. */
 const LOG_METHOD = { error: 'error', info: 'info', warning: 'warn' } as const
 
 export type CaptureLevel = keyof typeof LOG_METHOD
 
 /**
- * ⚠ **The `environment` tag is not the event's `environment` field.** The field
- * is what Sentry's environment selector and its alert rules read, and
- * `Sentry.init` sets it on every event; this is the searchable copy beside it.
- *
  * A tag is a non-empty string or absent: Sentry has no use for `''`.
+ *
+ * ⚠ **No `environment` tag.** Every event already carries an `environment`
+ * FIELD, set by `Sentry.init` from `deploymentEnvironment()` on the server and
+ * `clientDeploymentEnvironment()` in the browser — `sentry.server.config.ts`
+ * and `instrumentation-client.ts`. That field is what the environment selector
+ * and the alert rules read, so a tag beside it filtered nothing the field did
+ * not already (#733 credited the tag with a fix that belongs to those two
+ * `init` calls).
  */
 const sentryTags = (record?: Record<string, string | undefined>): Record<string, string> =>
   Object.fromEntries(
-    Object.entries({ environment: deploymentEnvironment(), ...record }).filter(
+    Object.entries(record ?? {}).filter(
       (entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '',
     ),
   )

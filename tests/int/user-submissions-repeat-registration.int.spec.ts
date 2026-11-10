@@ -412,9 +412,9 @@ describe('a repeat registration updates the existing one', () => {
       submissionId: first.id,
       submittedVia: client.id,
     })
-    // The shared capture body, reached through the hook rather than called
-    // directly — `environment` is the tag only that body attaches.
-    expect(options.tags).toMatchObject({ environment: expect.any(String) })
+    // That the hook reached the shared body rather than the SDK is held by
+    // `sentry-capture.spec.ts`, which fails any other spelling in `src/`.
+    expect(options.tags).toEqual({})
   })
 
   it('does not report a repeat signup into a registration nobody confirmed', async () => {
