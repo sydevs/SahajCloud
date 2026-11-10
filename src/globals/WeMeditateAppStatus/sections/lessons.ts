@@ -77,6 +77,12 @@ function buildUnitDocs(lessons: Lesson[], unit: string, labels: Ctx['labels']): 
           passed: Array.isArray(lesson.panels) && lesson.panels.length >= 1,
         },
         { key: 'intro-audio-set', passed: isUploadAssigned(lesson.introAudio) },
+        {
+          key: 'intro-subtitles-set',
+          // ⚠ An empty array is truthy, so the length is what answers — as
+          // `panels-set` above.
+          passed: Array.isArray(lesson.introSubtitles) && lesson.introSubtitles.length >= 1,
+        },
         { key: 'meditation-set', passed: refId(lesson.meditation) !== null },
         { key: 'article-localized', passed: richTextHasContent(lesson.article) },
         {
@@ -116,7 +122,14 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     },
     'intro-audio-set': {
       label: 'Intro audio set',
-      description: 'The lesson has an intro-audio file assigned.',
+      description: 'The lesson has an intro-audio file assigned for this locale.',
+    },
+    // Prefixed `intro-`, because a check key is global across sections and
+    // `subtitle-set`, `subtitles-set` and `subtitles-available` are all taken.
+    'intro-subtitles-set': {
+      label: 'Intro subtitles set',
+      description:
+        'The lesson has subtitles for its intro audio in this locale. Most locales have none yet — the recordings and their subtitles were English-only until they became per-language.',
     },
     'meditation-set': {
       label: 'Meditation assigned',
@@ -140,9 +153,9 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       payload.find({
         collection: 'lessons',
         locale,
-        // `title`, `panels`, `meditation` and `article` are localized (#977), so
-        // the fallback would answer every check but `intro-audio-set` and
-        // `icon-set` off the English value.
+        // `title`, `panels`, `meditation`, `article`, `introAudio` and
+        // `introSubtitles` are all localized (#977, #1016), so the fallback
+        // would answer every check but `icon-set` off the English value.
         fallbackLocale: false,
         limit: 0,
         pagination: false,

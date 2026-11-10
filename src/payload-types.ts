@@ -3376,7 +3376,7 @@ export interface Lesson {
    */
   preMeditationLines?: string | null;
   /**
-   * Audio introduction to this lesson.
+   * Audio introduction to this lesson. MP3 only.
    */
   introAudio?: (number | null) | File;
   introSubtitles?: Subtitles;

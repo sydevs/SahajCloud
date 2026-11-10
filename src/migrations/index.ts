@@ -116,6 +116,7 @@ import * as migration_20261106_094841_clients_one_site from './20261106_094841_c
 import * as migration_20261107_213230_transcript_segment_count from './20261107_213230_transcript_segment_count';
 import * as migration_20261107_225000_atlas_clock_copy from './20261107_225000_atlas_clock_copy';
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
+import * as migration_20261110_185146_localize_lesson_intro_audio_and_subtitles from './20261110_185146_localize_lesson_intro_audio_and_subtitles';
 
 export const migrations = [
   {
@@ -706,6 +707,11 @@ export const migrations = [
   {
     up: migration_20261110_180359_merge_1075_main_snapshot_5.up,
     down: migration_20261110_180359_merge_1075_main_snapshot_5.down,
-    name: '20261110_180359_merge_1075_main_snapshot_5'
+    name: '20261110_180359_merge_1075_main_snapshot_5',
+  },
+  {
+    up: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.up,
+    down: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.down,
+    name: '20261110_185146_localize_lesson_intro_audio_and_subtitles'
   },
 ];

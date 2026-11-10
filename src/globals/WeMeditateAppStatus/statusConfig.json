@@ -201,7 +201,11 @@
     },
     "intro-audio-set": {
       "label": "Intro audio set",
-      "description": "The lesson has an intro-audio file assigned."
+      "description": "The lesson has an intro-audio file assigned for this locale."
+    },
+    "intro-subtitles-set": {
+      "label": "Intro subtitles set",
+      "description": "The lesson has subtitles for its intro audio in this locale. Most locales have none yet — the recordings and their subtitles were English-only until they became per-language."
     },
     "is-populated": {
       "label": "Populated",
