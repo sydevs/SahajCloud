@@ -47,8 +47,18 @@ export const captureMessage = ({
   logger,
   tags,
 }: CaptureMessageArgs): void => {
+  // ⚠ **Its own `try`, on purpose.** A logger that throws must not cost the
+  // caller its Sentry event — the half that survives a deploy nobody is
+  // tailing. `describeRejectedCredential` guards its own mirror the same way.
+  if (logger) {
+    try {
+      logger[LOG_METHOD[level]]({ msg: message, ...extra })
+    } catch {
+      // Deliberately silent: a logger that just failed cannot report its own failure.
+    }
+  }
+
   try {
-    logger?.[LOG_METHOD[level]]({ msg: message, ...extra })
     Sentry.captureMessage(message, {
       extra,
       fingerprint,

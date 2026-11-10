@@ -102,6 +102,18 @@ describe('a telemetry failure', () => {
     })
     expect(() => captureMessage({ message: 'no manager to notify' })).not.toThrow()
   })
+
+  it('does not cost the report when it is the log destination that fails', () => {
+    const broken = {
+      ...logger,
+      warn: vi.fn(() => {
+        throw new Error('log destination is down')
+      }),
+    }
+
+    expect(() => captureMessage({ message: 'no region manager', logger: broken })).not.toThrow()
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+  })
 })
 
 /**
