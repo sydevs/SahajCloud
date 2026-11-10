@@ -53,12 +53,13 @@
   align-items: center;
   gap: var(--base);
   width: 100%;
-  padding: calc(var(--base) * 0.75) var(--base);
+  padding: calc(var(--base) / 2) calc(var(--base) * 0.75);
   border: 1px solid var(--theme-elevation-150);
   border-radius: var(--style-radius-m);
   background: var(--theme-elevation-50);
   color: var(--theme-text);
   font: inherit;
+  font-size: 1.25em;
   text-align: left;
   cursor: pointer;
 }
@@ -79,4 +80,12 @@
 
 .accountReach {
   color: var(--theme-elevation-650);
+  font-size: 0.85em;
+}
+
+/* Payload's chevron is sized for a dropdown toggle; here it is the row's cue. */
+.account > svg {
+  flex-shrink: 0;
+  width: 2.25em;
+  height: 2.25em;
 }
