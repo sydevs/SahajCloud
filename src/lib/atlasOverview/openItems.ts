@@ -293,7 +293,9 @@ async function readServiceRows(
     // Only a service with a page is checked, so only one can have missed.
     const missingOn = verification?.failureCount ? primaryPageUrl(doc.site) : null
     const seo = verification?.seo
+    // No track yet means the install is unfinished, which is not a problem to report.
     const searchProblem =
+      Boolean(doc.site?.track) &&
       hasSearchListings(doc.site?.track) &&
       (seo?.results ?? []).some((result) => result.status === 'fail')
     if (!missingOn && !searchProblem) return []
