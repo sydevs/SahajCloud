@@ -693,7 +693,7 @@ async function scanCollectionForLexicalReferences(
       doc[reference.fieldPath],
       reference.localizedAt.includes(0),
     )) {
-      for (const id of extractIdsFromLexicalContent(content)) referencedIds.add(id)
+      for (const id of extractIdsFromLexicalContent(content, reference)) referencedIds.add(id)
     }
   })
 }
