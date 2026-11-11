@@ -18,7 +18,9 @@ export const railwayEnvironmentName = (): string | undefined =>
   process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT
 
 /**
- * The name to tag error reports with.
+ * The name an error report's `environment` FIELD carries — what `Sentry.init`
+ * is given, and what the environment selector and the alert rules read. No
+ * capture adds a tag beside it (`src/plugins/sentry/capture.ts`).
  *
  * ⚠ **`NODE_ENV` alone cannot tell a PR preview from production** — Railway
  * builds a preview with `NODE_ENV=production`, so every preview error used to

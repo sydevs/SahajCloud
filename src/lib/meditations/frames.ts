@@ -21,9 +21,9 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
 import { z } from 'zod'
 
+import { capture } from '@/plugins/sentry/capture'
 import type { KeyframeDefinition } from '@/types/frames'
 
 /**
@@ -212,7 +212,6 @@ export function reportMeditationNodeWeightsCacheError(args: {
 }) {
   const { diagnostics, error, meditationId, payload, reason, req } = args
   const logger = req?.payload.logger ?? payload.logger
-  const errorMessage = error instanceof Error ? error.message : String(error)
   const issueContext = {
     issue: '390',
     meditationId,
@@ -220,18 +219,12 @@ export function reportMeditationNodeWeightsCacheError(args: {
     ...diagnostics,
   }
 
-  logger.error({
-    msg: 'Failed to update meditation node weights cache',
-    error: errorMessage,
-    ...issueContext,
-  })
-
-  Sentry.withScope((scope) => {
-    scope.setTag('issue', '390')
-    scope.setTag('collection', 'meditations')
-    scope.setTag('operation', reason)
-    scope.setExtra('meditationNodeWeightsCache', issueContext)
-    Sentry.captureException(error)
+  capture({
+    error,
+    message: 'Failed to update meditation node weights cache',
+    extra: issueContext,
+    tags: { issue: '390', collection: 'meditations', operation: reason },
+    logger,
   })
 }
 

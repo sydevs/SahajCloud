@@ -2,11 +2,11 @@ import type { Attachment as NodemailerAttachment } from 'nodemailer/lib/mailer'
 import type { EmailAdapter, SendEmailOptions } from 'payload'
 import type { CreateEmailOptions } from 'resend'
 
-import * as Sentry from '@sentry/nextjs'
 import { Resend } from 'resend'
 
 import { serverEnv } from '@/lib/env'
 import { headerDisplayName } from '@/lib/utilities/emailSafeText'
+import { capture } from '@/plugins/sentry/capture'
 
 import { getEmailBrand } from './brand'
 import { MANAGER_EMAIL_FROM } from './senders'
@@ -125,7 +125,10 @@ export const resendAdapter = (): EmailAdapter => {
         // carries the detail, in the log system that is meant to hold it.
         if (!resend) {
           payload.logger.error({ msg: 'Cannot send email - Resend client not initialized' })
-          Sentry.captureMessage('Email dropped: Resend client not initialized', { level: 'error' })
+          capture({
+            message: 'Email dropped: Resend client not initialized',
+            level: 'error',
+          })
           throw new Error('Email not sent: Resend client not initialized')
         }
 
@@ -154,11 +157,11 @@ export const resendAdapter = (): EmailAdapter => {
             ...(attachments && { attachments }),
           })
           .catch((thrown: unknown) => {
-            payload.logger.error({
-              msg: 'Email sending failed',
-              error: thrown instanceof Error ? thrown.message : String(thrown),
+            capture({
+              error: thrown,
+              message: 'Email sending failed',
+              logger: payload.logger,
             })
-            Sentry.captureException(thrown)
             throw thrown
           })
 
@@ -168,9 +171,10 @@ export const resendAdapter = (): EmailAdapter => {
             error: error.message,
             name: error.name,
           })
-          Sentry.captureMessage('Email dropped: Resend API error', {
-            level: 'error',
+          capture({
+            message: 'Email dropped: Resend API error',
             extra: { error: error.message, name: error.name },
+            level: 'error',
           })
           throw new Error(`Email not sent: ${error.message}`)
         }

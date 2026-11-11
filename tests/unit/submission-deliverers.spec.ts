@@ -1,4 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+
+vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
+
+// `railwayEnvironmentName` too: this factory replaces the whole module, and the
+// review link reaches it through `getServerUrl()`. Left out, delivery fails with
+// a mock error and the sender never runs. Off-Railway, to match the name above.
+vi.mock('@/lib/env/deploymentEnvironment', () => ({
+  deploymentEnvironment: () => 'test',
+  railwayEnvironmentName: () => undefined,
+}))
 
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
@@ -6,6 +18,11 @@ import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
 import type { UserSubmission } from '@/payload-types'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
+import { capturedFrom } from '../utils/sentryCapture'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 /**
  * The delivery registry is total over the submission types.
@@ -80,5 +97,28 @@ describe('deliverProposal', () => {
 
     expect(sendEmail).toHaveBeenCalledOnce()
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  // This submission names no event and sits in no region, so it falls to the
+  // system contact — the one branch that reports.
+  it('reports an unrouted proposal as a notice, tagged with the deployment', async () => {
+    const { payload } = stubEmailPayload()
+
+    await DELIVERERS.proposal.deliver({
+      req: { payload } as never,
+      submission: {
+        id: 3,
+        type: 'proposal',
+        senderEmail: 'aria@example.com',
+        proposed: { eventType: 'offline' },
+        submissionData: [],
+      } as unknown as UserSubmission,
+    })
+
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    expect(sentry.captureMessage.mock.calls[0]![0]).toBe('deliverProposal: no manager to notify')
+    const context = capturedFrom(sentry.captureMessage)
+    expect(context.level).toBe('info')
+    expect(context.extra).toMatchObject({ submissionId: 3 })
   })
 })
