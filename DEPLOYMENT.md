@@ -124,8 +124,9 @@ moment the pull request exists.
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
 | The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
 
-⚠ **The address step needs more of `CLOUDFLARE_API_KEY` than Images and Stream.** It writes
-KV and attaches a Custom Domain, so that token carries Workers KV Storage:Edit, Workers
+⚠ **The address step needs more of the Cloudflare token than Images and Stream.** CI reads
+the org secret `CLOUDFLARE_API_TOKEN` (as `CLOUDFLARE_API_KEY`). The step writes KV and attaches
+a Custom Domain, so that token carries Workers KV Storage:Edit, Workers
 Scripts:Edit, Zone:Read and Workers Routes:Edit on the zone as well — attaching a Custom
 Domain needs the zone's Workers Routes:Edit. Too narrow, and Cloudflare answers the KV write
 `401 10000: Authentication error`, which reads as a wrong token rather than a narrow one.

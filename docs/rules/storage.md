@@ -53,7 +53,7 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 | `R2_BUCKET`             | variable     | yes                                  |
 | `R2_JURISDICTION`       | workflow env | only for a jurisdiction-bound bucket |
 
-The workflow hands `CLOUDFLARE_API_TOKEN` to the script as `CLOUDFLARE_API_KEY`, the name Railway uses. ⚠ Both secrets are org-level and shared with SahajAtlasWeb's Smoke lane, which needs Workers Scripts (Edit) from the same token — a rotation must update the org secret, and a re-scope must keep both repos' permissions.
+The workflow hands `CLOUDFLARE_API_TOKEN` to the script as `CLOUDFLARE_API_KEY`, the name Railway uses. ⚠ Both secrets are org-level and shared with SahajAtlasWeb's Smoke lane, which needs Workers Scripts (Edit) from the same token — a rotation must update the org secret, and a re-scope must keep both repos' permissions, including the preview address's (`DEPLOYMENT.md`).
 
 The script exits 1 with any of the required three missing — deliberately, since a cleanup that silently reaps nothing is worse than one that fails loudly.
 
