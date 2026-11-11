@@ -113,7 +113,7 @@ describe('client reads of a global (#710)', () => {
     config = testEnv.config
     adminUserId = testEnv.adminUser.id
     testClient = await testData.createClient(payload, adminUserId, {
-      name: 'Globals Cache Test Client',
+      label: 'Globals Cache Test Client',
       roles: ['sahaj-atlas-client'],
       // Set explicitly because payload returns `apiKey: null` from a create —
       // the column is encrypted — and `restGet` needs the plaintext key to

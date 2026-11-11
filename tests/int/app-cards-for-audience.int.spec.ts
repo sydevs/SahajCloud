@@ -563,7 +563,7 @@ describe('appCardsForAudience endpoint', () => {
     // to a client. If the endpoint does not forward `req` to `payload.find`,
     // the hooks fire without a user and silently skip tracking.
     const client = (await testData.createClient(payload, adminUserId, {
-      name: 'Usage Tracking Forwarding Test',
+      label: 'Usage Tracking Forwarding Test',
     })) as Client
 
     const findSpy = vi.spyOn(payload, 'find')

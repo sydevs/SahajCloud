@@ -382,18 +382,18 @@ describe('Role-Based Access Control', () => {
           roles: [],
         })
         const app = await testData.createClient(payload, created.id, {
-          name: 'Derived App Key',
+          label: 'Derived App Key',
           roles: ['wemeditate-app-client'],
         })
         expect(virtualRoles(await testData.authUser(payload, created))).toEqual([])
 
         const mine = await testData.createClient(payload, created.id, {
-          name: 'Derived Atlas Site',
+          label: 'Derived Atlas Site',
           roles: ['sahaj-atlas-client'],
         })
         const stranger = await testData.createManager(payload, { roles: [] })
         const other = await testData.createClient(payload, stranger.id, {
-          name: 'Derived Other Site',
+          label: 'Derived Other Site',
           roles: ['sahaj-atlas-client'],
         })
         const manager = await testData.authUser(payload, created)
@@ -1822,7 +1822,7 @@ describe('Role-Based Access Control', () => {
 
       // Create a client with wemeditate-web-client role (has access to pages)
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Test API Client',
+        label: 'Test API Client',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -1863,7 +1863,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Test API Client for ID Test',
+        label: 'Test API Client for ID Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -1898,7 +1898,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Test API Client for Published Test',
+        label: 'Test API Client for Published Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -1960,7 +1960,7 @@ describe('Role-Based Access Control', () => {
 
       // The draft client carries a role that would normally grant page reads...
       const draftClient = await testData.createClient(payload, admin.id, {
-        name: 'Draft (unpublished) API Client',
+        label: 'Draft (unpublished) API Client',
         roles: ['wemeditate-web-client'],
         enabled: false,
       })
@@ -2003,7 +2003,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Preview Client for Draft Page Test',
+        label: 'Preview Client for Draft Page Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2043,7 +2043,7 @@ describe('Role-Based Access Control', () => {
         type: 'admin' as const,
       })
       const client = await testData.createClient(payload, admin.id, {
-        name: 'App Client for Cards Test',
+        label: 'App Client for Cards Test',
         roles: ['wemeditate-app-client'],
         enabled: true,
       })
@@ -2078,7 +2078,7 @@ describe('Role-Based Access Control', () => {
 
       // Create a client with wemeditate-web-client role (no app-cards access)
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Web Client for Cards Test',
+        label: 'Web Client for Cards Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2101,7 +2101,7 @@ describe('Role-Based Access Control', () => {
           type: 'admin' as const,
         })
         const client = await testData.createClient(payload, admin.id, {
-          name: 'App Client for Lectures Read Test',
+          label: 'App Client for Lectures Read Test',
           roles: ['wemeditate-app-client'],
           enabled: true,
         })
@@ -2193,7 +2193,7 @@ describe('Role-Based Access Control', () => {
 
       // Create a client with wemeditate-web-client role (has access to meditations)
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Test API Client for Meditation Test',
+        label: 'Test API Client for Meditation Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2244,7 +2244,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Preview Client for Draft Meditation Test',
+        label: 'Preview Client for Draft Meditation Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2281,7 +2281,7 @@ describe('Role-Based Access Control', () => {
       })
 
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Test API Client for Non-Draft Test',
+        label: 'Test API Client for Non-Draft Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2543,7 +2543,7 @@ describe('Role-Based Access Control', () => {
 
     it('denies a client that cannot read the collection at all', async () => {
       const client = await testData.createClient(payload, versionAdmin.id, {
-        name: 'Atlas Client for Version History Test',
+        label: 'Atlas Client for Version History Test',
         roles: ['sahaj-atlas-client'],
         enabled: true,
       })
@@ -2578,7 +2578,7 @@ describe('Role-Based Access Control', () => {
       // The wider blast radius: this client reads published pages every day.
       // Read authority must not carry version history with it.
       const client = await testData.createClient(payload, versionAdmin.id, {
-        name: 'Web Client for Version History Test',
+        label: 'Web Client for Version History Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2894,7 +2894,7 @@ describe('Role-Based Access Control', () => {
       expect(asAdmin.totalDocs).toBeGreaterThan(0)
 
       const client = await testData.createClient(payload, versionAdmin.id, {
-        name: 'Web Client for Global Version History Test',
+        label: 'Web Client for Global Version History Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })
@@ -2914,7 +2914,7 @@ describe('Role-Based Access Control', () => {
       // which resolves against `read` — not through any versions operation. The
       // fix must not touch it.
       const client = await testData.createClient(payload, versionAdmin.id, {
-        name: 'Preview Client for Version History Test',
+        label: 'Preview Client for Version History Test',
         roles: ['wemeditate-web-client'],
         enabled: true,
       })

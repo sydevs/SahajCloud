@@ -36,14 +36,14 @@ export const EMAIL_CLIENT_SELECT = {
   color1: true,
   color2: true,
   logo: true,
-  name: true,
+  title: true,
   supportEmail: true,
   enabled: true,
   site: true,
   canonical: { owned: true, verification: true },
 } as const
 
-export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'name' | 'supportEmail'> &
+export type EmailClient = Pick<Client, 'color1' | 'color2' | 'logo' | 'title' | 'supportEmail'> &
   OwnershipFields
 
 export async function sendRegistrationConfirmation(args: {

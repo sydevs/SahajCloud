@@ -61,12 +61,14 @@ export default async function InstallView(
   const clientId = Number(doc?.id ?? initPageResult.docID)
 
   // Payload's own document views each set the breadcrumb; a custom one has to.
+  // `useAsTitle` is read off the config, so a field rename cannot leave a stale
+  // copy here.
   const stepNav = (
     <SetDocumentStepNav
       collectionSlug="clients"
       id={Number.isInteger(clientId) ? clientId : undefined}
       pluralLabel="Services"
-      useAsTitle="name"
+      useAsTitle={req.payload.collections.clients.config.admin?.useAsTitle}
       view="Install"
     />
   )

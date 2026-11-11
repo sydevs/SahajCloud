@@ -20,14 +20,14 @@ export async function clientNameFor(req: PayloadRequest, clientId: number | null
     collection: 'clients',
     id: clientId,
     depth: 0,
-    select: { name: true },
+    select: { label: true },
     overrideAccess: true,
     disableErrors: true,
     req,
   })
 
-  return typeof client?.name === 'string' && client.name.trim() !== ''
-    ? client.name
+  return typeof client?.label === 'string' && client.label.trim() !== ''
+    ? client.label
     : UNKNOWN_CLIENT
 }
 
