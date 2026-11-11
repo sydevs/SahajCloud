@@ -9,10 +9,11 @@ import type {
   VerificationResult,
 } from '@/lib/clients/verification'
 import type { RenderDeps } from '@/lib/embedVerification/browserRendering'
+import { persistVerification } from '@/lib/embedVerification/persistVerification'
 import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import type { Client, TaskVerifyEmbeds } from '@/payload-types'
-import { getPgPool, quotedDbSchema } from '@/plugins/usage'
+import { getPgPool } from '@/plugins/usage'
 
 /**
  * Re-verify the embeds that canonical URLs are built from (#633 follow-up).
@@ -38,9 +39,9 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
  * - **The routing probe never reaches `disable`.** It carries its own counter and its own limit
  *   (#644). A routing negative means the embed is present and publishing in `?atlas=` shape, not
  *   that it is gone, so sharing the failure budget would take a working canonical out of service.
- * - **Writes go through raw SQL, not `payload.update`.** The usage plugin increments
- *   `usage_daily_requests` on these same rows on its own connection; holding one inside a request
- *   transaction is what deadlocked `POST /api/clients/report` (fixed in 1554fcb1).
+ * - **Writes go through `persistVerification`**, which the Check endpoint shares: raw SQL rather
+ *   than `payload.update`, and conditional on the state the fold was computed from, so the two
+ *   writers cannot discard each other's attempt and failure count (#1116).
  */
 
 /**
@@ -53,15 +54,6 @@ type DueClient = Pick<Client, 'id' | 'canonical' | 'site' | 'language'>
 
 /** The task's output, off its `outputSchema` below. */
 type VerifyResult = TaskVerifyEmbeds['output']
-
-/** Persist one service's outcome. Raw SQL — see the note above. */
-const updateSql = (quotedSchema: string) => `
-  UPDATE ${quotedSchema}.clients
-  SET canonical_verification = $1::jsonb,
-      canonical_next_verify_at = $2,
-      canonical_owned = CASE WHEN $3::boolean THEN false ELSE canonical_owned END
-  WHERE id = $4
-`
 
 /**
  * Services due for a check.
@@ -148,12 +140,10 @@ export async function runVerifyEmbeds(args: {
     seoFailing: 0,
   }
 
-  const pool = getPgPool(req)
-  if (!pool) {
+  if (!getPgPool(req)) {
     payload.logger.error({ msg: 'VerifyEmbeds: Postgres pool unavailable; skipping run' })
     return result
   }
-  const schema = quotedDbSchema(req)
 
   for (const client of await dueClients(payload, req, now)) {
     const mount = primaryPageUrl(client.site)
@@ -176,18 +166,30 @@ export async function runVerifyEmbeds(args: {
     })
     result[outcome.status]++
 
+    let written = false
     try {
-      await pool.query(updateSql(schema), [
-        JSON.stringify(verification),
-        transition.nextVerifyAt,
-        transition.disable,
-        client.id,
-      ])
+      written = await persistVerification({
+        req,
+        clientId: client.id,
+        expect: current,
+        verification,
+        nextVerifyAt: transition.nextVerifyAt,
+        disable: transition.disable,
+      })
     } catch (error) {
       payload.logger.error({
         msg: 'VerifyEmbeds: could not persist a verification outcome',
         clientId: client.id,
         error: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+    // A press of Check wrote its own verdict while this render ran, and that
+    // one looked at the page later. Nothing below describes this row any more.
+    if (!written) {
+      payload.logger.info({
+        msg: 'VerifyEmbeds: a Check landed during this render; keeping its verdict',
+        clientId: client.id,
       })
       continue
     }

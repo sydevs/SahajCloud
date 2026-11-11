@@ -1,7 +1,7 @@
-import type { Payload, PayloadRequest, TaskConfig } from 'payload'
+import type { Payload, PayloadRequest, TaskConfig, Where } from 'payload'
 
-import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import {
   asNotificationLog,
@@ -29,16 +29,6 @@ import { isEventVerificationEnabled } from './featureFlag'
 import { reminderButtonUrl } from './verifyUrl'
 
 /**
- * Cap the verification log the same way `appendLogEntry` caps a delivery log.
- * Not that helper directly: these entries are the richer `NotificationLogEntry`
- * union rather than the shared `LogEntry` shape. A cycle reset usually keeps
- * this short, but a long escalation across many region managers can pile up.
- */
-function capLog<T>(log: T[]): T[] {
-  return log.length > DEFAULT_LOG_LIMIT ? log.slice(log.length - DEFAULT_LOG_LIMIT) : log
-}
-
-/**
  * The job's own name for the shared bookkeeping write. The rule it applies —
  * a derived-bookkeeping write must not re-validate stored data — and the
  * hazards it carries live on `updateEventBookkeeping` (#842).
@@ -50,9 +40,10 @@ async function updateBookkeeping(
   // This job's own allowance, narrower than the shared helper's ceiling. The
   // type is what keeps a fifth field out of a write that skips validation, so
   // it stays here rather than widening to every bookkeeping writer's fields.
-  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | 'activityLog' | '_status'>>,
-): Promise<void> {
-  await updateEventBookkeeping({ payload, id, data, req })
+  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | '_status'>>,
+  expect?: Where,
+): Promise<boolean> {
+  return updateEventBookkeeping({ payload, id, data, req, expect })
 }
 
 interface ExpireResult {
@@ -257,23 +248,23 @@ async function processEvent(args: {
 
     // Persist the log entry immediately — it's the exactly-once marker, so a
     // crash mid-fan-out resumes by sending only the still-missing recipients.
-    log = capLog([
-      ...log,
-      buildReminderEntry({
-        stage,
-        level: action.level,
-        role: recipient.role,
-        region: recipient.regionName,
-        manager: {
-          id: recipient.manager.id,
-          name: recipient.manager.name || recipient.destination,
-        },
-        channel: recipient.channel,
-        destination: recipient.destination,
-        at: now.toISOString(),
-      }),
-    ])
-    await updateBookkeeping(payload, req, event.id, { activityLog: log })
+    // Appended in the database rather than written back from `log`, so a
+    // manager verifying mid-run keeps the entry their verify wrote.
+    const entry = buildReminderEntry({
+      stage,
+      level: action.level,
+      role: recipient.role,
+      region: recipient.regionName,
+      manager: {
+        id: recipient.manager.id,
+        name: recipient.manager.name || recipient.destination,
+      },
+      channel: recipient.channel,
+      destination: recipient.destination,
+      at: now.toISOString(),
+    })
+    await appendLogEntry({ payload, collection: 'events', id: event.id, entry, req })
+    log = [...log, entry]
     result.remindersSent++
   }
 
@@ -283,13 +274,27 @@ async function processEvent(args: {
   // won't age the event further. Managers are an auth collection (email always
   // present), so the only non-delivery is a transient transport outage, which
   // self-heals on the next daily run rather than silently skipping a reminder.
+  //
+  // ⚠ **Only while the event is still on the stage this run read.** A manager
+  // verifying during the fan-out moves it to `verified` with a watermark of
+  // their own, and writing this stage over that reverts the verification — on
+  // the `urgent` step, by unpublishing a listing somebody has just vouched for.
   if (allDelivered) {
-    await updateBookkeeping(payload, req, event.id, {
-      verificationStage: action.nextStage,
-      nextCheckAt: nextCheckAtIso,
-      ...(unpublishes ? { _status: 'draft' } : {}),
-    })
-    result.advanced++
+    const advanced = await updateBookkeeping(
+      payload,
+      req,
+      event.id,
+      {
+        verificationStage: action.nextStage,
+        nextCheckAt: nextCheckAtIso,
+        ...(unpublishes ? { _status: 'draft' } : {}),
+      },
+      {
+        verificationStage: { equals: stage },
+        nextCheckAt: { equals: event.nextCheckAt },
+      },
+    )
+    if (advanced) result.advanced++
   }
 }
 

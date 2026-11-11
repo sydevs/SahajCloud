@@ -532,7 +532,7 @@ describe('ExpireEvents job', () => {
         })
 
       await expect(write('not-a-stage')).rejects.toThrow(/Verification Process/)
-      await expect(write('reminded')).resolves.toBeUndefined()
+      await expect(write('reminded')).resolves.toBe(true)
       expect((await reload(payload, event.id)).verificationStage).toBe('reminded')
     })
 

@@ -6,6 +6,7 @@ import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { ReportedMount } from '@/lib/clients/site'
 import { isPrimaryPage, normalizeMountPath, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
+import { CANONICAL_FAILURE_LIMIT } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
@@ -124,12 +125,23 @@ export function buildInstallModel(args: {
   // so one passing there says nothing about another.
   if (track) inferEarlierSteps(stepStatus, track.steps)
 
+  // ⚠ **Both halves of this read the ladder's own vocabulary, not the attempt
+  // count.** `attempts` records an inconclusive result too — our quota, a bot
+  // challenge, checks not configured — and none of those is evidence about the
+  // install, so a service whose history holds nothing else is still only
+  // `seen`. And a service past {@link CANONICAL_FAILURE_LIMIT} keeps its
+  // last-good snapshot on purpose (`nextVerificationState`), so reading
+  // `verified` alone told a released site its atlas was live.
+  const released = (verification?.failureCount ?? 0) >= CANONICAL_FAILURE_LIMIT
+  const live = Boolean(verification?.verified) && !released
+  const refused = verification?.attempts.some((attempt) => attempt.status === 'failed') ?? false
+
   const stage: InstallStage = busy
     ? 'verifying'
     : candidate === null
       ? 'waiting'
-      : !verification?.verified
-        ? (verification?.attempts.length ?? 0) > 0
+      : !live
+        ? refused
           ? 'failed'
           : 'seen'
         : failures.length > 0

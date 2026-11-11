@@ -1,9 +1,9 @@
 import type { SubmissionScreeningResult, SubmissionVerdict } from './verdicts'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { appendLogEntry, asLog } from '@/fields'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
@@ -111,18 +111,23 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
         // A pass leaves the row `pending` — delivery is what settles it. Only a
         // refusal is terminal here.
         ...(passed ? {} : { status: 'spam' as const }),
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'screening',
-          key: 'screening',
-          verdict,
-          cells: {
-            activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
-          },
-        }),
       },
       overrideAccess: true,
       context: { skipWriteGuard: true },
+      req,
+    })
+
+    await appendLogEntry({
+      payload,
+      collection: 'user-submissions',
+      id: submissionId,
+      entry: {
+        at: now.toISOString(),
+        type: 'screening',
+        key: 'screening',
+        verdict,
+        cells: { activity: passed ? 'Screening passed' : `Screening refused: ${verdict}` },
+      },
       req,
     })
 

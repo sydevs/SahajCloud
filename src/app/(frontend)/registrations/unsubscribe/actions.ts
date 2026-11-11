@@ -5,7 +5,7 @@ import type { UnsubscribeOutcome } from './UnsubscribeCard'
 import { getPayload } from 'payload'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import type { LocaleCode } from '@/lib/locales'
 import { readUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { EMAIL_STRING_DEFAULTS, resolveEmailStrings } from '@/lib/translations/emailStrings'
@@ -64,16 +64,19 @@ export async function unsubscribeAction(
       await payload.update({
         collection: 'user-submissions',
         id: registration.id,
-        data: {
-          unsubscribedAt: now,
-          activityLog: appendLogEntry(asLog(registration.activityLog), {
-            at: now,
-            type: 'unsubscribe',
-            key: 'reminders',
-            cells: { activity: 'Unsubscribed from reminders' },
-          }),
-        },
+        data: { unsubscribedAt: now },
         overrideAccess: true,
+      })
+      await appendLogEntry({
+        payload,
+        collection: 'user-submissions',
+        id: registration.id,
+        entry: {
+          at: now,
+          type: 'unsubscribe',
+          key: 'reminders',
+          cells: { activity: 'Unsubscribed from reminders' },
+        },
       })
     }
 

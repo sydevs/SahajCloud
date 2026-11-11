@@ -85,22 +85,6 @@ export function asLog(value: unknown): LogEntry[] {
 }
 
 /**
- * Append an entry, dropping the oldest once `limit` is reached.
- *
- * Trimming is why this exists rather than `[...log, entry]` at each call site.
- * A reminder log on a weekly class gains an entry per occurrence — 52 a year,
- * read and rewritten on every send — and nothing was bounding it.
- */
-export function appendLogEntry(
-  log: LogEntry[],
-  entry: LogEntry,
-  limit: number = DEFAULT_LOG_LIMIT,
-): LogEntry[] {
-  const appended = [...log, entry]
-  return appended.length > limit ? appended.slice(appended.length - limit) : appended
-}
-
-/**
  * Has this exact thing already been logged? The guard a job checks before
  * sending, so a task retry or an overlapping run never double-sends.
  *
@@ -119,9 +103,9 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
  * is its own line — leaves no key a later reader could name. `mergeRepeatRegistration`
  * is one, and the manager's registration notice is worded from this.
  *
- * ⚠ **The answer is capped**, because {@link appendLogEntry} drops the oldest
- * entry past `limit`. Read it where the entry is recent, never as a permanent
- * fact about the row. A column is what outlives the window.
+ * ⚠ **The answer is capped**, because an append drops the oldest entry past
+ * {@link DEFAULT_LOG_LIMIT}. Read it where the entry is recent, never as a
+ * permanent fact about the row. A column is what outlives the window.
  */
 export function hasLogEntryType(log: LogEntry[], type: string): boolean {
   return log.some((entry) => entry.type === type)
@@ -142,8 +126,8 @@ const logCellSchema = z.union([
 /**
  * The shape every activity log holds. Mirrors {@link LogEntry}.
  *
- * **Every property optional, and no `required` list**, even though
- * `appendLogEntry` has always written all three of `at`, `type` and `cells`.
+ * **Every property optional, and no `required` list**, even though every
+ * writer has always written all three of `at`, `type` and `cells`.
  * Payload runs this validator on **every save of the document**, including one
  * that never touches the log — so a `required` key makes any row holding an
  * older entry permanently unsaveable, and this column predates the factory: it
@@ -170,10 +154,10 @@ const activityLogSchema = z
         .optional(),
     }),
   )
-  // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` on every append, but that is
-  // the writers' discipline, not the column's. The bound belongs here too, or a
-  // single write that bypasses the helper stores an unbounded array. Generous
-  // enough that no legitimate log approaches it.
+  // `appendLogEntry` trims to `DEFAULT_LOG_LIMIT` in the statement that
+  // appends, but that is the writers' discipline, not the column's. The bound
+  // belongs here too, or a single write that bypasses the helper stores an
+  // unbounded array. Generous enough that no legitimate log approaches it.
   .max(500)
 
 export interface LogFieldOptions {
@@ -182,7 +166,7 @@ export interface LogFieldOptions {
   label?: JSONField['label']
   /** Shown under the table — say what this log records and when it's written. */
   description: string
-  /** Cap, for the description only; `appendLogEntry` is what enforces it. */
+  /** Cap, for the description only; `@/lib/atomicWrites` is what enforces it. */
   limit?: number
   /**
    * The columns, in order. Omit to derive them from whatever the entries

@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
@@ -197,32 +197,34 @@ export async function applyReview(args: {
    * have carried: on a new-event accept it stamps the `event` relationship, and
    * that id does not exist until the create below has run.
    */
-  const decide = (activity: string, extra?: Record<string, unknown>) =>
-    payload.update({
+  const decide = async (activity: string, extra?: Record<string, unknown>) => {
+    if (extra) {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submission.id,
+        data: extra,
+        // Nothing reads the result, and `depth: 0` is what stops Payload paying
+        // for it: at the config's default depth this row's afterRead populates
+        // six relationships and recomputes both virtual review projections — a
+        // second `mergeProposal` and a second whole-Events diff per decision.
+        depth: 0,
+        overrideAccess: true,
+        // This write forwards the reviewing manager's `req`, so the review hook
+        // would see it too. It moves no status, so `reviewMove` already answers
+        // `none` — the flag is the belt, because a recursion here would create
+        // an event per turn.
+        context: { skipSubmissionReview: true, skipWriteGuard: true },
+        req,
+      })
+    }
+    await appendLogEntry({
+      payload,
       collection: 'user-submissions',
       id: submission.id,
-      data: {
-        ...extra,
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'review',
-          managerId,
-          cells: { activity },
-        }),
-      },
-      // Nothing reads the result, and `depth: 0` is what stops Payload paying
-      // for it: at the config's default depth this row's afterRead populates
-      // six relationships and recomputes both virtual review projections — a
-      // second `mergeProposal` and a second whole-Events diff per decision.
-      depth: 0,
-      overrideAccess: true,
-      // This write forwards the reviewing manager's `req`, so the review hook
-      // would see it too. It moves no status, so `reviewMove` already answers
-      // `none` — the flag is the belt, because a recursion here would create an
-      // event per turn.
-      context: { skipSubmissionReview: true, skipWriteGuard: true },
+      entry: { at: now.toISOString(), type: 'review', managerId, cells: { activity } },
       req,
     })
+  }
 
   if (action === 'confirm-spam') {
     await decide('Confirmed as spam')
