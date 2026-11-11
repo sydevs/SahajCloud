@@ -38,6 +38,13 @@ const weekly = (hour: number) => ({
 /** The VEVENT block alone — VTIMEZONE carries an `X-LIC-LOCATION` of its own. */
 const vevent = (ics: string) => ics.slice(ics.indexOf('BEGIN:VEVENT'), ics.indexOf('END:VEVENT'))
 
+/** A VEVENT property's value, or undefined when it declares none. */
+const property = (ics: string, name: string) =>
+  vevent(ics)
+    .split('\r\n')
+    .find((eachLine) => eachLine.startsWith(`${name}:`))
+    ?.slice(name.length + 1)
+
 /** Whether the VEVENT declares a property, matched at the start of its own line. */
 const hasProperty = (ics: string, property: string) =>
   vevent(ics)
@@ -130,12 +137,60 @@ describe('event calendar feed', () => {
 
       expect(raw).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT1H')
       expect(raw).toContain('X-PUBLISHED-TTL:PT1H')
-      expect(raw).toContain('SEQUENCE:0')
+      expect(Number(property(raw, 'SEQUENCE'))).toBeGreaterThan(0)
       expect(raw).toContain('LAST-MODIFIED:')
     })
 
     it('carries the venue as LOCATION', async () => {
       expect((await anon(await feedPath(eventId))).raw).toContain('12 Example Street')
+    })
+
+    // The online rule below withholds the description. An in-person class keeps it,
+    // or that rule would read as "the feed never carries one".
+    it('carries an in-person class description', async () => {
+      const described = await createClass({
+        title: 'Described Class',
+        eventType: 'offline',
+        address: {
+          street: '9 Other Street',
+          city: 'Bath',
+          country: 'United Kingdom',
+          latitude: 51.38,
+          longitude: -2.36,
+        },
+        schedule: weekly(16),
+        description: {
+          root: {
+            type: 'root',
+            format: '',
+            indent: 0,
+            version: 1,
+            direction: 'ltr',
+            children: [
+              {
+                type: 'paragraph',
+                format: '',
+                indent: 0,
+                version: 1,
+                direction: 'ltr',
+                children: [
+                  {
+                    type: 'text',
+                    detail: 0,
+                    format: 0,
+                    mode: 'normal',
+                    style: '',
+                    text: 'Bring a cushion.',
+                    version: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })
+
+      expect((await anon(await feedPath(described.id))).raw).toContain('Bring a cushion.')
     })
 
     // A subscribed feed is a read of `events`, so a write to any class must be able to
@@ -209,11 +264,19 @@ describe('event calendar feed', () => {
       expect(hasProperty(response.raw, 'DESCRIPTION')).toBe(false)
     })
 
-    it('drops a description that repeats the joining link rather than half-redacting it', async () => {
+    /**
+     * Matching the stored `onlineUrl` against the text cannot be relied on — a trailing
+     * slash or an extra query parameter differs while both still open the room — so an
+     * online class ships no description at all, whatever it says.
+     */
+    it('ships no description for an online class, link in the text or not', async () => {
       const withLink = await createClass({
         title: 'Online With Link In Text',
         eventType: 'online',
-        onlineUrl: JOIN_URL,
+        // Stored with a trailing slash, written without one. Both open the room, and
+        // neither contains the other — which is what the substring guard this
+        // replaced could not see.
+        onlineUrl: `${JOIN_URL}/`,
         schedule: weekly(10),
         description: {
           root: {
@@ -248,6 +311,7 @@ describe('event calendar feed', () => {
 
       const raw = (await anon(await feedPath(withLink.id))).raw
       expect(raw).not.toContain(JOIN_URL)
+      expect(raw).not.toContain('meet.example.com')
       expect(hasProperty(raw, 'DESCRIPTION')).toBe(false)
     })
   })
@@ -274,8 +338,7 @@ describe('event calendar feed', () => {
         onlineUrl: JOIN_URL,
         schedule: weekly(11),
       })
-      const live = (await anon(await feedPath(event.id))).raw
-      expect(live).toContain('SEQUENCE:0')
+      const liveRevision = Number(property((await anon(await feedPath(event.id))).raw, 'SEQUENCE'))
 
       await payload.update({ collection: 'events', id: event.id, data: { _status: 'draft' } })
       const cancelled = await anon(await feedPath(event.id))
@@ -284,8 +347,33 @@ describe('event calendar feed', () => {
       expect(cancelled.raw).toContain(`UID:event-${event.id}@cloud.sydevelopers.com`)
       expect(cancelled.raw).toContain('STATUS:CANCELLED')
       // Strictly higher, or a subscribed client ignores the revision and keeps the class.
-      expect(cancelled.raw).toContain('SEQUENCE:1')
+      expect(Number(property(cancelled.raw, 'SEQUENCE'))).toBeGreaterThan(liveRevision)
       expect(cancelled.raw).not.toContain(JOIN_URL)
+    })
+
+    /**
+     * The other direction, which two fixed sequence numbers could not express.
+     * ExpireEvents unpublishes a class on its own when verification lapses, so a
+     * republish that every subscriber ignored would leave the class cancelled for good.
+     */
+    it('outranks its own cancellation again when the class is republished', async () => {
+      const event = await createClass({
+        title: 'Republished Class',
+        eventType: 'online',
+        onlineUrl: 'https://example.com/republished',
+        schedule: weekly(15),
+      })
+      await payload.update({ collection: 'events', id: event.id, data: { _status: 'draft' } })
+      // The lapse was ten days ago, which is the shape this is about — and it makes the
+      // comparison deterministic, since whole seconds would tie inside one test tick.
+      await backdateUpdatedAt(event.id, 10)
+      const cancelled = Number(property((await anon(await feedPath(event.id))).raw, 'SEQUENCE'))
+
+      await payload.update({ collection: 'events', id: event.id, data: { _status: 'published' } })
+      const republished = await anon(await feedPath(event.id))
+
+      expect(republished.raw).not.toContain('STATUS:CANCELLED')
+      expect(Number(property(republished.raw, 'SEQUENCE'))).toBeGreaterThan(cancelled)
     })
 
     it('stops answering more than 90 days after it was unpublished', async () => {
@@ -384,6 +472,42 @@ describe('event calendar feed', () => {
       })
       const event = hydrated.event
       expect(typeof event === 'object' && event !== null && 'calendarFeedUrl' in event).toBe(false)
+    })
+
+    /**
+     * A finished class stays published on purpose (#603), so without this the widget
+     * would render a subscribe row over an address the feed answers 404 for.
+     */
+    it('is null for a published class whose schedule has run out', async () => {
+      const finished = await createClass({
+        title: 'Finished Addressed Class',
+        eventType: 'online',
+        onlineUrl: 'https://example.com/finished-addressed',
+        schedule: { firstDate: '2021-04-01T10:00:00Z', firstDate_tz: 'Europe/London' },
+      })
+
+      const doc = await payload.findByID({
+        collection: 'events',
+        id: finished.id,
+        select: { calendarFeedUrl: true },
+      })
+      expect(doc.calendarFeedUrl).toBeNull()
+    })
+
+    it('is null for a class with no resolvable schedule', async () => {
+      const dormant = await testData.createEvent(payload, {
+        title: 'Dormant Class',
+        manager: managerId,
+        region: regionId,
+        _status: 'published',
+      } as never)
+
+      const doc = await payload.findByID({
+        collection: 'events',
+        id: dormant.id,
+        select: { calendarFeedUrl: true },
+      })
+      expect(doc.calendarFeedUrl).toBeNull()
     })
 
     it('is null for an unpublished class', async () => {

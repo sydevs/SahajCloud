@@ -43,6 +43,7 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   adminOnlyCondition,
@@ -843,7 +844,7 @@ export const Events: CollectionConfig = {
           name: 'calendarFeedUrl',
           type: 'text',
           virtual: true,
-          custom: virtualFieldInputs('_status'),
+          custom: virtualFieldInputs('_status', 'schedule', 'inactive'),
           admin: {
             readOnly: true,
             disableListColumn: true,
@@ -855,6 +856,13 @@ export const Events: CollectionConfig = {
               async ({ data, findMany, req }) => {
                 if (findMany || !data?.id) return null
                 if (!isPublished(data._status, req.locale)) return null
+                // ⚠ The three states the feed itself answers 404 for, and a
+                // published class can be in all three: a finished class stays
+                // published on purpose (#603), and one with no resolvable schedule
+                // has no document to build. An address for any of them is a menu
+                // row that opens nothing.
+                if (!data.schedule?.firstDate) return null
+                if (shouldFinish({ inactive: data.inactive, schedule: data.schedule })) return null
                 const token = await signEventCalendarToken(
                   { eventId: Number(data.id) },
                   req.payload.secret,

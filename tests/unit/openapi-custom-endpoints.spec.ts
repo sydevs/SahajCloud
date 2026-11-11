@@ -70,6 +70,12 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     expect(operation?.responses?.['403']).toBeUndefined()
   })
 
+  // `specFilter` applies `security: [{ 'API-Key': [] }]` to the whole spec, so an
+  // operation that accepts no credential has to clear it or the contract demands one.
+  it('publishes the calendar feed as taking no credential', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/events/calendar/{token}.ics']?.get?.security).toEqual([])
+  })
+
   // Whoever subscribes cannot infer any of this from the path, and a reader who
   // sees no auth gate documented has to be told that is deliberate.
   it('documents that the feed takes no API key and what a withdrawn class answers', () => {

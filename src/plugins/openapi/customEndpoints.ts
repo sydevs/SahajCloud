@@ -430,6 +430,10 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'Google publishes none, and an Outlook importer may ignore ' +
         '`X-PUBLISHED-TTL` outright. Expect a change to be picked up within a day.',
       operationId: 'eventCalendarFeed',
+      // ⚠ Clears the spec-wide `API-Key` requirement `specFilter` applies to every
+      // operation. Left inherited, the published contract would demand a credential
+      // this endpoint accepts none of, contradicting its own description.
+      security: [],
       parameters: [
         {
           name: 'token',

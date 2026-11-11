@@ -16,12 +16,35 @@ const CANCELLED_WINDOW_DAYS = 90
 /** Re-fetch hint, in seconds. A hint only — see `EventCalendarInput.ttl`. */
 const REFRESH_SECONDS = 60 * 60
 
-// A client ignores a revision that is not strictly higher than the one it holds,
-// so the cancellation has to outrank the live document it replaces. Two fixed
-// numbers rather than a counter: nothing stores a revision, and an edit that
-// changes the schedule changes the recurrence a client already re-reads.
-const LIVE_SEQUENCE = 0
-const CANCELLED_SEQUENCE = 1
+/**
+ * Where `SEQUENCE` counts from. Seconds since this date keeps the number small
+ * enough for a client that holds a revision in 32 bits, for the next few decades.
+ */
+const SEQUENCE_EPOCH_MS = Date.UTC(2026, 0, 1)
+
+/**
+ * The document's revision: whole seconds of `updatedAt`, and one more for a
+ * cancellation.
+ *
+ * ⚠ **A client ignores a revision that is not strictly higher than the one it
+ * holds**, and both directions have to work: a withdrawal must outrank the live
+ * document it replaces, and a later republish must outrank that withdrawal. Two
+ * fixed numbers only did the first, so an automatic unpublish on a verification
+ * lapse followed by a republish left every subscriber holding the cancellation
+ * for good. Each of those transitions is a write, so `updatedAt` is the monotonic
+ * counter nothing here has to store, and the `+1` covers the withdrawal landing in
+ * the same second as the state it replaces.
+ *
+ * shortcut: whole seconds, because milliseconds since any useful epoch overflow
+ * the 32 bits a client may hold a revision in. Two state changes inside two
+ * seconds of each other can therefore tie. Move to a stored counter if a writer
+ * ever appears that can make them that fast.
+ */
+function revisionOf(updatedAt: string | null | undefined, cancelled: boolean): number {
+  const at = updatedAt ? new Date(updatedAt).getTime() : NaN
+  const seconds = Number.isNaN(at) ? 0 : Math.max(0, Math.floor((at - SEQUENCE_EPOCH_MS) / 1000))
+  return cancelled ? seconds + 1 : seconds
+}
 
 /** The fields the feed reads. `webUrl` is virtual; its own inputs are restored by the plugin. */
 const FEED_SELECT = {
@@ -53,18 +76,18 @@ function feedLocation(event: Event): string | null {
 }
 
 /**
- * The description, less anything that would smuggle the joining link out.
+ * The description — for an in-person class only.
  *
- * The text is organiser-authored free text, and the feed is world-readable to
- * whoever holds the address, so a class whose description repeats its own join
- * URL ships no description at all rather than a half-redacted one.
+ * ⚠ **An online class ships none.** The text is organiser-authored free text and
+ * the feed is readable by anyone holding the address, so the only reliable way to
+ * keep a joining link out of it is not to send it. Matching the stored `onlineUrl`
+ * against the text is not reliable: a trailing slash or an extra query parameter
+ * makes the two differ while both still open the room.
  */
 function feedDescription(event: Event): string | null {
+  if (event.eventType === 'online') return null
   const text = lexicalToPlainText(event.description)
-  if (text === '') return null
-  const joinUrl = event.onlineUrl?.trim()
-  if (joinUrl && text.includes(joinUrl)) return null
-  return text
+  return text === '' ? null : text
 }
 
 /** Milliseconds since a timestamp, or `null` when it is missing or unparseable. */
@@ -126,6 +149,11 @@ export const eventCalendarFeed: Endpoint = {
 
     const now = Date.now()
     const live = isPublished(event._status, req.locale) && event.deletedAt == null
+    // ⚠ An unpublished class has no takedown timestamp of its own, so the window
+    // runs from `updatedAt` — which any later write restarts. The effect is that a
+    // class somebody keeps editing while unpublished keeps answering CANCELLED past
+    // 90 days, which is the harmless direction: it tells subscribers to drop a
+    // class that is in fact down.
     const withdrawnAge = ageMs(event.deletedAt ?? event.updatedAt, now)
 
     if (!live) {
@@ -148,14 +176,14 @@ export const eventCalendarFeed: Endpoint = {
       uid: `event-${event.id}@cloud.sydevelopers.com`,
       ttl: REFRESH_SECONDS,
       lastModified: event.deletedAt ?? event.updatedAt,
+      sequence: revisionOf(event.updatedAt, !live),
       ...(live
         ? {
             location: feedLocation(event),
             description: feedDescription(event),
             url: event.webUrl,
-            sequence: LIVE_SEQUENCE,
           }
-        : { status: ICalEventStatus.CANCELLED, sequence: CANCELLED_SEQUENCE }),
+        : { status: ICalEventStatus.CANCELLED }),
     })
     // An `inactive` class carries no resolvable schedule, so the builder answers
     // null and there is nothing to serve.
