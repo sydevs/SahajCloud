@@ -153,7 +153,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored, s
         </p>
         <p>
           {listId
-            ? `It will be checked against ${providerLabel} list ${listId}, which is saved with it.`
+            ? `It will be checked against ${providerLabel} list ${listId}, and your mailing-list settings are saved with it.`
             : 'Fill in the list ID above first — a key can only be checked against the list it will be used with.'}
         </p>
         <TextInput
