@@ -241,10 +241,10 @@ describe('Manager contacts (#908)', () => {
       expect(await staleAfter(STALE_SIGN_IN_MONTHS, 1)).toBe(true)
     })
 
-    it('sits under both pickers with the empty afterInput that re-renders it after a save', () => {
-      // ⚠ Without an `afterInput`, `renderField` renders a `Description` once
-      // and keeps it through a save, so the table would go on listing the
-      // managers the page loaded with.
+    it('sits under both pickers in the afterInput that re-renders it after a save', () => {
+      // ⚠ As a `Description`, `renderField` renders it once and keeps it
+      // through a save, so the table would go on listing the managers the page
+      // loaded with.
       for (const [collection, name] of [
         ['regions', 'managers'],
         ['events', 'manager'],
@@ -253,8 +253,7 @@ describe('Manager contacts (#908)', () => {
           (candidate) => candidate.name === name,
         ) as { admin?: { components?: Record<string, unknown> } } | undefined
         expect(field?.admin?.components, `${collection}.${name}`).toMatchObject({
-          Description: '@/components/admin/ManagerContacts',
-          afterInput: [],
+          afterInput: ['@/components/admin/ManagerContacts'],
         })
       }
     })

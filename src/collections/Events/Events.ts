@@ -644,11 +644,11 @@ export const Events: CollectionConfig = {
               admin: {
                 description:
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
-                // The description, then their contact details for admins and
-                // the managers above — gated inside the component (#908). ⚠ The
-                // empty `afterInput` keeps the table current after a save, as
-                // on `Regions.managers`.
-                components: { Description: MANAGER_CONTACTS, afterInput: [] },
+                // Their contact details for admins and the managers above —
+                // gated inside the component (#908). ⚠ `afterInput`, never
+                // `Description`, keeps the table current after a save, as on
+                // `Regions.managers`.
+                components: { afterInput: [MANAGER_CONTACTS] },
               },
             },
             {
