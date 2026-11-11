@@ -18,6 +18,9 @@ import { CREDENTIAL_KEYS, MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList
 
 const DRAWER_SLUG = 'mailing-list-key'
 
+/** Shown where the refusal carries no words of its own. */
+const SAVE_FAILED = 'The key could not be saved.'
+
 /** Where the operator finds the secret, in each provider's own words. */
 const KEY_SOURCE: Record<MailingListProvider, string> = {
   brevo: 'The API key from your Brevo account, under SMTP & API.',
@@ -97,7 +100,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored, s
       } | null
 
       if (!response.ok) {
-        setFailure(body?.errors?.[0]?.message ?? 'The key could not be saved.')
+        setFailure(body?.errors?.[0]?.message ?? SAVE_FAILED)
         return
       }
 
@@ -107,6 +110,11 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored, s
       // Not "we checked it": a provider that could not be reached never
       // refuses the save, so the key may have gone in unproven.
       toast.success('Key saved.')
+    } catch {
+      // A rejected `fetch` — offline, DNS, a dropped connection — has no
+      // response to quote, and leaving `failure` null re-enables the button
+      // over an empty drawer.
+      setFailure(SAVE_FAILED)
     } finally {
       setSaving(false)
     }
