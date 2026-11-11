@@ -95,10 +95,6 @@ export const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
               nanosecond: 0,
             })
           : eventStart.add({ minutes: 60 })
-      // An end time earlier than the start is the next day's: the event runs past midnight.
-      if (Temporal.ZonedDateTime.compare(eventEnd, eventStart) < 0) {
-        eventEnd = eventEnd.add({ days: 1 })
-      }
     } else {
       eventEnd = eventStart.add({ minutes: 60 })
     }

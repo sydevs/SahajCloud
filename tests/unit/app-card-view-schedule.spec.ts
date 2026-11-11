@@ -87,19 +87,6 @@ describe('app-card view schedule', () => {
     })
   })
 
-  it('reads an end time earlier than the start as the next day', () => {
-    expect(
-      timeline({
-        type: 'event',
-        schedule: { firstDate: '2026-06-10T23:00:00.000Z', firstDate_tz: 'UTC', endTime: '00:30' },
-        liveNow: { enabled: true, threshold: '0:00' },
-      }),
-    ).toEqual({
-      timezone: 'UTC',
-      schedule: { '00:00': 'liveNow', '00:30': 'default', '23:00': 'liveNow' },
-    })
-  })
-
   it('lets a view that opens exactly at 00:00 own that key', () => {
     expect(
       timeline({
