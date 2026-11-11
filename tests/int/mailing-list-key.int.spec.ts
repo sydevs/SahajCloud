@@ -15,6 +15,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import type { MailingListConfig } from '@/lib/mailingList/types'
 import type { Client, Manager } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -23,12 +24,19 @@ import { createTestEnvironment } from '../utils/testHelpers'
 
 /** What the provider says next. `null` means it accepted the credentials. */
 let providerVerdict: string | null = null
+/** The credentials the provider was last asked about, or `null` if never. */
+let verifiedWith: MailingListConfig | null = null
 
 vi.mock('@/lib/mailingList/providers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/mailingList/providers')>()
   return {
     ...actual,
-    adapterFor: () => ({ verifyCredentials: async () => providerVerdict }),
+    adapterFor: () => ({
+      verifyCredentials: async (config: MailingListConfig) => {
+        verifiedWith = config
+        return providerVerdict
+      },
+    }),
   }
 })
 
@@ -153,10 +161,13 @@ describe('Mailing-list key', () => {
     })
 
     it('still proves a changed credential against the provider on a form save', async () => {
-      // ⚠ The key is absent from form state, so the save carries none. Without
-      // the stored key standing in, the hook's "is this configured" guard
-      // short-circuits and a changed provider goes in unproven.
+      // ⚠ The key is absent from form state, so the save carries none — and the
+      // provider is still handed the stored plaintext, because Payload
+      // back-fills an omitted field from the decrypted stored document before
+      // the hook runs. Asserting the argument is what tells that apart from a
+      // guard that short-circuited and proved nothing.
       providerVerdict = 'That list does not exist.'
+      verifiedWith = null
 
       await expect(
         payload.update({
@@ -168,6 +179,8 @@ describe('Mailing-list key', () => {
         }),
       ).rejects.toThrow(/That list does not exist/)
 
+      expect(verifiedWith?.apiKey).toBe(STORED_KEY)
+      expect(verifiedWith?.listId).toBe('list-2')
       providerVerdict = null
     })
 

@@ -48,22 +48,22 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   if (!incoming?.enabled) return data
 
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
-  // ⚠ **The key is write-only, so a form save carries none** (`secretField`). The
-  // stored one is what the other credentials will be used beside, so it is what
-  // they are proved against — without this the guard below short-circuits on
-  // every form save and a changed provider or list goes in unproven.
-  const config = { ...incoming, apiKey: incoming.apiKey ?? previous?.apiKey }
+
+  // ⚠ **A form save carries no key, and one still arrives here.** `secretField`
+  // keeps it out of form state, and Payload's `beforeValidate` field pass then
+  // back-fills the omitted field from the stored document, decrypted — so
+  // `incoming.apiKey` is the plaintext the provider must be asked about.
 
   // Incomplete credentials are Payload's `required` to refuse, not ours.
   // Pinging with a blank key would answer "that API key was refused", blaming
   // the operator for a field they have not filled in yet.
-  if (!isMailingListConfigured(config)) return data
-  const changed = CREDENTIAL_KEYS.some((key) => config[key] !== previous?.[key])
+  if (!isMailingListConfigured(incoming)) return data
+  const changed = CREDENTIAL_KEYS.some((key) => incoming[key] !== previous?.[key])
   // Nothing a provider could have an opinion about has changed. It said yes to
   // these exact values when they were entered.
   if (!changed) return data
 
-  const failure = await checkCredentials(config, req)
+  const failure = await checkCredentials(incoming, req)
   if (failure) {
     // `APIError`, not a field `validate`: the message is the provider's own
     // words, and a validator returning a foreign error string against one field
