@@ -54,6 +54,36 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
     expect(description).toContain('GET /api/events/{id}')
   })
 
+  it('registers the calendar feed with its token parameter and a documented 404', () => {
+    const operation = CUSTOM_ENDPOINT_PATHS['/api/events/calendar/{token}.ics']?.get
+    expect(operation).toBeDefined()
+    expect(operation?.tags).toEqual(['Events'])
+    expect(operation?.parameters).toEqual([
+      expect.objectContaining({ name: 'token', in: 'path', required: true }),
+    ])
+    // text/calendar as a plain string, so there is no schema entry to register.
+    expect(operation?.responses?.['200']?.content?.['text/calendar']?.schema).toEqual({
+      type: 'string',
+    })
+    expect(operation?.responses?.['404']).toBeDefined()
+    // No 403: the endpoint takes no credential, so there is nothing to refuse.
+    expect(operation?.responses?.['403']).toBeUndefined()
+  })
+
+  // Whoever subscribes cannot infer any of this from the path, and a reader who
+  // sees no auth gate documented has to be told that is deliberate.
+  it('documents that the feed takes no API key and what a withdrawn class answers', () => {
+    const description = (
+      CUSTOM_ENDPOINT_PATHS['/api/events/calendar/{token}.ics']?.get as { description?: string }
+    ).description
+    expect(description).toContain('No API key is accepted')
+    expect(description).toContain('calendarFeedUrl')
+    expect(description).toContain('STATUS:CANCELLED')
+    expect(description).toContain('90 days')
+    // The refresh hints are hints — no success line may rest on them.
+    expect(description).toContain('within a day')
+  })
+
   describe('filterSpec POST visibility', () => {
     // Minimal spec: the auto-generated events CRUD plus the hand-authored custom
     // subpaths, filtered for the project that owns `events`.

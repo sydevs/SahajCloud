@@ -36,8 +36,7 @@ export interface EventCalendarTokenClaims {
  * There is no `expired` state: these tokens never expire (see the module note).
  */
 export type EventCalendarTokenResult =
-  | { status: 'valid'; claims: EventCalendarTokenClaims }
-  | { status: 'invalid' }
+  { status: 'valid'; claims: EventCalendarTokenClaims } | { status: 'invalid' }
 
 /** Sign a calendar-feed token for one class. */
 export function signEventCalendarToken(

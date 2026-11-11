@@ -211,6 +211,8 @@
       "share": "Share",
       "add_calendar": "Add to calendar",
       "download_ics": "Download .ics file",
+      "calendar_keeps_updated": "Keeps itself up to date",
+      "calendar_next_session_only": "Adds the next session only",
       "view_photo": "View photo",
       "pause_slideshow": "Pause slideshow"
     },
