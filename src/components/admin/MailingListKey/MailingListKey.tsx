@@ -3,6 +3,7 @@
 import {
   Button,
   Drawer,
+  FieldLabel,
   TextInput,
   toast,
   useConfig,
@@ -25,12 +26,22 @@ export interface MailingListKeyProps {
 /** The credential fields the key is proven alongside, as the form holds them. */
 const useCredentials = () =>
   useFormFields(([fields]) => ({
-    clientId: fields['mailingList.clientId']?.value as string | undefined,
-    doiFlowId: fields['mailingList.doiFlowId']?.value as string | undefined,
-    doubleOptIn: fields['mailingList.doubleOptIn']?.value as boolean | undefined,
-    listId: fields['mailingList.listId']?.value as string | undefined,
-    provider: fields['mailingList.provider']?.value as MailingListProvider | undefined,
+    clientId: fields['mailingList.clientId']?.value as null | string | undefined,
+    doiFlowId: fields['mailingList.doiFlowId']?.value as null | string | undefined,
+    doubleOptIn: fields['mailingList.doubleOptIn']?.value as boolean | null | undefined,
+    listId: fields['mailingList.listId']?.value as null | string | undefined,
+    provider: fields['mailingList.provider']?.value as MailingListProvider | null | undefined,
   }))
+
+/**
+ * ⚠ **A field the provider does not show holds `null`, not nothing.** Form state
+ * carries every declared field whatever `admin.condition` says, so sending the
+ * object as it stands posts `clientId: null` for a Brevo list — which the
+ * endpoint refuses, and which would read as "clear the stored one" if it did
+ * not. What is absent here is what the stored row keeps.
+ */
+const posted = (credentials: Record<string, unknown>) =>
+  Object.fromEntries(Object.entries(credentials).filter(([, value]) => value != null))
 
 /**
  * Whether a mailing-list key is set, and the drawer that replaces it.
@@ -70,7 +81,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...credentials, apiKey: key }),
+        body: JSON.stringify({ ...posted(credentials), apiKey: key }),
       })
       const body = (await response.json().catch(() => null)) as {
         errors?: { message?: string }[]
@@ -96,6 +107,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
 
   return (
     <div className="field-type">
+      <FieldLabel label="API Key" />
       <p>
         {last4
           ? `A key is set, ending ••••${last4}.`
@@ -117,12 +129,15 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
           (`docs/rules/admin-ui.md`). */}
       <Drawer slug={DRAWER_SLUG} title={last4 ? 'Replace the API key' : 'Set the API key'}>
         <p>
-          {`The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it with ${providerLabel} before storing it, and it is never sent to your website.`}
+          {credentials.provider === 'cleverreach'
+            ? 'Your CleverReach app’s Client Secret, from Account → Extras → REST API.'
+            : `The secret from your ${providerLabel} account.`}{' '}
+          {`We check it with ${providerLabel} before storing it, and it is never sent to your website.`}
         </p>
         <p>
           {credentials.listId
             ? `It will be checked against ${providerLabel} list ${credentials.listId}, which is saved with it.`
-            : `Fill in the list ID above first — a key can only be checked against the list it will be used with.`}
+            : 'Fill in the list ID above first — a key can only be checked against the list it will be used with.'}
         </p>
         <TextInput
           label="API Key"
