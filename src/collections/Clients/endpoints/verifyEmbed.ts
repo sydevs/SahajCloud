@@ -9,9 +9,11 @@ import { primaryPageUrl, reportedMountsFor, supportsClassAddresses } from '@/lib
 import type { SeoCheckResult } from '@/lib/clients/verification'
 import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
-import { errorResponse, requireActiveManager } from '@/lib/endpoints'
+import { errorResponse } from '@/lib/endpoints'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
+
+import { loadManagedClient } from './managedClient'
 
 /** Whether this check made the service's site the home for its region's links, and why not. */
 export interface ClaimResult {
@@ -77,32 +79,12 @@ export const verifyEmbedOnDemand: Endpoint = {
   path: '/:id/verify-embed',
   method: 'post',
   handler: async (req) => {
-    const denied = requireActiveManager(req)
-    if (denied) return denied
-
-    const clientId = Number(req.routeParams?.id)
-    if (!Number.isInteger(clientId)) {
-      return errorResponse('Invalid service id.', 400)
-    }
-
-    // ⚠ **`overrideAccess: false`, with the caller's own `req`.**
-    // `requireActiveManager` admits any active manager, with no document check,
-    // so the row's own read access — the document-manager path
-    // (`docs/rules/access.md`) — decides whether this manager may touch this
-    // service. A press spends outbound fetches and can demote
-    // the `routingProbe` verdict (#1055); an unlisted manager gets the 404.
-    let client: Client
-    try {
-      client = await req.payload.findByID({
-        collection: 'clients',
-        id: clientId,
-        depth: 0,
-        overrideAccess: false,
-        req,
-      })
-    } catch {
-      return errorResponse('Service not found.', 404)
-    }
+    // A press spends outbound fetches and can demote the `routingProbe`
+    // verdict (#1055), so who reaches which service is `loadManagedClient`'s.
+    const gate = await loadManagedClient(req)
+    if (!gate.ok) return gate.response
+    const client = gate.client
+    const clientId = client.id
 
     const mount = primaryPageUrl(client.site)
     if (!mount) {

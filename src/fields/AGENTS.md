@@ -15,8 +15,11 @@ Three things it does, and one it refuses:
 - **Nobody reads it through the API.** Every consumer reads with
   `overrideAccess: true`, which skips field access while still running the
   decrypt. `admin.disabled` is the other half: the value is in no form state,
-  so Payload's live preview posts none of it to the iframe and a form save
-  carries no copy to write back.
+  so a form save carries no copy to write back over a newer one, and a live
+  preview — which posts `reduceFieldsToValues(formState)` — has none to send.
+  ⚠ **A server component that reads the value back owes its own gate**, because
+  a `form-state` request names the row and Payload checks only admin access:
+  `MailingListKeyField` re-reads with the caller's `req` first.
 - ⚠ **`''`, `null` and `undefined` pass through untouched, both ways.** A query
   telling a filled column from a blank one tests `not_equals: ''`
   (`LIST_ELIGIBLE`, `src/lib/atlas/mailingListOwners.ts`), and ciphertext for

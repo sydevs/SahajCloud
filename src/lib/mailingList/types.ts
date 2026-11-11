@@ -17,6 +17,29 @@ export type MailingListProvider = NonNullable<MailingListConfig['provider']>
  */
 export const MAILING_LIST_PROVIDERS = ['mailchimp', 'brevo', 'klaviyo', 'cleverreach'] as const
 
+/**
+ * Every field a provider has an opinion about, and so the whole credential
+ * vocabulary: what `validateMailingList` spends a round trip on, what
+ * `POST /api/clients/:id/mailing-list-key` accepts, and what its drawer sends.
+ *
+ * It lives here rather than beside any one of those, because a fifth provider
+ * field spelled in only two of the three is a key proven against a value the
+ * operator is not looking at.
+ *
+ * `doubleOptIn` is one of them because it changes **what** is checked, not only
+ * what is sent: with it on, CleverReach's `verifyCredentials` also reads the
+ * confirmation flow, so turning it back on makes a stored `doiFlowId`
+ * load-bearing again and worth proving.
+ */
+export const CREDENTIAL_KEYS = [
+  'provider',
+  'listId',
+  'apiKey',
+  'clientId',
+  'doiFlowId',
+  'doubleOptIn',
+] as const satisfies readonly (keyof MailingListConfig)[]
+
 /** What each provider is called, in the select and on the Install tab. */
 export const MAILING_LIST_PROVIDER_LABELS: Record<MailingListProvider, string> = {
   mailchimp: 'Mailchimp',

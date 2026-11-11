@@ -2425,7 +2425,7 @@ export interface Client {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
+     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here. Its Client Secret goes in under API Key, through Set key.
      */
     clientId?: string | null;
     /**

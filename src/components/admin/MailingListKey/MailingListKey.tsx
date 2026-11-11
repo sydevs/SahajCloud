@@ -13,43 +13,52 @@ import {
 } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
-import { MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList/types'
 import type { MailingListProvider } from '@/lib/mailingList/types'
+import { CREDENTIAL_KEYS, MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList/types'
 
 const DRAWER_SLUG = 'mailing-list-key'
+
+/** Where the operator finds the secret, in each provider's own words. */
+const KEY_SOURCE: Record<MailingListProvider, string> = {
+  brevo: 'The API key from your Brevo account, under SMTP & API.',
+  cleverreach: 'Your CleverReach app’s Client Secret, from Account → Extras → REST API.',
+  klaviyo: 'A private API key from your Klaviyo account, under Settings → API keys.',
+  mailchimp: 'An API key from your Mailchimp account, under Account → Extras → API keys.',
+}
 
 export interface MailingListKeyProps {
   /** The last characters of the stored key, or `null` while none is set. */
   readonly last4: null | string
+  readonly style: React.CSSProperties
 }
 
-/** The credential fields the key is proven alongside, as the form holds them. */
-const useCredentials = () =>
-  useFormFields(([fields]) => ({
-    clientId: fields['mailingList.clientId']?.value as null | string | undefined,
-    doiFlowId: fields['mailingList.doiFlowId']?.value as null | string | undefined,
-    doubleOptIn: fields['mailingList.doubleOptIn']?.value as boolean | null | undefined,
-    listId: fields['mailingList.listId']?.value as null | string | undefined,
-    provider: fields['mailingList.provider']?.value as MailingListProvider | null | undefined,
-  }))
-
 /**
- * ⚠ **A field the provider does not show holds `null`, not nothing.** Form state
- * carries every declared field whatever `admin.condition` says, so sending the
- * object as it stands posts `clientId: null` for a Brevo list — which the
- * endpoint refuses, and which would read as "clear the stored one" if it did
- * not. What is absent here is what the stored row keeps.
+ * The credential fields the key is proven alongside, as the form holds them.
+ * Read off `CREDENTIAL_KEYS` rather than listed again: a field the drawer did
+ * not send is proven against the stored value while the operator looks at a
+ * new one.
+ *
+ * ⚠ **A field the provider does not show holds `null`, not nothing.** Form
+ * state carries every declared field whatever `admin.condition` says, so the
+ * nulls are dropped here — the endpoint's patch leaves the stored value alone
+ * for every key it omits, and `null` would clear one.
  */
-const posted = (credentials: Record<string, unknown>) =>
-  Object.fromEntries(Object.entries(credentials).filter(([, value]) => value != null))
+const useCredentials = (): Record<string, unknown> =>
+  useFormFields(([fields]) =>
+    Object.fromEntries(
+      CREDENTIAL_KEYS.filter((key) => key !== 'apiKey')
+        .map((key) => [key, fields[`mailingList.${key}`]?.value])
+        .filter(([, value]) => value != null),
+    ),
+  )
 
 /**
  * Whether a mailing-list key is set, and the drawer that replaces it.
  *
- * ⚠ **The key never enters form state, in either direction.** That is the whole
- * point of the field being `secretField`: Payload posts form state into the live
- * preview iframe on every change, and a provider secret must not be in it. So
- * this holds the typed key in its own state, sends it to
+ * ⚠ **The key never enters form state, in either direction.** That is what
+ * `secretField` buys: form state is what Payload posts into a live-preview
+ * iframe and what a save writes back, and a provider secret belongs in
+ * neither. So this holds the typed key in its own state, sends it to
  * `POST /api/clients/:id/mailing-list-key`, and remembers only the last four
  * characters afterwards.
  *
@@ -57,7 +66,7 @@ const posted = (credentials: Record<string, unknown>) =>
  * key against exactly the values the form holds, and saves them with it, so the
  * next form save finds nothing changed and skips the provider round trip.
  */
-export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored }) => {
+export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored, style }) => {
   const { id } = useDocumentInfo()
   const {
     config: {
@@ -81,7 +90,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...posted(credentials), apiKey: key }),
+        body: JSON.stringify({ ...credentials, apiKey: key }),
       })
       const body = (await response.json().catch(() => null)) as {
         errors?: { message?: string }[]
@@ -103,12 +112,12 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
     }
   }
 
-  const providerLabel = credentials.provider
-    ? MAILING_LIST_PROVIDER_LABELS[credentials.provider]
-    : 'your provider'
+  const provider = credentials.provider as MailingListProvider | undefined
+  const listId = credentials.listId as string | undefined
+  const providerLabel = provider ? MAILING_LIST_PROVIDER_LABELS[provider] : 'your provider'
 
   return (
-    <div className="field-type">
+    <div className="field-type" style={style}>
       <FieldLabel label="API Key" />
       <p>
         {last4
@@ -131,14 +140,12 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
           (`docs/rules/admin-ui.md`). */}
       <Drawer slug={DRAWER_SLUG} title={last4 ? 'Replace the API key' : 'Set the API key'}>
         <p>
-          {credentials.provider === 'cleverreach'
-            ? 'Your CleverReach app’s Client Secret, from Account → Extras → REST API.'
-            : `The secret from your ${providerLabel} account.`}{' '}
+          {provider ? KEY_SOURCE[provider] : 'The secret from your mailing-list account.'}{' '}
           {`We check it with ${providerLabel} before storing it, and it is never sent to your website.`}
         </p>
         <p>
-          {credentials.listId
-            ? `It will be checked against ${providerLabel} list ${credentials.listId}, which is saved with it.`
+          {listId
+            ? `It will be checked against ${providerLabel} list ${listId}, which is saved with it.`
             : 'Fill in the list ID above first — a key can only be checked against the list it will be used with.'}
         </p>
         <TextInput
@@ -151,7 +158,7 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
         {failure ? <p className="field-error">{failure}</p> : null}
         <Button
           buttonStyle="primary"
-          disabled={saving || key.trim() === '' || !credentials.listId}
+          disabled={saving || key.trim() === '' || !listId}
           onClick={save}
         >
           {saving ? 'Checking…' : 'Save key'}

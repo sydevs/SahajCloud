@@ -389,7 +389,7 @@ const mailingListGroup: Field = {
       admin: {
         condition: (data) => providerShows(data, 'clientId'),
         description:
-          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.',
+          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here. Its Client Secret goes in under API Key, through Set key.',
       },
     },
     {
@@ -406,8 +406,8 @@ const mailingListGroup: Field = {
           'Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.',
       },
     },
-    // Write-only and encrypted at rest, so it is in no form state and in no
-    // live-preview message. `MailingListKey` below is the only way to set one.
+    // Write-only and encrypted at rest (`src/fields/AGENTS.md`), so it is in no
+    // form state. `MailingListKey` below is the only way to set one.
     secretField({ name: 'apiKey', label: 'API Key', writeAccess: managersOnlyFieldAccess }),
     {
       // Whether a key is set, its last four characters, and the button that

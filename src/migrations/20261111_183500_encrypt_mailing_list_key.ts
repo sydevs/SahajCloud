@@ -11,11 +11,10 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Payload's own cipher.** There is no SQL that does it: the key is derived from
 // `PAYLOAD_SECRET`, which the database knows nothing about.
 //
-// ⚠ **A blank column is left alone, both ways.** `LIST_ELIGIBLE`
-// (`src/lib/atlas/mailingListOwners.ts`) tells a filled key from a blank one
-// with "not equal to the empty string", and ciphertext for the empty string is
-// a non-empty string — converting one would offer a half-configured service as
-// a region's mailing-list owner. `secretField` skips the same case.
+// ⚠ **A blank column is left alone, both ways**, for the reason `secretField`
+// skips one (`src/fields/AGENTS.md`): ciphertext for the empty string is a
+// non-empty string, and `LIST_ELIGIBLE` reads that column as "not equal to the
+// empty string" to tell a configured service from a half-configured one.
 
 type Db = MigrateUpArgs['db']
 

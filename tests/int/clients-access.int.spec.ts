@@ -26,7 +26,7 @@
  */
 import type { Field, Payload, PayloadRequest } from 'payload'
 
-import { handleEndpoints } from 'payload'
+import { getFieldByPath, handleEndpoints } from 'payload'
 import { fieldIsHiddenOrDisabled } from 'payload/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -849,19 +849,16 @@ describe('Clients access', () => {
     })
 
     it('is in no form state, so live preview carries none of it', () => {
-      const group = payload.collections.clients.config.flattenedFields.find(
-        (field) => 'name' in field && field.name === 'mailingList',
-      )
-      const key =
-        group && 'flattenedFields' in group
-          ? group.flattenedFields.find((field) => 'name' in field && field.name === 'apiKey')
-          : undefined
+      const found = getFieldByPath({
+        fields: payload.collections.clients.config.flattenedFields,
+        path: 'mailingList.apiKey',
+      })
 
       // Read off the **booted** config, so `lockTabs` and Payload's own
       // sanitization have both run. `addFieldStatePromise` skips every field
-      // this answers true for, and `reduceFieldsToValues(formState)` is what
-      // the live-preview postMessage carries.
-      expect(fieldIsHiddenOrDisabled(key as Field)).toBe(true)
+      // this answers true for, and `reduceFieldsToValues(formState)` is what a
+      // live preview would post to its iframe.
+      expect(fieldIsHiddenOrDisabled(found!.field as Field)).toBe(true)
     })
 
     describe('the endpoint', () => {
@@ -889,6 +886,16 @@ describe('Clients access', () => {
         expect((await deliveryRead(service.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
       })
 
+      // Payload strips a field its `update` refuses rather than erroring, so
+      // without the endpoint's read-back this answers 200 having stored nothing.
+      it('refuses a service the Atlas tab’s own lock closes', async () => {
+        const service = await createListClient('No Atlas Role Service', { roles: [] })
+
+        const { status } = await setKey(listedRest, service.id, 'NO-ATLAS-ROLE-SECRET')
+        expect(status).toBe(403)
+        expect((await deliveryRead(service.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
+      })
+
       it('refuses a manager the service does not list', async () => {
         const outsideRest = await createRestClientAs({ payload, config }, outsideManager)
         const { status } = await setKey(outsideRest, listClient.id, 'OUTSIDER-SECRET')
@@ -908,21 +915,33 @@ describe('Clients access', () => {
         expect((await deliveryRead(listClient.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
       })
 
-      it('refuses a key it could not have proved', async () => {
-        const service = await createListClient('Endpoint Unprovable Service')
+      // ⚠ A key set while the list is off is proved by nothing — every
+      // `required` behind the group's condition stands down there — so
+      // switching the list on is what spends the round trip (#1109).
+      it('proves a key stored while the list was off, when it is switched on', async () => {
+        const service = await createListClient('Switched On Service')
         await payload.update({
           collection: 'clients',
           id: service.id,
           data: { mailingList: { enabled: false } },
           overrideAccess: true,
         })
-        // The fixture's own create proved its key; this case is about the call
-        // the endpoint must not make.
+        expect(await setKey(listedRest, service.id, 'OFF-LIST-SECRET')).toMatchObject({
+          status: 200,
+        })
         verifyCredentials.mockClear()
 
-        const { status } = await setKey(listedRest, service.id, 'UNPROVABLE-SECRET')
-        expect(status).toBe(400)
-        expect(verifyCredentials).not.toHaveBeenCalled()
+        await payload.update({
+          collection: 'clients',
+          id: service.id,
+          data: { mailingList: { enabled: true } },
+          overrideAccess: false,
+          req: managerReq(adminManager),
+        })
+        expect(verifyCredentials).toHaveBeenCalledWith(
+          expect.objectContaining({ apiKey: 'OFF-LIST-SECRET' }),
+          expect.anything(),
+        )
       })
     })
   })
