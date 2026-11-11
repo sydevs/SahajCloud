@@ -672,7 +672,11 @@ describe('text on a brand gradient', () => {
     // service on the atlas defaults must get the colour that reads on
     // `#1E6C71` alone, not the one the unpainted light stop would pick.
     expect(
-      brandTextColor({ dark: '#0d3b3e', light: ATLAS_DEFAULT_COLORS.color2, primary: ATLAS_DEFAULT_COLORS.color1 }),
+      brandTextColor({
+        dark: '#0d3b3e',
+        light: ATLAS_DEFAULT_COLORS.color2,
+        primary: ATLAS_DEFAULT_COLORS.color1,
+      }),
     ).toBe('#ffffff')
   })
 

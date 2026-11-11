@@ -5,20 +5,15 @@
  * only way the CMS can show a manager the colour visitors get is to ask the
  * preview and be told. The contract is sydevs/SahajAtlasWeb#389's.
  *
- * ⚠ **A subscriber names the origin it will hear from, and hears from no other**
- * — the pattern `playbackTimeStore` sets, and for the same reason: a message
- * accepted from any origin lets any page able to reach this window decide what
- * a manager is told their colours look like.
- *
- * Module-level rather than per-component because the three `ColorField`s are
- * siblings and one message answers all of them, and because a remount must not
- * blank a note that is still true.
- *
- * ⚠ **The cache is keyed by document**, and a message carries no id — the
- * subscriber supplies its own. Without that key, opening service B after service A
- * would show A's rendered colours under B's pickers, and offer a button writing
- * A's colour into B.
+ * The store, its origin filter and its per-document cache are
+ * `@/lib/livePreview/messageStore`, shared with the Frame editor's playhead.
+ * What belongs to this tab is the vocabulary below: the checks the widget runs,
+ * the sentence each explains itself with, and which field carries which role.
  */
+
+import { createPreviewMessageStore, type DocumentKey } from '@/lib/livePreview/messageStore'
+
+export type { DocumentKey }
 
 /** The checks the widget runs, and the sentence each one explains itself with. */
 export const ADJUSTMENT_REASONS = {
@@ -53,53 +48,18 @@ export const PREVIEW_MODE_MESSAGE = 'sahaj-atlas:preview-mode'
 
 export type PaletteReport = Partial<Record<BrandRole, RoleReport>>
 
-/** Which document a report describes — a `clients` row id, as the admin route names it. */
-export type DocumentKey = number | string
+const store = createPreviewMessageStore<PaletteReport>({
+  empty: {},
+  read: (data) =>
+    Object.fromEntries(
+      Object.entries((data.roles ?? {}) as Record<string, RoleReport>).filter(
+        ([, role]) => Array.isArray(role?.adjustedBy) && typeof role?.light === 'string',
+      ),
+    ) as PaletteReport,
+  type: PALETTE_REPORT_MESSAGE,
+})
 
-type Subscription = { cb: (report: PaletteReport) => void; document: DocumentKey; origin: string }
+export const { get: getCachedPaletteReport, subscribe: subscribePaletteReport } = store
 
-let cached: { document: DocumentKey; report: PaletteReport } | null = null
-const subscriptions = new Set<Subscription>()
-let listenerAttached = false
-
-const handleMessage = (event: MessageEvent): void => {
-  if (event.data?.type !== PALETTE_REPORT_MESSAGE) return
-
-  const listening = [...subscriptions].filter((entry) => entry.origin === event.origin)
-  if (listening.length === 0) return
-
-  // The shape crosses a window boundary, so it is narrowed rather than cast: a
-  // role whose `adjustedBy` is not an array would throw inside a picker's render
-  // and take the whole field down with it.
-  const report = Object.fromEntries(
-    Object.entries((event.data.roles ?? {}) as Record<string, RoleReport>).filter(
-      ([, role]) => Array.isArray(role?.adjustedBy) && typeof role?.light === 'string',
-    ),
-  ) as PaletteReport
-
-  cached = { document: listening[0]!.document, report }
-  listening.forEach((entry) => entry.cb(report))
-}
-
-/** The last report for `document`, or nothing — never another service's. */
-export const getCachedPaletteReport = (document: DocumentKey): PaletteReport =>
-  cached?.document === document ? cached.report : {}
-
-/** Listen for the atlas's report, from `origin` alone. Re-subscribe when it changes. */
-export function subscribePaletteReport(
-  cb: (report: PaletteReport) => void,
-  origin: string,
-  document: DocumentKey,
-): () => void {
-  if (!listenerAttached && typeof window !== 'undefined') {
-    listenerAttached = true
-    window.addEventListener('message', handleMessage)
-  }
-
-  const entry: Subscription = { cb, document, origin }
-  subscriptions.add(entry)
-
-  return () => {
-    subscriptions.delete(entry)
-  }
-}
+/** Test-only reset hook, reached by the direct module path. */
+export const __resetPaletteReportForTests = store.reset

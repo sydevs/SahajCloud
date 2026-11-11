@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  __resetPaletteReportForTests,
   ADJUSTMENT_REASONS,
   getCachedPaletteReport,
   PALETTE_REPORT_MESSAGE,
@@ -29,6 +30,9 @@ describe('the palette report', () => {
 
   afterEach(() => {
     unsubscribes.splice(0).forEach((stop) => stop())
+    // The cache and the listener are module-level, so without this a report one
+    // case left behind is what the next one reads.
+    __resetPaletteReportForTests()
   })
 
   const listen = (origin: string, document: number = 7) => {
