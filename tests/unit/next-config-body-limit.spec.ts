@@ -2,7 +2,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import nextConfig from '../../next.config.mjs'
+import nextConfig from '../../next.config'
 import {
   FILE_SIZE_LIMITS,
   UPLOAD_FILE_SIZE_LIMIT,
@@ -14,7 +14,7 @@ import { SRC, sourceOf } from '../utils/importGraph'
 /**
  * Lowering or removing `experimental.proxyClientMaxBodySize` is invisible: every
  * upload under Next's 10 MB default keeps working, and a larger one fails inside
- * Payload instead (#938). `next.config.mjs` carries the mechanism.
+ * Payload instead (#938). `next.config.ts` carries the mechanism.
  *
  * What is pinned is the ORDERING, not `cap >= each limit`. The latter holds even
  * for a limit above the request ceiling, which can never fire: that is how

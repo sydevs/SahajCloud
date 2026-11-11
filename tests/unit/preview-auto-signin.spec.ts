@@ -2,9 +2,10 @@
  * Who signs in without mail, and who gets passwords taken away (#840).
  *
  * `disableLocalStrategy` closes `POST /api/managers/login`, and the smoke lane was
- * its only non-human caller. What replaces it is one address the environment
- * names: `issueMagicLink` mints its session instead of mailing a link, so a
- * preview needs no second credential and no route of its own.
+ * its only non-human caller. What replaces it is a flag the environment sets:
+ * `issueMagicLink` mints a session for **any** manager instead of mailing a
+ * link, so a reviewer can be any manager in a preview and neither CI nor the
+ * loop needs a credential of its own.
  *
  * ⚠ **`passwordless` is per collection, not a branch inside a handler.** Applied
  * plugin-wide it would rewrite the auth columns of the next slug added to
@@ -21,12 +22,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { loginPlugin, type LoginCollectionConfig } from '@/plugins/login'
 
-const PREVIEW_EMAIL = 'preview-admin@example.com'
-
 const managers: LoginCollectionConfig = {
   slug: 'managers',
   passwordless: true,
-  previewAutoSignIn: PREVIEW_EMAIL,
+  previewAutoSignIn: true,
   requestPagePath: '/admin/login',
 }
 
@@ -36,8 +35,8 @@ const clients: LoginCollectionConfig = {
   requestPagePath: '/clients/signin',
 }
 
-/** `managers` as production, CI, local dev or a preview without the variable supplies it. */
-const withoutCredential: LoginCollectionConfig = { ...managers, previewAutoSignIn: undefined }
+/** `managers` as production, CI and local dev supply it. */
+const withoutCredential: LoginCollectionConfig = { ...managers, previewAutoSignIn: false }
 
 /** A collection as a plugin sees it: pre-`sanitizeConfig`, `endpoints` unset. */
 function collection(slug: string): CollectionConfig {
@@ -63,11 +62,11 @@ describe('the preview auto sign-in', () => {
     // endpoint, and a route that existed everywhere and refused everywhere would
     // be one env-var typo away from a way in on production. There is no route to
     // get wrong now, and this is what says so.
-    const withAddress = paths(fold({ collections: [managers] }, 'managers').managers!)
+    const onPreview = paths(fold({ collections: [managers] }, 'managers').managers!)
     const without = paths(fold({ collections: [withoutCredential] }, 'managers').managers!)
 
-    expect(withAddress).toEqual(without)
-    expect(withAddress).toEqual(expect.arrayContaining(['/request-magic-link', '/redeem']))
+    expect(onPreview).toEqual(without)
+    expect(onPreview).toEqual(expect.arrayContaining(['/request-magic-link', '/redeem']))
   })
 })
 
@@ -99,7 +98,7 @@ describe('taking passwords away', () => {
   })
 })
 
-describe('previewAdminEmail', () => {
+describe('previewSignInHere', () => {
   const setEnv = (values: Record<string, string | undefined>) => {
     for (const [key, value] of Object.entries(values)) {
       if (value === undefined) delete process.env[key]
@@ -112,36 +111,30 @@ describe('previewAdminEmail', () => {
   })
 
   afterEach(() => {
-    setEnv({ PREVIEW_ADMIN_EMAIL: undefined, RAILWAY_ENVIRONMENT_NAME: undefined })
+    setEnv({ RAILWAY_ENVIRONMENT_NAME: undefined })
   })
 
-  /** Re-imported per case: `serverEnv` reads `process.env` when the module parses. */
+  /** Re-imported per case: the deployment name is read when the module parses. */
   const resolve = async () => {
     const mod = await import('@/plugins/previewAdmin')
-    return mod.previewAdminEmail()
+    return mod.previewSignInHere()
   }
 
-  it('names the address on a Railway preview', async () => {
-    setEnv({ PREVIEW_ADMIN_EMAIL: PREVIEW_EMAIL, RAILWAY_ENVIRONMENT_NAME: 'pr-861' })
+  it('holds on a Railway preview', async () => {
+    setEnv({ RAILWAY_ENVIRONMENT_NAME: 'pr-861' })
 
-    expect(await resolve()).toBe(PREVIEW_EMAIL)
+    expect(await resolve()).toBe(true)
   })
 
-  it('normalises to the stored spelling, so a capital cannot refuse the admin', async () => {
-    setEnv({ PREVIEW_ADMIN_EMAIL: PREVIEW_EMAIL.toUpperCase(), RAILWAY_ENVIRONMENT_NAME: 'pr-861' })
+  it('does not hold off Railway — local dev, CI, the test lanes', async () => {
+    setEnv({ RAILWAY_ENVIRONMENT_NAME: undefined })
 
-    expect(await resolve()).toBe(PREVIEW_EMAIL)
+    expect(await resolve()).toBe(false)
   })
 
-  it('names nobody off Railway — local dev, CI, the test lanes', async () => {
-    setEnv({ PREVIEW_ADMIN_EMAIL: PREVIEW_EMAIL, RAILWAY_ENVIRONMENT_NAME: undefined })
+  it('does not hold on production', async () => {
+    setEnv({ RAILWAY_ENVIRONMENT_NAME: 'production' })
 
-    expect(await resolve()).toBeUndefined()
-  })
-
-  it('names nobody without the variable, rather than falling back to a guessable default', async () => {
-    setEnv({ PREVIEW_ADMIN_EMAIL: undefined, RAILWAY_ENVIRONMENT_NAME: 'pr-861' })
-
-    expect(await resolve()).toBeUndefined()
+    expect(await resolve()).toBe(false)
   })
 })

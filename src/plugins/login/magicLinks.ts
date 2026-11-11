@@ -95,11 +95,12 @@ export function hasAcceptedFlag(payload: Payload, slug: string): boolean {
  * anonymous by necessity. It throws only on a transport failure, which every
  * caller swallows for the same reason.
  *
- * ⚠ **One exception, and it is not an oracle anywhere it can be reached.** A
- * `config.previewAutoSignIn` address is signed in here and the token returned,
- * so a Railway preview needs no second credential and no route of its own. The
- * option is unset in production, in CI and in local dev, so there the answer is
- * uniform for every address — see {@link LoginCollectionConfig.previewAutoSignIn}.
+ * ⚠ **One exception, and it is not an oracle anywhere it can be reached.** With
+ * `config.previewAutoSignIn` set, any account of the collection is signed in
+ * here and the token returned, so a reviewer can be any manager in a preview
+ * and the loop needs no credential of its own. The option is off in production,
+ * in CI and in local dev, so there the answer is uniform for every address —
+ * see {@link LoginCollectionConfig.previewAutoSignIn}.
  */
 export async function issueMagicLink({
   config,
@@ -144,7 +145,7 @@ export async function issueMagicLink({
   // Before the throttle on purpose: the smoke lane signs in many times in a
   // run, and a minute's wait between them would fail it rather than bound
   // anything — nothing is mailed and no link is minted on this path.
-  if (config.previewAutoSignIn && account.email === config.previewAutoSignIn) {
+  if (config.previewAutoSignIn) {
     // The JWT strategy yields no user for an unaccepted account, so minting here
     // would answer with a token that authenticates nobody, one request later.
     if (hasAcceptedFlag(payload, slug) && account._verified !== true) return

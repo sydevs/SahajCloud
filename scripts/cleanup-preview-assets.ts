@@ -45,9 +45,9 @@ import {
   r2S3Endpoint,
   r2SecretAccessKey,
 } from '../src/plugins/storage/r2Credentials'
+import { CloudflareError, cfFetch, requireEnv } from './lib/cloudflare'
 
 const DEFAULT_MAX_AGE_DAYS = 7
-const CF_API_BASE = 'https://api.cloudflare.com/client/v4'
 
 interface Args {
   apply: boolean
@@ -97,15 +97,6 @@ function printUsage(): void {
   )
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name]
-  if (!value || value.length === 0) {
-    console.error(`Missing required env var: ${name}`)
-    process.exit(1)
-  }
-  return value
-}
-
 /** Parse a Cloudflare ISO timestamp. Returns null when absent or invalid. */
 function parseDate(value: string | undefined): Date | null {
   if (!value) return null
@@ -114,8 +105,6 @@ function parseDate(value: string | undefined): Date | null {
 }
 
 const ImagesListSchema = z.object({
-  success: z.boolean(),
-  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
   result: z
     .object({
       images: z.array(z.object({ id: z.string(), uploaded: z.string().optional() })).default([]),
@@ -124,8 +113,6 @@ const ImagesListSchema = z.object({
 })
 
 const StreamListSchema = z.object({
-  success: z.boolean(),
-  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
   result: z
     .array(
       z.object({
@@ -137,21 +124,12 @@ const StreamListSchema = z.object({
     .default([]),
 })
 
-async function cfFetch(method: 'GET' | 'DELETE', path: string, apiKey: string): Promise<unknown> {
-  const response = await fetch(`${CF_API_BASE}${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${apiKey}` },
-  })
-  return response.json()
-}
-
 /**
  * Reap preview-marked Cloudflare Images older than the cutoff. Images expose a
  * caller-chosen custom ID, so the marker is the `preview-` ID prefix.
  */
 async function reapImages(
   accountId: string,
-  apiKey: string,
   now: Date,
   days: number,
   apply: boolean,
@@ -162,17 +140,9 @@ async function reapImages(
   const perPage = 100
 
   for (;;) {
-    const json = await cfFetch(
-      'GET',
-      `/accounts/${accountId}/images/v1?page=${page}&per_page=${perPage}`,
-      apiKey,
+    const parsed = ImagesListSchema.parse(
+      await cfFetch('GET', `/accounts/${accountId}/images/v1?page=${page}&per_page=${perPage}`),
     )
-    const parsed = ImagesListSchema.parse(json)
-    if (!parsed.success) {
-      throw new Error(
-        `Cloudflare Images list failed: ${parsed.errors.map((e) => e.message).join(', ')}`,
-      )
-    }
     const images = parsed.result?.images ?? []
     scanned += images.length
 
@@ -186,7 +156,7 @@ async function reapImages(
         `  [images] ${apply ? 'delete' : 'would delete'} ${image.id} (uploaded ${image.uploaded ?? '?'})`,
       )
       if (apply) {
-        await cfFetch('DELETE', `/accounts/${accountId}/images/v1/${image.id}`, apiKey)
+        await cfFetch('DELETE', `/accounts/${accountId}/images/v1/${image.id}`)
       }
       reaped += 1
     }
@@ -209,7 +179,6 @@ async function reapImages(
  */
 async function reapStream(
   accountId: string,
-  apiKey: string,
   now: Date,
   days: number,
   apply: boolean,
@@ -217,13 +186,9 @@ async function reapStream(
   // Oldest-first (`asc=true`), so one page still reaches the old,
   // reapable videos, even when the account holds more than the
   // ~1000-video listing cap.
-  const json = await cfFetch('GET', `/accounts/${accountId}/stream?asc=true`, apiKey)
-  const parsed = StreamListSchema.parse(json)
-  if (!parsed.success) {
-    throw new Error(
-      `Cloudflare Stream list failed: ${parsed.errors.map((e) => e.message).join(', ')}`,
-    )
-  }
+  const parsed = StreamListSchema.parse(
+    await cfFetch('GET', `/accounts/${accountId}/stream?asc=true`),
+  )
 
   const videos = parsed.result
   if (videos.length >= 1000) {
@@ -248,7 +213,7 @@ async function reapStream(
       `  [stream] ${apply ? 'delete' : 'would delete'} ${video.uid} (created ${video.created ?? '?'})`,
     )
     if (apply) {
-      await cfFetch('DELETE', `/accounts/${accountId}/stream/${video.uid}`, apiKey)
+      await cfFetch('DELETE', `/accounts/${accountId}/stream/${video.uid}`)
     }
     reaped += 1
   }
@@ -265,8 +230,22 @@ async function r2CredentialsFromToken(
   accountId: string,
   apiKey: string,
 ): Promise<{ accessKeyId: string; secretAccessKey: string }> {
+  // ⚠ **A refused scope has to come back as a value, not a throw.**
+  // `r2AccessKeyId` tries the account-scoped verify path and then the
+  // user-scoped one, and a token that only accepts the second answers the first
+  // with a 403 — so letting `cfFetch` throw would abort on the path that is
+  // meant to fail.
+  const tolerant = async (path: string): Promise<unknown> => {
+    try {
+      return await cfFetch('GET', path)
+    } catch (error) {
+      if (error instanceof CloudflareError) return {}
+      throw error
+    }
+  }
+
   return {
-    accessKeyId: await r2AccessKeyId(accountId, (path) => cfFetch('GET', path, apiKey)),
+    accessKeyId: await r2AccessKeyId(accountId, tolerant),
     secretAccessKey: r2SecretAccessKey(apiKey),
   }
 }
@@ -348,8 +327,8 @@ async function main(): Promise<void> {
   )
 
   const summaries: ReapSummary[] = [
-    await reapImages(accountId, apiKey, now, args.days, args.apply),
-    await reapStream(accountId, apiKey, now, args.days, args.apply),
+    await reapImages(accountId, now, args.days, args.apply),
+    await reapStream(accountId, now, args.days, args.apply),
     await reapR2(accountId, apiKey, bucket, now, args.days, args.apply),
   ]
 

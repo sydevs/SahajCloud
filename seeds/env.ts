@@ -42,6 +42,18 @@ const SeedEnvSchema = z.object({
   ADMIN_TOKEN: emptyAsUndefined(z.string().min(1)),
 
   /**
+   * The Cloudflare Access service token that reaches a gated preview.
+   *
+   * A preview of this repo answers only at `pr-<n>.cloud-preview.sydevelopers.com`,
+   * behind Access, so a run targeting one attaches these to every request or
+   * every one is answered with a login page instead. Both or neither: a blank
+   * client id reads to Access as a failed service-token attempt and is logged as
+   * one.
+   */
+  CF_ACCESS_CLIENT_ID: emptyAsUndefined(z.string().min(1)),
+  CF_ACCESS_CLIENT_SECRET: emptyAsUndefined(z.string().min(1)),
+
+  /**
    * Storyblok CMS access token
    * Only required for importing Path Steps from Storyblok
    */
