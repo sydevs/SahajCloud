@@ -100,6 +100,17 @@ export type VerificationAttempt = CanonicalVerification['attempts'][number]
 export const CANONICAL_FAILURE_LIMIT = 3
 
 /**
+ * Has this service spent its failure budget?
+ *
+ * The ladder's own test, exported because the Install tab asks the same
+ * question of a stored row: a released service keeps its last-good `verified`
+ * snapshot on purpose, so reading that alone tells it the atlas is live.
+ */
+export function isAtFailureLimit(failureCount: number | null | undefined): boolean {
+  return (failureCount ?? 0) >= CANONICAL_FAILURE_LIMIT
+}
+
+/**
  * Consecutive negative probes before a client on `path` is returned to `query`.
  *
  * **Its own constant and its own counter, never `failureCount`.** That one
@@ -220,7 +231,7 @@ export function nextVerificationState(args: {
   // that has been down for days isn't probed on the same cadence as a healthy one.
   const backoff = VERIFY_INTERVAL_MS * 2 ** Math.min(failureCount - 1, 3)
 
-  const disable = failureCount >= CANONICAL_FAILURE_LIMIT
+  const disable = isAtFailureLimit(failureCount)
   const released = disable && owned
 
   return {

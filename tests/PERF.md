@@ -111,9 +111,12 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | forty-seventh, #1082 resolving a fourth `main` conflict (2026-11-11) | 262 / 3530    | 45.79 s (inside the gate)                    | 45.8 s     |
 | forty-eighth, #1082 resolving a fifth `main` conflict (2026-11-11)   | 263 / 3540    | 56.64 s (inside the gate)                    | 56.6 s     |
 | forty-ninth, #1082 resolving a sixth `main` conflict (2026-11-11)    | 264 / 3547    | 46.18 s (inside the gate)                    | 46.2 s     |
-| fiftieth, #1112 resolving a `main` conflict (2026-11-11)             | 265 / 3552    | 53.77 s                                      | 53.8 s     |
-| fifty-first, #1127 resolving a `main` conflict (2026-11-11)          | 265 / 3554    | 57.94 s (inside the gate)                    | 57.9 s     |
-| fifty-second, #1127 resolving a second `main` conflict (2026-11-11)  | 266 / 3559    | 53.63 s (inside the gate)                    | 53.6 s     |
+| fiftieth, #1116 after merging `main` (2026-11-11)                    | 265 / 3548    | 48.94 s (inside the gate)                    | 48.9 s     |
+| fifty-first, #1112 resolving a `main` conflict (2026-11-11)          | 265 / 3552    | 53.77 s                                      | 53.8 s     |
+| fifty-second, #1116 resolving a `main` conflict (2026-11-11)         | 266 / 3555    | 51.44 s (inside the gate)                    | 51.4 s     |
+| fifty-third, #1127 resolving a `main` conflict (2026-11-11)          | 265 / 3554    | 57.94 s (inside the gate)                    | 57.9 s     |
+| fifty-fourth, #1127 resolving a second `main` conflict (2026-11-11)  | 266 / 3559    | 53.63 s (inside the gate)                    | 53.6 s     |
+| fifty-fifth, #1127 resolving a third `main` conflict (2026-11-11)    | 267 / 3562    | 53.36 s                                      | 53.4 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -133,7 +136,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 266 / 3559                                                        |
+| Files / tests                                                                                   | 267 / 3562                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
