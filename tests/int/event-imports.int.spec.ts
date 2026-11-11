@@ -8,8 +8,9 @@
  * filed under.
  */
 
-import type { Payload, PayloadRequest, TaskConfig } from 'payload'
+import type { Payload, TaskConfig } from 'payload'
 
+import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { ImportResultsField } from '@/components/admin/EventImport/ImportResultsField'
@@ -151,18 +152,11 @@ describe('class imports', () => {
    */
   const renderResults = ImportResultsField as unknown as (
     props: Record<string, unknown>,
-  ) => Promise<{ props: { rows: { eventId?: number }[] } }>
+  ) => Promise<null | { props: { rows: { eventId?: number }[] } }>
 
   /** A request shaped as the admin panel's, for a server component to render under. */
-  const reqAs = (user: unknown) =>
-    ({
-      payload,
-      headers: new Headers(),
-      routeParams: {},
-      locale: 'en',
-      context: {},
-      user,
-    }) as unknown as PayloadRequest
+  const reqAs = (user: Awaited<ReturnType<typeof testData.authUser>>) =>
+    createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
 
   const read = (id: number) =>
     payload.findByID({ collection: 'imports', id, depth: 0 }) as Promise<Import>
@@ -727,11 +721,11 @@ describe('class imports', () => {
         data: forged,
         id: created.id,
         path: 'results',
-        req: reqAs(await testData.authUser(payload, admin)),
+        req: await reqAs(await testData.authUser(payload, admin)),
       })
 
-      expect(rendered.props.rows.map((row) => row.eventId)).toEqual([mine.id])
-      expect(rendered.props.rows.map((row) => row.eventId)).not.toContain(secret.id)
+      expect(rendered?.props.rows.map((row) => row.eventId)).toEqual([mine.id])
+      expect(rendered?.props.rows.map((row) => row.eventId)).not.toContain(secret.id)
       expect(stored.results).toHaveLength(1)
     })
 
@@ -744,8 +738,8 @@ describe('class imports', () => {
       const named = await testData.createEvent(payload, { title: 'Named by the forged body' })
       const unlisted = await testData.createManager(payload, { name: 'Not On This Region' })
 
-      // Carrying results, so an empty answer is the refused read rather than an
-      // empty `data` every implementation would render as nothing.
+      // Carrying results, so rendering nothing is the refused read rather than
+      // an empty `data` every implementation would render as nothing.
       const body = {
         clientField: { label: 'Results' },
         data: {
@@ -755,19 +749,21 @@ describe('class imports', () => {
         id: created.id,
         path: 'results',
       }
-      const rendered = await renderResults({
-        ...body,
-        req: reqAs(await testData.authUser(payload, unlisted)),
-      })
 
-      expect(rendered.props.rows).toEqual([])
-      // The same body as an admin renders the import's own row, so the empty
-      // answer above is this manager's access and not the body.
+      expect(
+        await renderResults({
+          ...body,
+          req: await reqAs(await testData.authUser(payload, unlisted)),
+        }),
+      ).toBeNull()
+
+      // The same body as an admin renders the import's own row, so the refusal
+      // above is this manager's access and not the body.
       const allowed = await renderResults({
         ...body,
-        req: reqAs(await testData.authUser(payload, admin)),
+        req: await reqAs(await testData.authUser(payload, admin)),
       })
-      expect(allowed.props.rows).toHaveLength(1)
+      expect(allowed?.props.rows).toHaveLength(1)
     })
 
     it('refuses a published API client, since imports sit in no project', async () => {

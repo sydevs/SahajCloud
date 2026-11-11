@@ -189,7 +189,9 @@ After registering a component in `payload.config.ts` (`admin.components`), run `
 
 ## A server field component owes its own read gate (#1126)
 
-⚠ **A field component renders on the document route and on every `form-state` request, and that request names its own row.** `handleServerFunctions` overwrites only `req`, `user`, `permissions`, `locale` and `cookies`; `id`, `collectionSlug` and `data` stay the browser's. `buildFormState` then gates on `canAccessAdmin({ req })` alone — no document access at all — and `managers` leaves `access.admin` unwritten (`docs/rules/access.md`), so that reduces to "is a manager". A `ui` field is exempt from the field-permission check above it as well.
+⚠ **A field component renders on the document route and is reachable on any `form-state` request, and that request names its own row.** `handleServerFunctions` overwrites only `req`, `user`, `permissions`, `locale` and `cookies`; `id`, `collectionSlug` and `data` stay the browser's. `buildFormState` then gates on `canAccessAdmin({ req })` alone — no document access at all — and `managers` leaves `access.admin` unwritten (`docs/rules/access.md`), so that reduces to "is a manager". A `ui` field is exempt from the field-permission check above it as well.
+
+⚠ **Reachable is not the same as per-keystroke.** `renderField` re-renders a flat field only when `renderAllFields` is set or `lastRenderedPath` has moved, so a gate normally costs one read per edit-route render, not one per edit. Price a gate against that, not against the debounced `onChange`. A crafted request that omits `formState` still renders the component, which is why the gate is not optional.
 
 So a server field component that reads the database from the form's `id` — or from any other value in `data` — answers for whatever row the caller names, one request per id. `InstallSummary` handed any manager another service's embed address, region and install progress that way, and `ImportResultsField` resolved caller-chosen event ids with `overrideAccess: true`, populating each manager's name and email.
 
@@ -198,9 +200,11 @@ Two rules, and a component usually wants both:
 - **Re-read the row with the caller's own `req` and `overrideAccess: false` before reading anything else, and render nothing when that refuses.** Put the gate in the shared loader where one exists — `loadInstallRecord` gates for the banner and the summary at once, so the next caller inherits it — then do the `overrideAccess: true` read past it, both inside one React `cache`. `select` the narrowest column for the gate: its value is unused.
 - **Take the values from the stored row, never from `data`.** `ManagerContacts` and `ImportResultsField` both do. A column that is `admin.readOnly` with `access.update: () => false` can never legitimately differ, so reading it back costs nothing.
 
-A component whose data genuinely needs no gate says so in a comment — `SubmissionSummary` resolves each link under the viewer's own access and records why.
+A component whose data genuinely needs no gate says so in a comment: `SubmissionSummary` resolves each link under the viewer's own access, and `SubmissionData`'s `formLabels` records that `forms` is `read: () => true` for everyone, so gating it would refuse nobody.
 
-Find the shape with `grep -rn "data as { id" src/components/admin/`, and the candidates with a sweep for a server component (no `'use client'`) that reaches `payload.find*`.
+**Overriding `form-state` once, centrally, is possible and is deliberately not the rule.** `handleServerFunctions` takes a `serverFunctions` map (`src/app/(payload)/layout.tsx`), so the app could wrap `'form-state'` and demand document read access for every field component at once. Three reasons it stays per-component: one wrong branch in that wrapper breaks every form in the panel, creates included, where there is no `id` to check; `form-state` is one of six base handlers taking a caller-chosen `id` (`render-field`, `render-document`, `table-state` and the rest), so the wrapper would read as complete while covering a sixth of the surface; and it closes "wrong row" without closing "right row, locked field", which each component still owes. Weigh it again if a third component needs the same gate.
+
+Find the shape with `grep -rn "data as { id" src/components/admin/`, and the candidates with a sweep for a server component (no `'use client'`) that reaches `payload.find*`. ⚠ That sweep lists the whole population but answers nothing — it listed `SubmissionData` while #1126 was being fixed and the component was read past anyway. Open every file it names.
 
 ## Custom field components
 

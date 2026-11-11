@@ -5,6 +5,7 @@ import { cache } from 'react'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { ownedHost } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
@@ -25,16 +26,15 @@ interface InstallRecord {
  * A service's install, off its stored row, for the server components that show
  * it outside the Install tab: the edit form's banner and the Atlas tab's summary.
  *
- * ⚠ **The gated read below is the gate, and it has to come first.** Both
- * callers are `ui` fields, so they render on every `form-state` request too —
- * and that request names its own `id`. `buildFormState` checks `canAccessAdmin`
- * and no document access, so without a read under the caller's own access any
- * manager could name any service and be handed its address, region and install
- * progress, one request per id (#1126). Gating here rather than at each caller
- * is what covers the next one.
+ * ⚠ **The gated read is the gate, and it has to come first.** A `form-state`
+ * request names its own `id` past nothing but `canAccessAdmin`, so without a
+ * read under the caller's own access any manager is handed any service's
+ * address, region and install progress (#1126, `docs/rules/admin-ui.md`).
+ * Gating here rather than at each caller is what covers the next one.
  *
  * Wrapped in React's `cache`, so one request reads the row once however many of
- * them render — and so both count the same milestones.
+ * them render — and so both count the same milestones. ⚠ The key is the
+ * caller's own `req`: copying it here would miss the memo on every call.
  */
 export const loadInstallRecord = cache(
   async (req: PayloadRequest, id: number): Promise<InstallRecord | null> => {
@@ -42,16 +42,19 @@ export const loadInstallRecord = cache(
       collection: 'clients',
       id,
       depth: 0,
-      // The narrowest read that still runs access control. The value is unused.
+      // Value unused: this read is the access check.
       select: { enabled: true },
       overrideAccess: false,
       disableErrors: true,
-      req,
+      // Each read takes its own copy: these components render concurrently, and
+      // `createLocalReq` assigns locale onto whatever request it is handed.
+      req: localeIsolatedReq(req),
     })
     if (!permitted) return null
 
-    // Past the gate, `overrideAccess` so a field lock cannot blank a milestone
-    // for a manager the row itself admits.
+    // Past the gate, `overrideAccess` so the summary reads the same for every
+    // caller the row admits — including one whose roles do not reach `regions`,
+    // where the populate below would otherwise degrade to a bare id.
     const client = (await req.payload.findByID({
       collection: 'clients',
       id,
@@ -67,7 +70,7 @@ export const loadInstallRecord = cache(
       populate: { regions: { name: true } },
       overrideAccess: true,
       disableErrors: true,
-      req,
+      req: localeIsolatedReq(req),
     })) as InstallRecord['client'] | null
     if (!client) return null
 

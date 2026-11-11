@@ -1,5 +1,6 @@
 import type { JSONFieldServerComponent } from 'payload'
 
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
@@ -25,22 +26,20 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
  * — so "not found" here means deleted, never "you may not see it". Whether a
  * link then opens is the drawer's own access check.
  *
- * ⚠ **Which is true only of the stored row, so `results` is read back rather
- * than taken from the form.** A `form-state` request names its own id and
- * carries its own values, and `buildFormState` gates on admin access alone — so
- * reading `results` from `data` resolved whatever event ids the caller typed,
- * each one populating its manager's name and email (#1126). The read below is
- * also the access check the paragraph above assumes. `results` is
+ * ⚠ **Which is true only of the stored row, so every value is read back rather
+ * than taken from the form.** A `form-state` request carries its own `data`
+ * past nothing but `canAccessAdmin`, so reading `results` from it resolved
+ * whatever event ids the caller typed, each one populating its manager's name
+ * and email (#1126, `docs/rules/admin-ui.md`). `results` is
  * `access.update: () => false`, so no form legitimately carries another value.
  */
 export const ImportResultsField: JSONFieldServerComponent = async ({
   clientField,
-  data,
   id,
   path,
   req,
 }) => {
-  const importId = Number(id ?? (data as { id?: unknown } | undefined)?.id)
+  const importId = Number(id)
   const stored = Number.isInteger(importId)
     ? await req.payload.findByID({
         collection: 'imports',
@@ -49,10 +48,12 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         select: { results: true, targetRegion: true },
         overrideAccess: false,
         disableErrors: true,
-        req,
+        // Its own copy: field components render concurrently on one request.
+        req: localeIsolatedReq(req),
       })
     : null
-  const results = (stored?.results ?? []) as ImportResultRow[]
+  if (!stored) return null
+  const results = (stored.results ?? []) as ImportResultRow[]
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
@@ -190,8 +191,8 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             )
           : null
       }
-      importId={importId}
-      targetId={relationId(stored?.targetRegion)}
+      importId={stored.id}
+      targetId={relationId(stored.targetRegion)}
       label={clientField.label}
       path={path}
       rows={rows}
