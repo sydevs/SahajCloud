@@ -1,4 +1,4 @@
-import type { CollectionSlug, TaskConfig, Payload, PayloadRequest } from 'payload'
+import type { CollectionSlug, TaskConfig, Payload, PayloadRequest, Where } from 'payload'
 
 import type { ImageTag } from '@/types/tags'
 
@@ -397,50 +397,45 @@ async function permanentlyDeleteTrashedItems(
     and: [{ deletedAt: { exists: true } }, { deletedAt: { less_than: trashCutoff.toISOString() } }],
   }
 
-  // A referenced row stays expired, so it is read and skipped on every later
-  // run, and it takes a place in this one page. The query cannot exclude the
-  // set without listing every id in it.
-  // shortcut: a backlog of referenced trash the size of the page starves the
-  // deletes behind it, when the skipped count approaches maxOperations
-
-  // Find trashed files for permanent deletion
-  // Note: trash: true is required to include soft-deleted documents in query results
-  const trashedFiles = await req.payload.find({
+  const maxFilesToProcess = Math.floor(maxOperations / 2)
+  const deletableFiles = await collectDeletableTrash({
+    req,
     collection: 'files',
     where: expiredTrash,
-    limit: Math.floor(maxOperations / 2),
-    depth: 0,
-    trash: true,
+    referenced: referenced.files,
+    wanted: maxFilesToProcess,
+    result,
   })
 
   await processItems({
     req,
     collection: 'files',
-    docs: keepReferenced(req, 'files', trashedFiles.docs, referenced, result),
+    docs: deletableFiles,
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedFiles',
+    maxItemsToProcess: maxFilesToProcess,
     dryRun,
   })
 
-  // Find trashed images for permanent deletion
-  // Note: trash: true is required to include soft-deleted documents in query results
   const remainingOps = maxOperations - result.permanentlyDeletedFiles
-  const trashedImages = await req.payload.find({
+  const deletableImages = await collectDeletableTrash({
+    req,
     collection: 'images',
     where: expiredTrash,
-    limit: remainingOps,
-    depth: 0,
-    trash: true,
+    referenced: referenced.images,
+    wanted: remainingOps,
+    result,
   })
 
   await processItems({
     req,
     collection: 'images',
-    docs: keepReferenced(req, 'images', trashedImages.docs, referenced, result),
+    docs: deletableImages,
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedImages',
+    maxItemsToProcess: remainingOps,
     dryRun,
   })
 
@@ -453,28 +448,57 @@ async function permanentlyDeleteTrashedItems(
 }
 
 /**
- * The trashed documents Phase A may delete: those nothing points at any more.
- * Counts and names the ones it holds back, under `dryRun` as well, so an
- * operator sees them before a live run.
+ * Expired trash Phase A may delete: what nothing points at any more. Counts and
+ * names what it holds back, under `dryRun` too, so an operator sees it first.
+ *
+ * ⚠ Pages past the referenced rows rather than filtering one page, for the
+ * reason Phase B gives below. A referenced row stays expired, so it is read
+ * again on every later run and holds its place for good — a page's worth of
+ * them would starve every delete behind it, in every run from then on.
  */
-function keepReferenced<T extends { id: number; filename?: string | null }>(
-  req: PayloadRequest,
-  collection: 'files' | 'images',
-  docs: T[],
-  referenced: ReferencedIds,
-  result: CleanupResult,
-): T[] {
-  return docs.filter((doc) => {
-    if (!referenced[collection].has(doc.id)) return true
-    result.skippedReferenced++
-    req.payload.logger.info({
-      msg: 'Kept trashed item: still referenced',
+async function collectDeletableTrash(config: {
+  req: PayloadRequest
+  collection: 'files' | 'images'
+  where: Where
+  referenced: Set<number>
+  wanted: number
+  result: CleanupResult
+}): Promise<Array<{ id: number; filename?: string | null; createdAt?: string }>> {
+  const { req, collection, where, referenced, wanted, result } = config
+  const deletable: Array<{ id: number; filename?: string | null; createdAt?: string }> = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore && deletable.length < wanted) {
+    // `trash: true` is what includes soft-deleted documents in the results.
+    const expired = await req.payload.find({
       collection,
-      id: doc.id,
-      filename: doc.filename,
+      where,
+      limit: PAGINATION_LIMIT,
+      page,
+      depth: 0,
+      trash: true,
     })
-    return false
-  })
+
+    for (const doc of expired.docs) {
+      if (!referenced.has(doc.id)) {
+        deletable.push(doc)
+        continue
+      }
+      result.skippedReferenced++
+      req.payload.logger.info({
+        msg: 'Kept trashed item: still referenced',
+        collection,
+        id: doc.id,
+        filename: doc.filename,
+      })
+    }
+
+    hasMore = expired.hasNextPage
+    page++
+  }
+
+  return deletable
 }
 
 /**
@@ -659,7 +683,13 @@ async function getAllReferencedIds(
   const lexicalByCollection = groupByCollection(lexicalReferences)
   for (const [collectionSlug, collectionRefs] of lexicalByCollection) {
     for (const ref of collectionRefs) {
-      await scanCollectionForLexicalReferences(payload, collectionSlug, ref, referencedIds)
+      await scanCollectionForLexicalReferences(
+        payload,
+        collectionSlug,
+        ref,
+        referencedIds,
+        targetCollection,
+      )
     }
   }
 
@@ -753,6 +783,7 @@ async function scanCollectionForLexicalReferences(
   collectionSlug: string,
   reference: FieldReference,
   referencedIds: Set<number>,
+  targetCollection: string,
 ): Promise<void> {
   await forEachStoredDoc(payload, collectionSlug, [reference.fieldPath], (doc) => {
     // The read addresses the field by its whole path as one key, so a
@@ -761,7 +792,9 @@ async function scanCollectionForLexicalReferences(
       doc[reference.fieldPath],
       reference.localizedAt.includes(0),
     )) {
-      for (const id of extractIdsFromLexicalContent(content, reference)) referencedIds.add(id)
+      for (const id of extractIdsFromLexicalContent(content, reference, targetCollection)) {
+        referencedIds.add(id)
+      }
     }
   })
 }

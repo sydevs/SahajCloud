@@ -101,7 +101,7 @@ describe('discoverReferencesForCollection, Lexical blocks', () => {
     } as unknown as Field
   }
 
-  it('records the name of each block field pointing at the target, and no other', () => {
+  it('records the path of each block field pointing at the target, and no other', () => {
     const blocks = [
       { slug: 'textbox', fields: [{ name: 'image', type: 'upload', relationTo: 'images' }] },
       { slug: 'layout', fields: [{ name: 'items', type: 'array', fields: [media] }] },
@@ -110,7 +110,17 @@ describe('discoverReferencesForCollection, Lexical blocks', () => {
     const references = walk([richTextOver(blocks)])
 
     expect(references).toHaveLength(1)
-    expect(references[0].lexicalFields).toEqual(new Map([['layout', new Set(['media'])]]))
+    expect(references[0].lexicalFields).toEqual(
+      new Map([['layout', [reference('items.*.media', [])]]]),
+    )
+  })
+
+  it('leaves a block reference unmarked, so the path is what reads it', () => {
+    const blocks = [{ slug: 'layout', fields: [media] }] as Block[]
+
+    const [blockRef] = walk([richTextOver(blocks)])[0].lexicalFields!.get('layout')!
+
+    expect(blockRef.isLexicalBlock).toBe(false)
   })
 
   it('records an empty map for an editor that accepts no blocks', () => {

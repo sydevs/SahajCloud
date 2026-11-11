@@ -39,10 +39,10 @@ export interface FieldReference {
   /** Block slug if this is a Lexical block field */
   blockSlug?: string
   /**
-   * For a Lexical field: the name of every field inside a block that points at
-   * the target collection, keyed by the block's slug.
+   * For a Lexical field: the references inside each block that point at the
+   * target collection, keyed by the block's slug.
    */
-  lexicalFields?: Map<string, Set<string>>
+  lexicalFields?: Map<string, FieldReference[]>
   /**
    * Indices into `fieldPath`'s segments whose value a `locale: 'all'` read
    * returns as a `{ [locale]: value }` map, read off each field's own
@@ -277,7 +277,11 @@ function traverseField(
           isLexicalBlock: true,
           // No specific blockSlug - generic Lexical traversal
           localizedAt: recordLocalized(localizedAt, pathPrefix, richTextField.localized),
-          lexicalFields: lexicalFieldNames(richTextField.editor, targetCollection, collectionSlug),
+          lexicalFields: lexicalBlockReferences(
+            richTextField.editor,
+            targetCollection,
+            collectionSlug,
+          ),
         })
       }
       break
@@ -306,7 +310,7 @@ function lexicalBlocks(editor: unknown): Block[] {
 }
 
 /**
- * Which field name inside each of an editor's blocks points at the target
+ * Which references inside each of an editor's blocks point at the target
  * collection.
  *
  * ⚠ A block stores a bare id, so nothing in the content says which collection
@@ -315,22 +319,23 @@ function lexicalBlocks(editor: unknown): Block[] {
  * sequences overlap, so one collection's live document held the other's trash
  * back from the Phase A delete it was due (#1118).
  *
- * The name, not the path: the content walk meets a block's fields by name, and
- * reaches an array's items without a path of its own.
+ * A block node's `fields` is shaped like a document of that block's own schema,
+ * so these are ordinary references over it, read by `extractIdsFromDocument`.
+ * They are not marked `isLexicalBlock` for that reason: the flag means "the ids
+ * are in content somewhere", and here the path reaches them.
  */
-function lexicalFieldNames(
+function lexicalBlockReferences(
   editor: unknown,
   targetCollection: string,
   collectionSlug: string,
-): Map<string, Set<string>> {
-  const byBlock = new Map<string, Set<string>>()
+): Map<string, FieldReference[]> {
+  const byBlock = new Map<string, FieldReference[]>()
   for (const block of lexicalBlocks(editor)) {
     const found: FieldReference[] = []
     for (const blockField of block.fields) {
-      traverseField(blockField, targetCollection, '', collectionSlug, found, true, block.slug)
+      traverseField(blockField, targetCollection, '', collectionSlug, found)
     }
-    const names = new Set(found.map((ref) => ref.fieldPath.split('.').pop()!))
-    if (names.size > 0) byBlock.set(block.slug, names)
+    if (found.length > 0) byBlock.set(block.slug, found)
   }
   return byBlock
 }
@@ -529,17 +534,19 @@ export function extractIdsFromDocument(
 /**
  * Extract the target collection's ids from Lexical rich text content.
  *
- * Block fields are read by name against `reference.lexicalFields`, which the
- * schema walk built for this target. An embedded upload or relationship node
+ * A block node's fields are read through the block's own references, which the
+ * schema walk recorded for this target. An embedded upload or relationship node
  * names its own collection, so it is matched directly.
  *
  * @param content - The Lexical content object
  * @param reference - The marker reference the walk recorded for this field
+ * @param targetCollection - The collection whose ids to collect
  * @returns Set of numeric IDs found in the content
  */
 export function extractIdsFromLexicalContent(
   content: unknown,
   reference: FieldReference,
+  targetCollection: string,
 ): Set<number> {
   const ids = new Set<number>()
 
@@ -548,56 +555,33 @@ export function extractIdsFromLexicalContent(
   const contentObj = content as Record<string, unknown>
 
   // An upload or relationship node carries the slug it points at (#1118).
-  if (contentObj.type === 'upload' || contentObj.type === 'relationship') {
-    if (contentObj.relationTo === reference.relationTo) {
-      const id = extractId(contentObj.value)
-      if (id !== null) ids.add(id)
-    }
+  if (
+    (contentObj.type === 'upload' || contentObj.type === 'relationship') &&
+    matchesTarget(contentObj.relationTo as string | string[], targetCollection)
+  ) {
+    const id = extractId(contentObj.value)
+    if (id !== null) ids.add(id)
   }
 
-  if (contentObj.type === 'block' && contentObj.fields) {
-    const fields = contentObj.fields as Record<string, unknown>
-    const holdsTarget = reference.lexicalFields?.get(String(fields.blockType))
-
-    for (const [fieldName, value] of Object.entries(fields)) {
-      // Handle direct upload field (e.g., TextBoxBlock.image)
-      const directId = extractId(value)
-      if (directId !== null) {
-        if (holdsTarget?.has(fieldName)) ids.add(directId)
-        continue
-      }
-
-      // Handle array fields (e.g., GalleryBlock.items or LayoutBlock.items)
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          // Could be direct ID (GalleryBlock.items)
-          const itemId = extractId(item)
-          if (itemId !== null) {
-            if (holdsTarget?.has(fieldName)) ids.add(itemId)
-            continue
-          }
-
-          // Could be object with nested fields (LayoutBlock.items[].image)
-          if (typeof item === 'object' && item !== null) {
-            const itemObj = item as Record<string, unknown>
-            for (const [nestedFieldName, nestedValue] of Object.entries(itemObj)) {
-              const nestedId = extractId(nestedValue)
-              if (nestedId !== null && holdsTarget?.has(nestedFieldName)) ids.add(nestedId)
-            }
-          }
-        }
-      }
+  if (contentObj.type === 'block' && isRecord(contentObj.fields)) {
+    const fields = contentObj.fields
+    for (const blockRef of reference.lexicalFields?.get(String(fields.blockType)) ?? []) {
+      for (const id of extractIdsFromDocument(fields, blockRef, targetCollection)) ids.add(id)
     }
   }
 
   // Recursively process children
   if (contentObj.root && typeof contentObj.root === 'object') {
-    for (const id of extractIdsFromLexicalContent(contentObj.root, reference)) ids.add(id)
+    for (const id of extractIdsFromLexicalContent(contentObj.root, reference, targetCollection)) {
+      ids.add(id)
+    }
   }
 
   if (Array.isArray(contentObj.children)) {
     for (const child of contentObj.children) {
-      for (const id of extractIdsFromLexicalContent(child, reference)) ids.add(id)
+      for (const id of extractIdsFromLexicalContent(child, reference, targetCollection)) {
+        ids.add(id)
+      }
     }
   }
 
