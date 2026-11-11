@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
-import { colorField, legacyMigrationFields } from '@/fields'
+import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
@@ -32,6 +32,7 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { setMailingListKey } from './endpoints/mailingListKey'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -405,15 +406,18 @@ const mailingListGroup: Field = {
           'Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.',
       },
     },
+    // Write-only and encrypted at rest, so it is in no form state and in no
+    // live-preview message. `MailingListKey` below is the only way to set one.
+    secretField({ name: 'apiKey', label: 'API Key', writeAccess: managersOnlyFieldAccess }),
     {
-      name: 'apiKey',
-      type: 'text',
-      label: 'API Key',
-      required: true,
+      // Whether a key is set, its last four characters, and the button that
+      // replaces it. A server component, because the field above is
+      // `admin.disabled` and so reaches no client component.
+      name: 'mailingListKey',
+      type: 'ui',
       admin: {
         condition: (data) => mailingListEnabled(data),
-        description:
-          'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
+        components: { Field: '@/components/admin/MailingListKey/MailingListKeyField' },
       },
     },
     {
@@ -936,7 +940,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
+  endpoints: [clientEmbedReport, setMailingListKey, verifyEmbedOnDemand],
   hooks: {
     beforeChange: [
       validateClientData,

@@ -8,14 +8,16 @@ import type { MailingListConfig } from '@/lib/mailingList/types'
 import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
 
 /**
- * The fields whose change makes a save worth a provider round trip.
+ * The fields whose change makes a save worth a provider round trip, and so the
+ * whole of what `POST /api/clients/:id/mailing-list-key` accepts: a key is only
+ * ever proven against the provider and list it will be used with.
  *
  * `doubleOptIn` is one of them because it changes **what** is checked, not only
  * what is sent: with it on, CleverReach's `verifyCredentials` also reads the
  * confirmation flow, so turning it back on makes a stored `doiFlowId`
  * load-bearing again and worth proving.
  */
-const CREDENTIAL_KEYS = [
+export const CREDENTIAL_KEYS = [
   'provider',
   'listId',
   'apiKey',
@@ -44,15 +46,21 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   originalDoc,
   req,
 }) => {
-  const config = data?.mailingList as MailingListConfig | undefined
-  if (!config?.enabled) return data
+  const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
+
+  // ⚠ **The patch alone is not the configuration.** `apiKey` is write-only, so
+  // no form save carries one, and Payload materializes `{}` for a group a save
+  // omits. Judging the patch by itself would let a changed list id go in
+  // unproven, because the key it would be checked with is only on the row.
+  // `originalDoc` carries it decrypted, which is what makes this merge work.
+  const config = { ...previous, ...(data?.mailingList as MailingListConfig | undefined) }
+  if (!config.enabled) return data
 
   // Incomplete credentials are Payload's `required` to refuse, not ours.
   // Pinging with a blank key would answer "that API key was refused", blaming
   // the operator for a field they have not filled in yet.
   if (!isMailingListConfigured(config)) return data
 
-  const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
   const changed = CREDENTIAL_KEYS.some((key) => config[key] !== previous?.[key])
   // Nothing a provider could have an opinion about has changed. It said yes to
   // these exact values when they were entered.

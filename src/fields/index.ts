@@ -34,6 +34,10 @@ export type { ColorFieldOptions } from './colorField'
 export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
 
+// Secret field - a write-only text column, encrypted at rest
+export { secretField } from './secretField'
+export type { SecretFieldOptions } from './secretField'
+
 // translationsField is deliberately NOT re-exported here, for the reason
 // jsonField is not: it imports the lexical editor, so the barrel would drag
 // that graph into every light module taking a field from it. Use the deep path
