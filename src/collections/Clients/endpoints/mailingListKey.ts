@@ -141,14 +141,9 @@ export const mailingListKey: Endpoint = {
       throw error
     }
 
-    // Every credential except the key, so the next form save carries identical
-    // values and `validateMailingList` skips the provider round trip. The key is
-    // absent from form state by design, and a save without it keeps the stored one.
-    const { apiKey: _apiKey, ...credentials } = parsed.data
-    return Response.json(
-      { credentials, last4: parsed.data.apiKey.slice(-4) },
-      { headers: { 'Cache-Control': 'no-store' } },
-    )
+    // The control re-reads the GET for the hint, so there is nothing for an
+    // answer to carry that it would not then read twice.
+    return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
   },
   method: 'post',
   path: '/:id/mailing-list-key',
