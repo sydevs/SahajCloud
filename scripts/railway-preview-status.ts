@@ -211,11 +211,9 @@ export type HealthOutcome = ServingVerdict | 'silent'
 /**
  * What CI prints for a health outcome that must not read as green.
  *
- * The wording lives here, not at the call site, because the wording is what
- * failed: #1122 reached the right verdict under an error naming the wrong
- * cause, and a string built inside the polling loop is one no test can reach.
- * Exhaustive on purpose — an outcome with no annotation would fall through to
- * a green smoke run against a build nobody identified.
+ * The wording is what failed in #1122, not the verdict: each string has to
+ * send a reader to the one place that can fix its own outcome, and `fieldless`
+ * is the one of the four that is nobody's fault on Railway.
  */
 export const HEALTH_ERRORS: Record<Exclude<HealthOutcome, 'serving'>, string> = {
   unknown:
