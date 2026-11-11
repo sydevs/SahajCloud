@@ -18,13 +18,16 @@ const SETTLE_MS = 500
  */
 export const EmailPreviewField: UIFieldClientComponent = () => {
   const { id } = useDocumentInfo()
+  // Only what the template draws. `supportEmail` is the message's `Reply-To`
+  // rather than anything in its body, so it is named under the frame instead of
+  // costing a render on every keystroke in that field.
   const values = useFormFields(([fields]) => ({
     color1: fields['color1']?.value,
     color2: fields['color2']?.value,
     logo: fields['logo']?.value,
     name: fields['title']?.value,
-    supportEmail: fields['supportEmail']?.value,
   }))
+  const supportEmail = useFormFields(([fields]) => fields['supportEmail']?.value)
   const [html, setHtml] = useState<null | string>(null)
   const body = JSON.stringify(values)
 
@@ -32,19 +35,30 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
     if (id == null) return
 
     // One render per pause in typing, not per keystroke: each is a full
-    // server-side template render.
+    // server-side template render. The abort is what keeps an older render from
+    // landing after a newer one and showing colours nobody is looking at.
+    const abort = new AbortController()
     const timer = setTimeout(async () => {
-      const response = await fetch(`/api/clients/${id}/email-preview`, {
-        body,
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-      })
+      try {
+        const response = await fetch(`/api/clients/${id}/email-preview`, {
+          body,
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          signal: abort.signal,
+        })
 
-      setHtml(response.ok ? ((await response.json()) as { html: string }).html : null)
+        setHtml(response.ok ? ((await response.json()) as { html: string }).html : null)
+      } catch {
+        // An abort is the ordinary path here, and a network failure leaves the
+        // last rendering on screen rather than an empty frame.
+      }
     }, SETTLE_MS)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      abort.abort()
+    }
   }, [body, id])
 
   if (id == null) return null
@@ -71,6 +85,11 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
       ) : (
         <p className="field-description">Save this service to see a sample email.</p>
       )}
+      <p className="field-description">
+        {typeof supportEmail === 'string' && supportEmail
+          ? `Replies reach ${supportEmail}.`
+          : 'With no support address, replies reach nobody who can answer.'}
+      </p>
     </div>
   )
 }

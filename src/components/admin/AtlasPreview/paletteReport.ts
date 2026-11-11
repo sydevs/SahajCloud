@@ -13,6 +13,11 @@
  * Module-level rather than per-component because the three `ColorField`s are
  * siblings and one message answers all of them, and because a remount must not
  * blank a note that is still true.
+ *
+ * ⚠ **The cache is keyed by document**, and a message carries no id — the
+ * subscriber supplies its own. Without that key, opening service B after service A
+ * would show A's rendered colours under B's pickers, and offer a button writing
+ * A's colour into B.
  */
 
 /** The checks the widget runs, and the sentence each one explains itself with. */
@@ -48,9 +53,12 @@ export const PREVIEW_MODE_MESSAGE = 'sahaj-atlas:preview-mode'
 
 export type PaletteReport = Partial<Record<BrandRole, RoleReport>>
 
-type Subscription = { cb: (report: PaletteReport) => void; origin: string }
+/** Which document a report describes — a `clients` row id, as the admin route names it. */
+export type DocumentKey = number | string
 
-let cached: PaletteReport = {}
+type Subscription = { cb: (report: PaletteReport) => void; document: DocumentKey; origin: string }
+
+let cached: { document: DocumentKey; report: PaletteReport } | null = null
 const subscriptions = new Set<Subscription>()
 let listenerAttached = false
 
@@ -60,23 +68,28 @@ const handleMessage = (event: MessageEvent): void => {
   const listening = [...subscriptions].filter((entry) => entry.origin === event.origin)
   if (listening.length === 0) return
 
-  cached = (event.data.roles ?? {}) as PaletteReport
-  listening.forEach((entry) => entry.cb(cached))
+  const report = (event.data.roles ?? {}) as PaletteReport
+
+  cached = { document: listening[0]!.document, report }
+  listening.forEach((entry) => entry.cb(report))
 }
 
-export const getCachedPaletteReport = (): PaletteReport => cached
+/** The last report for `document`, or nothing — never another service's. */
+export const getCachedPaletteReport = (document: DocumentKey): PaletteReport =>
+  cached?.document === document ? cached.report : {}
 
 /** Listen for the atlas's report, from `origin` alone. Re-subscribe when it changes. */
 export function subscribePaletteReport(
   cb: (report: PaletteReport) => void,
   origin: string,
+  document: DocumentKey,
 ): () => void {
   if (!listenerAttached && typeof window !== 'undefined') {
     listenerAttached = true
     window.addEventListener('message', handleMessage)
   }
 
-  const entry: Subscription = { cb, origin }
+  const entry: Subscription = { cb, document, origin }
   subscriptions.add(entry)
 
   return () => {

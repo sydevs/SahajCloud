@@ -15,7 +15,6 @@ const bodySchema = z.object({
   color2: z.string().nullish(),
   logo: z.union([z.number(), z.string()]).nullish(),
   name: z.string().nullish(),
-  supportEmail: z.string().nullish(),
 })
 
 /**

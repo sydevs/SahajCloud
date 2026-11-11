@@ -7,6 +7,7 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  useDocumentInfo,
   useField,
   useLivePreviewContext,
 } from '@payloadcms/ui'
@@ -20,6 +21,7 @@ import {
   getCachedPaletteReport,
   ROLE_OF_FIELD,
   subscribePaletteReport,
+  type PaletteReport,
   type RoleReport,
 } from '../AtlasPreview/paletteReport'
 
@@ -155,16 +157,23 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
  * clears (`docs/rules/admin-ui.md` § Frame editor).
  */
 function usePreviewAdjustment(fieldName: string): null | RoleReport {
-  const { iframeRef } = useLivePreviewContext()
+  const { iframeRef, url } = useLivePreviewContext()
+  const { id } = useDocumentInfo()
   const role = ROLE_OF_FIELD[fieldName]
   const origin = originOf(iframeRef?.current?.src ?? '')
-  const [report, setReport] = useState(getCachedPaletteReport)
+  const [report, setReport] = useState<PaletteReport>(() =>
+    id == null ? {} : getCachedPaletteReport(id),
+  )
 
   useEffect(() => {
-    if (!origin) return
+    if (!origin || id == null) return
 
-    return subscribePaletteReport(setReport, origin)
-  }, [origin])
+    setReport(getCachedPaletteReport(id))
+
+    return subscribePaletteReport(setReport, origin, id)
+    // `url` is what changes when the panel opens or is repointed, which is also
+    // when `iframeRef.current` first exists.
+  }, [id, origin, url])
 
   const adjustment = role ? report[role] : undefined
 

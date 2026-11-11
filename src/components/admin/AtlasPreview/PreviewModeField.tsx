@@ -21,7 +21,7 @@ type Mode = (typeof MODES)[number]
  * — a save, a region change — starts the atlas back on its own default.
  */
 export const PreviewModeField: UIFieldClientComponent = () => {
-  const { iframeRef } = useLivePreviewContext()
+  const { iframeRef, url } = useLivePreviewContext()
   const [mode, setMode] = useState<Mode>('light')
 
   const post = useCallback(
@@ -38,15 +38,21 @@ export const PreviewModeField: UIFieldClientComponent = () => {
     [iframeRef],
   )
 
+  // ⚠ Keyed on the panel's `url`, not on the ref alone. `autoOpen` opens the panel
+  // after this field has mounted, so an effect depending only on stable values
+  // runs while there is no iframe and never attaches — leaving the atlas on its
+  // own theme until the first click, with the control claiming otherwise.
   useEffect(() => {
     const frame = iframeRef?.current
     if (!frame) return
+
+    post(mode)
 
     const onLoad = () => post(mode)
     frame.addEventListener('load', onLoad)
 
     return () => frame.removeEventListener('load', onLoad)
-  }, [iframeRef, mode, post])
+  }, [iframeRef, mode, post, url])
 
   return (
     <div className="field-type">

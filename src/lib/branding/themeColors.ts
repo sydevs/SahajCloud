@@ -275,11 +275,18 @@ function contrastRatio(a: string, b: string): number {
   return (light + 0.05) / (dark + 0.05)
 }
 
-/** WCAG relative luminance — sRGB channels linearised, then weighted. */
+/**
+ * WCAG relative luminance — sRGB channels linearised, then weighted.
+ *
+ * ⚠ **`#RGB` is expanded first.** `colorField`'s validator accepts the short form,
+ * so a service really can store `#ff0`; read six digits off it and every channel
+ * is `NaN`, which reads as "white is fine" — the exact defect this is here for.
+ */
 function relativeLuminance(hex: string): number {
   const clean = hex.replace('#', '')
+  const digits = clean.length === 3 ? [...clean].map((digit) => digit + digit).join('') : clean
   const channel = (offset: number) => {
-    const value = parseInt(clean.substring(offset, offset + 2), 16) / 255
+    const value = parseInt(digits.substring(offset, offset + 2), 16) / 255
 
     return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
   }

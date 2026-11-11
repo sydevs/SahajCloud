@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ADJUSTMENT_REASONS,
+  getCachedPaletteReport,
   PALETTE_REPORT_MESSAGE,
   ROLE_OF_FIELD,
   subscribePaletteReport,
@@ -29,9 +30,9 @@ describe('the palette report', () => {
     unsubscribes.splice(0).forEach((stop) => stop())
   })
 
-  const listen = (origin: string) => {
+  const listen = (origin: string, document: number = 7) => {
     const cb = vi.fn()
-    unsubscribes.push(subscribePaletteReport(cb, origin))
+    unsubscribes.push(subscribePaletteReport(cb, origin, document))
 
     return cb
   }
@@ -55,6 +56,27 @@ describe('the palette report', () => {
     post(ATLAS, report)
 
     expect(cb).toHaveBeenCalledWith(report)
+  })
+
+  it('never hands one service the report of another', () => {
+    // The message carries no id, so the subscriber supplies its own. Without it,
+    // opening service 8 after service 7 would show 7's rendered colours under 8's
+    // pickers — and offer a button writing 7's colour into 8.
+    const report: PaletteReport = {
+      primary: {
+        adjustedBy: ['surface'],
+        dark: '#aa0',
+        entered: '#ffff00',
+        light: '#990',
+        suggested: '#990',
+      },
+    }
+
+    listen(ATLAS, 7)
+    post(ATLAS, report)
+
+    expect(getCachedPaletteReport(7)).toEqual(report)
+    expect(getCachedPaletteReport(8)).toEqual({})
   })
 
   it('maps each stored colour to the role the widget reports under', () => {
@@ -84,5 +106,10 @@ describe('readableTextOn', () => {
     // brand gradient can end up with black text on a dark primary.
     expect(readableTextOn(['#1E6C71'])).toBe('#ffffff')
     expect(readableTextOn(['#1E6C71', '#ffffe0'])).toBe('#000000')
+    // ⚠ `colorField`'s validator accepts the short form, so a service really can
+    // store `#ff0`. Read as six digits it is NaN, which answers white — the
+    // defect this rule exists to prevent, written the other way round.
+    expect(readableTextOn(['#ff0'])).toBe('#000000')
+    expect(readableTextOn(['#ff0', '#ffffe0'])).toBe('#000000')
   })
 })
