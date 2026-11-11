@@ -26,7 +26,7 @@ const service = (
   enabled = true,
 ): AuditedClient => ({
   id,
-  name: `Service ${id}`,
+  label: `Service ${id}`,
   enabled,
   site: { domain },
   embedMetadata: mounts,
