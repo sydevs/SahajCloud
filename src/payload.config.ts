@@ -228,10 +228,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
       prodMigrations: migrations,
     }),
-    // Reconcile the Railway preview's admin from PREVIEW_ADMIN_EMAIL, after the
-    // migrations above have run. A no-op everywhere else — see the gate's docblock in
-    // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
-    // production is detected by Railway's environment name rather than NODE_ENV.
+    // Reconcile the Railway preview's admin account, at a committed constant
+    // address, after the migrations above have run. A no-op everywhere else —
+    // see the gate's docblock in `@/plugins/previewAdmin` for why each of its
+    // two conditions is there, and why production is detected by Railway's
+    // environment name rather than NODE_ENV.
     onInit: async (payload) => {
       await cancelStaleJobs(payload)
       await seedPreviewAdmin(payload)
@@ -392,7 +393,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
       // `tests/unit/next-config-body-limit.spec.ts` pins these against
-      // `next.config.mjs`'s cap and the per-category limits (#939).
+      // `next.config.ts`'s cap and the per-category limits (#939).
       requestSizeLimit: UPLOAD_REQUEST_SIZE_LIMIT,
       // Payload's own wording for this gate names no size, and the admin shows
       // it verbatim.

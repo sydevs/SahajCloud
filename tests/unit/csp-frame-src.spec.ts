@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import nextConfig from '../../next.config.mjs'
+import nextConfig from '../../next.config'
 
 /**
  * The admin's CSP `frame-src` must admit whatever `livePreview.url` points at.
