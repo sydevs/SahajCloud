@@ -67,7 +67,7 @@ describe('per-region canonical webUrl', () => {
   }): Promise<number> => {
     const { name, region: regionId, domain, mount, routing, enabled = true } = args
     const doc = await testData.createClient(payload, managerId, {
-      name,
+      label: name,
       roles: ['sahaj-atlas-client'],
       region: regionId,
       site: { domain, page: mount },
@@ -204,7 +204,7 @@ describe('per-region canonical webUrl', () => {
     it('re-shapes a public URL when the probe verdict is demoted, with no other change', async () => {
       const { docs } = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'Sahaja Yoga London' } },
+        where: { label: { equals: 'Sahaja Yoga London' } },
         limit: 1,
         overrideAccess: true,
       })
@@ -255,7 +255,7 @@ describe('per-region canonical webUrl', () => {
     it('stops owning as soon as the client is switched off', async () => {
       const { docs } = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'Sahaja Yoga London' } },
+        where: { label: { equals: 'Sahaja Yoga London' } },
         limit: 1,
         overrideAccess: true,
       })
@@ -285,7 +285,7 @@ describe('per-region canonical webUrl', () => {
       // old page — where the key no longer loads. Links must not point there.
       const { docs } = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'Sahaja Yoga London' } },
+        where: { label: { equals: 'Sahaja Yoga London' } },
         limit: 1,
         overrideAccess: true,
       })
@@ -329,7 +329,7 @@ describe('per-region canonical webUrl', () => {
     it('refuses a verified host that is not a bare host, and falls through', async () => {
       const { docs } = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'Sahaja Yoga London' } },
+        where: { label: { equals: 'Sahaja Yoga London' } },
         limit: 1,
         overrideAccess: true,
       })

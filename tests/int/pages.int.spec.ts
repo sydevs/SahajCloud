@@ -364,7 +364,7 @@ describe('Pages Collection', () => {
         type: 'admin' as const,
       })
       const client = await testData.createClient(payload, admin.id, {
-        name: 'Client for Page App Card Relationship Test',
+        label: 'Client for Page App Card Relationship Test',
         roles: ['wemeditate-app-client'],
         enabled: true,
       })

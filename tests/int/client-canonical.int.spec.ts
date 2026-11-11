@@ -37,9 +37,9 @@ describe('client canonical ownership + embed metadata', () => {
       data: { name: slug, level, mapboxId: `mb-${slug}`, slug },
     })
 
-  const createClient = async (name: string, overrides: FixtureOverrides<Client> = {}) =>
+  const createClient = async (label: string, overrides: FixtureOverrides<Client> = {}) =>
     testData.createClient(payload, managerId, {
-      name,
+      label,
       roles: ['sahaj-atlas-client'],
       ...overrides,
     })
@@ -373,7 +373,7 @@ describe('client canonical ownership + embed metadata', () => {
       // Self-exclusion — otherwise the incumbent becomes its own conflict.
       const { docs } = await payload.find({
         collection: 'clients',
-        where: { name: { equals: 'Meditace Online' } },
+        where: { label: { equals: 'Meditace Online' } },
         limit: 1,
         overrideAccess: true,
       })

@@ -111,7 +111,7 @@ describe('registration gate on the unified create (#797)', () => {
       email: 'gate-admin@example.com',
     })
     client = await testData.createClient(payload, manager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
     })
   })

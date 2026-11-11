@@ -215,7 +215,7 @@ describe('manager invitation', () => {
       // `clients` sits in no project, so the brand comes from the role the
       // listing derives, `atlas-service-manager`.
       const service = await testData.createClient(payload, admin.id, {
-        name: 'Invite Atlas Site Two',
+        label: 'Invite Atlas Site Two',
         roles: ['sahaj-atlas-client'],
       })
       await payload.update({
@@ -235,7 +235,7 @@ describe('manager invitation', () => {
     it("announces nothing for an app's key, which looks after no atlas", async () => {
       const manager = await bare()
       const app = await testData.createClient(payload, admin.id, {
-        name: 'Invite App Key',
+        label: 'Invite App Key',
         roles: ['wemeditate-app-client'],
       })
       emailAdapter.clearCapturedEmails()

@@ -277,11 +277,11 @@ async function readServiceRows(
     depth: 0,
     limit: LIST_READ_LIMIT,
     pagination: false,
-    sort: 'name',
+    sort: 'label',
     overrideAccess: args.overrideAccess,
     req: localeIsolatedReq(req),
     select: {
-      name: true,
+      label: true,
       updatedAt: true,
       enabled: true,
       site: { domain: true, page: true, track: true },
@@ -303,7 +303,7 @@ async function readServiceRows(
       {
         kind: 'service',
         id: doc.id,
-        title: doc.name?.trim() || 'Untitled service',
+        title: doc.label?.trim() || 'Untitled service',
         checkedAt: (missingOn ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
         missingOn,
         owned: ownedHost(doc) !== null,

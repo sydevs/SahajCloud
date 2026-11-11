@@ -139,7 +139,7 @@ describe('User submissions access', () => {
     eventAssignee = await testData.authUser(payload, assignee)
 
     client = await testData.createClient(payload, recipient.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
     })
 
