@@ -95,7 +95,9 @@ export const MailingListKey: React.FC<MailingListKeyProps> = ({ last4: stored })
       setLast4(key.slice(-4))
       setKey('')
       closeModal(DRAWER_SLUG)
-      toast.success('Key saved — we checked it with your provider.')
+      // Not "we checked it": a provider that could not be reached never
+      // refuses the save, so the key may have gone in unproven.
+      toast.success('Key saved.')
     } finally {
       setSaving(false)
     }
