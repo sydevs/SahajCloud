@@ -2,6 +2,33 @@
 
 Field factories are covered by the collections-and-fields rules — see [`src/collections/AGENTS.md`](../collections/AGENTS.md). This guide holds what belongs to one factory.
 
+## Secret field
+
+`secretField()` (`src/fields/secretField.ts`) is a text column holding an
+operator's credential: `read: () => false`, `admin.disabled`, and encrypted at
+rest through `payload.encrypt` / `payload.decrypt`. Reach for it whenever this
+service stores a third party's secret. `Clients.mailingList.apiKey` is the one
+consumer today (#1109).
+
+Three things it does, and one it refuses:
+
+- **Nobody reads it through the API.** Every consumer reads with
+  `overrideAccess: true`, which skips field access while still running the
+  decrypt. `admin.disabled` is the other half: the value is in no form state,
+  so Payload's live preview posts none of it to the iframe and a form save
+  carries no copy to write back.
+- ⚠ **`''`, `null` and `undefined` pass through untouched, both ways.** A query
+  telling a filled column from a blank one tests `not_equals: ''`
+  (`LIST_ELIGIBLE`, `src/lib/atlas/mailingListOwners.ts`), and ciphertext for
+  `''` is a non-empty string — so encrypting the empty case would offer a
+  half-configured service as a region's mailing-list owner.
+- ⚠ **A failed decrypt reports through `capture` and answers `null`.** A throw
+  inside `afterRead` would take down every read of the row.
+- **It owns no admin control**, because a credential is entered beside whatever
+  else its provider needs. `Clients` holds that one
+  (`src/components/admin/MailingListKey/`), and a second consumer is what would
+  make a shared one worth building.
+
 ## Schedule field
 
 `scheduleFields()` (`src/fields/scheduleFields.ts`) is a Group field with
