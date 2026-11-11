@@ -24,10 +24,11 @@
  * says which happened — and a status assertion passed against the open hole
  * for as long as `apiKey` was the one locked field.
  */
-import type { Payload, PayloadRequest } from 'payload'
+import type { Field, Payload, PayloadRequest } from 'payload'
 
 import { handleEndpoints } from 'payload'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { fieldIsHiddenOrDisabled } from 'payload/shared'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import { getRegionOwners } from '@/lib/atlas/regionOwners'
@@ -39,6 +40,17 @@ import { getPgPool, quotedDbSchema } from '@/plugins/usage'
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
+
+/**
+ * Saving an enabled mailing list asks the provider whether the key works, so
+ * the adapter is stubbed: what each case needs is the answer, never the
+ * request. Hoisted, because `vi.mock` is.
+ */
+const verifyCredentials = vi.hoisted(() => vi.fn(async (): Promise<null | string> => null))
+vi.mock('@/lib/mailingList/providers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/mailingList/providers')>()),
+  adapterFor: () => ({ verifyCredentials }),
+}))
 
 /** The reader's own key. Plaintext, because `restGet` authenticates with it. */
 const ATLAS_API_KEY = 'atlas-widget-key-for-clients-access-spec'
@@ -689,6 +701,212 @@ describe('Clients access', () => {
 
       expect(updated.name).toBe('Outside Manager, Renamed')
       expect(updated.type).toBe('manager')
+    })
+  })
+
+  /**
+   * The mailing-list provider secret (#1109), which is `secretField`: nobody
+   * reads it through the API, it is ciphertext in the column, and the one way
+   * to set one is `POST /api/clients/:id/mailing-list-key`.
+   *
+   * ⚠ Every fixture here stores a **real** key, for the reason the file's own
+   * header gives: an unset column reads `null` either way, so a probe against
+   * one passes with the hole wide open.
+   */
+  describe('the mailing-list key', () => {
+    const LIST_SERVICE_KEY = 'atlas-list-service-key-for-clients-access-spec'
+    const PROVIDER_SECRET = 'SECRET-BREVO-PROVIDER-KEY-98765'
+
+    let listClient: Client
+    let listedRest: RestClient
+
+    /** A service whose list is on, with a stored provider secret. */
+    const createListClient = (label: string, extra: Record<string, unknown> = {}) =>
+      testData.createClient(payload, listedManager.id, {
+        label,
+        roles: ['sahaj-atlas-client'],
+        managers: [listedManager.id],
+        primaryContact: listedManager.id,
+        mailingList: {
+          enabled: true,
+          provider: 'brevo',
+          listId: 'list-1',
+          apiKey: PROVIDER_SECRET,
+        },
+        ...extra,
+      } as never)
+
+    /** What delivery reads: `overrideAccess: true`, which runs the decrypt. */
+    const deliveryRead = async (id: number) =>
+      (await payload.findByID({
+        collection: 'clients',
+        id,
+        depth: 0,
+        overrideAccess: true,
+        select: { mailingList: true },
+      })) as Client
+
+    beforeAll(async () => {
+      listClient = await createListClient('Mailing List Service', { apiKey: LIST_SERVICE_KEY })
+      listedRest = await createRestClientAs({ payload, config }, listedManager)
+    })
+
+    beforeEach(() => {
+      verifyCredentials.mockClear()
+      verifyCredentials.mockResolvedValue(null)
+    })
+
+    it('stores ciphertext and hands delivery the plaintext', async () => {
+      const req = { payload } as PayloadRequest
+      const { rows } = await getPgPool(req)!.query(
+        `SELECT mailing_list_api_key FROM ${quotedDbSchema(req)}.clients WHERE id = $1`,
+        [listClient.id],
+      )
+      expect(rows[0].mailing_list_api_key).toBeTruthy()
+      expect(rows[0].mailing_list_api_key).not.toBe(PROVIDER_SECRET)
+
+      // `deliverSubscribe` and `mailingListClientFor` both read this way.
+      expect((await deliveryRead(listClient.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
+    })
+
+    it('answers no caller with the key, while the rest of the group survives', async () => {
+      const asAdmin = (await payload.findByID({
+        collection: 'clients',
+        id: listClient.id,
+        depth: 0,
+        overrideAccess: false,
+        req: managerReq(adminManager),
+      })) as Client
+
+      // The group is the manager's to configure — only the key is closed.
+      expect(asAdmin.mailingList?.listId).toBe('list-1')
+      expect(asAdmin.mailingList?.apiKey).toBeUndefined()
+    })
+
+    it('carries none of it to the service’s own key, on either self-read', async () => {
+      for (const path of ['/api/clients/me', '/api/clients/refresh-token']) {
+        const { status, body } = await rest(path, {
+          apiKey: LIST_SERVICE_KEY,
+          method: path.endsWith('me') ? 'GET' : 'POST',
+        })
+        expect(status).toBe(200)
+        // `refresh-token` re-reads the row at `overrideAccess: true`, so the
+        // field lock never runs there — `stripLockedFieldsOnSelfRead` is what
+        // closes it (#822).
+        expect(JSON.stringify(body)).not.toContain(PROVIDER_SECRET)
+      }
+    })
+
+    it('keeps the stored key through a form save, and proves the list it moved to', async () => {
+      const service = await createListClient('Form Save Service')
+
+      // The shape the edit form posts: every credential field but the key,
+      // which `admin.disabled` keeps out of form state.
+      await payload.update({
+        collection: 'clients',
+        id: service.id,
+        data: { mailingList: { enabled: true, provider: 'brevo', listId: 'list-2' } },
+        overrideAccess: false,
+        req: managerReq(adminManager),
+      })
+
+      const stored = await deliveryRead(service.id)
+      expect(stored.mailingList?.listId).toBe('list-2')
+      expect(stored.mailingList?.apiKey).toBe(PROVIDER_SECRET)
+      // The key the form never sent is what the new list was checked with.
+      expect(verifyCredentials).toHaveBeenCalledWith(
+        expect.objectContaining({ apiKey: PROVIDER_SECRET, listId: 'list-2' }),
+        expect.anything(),
+      )
+    })
+
+    it('spends no provider call on a save that changes no credential', async () => {
+      await payload.update({
+        collection: 'clients',
+        id: listClient.id,
+        data: { language: 'de' },
+        overrideAccess: false,
+        req: managerReq(adminManager),
+      })
+      expect(verifyCredentials).not.toHaveBeenCalled()
+    })
+
+    it('is in no form state, so live preview carries none of it', () => {
+      const group = payload.collections.clients.config.flattenedFields.find(
+        (field) => 'name' in field && field.name === 'mailingList',
+      )
+      const key =
+        group && 'flattenedFields' in group
+          ? group.flattenedFields.find((field) => 'name' in field && field.name === 'apiKey')
+          : undefined
+
+      // Read off the **booted** config, so `lockTabs` and Payload's own
+      // sanitization have both run. `addFieldStatePromise` skips every field
+      // this answers true for, and `reduceFieldsToValues(formState)` is what
+      // the live-preview postMessage carries.
+      expect(fieldIsHiddenOrDisabled(key as Field)).toBe(true)
+    })
+
+    describe('the endpoint', () => {
+      const setKey = (rest: RestClient, id: number, apiKey: string) =>
+        rest(`/api/clients/${id}/mailing-list-key`, {
+          method: 'POST',
+          json: { apiKey, provider: 'brevo', listId: 'list-1' },
+        })
+
+      it('stores a key the provider accepted', async () => {
+        const service = await createListClient('Endpoint Success Service')
+
+        const { status } = await setKey(listedRest, service.id, 'NEW-BREVO-SECRET-11111')
+        expect(status).toBe(200)
+        expect((await deliveryRead(service.id)).mailingList?.apiKey).toBe('NEW-BREVO-SECRET-11111')
+      })
+
+      it('stores nothing when the provider refuses, and says what it said', async () => {
+        const service = await createListClient('Endpoint Refusal Service')
+        verifyCredentials.mockResolvedValue('that API key was refused.')
+
+        const { status, body } = await setKey(listedRest, service.id, 'WRONG-BREVO-SECRET')
+        expect(status).toBe(400)
+        expect(JSON.stringify(body)).toContain('that API key was refused.')
+        expect((await deliveryRead(service.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
+      })
+
+      it('refuses a manager the service does not list', async () => {
+        const outsideRest = await createRestClientAs({ payload, config }, outsideManager)
+        const { status } = await setKey(outsideRest, listClient.id, 'OUTSIDER-SECRET')
+
+        expect(status).toBe(404)
+        expect((await deliveryRead(listClient.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
+      })
+
+      it('refuses an API client, including the service’s own key', async () => {
+        const { status } = await rest(`/api/clients/${listClient.id}/mailing-list-key`, {
+          apiKey: LIST_SERVICE_KEY,
+          json: { apiKey: 'CLIENT-WRITTEN-SECRET', provider: 'brevo', listId: 'list-1' },
+          method: 'POST',
+        })
+
+        expect(status).toBe(403)
+        expect((await deliveryRead(listClient.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
+      })
+
+      it('refuses a key it could not have proved', async () => {
+        const service = await createListClient('Endpoint Unprovable Service')
+        await payload.update({
+          collection: 'clients',
+          id: service.id,
+          data: { mailingList: { enabled: false } },
+          overrideAccess: true,
+        })
+        // The fixture's own create proved its key; this case is about the call
+        // the endpoint must not make.
+        verifyCredentials.mockClear()
+
+        const { status } = await setKey(listedRest, service.id, 'UNPROVABLE-SECRET')
+        expect(status).toBe(400)
+        expect(verifyCredentials).not.toHaveBeenCalled()
+      })
     })
   })
 

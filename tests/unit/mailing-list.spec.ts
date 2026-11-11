@@ -6,8 +6,11 @@
  * wrong means re-adding an address that unsubscribed — the single fastest way
  * to get a sender blocklisted. Everything else follows from the union.
  */
+import type { CollectionBeforeChangeHook } from 'payload'
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { validateMailingList } from '@/collections/Clients/hooks/validateMailingList'
 import { MAILING_LIST_ADAPTERS, adapterFor } from '@/lib/mailingList/providers'
 import { datacenterOf } from '@/lib/mailingList/providers/mailchimp'
 import { isMailingListConfigured, subscribeToMailingList } from '@/lib/mailingList/subscribe'
@@ -573,5 +576,60 @@ describe('verifyCredentials', () => {
       await expect(verify({ ...CLEVERREACH, doubleOptIn: false })).resolves.toBeNull()
       expect(called(fetchMock, '/flow/flow/')).toBe(false)
     })
+  })
+})
+
+/**
+ * Which saves spend a provider round trip (#1109).
+ *
+ * Every case names a provider no build speaks, so `adapterFor` answers nothing
+ * and the hook refuses before any `fetch` — the check firing is the assertion,
+ * and no network is involved in making it.
+ *
+ * ⚠ **The patch alone is not the configuration.** `mailingList.apiKey` is
+ * `secretField`, so it is in no form state and no form save carries one, and
+ * Payload materializes `{}` for a group a save omits. Judging the patch by
+ * itself would let a changed list id go in unproven.
+ */
+describe('validateMailingList', () => {
+  const STORED: MailingListConfig = {
+    enabled: true,
+    provider: 'nosuchprovider' as MailingListConfig['provider'],
+    listId: 'list-1',
+    apiKey: 'stored-plaintext-key',
+  }
+
+  /** What the edit form posts: every credential field but the write-only key. */
+  const { apiKey: _key, ...FORM_SAVE } = STORED
+
+  const save = (patch: unknown, stored: MailingListConfig | null = STORED) =>
+    (validateMailingList as CollectionBeforeChangeHook)({
+      data: patch === undefined ? {} : { mailingList: patch },
+      originalDoc: stored === null ? {} : { mailingList: stored },
+      req: { payload: { logger: { info: vi.fn(), warn: vi.fn() } } },
+    } as never)
+
+  it('checks a key the form never sent, against the field the form changed', async () => {
+    await expect(save({ ...FORM_SAVE, listId: 'list-2' })).rejects.toThrow(
+      'is not a provider this build speaks',
+    )
+  })
+
+  it('spends nothing when no credential moved', async () => {
+    await expect(save(FORM_SAVE)).resolves.toBeDefined()
+  })
+
+  it('spends nothing on a save that never touched the group', async () => {
+    await expect(save(undefined)).resolves.toBeDefined()
+  })
+
+  it('checks a key entered on a row that had none', async () => {
+    await expect(save(STORED, null)).rejects.toThrow('is not a provider this build speaks')
+  })
+
+  // Pinging with a blank key would answer "that API key was refused", blaming
+  // the operator for a field they have not filled in yet.
+  it('spends nothing while the list is incomplete', async () => {
+    await expect(save({ ...FORM_SAVE, listId: 'list-2' }, null)).resolves.toBeDefined()
   })
 })
