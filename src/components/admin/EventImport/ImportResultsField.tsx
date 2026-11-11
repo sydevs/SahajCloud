@@ -24,14 +24,35 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
  * target region can open an import, and these are the classes it created there
  * — so "not found" here means deleted, never "you may not see it". Whether a
  * link then opens is the drawer's own access check.
+ *
+ * ⚠ **Which is true only of the stored row, so `results` is read back rather
+ * than taken from the form.** A `form-state` request names its own id and
+ * carries its own values, and `buildFormState` gates on admin access alone — so
+ * reading `results` from `data` resolved whatever event ids the caller typed,
+ * each one populating its manager's name and email (#1126). The read below is
+ * also the access check the paragraph above assumes. `results` is
+ * `access.update: () => false`, so no form legitimately carries another value.
  */
 export const ImportResultsField: JSONFieldServerComponent = async ({
   clientField,
   data,
+  id,
   path,
   req,
 }) => {
-  const results = (data?.results ?? []) as ImportResultRow[]
+  const importId = Number(id ?? (data as { id?: unknown } | undefined)?.id)
+  const stored = Number.isInteger(importId)
+    ? await req.payload.findByID({
+        collection: 'imports',
+        id: importId,
+        depth: 0,
+        select: { results: true, targetRegion: true },
+        overrideAccess: false,
+        disableErrors: true,
+        req,
+      })
+    : null
+  const results = (stored?.results ?? []) as ImportResultRow[]
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
@@ -169,8 +190,8 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             )
           : null
       }
-      importId={data?.id as number | string}
-      targetId={relationId(data?.targetRegion)}
+      importId={importId}
+      targetId={relationId(stored?.targetRegion)}
       label={clientField.label}
       path={path}
       rows={rows}
