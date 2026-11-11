@@ -88,6 +88,20 @@ function rulesFor(config: LoginCollectionConfig, token: LoginToken): KindRules {
 }
 
 /**
+ * Whether this route would still spend `token`, for the sign-in page to ask before it offers a
+ * button. Read off {@link rulesFor} rather than restated, so the page and the route cannot
+ * disagree about a used or superseded link. `select` is what `isUnspent` reads, beyond
+ * `_verified`.
+ */
+export function spentRule(
+  config: LoginCollectionConfig,
+  token: LoginToken,
+): Pick<KindRules, 'isUnspent' | 'select' | 'spentReason'> {
+  const { isUnspent, select, spentReason } = rulesFor(config, token)
+  return { isUnspent, select, spentReason }
+}
+
+/**
  * `POST /api/<slug>/redeem?token=…` — spend any delivered link for a session,
  * and redirect.
  *

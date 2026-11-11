@@ -1,5 +1,5 @@
 import type { SignInNotice } from './SignInForm'
-import type { Payload } from 'payload'
+import type { Payload, SelectType } from 'payload'
 
 import { redeemUrl } from '@/app/(frontend)/_components/loginUrls'
 import { managersLogin } from '@/collections/Managers/login'
@@ -9,6 +9,7 @@ import {
   INVITE_VALID_FOR,
   readAnyLoginToken,
   SIGNIN_VALID_FOR,
+  spentRule,
 } from '@/plugins/login'
 
 /** The page standing between a delivered link and the session it buys. */
@@ -47,9 +48,12 @@ export async function deliveredLink(
     return NOTICES.invalid
   }
 
-  const account = await accountFor(read.token, payload)
-  // Refused now rather than after the click, with the redeem route's own answer.
+  const rule = spentRule(managersLogin, read.token)
+  const account = await accountFor(read.token, payload, rule.select)
+  // Refused now rather than after the click, with the redeem route's own answer: a used or
+  // superseded link would otherwise offer a button the route then refuses.
   if (!account?.email) return NOTICES.invalid
+  if (!rule.isUnspent(account)) return linkNotice(rule.spentReason) ?? NOTICES.invalid
 
   const name = typeof account.name === 'string' ? account.name.trim() : ''
   const who = name || account.email
@@ -58,10 +62,6 @@ export async function deliveredLink(
 
   switch (read.token.kind) {
     case 'invite':
-      // `_verified` is what makes an invitation single-use, and it is account
-      // state rather than a claim — so the redeem route's own refusal is
-      // knowable here, before the holder is offered a button that cannot work.
-      if (account._verified === true) return NOTICES['invite-accepted']
       return {
         ...confirmation,
         heading: `Welcome, ${who}`,
@@ -88,9 +88,10 @@ export async function deliveredLink(
 /**
  * The account a link names, or `null` when it is gone or no longer eligible —
  * the two checks the redeem route makes before anything else. `_verified` comes
- * with it, because an invitation's spent-ness is that flag.
+ * with it, because an invitation's spent-ness is that flag; `select` adds what
+ * the token's own kind reads (a sign-in link's stamp).
  */
-async function accountFor(token: LoginToken, payload: Payload) {
+async function accountFor(token: LoginToken, payload: Payload, select?: SelectType) {
   try {
     const account = await payload.findByID({
       collection: managersLogin.slug,
@@ -100,7 +101,7 @@ async function accountFor(token: LoginToken, payload: Payload) {
       // `undefined` — the same cast the redeem route makes.
       joins: false as never,
       overrideAccess: true,
-      select: { _verified: true, email: true, name: true, ...managersLogin.select },
+      select: { _verified: true, email: true, name: true, ...select, ...managersLogin.select },
     })
     const doc = account as unknown as LoginDocument
     return managersLogin.isEligible && !managersLogin.isEligible(doc) ? null : doc

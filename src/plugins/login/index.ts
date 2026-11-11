@@ -16,7 +16,7 @@
  * caller, and exporting them would invite a collection to wire its own copy.
  */
 
-export { EXPIRED_REASON, REDEEM_PATH } from './endpoints/redeem'
+export { EXPIRED_REASON, REDEEM_PATH, spentRule } from './endpoints/redeem'
 export { INVITE_VALID_FOR, composeInvitations } from './invite'
 export { INVITATION_DELAY_MS } from './invitations'
 export { pageLinkUrl } from './links'
