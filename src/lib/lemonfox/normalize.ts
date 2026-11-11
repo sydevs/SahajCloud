@@ -1,20 +1,20 @@
 /**
- * Here rather than beside the HTTP client, because three writers share it: a
- * live transcription, the import of the library's existing transcript files,
- * and the subtitles endpoint. Nothing in this module fetches.
+ * Here rather than beside the HTTP client, because two writers share it: a live
+ * transcription, and the import of the library's existing transcript files.
+ * Nothing in this module fetches.
  *
- * ⚠ `normalizeLemonfoxResponse` still throws `ExpectedJobFailure` for a
- * recording with no speech, which is a `src/jobs/` concept in a module two
- * non-job callers now share. `normalizeLemonfoxWords` deliberately does not:
- * it answers `[]` and leaves the wording to its caller. Moving that decision
- * out to `TranscribeMeditation` is the follow-up; nothing depends on it today
- * because the endpoint calls only the words half.
+ * A run stores subtitle-length cues made from the word timings, whatever the
+ * recording (#1016): one shape serves a Path Step's subtitles and a
+ * meditation's reading view, which groups cues into paragraphs by the pauses
+ * between them. The library's existing transcripts were stored as Lemonfox's
+ * phrases before that, and the seed that imports them keeps them so
+ * (`normalizeLemonfoxResponse`) — they are production's rows as they are.
  */
 import { z } from 'zod'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import type { TimedWord } from '@/lib/utilities/subtitles'
+import { groupWordsIntoCues, type TimedWord } from '@/lib/utilities/subtitles'
 
 /**
  * Lemonfox exposes an OpenAI-compatible `verbose_json`, but documents no
@@ -37,6 +37,8 @@ const rawSegmentSchema = z.object({
 })
 
 const rawResponseSchema = z.object({
+  /** The language Whisper heard, as a name (`english`), when none was asked for. */
+  language: z.string().optional(),
   segments: z.array(rawSegmentSchema).optional(),
   words: z.array(rawWordSchema).optional(),
 })
@@ -55,7 +57,8 @@ const UNREADABLE = 'Lemonfox returned a response this app cannot read.'
 const toMilliseconds = (seconds: number): number => Math.round(Math.max(0, seconds) * 1000)
 
 /**
- * Reduce a Lemonfox `verbose_json` body to the stored segment shape.
+ * Reduce a Lemonfox `verbose_json` body to its phrase segments — the shape the
+ * library's existing transcripts carry (`seeds/meditation-transcripts/`).
  *
  * Throws when the body holds no timestamped segment, since a transcript the
  * editor cannot seek through is not one this feature can use.
@@ -80,6 +83,28 @@ export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
       endTimeMs: Math.max(startTimeMs, toMilliseconds(segment.end)),
     }
   })
+}
+
+/**
+ * Reduce a Lemonfox `verbose_json` body to the stored cues.
+ *
+ * Throws when the body holds no timed word, since a transcript nobody can seek
+ * through is not one this feature can use. `ExpectedJobFailure`, because that
+ * is an answer about the recording (music, silence) and is already shown on its
+ * row.
+ */
+export function normalizeLemonfoxCues(raw: unknown): TranscriptSegment[] {
+  const cues = groupWordsIntoCues(normalizeLemonfoxWords(raw))
+  if (cues.length === 0) {
+    throw new ExpectedJobFailure('Lemonfox returned no timestamped speech for this recording.')
+  }
+  return cues
+}
+
+/** The language name Lemonfox reports hearing, or `undefined` for none. */
+export function lemonfoxDetectedLanguage(raw: unknown): string | undefined {
+  const parsed = rawResponseSchema.safeParse(raw)
+  return parsed.success ? parsed.data.language : undefined
 }
 
 /**

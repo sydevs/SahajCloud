@@ -117,6 +117,22 @@ describe('WeMeditateAppStatus Global', () => {
   // gate on its own — see the note in `wm-app-config.int.spec.ts`.
   let requiredAppConfig: Record<string, unknown>
 
+  /**
+   * An intro recording whose transcript has finished, which is what
+   * `intro-subtitles-set` reads since a step's subtitles are its file's
+   * (#1016). The upload made the row; this fills it in, as a run would.
+   */
+  const transcribedRecording = async (content: string) => {
+    const file = await testData.createFile(payload, {}, 'audio-42s.mp3')
+    await payload.update({
+      collection: 'transcripts',
+      where: { source: { equals: { relationTo: 'files', value: file.id } } },
+      data: { language: 'en', segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
+      overrideAccess: true,
+    })
+    return file
+  }
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
@@ -196,7 +212,7 @@ describe('WeMeditateAppStatus Global', () => {
         type: 'lesson',
         _status: 'published',
       })
-      const introAudio = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      const introAudio = await transcribedRecording('Close your eyes')
 
       fullLesson = await testData.createLesson(payload, {
         title: 'Fully populated lesson',
@@ -204,9 +220,6 @@ describe('WeMeditateAppStatus Global', () => {
         step: 1,
         meditation: { relationTo: 'meditations', value: meditation.id },
         introAudio: introAudio.id,
-        // ⚠ One cue, not an empty array: an empty array is truthy, so
-        // `intro-subtitles-set` tests the length and nothing else would.
-        introSubtitles: [{ content: 'Close your eyes', startTimeMs: 0, endTimeMs: 1200 }],
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }, { title: 'p2' }],
       } as Partial<Lesson>)
@@ -216,9 +229,6 @@ describe('WeMeditateAppStatus Global', () => {
         unit: 'Unit 1',
         step: 2,
         panels: [{ title: 'p1' }],
-        // ⚠ An empty array, not an absent one: it is truthy, so a check reading
-        // truthiness would report this step as having subtitles.
-        introSubtitles: [],
       } as Partial<Lesson>)
     })
 
@@ -623,7 +633,7 @@ describe('WeMeditateAppStatus Global', () => {
         type: 'lesson',
         _status: 'published',
       })
-      const englishIntroAudio = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      const englishIntroAudio = await transcribedRecording('English line')
       englishOnlyLesson = await testData.createLesson(payload, {
         title: 'English-only lesson',
         unit: 'Unit 3',
@@ -631,9 +641,9 @@ describe('WeMeditateAppStatus Global', () => {
         meditation: { relationTo: 'meditations', value: lessonMeditation.id },
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }],
-        // Both became localized in #1016, so both now answer per locale here.
+        // Localized in #1016, so it answers per locale here — and the
+        // subtitles follow it, being its file's.
         introAudio: englishIntroAudio.id,
-        introSubtitles: [{ content: 'English line', startTimeMs: 0, endTimeMs: 900 }],
       } as Partial<Lesson>)
 
       const choiceMeditation = await testData.createMeditation(payload, undefined, {

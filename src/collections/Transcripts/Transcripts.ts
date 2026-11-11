@@ -93,13 +93,15 @@ export const Transcripts: CollectionConfig = {
       options: [...TRANSCRIPT_PROVIDERS],
     },
     {
-      // A required `select`, not free text: the glossary pass keys on this
-      // value, and a code no entry can match — or none at all — would disable
-      // it silently (#897, line 8). Every writer has one, because a
-      // meditation's own `locale` is required.
+      // A `select`, not free text: the glossary pass keys on this value, and a
+      // code no entry can match would disable it silently (#897, line 8).
+      //
+      // Not `required` (#1016): a file states no language, so its row starts
+      // empty and the run fills in the language Lemonfox heard. A meditation's
+      // row always has one — its own `locale`. Empty after a run means Lemonfox
+      // heard a language no locale here speaks, and the glossary pass skips it.
       name: 'language',
       type: 'select',
-      required: true,
       options: getLocaleOptions(),
     },
     jsonField({

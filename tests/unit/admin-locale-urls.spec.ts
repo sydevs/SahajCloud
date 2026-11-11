@@ -18,12 +18,12 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { fileUrl } from '../../src/components/admin/FileTranscriptPreview/previewModel'
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
-import { introSubtitlesUrl } from '../../src/components/admin/IntroSubtitles/introSubtitlesModel'
 import {
   transcribeUrl,
   transcriptUrl,
-} from '../../src/components/admin/MeditationTranscript/transcriptModel'
+} from '../../src/components/admin/RecordingTranscript/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -85,28 +85,29 @@ describe('transcriptUrl', () => {
 })
 
 /**
- * The fourth and fifth sites (#1016). The locale is a permission here as well,
- * and one thing more: it decides which language the cues are transcribed in and
- * recorded as, so a request naming none would write English cues into whatever
- * locale the admin was editing.
+ * The Path Step preview's two reads and the file's transcribe (#1016): a file's
+ * transcript is read and requested through the same builders as a meditation's,
+ * so they carry the locale for the same reason.
  */
-describe('introSubtitlesUrl', () => {
-  it('names the locale, because the endpoint gates on it', () => {
-    expect(introSubtitlesUrl(7, 'fr')).toBe('/api/files/7/subtitles?locale=fr')
+describe('the file transcript sites', () => {
+  it('reads and posts under the file, naming the locale', () => {
+    expect(transcriptUrl(7, 'fr', 'files')).toContain('locale=fr')
+    expect(transcriptUrl(7, 'fr', 'files')).toContain(
+      encodeURIComponent('where[source][equals][relationTo]') + '=files',
+    )
+    expect(transcribeUrl(7, 'fr', 'files')).toBe('/api/files/7/transcribe?locale=fr')
   })
 
-  it('encodes the locale', () => {
-    expect(introSubtitlesUrl(7, 'pt-BR')).toBe('/api/files/7/subtitles?locale=pt-BR')
+  it('carries a corrected spoken language beside the admin locale', () => {
+    expect(transcribeUrl(7, 'fr', 'files', 'cs')).toBe(
+      '/api/files/7/transcribe?language=cs&locale=fr',
+    )
   })
 
-  it('refuses to build a URL with no locale', () => {
-    expect(introSubtitlesUrl(7, undefined)).toBeNull()
-    expect(introSubtitlesUrl(7, '')).toBeNull()
-  })
-
-  it('refuses to build a URL with no file', () => {
-    expect(introSubtitlesUrl(undefined, 'fr')).toBeNull()
-    expect(introSubtitlesUrl(null, 'fr')).toBeNull()
+  it('reads the file itself with the locale, and refuses without one', () => {
+    expect(fileUrl(7, 'fr')).toContain('locale=fr')
+    expect(fileUrl(7, undefined)).toBeNull()
+    expect(fileUrl(null, 'fr')).toBeNull()
   })
 })
 

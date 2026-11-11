@@ -205,7 +205,7 @@
     },
     "intro-subtitles-set": {
       "label": "Intro subtitles set",
-      "description": "The lesson has subtitles for its intro audio in this locale. Most locales have none yet — the recordings and their subtitles were English-only until they became per-language."
+      "description": "The intro audio for this locale has a finished transcript, which is its subtitles. Most locales have no intro audio of their own yet — the recordings were English-only until they became per-language."
     },
     "is-populated": {
       "label": "Populated",

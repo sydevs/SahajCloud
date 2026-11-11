@@ -8,11 +8,12 @@
  * and lives in `tests/unit/transcript-status.spec.ts`.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
- * `@/lib/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
+ * `@/jobs/TranscribeRecording/lemonfoxClient` — `tests/AGENTS.md`'s boundary rule — so the
  * suite can drive a completed run and **cannot** make a paid call. Two claims
  * the fixtures make about the real configuration, both verified:
  *
- * - The body shape is `{ segments: [{ text, start, end }] }` in seconds.
+ * - The body shape is `{ segments: [{ text, start, end, words }] }` in seconds,
+ *   with the word timings a run asks for (`wordTimings: true`).
  *   Checked against `src/lib/lemonfox/normalize.ts`, the
  *   one normaliser, which is the real code under these assertions.
  * - `LEMONFOX_API_KEY` is `''` in `vitest.config.mts`, so the unmocked key
@@ -26,7 +27,7 @@ import path from 'node:path'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
+import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import {
   RETRANSCRIBE_COOLDOWN_MS,
@@ -52,8 +53,8 @@ const lemonfox = vi.hoisted(() => ({
 
 // Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
 // unavailable case asserts the row carries the real one.
-vi.mock('@/lib/lemonfox/transcribe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/lemonfox/transcribe')>()),
+vi.mock('@/jobs/TranscribeRecording/lemonfoxClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/jobs/TranscribeRecording/lemonfoxClient')>()),
   ...lemonfox,
 }))
 
@@ -70,11 +71,37 @@ vi.mock('@/plugins/storage', async (importOriginal) => ({
   ...storage,
 }))
 
-/** Two phrases, in the provider's seconds. `normalizeLemonfoxResponse` converts. */
+/**
+ * Two phrases, in the provider's seconds, whose words group into exactly two
+ * cues: the second's first word would take the first past 30 characters.
+ * `normalizeLemonfoxCues` converts.
+ */
 const VENDOR_BODY = {
   segments: [
-    { id: 0, text: ' Place your attention on the top of the head.', start: 0, end: 4.25 },
-    { id: 1, text: ' Let the thoughts settle.', start: 4.25, end: 6.5 },
+    {
+      id: 0,
+      text: ' Place your attention gently.',
+      start: 0,
+      end: 4.25,
+      words: [
+        { word: 'Place', start: 0, end: 0.6 },
+        { word: 'your', start: 0.6, end: 1.0 },
+        { word: 'attention', start: 1.0, end: 1.8 },
+        { word: 'gently.', start: 1.8, end: 4.25 },
+      ],
+    },
+    {
+      id: 1,
+      text: ' Let the thoughts settle.',
+      start: 4.25,
+      end: 6.5,
+      words: [
+        { word: 'Let', start: 4.25, end: 4.6 },
+        { word: 'the', start: 4.6, end: 4.8 },
+        { word: 'thoughts', start: 4.8, end: 5.6 },
+        { word: 'settle.', start: 5.6, end: 6.5 },
+      ],
+    },
   ],
 }
 
@@ -203,7 +230,7 @@ describe('meditation transcription', () => {
       const meditation = await createMeditation()
       const before = await versionCount(meditation.id)
 
-      await runTaskHandler(TranscribeMeditation, {
+      await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
@@ -223,7 +250,7 @@ describe('meditation transcription', () => {
     it('completes with the normalised cues, in milliseconds', async () => {
       const meditation = await createMeditation()
 
-      const output = await runTaskHandler(TranscribeMeditation, {
+      const output = await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
@@ -234,11 +261,7 @@ describe('meditation transcription', () => {
       // The vendor answers seconds. The cue shape is milliseconds, so a player
       // reading a transcript and one reading subtitles agree.
       expect(row?.segments).toEqual([
-        {
-          content: 'Place your attention on the top of the head.',
-          startTimeMs: 0,
-          endTimeMs: 4250,
-        },
+        { content: 'Place your attention gently.', startTimeMs: 0, endTimeMs: 4250 },
         { content: 'Let the thoughts settle.', startTimeMs: 4250, endTimeMs: 6500 },
       ])
     })
@@ -267,7 +290,7 @@ describe('meditation transcription', () => {
 
       // The replacement deleted the row this run was for, so there is nothing
       // to write and nothing wrong: the replacement queued its own run.
-      const output = await runTaskHandler(TranscribeMeditation, {
+      const output = await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: original },
       })
@@ -286,7 +309,7 @@ describe('meditation transcription', () => {
       // does not.
       await takeAwayRecording(meditation.id)
 
-      const failure = await runTaskHandler(TranscribeMeditation, {
+      const failure = await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       }).catch((error: unknown) => error)
@@ -303,7 +326,7 @@ describe('meditation transcription', () => {
       // the message and the row's `status` derives `failed` from it. A recording
       // with no speech is an answer about it, so an expected failure.
       await expect(
-        runTaskHandler(TranscribeMeditation, {
+        runTaskHandler(TranscribeRecording, {
           payload,
           input: { meditationId: meditation.id, audioFilename: meditation.filename! },
         }),
@@ -317,7 +340,7 @@ describe('meditation transcription', () => {
       const meditation = await createMeditation()
 
       await expect(
-        runTaskHandler(TranscribeMeditation, {
+        runTaskHandler(TranscribeRecording, {
           payload,
           input: { meditationId: meditation.id, audioFilename: meditation.filename! },
         }),
@@ -348,7 +371,7 @@ describe('meditation transcription', () => {
       vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', railwayName)
       vi.stubEnv('NODE_ENV', nodeEnv)
       unconfigure()
-      const failure = await runTaskHandler(TranscribeMeditation, {
+      const failure = await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       }).catch((error: unknown) => error)
@@ -376,7 +399,7 @@ describe('meditation transcription', () => {
   describe('a replaced recording', () => {
     it('takes the old transcript with it, and asks for a new one', async () => {
       const meditation = await createMeditation()
-      await runTaskHandler(TranscribeMeditation, {
+      await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: meditation.filename! },
       })
@@ -398,7 +421,7 @@ describe('meditation transcription', () => {
       const meditation = await createMeditation()
       const replaced = await replaceAudio(meditation.id)
 
-      const output = await runTaskHandler(TranscribeMeditation, {
+      const output = await runTaskHandler(TranscribeRecording, {
         payload,
         input: { meditationId: meditation.id, audioFilename: replaced.filename! },
       })
@@ -560,7 +583,7 @@ describe('meditation transcription', () => {
     describe('what it refuses', () => {
       it('refuses a completed transcript with a 409, and queues nothing', async () => {
         const meditation = await createMeditation()
-        await runTaskHandler(TranscribeMeditation, {
+        await runTaskHandler(TranscribeRecording, {
           payload,
           input: { meditationId: meditation.id, audioFilename: meditation.filename! },
         })

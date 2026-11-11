@@ -1,18 +1,25 @@
 /**
- * `normalizeLemonfoxResponse` — the `verbose_json` body reduced to the stored
- * cue shape: seconds in, milliseconds out.
+ * `normalizeLemonfoxResponse` — the body reduced to phrases, as the library's
+ * existing transcripts are stored. `normalizeLemonfoxCues` — the body reduced to
+ * what a run stores: the word timings, grouped into subtitle-length cues, seconds in and
+ * milliseconds out (#1016). And `lemonfoxDetectedLanguage`, the language a run
+ * asked for none of reports hearing.
  *
  * Fixture pre-mortem: these bodies claim to be what Lemonfox's
  * OpenAI-compatible `verbose_json` returns. Verified against the shape the
  * normaliser declares in `src/lib/lemonfox/normalize.ts` —
  * `segments[]` of `{ text, start, end }`, with word timings arriving either on
- * each segment (WhisperX) or in one top-level list (OpenAI). Nothing stores
- * the timings, so both layouts must reduce to the same answer.
+ * each segment (WhisperX) or in one top-level list (OpenAI).
  */
 import { describe, expect, it } from 'vitest'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import { normalizeLemonfoxResponse, normalizeLemonfoxWords } from '@/lib/lemonfox/normalize'
+import {
+  lemonfoxDetectedLanguage,
+  normalizeLemonfoxCues,
+  normalizeLemonfoxResponse,
+  normalizeLemonfoxWords,
+} from '@/lib/lemonfox/normalize'
 
 const PER_SEGMENT_WORDS = {
   text: 'Place your attention. Let the thoughts settle.',
@@ -104,11 +111,59 @@ describe('normalizeLemonfoxResponse', () => {
   })
 })
 
+describe('normalizeLemonfoxCues', () => {
+  it('groups the words into cues of at most 30 characters', () => {
+    expect(
+      normalizeLemonfoxCues({
+        words: [
+          { word: 'Place', start: 0, end: 0.6 },
+          { word: 'your', start: 0.6, end: 1.0 },
+          { word: 'attention', start: 1.0, end: 1.8 },
+          { word: 'gently', start: 1.8, end: 2.2 },
+          { word: 'on', start: 2.2, end: 2.4 },
+          { word: 'the', start: 2.4, end: 2.5 },
+          { word: 'heart.', start: 2.5, end: 3.0 },
+        ],
+      }),
+    ).toEqual([
+      { content: 'Place your attention gently on', startTimeMs: 0, endTimeMs: 2400 },
+      { content: 'the heart.', startTimeMs: 2400, endTimeMs: 3000 },
+    ])
+  })
+
+  it('reads the per-segment word layout', () => {
+    expect(normalizeLemonfoxCues(PER_SEGMENT_WORDS)).toEqual([
+      { content: 'Place your attention. Let', startTimeMs: 0, endTimeMs: 2900 },
+    ])
+  })
+
+  it('refuses a body it cannot read, and one with no timed speech', () => {
+    expect(() => normalizeLemonfoxCues({ segments: 'nope' })).toThrow(/cannot read/)
+    expect(() => normalizeLemonfoxCues({ segments: [] })).toThrow(/no timestamped speech/)
+    // No speech is an answer about the recording; an unreadable body is not.
+    expect(() => normalizeLemonfoxCues({ segments: [] })).toThrow(ExpectedJobFailure)
+    expect(() => normalizeLemonfoxCues({ segments: 'nope' })).not.toThrow(ExpectedJobFailure)
+    // Segments without word timings carry no cue either.
+    expect(() => normalizeLemonfoxCues({ segments: [{ text: 'hmm', start: 0, end: 4 }] })).toThrow(
+      /no timestamped speech/,
+    )
+  })
+})
+
+describe('lemonfoxDetectedLanguage', () => {
+  it('reads the language the vendor reports', () => {
+    expect(lemonfoxDetectedLanguage({ language: 'czech', segments: [] })).toBe('czech')
+  })
+
+  it('answers nothing for a body without one, or one it cannot read', () => {
+    expect(lemonfoxDetectedLanguage({ segments: [] })).toBeUndefined()
+    expect(lemonfoxDetectedLanguage(null)).toBeUndefined()
+  })
+})
+
 /**
- * `normalizeLemonfoxWords` — the same two bodies read for their word timings,
- * which the subtitles grouper turns into cues (#1016). Same module, same
- * fixtures: the layouts the segment half must reduce to one answer are the
- * layouts this half has to tell apart.
+ * `normalizeLemonfoxWords` — the two layouts read for their word timings, which
+ * `normalizeLemonfoxCues` groups (#1016).
  *
  * The two fixtures carry **different** word lists on purpose — the WhisperX one
  * names every word, the OpenAI one only two — so neither expectation can be
@@ -224,8 +279,7 @@ describe('normalizeLemonfoxWords', () => {
   })
 
   // Music or silence. An answer about the recording rather than a failure to
-  // read the body — so no throw here, unlike the segment half above: the
-  // endpoint words it for the admin and writes no row.
+  // read the body — so no throw here: `normalizeLemonfoxCues` words it.
   it('answers no words for a body with no aligned speech', () => {
     expect(normalizeLemonfoxWords({ segments: [{ start: 0, end: 4, text: 'hmm' }] })).toEqual([])
     expect(normalizeLemonfoxWords({})).toEqual([])

@@ -13,7 +13,7 @@ import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
-} from '@/components/admin/MeditationTranscript/transcriptModel'
+} from '@/components/admin/RecordingTranscript/transcriptModel'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({

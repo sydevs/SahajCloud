@@ -919,7 +919,6 @@ export const testData = {
       panels: panelsData,
       meditation: meditationRel,
       introAudio: overrides.introAudio || undefined,
-      introSubtitles: overrides.introSubtitles || undefined,
       article: overrides.article || undefined,
       icon,
     }

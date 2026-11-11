@@ -41,42 +41,19 @@ describe('Lessons Collection — custom behavior', () => {
     await cleanup()
   })
 
-  describe('introSubtitles JSON behavior', () => {
-    it('stores subtitle data with required fields', async () => {
-      const validSubtitles = [
-        { startTimeMs: 300, endTimeMs: 2300, durationMs: 2000, content: 'First caption' },
-        { startTimeMs: 2500, endTimeMs: 4500, content: 'Second caption' },
-      ]
-
+  // The column became the intro file's transcript (#1016): what a step answers
+  // is read off its file (`file-transcripts.int.spec.ts`), and a write to it
+  // lands nowhere rather than beside a recording it may not match.
+  describe('introSubtitles', () => {
+    it('stores nothing written to it', async () => {
       const lesson = await testData.createLesson(payload, {
         title: 'Subtitle Storage Test',
         meditation: testMeditation.id,
-        introSubtitles: validSubtitles,
+        introSubtitles: [{ startTimeMs: 300, endTimeMs: 2300, content: 'First caption' }],
       })
 
-      expect(lesson.introSubtitles).toEqual(validSubtitles)
-    })
-
-    it('accepts subtitle data with extra fields not in jsonSchema', async () => {
-      // Documents intentional behavior: the validator only checks the required
-      // cue fields, so legacy cue fields can still be stored.
-      const subtitlesWithLegacyField = [
-        {
-          startTimeMs: 300,
-          endTimeMs: 2300,
-          durationMs: 2000,
-          content: 'Caption with legacy field',
-          startOfParagraph: null,
-        },
-      ]
-
-      const lesson = await testData.createLesson(payload, {
-        title: 'Subtitle Legacy Field Test',
-        meditation: testMeditation.id,
-        introSubtitles: subtitlesWithLegacyField,
-      })
-
-      expect(lesson.introSubtitles).toEqual(subtitlesWithLegacyField)
+      const read = await payload.findByID({ collection: 'lessons', id: lesson.id, depth: 0 })
+      expect(read.introSubtitles ?? null).toBeNull()
     })
   })
 

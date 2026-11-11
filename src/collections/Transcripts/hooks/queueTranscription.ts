@@ -8,8 +8,9 @@ import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
  * afterChange: a new transcript row is a request to transcribe its recording.
  *
  * The row is the request, so the run is queued here rather than by whoever
- * created it — a `meditations` save, a seed, or an editor in the admin all get
- * the same behaviour, and nothing can create a row that transcribes nothing.
+ * created it — a meditation or file save, a Stream webhook, a seed, or an editor
+ * in the admin all get the same behaviour, and nothing can create a row that
+ * transcribes nothing.
  *
  * The job row is queued **inside the caller's transaction** (`req` passed), so a
  * rolled-back save never leaves an orphaned job — which is also why the queue
@@ -26,14 +27,16 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
   // there would pay the vendor to re-transcribe the whole library.
   if (Array.isArray(doc.segments) && doc.segments.length > 0) return doc
 
-  // ⚠ **Only a `meditations`-sourced row has a run to queue.** The task's input
-  // is a `meditationId`, so a `files`-sourced row would start a run that can
-  // resolve nothing.
-  if (doc.source?.relationTo !== 'meditations') return doc
+  const relationTo = doc.source?.relationTo
+  if (relationTo !== 'meditations' && relationTo !== 'files') return doc
+  const sourceId = Number(extractID(doc.source.value))
 
   const job = await req.payload.jobs.queue({
     task: 'transcribeMeditation',
-    input: { meditationId: Number(extractID(doc.source.value)), audioFilename: doc.audioFilename },
+    input:
+      relationTo === 'files'
+        ? { fileId: sourceId, audioFilename: doc.audioFilename }
+        : { meditationId: sourceId, audioFilename: doc.audioFilename },
     queue: 'transcription',
     req,
   })

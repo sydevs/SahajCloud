@@ -1,15 +1,15 @@
 /**
  * The Lemonfox speech-to-text connection: the HTTP call and the key behind it.
  *
- * Here rather than inside the transcription job, because two parties need it —
- * the job that calls the vendor, and the writer that must know whether
- * transcription is available before it promises one.
+ * Inside the job, because the job is the one caller since transcripts belong to
+ * recordings (#1016) — every request, a meditation's or a file's, is a queued
+ * run. The response readers stay in `@/lib/lemonfox`, which the library seed
+ * shares.
  */
 import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { serverEnv } from '@/lib/env'
+import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
 import type { LocaleCode } from '@/lib/locales'
-
-import { lemonfoxLanguage } from './languages'
 
 const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcriptions'
 
@@ -60,14 +60,12 @@ export async function requestLemonfoxTranscript({
    */
   locale?: LocaleCode
   /**
-   * Ask for per-word timings as well as per-segment ones. Opt-in because they
-   * are most of the body, and only the subtitles endpoint groups them into
-   * cues — the meditation job stores segments and would carry them for nobody.
+   * Ask for per-word timings as well as per-segment ones — what a run groups
+   * into cues. Opt-in at this seam because they are most of the body.
    */
   wordTimings?: boolean
   /**
-   * How long to wait for the vendor. The default suits a queued job; a caller
-   * with an HTTP client waiting passes its own, shorter bound.
+   * How long to wait for the vendor. The default suits a queued job.
    */
   timeoutMs?: number
   fetchFn?: typeof fetch

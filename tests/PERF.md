@@ -103,6 +103,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | thirty-ninth, #1055 addressing a review (2026-11-07)          | 248 / 3324    | 35.24 s (inside the gate)                    | 35.2 s     |
 | fortieth, #1104 after merging `main` (2026-11-11)             | 258 / 3531    | 55.57 s                                      | 55.6 s     |
 | forty-first, #1104 after merging `main` again (2026-11-11)    | 259 / 3538    | 43.34 · 45.38 s (both inside the gate)       | 44.4 s     |
+| forty-second, #1104 onto file transcripts, macOS (2026-11-11) | 258 / 3527    | 23.57 s                                      | 23.6 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -122,7 +123,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 259 / 3538                                                        |
+| Files / tests                                                                                   | 258 / 3527                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |

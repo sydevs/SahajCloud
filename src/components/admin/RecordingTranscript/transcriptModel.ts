@@ -2,6 +2,9 @@ import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 
+/** The two kinds of recording a transcript belongs to (`transcripts.source`). */
+export type RecordingCollection = 'meditations' | 'files'
+
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
 
@@ -20,7 +23,7 @@ export type TranscriptParagraph = {
 }
 
 /**
- * The collection query the tab reads, or `null` without a document id or a
+ * The collection query the panel reads, or `null` without a recording id or a
  * locale.
  *
  * A manager's roles are per locale, so the request must name the active admin
@@ -31,10 +34,11 @@ export type TranscriptParagraph = {
  * refuses to build a URL instead, and the caller reports it.
  */
 export const transcriptUrl = (
-  meditationId: number | string | undefined,
+  recordingId: number | string | undefined,
   locale: string | undefined,
+  relationTo: RecordingCollection = 'meditations',
 ): string | null =>
-  meditationId && locale
+  recordingId && locale
     ? `/api/transcripts${qs.stringify(
         {
           depth: 0,
@@ -42,23 +46,28 @@ export const transcriptUrl = (
           locale,
           // `qs` serialises the nested object, and `sanitizeQueryValue` reads
           // it back through the same guard the Local API uses.
-          where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+          where: { source: { equals: { relationTo, value: recordingId } } },
         },
         { addQueryPrefix: true },
       )}`
     : null
 
 /**
- * Where the Transcribe-again button posts, or `null` without a document id or a
+ * Where the Transcribe button posts, or `null` without a recording id or a
  * locale — `transcriptUrl`'s own docblock carries why both are required.
+ *
+ * `language` is a file's spoken language, corrected by an editor (#1016); a
+ * meditation's is its own `locale`, so it never sends one.
  */
 export const transcribeUrl = (
-  meditationId: number | string | undefined,
+  recordingId: number | string | undefined,
   locale: string | undefined,
+  relationTo: RecordingCollection = 'meditations',
+  language?: string,
 ): string | null =>
-  meditationId && locale
-    ? `/api/meditations/${meditationId}/transcribe${qs.stringify(
-        { locale },
+  recordingId && locale
+    ? `/api/${relationTo}/${recordingId}/transcribe${qs.stringify(
+        language ? { language, locale } : { locale },
         { addQueryPrefix: true },
       )}`
     : null

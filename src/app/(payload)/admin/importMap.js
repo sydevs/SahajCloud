@@ -26,7 +26,7 @@ import { default as default_aab4ebf5529acd7d615f7dc8a0ee17ec } from '@/component
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
 import { default as default_bc10fee3a76719781454f604d687129b } from '@/components/admin/TagAssignmentField'
 import { default as default_85b3a6f55f7eb542fec6b94fa2de1494 } from '@/components/admin/PreviewTarget'
-import { default as default_ef915edebbf0e637d2b21d5b814a75f9 } from '@/components/admin/MeditationTranscript'
+import { default as default_e25816ba15d438aeaa450feef1831703 } from '@/components/admin/RecordingTranscript'
 import { default as default_75e666f79b1160c03532515ca11818f3 } from '@/components/admin/FrameEditor/FrameListManager'
 import { default as default_e201aca8b8f7be4559f38e80e7a23040 } from '@/components/admin/FrameEditor/FrameInserter'
 import { default as default_f6674fb37b8a49317525e4fb8838a78c } from '@/components/admin/UploadNotice'
@@ -35,7 +35,7 @@ import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/component
 import { default as default_aa1cbd65eb0b3cec4fc40542c104a1d5 } from '@/components/admin/JobStageView/JobStageView'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
 import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
-import { default as default_3c65926432e74f05a5bdb2c0342b72ba } from '@/components/admin/IntroSubtitles'
+import { default as default_67882b8ac8c55b70bc05df4fdc1ddda4 } from '@/components/admin/FileTranscriptPreview'
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
@@ -130,7 +130,7 @@ export const importMap = {
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
   "@/components/admin/TagAssignmentField#default": default_bc10fee3a76719781454f604d687129b,
   "@/components/admin/PreviewTarget#default": default_85b3a6f55f7eb542fec6b94fa2de1494,
-  "@/components/admin/MeditationTranscript#default": default_ef915edebbf0e637d2b21d5b814a75f9,
+  "@/components/admin/RecordingTranscript#default": default_e25816ba15d438aeaa450feef1831703,
   "@/components/admin/FrameEditor/FrameListManager#default": default_75e666f79b1160c03532515ca11818f3,
   "@/components/admin/FrameEditor/FrameInserter#default": default_e201aca8b8f7be4559f38e80e7a23040,
   "@/components/admin/UploadNotice#default": default_f6674fb37b8a49317525e4fb8838a78c,
@@ -139,7 +139,7 @@ export const importMap = {
   "@/components/admin/JobStageView/JobStageView#default": default_aa1cbd65eb0b3cec4fc40542c104a1d5,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
   "@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell#default": default_f90b1f00bd5c69345510453a62d36e0a,
-  "@/components/admin/IntroSubtitles#default": default_3c65926432e74f05a5bdb2c0342b72ba,
+  "@/components/admin/FileTranscriptPreview#default": default_67882b8ac8c55b70bc05df4fdc1ddda4,
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,

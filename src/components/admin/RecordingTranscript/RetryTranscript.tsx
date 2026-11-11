@@ -6,13 +6,13 @@ import React, { useCallback, useState } from 'react'
 import { refusalMessage } from '@/components/admin/helpers/payloadListFetcher'
 import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
 
-import { mayTranscribeLocale, transcribeUrl } from './transcriptModel'
+import { mayTranscribeLocale, type RecordingCollection, transcribeUrl } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'
 
 const FAILED = 'Could not ask for a transcript.'
 
 /**
- * Ask for this meditation's recording to be transcribed again, from inside the
+ * Ask for a recording to be transcribed again, from inside the
  * notice that says why it needs asking for.
  *
  * Whether the phase allows it at all is the caller's question, answered by
@@ -36,16 +36,24 @@ const FAILED = 'Could not ask for a transcript.'
  *   is the safe order, since the endpoint reads the stored document too.
  */
 export const RetryTranscript: React.FC<{
-  meditationId: number | string
+  label: string
+  recordingId: number | string
+  relationTo: RecordingCollection
   /** SWR's `mutate`, which re-reads the row and restarts the poll. */
   onRetried: () => void
   /** The existing row's `createdAt` — the instant of the last request. */
   requestedAt: string | undefined
-}> = ({ meditationId, onRetried, requestedAt }) => {
+  /**
+   * The recording's stored filename, when the document being edited is not the
+   * recording — a Path Step showing its intro file's transcript. Read off the
+   * edited document otherwise.
+   */
+  filename?: string | null
+}> = ({ label, recordingId, relationTo, onRetried, requestedAt, filename: given }) => {
   const { code: locale } = useLocale()
   const { user } = useAuth()
   const { data } = useDocumentInfo()
-  const filename = data?.filename as string | null | undefined
+  const filename = given !== undefined ? given : (data?.filename as string | null | undefined)
   const cooldownMs = useRetryCooldown(requestedAt)
   const [busy, setBusy] = useState(false)
 
@@ -54,7 +62,7 @@ export const RetryTranscript: React.FC<{
     try {
       // No locale, no request: one resolves the default locale server-side and
       // reproduces the #701 403 silently — see `transcriptUrl`.
-      const url = transcribeUrl(meditationId, locale)
+      const url = transcribeUrl(recordingId, locale, relationTo)
       if (!url) {
         toast.error(FAILED)
         return
@@ -82,7 +90,7 @@ export const RetryTranscript: React.FC<{
     } finally {
       setBusy(false)
     }
-  }, [locale, meditationId, onRetried])
+  }, [locale, onRetried, recordingId, relationTo])
 
   if (!filename) return null
   if (!mayTranscribeLocale(user, locale, data?.locale)) return null
@@ -92,7 +100,7 @@ export const RetryTranscript: React.FC<{
 
   return (
     <Button buttonStyle="secondary" disabled={busy} margin={false} onClick={retry} size="small">
-      {busy ? 'Asking…' : 'Transcribe again'}
+      {busy ? 'Asking…' : label}
     </Button>
   )
 }

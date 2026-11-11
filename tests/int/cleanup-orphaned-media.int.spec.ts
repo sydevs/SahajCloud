@@ -868,22 +868,21 @@ describe('CleanupOrphanedMedia Job', () => {
     // file is still in use. The reference walk saw it as one, and a recording
     // that had ever had cues made was never trashed again: measured before the
     // fix at `exists: true, trashed: false` with no lesson referencing it in
-    // any locale (#1016). The subtitles endpoint is what made `file`-sourced
-    // rows reachable, which is why this case lands with it.
+    // any locale (#1016). Every MP3 is transcribed as it is saved since then,
+    // so every recording carries such a row: the upload below makes it.
+    const transcriptCount = async (fileId: number): Promise<number> =>
+      (
+        await payload.count({
+          collection: 'transcripts',
+          where: { source: { equals: { relationTo: 'files', value: fileId } } },
+          overrideAccess: true,
+        })
+      ).totalDocs
+
     it('trashes a recording whose only reference is its own cue row', async () => {
       const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
       await backdateCreatedAt(payload, 'files', recording.id)
-      await payload.create({
-        collection: 'transcripts',
-        data: {
-          audioFilename: recording.filename,
-          language: 'en',
-          provider: 'lemonfox',
-          segments: [{ content: 'Close your eyes', startTimeMs: 0, endTimeMs: 1200 }],
-          source: { relationTo: 'files', value: recording.id },
-        },
-        overrideAccess: true,
-      })
+      expect(await transcriptCount(recording.id)).toBe(1)
 
       await runCleanupJob(payload)
 
@@ -903,17 +902,7 @@ describe('CleanupOrphanedMedia Job', () => {
         locale: 'cs',
         data: { introAudio: recording.id },
       })
-      await payload.create({
-        collection: 'transcripts',
-        data: {
-          audioFilename: recording.filename,
-          language: 'cs',
-          provider: 'lemonfox',
-          segments: [{ content: 'Zavři oči', startTimeMs: 0, endTimeMs: 1200 }],
-          source: { relationTo: 'files', value: recording.id },
-        },
-        overrideAccess: true,
-      })
+      expect(await transcriptCount(recording.id)).toBe(1)
 
       await runCleanupJob(payload)
 

@@ -35,14 +35,36 @@ meditation or the article included.
 file referenced only by a French panel would otherwise read as an orphan
 and be trashed. See `src/jobs/CleanupOrphanedMedia/AGENTS.md`.
 
-## `introAudio` and `introSubtitles` are per locale too (#1016)
+## `introAudio` is per locale, and its subtitles are its file's (#1016)
 
-Same rule, same reason: one recording and one cue set were shared across all
-19 languages, so a step narrated in English subtitled every language. Neither
-may be `required`, for the `title` reason above. The migration carries a
-hand-written backfill into the `en` row — the generated delta drops both base
-columns without reading them, which would empty all 28 recordings and all 28
-cue sets.
+One recording was shared across all 19 languages, so a step narrated in English
+subtitled every language. `introAudio` is localized, and not `required`, for the
+`title` reason above. Its migration carries a hand-written backfill into the
+`en` row, because the generated delta drops the base column without reading it.
+
+**The subtitles are not stored on the step.** A recording's transcript belongs
+to the recording — its `files` row — so every step and language using a file
+shares one transcript, and swapping the file swaps the subtitles; they cannot
+follow a recording that is no longer attached. The same holds for a panel
+video's subtitles, which is why `panels[].subtitles` is gone too.
+
+- **Made on upload.** An MP3 is transcribed when it is saved, a video when
+  Cloudflare Stream reports it ready, and the run detects the language
+  (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected on
+  the file's Transcript panel, and a re-run there serves every step using it.
+- **Shown, never edited, here.** `introTranscript` and `mediaTranscript` are
+  `ui` fields rendering `FileTranscriptPreview`, read-only, with the file's own
+  panel a drawer away. Spellings are corrected for every transcript by the
+  glossary (`src/collections/Transcripts/glossary.json`).
+- **Read by the app through the file**: `introAudio.subtitles` and
+  `panels[].media.subtitles`, a virtual field on `files`, because a join on a
+  populated upload answers bare ids at any depth.
+- ⚠ **`introSubtitles` survives only as a read-only virtual copy** of
+  `introAudio.subtitles`, for app releases that still read it. It is a
+  `shortcut:` tracked by #1133; delete it once none does.
+
+The 28 hand-made English cue sets became their files' transcripts in the
+migration, marked `imported`, so nothing was paid to redo them.
 
 **`introAudio` carries `filterOptions: { mimeType: { equals: 'audio/mpeg' } }`,
 and must never carry a custom `validate`.** `validateFilterOptions` lives inside
@@ -50,13 +72,8 @@ Payload's own `relationship` validator, installed only where the field supplies
 none, so a validator here would narrow the picker and enforce nothing
 (`src/collections/AGENTS.md`).
 
-**The cues are made, not typed.** `POST /api/files/:id/subtitles` transcribes
-the attached MP3 in the request's locale and groups the words into cues of at
-most 30 characters; `src/components/admin/IntroSubtitles/` is the control above
-the editor. The endpoint is keyed on the **`files`** id because that row is
-always saved while the lesson is not.
-
 **Launch Readiness turns mostly red here, by design.** Judged on a locale's own
-value, `intro-audio-set` and `intro-subtitles-set` are red in 18 of 19 locales
+value, `intro-audio-set` and `intro-subtitles-set` (a finished transcript on that
+locale's intro file) are red in 18 of 19 locales
 for every step from day one. That is the existing gap made visible, not a
 regression.

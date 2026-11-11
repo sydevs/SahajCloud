@@ -58,6 +58,13 @@ describe('transcripts', () => {
    * would otherwise be refused by that constraint instead of by the rule under
    * test — green, and testing nothing.
    */
+  /**
+   * A file these cases give a transcript row by hand. An image, because an MP3
+   * is transcribed as it is saved (#1016), which would create the very row a
+   * case means to create — and `source` is unique.
+   */
+  const createFileWithoutTranscript = () => testData.createFile(payload, {}, 'image-1050x700.jpg')
+
   const createMeditationWithoutTranscript = async (
     overrides: FixtureOverrides<Meditation> = { _status: 'published' },
   ): Promise<Meditation> => {
@@ -224,7 +231,7 @@ describe('transcripts', () => {
     it('lists the meditation’s row and no file-sourced one', async () => {
       const meditation = await createMeditationWithoutTranscript()
       const own = await createTranscript('meditations', meditation.id)
-      const file = await testData.createFile(payload)
+      const file = await createFileWithoutTranscript()
       const other = await createTranscript('files', file.id)
 
       const read = await payload.findByID({
@@ -265,7 +272,7 @@ describe('transcripts', () => {
      * meditation-sourced rows beside it, whatever their ids.
      */
     it('reads a files-sourced row back through the object form', async () => {
-      const file = await testData.createFile(payload)
+      const file = await createFileWithoutTranscript()
       const row = await createTranscript('files', file.id, {
         segments: [{ content: 'Welcome to this path.', startTimeMs: 0, endTimeMs: 1500 }],
       })
@@ -281,38 +288,45 @@ describe('transcripts', () => {
     })
 
     /**
-     * ⚠ **The task's input is a `meditationId`**, so a file-sourced row would
-     * queue a run that can resolve nothing. The row is the request, and this is
-     * the only thing that says which requests exist.
+     * The row is the request, so a file-sourced one queues a run for its file
+     * as a meditation's does (#1016) — the task reads `fileId` for it.
      */
-    it('queues no transcription for a files-sourced row', async () => {
-      const file = await testData.createFile(payload)
+    it('queues a transcription for a files-sourced row, naming the file', async () => {
+      const file = await createFileWithoutTranscript()
       const row = await createTranscript('files', file.id)
 
-      // `job` is what the hook writes back when it queues, and the only thing
-      // on the row that says a run was asked for. Read back as well as
-      // returned: the write-back is a second update.
-      expect(row.job).toBeFalsy()
+      // `job` is what the hook writes back when it queues. Read back rather
+      // than returned: the write-back is a second update.
       const reread = await payload.findByID({
         collection: 'transcripts',
         id: row.id,
         depth: 0,
         overrideAccess: true,
       })
-      expect(reread.job).toBeFalsy()
+      expect(reread.job).toBeTruthy()
+      const job = await payload.findByID({
+        collection: 'payload-jobs',
+        id: typeof reread.job === 'object' ? reread.job!.id : reread.job!,
+        depth: 0,
+        overrideAccess: true,
+      })
+      expect(job.input).toMatchObject({ fileId: file.id })
     })
 
-    it('refuses a row with no language, which would skip the glossary pass', async () => {
-      const meditation = await createMeditationWithoutTranscript()
+    // A file's language is detected by its first run, so its row starts with
+    // none (#1016); the glossary pass skips a row until it has one.
+    it('accepts a row with no language yet', async () => {
+      const file = await createFileWithoutTranscript()
 
-      await expect(
-        payload.create({
-          collection: 'transcripts',
-          data: createData<'transcripts'>({
-            source: { relationTo: 'meditations', value: meditation.id },
-          } as never),
-        }),
-      ).rejects.toThrow()
+      const row = await payload.create({
+        collection: 'transcripts',
+        data: createData<'transcripts'>({
+          source: { relationTo: 'files', value: file.id },
+        } as never),
+        overrideAccess: true,
+      })
+
+      expect(row.language ?? null).toBeNull()
     })
 
     it('refuses a segment missing `start`, and one carrying word timings', async () => {
@@ -515,7 +529,7 @@ describe('transcripts', () => {
     })
 
     it('deletes a file’s transcript when the file goes', async () => {
-      const file = await testData.createFile(payload)
+      const file = await createFileWithoutTranscript()
       const row = await createTranscript('files', file.id)
 
       await payload.delete({ collection: 'files', id: file.id, overrideAccess: true })
@@ -551,7 +565,7 @@ describe('transcripts', () => {
      * retention sweep both go through.
      */
     it('keeps a transcript while its file is only trashed, and takes it on the real delete', async () => {
-      const file = await testData.createFile(payload)
+      const file = await createFileWithoutTranscript()
       const row = await createTranscript('files', file.id)
 
       await payload.update({

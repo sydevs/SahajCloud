@@ -158,8 +158,8 @@ describe('the Transcript tab', () => {
     stub.iframe = iframeRef
 
     MeditationTranscript = (
-      await import('@/components/admin/MeditationTranscript/MeditationTranscript')
-    ).MeditationTranscript
+      await import('@/components/admin/RecordingTranscript/RecordingTranscript')
+    ).RecordingTranscript
 
     container = document.createElement('div')
     document.body.appendChild(container)

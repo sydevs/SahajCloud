@@ -66,7 +66,7 @@ whoever needs it, or needing no one — throw `ExpectedJobFailure`
 (`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
 still reported, at `warning`. Leave an outage, such as a vendor down or a query
 failing, a plain `Error` — and a missing key or bucket URL too, in production
-(`isProductionDeployment()`), where it must alert. `TranscribeMeditation` and the `importEvents` task
+(`isProductionDeployment()`), where it must alert. `TranscribeRecording` and the `importEvents` task
 (`src/plugins/eventImport/task.ts`) show both.
 
 `CleanupCollections/` holds no collection list at all: a collection joins
@@ -170,20 +170,26 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. `lemonfox/` holds the whole vendor seam: `transcribe.ts` (the
-  HTTP call and the key behind it), `languages.ts`, and `normalize.ts`, which
-  reads the vendor's undocumented `verbose_json` both ways — segments for a
-  transcript, words for the subtitles grouper. The client moved here once it
-  had two consumers, the transcription task and the subtitles endpoint
-  (#1016), and the word reader shares `normalize.ts` rather than taking a
-  module of its own for the same reason: with one consumer,
-  `tests/unit/lib-boundary.spec.ts` refuses it here
+  booting it. `lemonfox/` holds the vendor's response half: `languages.ts`
+  (our locales to its language names and back) and `normalize.ts`, which reads
+  its undocumented `verbose_json` — words grouped into the cues a run stores,
+  and the phrases the library's existing transcripts were imported as. The
+  HTTP client itself is `src/jobs/TranscribeRecording/lemonfoxClient.ts`,
+  because the job is its one caller since every request became a queued run
+  (#1016); with one consumer, `tests/unit/lib-boundary.spec.ts` refuses it
+  here
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,
   the rank, the filter, whether it counts against progress, and the next step
   — because four surfaces show the same list. No barrel: import each module
   by its own path
+- `transcripts/` — a recording's transcript, wherever the recording lives
+  (#1016): `sync.ts` keeps the row following its file, `request.ts` is a
+  re-request and the bounds a paid run needs, `read.ts` a file's cues, and
+  `media.ts` which files carry one at all. Meditations, files, lessons, the
+  job and a seed all read it; deep imports, no barrel, because `media.ts` is
+  also read in the browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,

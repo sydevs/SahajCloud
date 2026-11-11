@@ -3151,27 +3151,30 @@ export interface Transcript {
         value: number | File;
       };
   audioFilename?: string | null;
-  provider?: 'lemonfox' | null;
-  language:
-    | 'en'
-    | 'es'
-    | 'de'
-    | 'it'
-    | 'fr'
-    | 'ru'
-    | 'ro'
-    | 'cs'
-    | 'uk'
-    | 'el'
-    | 'hy'
-    | 'pl'
-    | 'pt-BR'
-    | 'fa'
-    | 'bg'
-    | 'tr'
-    | 'en-AU'
-    | 'hu'
-    | 'nl';
+  provider?: ('lemonfox' | 'imported') | null;
+  language?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
+        | 'hu'
+        | 'nl'
+      )
+    | null;
   segments?: TranscriptSegments;
   segmentCount?: number | null;
   job?: (number | null) | PayloadJob;
@@ -3192,6 +3195,7 @@ export interface File {
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  subtitles?: Subtitles;
   _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -3365,7 +3369,6 @@ export interface Lesson {
          * Image or video for this panel.
          */
         media?: (number | null) | File;
-        subtitles?: Subtitles;
         id?: string | null;
       }[]
     | null;
@@ -3390,7 +3393,7 @@ export interface Lesson {
    */
   preMeditationLines?: string | null;
   /**
-   * Audio introduction to this lesson. MP3 only.
+   * Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.
    */
   introAudio?: (number | null) | File;
   introSubtitles?: Subtitles;
@@ -4574,7 +4577,6 @@ export interface LessonsSelect<T extends boolean = true> {
         title?: T;
         text?: T;
         media?: T;
-        subtitles?: T;
         id?: T;
       };
   meditation?: T;
@@ -4703,6 +4705,7 @@ export interface FilesSelect<T extends boolean = true> {
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  subtitles?: T;
   _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;
@@ -11074,7 +11077,8 @@ export interface TaskSyncLectureMetadata {
  */
 export interface TaskTranscribeMeditation {
   input: {
-    meditationId: number;
+    meditationId?: number | null;
+    fileId?: number | null;
     audioFilename: string;
   };
   output: {

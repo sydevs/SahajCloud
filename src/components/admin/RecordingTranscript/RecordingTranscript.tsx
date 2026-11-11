@@ -17,8 +17,9 @@ import {
 } from '@/lib/meditations/transcriptBounds'
 import type { Transcript } from '@/payload-types'
 
-import styles from './MeditationTranscript.module.css'
+import styles from './RecordingTranscript.module.css'
 import { RetryTranscript } from './RetryTranscript'
+import { SpokenLanguage } from './SpokenLanguage'
 import {
   activeSegmentIndex,
   groupTranscript,
@@ -90,22 +91,25 @@ const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
 }
 
 /**
- * The meditation's Transcript tab: read the recording's transcript as timed
- * paragraphs, follow it as the live preview plays, and click or key a phrase
- * to play from there.
+ * A recording's transcript, on the recording's own edit view: a meditation's
+ * Transcript tab, or an audio or video file's (#1016). Reads it as timed
+ * paragraphs, follows it as a meditation's live preview plays, and plays from a
+ * phrase on click or key — a file has no preview player, so there the phrases
+ * only read.
  *
- * It reads the collection rather than the `meditations.transcript` join, which
- * carries the same row: that join resolves once at page load, so a tab built
- * on it could never show a run finishing.
+ * It reads the collection rather than the `transcript` join, which carries the
+ * same row: that join resolves once at page load, so a panel built on it could
+ * never show a run finishing.
  *
- * ⚠ **This tab polls where `JobStageView` deliberately does not.** That view
+ * ⚠ **This panel polls where `JobStageView` deliberately does not.** That view
  * serves a row's own Edit page, opened once; this one sits beside a player an
  * editor is listening to while a run finishes.
  */
-export const MeditationTranscript: UIFieldClientComponent = () => {
-  const { id } = useDocumentInfo()
+export const RecordingTranscript: UIFieldClientComponent = () => {
+  const { collectionSlug, id } = useDocumentInfo()
   const { code } = useLocale()
-  const url = transcriptUrl(id, code)
+  const relationTo = collectionSlug === 'files' ? 'files' : 'meditations'
+  const url = transcriptUrl(id, code, relationTo)
 
   const { data, error, mutate } = useSWR(url, readTranscripts, {
     refreshInterval: pollInterval,
@@ -148,11 +152,22 @@ export const MeditationTranscript: UIFieldClientComponent = () => {
           >
             {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}{' '}
             {transcriptPhaseIsRetryable(phase) && id && (
-              <RetryTranscript meditationId={id} onRetried={mutate} requestedAt={row?.createdAt} />
+              <RetryTranscript
+                label={phase === 'none' ? 'Transcribe' : 'Transcribe again'}
+                onRetried={mutate}
+                recordingId={id}
+                relationTo={relationTo}
+                requestedAt={row?.createdAt}
+              />
             )}
           </Banner>
         )}
       </div>
+      {/* A meditation's language is its own `locale`; a file's is detected,
+          and this is where a wrong guess is corrected. */}
+      {relationTo === 'files' && id && row && phase !== 'pending' && (
+        <SpokenLanguage fileId={id} language={row.language} onChanged={mutate} />
+      )}
       {/* The cues decide, never `status`: `deriveTranscriptStatus` answers
           `completed` from the cues alone, so gating on the string could
           disagree with what there is to read. */}
@@ -229,4 +244,4 @@ const Paragraph = memo(function Paragraph({
   )
 })
 
-export default MeditationTranscript
+export default RecordingTranscript

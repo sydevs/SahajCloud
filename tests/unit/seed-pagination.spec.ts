@@ -323,6 +323,7 @@ const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 // rewritten into something vaguer fails its own.
 const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
   'meditation-transcripts': /the target still carries/,
+  'file-transcripts': /without a transcript/,
   'wm-app-translations': /global/,
   translations: /global/,
   'atlas-reset': /empties the atlas collections/,

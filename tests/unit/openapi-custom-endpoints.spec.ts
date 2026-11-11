@@ -537,15 +537,14 @@ describe('transcripts (OpenAPI)', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })
 
-  // `POST /api/files/:id/subtitles` (#1016) is the same kind of door: gated on
-  // `lessons: update` in the request's locale, called only by the admin panel's
-  // intro-subtitles control, and so out of the spec and out of the schema map.
-  // `docs/rules/endpoints.md` scopes both to public, client-facing endpoints.
-  it('publishes no subtitles endpoint, nor a schema for one', () => {
-    expect(CUSTOM_ENDPOINT_PATHS['/api/files/{id}/subtitles']).toBeUndefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS).not.toHaveProperty('FileSubtitlesResponse')
+  // `POST /api/files/:id/transcribe` (#1016) is the same kind of door: gated on
+  // `files: create`, called only by the admin panel's Transcript panel, and so
+  // out of the spec and out of the schema map. `docs/rules/endpoints.md` scopes
+  // both to public, client-facing endpoints.
+  it('publishes no file transcribe endpoint, nor a schema for one', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/files/{id}/transcribe']).toBeUndefined()
     expect(Object.keys(CUSTOM_ENDPOINT_SCHEMAS)).not.toContainEqual(
-      expect.stringMatching(/subtitles/i),
+      expect.stringMatching(/transcri|subtitles/i),
     )
   })
 })

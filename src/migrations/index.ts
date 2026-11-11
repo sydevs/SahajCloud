@@ -128,6 +128,7 @@ import * as migration_20261110_234836_clients_label_title from './20261110_23483
 import * as migration_20261111_152106_merge_main_snapshot_8 from './20261111_152106_merge_main_snapshot_8';
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
 import * as migration_20261111_175610_merge_main_snapshot_9 from './20261111_175610_merge_main_snapshot_9';
+import * as migration_20261111_232035_file_transcripts_replace_intro_subtitles from './20261111_232035_file_transcripts_replace_intro_subtitles';
 
 export const migrations = [
   {
@@ -778,6 +779,11 @@ export const migrations = [
   {
     up: migration_20261111_175610_merge_main_snapshot_9.up,
     down: migration_20261111_175610_merge_main_snapshot_9.down,
-    name: '20261111_175610_merge_main_snapshot_9'
+    name: '20261111_175610_merge_main_snapshot_9',
+  },
+  {
+    up: migration_20261111_232035_file_transcripts_replace_intro_subtitles.up,
+    down: migration_20261111_232035_file_transcripts_replace_intro_subtitles.down,
+    name: '20261111_232035_file_transcripts_replace_intro_subtitles'
   },
 ];

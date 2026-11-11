@@ -23,6 +23,7 @@ export type ScriptName =
   | 'wemeditate'
   | 'meditations'
   | 'meditation-transcripts'
+  | 'file-transcripts'
   | 'storyblok'
   | 'wm-app-translations'
   | 'translations'
@@ -104,6 +105,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
     // either fails locally or confirms nothing.
     reason:
       "the floor is however many of the library's recordings the target still carries unchanged",
+  },
+  'file-transcripts': {
+    kind: 'not-applicable',
+    reason: 'queues runs for whichever files the target holds without a transcript',
   },
   storyblok: {
     lessons: 17,
@@ -302,6 +307,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
       naturalKey: 'source',
     },
   ],
+  // One query and one create per file missing a transcript; nothing to page.
+  'file-transcripts': [],
   storyblok: [
     {
       slug: 'lessons',
