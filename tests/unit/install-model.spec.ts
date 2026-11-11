@@ -15,7 +15,7 @@ import {
 } from '../../src/components/admin/InstallGuide/installModel'
 import { TRACK_META, tracksFor } from '../../src/components/admin/InstallGuide/steps'
 import { reportedMountsFor } from '../../src/lib/clients/site'
-import { EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
+import { CANONICAL_FAILURE_LIMIT, EMPTY_VERIFICATION } from '../../src/lib/clients/verification'
 
 /**
  * What the Install tab shows, for every state the record can be in.
@@ -200,6 +200,39 @@ describe('buildInstallModel — the stage', () => {
 
   it('says it is checking while it is checking', () => {
     expect(build({ busy: true }).stage).toBe('verifying')
+  })
+
+  it('reads a history of nothing but inconclusive attempts as still seen', () => {
+    // Our quota, a bot challenge, checks not configured: none of the three is
+    // evidence about the install, and all three are ordinary mid-setup. The
+    // red "we could not open the page ourselves" banner says otherwise.
+    expect(
+      build({
+        embedMetadata: mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z'),
+        verification: {
+          ...EMPTY_VERIFICATION,
+          attempts: [
+            { at: '2026-10-02T00:00:00.000Z', status: 'inconclusive', reason: 'quota' },
+            { at: '2026-10-01T00:00:00.000Z', status: 'inconclusive', reason: 'bot-challenge' },
+          ],
+        },
+      }).stage,
+    ).toBe('seen')
+  })
+
+  it('does not call a service past the failure limit live, however good its last snapshot', () => {
+    // `nextVerificationState` keeps `verified` on purpose, so the panel can say
+    // what broke. Reading it alone told a released site its atlas was live.
+    expect(
+      build({
+        embedMetadata: mount('https://sahajayoga.ca/free-classes', '2026-10-01T00:00:00.000Z'),
+        verification: verified({
+          failureCount: CANONICAL_FAILURE_LIMIT,
+          attempts: [{ at: '2026-10-05T00:00:00.000Z', status: 'failed', reason: 'http' }],
+          seo: seo([{ route: '/', check: 'title', status: 'pass' }]),
+        }),
+      }).stage,
+    ).toBe('failed')
   })
 })
 

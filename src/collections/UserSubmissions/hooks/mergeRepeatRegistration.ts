@@ -1,7 +1,7 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
 import type { LogEntry } from '@/fields'
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { isActiveRegistration } from '@/lib/registrations/active'
 import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
@@ -39,8 +39,8 @@ import { STATUS_LABELS } from '../statuses'
  * versions, so the log entry below is the only record the old values leave.
  *
  * ⚠ **That record is not durable, and knowing why matters before trusting it.**
- * `appendLogEntry` keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops
- * the oldest, and each repeat signup appends one — so that many further signups
+ * An append keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops the
+ * oldest, and each repeat signup appends one — so that many further signups
  * for the same address and event roll the entry carrying the original values
  * out of the column. Overwriting a *confirmed* registration therefore also
  * reports to Sentry, which no caller can roll anything out of; see
@@ -134,13 +134,23 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       // `ScreenSubmissions` skips a row that already carries a verdict. The
       // generated type omits the column's `null` (src/collections/AGENTS.md).
       screeningResult: null as unknown as UserSubmission['screeningResult'],
-      activityLog: appendLogEntry(asLog(existing.activityLog), entry),
     },
     depth: 0,
     overrideAccess: true,
     context: { skipWriteGuard: true },
     req: trusted,
   })
+  // Appended rather than written back from `existing`: this hook runs inside
+  // the create's transaction, and the row it logs on is one other writers are
+  // also appending to.
+  await appendLogEntry({
+    payload: req.payload,
+    collection: 'user-submissions',
+    id: existing.id,
+    entry,
+    req: trusted,
+  })
+
   await req.payload.delete({
     collection: 'user-submissions',
     id: doc.id,
@@ -249,7 +259,6 @@ export async function findRepeatRegistration(
     // number above which the active row stops being found.
     pagination: false,
     select: {
-      activityLog: true,
       screeningResult: true,
       startingAt: true,
       status: true,
