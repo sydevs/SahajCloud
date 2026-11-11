@@ -10,9 +10,16 @@ MCP topology.
 | ----------------- | ------------ | ------------------------------------------------ | ----- | ------------------------------------------- |
 | `payloadcms-docs` | (built-in)   | —                                                | None  | Search PayloadCMS 3.0 documentation         |
 | `cloudflare-docs` | stdio bridge | `mcp-remote https://docs.mcp.cloudflare.com/mcp` | None  | Search Cloudflare R2 / Stream / Images docs |
-| `puppeteer`       | stdio        | `puppeteer-mcp-server`                           | None  | Run headless-browser checks against the UI  |
+| `playwright`      | stdio        | `@playwright/mcp@latest`                         | None  | Run headless-browser checks against the UI  |
 | `sentry`          | HTTP         | `https://mcp.sentry.dev/mcp`                     | OAuth | Query production error monitoring           |
 | `github`          | HTTP         | `https://api.githubcopilot.com/mcp/`             | OAuth | Search GitHub issues, PRs, and code         |
+
+## Playwright
+
+The server runs headless with `--isolated`: each session starts with a fresh, in-memory browser
+profile, so admin cookies never carry over from another session. Click and type by the element
+references in `browser_snapshot`, not by CSS selectors. SahajAtlasWeb and WeMeditateWeb run the
+same server.
 
 ## Authentication
 
@@ -24,9 +31,10 @@ holds no secrets.
 
 - `mcp__payloadcms-docs__*`
 - `mcp__cloudflare-docs__*`
-- `mcp__puppeteer__*` — five tools, allow-listed individually in `.claude/settings.json`:
-  `puppeteer_navigate`, `puppeteer_fill`, `puppeteer_screenshot`, `puppeteer_click`,
-  `puppeteer_evaluate`
+- `mcp__playwright__*` — ten tools, allow-listed individually in `.claude/settings.json`:
+  `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`,
+  `browser_take_screenshot`, `browser_evaluate`, `browser_wait_for`, `browser_console_messages`,
+  `browser_close`
 - `mcp__sentry__*`
 - `mcp__github__*`
 
@@ -38,5 +46,5 @@ holds no secrets.
 | How does Cloudflare X work?                       | `mcp__cloudflare-docs__*`                                          |
 | Did this code path error in production?           | `mcp__sentry__*`                                                   |
 | What is the state of PR #N? What issues are open? | `mcp__github__*`                                                   |
-| Check a UI change in the running app              | `mcp__puppeteer__*`, after you start the dev server                |
+| Check a UI change in the running app              | `mcp__playwright__*`, after you start the dev server               |
 | Any other research                                | `WebFetch` / `WebSearch` — already allow-listed for common domains |
