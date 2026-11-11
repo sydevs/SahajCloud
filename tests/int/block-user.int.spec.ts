@@ -11,6 +11,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { asLog } from '@/fields'
 import { DeliverSubmissions } from '@/jobs/DeliverSubmissions/DeliverSubmissions'
 import type { Manager, User, UserSubmission } from '@/payload-types'
 
@@ -119,7 +120,7 @@ describe('Blocking a sender', () => {
         const row = await reload(id)
         expect(row.status).toBe('spam')
         expect(row.screeningResult?.verdict).toBe('blocked_sender')
-        expect(row.activityLog).toEqual(
+        expect(asLog(row.activityLog)).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
               type: 'block',
@@ -170,7 +171,7 @@ describe('Blocking a sender', () => {
 
       const after = await reload(row.id)
       expect(after.status).toBe('spam')
-      expect(after.activityLog?.map((entry) => entry.type)).toEqual(
+      expect(asLog(after.activityLog).map((entry) => entry.type)).toEqual(
         expect.arrayContaining(['block', 'unblock']),
       )
     })
@@ -218,7 +219,7 @@ describe('Blocking a sender', () => {
       // The block is the newer answer, and the delivery really did happen.
       expect(row.status).toBe('spam')
       expect(row.screeningResult?.verdict).toBe('blocked_sender')
-      expect(row.activityLog).toEqual(
+      expect(asLog(row.activityLog)).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ type: 'block' }),
           expect.objectContaining({ type: 'delivery', ok: true }),

@@ -3,6 +3,7 @@ import type { Payload } from 'payload'
 import * as Sentry from '@sentry/nextjs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import {
   type EventBookkeeping,
@@ -468,10 +469,12 @@ describe('ExpireEvents job', () => {
             nextCheckAt: verifiedUntil,
             // A verify resets the cycle's log to its own first entry.
             activityLog: [
-              buildVerificationEntry(
-                'verify-action',
-                { id: manager.id, name: 'A manager' },
-                new Date().toISOString(),
+              toLogRow(
+                buildVerificationEntry(
+                  'verify-action',
+                  { id: manager.id, name: 'A manager' },
+                  new Date().toISOString(),
+                ),
               ),
             ],
           },

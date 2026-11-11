@@ -138,10 +138,9 @@ describe('buildImportVerification', () => {
     // also carries display cells composed by `buildVerificationEntry`.
     expect(fields.activityLog).toHaveLength(1)
     expect(fields.activityLog?.[0]).toMatchObject({
-      kind: 'verification',
       at: now.toISOString(),
-      by: null,
-      method: 'import',
+      // The machine fields live in the row's `data` column; `at` is its own.
+      data: { kind: 'verification', by: null, method: 'import' },
     })
   })
 
@@ -173,7 +172,7 @@ describe('buildImportVerification', () => {
     expect(fields.verificationStage).toBe('finished')
     // 6 months after the end of the single occurrence's local day.
     expect(fields.nextCheckAt?.slice(0, 7)).toBe('2026-08')
-    expect(fields.activityLog[0]).toMatchObject({ kind: 'verification', method: 'import' })
+    expect(fields.activityLog[0].data).toMatchObject({ kind: 'verification', method: 'import' })
   })
 
   it('still arms a finished event with no schedule end, measured from the import', () => {
@@ -194,6 +193,6 @@ describe('buildImportVerification', () => {
       now,
       actor: { id: 7, name: 'Priya' },
     })
-    expect(fields.activityLog[0].by).toEqual({ id: 7, name: 'Priya' })
+    expect(fields.activityLog[0].data?.by).toEqual({ id: 7, name: 'Priya' })
   })
 })

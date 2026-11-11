@@ -2,12 +2,14 @@
  * Nothing writes an `activityLog` as a whole array except the one reset that
  * means to (#1116).
  *
- * The defect this guards is not in any one writer: it is that rebuilding the
- * column from a copy read earlier drops whatever another writer added since,
- * and the spelling that does it — `data: { activityLog: [...log, entry] }` —
- * compiles, passes every other spec, and looks exactly like the nine call
- * sites that were converted. `@/lib/atomicWrites/appendLogEntry` is the only
- * append there is; this is what keeps a tenth writer from inventing another.
+ * The defect this guards is not in any one writer: it is that handing Payload
+ * a whole log drops whatever another writer added since it was read, and the
+ * spelling that does it — `data: { activityLog: [...log, entry] }` — compiles,
+ * passes every other spec, and looks exactly like the nine call sites that
+ * were converted. One row per entry did not retire it: Payload rewrites every
+ * row of an array field on each save, so the whole-array spelling still
+ * clobbers. `@/lib/atomicWrites/appendLogEntry` is the only append there is;
+ * this is what keeps a tenth writer from inventing another.
  *
  * Source text, in the mould of `lib-boundary.spec.ts`: the rule is about which
  * spelling appears in the repo, so there is nothing to run.
@@ -40,7 +42,7 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
   return found
 }
 
-/** Lines assigning the whole column. A `select` names it instead, so it is not one. */
+/** Lines assigning the whole log. A `select` names it instead, so it is not one. */
 function wholeArrayWrites(file: string): number[] {
   const lines = readFileSync(join(SRC, file), 'utf8').split('\n')
   return lines.flatMap((line, index) => {
@@ -62,7 +64,7 @@ describe('activityLog writers', () => {
       .filter((file) => !RESETS.includes(file))
       .flatMap((file) => wholeArrayWrites(file).map((line) => `src/${file}:${line}`))
 
-    // Each of these replaces the column with an array built in memory, which
+    // Each of these replaces the log with an array built in memory, which
     // drops whatever another writer appended since it was read. Append through
     // `@/lib/atomicWrites/appendLogEntry`, or add the file to RESETS with a
     // comment saying which cycle it opens.

@@ -179,11 +179,12 @@ No loose files at the root — every file lives in a named folder:
   sydevs/SahajCloud#1016's subtitles endpoint becomes its second
 - `atomicWrites/` — the two writes a background worker owes a row it read
   before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
-  into the write's own `where`; `appendLogEntry` adds one `activityLog` entry
-  with `jsonb ||`, on the caller's own connection, so two writers keep each
-  other's entries — to the main row and, where the collection carries drafts,
-  to its `latest: true` version row, which is what a `draft: true` read serves
-  and what `updateByID` writes the next save back from.
+  into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
+  with bound parameters, on the caller's own connection, reading no entry, so
+  two writers keep each other's — into the log's own table and, where the
+  collection carries drafts, into the version table beside it, which is what a
+  `draft: true` read serves and what `updateByID` writes the next save back
+  from.
   Neither knows a stage, a status or a verdict — the Payload
   flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
   own. No barrel: import each module by its own path

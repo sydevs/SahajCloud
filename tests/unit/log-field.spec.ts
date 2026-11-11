@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { asLog, hasLogEntry, type LogEntry } from '@/fields'
+import { asLog, hasLogEntry, type LogEntry, toLogRow } from '@/fields'
 
 const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
   at: '2026-07-20T10:00:00.000Z',
@@ -24,16 +24,21 @@ describe('asLog', () => {
     expect(asLog({})).toEqual([])
   })
 
-  it('keeps well-formed entries and drops malformed ones', () => {
+  it('keeps well-formed rows and drops malformed ones', () => {
     const good = entry()
-    expect(asLog([good, { cells: { activity: 'no at/type' } }, 42, null])).toEqual([good])
+    expect(asLog([toLogRow(good), { cells: { activity: 'no at/type' } }, 42, null])).toEqual([good])
   })
 
-  it('preserves extra properties a consumer carries', () => {
-    // The verification log adds level/role/region and renders them itself. The
-    // coercion must not strip what it does not recognise.
+  it('spreads a stored row machine data back onto the entry', () => {
+    // The verification log adds level/role/region and renders them itself. A
+    // reader sees one flat entry, whichever column each key is stored in.
     const rich = entry({ level: 'urgent', role: 'region' })
-    expect(asLog([rich])[0]).toMatchObject({ level: 'urgent', role: 'region' })
+    expect(asLog([toLogRow(rich)])[0]).toMatchObject({ level: 'urgent', role: 'region' })
+  })
+
+  it('round-trips an entry through the row that stores it', () => {
+    const rich = entry({ key: '42', level: 'urgent', manager: { id: 7 } })
+    expect(asLog([toLogRow(rich)])).toEqual([rich])
   })
 })
 

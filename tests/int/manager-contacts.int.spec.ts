@@ -283,10 +283,12 @@ describe('Manager contacts (#908)', () => {
       }
     })
 
-    it('is absent for a manager outside the region, who still reads the event', async () => {
+    it('discloses no entry to a manager outside the region, who still reads the event', async () => {
       const read = await readAs(outsider)
       expect(read.title).toBe('Contacts Event')
-      expect(read).not.toHaveProperty('activityLog')
+      // One row per entry, so a denied read answers with no rows rather than
+      // by leaving the field out. Nothing a reminder recorded is in the answer.
+      expect(read.activityLog ?? []).toEqual([])
     })
 
     it('is offered in the admin form to the same managers, and not to the outsider', async () => {
@@ -319,7 +321,7 @@ describe('Manager contacts (#908)', () => {
     })
 
     it('cannot be filtered on by anyone but an admin, since a query has no row to judge', async () => {
-      const where = { 'activityLog.destination': { equals: REMINDER_DESTINATION } }
+      const where = { 'activityLog.type': { equals: 'reminder' } }
       await expect(
         payload.find({
           collection: 'events',
@@ -336,6 +338,19 @@ describe('Manager contacts (#908)', () => {
           req: await request(admin),
         }),
       ).resolves.toBeDefined()
+    })
+
+    it('offers no path at all to the address a reminder went to', async () => {
+      // A reminder's machine fields are one json column on the entry, so no
+      // query can name one — an admin's included.
+      await expect(
+        payload.find({
+          collection: 'events',
+          where: { 'activityLog.destination': { equals: REMINDER_DESTINATION } },
+          overrideAccess: false,
+          req: await request(admin),
+        }),
+      ).rejects.toThrow(/cannot be queried/i)
     })
   })
 

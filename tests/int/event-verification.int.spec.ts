@@ -4,10 +4,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { verifyEventAction } from '@/collections/Events/endpoints/verifyEventAction'
 import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
+import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { serverEnv } from '@/lib/env'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
-import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerification/log'
+import {
+  asNotificationLog,
+  buildReminderEntry,
+  buildVerificationEntry,
+} from '@/lib/eventVerification/log'
 import type { Event, Manager } from '@/payload-types'
 import { readLinkToken, signLinkToken } from '@/plugins/login'
 
@@ -64,8 +69,7 @@ async function getEvent(payload: Payload, id: number, trash = false): Promise<Ev
 function reminders(
   log: Event['activityLog'],
 ): Extract<NotificationLogEntry, { kind: 'reminder' }>[] {
-  const entries = Array.isArray(log) ? (log as NotificationLogEntry[]) : []
-  return entries.filter(
+  return asNotificationLog(log).filter(
     (e): e is Extract<NotificationLogEntry, { kind: 'reminder' }> => e.kind === 'reminder',
   )
 }
@@ -156,9 +160,7 @@ describe('Event verification lifecycle', () => {
     expect(event.verificationStage).toBe('verified')
     expect(event._status).toBe('published')
     expect(event.nextCheckAt).toBeTruthy()
-    const log = Array.isArray(event.activityLog)
-      ? (event.activityLog as NotificationLogEntry[])
-      : []
+    const log = asNotificationLog(event.activityLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
@@ -457,7 +459,7 @@ describe('Event verification lifecycle', () => {
       const verified = await getEvent(payload, event.id)
       expect(verified.verificationStage).toBe('verified')
       expect(verified._status).toBe('published')
-      const log = verified.activityLog as NotificationLogEntry[]
+      const log = asNotificationLog(verified.activityLog)
       expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
       expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
         eventManager.id,
@@ -741,7 +743,7 @@ describe('Event verification lifecycle', () => {
             channel: 'email',
             destination: 'event-manager@example.com',
           }),
-        ] as NotificationLogEntry[],
+        ].map(toLogRow),
       },
     })
 
@@ -776,7 +778,7 @@ describe('Event verification lifecycle', () => {
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
     expect(reminders(fresh.activityLog)).toHaveLength(0)
-    const log = fresh.activityLog as NotificationLogEntry[]
+    const log = asNotificationLog(fresh.activityLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
   })
 
@@ -925,7 +927,7 @@ describe('Event verification lifecycle', () => {
       const after = await getEvent(payload, event.id)
       expect(after.verificationStage).toBe('verified')
       expect(after.nextCheckAt).toBeTruthy()
-      const log = after.activityLog as NotificationLogEntry[]
+      const log = asNotificationLog(after.activityLog)
       expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
     })
 
@@ -993,7 +995,7 @@ describe('Event verification lifecycle', () => {
     const fresh = await getEvent(payload, event.id)
     expect(fresh.verificationStage).toBe('verified')
     expect(fresh._status).toBe('published')
-    const log = fresh.activityLog as NotificationLogEntry[]
+    const log = asNotificationLog(fresh.activityLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'verify-action' })
   })
 
@@ -1021,7 +1023,7 @@ describe('Event verification lifecycle', () => {
 
     expect(verified?.verificationStage).toBe('verified')
     expect(verified?._status).toBe('published')
-    const log = (verified as Event).activityLog as NotificationLogEntry[]
+    const log = asNotificationLog((verified as Event).activityLog)
     expect(log[0]).toMatchObject({ kind: 'verification', method: 'email-link' })
     expect((log[0] as Extract<NotificationLogEntry, { kind: 'verification' }>).by?.id).toBe(
       eventManager.id,

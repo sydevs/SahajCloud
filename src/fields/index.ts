@@ -46,8 +46,15 @@ export type { AvailableLocalesFieldOptions } from './availableLocalesField'
 
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
 // Delivery log — "did that email actually go out?", rendered for managers.
-export { asLog, DEFAULT_LOG_LIMIT, hasLogEntry, hasLogEntryType, logField } from './logField'
-export type { LogCell, LogColumn, LogEntry, LogFieldOptions } from './logField'
+export {
+  asLog,
+  DEFAULT_LOG_LIMIT,
+  hasLogEntry,
+  hasLogEntryType,
+  logField,
+  toLogRow,
+} from './logField'
+export type { LogCell, LogColumn, LogEntry, LogFieldOptions, LogRow } from './logField'
 
 export { scheduleFields } from './scheduleFields'
 export { systemMetaField } from './systemMetaField'

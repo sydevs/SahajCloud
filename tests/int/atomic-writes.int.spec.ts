@@ -6,18 +6,17 @@
  * second writer working on the same row in that window keeps.
  *
  * They are exercised here rather than in the unit lane because neither is a
- * fold: one is a `jsonb ||` statement the database evaluates, and the other
- * turns on Payload re-selecting the row at write time.
+ * fold: one inserts a row of its own into the log's table, and the other turns
+ * on Payload re-selecting the row at write time.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { DEFAULT_LOG_LIMIT, asLog, type LogEntry } from '@/fields'
+import { DEFAULT_LOG_LIMIT, asLog, type LogEntry, toLogRow } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
 
-import { seedLatestVersion } from '../utils/storeInvalidEvent'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -51,18 +50,23 @@ describe('atomic writes', () => {
     )
 
   /**
-   * Write the column straight, so a case can start from a shape no hook would
-   * write. The shared helper, which seeds the `latest: true` version row too —
-   * `events` carries drafts, and a case reading back through one would
-   * otherwise see the pre-seed value.
+   * Put the log into a known state before the case appends to it. An ordinary
+   * save, which is the point: it writes the version row too, and the appends
+   * below are about what survives beside one.
    */
-  const seedLog = (id: number, activityLog: unknown) =>
-    seedLatestVersion(payload, 'events', id, { activityLog })
+  const seedLog = (id: number, entries: LogEntry[]) =>
+    payload.update({
+      collection: 'events',
+      id,
+      data: { activityLog: entries.map(toLogRow) },
+      context: { skipVerifyHook: true },
+      overrideAccess: true,
+    })
 
   describe('appendLogEntry', () => {
     it('appends to a log nothing has written yet', async () => {
       const id = await newEvent()
-      await seedLog(id, null)
+      await seedLog(id, [])
 
       await appendLogEntry({ payload, collection: 'events', id, entry: entry('a') })
 
@@ -94,17 +98,6 @@ describe('atomic writes', () => {
       expect(log).toHaveLength(DEFAULT_LOG_LIMIT)
       expect(log[0].key).toBe('old-1')
       expect(log[log.length - 1].key).toBe('newest')
-    })
-
-    it('starts over on a column holding something other than an array', async () => {
-      // `asLog` drops such a value on the read side, so the append must not
-      // throw on it either — `jsonb_array_elements` would.
-      const id = await newEvent()
-      await seedLog(id, { not: 'an array' })
-
-      await appendLogEntry({ payload, collection: 'events', id, entry: entry('only') })
-
-      expect((await storedLog(id)).map((row) => row.key)).toEqual(['only'])
     })
 
     it('reaches a draft read of a collection carrying versions', async () => {
