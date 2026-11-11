@@ -51,7 +51,9 @@ is also what gives a block field `hasMany`, a nested array, and a polymorphic
 Payload moves that shape, `lexicalBlocks` returns nothing, every block
 reference disappears, and the job trashes media a page still shows. The three
 `preserves images referenced in pages …Block` cases in
-`tests/int/cleanup-orphaned-media.int.spec.ts` are what fail when it does.
+`tests/int/cleanup-orphaned-media.int.spec.ts` are what fail when it does. The
+`shortcut:` beside the `?? []` names what triggers a re-check: a
+`@payloadcms/richtext-lexical` upgrade, and the `dryRun` review.
 
 An embedded upload or relationship node is the other half: it carries its own
 `relationTo`, so it is matched directly rather than through a block.
