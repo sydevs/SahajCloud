@@ -150,9 +150,10 @@ const canonicalVerificationSchema: JSONSchema4 = {
 }
 
 /**
- * A row's `site` group, for the two compatibility fields below: from the read
- * itself when its `select` carried it, else one memoized read by id — the widget
- * selects `allowedDomains` and `canonical`, never `site`.
+ * A row's `site` group, for the two compatibility fields and the `domain` column
+ * below: from the read itself when its `select` carried it, else one memoized
+ * read by id — the widget selects `allowedDomains` and `canonical`, never
+ * `site`.
  *
  * Read without `req`: an afterRead also runs on a write's response, and a nested
  * read joining that transaction can roll the write back (`src/collections/AGENTS.md`).
