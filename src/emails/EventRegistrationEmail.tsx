@@ -62,12 +62,15 @@ interface EventRegistrationEmailProps {
   answers?: RegistrationAnswer[]
   /** Absolute link to the event in the admin. */
   eventAdminUrl: string
+  /** The registrant changed a registration they already held, rather than making one. */
+  isUpdate?: boolean
   /** Project to brand for. Defaults to `sahaj-atlas` (events are Atlas). */
   project?: ProjectSlug
 }
 
 /**
- * Manager-facing notification that a seeker registered for an event.
+ * Manager-facing notification that a seeker registered for an event, or
+ * updated the registration they already held.
  *
  * Informational, not an alert — no callout or deadline. Reuses the shared
  * EmailLayout shell, DetailRow fact table, and a Reply / View-event button row,
@@ -75,6 +78,9 @@ interface EventRegistrationEmailProps {
  * registrant mail, so it is not client-branded). The primary action replies to
  * the registrant (pre-filled with a quoted recap); their answers to the event's
  * registration questions are forwarded below.
+ *
+ * `isUpdate` changes the wording only: a manager acting on an update needs the
+ * same facts and the same two buttons, so this is one template, not two.
  */
 export function EventRegistrationEmail({
   recipientName,
@@ -84,6 +90,7 @@ export function EventRegistrationEmail({
   startDate,
   answers = [],
   eventAdminUrl,
+  isUpdate = false,
   project = 'sahaj-atlas',
 }: EventRegistrationEmailProps) {
   const brand = getEmailBrand(project)
@@ -97,15 +104,20 @@ export function EventRegistrationEmail({
   return (
     <EmailLayout
       brand={brand}
-      heading="New event registration"
-      previewText={`${registrantName} registered for ${eventTitle}`}
+      heading={isUpdate ? 'Updated event registration' : 'New event registration'}
+      previewText={
+        isUpdate
+          ? `${registrantName} updated their registration for ${eventTitle}`
+          : `${registrantName} registered for ${eventTitle}`
+      }
       footer={<>You’re receiving this because you manage this event on {brand.productName}.</>}
     >
       <Text style={styles.paragraph}>
         Hello {recipientName ? <strong>{recipientName}</strong> : 'there'},
       </Text>
       <Text style={styles.paragraph}>
-        A new registration has come in for <strong>{eventTitle}</strong>.
+        {isUpdate ? 'A registration has been updated for ' : 'A new registration has come in for '}
+        <strong>{eventTitle}</strong>.
       </Text>
 
       <Section>

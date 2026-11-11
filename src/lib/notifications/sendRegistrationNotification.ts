@@ -34,6 +34,8 @@ export async function sendRegistrationNotification(args: {
   timeZone?: string
   /** The registrant's answers to the event's registration questions. */
   answers?: { label: string; value: string }[]
+  /** The registrant updated a registration they already held, rather than making one. */
+  isUpdate?: boolean
 }): Promise<void> {
   const {
     payload,
@@ -44,6 +46,7 @@ export async function sendRegistrationNotification(args: {
     startingAt,
     timeZone,
     answers,
+    isUpdate = false,
   } = args
 
   if (recipient.channel !== 'email') {
@@ -68,7 +71,9 @@ export async function sendRegistrationNotification(args: {
     from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
-    subject: stripNewlines(`New registration: ${eventTitle}`),
+    subject: stripNewlines(
+      isUpdate ? `Updated registration: ${eventTitle}` : `New registration: ${eventTitle}`,
+    ),
     ...(await renderEmail(
       createElement(EventRegistrationEmail, {
         recipientName: recipient.name,
@@ -78,6 +83,7 @@ export async function sendRegistrationNotification(args: {
         startDate,
         answers,
         eventAdminUrl: adminDocUrl('events', event.id),
+        isUpdate,
       }),
     )),
   })

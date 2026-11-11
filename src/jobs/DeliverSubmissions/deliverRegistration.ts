@@ -4,12 +4,14 @@ import {
   readSubmissionValue,
   registrationAnswers,
 } from '@/collections/UserSubmissions/submissionData'
+import { asLog, hasLogEntryType } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { EMAIL_CLIENT_SELECT } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationNotification } from '@/lib/notifications/sendRegistrationNotification'
+import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
@@ -92,7 +94,8 @@ export async function deliverRegistration({
 
 /**
  * Tell the event's manager — or the per-event override address — that somebody
- * registered. Best-effort, for the reason in this module's docblock.
+ * registered, or changed a registration they already held. Best-effort, for the
+ * reason in this module's docblock.
  *
  * Only the `Immediate` cadence delivers here; a summary cadence belongs to the
  * digest run, and `Never` sends nothing.
@@ -132,6 +135,18 @@ async function notifyManager(args: {
       startingAt: submission.startingAt,
       timeZone: submission.startingAt_tz || event.schedule?.firstDate_tz || 'UTC',
       answers: registrationAnswers(submission.submissionData),
+      // The merge puts the row back to `pending`, which re-queues this
+      // delivery, so the entry read here is seconds old — inside the log's cap.
+      //
+      // ⚠ **Not the `delivery` entry.** `DeliverSubmissions` logs one per
+      // *attempt*, failures included, so a retried first signup carries one and
+      // would be announced as an update.
+      //
+      // shortcut: this answers "was the row folded into", not "was this manager
+      // told", so a recipient switched from `Never` to `Immediate` between two
+      // signups reads "Updated" for their first notice. Upgrade when a manager
+      // notice logs its own entry to read back.
+      isUpdate: hasLogEntryType(asLog(submission.activityLog), REGISTRATION_UPDATE_LOG_TYPE),
     })
   } catch (error) {
     req.payload.logger.error({
