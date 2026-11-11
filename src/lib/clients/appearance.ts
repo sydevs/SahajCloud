@@ -17,11 +17,16 @@
  *
  * ⚠ Mirrors `DEFAULT_SEEDS` in SahajAtlasWeb's `src/config/theme/palette.ts`,
  * where `color3` themes the `contrast` role. Change both together.
+ *
+ * ⚠ `color1` is unchanged by sydevs/SahajAtlasWeb#389 and its generated ladder
+ * still moved: no teal passes the panel-text check at any saturation worth
+ * calling teal, so the widget corrects the step rather than the seed. Only
+ * `color2` and `color3` are retunable, and both were retuned there.
  */
 export const ATLAS_DEFAULT_COLORS = {
   color1: '#1E6C71',
-  color2: '#A1C3D7',
-  color3: '#E08E79',
+  color2: '#5e98ba',
+  color3: '#d8735a',
 } as const
 
 /** The logo a service without one of its own is shown with. */

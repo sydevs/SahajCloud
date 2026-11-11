@@ -19,6 +19,7 @@ import {
 } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
+import { readableTextOn } from '@/lib/branding'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
@@ -34,6 +35,17 @@ export const NBSP = '\u00A0'
 /** Diagonal brand gradient shared by the header and CTA buttons. */
 export const brandGradient = (colors: BrandColors): string =>
   `linear-gradient(135deg, ${colors.primary} 0%, ${colors.light} 100%)`
+
+/**
+ * The text colour the header title and a filled button take on that gradient.
+ *
+ * Both stops, because the gradient runs between them and the text crosses both:
+ * white over a pale yellow brand is unreadable at the light end even where it
+ * clears the dark one. A service's colours are never changed for this — only the
+ * text on them.
+ */
+export const brandTextColor = (colors: BrandColors): string =>
+  readableTextOn([colors.primary, colors.light])
 
 /**
  * Neutral, non-brand structural styles shared across templates. Brand colors
@@ -194,7 +206,7 @@ function brandButtonVariantStyle(brand: EmailBrand, variant: BrandButtonVariant)
         border: `1px solid ${brand.colors.primary}`,
       }
     : {
-        color: '#ffffff',
+        color: brandTextColor(brand.colors),
         backgroundColor: brand.colors.primary,
         backgroundImage: brandGradient(brand.colors),
       }
@@ -355,7 +367,9 @@ export function EmailLayout({ brand, heading, previewText, children, footer }: E
                 style={icon}
               />
             ) : null}
-            <Heading style={headerTitle}>{brand.productName}</Heading>
+            <Heading style={{ ...headerTitle, color: brandTextColor(brand.colors) }}>
+              {brand.productName}
+            </Heading>
           </Section>
           <Section style={card}>
             {heading ? (
@@ -406,7 +420,6 @@ const icon: CSSProperties = {
 }
 
 const headerTitle: CSSProperties = {
-  color: '#ffffff',
   margin: 0,
   fontSize: '24px',
 }
@@ -440,7 +453,6 @@ const buttonInRow: CSSProperties = {
 }
 
 const button: CSSProperties = {
-  color: '#ffffff',
   padding: '14px 30px',
   borderRadius: '5px',
   fontWeight: 'bold',

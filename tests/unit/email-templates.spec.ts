@@ -17,6 +17,7 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { brandTextColor } from '@/emails/EmailLayout'
 import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
@@ -642,5 +643,34 @@ describe('EventImportSummaryEmail', () => {
     expect(html).toContain('Your class import needs attention')
     expect(html).not.toContain('Duplicates skipped')
     expect(html).toContain('View the import')
+  })
+})
+
+/**
+ * A service picks its own two gradient stops, and the header title and filled
+ * buttons sit on them. Until #1110 both were white outright, so a pale brand
+ * shipped white-on-pale to every registrant it mailed.
+ *
+ * ⚠ **The brand colours themselves are never changed** — only the text on them.
+ */
+describe('text on a brand gradient', () => {
+  it('reads the worse of the two stops', () => {
+    // A service's own pale yellow: white clears neither stop.
+    expect(brandTextColor({ dark: '#997a00', light: '#ffffe0', primary: '#ffff00' })).toBe(
+      '#000000',
+    )
+    // Dark at both ends, which is where white survives.
+    expect(brandTextColor({ dark: '#0d3b3e', light: '#2f7f84', primary: '#1E6C71' })).toBe(
+      '#ffffff',
+    )
+  })
+
+  it('is what the header title and the filled button are painted with', async () => {
+    const brand = getEmailBrand('sahaj-atlas')
+    const { html } = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    // Wired, not merely available: both sites take the rule's answer for this
+    // project's own gradient, so neither can drift back to a constant.
+    expect(html.match(/color:#(000000|ffffff)/g)).toContain(`color:${brandTextColor(brand.colors)}`)
   })
 })

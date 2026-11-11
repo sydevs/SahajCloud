@@ -6,7 +6,7 @@
  */
 
 // Brand colors and types
-export { PROJECT_BRAND_COLORS, getBrandColors } from './themeColors'
+export { PROJECT_BRAND_COLORS, getBrandColors, readableTextOn } from './themeColors'
 export type { BrandColors } from './themeColors'
 
 // Scalar theme derivation

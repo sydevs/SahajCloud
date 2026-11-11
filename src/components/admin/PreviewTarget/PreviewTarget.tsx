@@ -6,6 +6,7 @@ import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
 import type { PreviewTarget as PreviewTargetDeclaration } from '@/fields/previewTargetField'
+import { livePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 
 import { composeTargetUrl } from './composeTargetUrl'
 
@@ -37,7 +38,16 @@ let serverResolvedUrl: null | string = null
  *   current default, and is captured as the value to restore.
  * - **A data-dependent `livePreview.url` re-resolves mid-edit** and would
  *   clobber the repoint on every save. A targeted global's URL reads `locale`
- *   and never `data` for that reason.
+ *   and never `data` for that reason. ⚠ `clients` cannot avoid it — the preview
+ *   opens the service's own region — so the effect below re-applies whenever
+ *   the resolved URL changes under it, which is what keeps a save on another
+ *   tab from putting the real atlas back in a panel that should be explaining
+ *   itself.
+ *
+ * ⚠ **`unavailable` is the one target that changes the origin**, and
+ * `composeTargetUrl` is not asked about it. The declaration is a reason code
+ * rather than a URL, so it carries no origin and no credential, and it lands on
+ * the admin's own origin. See `previewTargetField`.
  */
 export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
   const target = (field?.admin?.custom as { previewTarget?: PreviewTargetDeclaration } | undefined)
@@ -78,7 +88,9 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
     if (url !== lastComposedUrl) serverResolvedUrl = url
     if (!serverResolvedUrl) return
 
-    const composed = composeTargetUrl(serverResolvedUrl, target)
+    const composed = target.unavailable
+      ? new URL(livePreviewUnavailableUrl(target.unavailable), window.location.origin).toString()
+      : composeTargetUrl(serverResolvedUrl, target)
     if (!composed || composed === url) return
 
     lastComposedUrl = composed

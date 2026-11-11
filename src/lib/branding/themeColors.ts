@@ -249,3 +249,40 @@ export function getScalarThemeColors(project: ProjectSlug | null): ScalarThemeCo
 export function getBrandColors(project: ProjectSlug): BrandColors {
   return PROJECT_BRAND_COLORS[project]
 }
+
+/**
+ * Black or white, whichever can be read on EVERY one of these colours.
+ *
+ * A brand gradient is read across both its stops, so the text has to clear the
+ * worse of them: a pale yellow primary with a paler light stop takes black, and
+ * our own teal takes white. Scored by WCAG contrast, taking the minimum over the
+ * colours given, so adding a stop can only narrow the answer.
+ *
+ * ⚠ **The brand colour itself never moves.** A service's colours are what they
+ * chose; only the text on them changes, so an unreadable choice costs legibility
+ * nowhere else.
+ */
+export function readableTextOn(colors: string[]): '#000000' | '#ffffff' {
+  const against = (text: string) => Math.min(...colors.map((color) => contrastRatio(text, color)))
+
+  return against('#000000') >= against('#ffffff') ? '#000000' : '#ffffff'
+}
+
+/** WCAG 2.x contrast ratio between two `#RRGGBB` colours. */
+function contrastRatio(a: string, b: string): number {
+  const [light, dark] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+
+  return (light + 0.05) / (dark + 0.05)
+}
+
+/** WCAG relative luminance — sRGB channels linearised, then weighted. */
+function relativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '')
+  const channel = (offset: number) => {
+    const value = parseInt(clean.substring(offset, offset + 2), 16) / 255
+
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  }
+
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}

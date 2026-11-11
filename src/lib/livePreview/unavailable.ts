@@ -5,7 +5,8 @@
  * Adding one here without adding it there falls back to a generic message
  * rather than breaking, which is the right way round for a panel.
  */
-export type LivePreviewUnavailableReason = 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+export type LivePreviewUnavailableReason =
+  'atlas-tab-only' | 'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
 
 /**
  * The URL to point the Live Preview panel at when there is no page to show.

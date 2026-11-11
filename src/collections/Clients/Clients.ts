@@ -1,8 +1,10 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
+import { buildRegionWebPath } from '@/collections/Regions/webPath'
 import { colorField, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { previewTargetField } from '@/fields/previewTargetField'
 import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
@@ -20,9 +22,12 @@ import {
   VERIFICATION_FAILURE_REASONS,
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
+import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDER_LABELS, MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
+import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import {
   adminOnlyFieldAccess,
@@ -32,6 +37,7 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { clientEmailPreview } from './endpoints/emailPreview'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -459,6 +465,30 @@ export const Clients: CollectionConfig = {
     group: 'System',
     useAsTitle: 'label',
     defaultColumns: ['label', 'domain', 'enabled'],
+    /**
+     * The service's own atlas, so a manager sees their colours and logo on the
+     * real map while they choose them (#1110).
+     *
+     * ⚠ **Through `livePreviewUrl`, never a bare URL** — a falsy one persists
+     * "closed" as that editor's preference for the whole collection
+     * (`src/lib/livePreview/unavailable.ts`).
+     *
+     * ⚠ **A region change re-resolves this and reloads the panel.** Accepted:
+     * only an admin sets `region`, and only on the Config tab.
+     */
+    livePreview: {
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      url: async ({ data, locale, req }) =>
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          params: { locale: locale.code, scope: 'clients' },
+          // Worldwide, or a region with no path of its own, is the atlas root.
+          path: isAtlasClient(data ?? {})
+            ? ((await buildRegionWebPath({ data: { id: relationId(data?.region) }, req })) ?? '')
+            : null,
+          reason: 'no-atlas-role',
+        }),
+    },
     components: {
       views: {
         edit: {
@@ -532,6 +562,10 @@ export const Clients: CollectionConfig = {
           label: 'Config',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'config__preview_target',
+            ),
             {
               name: 'label',
               type: 'text',
@@ -628,6 +662,7 @@ export const Clients: CollectionConfig = {
           label: 'Atlas',
           admin: { condition: isAtlasClient },
           fields: [
+            previewTargetField({ autoOpen: true }, 'atlas__preview_target'),
             {
               name: 'installSummary',
               type: 'ui',
@@ -677,6 +712,15 @@ export const Clients: CollectionConfig = {
               ],
             },
             {
+              // Light or dark, posted to the preview iframe. Not stored: it is a
+              // way of looking at the colours, not a setting the service has.
+              name: 'previewMode',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/components/admin/AtlasPreview/PreviewModeField' },
+              },
+            },
+            {
               // One button for all three, shown while any is the service's own.
               name: 'resetColors',
               type: 'ui',
@@ -692,6 +736,14 @@ export const Clients: CollectionConfig = {
                   'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
               },
             },
+            {
+              // The one thing a visitor receives that this branding reaches.
+              name: 'emailPreview',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/components/admin/AtlasPreview/EmailPreviewField' },
+              },
+            },
             mailingListGroup,
           ],
         },
@@ -702,6 +754,10 @@ export const Clients: CollectionConfig = {
           description: 'API usage statistics',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'usage__preview_target',
+            ),
             jsonField({
               // Virtual: written by the hook below, never stored. The schema generates
               // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
@@ -741,6 +797,10 @@ export const Clients: CollectionConfig = {
           label: 'Diagnostics',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'diagnostics__preview_target',
+            ),
             {
               name: 'canonical',
               type: 'group',
@@ -936,7 +996,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
+  endpoints: [clientEmailPreview, clientEmbedReport, verifyEmbedOnDemand],
   hooks: {
     beforeChange: [
       validateClientData,

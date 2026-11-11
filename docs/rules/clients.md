@@ -14,6 +14,39 @@ What a `clients` document holds beyond its key: where its atlas lives (`site`), 
 - **The Config tab is admin-only, writes included.** `label`, `enabled`, `notes`, `roles` (labelled Access), `managers`, `primaryContact` and `region` carry an admin-only write lock as well as the tab's condition: a listed manager holds `update` on the row through document-level access, and a hidden field stops no PATCH. `lockTabs` stamps that lock on every field of every conditioned tab, matching the tab's condition against `TAB_WRITE_RULES` by **function reference** — so a tab whose condition is written inline matches nothing, and refuses to build rather than shipping with no lock and no validation.
 - ⚠ **`clients` sits in no project, so no role reads it implicitly, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
 
+## The Atlas tab previews the service's own atlas (#1110)
+
+`admin.livePreview` on `clients` opens the standalone atlas on the service's own region, at
+`?scope=clients`, so a manager sees their colours and logo on the real map while they choose
+them. Moving a picker repaints it before anything is saved — Payload posts the edit form's state
+to the frame on every change, and the widget reads the three colours out of it and ignores every
+other field.
+
+- **The panel belongs to the Atlas tab**, through `previewTargetField`: `autoOpen` there, and
+  `autoClose` plus `unavailable: 'atlas-tab-only'` on Config, Usage and Diagnostics, which only
+  an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
+  builder rather than from a target.
+- ⚠ **`unavailable` is the one preview target that changes the origin**, and it is safe because
+  the declaration is a reason **code**: no origin, no credential, and it lands on the admin's own
+  origin. `composeTargetUrl` itself still refuses every cross-origin path
+  (`docs/rules/admin-ui.md`).
+- ⚠ **A save on another tab re-resolves the URL under the panel**, because this collection's
+  `livePreview.url` reads `data`. `PreviewTarget` re-applies on that change, so the panel stays
+  on its explanation rather than silently showing the atlas again.
+- **The atlas answers back.** It posts what it rendered for each role — the colour, and which
+  legibility checks moved it — and each picker shows that colour with the reason. Where the
+  widget can express the result as a seed, a button writes it into the field. ⚠ A role adjusted
+  only by `panel-text` has no such seed, so it shows the note and no button. The CMS computes no
+  colours: the widget owns the rules and reports them.
+- **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
+  in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
+  admin previews; that is our own origin, and the atlas reads colours alone.
+- **The sample registrant email** beside the logo and support address renders through the real
+  template at `POST /api/clients/:id/email-preview`, from unsaved form values, so the one message
+  a service's branding reaches is visible beside the fields that decide it. Email text is black or
+  white by whichever reads on **both** gradient stops (`readableTextOn`); the brand colours
+  themselves are never changed.
+
 ## Where the atlas lives — `site` (one domain, one page)
 
 A service is **one site**: `site.domain` (a bare host) plus `site.page` (the primary page's path), with `site.track` and `site.embedHeight` remembering the Install tab's choices. All four are the Install tab's, and `admin.disabled` keeps them out of the edit form's state, so saving the form can never write an older copy back. `src/lib/clients/site.ts` is the vocabulary every reader shares:
