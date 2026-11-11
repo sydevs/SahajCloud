@@ -3,13 +3,14 @@ import type { PayloadRequest } from 'payload'
 
 import { Banner, ChevronIcon } from '@payloadcms/ui'
 
-import { MANAGER_INACTIVE } from '@/collections/Managers/login'
+import { MANAGER_INACTIVE, managersLogin } from '@/collections/Managers/login'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { GrantSummary } from '@/plugins/login'
-import { responsibilityLabel, summarizeGrants } from '@/plugins/login'
+import { responsibilityLabel, returnPath, summarizeGrants } from '@/plugins/login'
+import { REQUEST_MAGIC_LINK_PATH } from '@/plugins/login/endpoints/requestMagicLink'
 
-import { signInAsAction } from './actions'
 import styles from './SignIn.module.css'
+import { SignInAsForm } from './SignInAsForm'
 
 /**
  * How many accounts the picker lists. A preview holds the provisioned admin and
@@ -27,9 +28,9 @@ const PICKER_LIMIT = 25
  * because Cloudflare Access and the proxy gate decided who may ask before the
  * request arrived.
  *
- * ⚠ **A card submits the page's own Server Action.** Its `signedIn` branch sets
- * the session cookie and `redirect()`s, so the picker and the live form share
- * one implementation — and nothing here builds a response carrying a `user`,
+ * ⚠ **A row signs in through `request-magic-link`**, the endpoint CI's fill
+ * uses, and then loads the panel in full — see `SignInAsForm` for why it must
+ * not navigate client-side. Nothing here builds a response carrying a `user`,
  * whose `roles` would arrive flat and default-locale because three
  * auth-*response* hooks resolve them.
  */
@@ -79,6 +80,9 @@ export async function PreviewPicker({
     })
   }
 
+  const endpoint = `${payload.config.routes.api}/${managersLogin.slug}${REQUEST_MAGIC_LINK_PATH}`
+  const to = returnPath(payload, returnTo) ?? payload.config.routes.admin
+
   return (
     <div className={styles.stack}>
       <h2>Sign in to this preview</h2>
@@ -90,11 +94,9 @@ export async function PreviewPicker({
       ) : null}
       <div className={styles.list}>
         {rows.map((row) => (
-          <form action={signInAsAction} key={row.email}>
-            <input name="email" type="hidden" value={row.email} />
-            {returnTo ? <input name="redirect" type="hidden" value={returnTo} /> : null}
+          <SignInAsForm email={row.email} endpoint={endpoint} key={row.email} to={to}>
             <AccountButton email={row.email} name={row.name} reach={row.reach} />
-          </form>
+          </SignInAsForm>
         ))}
       </div>
       {docs.length === PICKER_LIMIT ? <p>Showing the first {PICKER_LIMIT} accounts.</p> : null}
