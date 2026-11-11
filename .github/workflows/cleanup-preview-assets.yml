@@ -43,11 +43,15 @@ jobs:
     env:
       # One token covers all three backends: Images:Edit, Stream:Edit, and
       # R2 Object Read & Write. The script derives R2's S3 credentials from
-      # it, so it is the only secret here. The bucket name and jurisdiction
-      # are plain configuration, so they stay unmasked. A masked
-      # `R2_BUCKET: ***` would make an R2 403 error hard to read.
+      # it. ⚠ Both Cloudflare values are org secrets shared with
+      # SahajAtlasWeb's Smoke lane (Workers Scripts:Edit), so a rotated or
+      # re-scoped token must keep every permission both repos need. The
+      # script, like Railway, reads the token as `CLOUDFLARE_API_KEY`.
+      # The bucket name and jurisdiction are plain configuration, so they
+      # stay unmasked. A masked `R2_BUCKET: ***` would make an R2 403 error
+      # hard to read.
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+      CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       R2_BUCKET: ${{ vars.R2_BUCKET }}
       # The bucket is jurisdiction-bound. It answers only on the matching
       # host. On the default host, R2 returns AccessDenied instead, which

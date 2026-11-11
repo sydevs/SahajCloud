@@ -44,14 +44,16 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 
 **Cleanup.** Preview uploads accumulate in the shared account/bucket. A daily GitHub Actions job (`.github/workflows/cleanup-preview-assets.yml` → `scripts/cleanup-preview-assets.ts`) reaps preview-marked assets older than 7 days across all three backends. `isReapablePreviewAsset` only deletes an asset that is **both** marked **and** past the cutoff. The script defaults to a dry run (`--apply` deletes for real).
 
-**Config, split by sensitivity.** Only the token is a GitHub _secret_. The rest are _variables_, unmasked in the run log — a masked `R2_BUCKET: ***` makes an R2 403 unreadable.
+**Config, split by sensitivity.** Only the account ID and the token are GitHub _secrets_. The rest are _variables_, unmasked in the run log — a masked `R2_BUCKET: ***` makes an R2 403 unreadable.
 
 | Name                    | Kind         | Required                             |
 | ----------------------- | ------------ | ------------------------------------ |
-| `CLOUDFLARE_ACCOUNT_ID` | secret       | yes                                  |
-| `CLOUDFLARE_API_KEY`    | secret       | yes                                  |
+| `CLOUDFLARE_ACCOUNT_ID` | org secret   | yes                                  |
+| `CLOUDFLARE_API_TOKEN`  | org secret   | yes                                  |
 | `R2_BUCKET`             | variable     | yes                                  |
 | `R2_JURISDICTION`       | workflow env | only for a jurisdiction-bound bucket |
+
+The workflow hands `CLOUDFLARE_API_TOKEN` to the script as `CLOUDFLARE_API_KEY`, the name Railway uses. ⚠ Both secrets are org-level and shared with SahajAtlasWeb's Smoke lane, which needs Workers Scripts (Edit) from the same token — a rotation must update the org secret, and a re-scope must keep both repos' permissions.
 
 The script exits 1 with any of the required three missing — deliberately, since a cleanup that silently reaps nothing is worse than one that fails loudly.
 
