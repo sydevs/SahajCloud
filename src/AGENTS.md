@@ -170,7 +170,11 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it
+  booting it. `lemonfox/` holds only what does **not** fetch: `normalize.ts`
+  turns the vendor's `verbose_json` into this app's cue shape, for the
+  transcription task and the transcript seed alike. The HTTP client stays in
+  `jobs/TranscribeMeditation/lemonfox/`, which has one consumer until
+  sydevs/SahajCloud#1016's subtitles endpoint becomes its second
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,
@@ -204,7 +208,7 @@ cohesive public surface imported as a unit (`@/lib/locales`,
 `@/lib/pageTags`, `@/lib/cascadeDeletion`). Grab-bag and per-owner helper
 folders whose modules are cherry-picked individually use deep imports and
 have **no** barrel: `utilities/`, `logger/`, `lectures/`, `meditations/`,
-`audiences/`, `mapbox/`, `turnstile/`, `schedule/`
+`audiences/`, `mapbox/`, `turnstile/`, `lemonfox/`, `schedule/`
 (`@/lib/schedule/scheduleHooks`). Don't add a barrel that re-exports
 unrelated modules just for symmetry — it can pull server-only code into
 client bundles, hurts tree-shaking, and invites import cycles.

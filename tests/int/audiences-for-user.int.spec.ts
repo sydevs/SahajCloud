@@ -151,7 +151,7 @@ describe('audiencesForUser endpoint', () => {
 
   it('threads client req through audience lookup and skips query validation', async () => {
     const client = (await testData.createClient(payload, adminUserId, {
-      name: 'Audiences Forwarding Test',
+      label: 'Audiences Forwarding Test',
     })) as Client
 
     const findSpy = vi.spyOn(payload, 'find')

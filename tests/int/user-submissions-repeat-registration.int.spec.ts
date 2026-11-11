@@ -130,7 +130,7 @@ describe('a repeat registration updates the existing one', () => {
       email: 'repeat-admin@example.com',
     })
     client = await testData.createClient(payload, manager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
       apiKey: REST_API_KEY,
     })
@@ -360,7 +360,7 @@ describe('a repeat registration updates the existing one', () => {
     const event = await createEvent()
     const address = email()
     const other = await testData.createClient(payload, manager.id, {
-      name: 'Another Org',
+      label: 'Another Org',
       roles: ['sahaj-atlas-client'],
     })
 

@@ -815,7 +815,7 @@ export const testData = {
     const client = await payload.create({
       collection: 'clients',
       data: createData<'clients'>({
-        name: 'Test Client',
+        label: 'Test Client',
         managers: [managerId],
         primaryContact: managerId,
         enableAPIKey: true,

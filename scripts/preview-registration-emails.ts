@@ -209,7 +209,7 @@ const minimalEvent = {
 
 /** A fully-configured client service. */
 const brandedClient: EmailClient = {
-  name: 'Sahaja Yoga London',
+  title: 'Sahaja Yoga London',
   color1: '#7B4EA8',
   color2: '#B08BD4',
   logo: null, // no Cloudflare image locally: falls back to the Atlas icon
@@ -222,12 +222,12 @@ const brandedClient: EmailClient = {
 }
 
 /**
- * The realistic half-configured service. `Clients.name` is required by
- * the schema, so a client always has one, but everything else the
- * email adds is optional and falls back on its own.
+ * The realistic half-configured service: no public title of its own, so the
+ * email names it by its site's domain, and every other field falls back on
+ * its own.
  */
 const partialClient: EmailClient = {
-  name: 'Meditation Berlin',
+  site: { domain: 'meditation-berlin.example' },
   color1: '#0F766E',
   color2: null,
   logo: null,
@@ -375,7 +375,7 @@ async function selectFromDatabase(): Promise<Scenario[]> {
       const client = ranked[i % ranked.length]
       const tz = (event.schedule as { firstDate_tz?: string } | undefined)?.firstDate_tz
       return {
-        label: `#${event.id} ${String(event.title).slice(0, 28)} · ${client.name}`,
+        label: `#${event.id} ${String(event.title).slice(0, 28)} · ${client.label}`,
         note: `${note} (${tz ?? 'no tz'})`,
         event,
         client,

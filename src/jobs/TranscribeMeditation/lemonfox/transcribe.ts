@@ -5,7 +5,7 @@
  * the job that calls the vendor, and the writer that must know whether
  * transcription is available before it promises one.
  */
-import { glossaryPrompt } from '@/collections/MeditationTranscripts/glossary'
+import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { serverEnv } from '@/lib/env'
 import type { LocaleCode } from '@/lib/locales'
 

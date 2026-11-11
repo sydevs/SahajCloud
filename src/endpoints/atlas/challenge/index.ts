@@ -1,29 +1,12 @@
 import type { ChallengeConfig } from './challengeDocument'
-import type { Endpoint, PayloadRequest } from 'payload'
+import type { Endpoint } from 'payload'
 
 import { serverEnv } from '@/lib/env/server'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
+import { challengeParentAllowlist } from './allowlist'
 import { challengeDocument } from './challengeDocument'
-import {
-  allowedParentHosts,
-  isParentAllowed,
-  isTestSiteKey,
-  readChallengeRequest,
-} from './challengeRequest'
-
-/** Every active client's `site.domain`. About 31 rows, one query per frame load. */
-async function activeClientDomains(req: PayloadRequest): Promise<Array<string | null>> {
-  const { docs } = await req.payload.find({
-    collection: 'clients',
-    where: { enabled: { equals: true } },
-    select: { site: { domain: true } },
-    pagination: false,
-    depth: 0,
-    overrideAccess: true,
-  })
-  return docs.map((doc) => doc.site?.domain ?? null)
-}
+import { isParentAllowed, isTestSiteKey, readChallengeRequest } from './challengeRequest'
 
 function respond(config: ChallengeConfig, status: number): Response {
   return new Response(challengeDocument(config), {
@@ -86,10 +69,7 @@ export const atlasChallenge: Endpoint = {
 
     let patterns: string[]
     try {
-      patterns = allowedParentHosts(
-        [serverEnv.SAHAJATLAS_URL, serverEnv.WEMEDITATE_WEB_URL],
-        await activeClientDomains(req),
-      )
+      patterns = await challengeParentAllowlist(req.payload)
     } catch (error) {
       req.payload.logger.error({
         msg: 'atlasChallenge: could not read the client allowlist',

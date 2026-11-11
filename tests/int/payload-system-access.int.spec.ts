@@ -117,14 +117,14 @@ describe('Payload system entities access', () => {
       roles: ['meditations-editor'],
     })
     appClient = await testData.createClient(payload, adminManager.id, {
-      name: 'We Meditate App',
+      label: 'We Meditate App',
       roles: ['wemeditate-app-client'],
       apiKey: APP_API_KEY,
     })
     // `wemeditate-app-client` holds no `user-submissions` create grant, so the
     // intake case below needs a client whose role actually reaches the collection.
     await testData.createClient(payload, adminManager.id, {
-      name: 'Sahaj Atlas Widget',
+      label: 'Sahaj Atlas Widget',
       roles: ['sahaj-atlas-client'],
       apiKey: ATLAS_API_KEY,
     })

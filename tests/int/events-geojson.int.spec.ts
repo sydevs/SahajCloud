@@ -73,7 +73,7 @@ describe('eventsGeoJson endpoint', () => {
     })
     managerId = manager.id
     const clientDoc = await testData.createClient(payload, managerId, {
-      name: 'Atlas GeoJSON Client',
+      label: 'Atlas GeoJSON Client',
       roles: ['sahaj-atlas-client'],
     })
     client = {

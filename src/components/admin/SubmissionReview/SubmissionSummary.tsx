@@ -20,7 +20,7 @@ interface Row {
 /** The collection each linked document lives in, and the field that names it. */
 const TITLE_FIELDS = {
   users: 'email',
-  clients: 'name',
+  clients: 'label',
   forms: 'title',
   events: 'title',
 } as const

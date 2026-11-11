@@ -39,7 +39,7 @@ describe('Client Hooks', () => {
       const client = (await payload.create({
         collection: 'clients',
         data: {
-          name: 'Test Client',
+          label: 'Test Client',
           managers: [manager1.id], // Only manager1
           primaryContact: manager2.id, // manager2 not in list
           roles: ['wemeditate-web-client'],
@@ -63,7 +63,7 @@ describe('Client Hooks', () => {
 
     it('preserves existing usage stats on update', async () => {
       const client = await testData.createClient(payload, adminUserId, {
-        name: 'Usage Stats Client',
+        label: 'Usage Stats Client',
         usage: {
           dailyRequests: 50,
           peakDailyRequests: 75,
@@ -76,7 +76,7 @@ describe('Client Hooks', () => {
         collection: 'clients',
         id: client.id,
         data: {
-          name: 'Updated Client Name',
+          label: 'Updated Client Name',
         },
       })) as Client
 
@@ -89,7 +89,7 @@ describe('Client Hooks', () => {
   describe('ensureClientId', () => {
     it('auto-populates a UUID clientId on create when absent', async () => {
       const client = await testData.createClient(payload, adminUserId, {
-        name: 'Client Without clientId',
+        label: 'Client Without clientId',
       })
 
       expect(client.clientId).toMatch(
@@ -99,7 +99,7 @@ describe('Client Hooks', () => {
 
     it('preserves an explicitly-provided clientId on create (e.g. Atlas key)', async () => {
       const client = await testData.createClient(payload, adminUserId, {
-        name: 'Client With Atlas clientId',
+        label: 'Client With Atlas clientId',
         clientId: 'atlas-supplied-key',
       })
 
@@ -108,7 +108,7 @@ describe('Client Hooks', () => {
 
     it('never overwrites clientId on update', async () => {
       const client = await testData.createClient(payload, adminUserId, {
-        name: 'Client clientId Stability',
+        label: 'Client clientId Stability',
       })
       const original = client.clientId
       expect(original).toBeTruthy()
@@ -116,7 +116,7 @@ describe('Client Hooks', () => {
       const updated = (await payload.update({
         collection: 'clients',
         id: client.id,
-        data: { name: 'Renamed Client' },
+        data: { label: 'Renamed Client' },
       })) as Client
 
       expect(updated.clientId).toBe(original)
@@ -135,7 +135,7 @@ describe('Client Hooks', () => {
       const client = (await payload.create({
         collection: 'clients',
         data: {
-          name: 'Single-manager client',
+          label: 'Single-manager client',
           managers: [solo.id],
           roles: ['wemeditate-web-client'],
         },
@@ -153,12 +153,36 @@ describe('Client Hooks', () => {
         payload.create({
           collection: 'clients',
           data: {
-            name: 'Multi-manager client without contact',
+            label: 'Multi-manager client without contact',
             managers: [m1.id, m2.id],
             roles: ['wemeditate-web-client'],
           },
         }),
       ).rejects.toThrow()
+    })
+  })
+
+  describe('domain list column', () => {
+    it('reads site.domain on a list read, including one selecting only the column', async () => {
+      const client = await testData.createClient(payload, adminUserId, {
+        label: 'Domain Column Client',
+        site: { domain: 'domain-column.example' },
+      })
+
+      const listed = await payload.find({
+        collection: 'clients',
+        where: { id: { equals: client.id } },
+        overrideAccess: true,
+      })
+      expect(listed.docs[0]?.domain).toBe('domain-column.example')
+
+      const narrow = await payload.find({
+        collection: 'clients',
+        where: { id: { equals: client.id } },
+        select: { domain: true },
+        overrideAccess: true,
+      })
+      expect(narrow.docs[0]?.domain).toBe('domain-column.example')
     })
   })
 

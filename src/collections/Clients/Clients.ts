@@ -150,9 +150,10 @@ const canonicalVerificationSchema: JSONSchema4 = {
 }
 
 /**
- * A row's `site` group, for the two compatibility fields below: from the read
- * itself when its `select` carried it, else one memoized read by id — the widget
- * selects `allowedDomains` and `canonical`, never `site`.
+ * A row's `site` group, for the two compatibility fields and the `domain` column
+ * below: from the read itself when its `select` carried it, else one memoized
+ * read by id — the widget selects `allowedDomains` and `canonical`, never
+ * `site`.
  *
  * Read without `req`: an afterRead also runs on a write's response, and a nested
  * read joining that transaction can roll the write back (`src/collections/AGENTS.md`).
@@ -274,21 +275,56 @@ const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } |
   Boolean(data?.mailingList?.enabled)
 
 /**
+ * Which of the provider-specific fields each provider shows.
+ *
+ * A record rather than a provider comparison inside each `admin.condition`,
+ * because `Condition`'s `data` is untyped: a mistyped provider literal compiles,
+ * reads false, and hides the field — and with it Payload's `required`, which is
+ * gated on the same condition — so the row saves with no credential at all.
+ * Keyed on the derived union, so a fifth provider does not compile until it
+ * answers for each field.
+ */
+const PROVIDER_FIELDS: Record<
+  MailingListProvider,
+  { clientId: boolean; doubleOptIn: boolean; doiFlowId: boolean }
+> = {
+  mailchimp: { clientId: false, doubleOptIn: true, doiFlowId: false },
+  brevo: { clientId: false, doubleOptIn: false, doiFlowId: false },
+  klaviyo: { clientId: false, doubleOptIn: false, doiFlowId: false },
+  cleverreach: { clientId: true, doubleOptIn: true, doiFlowId: true },
+}
+
+/** Whether the chosen provider shows one of those fields, with the group on. */
+const providerShows = (
+  data: { mailingList?: { enabled?: boolean | null; provider?: string | null } | null },
+  field: keyof (typeof PROVIDER_FIELDS)[MailingListProvider],
+): boolean => {
+  const provider = data?.mailingList?.provider
+  return (
+    mailingListEnabled(data) &&
+    Boolean(provider && PROVIDER_FIELDS[provider as MailingListProvider]?.[field])
+  )
+}
+
+/**
  * What opt-in actually does, per provider — the description under the provider
  * select, switched by the chosen value (`SelectDescription`).
  *
- * **Only Mailchimp has a per-call lever**, so only Mailchimp gets the
- * `doubleOptIn` checkbox. A checkbox rendered for all three would be a promise
- * the CMS cannot keep on two of them: an operator who ticked it for Brevo
- * would believe a confirmation email was going out when none was. These two
- * notes are what stands in its place, and they are read-only because the
- * behaviour they describe is not ours to change.
+ * **Only Mailchimp and CleverReach have a per-call lever** (`PROVIDER_FIELDS`),
+ * so only those two get the `doubleOptIn` checkbox. A checkbox rendered for all
+ * four would be a promise the CMS cannot keep on the other two: an operator who
+ * ticked it for Brevo would believe a confirmation email was going out when none
+ * was. These notes are what stands in its place, and they are read-only because
+ * the behaviour they describe is not ours to change.
  */
 const OPT_IN_NOTES: Record<MailingListProvider, string> = {
-  mailchimp: 'Opt-in is set per subscriber, by the checkbox below.',
+  mailchimp:
+    'You choose below whether each person is emailed a confirmation link before being added.',
   brevo:
-    'Contacts are added immediately. Brevo double opt-in is not supported through this integration.',
-  klaviyo: 'Governed by this list’s opt-in setting in Klaviyo, not here.',
+    'Each person is added straight away. Brevo cannot send a confirmation email first through this connection.',
+  klaviyo: 'Whether a confirmation email is sent is set on the list in Klaviyo, not here.',
+  cleverreach:
+    'You choose below whether each person is emailed a confirmation link before being added. CleverReach sends that email through the flow you name.',
 }
 
 /**
@@ -318,7 +354,7 @@ const mailingListGroup: Field = {
   },
   admin: {
     description:
-      'Where subscribe submissions relayed by this service are delivered. Off by default, and nothing is pushed anywhere until it is switched on.',
+      'Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.',
   },
   fields: [
     {
@@ -339,9 +375,20 @@ const mailingListGroup: Field = {
       admin: {
         condition: (data) => mailingListEnabled(data),
         // The opt-in note for the chosen provider, in place of a checkbox
-        // two of the three cannot honour. See `OPT_IN_NOTES`.
+        // two of the four cannot honour. See `OPT_IN_NOTES`.
         custom: { descriptions: OPT_IN_NOTES },
         components: { Description: '@/components/admin/SelectDescription' },
+      },
+    },
+    {
+      name: 'clientId',
+      type: 'text',
+      label: 'Client ID',
+      required: true,
+      admin: {
+        condition: (data) => providerShows(data, 'clientId'),
+        description:
+          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.',
       },
     },
     {
@@ -351,10 +398,11 @@ const mailingListGroup: Field = {
       required: true,
       admin: {
         condition: (data) => mailingListEnabled(data),
-        // One sentence naming all three, rather than a per-provider hint:
+        // One sentence naming all four, rather than a per-provider hint:
         // `admin.description`'s function form is handed `{ i18n, t }` and
         // never the document, so it cannot see which provider is chosen.
-        description: 'Mailchimp’s Audience ID, Brevo’s numeric list id, or Klaviyo’s List ID.',
+        description:
+          'Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.',
       },
     },
     {
@@ -365,7 +413,7 @@ const mailingListGroup: Field = {
       admin: {
         condition: (data) => mailingListEnabled(data),
         description:
-          'The provider secret. Checked against the provider when you save, and never readable by an API client.',
+          'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
       },
     },
     {
@@ -374,10 +422,21 @@ const mailingListGroup: Field = {
       defaultValue: true,
       label: 'Send a confirmation email before subscribing',
       admin: {
-        // Mailchimp only — the one provider with a per-call lever.
+        condition: (data) => providerShows(data, 'doubleOptIn'),
+        description:
+          'The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.',
+      },
+    },
+    {
+      name: 'doiFlowId',
+      type: 'text',
+      label: 'Confirmation flow ID',
+      required: true,
+      admin: {
         condition: (data) =>
-          mailingListEnabled(data) && data?.mailingList?.provider === 'mailchimp',
-        description: 'Mailchimp adds the address as `pending` and emails it a confirmation link.',
+          providerShows(data, 'doiFlowId') && data?.mailingList?.doubleOptIn !== false,
+        description:
+          'The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.',
       },
     },
   ],
@@ -398,8 +457,8 @@ export const Clients: CollectionConfig = {
   },
   admin: {
     group: 'System',
-    useAsTitle: 'name',
-    defaultColumns: ['name', 'enabled'],
+    useAsTitle: 'label',
+    defaultColumns: ['label', 'domain', 'enabled'],
     components: {
       views: {
         edit: {
@@ -474,12 +533,13 @@ export const Clients: CollectionConfig = {
           admin: { condition: adminTabs },
           fields: [
             {
-              name: 'name',
+              name: 'label',
               type: 'text',
               required: true,
-              label: 'Client Name',
+              label: 'Internal Name',
               admin: {
-                description: 'Client organization or application name',
+                description:
+                  'How this service is known inside SahajCloud. Never shown to the public.',
               },
             },
             {
@@ -563,10 +623,8 @@ export const Clients: CollectionConfig = {
           ],
         },
         {
-          // Unnamed groups only, so moving a field between them never moves
-          // its column. Shown to a service with the atlas role alone, mailing
-          // list included. Where the atlas lives is the Install tab's, shown
-          // here read-only.
+          // Shown to a service with the atlas role alone, mailing list included.
+          // Where the atlas lives is the Install tab's, shown here read-only.
           label: 'Atlas',
           admin: { condition: isAtlasClient },
           fields: [
@@ -578,62 +636,61 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              type: 'group',
-              label: 'Brand Colors',
-              admin: { description: 'How the atlas looks on this service’s site.' },
+              // Optional: `clientPublicTitle` falls back to `site.domain` at read
+              // time rather than copying it in, so a later domain change is not
+              // frozen behind a stale title.
+              name: 'title',
+              type: 'text',
+              label: 'Public Title',
+              admin: {
+                description:
+                  'The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.',
+              },
+            },
+            {
+              name: 'logo',
+              type: 'upload',
+              relationTo: 'images',
+              admin: {
+                description:
+                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
+              },
+            },
+            {
+              type: 'row',
               fields: [
-                {
-                  type: 'row',
-                  fields: [
-                    colorField({
-                      name: 'color1',
-                      label: 'Primary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color1,
-                    }),
-                    colorField({
-                      name: 'color2',
-                      label: 'Secondary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color2,
-                    }),
-                    colorField({
-                      name: 'color3',
-                      label: 'Tertiary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color3,
-                    }),
-                  ],
-                },
-                {
-                  // One button for all three, shown while any is the service's own.
-                  name: 'resetColors',
-                  type: 'ui',
-                  admin: {
-                    components: { Field: '@/components/admin/ColorField/ResetColors' },
-                  },
-                },
+                colorField({
+                  name: 'color1',
+                  label: 'Primary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color1,
+                }),
+                colorField({
+                  name: 'color2',
+                  label: 'Secondary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color2,
+                }),
+                colorField({
+                  name: 'color3',
+                  label: 'Tertiary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color3,
+                }),
               ],
             },
             {
-              type: 'group',
-              label: 'Registrant Emails',
-              fields: [
-                {
-                  name: 'logo',
-                  type: 'upload',
-                  relationTo: 'images',
-                  admin: {
-                    description:
-                      'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
-                  },
-                },
-                {
-                  name: 'supportEmail',
-                  type: 'email',
-                  admin: {
-                    description:
-                      'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
-                  },
-                },
-              ],
+              // One button for all three, shown while any is the service's own.
+              name: 'resetColors',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/components/admin/ColorField/ResetColors' },
+              },
+            },
+            {
+              name: 'supportEmail',
+              type: 'email',
+              admin: {
+                description:
+                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
+              },
             },
             mailingListGroup,
           ],
@@ -849,6 +906,20 @@ export const Clients: CollectionConfig = {
       type: 'textarea',
       virtual: true,
       admin: { disabled: true },
+      hooks: {
+        afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
+      },
+    },
+    {
+      // A list column alone: `site` is `admin.disabled`, so it cannot be one
+      // itself. The form shows the domain in the Atlas tab's install summary,
+      // and a false `condition` hides the field there without dropping the
+      // column, which `admin.hidden` would.
+      name: 'domain',
+      type: 'text',
+      label: 'Domain',
+      virtual: true,
+      admin: { readOnly: true, condition: () => false },
       hooks: {
         afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
       },

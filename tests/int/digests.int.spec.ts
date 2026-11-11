@@ -412,7 +412,7 @@ describe('SendDigests job', () => {
             },
           },
         },
-        name: 'Essonne Digest Site',
+        label: 'Essonne Digest Site',
         roles: ['sahaj-atlas-client'],
         site: { domain: 'essonne-digest.example', page: '/carte', track: 'custom' },
       })
@@ -429,7 +429,7 @@ describe('SendDigests job', () => {
             releasedAt: '2026-11-08T03:00:00.000Z',
           },
         },
-        name: 'Missing Digest Site',
+        label: 'Missing Digest Site',
         roles: ['sahaj-atlas-client'],
         site: { domain: 'missing-digest.example', page: '/carte', track: 'custom' },
       })
