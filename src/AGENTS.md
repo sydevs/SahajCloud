@@ -47,8 +47,10 @@ sent when a manager is assigned something (`invitations.ts`), never on create. T
 factories: `loginPlugin` is their only caller.
 
 Work with two callers gets its own module beside them rather than living in one
-of their wiring files — `session.ts`, and `magicLinks.ts` for the throttle
-and send that the request endpoint and the manager sign-in page both run.
+of their wiring files — `session.ts`; `magicLinks.ts` for the throttle
+and send that the request endpoint and the manager sign-in page both run; and
+`preflight.ts` for the checks a delivered link passes, which the redeem route
+and that same page must agree on (#1113).
 
 ### `src/jobs/<JobName>/`
 

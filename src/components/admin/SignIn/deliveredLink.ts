@@ -3,13 +3,7 @@ import type { Payload } from 'payload'
 
 import { redeemUrl } from '@/app/(frontend)/_components/loginUrls'
 import { managersLogin } from '@/collections/Managers/login'
-import type { LoginDocument, LoginToken } from '@/plugins/login'
-import {
-  EXPIRED_REASON,
-  INVITE_VALID_FOR,
-  readAnyLoginToken,
-  SIGNIN_VALID_FOR,
-} from '@/plugins/login'
+import { INVITE_VALID_FOR, preflight, SIGNIN_VALID_FOR } from '@/plugins/login'
 
 /** The page standing between a delivered link and the session it buys. */
 export type Confirmation = {
@@ -23,8 +17,9 @@ export type Confirmation = {
 
 /**
  * What a delivered link earns: its confirmation, or the notice that says why
- * not. Any of the three kinds arrives as `?token=`; its own audience says which
- * it is (`readAnyLoginToken`).
+ * not. Any of the three kinds arrives as `?token=`, and {@link preflight} is
+ * the whole of what it has to pass — the same checks the redeem route spends
+ * against, so no button is offered that the click then refuses.
  *
  * ⚠ **The `GET` a delivered link performs writes nothing.** The token is read to
  * tell a dead link from a live one, and the account it names is read to say who
@@ -39,29 +34,24 @@ export async function deliveredLink(
   token: string,
   payload: Payload,
 ): Promise<Confirmation | SignInNotice> {
-  const read = await readAnyLoginToken(token, payload.secret)
-  if (read.status === 'expired') return NOTICES[EXPIRED_REASON[read.kind]]
-  // The audience is checked here as well as at the burn: a token minted for
-  // another configured collection must not reach a managers confirmation.
-  if (read.status !== 'valid' || read.token.claims.collection !== managersLogin.slug) {
-    return NOTICES.invalid
-  }
+  const checked = await preflight({
+    config: managersLogin,
+    payload,
+    select: { email: true, name: true },
+    token,
+  })
+  if (checked.status === 'refused') return linkNotice(checked.reason) ?? NOTICES.invalid
 
-  const account = await accountFor(read.token, payload)
-  // Refused now rather than after the click, with the redeem route's own answer.
-  if (!account?.email) return NOTICES.invalid
+  const { account, token: delivered } = checked
+  if (!account.email) return NOTICES.invalid
 
   const name = typeof account.name === 'string' ? account.name.trim() : ''
   const who = name || account.email
   const address = name ? account.email : undefined
   const confirmation = { actionUrl: redeemUrl(token), email: account.email }
 
-  switch (read.token.kind) {
+  switch (delivered.kind) {
     case 'invite':
-      // `_verified` is what makes an invitation single-use, and it is account
-      // state rather than a claim — so the redeem route's own refusal is
-      // knowable here, before the holder is offered a button that cannot work.
-      if (account._verified === true) return NOTICES['invite-accepted']
       return {
         ...confirmation,
         heading: `Welcome, ${who}`,
@@ -72,7 +62,7 @@ export async function deliveredLink(
       return {
         ...confirmation,
         heading: `Sign in as ${who}`,
-        detail: [address, `opens “${read.token.claims.label}”`].filter(Boolean).join(' · '),
+        detail: [address, `opens “${delivered.claims.label}”`].filter(Boolean).join(' · '),
         submitLabel: 'Continue',
       }
     case 'signin':
@@ -82,31 +72,6 @@ export async function deliveredLink(
         detail: address,
         submitLabel: 'Continue',
       }
-  }
-}
-
-/**
- * The account a link names, or `null` when it is gone or no longer eligible —
- * the two checks the redeem route makes before anything else. `_verified` comes
- * with it, because an invitation's spent-ness is that flag.
- */
-async function accountFor(token: LoginToken, payload: Payload) {
-  try {
-    const account = await payload.findByID({
-      collection: managersLogin.slug,
-      id: token.claims.userId,
-      depth: 0,
-      // `joins` narrows per collection, so over the slug union it collapses to
-      // `undefined` — the same cast the redeem route makes.
-      joins: false as never,
-      overrideAccess: true,
-      select: { _verified: true, email: true, name: true, ...managersLogin.select },
-    })
-    const doc = account as unknown as LoginDocument
-    return managersLogin.isEligible && !managersLogin.isEligible(doc) ? null : doc
-  } catch {
-    // `findByID` throws `NotFound` for a deleted account rather than returning null.
-    return null
   }
 }
 
