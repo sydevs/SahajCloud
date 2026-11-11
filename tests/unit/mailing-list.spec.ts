@@ -597,39 +597,53 @@ describe('validateMailingList', () => {
     provider: 'nosuchprovider' as MailingListConfig['provider'],
     listId: 'list-1',
     apiKey: 'stored-plaintext-key',
+    doubleOptIn: true,
   }
 
-  /** What the edit form posts: every credential field but the write-only key. */
-  const { apiKey: _key, ...FORM_SAVE } = STORED
-
-  const save = (patch: unknown, stored: MailingListConfig | null = STORED) =>
+  /**
+   * ⚠ **`data.mailingList` carries the whole group, never the patch.** Payload
+   * back-fills every field a save omits from the stored document before any
+   * collection hook runs — `getFallbackValue`, reached from
+   * `fields/hooks/beforeValidate/promise.js` whenever `siblingData[name]` is
+   * undefined on an update — so the write-only `apiKey` no form sends is
+   * already here, decrypted. A fixture omitting it would test a shape Payload
+   * cannot produce.
+   */
+  const save = (config: MailingListConfig, stored: MailingListConfig | null = STORED) =>
     (validateMailingList as CollectionBeforeChangeHook)({
-      data: patch === undefined ? {} : { mailingList: patch },
+      data: { mailingList: config },
       originalDoc: stored === null ? {} : { mailingList: stored },
       req: { payload: { logger: { info: vi.fn(), warn: vi.fn() } } },
     } as never)
 
-  it('checks a key the form never sent, against the field the form changed', async () => {
-    await expect(save({ ...FORM_SAVE, listId: 'list-2' })).rejects.toThrow(
+  it('checks the stored key against a list the form changed', async () => {
+    await expect(save({ ...STORED, listId: 'list-2' })).rejects.toThrow(
       'is not a provider this build speaks',
     )
   })
 
   it('spends nothing when no credential moved', async () => {
-    await expect(save(FORM_SAVE)).resolves.toBeDefined()
-  })
-
-  it('spends nothing on a save that never touched the group', async () => {
-    await expect(save(undefined)).resolves.toBeDefined()
+    await expect(save(STORED)).resolves.toBeDefined()
   })
 
   it('checks a key entered on a row that had none', async () => {
     await expect(save(STORED, null)).rejects.toThrow('is not a provider this build speaks')
   })
 
-  // Pinging with a blank key would answer "that API key was refused", blaming
-  // the operator for a field they have not filled in yet.
-  it('spends nothing while the list is incomplete', async () => {
-    await expect(save({ ...FORM_SAVE, listId: 'list-2' }, null)).resolves.toBeDefined()
+  // ⚠ A key can be stored while the list is off, where every `required` behind
+  // the group's condition stands down — so switching it on is what proves it.
+  it('checks the credentials when the list is switched on', async () => {
+    await expect(save(STORED, { ...STORED, enabled: false })).rejects.toThrow(
+      'is not a provider this build speaks',
+    )
+  })
+
+  it.each([
+    ['the list is off', { ...STORED, enabled: false }],
+    // Pinging with a blank key would answer "that API key was refused",
+    // blaming the operator for a field they have not filled in yet.
+    ['the credentials are incomplete', { ...STORED, apiKey: '' }],
+  ])('spends nothing while %s', async (_name, config) => {
+    await expect(save(config, null)).resolves.toBeDefined()
   })
 })
