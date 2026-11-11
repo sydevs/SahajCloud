@@ -164,7 +164,6 @@ export async function runVerifyEmbeds(args: {
       runSeo: (result) => result.status === 'verified',
       countsStrikes: true,
     })
-    result[outcome.status]++
 
     let written = false
     try {
@@ -193,6 +192,9 @@ export async function runVerifyEmbeds(args: {
       })
       continue
     }
+    // Counted here, with every other outcome counter below: a verdict the write
+    // discarded is not this run's, and the press that won counts its own.
+    result[outcome.status]++
 
     // The map is back: the region returns to it, as a press of Check would do.
     if (outcome.status === 'verified' && current?.releasedAt) {

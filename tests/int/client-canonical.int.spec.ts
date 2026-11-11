@@ -987,7 +987,11 @@ describe('client canonical ownership + embed metadata', () => {
       // The interleave: both writers read `canonical.verification`, spend
       // seconds rendering, then write the whole object back. Without the
       // condition the second to finish discarded the other's attempt.
-      const id = await createOwner('Verify Raced', 'verify-raced')
+      // A page of its own, so the stub can fail this one service and verify
+      // every other service the sweep finds — which is what makes `failed`
+      // below count this service alone.
+      const racedPage = 'https://raced.example/embed'
+      const id = await createOwner('Verify Raced', 'verify-raced', racedPage)
       const pressedAt = daysAfter(300).toISOString()
       const pressNext = daysAfter(301).toISOString()
 
@@ -996,7 +1000,8 @@ describe('client canonical ownership + embed metadata', () => {
         req: { payload } as never,
         now: daysAfter(300),
         deps: {
-          verify: async () => {
+          verify: async (mount) => {
+            if (!mount.startsWith(racedPage)) return verified
             // A manager presses Check while this render is in flight.
             await persistVerification({
               req: { payload } as never,
@@ -1015,8 +1020,10 @@ describe('client canonical ownership + embed metadata', () => {
         },
       })
 
-      // The job counted its own verdict, and wrote none of it.
-      expect(output.failed).toBeGreaterThanOrEqual(1)
+      // The job wrote none of its verdict, so it counts none of it either —
+      // the press that won counts the check it made on its own path.
+      expect(output.processed).toBeGreaterThanOrEqual(1)
+      expect(output.failed).toBe(0)
       const doc = await read(id)
       expect(doc.canonical?.verification?.attempts).toEqual([
         { at: pressedAt, status: 'inconclusive', reason: 'quota' },
