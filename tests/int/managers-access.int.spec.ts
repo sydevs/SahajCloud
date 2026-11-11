@@ -334,11 +334,25 @@ describe('Managers access (#821)', () => {
     })
   })
 
-  // The unit sweep (`tests/unit/manager-field-locks.spec.ts`) reads the config
-  // a plugin sees, which is the only place `loginPlugin`'s appended columns
-  // exist. It therefore cannot see the auth columns Payload merges in at
-  // sanitize, so those are swept here, where the config is the booted one.
+  // The booted config: the only one holding both `loginPlugin`'s appended
+  // columns and the base auth fields Payload merges in at sanitize.
   describe('the sanitized collection', () => {
+    it('enumerates the plugin columns, the base auth fields and the legacy row', () => {
+      // Non-vacuity for the sweep below, which would pass over a field it never saw.
+      const names = payload.collections.managers.config.flattenedFields.map((field) => field.name)
+      expect(names).toEqual(
+        expect.arrayContaining([
+          'magicLinkIssuedAt',
+          'lastLoginAt',
+          'pendingInvitation',
+          'invitationDueAt',
+          'email',
+          '_verified',
+          'legacyData',
+        ]),
+      )
+    })
+
     it('answers "no" for every field but the picker title and the timestamps', async () => {
       // ⚠ **The locks are EVALUATED, not counted.** "Carries a read function"
       // is not the property: the base `_verified` field ships

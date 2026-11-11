@@ -34,8 +34,8 @@ import {
  * throttle their own sends forever. Both endpoints write it through
  * `overrideAccess: true`, so neither is affected.
  *
- * ⚠ **The `read` lock is this field's own, because the plugin appends it after
- * the collection's own locker has run** (`Managers/access.ts`, #908).
+ * ⚠ The `read` lock is its own: the plugin appends it after `Managers/access.ts`
+ * has run (#908).
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -50,23 +50,12 @@ export const magicLinkIssuedAt: Field = {
 }
 
 /**
- * When this account last signed in — stamped by `createSession`, the one place
- * a session is minted, so a sign-in link, the preview admin's request and a
- * test's session all count.
+ * When this account last signed in, stamped by `createSession` (#908). Nothing
+ * else records it: `sessions` drops rows on sign-out and expiry, and
+ * `updatedAt` moves on every write.
  *
- * Nothing else records it. `sessions` loses its row on sign-out and prunes
- * expired ones, and `updatedAt` moves on every write, the digest job's
- * watermarks included. A region manager reads it in the manager contacts table
- * on Regions and Events, to tell an active colleague from one who never
- * accepted (#908).
- *
- * ⚠ **`update: () => false` for the reason `magicLinkIssuedAt` has it:**
- * self-access grants an account holder update on their own row, and a manager
- * who could write this could read as active forever. `createSession` writes it
- * with the local API's default `overrideAccess: true`.
- *
- * ⚠ **The `read` lock is this field's own**, because the plugin appends it
- * after the collection's own locker has run (`Managers/access.ts`).
+ * ⚠ `update: () => false`, or self-access would let a manager read as active
+ * forever. ⚠ The `read` lock is its own, as on `magicLinkIssuedAt`.
  */
 export const lastLoginAt: Field = {
   name: 'lastLoginAt',

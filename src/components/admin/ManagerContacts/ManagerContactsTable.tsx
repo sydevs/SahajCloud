@@ -8,12 +8,8 @@ import styles from './ManagerContacts.module.css'
 import { tableColumn } from '../helpers/tableColumn'
 
 /**
- * Payload's condensed `Table`, as the activity log renders it — the rows and
- * the gate stay on the server (`./data.ts`).
- *
- * The email is a `mailto:` link. It is safe in an `href` because it is the
- * manager's own auth address, which Payload's `email` validator admits, never
- * text a visitor typed.
+ * Payload's condensed `Table`. The `mailto:` is safe in an `href` because the
+ * address passed Payload's `email` validator on the manager's own row.
  */
 export function ManagerContactsTable({ rows }: { rows: ManagerContactRow[] }) {
   return (

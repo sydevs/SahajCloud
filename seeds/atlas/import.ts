@@ -546,9 +546,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       ]),
     )
 
-    // Who has signed in here since an earlier sync. Atlas stops recording
-    // sign-ins once a manager uses SahajCloud, so an `--update` keeps whichever
-    // of the two dates is later rather than rewinding theirs to Atlas's (#908).
+    // Sign-ins recorded here since an earlier sync, so an `--update` keeps the
+    // later of theirs and Atlas's rather than rewinding it (#908).
     const signedInHere = await this.payload.find({
       collection: 'managers',
       where: { and: [{ legacyId: { exists: true } }, { lastLoginAt: { exists: true } }] },

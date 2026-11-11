@@ -5,29 +5,23 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { mayReadManagerContacts } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
 
-/** The collections that carry the table — each names its managers differently. */
 export type ManagerContactsCollection = 'events' | 'regions'
 
-/** One manager, as the contacts table shows them. */
 export type ManagerContactRow = {
   id: number
   name: string
   email: string
-  /**
-   * One line, `10 Nov 2026 - 3 weeks ago`, formatted here because only the
-   * server knows what "now" is for the read. `stale` once it is long ago.
-   */
+  /** `10 Nov 2026 - 3 weeks ago`, formatted against the server's "now". */
   lastSignIn: { text: string; stale: boolean } | null
 }
 
-/** The place the gate judges, and who is named there, off the stored row. */
+/** The place the gate judges, and who is named there. */
 async function readPlace(
   req: PayloadRequest,
   collection: ManagerContactsCollection,
   id: number,
 ): Promise<null | { place: { region?: unknown; manager?: unknown }; managerIds: number[] }> {
-  // A server-component tree renders concurrently, so every read takes its own
-  // `req` copy (src/collections/AGENTS.md).
+  // Server components render concurrently, so each read takes its own `req`.
   if (collection === 'regions') {
     const region = await req.payload.findByID({
       collection: 'regions',
@@ -60,15 +54,15 @@ async function readPlace(
   }
 }
 
-/** Every id a relationship value holds, in its own order, once each. */
+/** A relationship value's ids, in order, once each. */
 function idsOf(value: unknown): number[] {
   const ids = (Array.isArray(value) ? value : [value]).map(relationId)
   return [...new Set(ids.filter((id): id is number => id !== null))]
 }
 
 /**
- * Past this many months, a sign-in reads as long ago. It is no proof a manager
- * is gone: the reminder's own link verifies an event without a sign-in.
+ * Past this many months a sign-in shows red. No proof a manager is gone: a
+ * reminder's link verifies an event without signing in.
  */
 export const STALE_SIGN_IN_MONTHS = 6
 
@@ -85,23 +79,14 @@ function lastSignIn(iso: null | string | undefined, now: Date): ManagerContactRo
 
 /**
  * The managers named on a region or an event, with how to reach them — or
- * `null` when the caller may not see them, which the component renders as
- * nothing at all.
+ * `null` when the caller may not see them.
  *
- * ⚠ **It reads the row itself rather than the form `data` Payload passes the
- * field.** That one can arrive from a form-state request the browser posted,
- * so trusting it would let a caller name any manager and any region. The id is
- * the only thing taken from the request, and the gate then judges the row that
- * id names. For an event that is the published row, as the Registrations tab
- * reads it: on a published event, a draft-only reassignment names nobody here
- * until it is published. A new event's first save is its stored row, draft or
- * not, which is the gap `docs/rules/access.md` accepts.
+ * ⚠ It reads the stored row by id, never the form `data` Payload passes the
+ * field: a posted form state could name any manager and any region. For an
+ * event that is the published row, as the Registrations tab reads it.
  *
- * ⚠ **The manager rows are read after the gate, never beside it**, and with
- * `overrideAccess`: every field but `name` on another manager is locked to
- * that manager and to admins, so the gate — not the collection's field access
- * — is the authority (`docs/rules/access.md`). The `select` is what keeps the
- * rest of the row out of the table.
+ * ⚠ The manager rows are read after the gate, with `overrideAccess` past the
+ * field locks, so the `select` is what keeps the rest of each row out.
  */
 export async function loadManagerContacts(
   req: PayloadRequest,

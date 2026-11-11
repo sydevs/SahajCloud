@@ -190,13 +190,7 @@ export interface LogFieldOptions {
    * headings stable before the data does.
    */
   columns?: LogColumn[]
-  /**
-   * A narrower `read` lock than the default, which admits every caller but a
-   * client. For a log whose entries hold another person's contact details —
-   * `Events.activityLog`, which records where each reminder went, reads as
-   * `eventContactsFieldAccess` answers for its row (#908). `create` and
-   * `update` keep the default either way.
-   */
+  /** A narrower `read` lock than "anyone but a client", for a log of other people's addresses. */
   read?: FieldAccess
   admin?: Omit<NonNullable<JSONField['admin']>, 'components' | 'description' | 'readOnly'>
 }
@@ -234,9 +228,7 @@ export function logField({
     // `read` is locked for a second reason: reminder entries hold manager
     // PII, which restricting `managers` cannot reach inside a JSON column
     // (#821). A denylist, not `managersOnlyFieldAccess`, so all three keys
-    // admit the same callers — equivalent, not wider. Restricting `managers`
-    // reaches no copy either, so a log of other people's addresses narrows
-    // `read` further through `read` (#908).
+    // admit the same callers — equivalent, not wider.
     access: {
       read: read ?? notClient,
       create: notClient,

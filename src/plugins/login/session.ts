@@ -83,10 +83,7 @@ export async function createSession(
   // the local API's default `overrideAccess: true`. Only `sessions` is sent:
   // `user` was read at one locale, so writing it back whole would flatten a
   // localized field (`roles`, on `managers`) onto that locale.
-  //
-  // `lastLoginAt` rides the same write, because minting a session IS the
-  // sign-in — `loginPlugin` appends the column to every collection it serves,
-  // and a collection it does not serve is not stamped.
+  // `lastLoginAt` rides along on the collections `loginPlugin` serves.
   await payload.update({
     collection,
     id,

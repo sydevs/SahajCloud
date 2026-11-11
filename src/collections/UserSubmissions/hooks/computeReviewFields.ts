@@ -57,11 +57,8 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
         trash: true,
         overrideAccess: true,
         disableErrors: true,
-        // ⚠ The one column left out: `previewEvent` copies this row whole,
-        // and a proposal is read by the managers of the region it proposes,
-        // who need not be the event's own. The log records where each
-        // reminder went, and reads only as `eventContactsFieldAccess` answers
-        // for the event (#908). Neither projection renders it.
+        // ⚠ `previewEvent` copies this row whole, and its readers need not
+        // pass `eventContactsFieldAccess` for the event's log (#908).
         select: { activityLog: false },
       })
       .catch(() => null)) as Event | null
@@ -83,12 +80,9 @@ function loadManager(req: PayloadRequest, managerId: number): Promise<unknown> {
         collection: 'managers',
         id: managerId,
         depth: 0,
-        // ⚠ `name` and nothing else. The row this returns lands verbatim in
-        // `previewEvent`, which every manager reads — and `overrideAccess: true`
-        // skips the field locks that otherwise keep a colleague's email,
-        // contact details and legacy import row off an Atlas region manager's read
-        // (#908). A copy is not a relationship, so nothing else covers it:
-        // `docs/rules/access.md`, "it does not reach a copy of it".
+        // ⚠ `name` alone: the row lands verbatim in `previewEvent`, which
+        // every manager reads, and `overrideAccess` skips the field locks
+        // (#908, `docs/rules/access.md`).
         select: { name: true },
         overrideAccess: true,
         disableErrors: true,

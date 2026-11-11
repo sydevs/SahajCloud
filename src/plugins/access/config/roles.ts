@@ -102,9 +102,8 @@ const ROLES = {
       // the access plugin hides a collection its role cannot write.
       imports: ['create'] as PermissionLevel[],
       // Collection-wide on purpose (#821): a picker exists to list *other*
-      // managers, so a self-scoped `Where` would empty it. Narrowed field by
-      // field instead, to `name` alone — `src/collections/Managers/access.ts`
-      // (#908).
+      // managers, so a self-scoped `Where` would empty it. Narrowed to `name`
+      // by `src/collections/Managers/access.ts` (#908).
       managers: ['read'] as PermissionLevel[],
       // `user-submissions` is restricted too, so this grant is what reaches it
       // at all — and it is narrowed per row in `accessConfigs.ts`: a manager

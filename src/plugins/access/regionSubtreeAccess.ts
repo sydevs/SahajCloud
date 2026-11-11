@@ -229,20 +229,12 @@ async function maySetManagerOn(
 }
 
 /**
- * Whether this request's user may see who to contact about a region or an
- * event: an admin, the event's own manager, or an active manager whose owned
- * subtree holds the region — so a region's own managers and the managers of
- * every region above it, and never a sub-region's.
+ * Whether this request's user may see the contact details of the managers a
+ * region or an event names: an admin, the event's own manager, or an active
+ * manager whose owned subtree holds the region — so never a sub-region's
+ * (#908). The one gate for the contacts table and `Events.activityLog`.
  *
- * The one answer for every surface that shows a manager's contact details
- * beyond their own row: the manager contacts table on Regions and Events
- * (`src/components/admin/ManagerContacts/`) and the event's activity log
- * (`eventContactsFieldAccess`). It decides about the place, never about the
- * person being shown, so a manager assigned inside the subtree reads the same
- * to everyone allowed there (#908).
- *
- * `region` and `manager` are the row's own, as stored. A caller passes what it
- * read, never what a form posted.
+ * `region` and `manager` are the stored row's, never what a form posted.
  */
 export async function mayReadManagerContacts(
   req: PayloadRequest,
@@ -259,14 +251,12 @@ export async function mayReadManagerContacts(
 }
 
 /**
- * `Events.activityLog` — its reminder entries record the address each one went
- * to, so the log reads as {@link mayReadManagerContacts} answers for the row.
+ * `Events.activityLog`, which records where each reminder went: readable as
+ * {@link mayReadManagerContacts} answers for the row.
  *
- * ⚠ **No row in hand answers for admins alone.** A `where`, a `sort`, a
- * `distinct` and the collection-level `/api/access` all evaluate field access
- * with no `doc`, and there is no place to judge. A read that selects the log
- * without `region` and `manager` is judged on what it carries, so it is
- * refused too: fail closed, rather than a second query per row.
+ * ⚠ With no row — a `where`, a `sort`, `/api/access` — it answers for admins
+ * alone, and a read selecting the log without `region` and `manager` is
+ * refused rather than re-read.
  */
 export const eventContactsFieldAccess: FieldAccess = ({ doc, req }) => {
   if (isAdminManager(req.user)) return true

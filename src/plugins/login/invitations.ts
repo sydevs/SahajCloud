@@ -47,15 +47,9 @@ const BATCH = 50
  * as `magicLinkIssuedAt`: self-access would otherwise let a manager rewrite
  * their own queue. The queue's own writes bypass access entirely.
  *
- * ⚠ **`read` is locked here rather than by `Managers/access.ts`**, which runs
- * before the plugin appends these (#908). `pendingInvitation` earns it on its
- * own: it names the regions, events and pages an account was just granted.
- *
- * ⚠ `selfOrAdminFieldAccess` is manager-shaped, and these fields go onto every
- * collection the plugin serves — only `managers` today
- * (`src/payload.config.ts`). A second collection's holder would be denied
- * their own value rather than shown somebody else's, which is fail-closed and
- * the point at which that collection declares its own lock.
+ * ⚠ `read` is locked here because `Managers/access.ts` runs before the plugin
+ * appends these (#908). `selfOrAdminFieldAccess` admits managers alone, so a
+ * second collection the plugin serves would be denied its own value.
  */
 export const invitationFields: Field[] = [
   {

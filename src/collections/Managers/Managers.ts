@@ -51,27 +51,18 @@ export const Managers: CollectionConfig = {
   // accessPlugin detects that pair and attaches the auth strategy and the three
   // auth-response hooks that keep a manager's roles resolved at every locale —
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
-  // Every field but `name` is locked to the row's own holder and to admins, so
-  // the pickers `atlas-region-manager`'s collection-wide read exists for list titles
-  // and nothing else — see `./access.ts` (#908).
+  // Every field but `name` is locked to the row's holder and to admins (#908).
   fields: lockManagerFieldReads([
     {
       name: 'name',
       type: 'text',
       required: true,
     },
-    // Declared so the lock has a base auth field to merge onto. ⚠ At the TOP
-    // LEVEL, and only here: `mergeBaseFields` matches by `name` against the
-    // level it is handed, so a copy nested in a tab appends a second field
-    // instead of merging. The merge keeps the base field's `required`,
-    // `unique` and `validate` and takes our `read`. Payload merges them in at
-    // all because `loginPlugin` sets
-    // `disableLocalStrategy: { enableFields: true }` (#840).
-    //
-    // ⚠ **Each restates its own label**, because `sanitizeFields` fills one in
-    // from the field name before the merge runs, and ours then beats Payload's
-    // i18n function — which left the Managers list view with a column headed
-    // `_verified` in every locale.
+    // Base auth fields, declared bare so the lock has something to merge onto.
+    // ⚠ At the TOP LEVEL only: `mergeBaseFields` matches by name at the level
+    // it is handed, so a copy in a tab appends a second field.
+    // ⚠ Each restates its label, or the merge keeps the one `sanitizeFields`
+    // derived from the name — a list column headed `_verified`.
     { name: 'email', type: 'email', label: ({ t }) => t('general:email') },
     { name: '_verified', type: 'checkbox', label: ({ t }) => t('authentication:verified') },
     {

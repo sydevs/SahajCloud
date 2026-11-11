@@ -682,10 +682,8 @@ export const Events: CollectionConfig = {
               // *alongside* `stage`, `level`, and `manager`, and the row's
               // ⋯ menu shows the rest.
               //
-              // ⚠ Each reminder entry records the address it went to, so the
-              // log reads as the manager contacts table above it does: admins,
-              // the event's manager, and the managers of its region and every
-              // region above it (#908).
+              // ⚠ Reminder entries record the address each went to, so the
+              // log reads as the contacts table does (#908).
               description:
                 'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
               read: eventContactsFieldAccess,

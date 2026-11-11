@@ -1,18 +1,12 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 /**
- * `last_login_at` is when a manager last signed in, stamped by `createSession`
- * from now on (#908). The manager contacts table on Regions and Events shows it.
+ * `last_login_at`, stamped by `createSession` from now on (#908).
  *
- * The backfill below is a hand edit to a generated migration, which this folder
- * otherwise refuses. The owner asked for it on this PR: without it, every
- * manager imported from Atlas reads "Never" until their next sign-in, though
- * Atlas recorded one for most of them. The value is a pure projection of the
- * imported row the same table already holds, so no foreign key and no second
- * table is involved, as in #1087's.
- *
- * Only a string is cast. A JSON null, or a row imported before the field
- * existed in the extraction, stays NULL and reads "Never".
+ * The backfill is a hand edit, which the owner asked for: without it every
+ * manager imported from Atlas reads "Never" until their next sign-in. It
+ * projects the imported row the same table holds, as #1087's does. Only a
+ * string is cast; anything else stays NULL.
  */
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
