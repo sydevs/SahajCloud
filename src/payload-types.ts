@@ -10948,6 +10948,7 @@ export interface TaskCleanupOrphanedMedia {
     trashedFiles: number;
     trashedImages: number;
     skippedImages: number;
+    skippedReferenced: number;
     errors: number;
     dryRun: boolean;
   };

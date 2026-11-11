@@ -75,15 +75,19 @@ type CleanupResult = {
   trashedFiles: number
   trashedImages: number
   skippedImages: number
+  skippedReferenced: number
   errors: number
 }
+
+/** The ids of each media collection that some stored document still points at. */
+type ReferencedIds = Record<'files' | 'images', Set<number>>
 
 /**
  * Cleanup job for orphaned media files.
  *
  * Two-phase cleanup:
  * - Phase A: Permanently delete items trashed longer ago than
- *   TRASH_RETENTION_DAYS
+ *   TRASH_RETENTION_DAYS and referenced by nothing
  * - Phase B: Move newly detected orphans to trash (soft delete)
  *
  * `dryRun` counts both phases without writing anything. It is how a run is
@@ -145,6 +149,11 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       required: true,
     },
     {
+      name: 'skippedReferenced',
+      type: 'number',
+      required: true,
+    },
+    {
       name: 'errors',
       type: 'number',
       required: true,
@@ -190,17 +199,45 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       trashedFiles: 0,
       trashedImages: 0,
       skippedImages: 0,
+      skippedReferenced: 0,
       errors: 0,
     }
 
     try {
+      // Both phases read the same sets, and the scan walks every collection, so
+      // it runs once here rather than once per phase.
+      const referenced: ReferencedIds = {
+        files: await getAllReferencedIds(req.payload, 'files'),
+        images: await getAllReferencedIds(req.payload, 'images'),
+      }
+      req.payload.logger.info({
+        msg: 'Reference scan completed',
+        referencedFileCount: referenced.files.size,
+        referencedImageCount: referenced.images.size,
+      })
+
       // Phase A: Permanently delete items trashed before the retention cutoff
-      await permanentlyDeleteTrashedItems(req, result, maxOperations, trashCutoff, dryRun)
+      await permanentlyDeleteTrashedItems(
+        req,
+        result,
+        maxOperations,
+        trashCutoff,
+        dryRun,
+        referenced,
+      )
 
       // Phase B: Move newly detected orphans to trash
       const remainingOps = maxOperations - getTotalOperations(result)
       if (remainingOps > 0) {
-        await trashOrphanedMedia(req, result, remainingOps, rangeStart, rangeEnd, dryRun)
+        await trashOrphanedMedia(
+          req,
+          result,
+          remainingOps,
+          rangeStart,
+          rangeEnd,
+          dryRun,
+          referenced,
+        )
       }
 
       req.payload.logger.info({
@@ -337,6 +374,11 @@ async function processItems<T extends { id: number; filename?: string | null; cr
  * ⚠ `exists: true` stays beside `less_than`. A null `deletedAt` compares false
  * either way in SQL, but losing the existence term would make the age the only
  * thing standing between a live document and a permanent delete.
+ *
+ * ⚠ Age alone was the whole test, so an item hand-trashed while a page still
+ * showed it, or pointed at again by a restored version, went for good and left
+ * the page showing nothing (#1118). A referenced item stays in the trash, and
+ * whether to restore it is a person's call — it may have been trashed on purpose.
  */
 async function permanentlyDeleteTrashedItems(
   req: PayloadRequest,
@@ -344,6 +386,7 @@ async function permanentlyDeleteTrashedItems(
   maxOperations: number,
   trashCutoff: Date,
   dryRun: boolean,
+  referenced: ReferencedIds,
 ): Promise<void> {
   req.payload.logger.info({
     msg: 'Phase A: Permanently deleting trashed items',
@@ -367,7 +410,7 @@ async function permanentlyDeleteTrashedItems(
   await processItems({
     req,
     collection: 'files',
-    docs: trashedFiles.docs,
+    docs: keepReferenced(req, 'files', trashedFiles.docs, referenced, result),
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedFiles',
@@ -388,7 +431,7 @@ async function permanentlyDeleteTrashedItems(
   await processItems({
     req,
     collection: 'images',
-    docs: trashedImages.docs,
+    docs: keepReferenced(req, 'images', trashedImages.docs, referenced, result),
     operation: 'delete',
     result,
     resultKey: 'permanentlyDeletedImages',
@@ -399,6 +442,32 @@ async function permanentlyDeleteTrashedItems(
     msg: 'Phase A completed',
     permanentlyDeletedFiles: result.permanentlyDeletedFiles,
     permanentlyDeletedImages: result.permanentlyDeletedImages,
+    skippedReferenced: result.skippedReferenced,
+  })
+}
+
+/**
+ * The trashed documents Phase A may delete: those nothing points at any more.
+ * Counts and names the ones it holds back, under `dryRun` as well, so an
+ * operator sees them before a live run.
+ */
+function keepReferenced<T extends { id: number; filename?: string | null }>(
+  req: PayloadRequest,
+  collection: 'files' | 'images',
+  docs: T[],
+  referenced: ReferencedIds,
+  result: CleanupResult,
+): T[] {
+  return docs.filter((doc) => {
+    if (!referenced[collection].has(doc.id)) return true
+    result.skippedReferenced++
+    req.payload.logger.info({
+      msg: 'Kept trashed item: still referenced',
+      collection,
+      id: doc.id,
+      filename: doc.filename,
+    })
+    return false
   })
 }
 
@@ -419,18 +488,11 @@ async function trashOrphanedMedia(
   rangeStart: Date,
   rangeEnd: Date,
   dryRun: boolean,
+  referenced: ReferencedIds,
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
-  // Get all referenced file and image IDs using schema introspection
-  const referencedFiles = await getAllReferencedIds(req.payload, 'files')
-  const referencedImages = await getAllReferencedIds(req.payload, 'images')
-
-  req.payload.logger.info({
-    msg: 'Reference scan completed',
-    referencedFileCount: referencedFiles.size,
-    referencedImageCount: referencedImages.size,
-  })
+  const { files: referencedFiles, images: referencedImages } = referenced
 
   // Paginate through files until we collect maxItemsToProcess orphans
   const maxFilesToProcess = Math.floor(maxOperations / 2)
