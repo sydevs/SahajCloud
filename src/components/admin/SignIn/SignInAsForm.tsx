@@ -2,7 +2,8 @@
 
 import type { FormEvent, ReactNode } from 'react'
 
-import { useRef } from 'react'
+import { Banner } from '@payloadcms/ui'
+import { useRef, useState } from 'react'
 
 /**
  * One preview-picker row: signs in as `email` through `request-magic-link`,
@@ -27,27 +28,35 @@ export function SignInAsForm({
   to: string
 }) {
   const submitting = useRef(false)
+  const [failed, setFailed] = useState(false)
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (submitting.current) return
     submitting.current = true
-    try {
-      const response = await fetch(endpoint, {
-        body: JSON.stringify({ email }),
-        headers: { 'Content-Type': 'application/json' },
-        method: 'POST',
-      })
-      const body = (await response.json().catch(() => null)) as { token?: string } | null
-      if (body?.token) {
-        window.location.assign(to)
-        return
-      }
-    } catch {
-      // Nothing to show: the picker lists only accounts a click can sign in.
+    setFailed(false)
+
+    const signedIn = await fetch(endpoint, {
+      body: JSON.stringify({ email }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { token?: string } | null) => Boolean(body?.token))
+      .catch(() => false)
+
+    if (signedIn) {
+      window.location.assign(to)
+      return
     }
     submitting.current = false
+    setFailed(true)
   }
 
-  return <form onSubmit={signIn}>{children}</form>
+  return (
+    <form onSubmit={signIn}>
+      {children}
+      {failed ? <Banner type="error">Could not sign in as {email}. Try again.</Banner> : null}
+    </form>
+  )
 }

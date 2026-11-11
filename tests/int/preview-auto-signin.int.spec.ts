@@ -18,9 +18,10 @@
  * the uniform answer is entirely `previewAutoSignIn` being off, so the last case
  * drives that directly.
  *
- * The sign-in form's Server Action is driven here too, because it is the half a
- * person uses — and since the picker's rows submit through it, the half a
- * reviewer uses to become another manager.
+ * The endpoint is also what the preview's sign-in picker posts to, so the cases
+ * below that sign another manager in are how a reviewer becomes one. The
+ * sign-in form's Server Action is driven too: it takes the same config, though a
+ * preview shows the picker in its place.
  */
 import type { Payload } from 'payload'
 
@@ -180,7 +181,7 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
       expect(redirectedTo.current).toBe('/admin')
     })
 
-    it('signs another manager in and redirects, which is what a picker row does', async () => {
+    it('signs another manager in and redirects', async () => {
       const other = await testData.createManager(payload, {
         _verified: true,
         name: 'Event Manager',

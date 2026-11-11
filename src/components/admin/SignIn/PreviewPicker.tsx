@@ -54,9 +54,8 @@ export async function PreviewPicker({
     select: { currentProject: true, email: true, name: true, type: true },
     // ⚠ **Only accounts a click can actually sign in.** `issueMagicLink`
     // refuses an inactive manager (`isEligible`) and an unaccepted one (the
-    // `_verified` guard), and the Server Action discards the outcome — so an
-    // offered card that cannot sign in just re-renders the page, saying
-    // nothing. Not offering it is the honest surface.
+    // `_verified` guard), so an offered row that cannot sign in would only
+    // report a failure. Not offering it is the honest surface.
     where: { _verified: { equals: true }, type: { not_equals: MANAGER_INACTIVE } },
   })
 
@@ -135,7 +134,7 @@ function AccountButton({
 /**
  * One account's reach in a few words: what it manages, else its roles. Which
  * account manages what is how a reviewer picks one, so this is the one detail
- * kept on the card.
+ * kept on the row.
  */
 function reach(summaries: GrantSummary[]): string {
   if (summaries.some((summary) => summary.fullAccess)) return 'Administrator'

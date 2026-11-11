@@ -132,9 +132,12 @@ const PREVIEW_ENVIRONMENT_NAME = /^(?:SahajCloud-)?pr-(\d+)$/
  * with one-click admin sign-in beside them, on an ordinary public URL.
  */
 export const isPreviewEnvironmentName = (name: string | undefined | null): boolean =>
-  !!name && PREVIEW_ENVIRONMENT_NAME.test(name.trim())
+  previewNumberFromEnvironmentName(name) !== null
 
-/** The pull-request number a preview environment's name names, or `null`. */
+/**
+ * The pull-request number a preview environment's name names, or `null` — the
+ * test above, with its answer. The gate reads this one.
+ */
 export const previewNumberFromEnvironmentName = (name: string | undefined | null): null | string =>
   (name && PREVIEW_ENVIRONMENT_NAME.exec(name.trim())?.[1]) || null
 

@@ -66,11 +66,9 @@ export function sweepTargets({
     // zone's 100-domain ceiling filled up, or have it delete an address the
     // Worker still serves.
     const pr = previewNumberFromProxyHost(domain.hostname)
-    if (!pr) continue
-    if (!closedAt.has(pr)) continue
-
-    const closed = closedAt.get(pr)
-    if (!closed) continue
+    // Unreported, or still open.
+    const closed = pr && closedAt.get(pr)
+    if (!pr || !closed) continue
 
     const closedMs = Date.parse(closed)
     if (!Number.isFinite(closedMs) || now - closedMs < graceMs) continue

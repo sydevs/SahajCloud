@@ -21,7 +21,6 @@ import { NextResponse } from 'next/server'
 
 import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
 import {
-  isPreviewEnvironmentName,
   PREVIEW_HEALTH_PATH,
   PREVIEW_PROXY_SECRET_HEADER,
   previewNumberFromEnvironmentName,
@@ -68,8 +67,8 @@ function previewGate(request: NextRequest): NextResponse | null {
   // environment that carries only the second, while `previewAdmin`, which does
   // read both, would still be listing every account. It is zod-free and reads
   // both as literal member expressions, so it survives an Edge bundle.
-  const environmentName = railwayEnvironmentName()
-  if (!isPreviewEnvironmentName(environmentName)) return null
+  const pr = previewNumberFromEnvironmentName(railwayEnvironmentName())
+  if (!pr) return null
 
   const { method, nextUrl } = request
   const reading = method === 'GET' || method === 'HEAD'
@@ -77,11 +76,6 @@ function previewGate(request: NextRequest): NextResponse | null {
 
   const expected = process.env.PREVIEW_PROXY_SECRET
   if (expected && request.headers.get(PREVIEW_PROXY_SECRET_HEADER) === expected) return null
-
-  const pr = previewNumberFromEnvironmentName(environmentName)
-  // Unreachable: `isPreviewEnvironmentName` above is the same predicate this
-  // reads. Refusing rather than asserting keeps the failure a refusal.
-  if (!pr) return refuse('This preview is not reachable at this address.')
 
   const fixed = previewOrigin(pr)
   if (!expected) {
