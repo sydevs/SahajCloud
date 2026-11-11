@@ -115,13 +115,24 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
       })
-      const body = (await response.json()) as { errors?: { message?: string }[]; message?: string }
+
       if (!response.ok) {
-        setError(body.errors?.[0]?.message ?? body.message ?? 'That key was refused.')
+        // A refusal is the provider's own words; anything else — a 500, an HTML
+        // error page — has no body worth reading, and reading it first is how a
+        // failed save showed nothing at all.
+        const body = await response.json().catch(() => null)
+
+        setError(
+          (body as { errors?: { message?: string }[] } | null)?.errors?.[0]?.message ??
+            'That key was refused.',
+        )
         return
       }
+
       setApiKey('')
       onStored()
+    } catch {
+      setError('We could not reach the server. Try again.')
     } finally {
       setSaving(false)
     }

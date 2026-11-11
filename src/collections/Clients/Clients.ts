@@ -32,6 +32,7 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { atlasWrites, isAtlasClient } from './access'
 import { mailingListKey, mailingListKeyStatus } from './endpoints/mailingListKey'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
@@ -256,14 +257,6 @@ const usageCounter = (name: string, type: 'number' | 'date', description: string
   type === 'number'
     ? { name, type, defaultValue: 0, admin: { readOnly: true, description } }
     : { name, type, admin: { readOnly: true, description } }
-
-/** The Atlas-only settings, shown to a service holding the Atlas role. */
-const isAtlasClient = (data: { roles?: unknown }): boolean =>
-  Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
-
-/** The Atlas tab's lock: an admin, or the row's own atlas role (`roles` is admin-locked). */
-const atlasWrites: FieldAccess = ({ req, doc, data }) =>
-  isAdminManager(req.user) || isAtlasClient(doc ?? data ?? {})
 
 /** Each conditional tab's write rule, keyed on the condition that hides it (`lockTabs`). */
 const TAB_WRITE_RULES = new Map<Condition, FieldAccess>([

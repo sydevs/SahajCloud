@@ -152,6 +152,43 @@ describe('Mailing-list key', () => {
       expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
     })
 
+    it('still proves a changed credential against the provider on a form save', async () => {
+      // ⚠ The key is absent from form state, so the save carries none. Without
+      // the stored key standing in, the hook's "is this configured" guard
+      // short-circuits and a changed provider goes in unproven.
+      providerVerdict = 'That list does not exist.'
+
+      await expect(
+        payload.update({
+          collection: 'clients',
+          data: { mailingList: { enabled: true, listId: 'list-2', provider: 'mailchimp' } },
+          id: service.id,
+          overrideAccess: false,
+          req: managerReq(listedManager),
+        }),
+      ).rejects.toThrow(/That list does not exist/)
+
+      providerVerdict = null
+    })
+
+    it('refuses the endpoint on a service with no atlas role', async () => {
+      // `lockTabs` ANDs the Atlas tab's own rule onto every field it holds, and
+      // `payload.update` strips what it refuses rather than erroring — so a door
+      // gating on less would answer 200 for a write that stored nothing.
+      const appKey = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'app-key-for-mailing-list-spec',
+        label: 'App Key',
+        managers: [listedManager.id],
+        roles: ['wemeditate-web-client'],
+      })
+      const { status } = await listedRest(`/api/clients/${appKey.id}/mailing-list-key`, {
+        json: { apiKey: 'k', listId: 'list-1', provider: 'mailchimp' },
+        method: 'POST',
+      })
+
+      expect(status).toBe(403)
+    })
+
     it('refuses a manager who does not manage the service', async () => {
       const { status } = await outsideRest(`/api/clients/${service.id}/mailing-list-key`, {
         json: { apiKey: 'nope', listId: 'list-1', provider: 'mailchimp' },

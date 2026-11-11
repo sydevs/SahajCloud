@@ -8,6 +8,8 @@ import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
 import type { Client } from '@/payload-types'
 import { managersOnlyFieldAccess } from '@/plugins/access'
 
+import { atlasWrites } from '../access'
+
 /** `GET /api/clients/:id/mailing-list-key` — whether a key is stored, and its tail. */
 export interface MailingListKeyStatus {
   set: boolean
@@ -29,8 +31,13 @@ const bodySchema = z.object({
  *
  * ⚠ **`overrideAccess: false`, with the caller's own `req`** — `requireActiveManager`
  * admits any active manager with no document check, so the row's own read access
- * is what decides. The `apiKey` field's write lock is then evaluated on top, so
- * this door is never wider than a form save of the same field.
+ * is what decides.
+ *
+ * ⚠ **Both of the field's write locks, not one.** `lockTabs` ANDs the Atlas tab's
+ * own rule onto every field it holds, and `payload.update` strips a field it
+ * refuses rather than erroring — so gating on `managersOnlyFieldAccess` alone
+ * would answer 200, with a key's last four characters, for a write that stored
+ * nothing.
  */
 async function authorize(
   req: PayloadRequest,
@@ -54,9 +61,12 @@ async function authorize(
     return { response: errorResponse('Service not found.', 404) }
   }
 
-  const mayWrite = await managersOnlyFieldAccess({ data: {}, doc: client, req, siblingData: {} })
-  if (!mayWrite)
+  const args = { data: {}, doc: client, req, siblingData: {} }
+  const mayWrite = (await managersOnlyFieldAccess(args)) && (await atlasWrites(args))
+
+  if (!mayWrite) {
     return { response: errorResponse('You are not allowed to perform this action.', 403) }
+  }
 
   return { client }
 }
