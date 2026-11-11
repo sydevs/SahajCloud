@@ -31,6 +31,7 @@ import {
   SPAM_REVIEW_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
 import type { WorkflowButtonsProps, WorkflowRule } from '@/components/admin/WorkflowButtons/stages'
+import { asLog } from '@/fields'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
@@ -150,7 +151,7 @@ describe('User submission review lifecycle', () => {
 
   /** The decisions recorded on a row, newest last. */
   const reviewEntries = (submission: UserSubmission) =>
-    (submission.activityLog ?? []).filter((entry) => entry.type === 'review')
+    asLog(submission.activityLog).filter((entry) => entry.type === 'review')
 
   const lastReviewEntry = (submission: UserSubmission) => reviewEntries(submission).at(-1)
 
