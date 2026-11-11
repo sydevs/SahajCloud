@@ -240,11 +240,25 @@ describe('servingVerdict', () => {
     )
   })
 
-  it('reports an absent or unnamed commit as unknown, which no waiting answers', () => {
+  it('reports a build whose health answer has no commit field as fieldless', () => {
+    // ⚠ The one answer that is not Railway's fault, and so not the Railway
+    // message: the route fills `commit` unconditionally, so a missing key
+    // means the build predates the field rather than that the variable is
+    // unset. Folded into `unknown`, it sent #1122 to Railway for a stale
+    // branch head.
+    expect(servingVerdict({ status: 'ok' }, SHA)).toBe('fieldless')
+  })
+
+  it('reports a commit the build could not name as unknown, which no waiting answers', () => {
     expect(servingVerdict({ commit: 'unknown' }, SHA)).toBe('unknown')
     expect(servingVerdict({ commit: '' }, SHA)).toBe('unknown')
-    expect(servingVerdict({ status: 'ok' }, SHA)).toBe('unknown')
+  })
+
+  it('reports an answer that is not an object as unknown, not as a stale build', () => {
+    // No `commit` key, but no health answer either — it names no cause, so
+    // it must not claim the branch is behind.
     expect(servingVerdict(null, SHA)).toBe('unknown')
+    expect(servingVerdict('ok', SHA)).toBe('unknown')
   })
 
   it('refuses an empty expectation rather than matching everything', () => {

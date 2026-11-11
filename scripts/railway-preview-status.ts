@@ -167,7 +167,7 @@ export async function discoverPreview(deps: DiscoverDeps): Promise<PreviewOutcom
 }
 
 /** What a preview's `/api/health` answer says about which commit it serves. */
-export type ServingVerdict = 'behind' | 'serving' | 'unknown'
+export type ServingVerdict = 'behind' | 'fieldless' | 'serving' | 'unknown'
 
 /**
  * Whether the preview that answered is serving the commit CI is testing.
@@ -175,17 +175,27 @@ export type ServingVerdict = 'behind' | 'serving' | 'unknown'
  * ⚠ **Nothing else can tell.** `version` is `npm_package_version`, identical on
  * every commit, and Railway's commit status proves only that it *started* that
  * deploy — so CI used to fill and test whichever build happened to be up,
- * which on a PR pushed twice in quick succession is the one before. `commit`
- * reports `RAILWAY_GIT_COMMIT_SHA`, and `unknown` means Railway stopped
- * injecting it: that is a broken premise rather than a slow deploy, so the
- * caller must fail rather than wait the budget out and then test anyway.
+ * which on a PR pushed twice in quick succession is the one before.
+ *
+ * Three answers are a broken premise rather than a slow deploy, so the caller
+ * fails on each instead of waiting the budget out and testing anyway. They do
+ * not share a cause. `commit: 'unknown'` or `''` is `RAILWAY_GIT_COMMIT_SHA`
+ * going unset, which is Railway's. **No `commit` key at all** is not: the health
+ * route fills that field unconditionally, so a build that omits it predates the
+ * field — a branch head cut before the commit that added it, fixed by merging
+ * the base. Folded together, the Railway wording sent #1122 to the wrong place.
  *
  * Compared by prefix, in the longer-first direction, because the two sides are
  * not guaranteed to be the same length — a short SHA from either is still an
  * answer about the same commit.
  */
 export function servingVerdict(body: unknown, expectedSha: string): ServingVerdict {
-  const served = (body as { commit?: unknown } | null)?.commit
+  // Only an answer that is otherwise shaped like one may claim a stale build.
+  // A non-object body names no cause at all, so it keeps the weaker verdict.
+  const answer = typeof body === 'object' && body !== null ? (body as { commit?: unknown }) : null
+  if (answer && !('commit' in answer)) return 'fieldless'
+
+  const served = answer?.commit
   if (typeof served !== 'string' || served === '' || served === 'unknown') return 'unknown'
 
   const [longer, shorter] =

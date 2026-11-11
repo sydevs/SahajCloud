@@ -42,9 +42,9 @@
  *                    refused the statuses read with 401/403, the preview
  *                    never became healthy, it never caught up with this
  *                    PR's head commit, or it cannot say which commit it
- *                    serves at all. All of them are broken configuration
- *                    rather than an absent preview, and must not read as
- *                    green.
+ *                    serves at all. None of them is an absent preview, so
+ *                    none may read as green. The error names which one it
+ *                    was, because only some of them are Railway's to fix.
  *
  * It writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>`
  * to $GITHUB_ENV.
@@ -91,9 +91,10 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
  * ⚠ **Healthy is not caught up.** A preview pushed to twice in quick succession
  * answers `/api/health` from the previous build for as long as the new one takes
  * to deploy, so a lane that waited for health alone filled and tested the change
- * before this one. `unknown` is terminal rather than waited out: it means
- * Railway stopped injecting `RAILWAY_GIT_COMMIT_SHA`, so no amount of waiting
- * will answer, and testing an unidentified build is the thing this prevents.
+ * before this one. `unknown` and `fieldless` are terminal rather than waited
+ * out: neither names a commit, no further poll will change that, and testing an
+ * unidentified build is the thing this prevents. They are kept apart because
+ * one is Railway's doing and the other a stale branch head (#1124).
  *
  * The poll reaches the Railway host on the one path the preview gate exempts, so
  * it still needs no credential.
@@ -101,7 +102,7 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
 async function waitServing(
   url: string,
   sha: string,
-): Promise<'behind' | 'ok' | 'silent' | 'unknown'> {
+): Promise<'behind' | 'fieldless' | 'ok' | 'silent' | 'unknown'> {
   const deadline = Date.now() + HEALTH_TIMEOUT_MS
   let attempt = 0
   // ⚠ Which failure it was decides what the error tells the reader to look at.
@@ -119,7 +120,7 @@ async function waitServing(
           console.error(`preview serving ${sha} after ${attempt} attempt(s)`)
           return 'ok'
         }
-        if (verdict === 'unknown') return 'unknown'
+        if (verdict === 'unknown' || verdict === 'fieldless') return verdict
         console.error(`health attempt ${attempt}: healthy, still on an earlier commit`)
       } else {
         console.error(`health attempt ${attempt}: HTTP ${res.status}`)
@@ -225,6 +226,16 @@ async function main(): Promise<void> {
         '`commit: unknown`, so which build is serving cannot be established. Railway injects ' +
         '`RAILWAY_GIT_COMMIT_SHA`; without it the preview cannot be filled or tested as this ' +
         "change's. Re-running will not help.",
+    )
+    exportUrl('')
+    process.exit(1)
+  }
+  if (serving === 'fieldless') {
+    console.error(
+      '::error title=Railway preview is older than the commit field::`/api/health` answered ' +
+        'with no `commit` field at all, so the build serving this preview predates that field — ' +
+        'usually a branch cut before the commit that added it. Merge the base branch into this ' +
+        'one and push. Nothing on Railway needs fixing.',
     )
     exportUrl('')
     process.exit(1)
