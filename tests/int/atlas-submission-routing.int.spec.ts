@@ -75,7 +75,7 @@ describe('atlas submission routing', () => {
 
   const listClient = (name: string, regionId: number | null, listId: string) =>
     testData.createClient(payload, admin.id, {
-      name,
+      label: name,
       ...(regionId != null ? { region: regionId } : {}),
       mailingList: { enabled: true, provider: 'brevo', listId, apiKey: 'key' },
     } as never)
@@ -101,7 +101,7 @@ describe('atlas submission routing', () => {
 
     admin = await testData.createManager(payload, { email: 'routing-admin@example.com' })
     widget = await testData.createClient(payload, admin.id, {
-      name: 'Routing Widget',
+      label: 'Routing Widget',
       roles: ['sahaj-atlas-client'],
     })
 

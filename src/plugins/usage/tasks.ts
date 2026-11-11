@@ -71,14 +71,14 @@ async function reportAbuseMilestones(req: { payload: Payload }): Promise<void> {
     if (currentHighUsageDays === 0) {
       milestonesToReport.push({
         clientId: client.id,
-        clientName: client.name || 'Unknown',
+        clientName: client.label || 'Unknown',
         milestone: 'first_high_usage',
         highUsageDays: ABUSE_MILESTONES.FIRST_HIGH_USAGE,
       })
     } else if (currentHighUsageDays === ABUSE_MILESTONES.PERSISTENT_ABUSER - 1) {
       milestonesToReport.push({
         clientId: client.id,
-        clientName: client.name || 'Unknown',
+        clientName: client.label || 'Unknown',
         milestone: 'persistent_abuser',
         highUsageDays: ABUSE_MILESTONES.PERSISTENT_ABUSER,
       })

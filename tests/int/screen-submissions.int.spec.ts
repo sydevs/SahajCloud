@@ -138,7 +138,7 @@ describe('Submission screening', () => {
     // A published client exists so the collection's provenance path has one to
     // resolve, even though these specs seed through the system req.
     await testData.createClient(payload, manager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
     })
     event = await testData.createEvent(payload, { manager: manager.id })

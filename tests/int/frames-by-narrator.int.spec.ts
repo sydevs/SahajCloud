@@ -90,7 +90,7 @@ describe('framesByNarrator endpoint', () => {
 
     // A published client whose role's project (wemeditate-app) includes frames.
     framesClient = (await testData.createClient(payload, env.adminUser.id, {
-      name: 'Frames Reader Client',
+      label: 'Frames Reader Client',
       roles: ['wemeditate-app-client'],
     })) as Client
   })

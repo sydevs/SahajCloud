@@ -1,5 +1,7 @@
 import type { BrandColors } from '@/lib/branding'
 import { getBrandColors } from '@/lib/branding'
+import type { SiteFields } from '@/lib/clients/site'
+import { clientPublicTitle } from '@/lib/clients/site'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Client, ProjectSlug } from '@/payload-types'
 import { getProjectEmailIcon, getProjectLabel } from '@/plugins/access'
@@ -84,12 +86,12 @@ function resolveClientLogoUrl(logo: Client['logo']): string | null {
  * @param client - The client service, with `logo` populated (`depth >= 1`).
  */
 export function getClientEmailBrand(
-  client: Pick<Client, 'color1' | 'color2' | 'logo' | 'name'>,
+  client: Pick<Client, 'color1' | 'color2' | 'logo' | 'title'> & { site?: SiteFields | null },
 ): EmailBrand {
   const fallback = getEmailBrand('sahaj-atlas')
 
   return {
-    productName: client.name || fallback.productName,
+    productName: clientPublicTitle(client) ?? fallback.productName,
     colors: {
       primary: client.color1 || fallback.colors.primary,
       light: client.color2 || fallback.colors.light,

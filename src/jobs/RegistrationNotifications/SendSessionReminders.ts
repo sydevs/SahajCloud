@@ -32,7 +32,8 @@ function formatOccurrenceLabel(occurrenceIso: string): string {
 const PAGINATION_LIMIT = 200
 
 const CLIENT_BRAND_SELECT = {
-  name: true,
+  title: true,
+  site: true,
   color1: true,
   color2: true,
   logo: true,

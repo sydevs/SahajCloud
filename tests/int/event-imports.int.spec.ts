@@ -659,7 +659,7 @@ describe('class imports', () => {
 
     it('refuses a published API client, since imports sit in no project', async () => {
       const clientDoc = await testData.createClient(payload, admin.id, {
-        name: 'Atlas Widget Key',
+        label: 'Atlas Widget Key',
         roles: ['sahaj-atlas-client'],
       })
       await expect(

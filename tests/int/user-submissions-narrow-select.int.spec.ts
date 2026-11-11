@@ -93,7 +93,7 @@ describe('a client create whose `select` hides the fields a hook keys on', () =>
       email: 'narrow-select-admin@example.com',
     })
     await testData.createClient(payload, manager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
       apiKey: REST_API_KEY,
     })
