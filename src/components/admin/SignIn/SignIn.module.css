@@ -39,3 +39,59 @@
   align-self: center;
   margin-block: 0;
 }
+
+/* The preview picker's accounts, a list rather than a prompt. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) / 2);
+  text-align: left;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: var(--base);
+  width: 100%;
+  padding: calc(var(--base) / 2) calc(var(--base) * 0.75);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-m);
+  background: var(--theme-elevation-50);
+  color: var(--theme-text);
+  font: inherit;
+  font-size: 1.25em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account:hover,
+.account:focus-visible {
+  border-color: var(--theme-elevation-400);
+  background: var(--theme-elevation-100);
+}
+
+.accountText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(var(--base) / 8);
+  min-width: 0;
+}
+
+.accountEmail {
+  margin-inline-start: calc(var(--base) / 2);
+  color: var(--theme-elevation-400);
+  font-size: 0.85em;
+}
+
+.accountReach {
+  color: var(--theme-elevation-650);
+  font-size: 0.85em;
+}
+
+/* Payload's chevron is sized for a dropdown toggle; here it is the row's cue. */
+.account > svg {
+  flex-shrink: 0;
+  width: 2.25em;
+  height: 2.25em;
+}
