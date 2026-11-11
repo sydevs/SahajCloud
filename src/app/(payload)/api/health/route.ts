@@ -18,7 +18,10 @@ export async function GET() {
       // never that it had caught up with the push — it then filled and tested
       // the deploy before. Railway injects this; `unknown` means it stopped,
       // and `scripts/get-railway-preview-url.ts` fails rather than testing an
-      // unknown build.
+      // unknown build. ⚠ **Keep it unconditional.** An absent key is a signal
+      // in its own right: discovery reads it as a build older than this field
+      // and tells the reader to merge the base (#1124), so omitting it on any
+      // path would send them there for nothing.
       commit: process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown',
     }
 
