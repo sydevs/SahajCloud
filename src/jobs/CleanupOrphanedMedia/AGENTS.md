@@ -27,3 +27,36 @@ fully numeric before parsing.
 
 This caught a real bug in schema introspection where Lexical block IDs
 like `'1748234234_abcdef'` were parsed as valid IDs.
+
+## A Lexical id names no collection
+
+⚠ **A block stores a bare id**, so the content alone cannot say whether `14`
+is a file or an image. Reading every id as a reference to both made one
+collection's live document count against the other's trash, and the two
+sequences overlap (#1118). The walk records, per block slug, the **name** of
+each block field pointing at the target — read off the editor's own sanitized
+block definitions, under
+`editor.editorConfig.resolvedFeatureMap.get('blocks').sanitizedServerFeatureProps.blocks`
+— and the content walk extracts only those names. `payload.config.blocks` is
+the registry for block _references_, which these editors do not use, and is
+empty.
+
+The name, not the path: the content walk meets a block's fields by name, and
+reaches an array's items without a path of its own.
+
+⚠ **An empty allowlist is invisible except in the integration lane.** If
+Payload moves that shape, `lexicalBlocks` returns nothing, every block
+reference disappears, and the job trashes media a page still shows. The three
+`preserves images referenced in pages …Block` cases in
+`tests/int/cleanup-orphaned-media.int.spec.ts` are what fail when it does.
+
+An embedded upload or relationship node is the other half: it carries its own
+`relationTo`, so it is matched directly rather than through a block.
+
+## Phase A re-checks the sets
+
+Both phases read the same referenced-id sets, built once per run before Phase
+A. A trashed row in its own collection's set is **skipped, not deleted** —
+counted in `skippedReferenced` and logged with its collection and id. Age
+alone used to be the whole test, which deleted an item hand-trashed while a
+page still showed it (#1118).
