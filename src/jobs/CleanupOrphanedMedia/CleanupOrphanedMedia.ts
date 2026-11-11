@@ -397,6 +397,12 @@ async function permanentlyDeleteTrashedItems(
     and: [{ deletedAt: { exists: true } }, { deletedAt: { less_than: trashCutoff.toISOString() } }],
   }
 
+  // A referenced row stays expired, so it is read and skipped on every later
+  // run, and it takes a place in this one page. The query cannot exclude the
+  // set without listing every id in it.
+  // shortcut: a backlog of referenced trash the size of the page starves the
+  // deletes behind it, when the skipped count approaches maxOperations
+
   // Find trashed files for permanent deletion
   // Note: trash: true is required to include soft-deleted documents in query results
   const trashedFiles = await req.payload.find({
