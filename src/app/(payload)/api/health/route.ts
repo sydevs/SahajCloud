@@ -13,6 +13,13 @@ export async function GET() {
       // today, so this is a consistency fix, not a behaviour one.
       environment: deploymentEnvironment(),
       version: process.env.npm_package_version || 'unknown',
+      // ⚠ **The only field that says WHICH commit is serving.** `version` is
+      // identical on every commit, so CI could confirm a preview was up and
+      // never that it had caught up with the push — it then filled and tested
+      // the deploy before. Railway injects this; `unknown` means it stopped,
+      // and `scripts/get-railway-preview-url.ts` fails rather than testing an
+      // unknown build.
+      commit: process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown',
     }
 
     return NextResponse.json(health, { status: 200 })

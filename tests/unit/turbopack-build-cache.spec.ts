@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import nextConfig from '../../next.config.mjs'
+import nextConfig from '../../next.config'
 
 /**
  * Both levers are pinned because each reads as a plausible tidy-up alone.

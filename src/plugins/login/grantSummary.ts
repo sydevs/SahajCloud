@@ -119,6 +119,18 @@ export function managerJoins(
 }
 
 /**
+ * How one kind of managed document is named: the singular for a count of one,
+ * the plural otherwise.
+ *
+ * The invitation email's list and the preview sign-in picker both label a row
+ * this way, so one rule is what keeps them agreeing. `inviteHeading` is not a
+ * third caller: its subject counts the items instead ("1 region", "4 events"),
+ * lowercase.
+ */
+export const responsibilityLabel = (responsibility: Responsibility): string =>
+  responsibility.items.length === 1 ? responsibility.singular : responsibility.label
+
+/**
  * Name the access a manager holds — roles per locale, and the documents naming
  * them — as one summary per project, in project order. Given `only`, just the
  * part of that listed there.

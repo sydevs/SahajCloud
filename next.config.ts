@@ -1,8 +1,25 @@
+import type { NextConfig } from 'next'
+
 import { withPayload } from '@payloadcms/next/withPayload'
 import { withSentryConfig } from '@sentry/nextjs'
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import { deploymentEnvironment, railwayEnvironmentName } from './src/lib/env/deploymentEnvironment'
+import { previewHostname, previewNumberFromEnvironmentName } from './src/lib/preview/proxy'
+
+/**
+ * The public host a Railway PR preview is served at, or `null` off a preview.
+ *
+ * ⚠ **Every Server Action on a preview needs this.** The Cloudflare Worker
+ * reaches Railway under Railway's own host, so Next sees `x-forwarded-host:
+ * <app>.up.railway.app` against `Origin: pr-<n>.cloud-preview…` and aborts the
+ * action as cross-site — a 500 on the sign-in picker, and on every admin save.
+ * Only this PR's host, and only on a preview build: production listing a
+ * same-site preview origin would let unmerged code post as a production user.
+ */
+const previewNumber = previewNumberFromEnvironmentName(railwayEnvironmentName())
+const previewHost = previewNumber ? previewHostname(previewNumber) : null
+
+const nextConfig: NextConfig = {
   // Self-hosted build: bundle only the traced production files and a small
   // server into `.next/standalone`. This skips shipping the full
   // `node_modules`. Railpack runs `pnpm build`, then
@@ -16,9 +33,11 @@ const nextConfig = {
   // one, and both flags below fail open — an unset cap truncates at 10 MB, an
   // unset Turbopack flag restores the corrupt store.
   experimental: {
-    // `src/middleware.ts` matches `/api/:path*`, so Next buffers a copy of
-    // every API request body and silently truncates it at this cap. Payload
-    // then reads a cut-off upload and throws "Unexpected end of form" (#938).
+    // `src/middleware.ts` matches every path but static assets, so Next
+    // buffers a copy of every request body and silently truncates it at this
+    // cap. Payload then reads a cut-off upload and throws "Unexpected end of
+    // form" (#938). The matcher widened for the preview gate, so this cap now
+    // bounds pre-auth memory on every route rather than on `/api` alone.
     //
     // ⚠ Keep this STRICTLY above `upload.requestSizeLimit` in
     // `src/payload.config.ts`. Payload refuses a body only once it exceeds
@@ -31,6 +50,9 @@ const nextConfig = {
     // Railpack restores `.next/cache`, so a store corrupted there panics
     // every later build. Dev's store is elsewhere. #932
     turbopackFileSystemCacheForBuild: false,
+    // Read at build time, which Railway runs per environment — see
+    // `previewHost` above.
+    ...(previewHost ? { serverActions: { allowedOrigins: [previewHost] } } : {}),
   },
   // Keep dev and test files out of the standalone trace. Otherwise Next
   // copies these large directories into `.next/standalone`, and a local
@@ -96,10 +118,13 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      // `as const`, because a spread's inner array literal takes no contextual
+      // type from `remotePatterns` — so the scheme would widen to `string`
+      // and match neither `'http'` nor `'https'`.
       ...(process.env.CLOUDFLARE_R2_DELIVERY_URL
         ? [
             {
-              protocol: 'https',
+              protocol: 'https' as const,
               hostname: new URL(process.env.CLOUDFLARE_R2_DELIVERY_URL).hostname,
             },
           ]
@@ -122,16 +147,11 @@ const nextConfig = {
   // build-time value is the right shape:
   // `docs/environment.md` → NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT.
   //
-  // ⚠ This chain repeats `deploymentEnvironment()`
-  // (`src/lib/env/deploymentEnvironment.ts`) verbatim, because a `.mjs`
-  // config cannot import it. Keep the two identical:
-  // `tests/unit/client-deployment-environment.spec.ts` imports this file and
-  // asserts they agree. See #737.
+  // `tests/unit/client-deployment-environment.spec.ts` imports this file,
+  // because a correct helper still reads `undefined` in every browser if
+  // nothing inlines the key. See #737.
   env: {
-    NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT:
-      process.env.RAILWAY_ENVIRONMENT_NAME ??
-      process.env.RAILWAY_ENVIRONMENT ??
-      process.env.NODE_ENV,
+    NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT: deploymentEnvironment(),
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
@@ -148,7 +168,7 @@ const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: fal
 // skipped-upload notice on the one build whose source maps ship. #877 untracked
 // the token, leaving the dashboard its only source, so a missing one has to
 // reach the deploy log.
-const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT)
+const onRailway = Boolean(railwayEnvironmentName())
 
 export default withSentryConfig(configWithPayload, {
   silent: !process.env.CI && !onRailway,
