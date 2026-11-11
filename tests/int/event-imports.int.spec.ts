@@ -18,7 +18,7 @@ import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
-import { failInterruptedImports } from '@/plugins/eventImport'
+import { failLostImports } from '@/plugins/eventImport'
 import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
@@ -640,7 +640,7 @@ describe('class imports', () => {
       await run(created.id)
       expect((await read(created.id)).status).toBe('review')
 
-      await failInterruptedImports(payload, [job])
+      await failLostImports(payload, [job])
 
       expect((await read(created.id)).status).toBe('review')
     })

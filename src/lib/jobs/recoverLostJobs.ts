@@ -1,7 +1,7 @@
 import type { Payload } from 'payload'
 
 import { cancelStaleJobs } from '@/collections/PayloadJobs/PayloadJobs'
-import { failInterruptedImports } from '@/plugins/eventImport'
+import { failLostImports } from '@/plugins/eventImport'
 
 /**
  * Cancel the rows a lost run left `processing`, then settle the documents those
@@ -14,6 +14,6 @@ import { failInterruptedImports } from '@/plugins/eventImport'
  */
 export async function recoverLostJobs(payload: Payload): Promise<number> {
   const cancelled = await cancelStaleJobs(payload)
-  await failInterruptedImports(payload, cancelled)
+  await failLostImports(payload, cancelled)
   return cancelled.length
 }

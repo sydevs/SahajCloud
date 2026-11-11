@@ -17,7 +17,7 @@ import { importCollection } from './importCollection'
 import { RUN_CONTEXT_KEY } from './run'
 import { importEventsTask } from './task'
 
-export { failInterruptedImports } from './finish'
+export { failLostImports } from './finish'
 
 export const eventImportPlugin: Plugin = (config) => ({
   ...config,

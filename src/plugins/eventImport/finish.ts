@@ -101,7 +101,7 @@ export async function refreshImportStatus(req: PayloadRequest, importId: number)
 }
 
 /** The import a cancelled job row was running, or null for a row that ran something else. */
-function interruptedImportId(job: Pick<PayloadJob, 'input' | 'taskSlug'>): number | null {
+function lostImportId(job: Pick<PayloadJob, 'input' | 'taskSlug'>): number | null {
   if (job.taskSlug !== IMPORT_TASK || !isRecord(job.input)) return null
   const importId = Number(job.input.importId)
   return Number.isInteger(importId) ? importId : null
@@ -120,11 +120,11 @@ function interruptedImportId(job: Pick<PayloadJob, 'input' | 'taskSlug'>): numbe
  * cancels them, so one of those runs may have landed in between and written its
  * own outcome — overwriting that would replace a real result with this notice.
  */
-export async function failInterruptedImports(
+export async function failLostImports(
   payload: Payload,
   cancelled: Pick<PayloadJob, 'input' | 'taskSlug'>[],
 ): Promise<void> {
-  const importIds = cancelled.map(interruptedImportId).filter((id) => id !== null)
+  const importIds = cancelled.map(lostImportId).filter((id) => id !== null)
   if (importIds.length === 0) return
 
   // The sweep has no request of its own, and `failImport` is the one writer of
