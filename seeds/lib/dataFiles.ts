@@ -1,7 +1,7 @@
 /**
  * The seed data files the CLI uploads in its POST body.
  *
- * ⚠ **A deployed route cannot read one off disk.** `next.config.mjs` drops
+ * ⚠ **A deployed route cannot read one off disk.** `next.config.ts` drops
  * `seeds/**` from the production build trace (#471), so the CLI reads each
  * registered file locally and sends it as `inlineData`, keyed by the path
  * below; the importer consumes its own entry through

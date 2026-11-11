@@ -113,7 +113,7 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config), plus
   `deploymentEnvironment.ts`, which names the deployment (Railway environment
   name, falling back to `NODE_ENV`. Its `clientDeploymentEnvironment()` twin
-  reads the name `next.config.mjs` inlines for the browser, which reads no
+  reads the name `next.config.ts` inlines for the browser, which reads no
   environment at runtime). That one is deliberately **outside** the
   `@/lib/env` barrel and imported by its deep path: the barrel pulls in the
   validated `serverEnv` parse, and Sentry reads it during

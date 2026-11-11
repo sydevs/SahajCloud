@@ -393,7 +393,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // purely Payload's default. See plans/...luminous-dusk.md (Track A).
       uploadTimeout: 300000,
       // `tests/unit/next-config-body-limit.spec.ts` pins these against
-      // `next.config.mjs`'s cap and the per-category limits (#939).
+      // `next.config.ts`'s cap and the per-category limits (#939).
       requestSizeLimit: UPLOAD_REQUEST_SIZE_LIMIT,
       // Payload's own wording for this gate names no size, and the admin shows
       // it verbatim.

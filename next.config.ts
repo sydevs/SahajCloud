@@ -1,5 +1,10 @@
+import type { NextConfig } from 'next'
+
 import { withPayload } from '@payloadcms/next/withPayload'
 import { withSentryConfig } from '@sentry/nextjs'
+
+import { deploymentEnvironment, railwayEnvironmentName } from './src/lib/env/deploymentEnvironment'
+import { previewHostname, previewNumberFromEnvironmentName } from './src/lib/preview/proxy'
 
 /**
  * The public host a Railway PR preview is served at, or `null` off a preview.
@@ -10,22 +15,11 @@ import { withSentryConfig } from '@sentry/nextjs'
  * action as cross-site — a 500 on the sign-in picker, and on every admin save.
  * Only this PR's host, and only on a preview build: production listing a
  * same-site preview origin would let unmerged code post as a production user.
- *
- * ⚠ Repeats `PREVIEW_ENVIRONMENT_NAME` and `PREVIEW_DOMAIN_SUFFIX`
- * (`src/lib/preview/proxy.ts`), which a `.mjs` config cannot import.
- * `tests/unit/next-config-server-actions.spec.ts` asserts they agree.
  */
-export function previewPublicHost(environmentName) {
-  const pr = /^(?:SahajCloud-)?pr-(\d+)$/.exec(environmentName?.trim() ?? '')?.[1]
-  return pr ? `pr-${pr}.cloud-preview.sydevelopers.com` : null
-}
+const previewNumber = previewNumberFromEnvironmentName(railwayEnvironmentName())
+const previewHost = previewNumber ? previewHostname(previewNumber) : null
 
-const previewHost = previewPublicHost(
-  process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT,
-)
-
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfig: NextConfig = {
   // Self-hosted build: bundle only the traced production files and a small
   // server into `.next/standalone`. This skips shipping the full
   // `node_modules`. Railpack runs `pnpm build`, then
@@ -57,7 +51,7 @@ const nextConfig = {
     // every later build. Dev's store is elsewhere. #932
     turbopackFileSystemCacheForBuild: false,
     // Read at build time, which Railway runs per environment — see
-    // `previewPublicHost` above.
+    // `previewHost` above.
     ...(previewHost ? { serverActions: { allowedOrigins: [previewHost] } } : {}),
   },
   // Keep dev and test files out of the standalone trace. Otherwise Next
@@ -124,10 +118,13 @@ const nextConfig = {
   },
   images: {
     remotePatterns: [
+      // `as const`, because a spread's inner array literal takes no contextual
+      // type from `remotePatterns` — so the scheme would widen to `string`
+      // and match neither `'http'` nor `'https'`.
       ...(process.env.CLOUDFLARE_R2_DELIVERY_URL
         ? [
             {
-              protocol: 'https',
+              protocol: 'https' as const,
               hostname: new URL(process.env.CLOUDFLARE_R2_DELIVERY_URL).hostname,
             },
           ]
@@ -150,16 +147,11 @@ const nextConfig = {
   // build-time value is the right shape:
   // `docs/environment.md` → NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT.
   //
-  // ⚠ This chain repeats `deploymentEnvironment()`
-  // (`src/lib/env/deploymentEnvironment.ts`) verbatim, because a `.mjs`
-  // config cannot import it. Keep the two identical:
-  // `tests/unit/client-deployment-environment.spec.ts` imports this file and
-  // asserts they agree. See #737.
+  // `tests/unit/client-deployment-environment.spec.ts` imports this file,
+  // because a correct helper still reads `undefined` in every browser if
+  // nothing inlines the key. See #737.
   env: {
-    NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT:
-      process.env.RAILWAY_ENVIRONMENT_NAME ??
-      process.env.RAILWAY_ENVIRONMENT ??
-      process.env.NODE_ENV,
+    NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT: deploymentEnvironment(),
   },
   // External packages for server-side rendering
   serverExternalPackages: ['payload', 'jose'],
@@ -176,7 +168,7 @@ const configWithPayload = withPayload(nextConfig, { devBundleServerPackages: fal
 // skipped-upload notice on the one build whose source maps ship. #877 untracked
 // the token, leaving the dashboard its only source, so a missing one has to
 // reach the deploy log.
-const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT)
+const onRailway = Boolean(railwayEnvironmentName())
 
 export default withSentryConfig(configWithPayload, {
   silent: !process.env.CI && !onRailway,

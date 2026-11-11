@@ -117,7 +117,7 @@ export const config = {
   // test the gate makes lives in the function body above.
   //
   // ⚠ Next buffers a copy of every MATCHED request body, capped by
-  // `experimental.proxyClientMaxBodySize` in `next.config.mjs`, so this breadth
+  // `experimental.proxyClientMaxBodySize` in `next.config.ts`, so this breadth
   // is pre-auth memory. Keep that cap strictly above `upload.requestSizeLimit`
   // (#938, #939). The old matcher already covered every nonexistent `/api/…`,
   // so the widening adds routes rather than an amplification this did not have.

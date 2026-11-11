@@ -58,11 +58,11 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
 
   ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves none of the document paths the Live Preview panel points at, so preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 
-  ⚠ `next.config.mjs` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
+  ⚠ `next.config.ts` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
 
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Feeds the fallback `webUrl` for a region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
 
-Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.mjs` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
+Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.ts` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
 
 ### The live-preview signing key
 
@@ -108,7 +108,7 @@ Production is detected by Railway's environment name, never `NODE_ENV`. Previews
 
 Error reports name the deployment they came from, so a PR preview's noise never reads as a production incident (#733). Server-side that is `deploymentEnvironment()` (`@/lib/env/deploymentEnvironment`), which reads `RAILWAY_ENVIRONMENT_NAME` at runtime.
 
-**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.mjs`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
+**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.ts`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
 
 Three consequences worth knowing:
 

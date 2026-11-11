@@ -2,7 +2,7 @@
  * Pins `seeds/lib/dataFiles.ts` as the whole registry.
  *
  * A path an importer loads but nobody registers reads from disk, which a
- * deployed route cannot do (`next.config.mjs` drops `seeds/**` from the build
+ * deployed route cannot do (`next.config.ts` drops `seeds/**` from the build
  * trace, #471) — so the script works locally and fails against every deployed
  * target. The ten `sy-atlas-translations` locale files were exactly that.
  */

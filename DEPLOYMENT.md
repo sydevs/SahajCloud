@@ -38,7 +38,7 @@ project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY
 - `pnpm build` deletes `.next/cache/turbopack`, runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
 - `pnpm start` runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
 - Migrations apply **in-process on server boot**, via Payload's `prodMigrations` hook (see [Database Migrations](#database-migrations)). The migration files import statically, so they trace into the bundle and still run at boot.
-- `@sentry/nextjs` wraps `next.config.mjs` via `withSentryConfig`.
+- `@sentry/nextjs` wraps `next.config.ts` via `withSentryConfig`.
 
 **Health Check**: Railway pings `/api/health` during a deploy. Startup takes about 5–10 seconds after the container starts.
 
@@ -57,7 +57,7 @@ restartPolicyMaxRetries = 3
 ```
 
 Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
-`next.config.mjs`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
+`next.config.ts`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
 of the trace — without it, a local `pnpm build` balloons `.next/standalone` to many GB.
 
 **No Turbopack cache store rides between builds** (#932). Railpack restores `.next/cache`, and a
@@ -78,13 +78,13 @@ single **Cache Rule** on the `sydevelopers.com` zone is what makes Cloudflare ho
 or disabled, nothing is cached, which is a fail-safe, not a leak.
 
 **That matcher costs on writes, which the read policy does not show.** It makes Next buffer every
-write body up to `experimental.proxyClientMaxBodySize` in `next.config.mjs`, which carries the
+write body up to `experimental.proxyClientMaxBodySize` in `next.config.ts`, which carries the
 mechanism and the rule for setting it (#938).
 
 ⚠ **Four declarations bound an upload, and they must stay ordered.** A category limit in
 `FILE_SIZE_LIMITS` sits under `upload.limits.fileSize` (48 MB), which sits under
 `upload.requestSizeLimit` (50 MB), which sits **strictly** under the Next cap (51 MB). All four
-are declared in `src/plugins/storage/uploadValidation.ts` bar the cap, which `next.config.mjs`
+are declared in `src/plugins/storage/uploadValidation.ts` bar the cap, which `next.config.ts`
 has to spell as a literal, and `tests/unit/next-config-body-limit.spec.ts` pins the ordering.
 Anything above the request ceiling can never fire, because Payload refuses the body first.
 

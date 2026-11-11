@@ -43,7 +43,7 @@ export const deploymentEnvironment = (): string | undefined =>
 
 /**
  * The same name, for code that runs in the **browser**, which reads no
- * environment at runtime. `next.config.mjs`'s `env` block inlines the value at
+ * environment at runtime. `next.config.ts`'s `env` block inlines the value at
  * build time and this reads it back — why that shape, and why `clientEnv`
  * cannot carry the key, is in `docs/environment.md` →
  * `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` (#737).
