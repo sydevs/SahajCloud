@@ -380,17 +380,6 @@ const mailingListGroup: Field = {
       },
     },
     {
-      // `site` is `admin.disabled`, so it cannot be a list column itself.
-      name: 'domain',
-      type: 'text',
-      label: 'Domain',
-      virtual: true,
-      admin: { position: 'sidebar', readOnly: true },
-      hooks: {
-        afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
-      },
-    },
-    {
       name: 'clientId',
       type: 'text',
       label: 'Client ID',
@@ -553,18 +542,6 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              // Optional: `clientPublicTitle` falls back to `site.domain` at read
-              // time rather than copying it in, so a later domain change is not
-              // frozen behind a stale title.
-              name: 'title',
-              type: 'text',
-              label: 'Public Title',
-              admin: {
-                description:
-                  'The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.',
-              },
-            },
-            {
               name: 'enabled',
               type: 'checkbox',
               defaultValue: false,
@@ -645,10 +622,8 @@ export const Clients: CollectionConfig = {
           ],
         },
         {
-          // Unnamed groups only, so moving a field between them never moves
-          // its column. Shown to a service with the atlas role alone, mailing
-          // list included. Where the atlas lives is the Install tab's, shown
-          // here read-only.
+          // Shown to a service with the atlas role alone, mailing list included.
+          // Where the atlas lives is the Install tab's, shown here read-only.
           label: 'Atlas',
           admin: { condition: isAtlasClient },
           fields: [
@@ -660,62 +635,61 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              type: 'group',
-              label: 'Brand Colors',
-              admin: { description: 'How the atlas looks on this service’s site.' },
+              // Optional: `clientPublicTitle` falls back to `site.domain` at read
+              // time rather than copying it in, so a later domain change is not
+              // frozen behind a stale title.
+              name: 'title',
+              type: 'text',
+              label: 'Public Title',
+              admin: {
+                description:
+                  'The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.',
+              },
+            },
+            {
+              name: 'logo',
+              type: 'upload',
+              relationTo: 'images',
+              admin: {
+                description:
+                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
+              },
+            },
+            {
+              type: 'row',
               fields: [
-                {
-                  type: 'row',
-                  fields: [
-                    colorField({
-                      name: 'color1',
-                      label: 'Primary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color1,
-                    }),
-                    colorField({
-                      name: 'color2',
-                      label: 'Secondary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color2,
-                    }),
-                    colorField({
-                      name: 'color3',
-                      label: 'Tertiary Color',
-                      fallback: ATLAS_DEFAULT_COLORS.color3,
-                    }),
-                  ],
-                },
-                {
-                  // One button for all three, shown while any is the service's own.
-                  name: 'resetColors',
-                  type: 'ui',
-                  admin: {
-                    components: { Field: '@/components/admin/ColorField/ResetColors' },
-                  },
-                },
+                colorField({
+                  name: 'color1',
+                  label: 'Primary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color1,
+                }),
+                colorField({
+                  name: 'color2',
+                  label: 'Secondary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color2,
+                }),
+                colorField({
+                  name: 'color3',
+                  label: 'Tertiary Color',
+                  fallback: ATLAS_DEFAULT_COLORS.color3,
+                }),
               ],
             },
             {
-              type: 'group',
-              label: 'Registrant Emails',
-              fields: [
-                {
-                  name: 'logo',
-                  type: 'upload',
-                  relationTo: 'images',
-                  admin: {
-                    description:
-                      'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
-                  },
-                },
-                {
-                  name: 'supportEmail',
-                  type: 'email',
-                  admin: {
-                    description:
-                      'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
-                  },
-                },
-              ],
+              // One button for all three, shown while any is the service's own.
+              name: 'resetColors',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/components/admin/ColorField/ResetColors' },
+              },
+            },
+            {
+              name: 'supportEmail',
+              type: 'email',
+              admin: {
+                description:
+                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
+              },
             },
             mailingListGroup,
           ],
@@ -936,12 +910,15 @@ export const Clients: CollectionConfig = {
       },
     },
     {
-      // `site` is `admin.disabled`, so it cannot be a list column itself.
+      // A list column alone: `site` is `admin.disabled`, so it cannot be one
+      // itself. The form shows the domain in the Atlas tab's install summary,
+      // and a false `condition` hides the field there without dropping the
+      // column, which `admin.hidden` would.
       name: 'domain',
       type: 'text',
       label: 'Domain',
       virtual: true,
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { readOnly: true, condition: () => false },
       hooks: {
         afterRead: [({ data, req }) => siteOf(req, data).then((site) => site?.domain ?? null)],
       },

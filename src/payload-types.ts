@@ -2379,10 +2379,6 @@ export interface Client {
    */
   label: string;
   /**
-   * The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.
-   */
-  title?: string | null;
-  /**
    * This service’s API key works only while this is on.
    */
   enabled?: boolean | null;
@@ -2406,13 +2402,17 @@ export interface Client {
    * Where the map opens, and the region whose atlas links this service’s site becomes the home for. Leave empty for a worldwide map.
    */
   region?: (number | null) | Region;
-  color1?: string | null;
-  color2?: string | null;
-  color3?: string | null;
+  /**
+   * The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.
+   */
+  title?: string | null;
   /**
    * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
    */
   logo?: (number | null) | Image;
+  color1?: string | null;
+  color2?: string | null;
+  color3?: string | null;
   /**
    * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
    */
@@ -2423,7 +2423,6 @@ export interface Client {
   mailingList?: {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
-    domain?: string | null;
     /**
      * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
      */
@@ -4878,24 +4877,23 @@ export interface ManagersSelect<T extends boolean = true> {
  */
 export interface ClientsSelect<T extends boolean = true> {
   label?: T;
-  title?: T;
   enabled?: T;
   notes?: T;
   roles?: T;
   managers?: T;
   primaryContact?: T;
   region?: T;
+  title?: T;
+  logo?: T;
   color1?: T;
   color2?: T;
   color3?: T;
-  logo?: T;
   supportEmail?: T;
   mailingList?:
     | T
     | {
         enabled?: T;
         provider?: T;
-        domain?: T;
         clientId?: T;
         listId?: T;
         apiKey?: T;
