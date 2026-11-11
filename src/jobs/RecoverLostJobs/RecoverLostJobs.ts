@@ -19,6 +19,8 @@ export const RecoverLostJobs: TaskConfig<'recoverLostJobs'> = {
   // The next hour's run is the retry, and it re-reads the world first.
   retries: 0,
   outputSchema: [{ name: 'cancelled', type: 'number', required: true }],
+  // The `nightly` tick's own minute, deliberately: an aligned schedule is
+  // queued and run by one tick, so the sweep is never a tick late (`queues.ts`).
   schedule: [{ cron: '0 * * * *', queue: 'nightly' }],
   handler: async ({ req }) => ({ output: { cancelled: await recoverLostJobs(req.payload) } }),
 }
