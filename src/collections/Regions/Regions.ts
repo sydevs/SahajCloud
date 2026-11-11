@@ -231,12 +231,9 @@ export const Regions: CollectionConfig = {
               access: { update: regionManagersFieldAccess },
               admin: {
                 description: 'Managers responsible for this region.',
-                // Their contact details for admins and the managers of this
-                // region and those above — gated inside the component (#908).
-                // ⚠ `afterInput`, never `Description`: Payload renders a
-                // `Description` once and keeps it through a save, so the table
-                // would go on listing the managers the page loaded with.
-                components: { afterInput: ['@/components/admin/ManagerContacts'] },
+                // The description, then the contacts table (#908). ⚠ The empty
+                // `afterInput` makes Payload re-render it after a save.
+                components: { Description: '@/components/admin/ManagerContacts', afterInput: [] },
               },
             },
             {
