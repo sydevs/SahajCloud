@@ -44,6 +44,7 @@ import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import {
   adminOnlyCondition,
+  eventContactsFieldAccess,
   eventManagerFieldAccess,
   isAdminManager,
   managersOnlyFieldAccess,
@@ -69,6 +70,7 @@ import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
+const MANAGER_CONTACTS = '@/components/admin/ManagerContacts'
 
 /** Bound for the free-text contact fields. Matches the address fields' limit. */
 const CONTACT_TEXT_MAX = 100
@@ -642,6 +644,9 @@ export const Events: CollectionConfig = {
               admin: {
                 description:
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+                // The description, then the contacts table (#908). ⚠ The empty
+                // `afterInput` makes Payload re-render it after a save.
+                components: { Description: MANAGER_CONTACTS, afterInput: [] },
               },
             },
             {
@@ -674,8 +679,12 @@ export const Events: CollectionConfig = {
               // entries back as data. The builders emit these cells
               // *alongside* `stage`, `level`, and `manager`, and the row's
               // ⋯ menu shows the rest.
+              //
+              // ⚠ Reminder entries record the address each went to, so the
+              // log reads as the contacts table does (#908).
               description:
                 'Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification.',
+              read: eventContactsFieldAccess,
               columns: [
                 { key: 'activity', label: 'Event' },
                 { key: 'who', label: 'Who' },

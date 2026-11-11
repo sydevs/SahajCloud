@@ -546,6 +546,21 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       ]),
     )
 
+    // Sign-ins recorded here since an earlier sync, so an `--update` keeps the
+    // later of theirs and Atlas's rather than rewinding it (#908).
+    const signedInHere = await this.payload.find({
+      collection: 'managers',
+      where: { and: [{ legacyId: { exists: true } }, { lastLoginAt: { exists: true } }] },
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      select: { legacyId: true, lastLoginAt: true },
+    })
+    const lastLoginHere = new Map(
+      signedInHere.docs.map((doc) => [doc.legacyId as number, doc.lastLoginAt ?? null]),
+    )
+
     for (let i = 0; i < total; i++) {
       const manager = data.managers[i]
       try {
@@ -584,6 +599,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
               manager.phoneVerified,
             ),
             notificationPreferences: prefs,
+            lastLoginAt: laterDate(lastLoginHere.get(manager.legacyId), manager.lastLoginAt),
             // No password: managers hold none since #840.
             legacyId: manager.legacyId,
             legacyData: manager,
@@ -1682,6 +1698,13 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     }
     return Object.keys(result).length > 0 ? result : undefined
   }
+}
+
+/** The later of two ISO timestamps, either of which may be missing. */
+function laterDate(a: string | null | undefined, b: string | null | undefined): string | null {
+  if (!a) return b ?? null
+  if (!b) return a
+  return Date.parse(a) >= Date.parse(b) ? a : b
 }
 
 /**

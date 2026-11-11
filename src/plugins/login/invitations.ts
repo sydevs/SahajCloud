@@ -9,6 +9,7 @@ import {
 import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'
+import { selfOrAdminFieldAccess } from '@/plugins/access'
 import { capture } from '@/plugins/sentry/capture'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
@@ -45,20 +46,24 @@ const BATCH = 50
  * The queue's two fields. Hidden, and `update: () => false` for the same reason
  * as `magicLinkIssuedAt`: self-access would otherwise let a manager rewrite
  * their own queue. The queue's own writes bypass access entirely.
+ *
+ * ⚠ `read` is locked here because `Managers/access.ts` runs before the plugin
+ * appends these (#908). `selfOrAdminFieldAccess` admits managers alone, so a
+ * second collection the plugin serves would be denied its own value.
  */
 export const invitationFields: Field[] = [
   {
     name: 'pendingInvitation',
     type: 'json',
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
   {
     name: 'invitationDueAt',
     type: 'date',
     index: true,
     admin: { hidden: true },
-    access: { update: () => false },
+    access: { read: selfOrAdminFieldAccess, update: () => false },
   },
 ]
 

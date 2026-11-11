@@ -16,6 +16,11 @@ import { stripLockedFieldsOnSelfRead } from '@/plugins/access/stripLockedFieldsO
  * `apiKey` back (#822). The hole is Payload's auth operations, not `clients`,
  * so the guard is attached to every auth collection — these cases pin that it
  * denies exactly what the field locks deny, and that it is attached at all.
+ *
+ * Every row here is the caller's OWN, because that is the only row the guard
+ * acts on (#908): the operations it covers all re-read the authenticated
+ * document, and acting on any other row stripped a field from an internal
+ * `overrideAccess: true` read that had deliberately fetched it.
  */
 
 const managersOnly: FieldAccess = ({ req }) => req.user?.collection === 'managers'
@@ -29,14 +34,17 @@ const collection = (slug: string, locked: string[]) =>
     ],
   }) as unknown as SanitizedCollectionConfig
 
+/** The row the caller holds. Every `doc` below carries it unless it says otherwise. */
+const SELF = 7
+
 const read = async (
   args: { slug?: string; locked?: string[]; caller?: string | null },
   doc: Record<string, unknown>,
 ) =>
   (await (stripLockedFieldsOnSelfRead as CollectionAfterReadHook)({
     collection: collection(args.slug ?? 'clients', args.locked ?? ['apiKey', 'mailingList']),
-    doc,
-    req: { user: args.caller ? { collection: args.caller } : null },
+    doc: { id: SELF, ...doc },
+    req: { user: args.caller ? { collection: args.caller, id: SELF } : null },
   } as unknown as Parameters<CollectionAfterReadHook>[0])) as Record<string, unknown>
 
 describe('stripLockedFieldsOnSelfRead', () => {
@@ -57,7 +65,19 @@ describe('stripLockedFieldsOnSelfRead', () => {
       { caller: 'clients', locked: ['apiKey', 'mailingList', 'sixthSecret'] },
       { apiKey: 'A', mailingList: { provider: 'mailchimp' }, sixthSecret: 'S' },
     )
-    expect(doc).toEqual({})
+    expect(doc).toEqual({ id: SELF })
+  })
+
+  it("leaves another row of the caller's own collection alone", async () => {
+    // What a nested `overrideAccess: true` read fetches on purpose — an event's
+    // manager, read while a different manager saves the event (#908).
+    const doc = await read({ caller: 'clients' }, { id: SELF + 1, apiKey: 'PLAINTEXT' })
+    expect(doc.apiKey).toBe('PLAINTEXT')
+  })
+
+  it('leaves a row it cannot identify alone', async () => {
+    const doc = await read({ caller: 'clients' }, { id: undefined, apiKey: 'PLAINTEXT' })
+    expect(doc.apiKey).toBe('PLAINTEXT')
   })
 
   it('leaves a read by another collection alone', async () => {

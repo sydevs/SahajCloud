@@ -57,6 +57,9 @@ function loadTargetEvent(req: PayloadRequest, targetId: number): Promise<Event |
         trash: true,
         overrideAccess: true,
         disableErrors: true,
+        // ⚠ `previewEvent` copies this row whole, and its readers need not
+        // pass `eventContactsFieldAccess` for the event's log (#908).
+        select: { activityLog: false },
       })
       .catch(() => null)) as Event | null
   })
@@ -77,6 +80,10 @@ function loadManager(req: PayloadRequest, managerId: number): Promise<unknown> {
         collection: 'managers',
         id: managerId,
         depth: 0,
+        // ⚠ `name` alone: the row lands verbatim in `previewEvent`, which
+        // every manager reads, and `overrideAccess` skips the field locks
+        // (#908, `docs/rules/access.md`).
+        select: { name: true },
         overrideAccess: true,
         disableErrors: true,
       })

@@ -69,3 +69,25 @@ export const managersOnlyFieldAccess: FieldAccess = ({ req }) => req.user?.colle
  * access guard is the security boundary.
  */
 export const adminOnlyCondition: Condition = (_data, _siblingData, { user }) => isAdminManager(user)
+
+/**
+ * Field-level access: the row's own holder, or an admin manager (#908,
+ * `docs/rules/access.md`).
+ *
+ * ⚠ The row id arrives as `id` on a read but only as `doc.id` on a
+ * permissions check (`getEntityPermissions`), so reading `id` alone would hide
+ * a manager's own inputs in the admin. With neither — a create, or
+ * `/api/access` — it answers for admins alone.
+ *
+ * ⚠ An allowlist, so a third auth collection arrives denied.
+ */
+export const selfOrAdminFieldAccess: FieldAccess = ({ doc, id, req: { user } }) => {
+  if (isAdminManager(user)) return true
+  if (!isManager(user)) return false
+  return isOwnRow(user.id, id ?? doc?.id)
+}
+
+/** Whether `rowId` is the row `userId` holds — REST hands the id over as a string. */
+export function isOwnRow(userId: number | string, rowId: number | string | undefined): boolean {
+  return rowId !== undefined && String(userId) === String(rowId)
+}
