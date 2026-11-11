@@ -54,6 +54,7 @@ import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/component
 import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/components/admin/ScheduleSummary'
 import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/components/admin/RangeSlider'
 import { default as default_b3cee161bebb1edefc1eda122400dd67 } from '@/components/admin/RegionCreatePrefill'
+import { default as default_d9e2d7280c4a9b9d049a85dcf55601cd } from '@/components/admin/ManagerContacts'
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
 import { default as default_be0ea71e8bd58bc3b61c88fede674d64 } from '@/components/admin/EventImport/ImportClassesLabel'
 import { default as default_f15760648f21b91f3f2a0494c08e91bc } from '@/components/admin/AddChildRegionButton'
@@ -157,6 +158,7 @@ export const importMap = {
   "@/components/admin/ScheduleSummary#default": default_694d4100fd066d11aca6d41604a80bc0,
   "@/components/admin/RangeSlider#default": default_7994614945cfe693dd6db5da6470f962,
   "@/components/admin/RegionCreatePrefill#default": default_b3cee161bebb1edefc1eda122400dd67,
+  "@/components/admin/ManagerContacts#default": default_d9e2d7280c4a9b9d049a85dcf55601cd,
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
   "@/components/admin/EventImport/ImportClassesLabel#default": default_be0ea71e8bd58bc3b61c88fede674d64,
   "@/components/admin/AddChildRegionButton#default": default_f15760648f21b91f3f2a0494c08e91bc,

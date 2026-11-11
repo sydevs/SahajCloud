@@ -231,6 +231,9 @@ export const Regions: CollectionConfig = {
               access: { update: regionManagersFieldAccess },
               admin: {
                 description: 'Managers responsible for this region.',
+                // The description, then the contacts table (#908). ⚠ The empty
+                // `afterInput` makes Payload re-render it after a save.
+                components: { Description: '@/components/admin/ManagerContacts', afterInput: [] },
               },
             },
             {

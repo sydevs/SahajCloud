@@ -253,6 +253,23 @@ describe('User submission review lifecycle', () => {
       expect(typeof preview.region).toBe('number')
     })
 
+    it('leaves the target’s activity log out of the preview it copies', async () => {
+      // ⚠ The copy reaches every manager the proposal does, which includes a
+      // proposed region's — and the log records where each reminder went, so
+      // it reads only as `eventContactsFieldAccess` answers for the event
+      // (#908). The target is saved with a manager, so it holds an entry.
+      const target = await testData.createEvent(payload, { _status: 'published' })
+      expect(target.activityLog).not.toEqual([])
+      const created = await createProposal({
+        event: target.id,
+        proposed: { eventType: 'offline', contactName: 'Aria' },
+      })
+
+      const preview = (await reload(created.id)).previewEvent as Record<string, unknown>
+      expect(preview.title).toBe(target.title)
+      expect(preview).not.toHaveProperty('activityLog')
+    })
+
     it('previews a new-event proposal with the region Accept writes, and no photographs', async () => {
       const created = await createProposal({
         region: cityId,
@@ -308,6 +325,36 @@ describe('User submission review lifecycle', () => {
       const fresh = await reload(registration.id)
       expect(fresh.proposedChanges).toBeNull()
       expect(fresh.previewEvent).toBeNull()
+    })
+
+    it('carries the assigned manager into both projections by name alone', async () => {
+      // ⚠ Both projections resolve the manager with `overrideAccess: true`, so
+      // the `managers` field locks (#908) do not apply — and `previewEvent` is
+      // readable by every manager, `atlas-region-manager` included. Unselected, this
+      // handed them a colleague's whole row through a copy rather than a
+      // relationship.
+      const owner = await testData.createManager(payload, {
+        email: 'assigned-owner@example.com',
+        name: 'Assigned Owner',
+        contactDetails: [{ platform: 'whatsapp', identifier: '+44 20 7777 8888' }],
+      })
+      const created = await createProposal({ region: cityId, manager: owner.id })
+
+      const fresh = await reload(created.id)
+      const preview = fresh.previewEvent as Record<string, unknown>
+      // Exact, not `not.toHaveProperty('email')`: any column added to
+      // `Managers` would otherwise ride along here unnoticed. `collection` is
+      // Payload's own, added to every auth-collection read.
+      expect(preview.manager).toEqual({
+        id: owner.id,
+        name: 'Assigned Owner',
+        collection: 'managers',
+      })
+
+      // The diff still names them rather than printing their row number, which
+      // is the whole reason either projection resolves the row at all.
+      const changes = fresh.proposedChanges as { label: string; after: string | null }[]
+      expect(changes.find((change) => change.label === 'Manager')?.after).toBe('Assigned Owner')
     })
   })
 

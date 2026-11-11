@@ -7,6 +7,8 @@ import type {
   Plugin,
 } from 'payload'
 
+import { selfOrAdminFieldAccess } from '@/plugins/access'
+
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
@@ -31,6 +33,9 @@ import {
  * it they could burn their own outstanding link, or stamp it in the future and
  * throttle their own sends forever. Both endpoints write it through
  * `overrideAccess: true`, so neither is affected.
+ *
+ * ⚠ The `read` lock is its own: the plugin appends it after `Managers/access.ts`
+ * has run (#908).
  */
 export const magicLinkIssuedAt: Field = {
   name: 'magicLinkIssuedAt',
@@ -39,6 +44,30 @@ export const magicLinkIssuedAt: Field = {
     hidden: true,
   },
   access: {
+    read: selfOrAdminFieldAccess,
+    update: () => false,
+  },
+}
+
+/**
+ * When this account last signed in, stamped by `createSession` (#908). Nothing
+ * else records it: `sessions` drops rows on sign-out and expiry, and
+ * `updatedAt` moves on every write.
+ *
+ * ⚠ `update: () => false`, or self-access would let a manager read as active
+ * forever. ⚠ The `read` lock is its own, as on `magicLinkIssuedAt`.
+ */
+export const lastLoginAt: Field = {
+  name: 'lastLoginAt',
+  type: 'date',
+  label: 'Last signed in',
+  admin: {
+    readOnly: true,
+    position: 'sidebar',
+    date: { pickerAppearance: 'dayAndTime' },
+  },
+  access: {
+    read: selfOrAdminFieldAccess,
     update: () => false,
   },
 }
@@ -258,7 +287,12 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
         return {
           ...withQueue,
           ...(entry.passwordless ? { auth: withoutPasswords(withQueue.auth) } : {}),
-          fields: [...withQueue.fields, magicLinkIssuedAt, ...(invites ? invitationFields : [])],
+          fields: [
+            ...withQueue.fields,
+            magicLinkIssuedAt,
+            lastLoginAt,
+            ...(invites ? invitationFields : []),
+          ],
           hooks: {
             ...withQueue.hooks,
             beforeOperation: [
