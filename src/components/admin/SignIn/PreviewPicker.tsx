@@ -6,7 +6,7 @@ import { Banner, ChevronIcon } from '@payloadcms/ui'
 import { MANAGER_INACTIVE } from '@/collections/Managers/login'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { GrantSummary } from '@/plugins/login'
-import { summarizeGrants } from '@/plugins/login'
+import { responsibilityLabel, summarizeGrants } from '@/plugins/login'
 
 import { signInAsAction } from './actions'
 import styles from './SignIn.module.css'
@@ -141,7 +141,7 @@ function reach(summaries: GrantSummary[]): string {
   const managed = summaries.flatMap((summary) =>
     summary.responsibilities.map(
       (responsibility) =>
-        `${responsibility.items.length === 1 ? responsibility.singular : responsibility.label}: ` +
+        `${responsibilityLabel(responsibility)}: ` +
         responsibility.items.map((item) => item.title).join(', '),
     ),
   )

@@ -122,10 +122,10 @@ export function managerJoins(
  * How one kind of managed document is named: the singular for a count of one,
  * the plural otherwise.
  *
- * Three surfaces render the same `Responsibility`, and one rule means they
- * cannot disagree — the invitation email says it twice (its list and its
- * subject) and the preview sign-in picker a third time, with only the email's
- * copy under test.
+ * The invitation email's list and the preview sign-in picker both label a row
+ * this way, so one rule is what keeps them agreeing. `inviteHeading` is not a
+ * third caller: its subject counts the items instead ("1 region", "4 events"),
+ * lowercase.
  */
 export const responsibilityLabel = (responsibility: Responsibility): string =>
   responsibility.items.length === 1 ? responsibility.singular : responsibility.label
