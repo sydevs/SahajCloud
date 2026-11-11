@@ -3,6 +3,7 @@ import { Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
+import { responsibilityLabel } from '@/plugins/login/grantSummary'
 import type { LocaleGrant, Responsibility } from '@/plugins/login/grantSummary'
 
 import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
@@ -120,9 +121,9 @@ export function InviteEmail({
       {responsibilities.length > 0 ? (
         <>
           <SectionHeading>{sectionHeading('responsibility', count, listsOnlyNew)}</SectionHeading>
-          {responsibilities.map(({ items, label, singular }) => (
-            <DetailRow key={label} label={items.length === 1 ? singular : label}>
-              {items.map((item, index) => (
+          {responsibilities.map((responsibility) => (
+            <DetailRow key={responsibility.label} label={responsibilityLabel(responsibility)}>
+              {responsibility.items.map((item, index) => (
                 <Fragment key={index}>
                   {index > 0 ? <br /> : null}
                   {item.url ? (

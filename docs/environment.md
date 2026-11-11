@@ -22,7 +22,10 @@ R2 is used in both dev and prod. Local file storage applies automatically when c
 - `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` — bucket and credentials, under R2 → Buckets.
 - `CLOUDFLARE_ACCOUNT_ID` (Account Home) — derives the S3 endpoint: `https://{CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`, region `auto`.
 - `CLOUDFLARE_R2_DELIVERY_URL`, `CLOUDFLARE_IMAGES_DELIVERY_URL`, `CLOUDFLARE_STREAM_DELIVERY_URL` — public delivery base URLs (copy the base from any existing delivery or player URL, drop the id).
-- `CLOUDFLARE_API_KEY` — token with Images + Stream edit scope.
+- `CLOUDFLARE_API_KEY` — token with Images + Stream edit scope, plus Workers KV Storage:Edit,
+  Workers Scripts:Edit, Zone:Read and the zone's Workers Routes:Edit for the per-PR preview address. ⚠ Too narrow, and
+  Cloudflare answers the KV write `401 10000: Authentication error` — a shape that reads as a
+  wrong token rather than a narrow one.
 - `CLOUDFLARE_STREAM_WEBHOOK_SECRET` — HMAC secret for the Stream webhook (production only).
 
 ### Claude-usable credentials (`.env.claude.local`)
@@ -55,11 +58,11 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
 
   ⚠ **This is `https://sahajatlas.com`, the replacement.** `atlas.sydevelopers.com` is the legacy service: it serves none of the document paths the Live Preview panel points at, so preview aimed there 404s. Production carried the legacy value (visible in the admin's own CSP `frame-src`), which is why atlas live preview did not work. Changing it moves the preview target, the CSP `frame-src` and the `csrf` allowlist together.
 
-  ⚠ `next.config.mjs` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
+  ⚠ `next.config.ts` falls back to a literal when this is unset at **build** time, which is any local or CI build. That fallback must stay equal to the production value above — it was left pointing at the legacy host, so such a build emitted a `frame-src` admitting the old atlas and blocking the real one.
 
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Feeds the fallback `webUrl` for a region no client owns: `WEMEDITATE_WEB_URL + WEMEDITATE_ATLAS_BASE_PATH + webPath`.
 
-Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.mjs` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
+Neither URL takes a trailing slash, since both are used as prefixes and compared against `Origin` headers. **Restart `next dev` after you change these** — `next.config.ts` bakes the CSP allowlist at boot, so a stale server blocks the preview iframe (`ERR_BLOCKED_BY_CSP`).
 
 ### The live-preview signing key
 
@@ -91,19 +94,21 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ### Preview environments provision their own admin
 
-`PREVIEW_ADMIN_EMAIL` is set on Railway's preview environments, and passed to the smoke lane as a CI secret. On every boot, `onInit` reconciles the admin account (`src/plugins/previewAdmin`) — present, admin, and `_verified`.
+The account's address is a committed constant, `PREVIEW_ADMIN_ADDRESS` in `src/plugins/previewAdmin`. On every boot of a preview, `onInit` reconciles it — present, admin, and `_verified`. There is no environment variable to set and no CI secret to rotate.
 
-Rotating it takes effect on the next deploy, and the CI secret must change with it: the smoke lane asks for a link as the CI value, and a preview answers any other address with mail rather than a session.
+**It stopped being a credential**, which is the whole of what #1081 changed. A preview answers only behind Cloudflare Access at `pr-<n>.cloud-preview.sydevelopers.com` and behind the shared-secret gate in `src/middleware.ts`, so who may ask is settled before a request arrives — and a preview then signs **any** manager in, which is how a reviewer checks what a region or event manager sees.
 
-Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all. This keeps `onInit` inert in local dev, CI, and both test lanes. CI does hold the address as a secret, so a gate reading only that would write an admin into the integration lane's database.
+Production is detected by Railway's environment name, never `NODE_ENV`. Previews also run `NODE_ENV=production` — the same trap that once sent preview mail through Resend to real addresses. The gate also requires a Railway environment name at all, which keeps `onInit` inert and the account list off the sign-in page in local dev, CI, and both test lanes.
 
-⚠ **On a preview that address is also the credential.** The sign-in page mints a session for it instead of mailing a link (#840), which is how the smoke lane gets in with no password anywhere — so treat it as a secret and keep the local part unguessable. There is no default: an environment without the variable provisions no admin and signs nobody in. Environments forked before 2026-08-27 keep whatever admin an early smoke run seeded.
+**Two variables a preview does need**, both a person's to set: `PREVIEW_PROXY_SECRET`, the value the Worker sends and `src/middleware.ts` compares — a preview with none refuses everything but its health route, which is the safe direction — and, in CI, the `github-ci` Access service token as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`, which the seed step and the smoke lane attach to every request. Neither is read through `serverEnv`: the first is read in the middleware bundle, which no schema describes, and the second never reaches the app at all.
+
+⚠ **Whether a deployment is a preview is read from Railway's environment name, through `railwayEnvironmentName()`.** The gate, the sign-in bypass, the login page's account list and `getServerUrl()` all read that one answer, so they cover one set by construction — and it is an allowlist, `SahajCloud-pr-<n>`, not "any name but production": a `staging` environment is served at no fixed address and covered by no Access app, so the wider test published every manager's account there.
 
 ### `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` — set by the build, never by hand
 
 Error reports name the deployment they came from, so a PR preview's noise never reads as a production incident (#733). Server-side that is `deploymentEnvironment()` (`@/lib/env/deploymentEnvironment`), which reads `RAILWAY_ENVIRONMENT_NAME` at runtime.
 
-**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.mjs`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
+**A browser reads no environment at runtime**, so the client needs the name inlined at build time. `next.config.ts`'s `env` block derives `NEXT_PUBLIC_DEPLOYMENT_ENVIRONMENT` from the same Railway variables and Next inlines it into the bundle; `clientDeploymentEnvironment()` reads it back (#737).
 
 Three consequences worth knowing:
 

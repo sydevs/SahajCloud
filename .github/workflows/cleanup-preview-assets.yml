@@ -6,6 +6,11 @@ name: Cleanup preview assets
 # `meta.env=preview` tag (Stream). This job deletes only the stale,
 # preview-marked ones, so preview test uploads do not build up in the
 # shared account. See scripts/cleanup-preview-assets.ts.
+#
+# It also sweeps each closed PR's fixed preview address. ⚠ That half is
+# load-bearing rather than hygiene: a zone holds 100 Workers Custom Domains, so
+# a sweep that stops running eventually leaves every new preview without an
+# address. See scripts/preview-domain.ts.
 
 on:
   schedule:
@@ -24,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read # which PRs are closed, for the preview-address sweep
 
 concurrency:
   group: cleanup-preview-assets
@@ -70,4 +76,19 @@ jobs:
         run: >-
           pnpm tsx scripts/cleanup-preview-assets.ts
           --days ${{ github.event.inputs.days || '7' }}
+          ${{ (github.event_name == 'schedule' || github.event.inputs.apply == 'true') && '--apply' || '' }}
+
+      # An open PR's address is left alone however old it is — the long-running
+      # PR is exactly the one a reviewer comes back to. ⚠ The Advanced
+      # Certificate each Custom Domain generated is NOT removed by the delete,
+      # and is known residue to clear by hand.
+      # ⚠ The Cloudflare pair is the job's, above. A second spelling here
+      # shadows it silently, and this step held one naming a secret the
+      # cleanup step had already moved off.
+      - name: Sweep closed PRs' preview addresses
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_KV_NAMESPACE_ID: ${{ vars.PREVIEW_KV_NAMESPACE_ID }}
+        run: >-
+          pnpm tsx scripts/preview-domain.ts sweep
           ${{ (github.event_name == 'schedule' || github.event.inputs.apply == 'true') && '--apply' || '' }}

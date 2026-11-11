@@ -73,7 +73,7 @@ describe('resolveSpecifier', () => {
   })
 
   it('reads anything else from the repo root, where a package name matches no file', () => {
-    expect(resolveSpecifier('next.config.mjs', 'tests/unit')).toBe('next.config.mjs')
+    expect(resolveSpecifier('next.config.ts', 'tests/unit')).toBe('next.config.ts')
     expect(resolveSpecifier('vitest', 'tests/unit')).toBe('vitest')
   })
 })
