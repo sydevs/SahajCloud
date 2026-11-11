@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   classifyStatuses,
   discoverPreview,
+  servingVerdict,
   StatusFetchError,
   type CommitStatus,
   type PreviewStatus,
@@ -215,5 +216,38 @@ describe('discoverPreview', () => {
     const h = harness([[PENDING]], 30_000)
     const outcome = await h.run()
     expect(outcome).toMatchObject({ kind: 'timeout', last: { kind: 'pending' } })
+  })
+})
+
+describe('servingVerdict', () => {
+  const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
+
+  it('accepts the commit the PR head names', () => {
+    expect(servingVerdict({ commit: SHA }, SHA)).toBe('serving')
+  })
+
+  it('accepts a short SHA from either side, since both are the same commit', () => {
+    expect(servingVerdict({ commit: SHA.slice(0, 7) }, SHA)).toBe('serving')
+    expect(servingVerdict({ commit: SHA }, SHA.slice(0, 7))).toBe('serving')
+  })
+
+  it('reports an earlier commit as behind, which is a wait rather than a failure', () => {
+    // ⚠ The case the lane could not see at all: a preview pushed to twice in
+    // quick succession answers `/api/health` from the previous build, so a
+    // wait-for-health lane filled and tested the change before this one.
+    expect(servingVerdict({ commit: 'ffffffffffffffffffffffffffffffffffffffff' }, SHA)).toBe(
+      'behind',
+    )
+  })
+
+  it('reports an absent or unnamed commit as unknown, which no waiting answers', () => {
+    expect(servingVerdict({ commit: 'unknown' }, SHA)).toBe('unknown')
+    expect(servingVerdict({ commit: '' }, SHA)).toBe('unknown')
+    expect(servingVerdict({ status: 'ok' }, SHA)).toBe('unknown')
+    expect(servingVerdict(null, SHA)).toBe('unknown')
+  })
+
+  it('refuses an empty expectation rather than matching everything', () => {
+    expect(servingVerdict({ commit: SHA }, '')).toBe('behind')
   })
 })

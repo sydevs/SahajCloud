@@ -37,7 +37,7 @@ function respond(config: ChallengeConfig, status: number): Response {
  * then refuses to deliver a token to any other parent, whatever the frame URL claims.
  *
  * ⚠ **Why not `frame-ancestors`, which the ticket first proposed.** Three reasons, each sufficient:
- * - `next.config.mjs` sets `Content-Security-Policy` on `/:path*`, and Next drops a route's own
+ * - `next.config.ts` sets `Content-Security-Policy` on `/:path*`, and Next drops a route's own
  *   header of that name when config already set one (`next/dist/server/send-response.js`), so the
  *   directive would never have been sent.
  * - It checks every ancestor. An iframe embed puts the widget on the Atlas origin inside a partner

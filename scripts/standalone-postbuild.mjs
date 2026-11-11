@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Postbuild step for `output: 'standalone'` (next.config.mjs).
+// Postbuild step for `output: 'standalone'` (next.config.ts).
 //
 // Next.js writes a minimal server to `.next/standalone/server.js`, but it
 // does not copy the static assets that server needs. The standalone
@@ -20,7 +20,7 @@ const standaloneDir = join(root, '.next', 'standalone')
 
 if (!existsSync(standaloneDir)) {
   console.error(
-    "[standalone-postbuild] .next/standalone not found. Did `next build` run with `output: 'standalone'` in next.config.mjs?",
+    "[standalone-postbuild] .next/standalone not found. Did `next build` run with `output: 'standalone'` in next.config.ts?",
   )
   process.exit(1)
 }

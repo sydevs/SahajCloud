@@ -13,8 +13,8 @@
     "rationale": "src/migrations/AGENTS.md"
   },
   "securityReview": {
-    "triggerPattern": "src/plugins/access/|src/collections/(Clients|Managers)/|src/collections/[^/]+/(endpoints|hooks)/|src/app/.*/api/|src/plugins/storage/|webhook|src/payload.config.ts",
-    "rationale": "Paths that own auth, client and manager records, endpoints, collection hooks (where write gates live), storage, and the Payload config."
+    "triggerPattern": "src/plugins/access/|src/collections/(Clients|Managers)/|src/collections/[^/]+/(endpoints|hooks)/|src/app/.*/api/|src/plugins/storage/|src/plugins/login/|src/components/admin/SignIn/|src/plugins/previewAdmin/|src/plugins/writeGuard/|src/plugins/usage/originEnforcement.ts|webhook|src/payload.config.ts",
+    "rationale": "Paths that own access control, client and manager records, endpoints, collection hooks (where write gates live), storage, and the Payload config — plus passwordless sign-in (token signing, session minting, the anonymous routes and sign-in page), the preview admin whose email is its credential, the write guard on client-originated writes, and origin enforcement for client keys."
   },
   "worktreeSetup": [
     "CI=true pnpm install",

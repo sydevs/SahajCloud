@@ -82,11 +82,51 @@ jobs:
           building at the deadline. Treat this job as 'unit + integration passed', not 'smoke \
           passed'."
 
-      - name: Run smoke specs against the Railway preview
+      # ── The preview's fixed address, and the data a reviewer opens it on ────
+      # Register `pr-<n>.cloud-preview.sydevelopers.com` against the Railway host
+      # discovered above. Every push runs it, so an existing address exits 0.
+      # The daily sweep in `cleanup-preview-assets.yml` deletes it a day after
+      # this PR closes.
+      - name: Register the preview's fixed address
+        id: address
         if: ${{ steps.preview.outputs.preview_url != '' }}
         env:
-          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
-          PREVIEW_ADMIN_EMAIL: ${{ secrets.PREVIEW_ADMIN_EMAIL }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          PREVIEW_KV_NAMESPACE_ID: ${{ vars.PREVIEW_KV_NAMESPACE_ID }}
+        run: |
+          url="$(pnpm -s tsx scripts/preview-domain.ts create \
+            --pr '${{ github.event.pull_request.number }}' \
+            --host '${{ steps.preview.outputs.preview_url }}')"
+          echo "fixed_url=$url" >> "$GITHUB_OUTPUT"
+
+      # Fill the preview with the committed fixture, so every page a reviewer
+      # opens has content on it.
+      #
+      # ⚠ It goes RED on failure, and that is the point (#1073): a change used
+      # to be allowed to admit "Data: not seeded" in a line of its description,
+      # and every check accepted the line. A PR with no preview at all still
+      # only warns, above — this step is skipped there.
+      #
+      # ⚠ Never split this into a job of its own. A new job is a new check name
+      # no ruleset requires, the merge gate reads SKIPPED as OK, and
+      # sydevs/SahajCloud#903 forbids renaming a required check — so a split
+      # would leave this unenforced at the gate.
+      - name: Fill the preview with the fixture
+        if: ${{ steps.address.outputs.fixed_url != '' }}
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          SAHAJCLOUD_URL: ${{ steps.address.outputs.fixed_url }}
+        run: pnpm seed preview-fixture
+
+      - name: Run smoke specs against the preview
+        if: ${{ steps.address.outputs.fixed_url != '' }}
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          PREVIEW_URL: ${{ steps.address.outputs.fixed_url }}
           SMOKE_RUN_ID: pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
         run: pnpm test:smoke
 
