@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cancelStaleJobs, STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionConfigOf, retentionEntries } from '@/jobs/CleanupCollections/entries'
+import { RecoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 
 import { deletedIn } from '../utils/retention'
 import { runTaskHandler } from '../utils/taskRunner'
@@ -149,9 +150,8 @@ describe('payload-jobs retention', () => {
     ).rejects.toThrow(/"managers" declares no retention — \w[\w-]*, /)
   })
 
-  // Last: the cancelled row is `hasError`, which the counts above would see.
-  it('cancels on boot a row a dead container left processing, and leaves a live one', async () => {
-    const [stale, live] = [await seedJob({}), await seedJob({})]
+  // Last: the cancelled rows below are `hasError`, which the counts above would see.
+  describe('a row a dead container left processing', () => {
     const markProcessing = (id: number, updatedAt?: string) =>
       payload.db.updateOne({
         collection: 'payload-jobs',
@@ -159,14 +159,49 @@ describe('payload-jobs retention', () => {
         data: { processing: true, ...(updatedAt && { updatedAt }) },
         req: undefined,
       })
-    await markProcessing(stale.id, new Date(Date.now() - 2 * STALE_JOB_MS).toISOString())
-    await markProcessing(live.id)
 
-    await cancelStaleJobs(payload)
+    const longAgo = () => new Date(Date.now() - 2 * STALE_JOB_MS).toISOString()
 
     const read = (id: number) =>
       payload.findByID({ collection: 'payload-jobs', id, depth: 0, overrideAccess: true })
-    expect(await read(stale.id)).toMatchObject({ hasError: true, processing: false })
-    expect(await read(live.id)).toMatchObject({ hasError: false, processing: true })
+
+    it('is cancelled, and a live one is left alone', async () => {
+      const [stale, live] = [await seedJob({}), await seedJob({})]
+      await markProcessing(stale.id, longAgo())
+      await markProcessing(live.id)
+
+      expect((await cancelStaleJobs(payload)).map((job) => job.id)).toEqual([stale.id])
+
+      expect(await read(stale.id)).toMatchObject({ hasError: true, processing: false })
+      expect(await read(live.id)).toMatchObject({ hasError: false, processing: true })
+    })
+
+    /**
+     * ⚠ The failure the hourly sweep exists for, and the reason boot still
+     * calls it too. `defaultBeforeSchedule` refuses to queue a scheduled task
+     * while one of its own rows is runnable or active, so until something
+     * cancels the lost row the schedule is simply never consulted again — no
+     * error, and no job row.
+     */
+    it('holds its own schedule until the sweep cancels it', async () => {
+      const lost = await payload.jobs.queue({
+        task: RecoverLostJobs.slug,
+        input: {},
+        queue: 'nightly',
+        meta: { scheduled: true },
+      })
+      await markProcessing(lost.id, longAgo())
+
+      const scheduledNow = async () =>
+        (await payload.jobs.handleSchedules({ queue: 'nightly' })).queued.map(
+          (entry) => entry.taskConfig?.slug,
+        )
+
+      expect(await scheduledNow()).not.toContain(RecoverLostJobs.slug)
+
+      await runTaskHandler(RecoverLostJobs, { payload })
+
+      expect(await scheduledNow()).toContain(RecoverLostJobs.slug)
+    })
   })
 })

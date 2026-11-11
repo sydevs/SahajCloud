@@ -45,7 +45,7 @@ import { virtualFieldsPlugin } from '@/plugins/virtualFields'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
-import { cancelStaleJobs, payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
+import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { atlasChallenge } from './endpoints/atlas/challenge'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
@@ -54,6 +54,7 @@ import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { JOB_AUTO_RUN } from './jobs/queues'
+import { recoverLostJobs } from './jobs/RecoverLostJobs/RecoverLostJobs'
 import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
@@ -233,7 +234,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
     // production is detected by Railway's environment name rather than NODE_ENV.
     onInit: async (payload) => {
-      await cancelStaleJobs(payload)
+      // The sweep that runs hourly cannot recover its own lost run — Payload
+      // will not schedule a task that already has a row in flight — so boot
+      // stays the one caller nothing blocks.
+      await recoverLostJobs(payload)
       await seedPreviewAdmin(payload)
     },
     jobs: {

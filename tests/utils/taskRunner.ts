@@ -30,12 +30,18 @@ export async function runTaskHandler<TSlug extends TaskType>(
     payload,
     input,
     context = {},
+    job,
   }: {
     payload: Payload
     /** Task input. Every task we run this way declares `input?: unknown`. */
     input?: TaskInput<TSlug>
     /** Seeds `req.context` — the window jobs read an injected `now` from it. */
     context?: PayloadRequest['context']
+    /**
+     * The row the run belongs to. Only a task that tells its own row from a
+     * later request's needs one — `transcribeMeditation` reads `job.id`.
+     */
+    job?: { id: number | string }
   },
 ): Promise<TaskOutput<TSlug>> {
   if (typeof task.handler !== 'function') {
@@ -51,10 +57,10 @@ export async function runTaskHandler<TSlug extends TaskType>(
   const result = await task.handler({
     req,
     input: input as TaskHandlerArgs<TSlug>['input'],
-    // Queue plumbing. No task under test reads `job` or `tasks`. `inlineTask`
-    // throws rather than doing nothing, so a handler that grows a sub-task
-    // cannot silently receive `undefined` where an output is expected.
-    job: {} as TaskHandlerArgs<TSlug>['job'],
+    // Queue plumbing. `inlineTask` throws rather than doing nothing, so a
+    // handler that grows a sub-task cannot silently receive `undefined` where
+    // an output is expected.
+    job: (job ?? {}) as TaskHandlerArgs<TSlug>['job'],
     tasks: {} as TaskHandlerArgs<TSlug>['tasks'],
     inlineTask: (() => {
       throw new Error('runTaskHandler does not support inline sub-tasks.')

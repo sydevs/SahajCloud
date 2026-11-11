@@ -1,5 +1,6 @@
 import type { CollectionConfig, Payload, PayloadRequest, Where } from 'payload'
 
+import type { PayloadJob } from '@/payload-types'
 import { isAdminManager } from '@/plugins/access/adminOnly'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
@@ -90,32 +91,49 @@ export const payloadJobsOverrides = ({
  * or a boot cancels one still working: the row then reads `hasError` and the
  * week-long window above sweeps the evidence of the cancel with it.
  *
- * An hour is four times the longest bound anything here declares —
- * `IMPORT_STALL_MS` (15 min, sized for a 500-row class import) and Lemonfox's
- * 5-minute request timeout, the two least bounded bodies. `job-retention.spec.ts`
- * holds it above the former, so a job that can legitimately run longer has to
- * raise this rather than lose a run to it.
+ * An hour clears the longest bound anything here declares twice over —
+ * `TRANSCRIPTION_STALL_MS` (30 min, itself sized for a late safety-net pick-up
+ * plus Lemonfox's 5-minute request timeout) and `IMPORT_STALL_MS` (15 min,
+ * sized for a 500-row class import). `job-retention.spec.ts` holds it above
+ * both, so a job that can legitimately run longer has to raise this rather than
+ * lose a run to it.
  */
 export const STALE_JOB_MS = 60 * 60 * 1000
 
 /**
  * Cancel every job a dead container left `processing`, so its schedule runs
- * again. Payload never recovers such a row, and while it stands
- * `countRunnableOrActiveJobsForQueue` stops its schedule queueing another. A
- * cancelled row is `hasError`, so the window above sweeps it. Logs rather than
- * throws: a failed cleanup must not stop the server starting.
+ * again, and answer the rows it asked to cancel. Payload never recovers such a
+ * row, and while it stands `countRunnableOrActiveJobsForQueue` stops its
+ * schedule queueing another. A cancelled row is `hasError`, so the window above
+ * sweeps it. Logs rather than throws: a failed cleanup must not stop the server
+ * starting, and must not end the sweep that runs hourly
+ * (`@/jobs/RecoverLostJobs/RecoverLostJobs`).
  *
- * ⚠ **Runs on every boot, and deliberately gates on the window alone.** A boot
- * is not proof the row's owner died — a rolling deploy starts this container
- * while the old one is still finishing its job, and a dev restart shares the
- * database with nothing else. {@link STALE_JOB_MS} is the whole discriminator,
- * which is why it is not shorter.
+ * ⚠ **Deliberately gates on the window alone**, whether a boot or a sweep runs
+ * it. A boot is not proof the row's owner died — a rolling deploy starts this
+ * container while the old one is still finishing its job, and a dev restart
+ * shares the database with nothing else. {@link STALE_JOB_MS} is the whole
+ * discriminator, which is why it is not shorter.
+ *
+ * ⚠ **The rows come back read, not re-read after the cancel.** `jobs.cancel`
+ * returns nothing and skips a row that finished in between, so a caller acting
+ * on one of these has to tolerate a run that landed after all.
  */
-export async function cancelStaleJobs(payload: Payload): Promise<void> {
+export async function cancelStaleJobs(payload: Payload): Promise<PayloadJob[]> {
   const before = new Date(Date.now() - STALE_JOB_MS).toISOString()
-  await payload.jobs
-    .cancel({
+  try {
+    const { docs } = await payload.find({
+      collection: 'payload-jobs',
       where: { and: [{ processing: { equals: true } }, { updatedAt: { less_than: before } }] },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
     })
-    .catch((err: unknown) => payload.logger.error({ err, msg: 'Could not cancel stale jobs' }))
+    if (docs.length === 0) return []
+    await payload.jobs.cancel({ where: { id: { in: docs.map(({ id }) => id) } } })
+    return docs
+  } catch (err) {
+    payload.logger.error({ err, msg: 'Could not cancel stale jobs' })
+    return []
+  }
 }
