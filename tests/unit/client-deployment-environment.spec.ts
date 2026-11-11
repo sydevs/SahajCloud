@@ -6,7 +6,7 @@ import { clientDeploymentEnvironment, deploymentEnvironment } from '@/lib/env/de
  * The browser half of #733's fix (#737).
  *
  * A browser bundle reads no environment at runtime, so the deployment name
- * only reaches it if `next.config.mjs` inlines it under a `NEXT_PUBLIC_*` key.
+ * only reaches it if `next.config.ts` inlines it under a `NEXT_PUBLIC_*` key.
  * Two things therefore have to hold, and the second is the one a pure test
  * cannot see: the helper reads the right key, **and** the config actually
  * publishes it.
@@ -56,15 +56,15 @@ describe('clientDeploymentEnvironment', () => {
   })
 })
 
-describe('next.config.mjs publishes the deployment name', () => {
+describe('next.config.ts publishes the deployment name', () => {
   /**
    * ⚠ This imports the real config, on purpose. `clientDeploymentEnvironment`
    * can be perfectly correct and still read `undefined` in every browser, if
    * nothing inlines the key — the wiring is the half no pure spec covers.
    *
-   * It also pins the config's chain against `deploymentEnvironment()`. A
-   * `.mjs` config cannot import the TypeScript helper, so the chain is written
-   * twice; this assertion is what stops the copies drifting apart.
+   * The config calls `deploymentEnvironment()` rather than restating its
+   * chain, so each case below reads that helper through two routes: the
+   * `env` entry Next will inline, and a direct call.
    */
   it('inlines the Railway environment name, agreeing with the server helper', async () => {
     set('RAILWAY_ENVIRONMENT_NAME', 'pr-737')
@@ -72,7 +72,7 @@ describe('next.config.mjs publishes the deployment name', () => {
     vi.stubEnv('NODE_ENV', 'production')
 
     vi.resetModules()
-    const { default: config } = await import('../../next.config.mjs')
+    const { default: config } = await import('../../next.config')
 
     expect(config.env?.[KEY]).toBe('pr-737')
     expect(config.env?.[KEY]).toBe(deploymentEnvironment())
@@ -85,7 +85,7 @@ describe('next.config.mjs publishes the deployment name', () => {
     vi.stubEnv('NODE_ENV', 'production')
 
     vi.resetModules()
-    const { default: config } = await import('../../next.config.mjs')
+    const { default: config } = await import('../../next.config')
 
     expect(config.env?.[KEY]).toBe('pr-42')
     expect(config.env?.[KEY]).toBe(deploymentEnvironment())
@@ -98,7 +98,7 @@ describe('next.config.mjs publishes the deployment name', () => {
     vi.stubEnv('NODE_ENV', 'development')
 
     vi.resetModules()
-    const { default: config } = await import('../../next.config.mjs')
+    const { default: config } = await import('../../next.config')
 
     expect(config.env?.[KEY]).toBe('development')
     expect(config.env?.[KEY]).toBe(deploymentEnvironment())
@@ -117,7 +117,7 @@ describe('next.config.mjs publishes the deployment name', () => {
     vi.stubEnv('NODE_ENV', undefined)
 
     vi.resetModules()
-    const { default: config } = await import('../../next.config.mjs')
+    const { default: config } = await import('../../next.config')
 
     expect(config.env?.[KEY]).toBeUndefined()
     expect(config.env?.[KEY]).toBe(deploymentEnvironment())

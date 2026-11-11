@@ -1,7 +1,13 @@
 import type { Manager } from '@/payload-types'
 import type { LoginCollectionConfig } from '@/plugins/login'
 
-const INACTIVE: Manager['type'] = 'inactive'
+/**
+ * Typed against the generated enum, so renaming that option upstream fails here
+ * rather than quietly letting every manager through. Exported because the
+ * preview sign-in picker queries for the same row set `isEligible` admits, and
+ * a `where` cannot call the predicate.
+ */
+export const MANAGER_INACTIVE: Manager['type'] = 'inactive'
 
 /**
  * The logged-out page that asks for a sign-in link: Payload's admin login
@@ -33,10 +39,8 @@ export const MANAGER_NOTIFICATIONS_TAB = 'Contact'
 export const managersLogin: LoginCollectionConfig = {
   slug: 'managers',
   // Same predicate as `requireActiveManager`, read off the fetched document
-  // rather than `req.user` — both endpoints are anonymous. `INACTIVE` is typed
-  // against the generated enum, so renaming that option upstream fails here
-  // rather than quietly letting every manager through.
-  isEligible: (doc) => doc.type !== INACTIVE,
+  // rather than `req.user` — both endpoints are anonymous.
+  isEligible: (doc) => doc.type !== MANAGER_INACTIVE,
   // An invitation's "Configure notifications" opens the account on this tab.
   notificationsTab: MANAGER_NOTIFICATIONS_TAB,
   // A manager signs in by link only (#840). The plugin turns this into

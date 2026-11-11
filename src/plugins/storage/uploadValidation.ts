@@ -8,7 +8,7 @@
 /**
  * The ceiling on one whole multipart request, `upload.requestSizeLimit`.
  *
- * ⚠ `experimental.proxyClientMaxBodySize` in `next.config.mjs` must stay
+ * ⚠ `experimental.proxyClientMaxBodySize` in `next.config.ts` must stay
  * STRICTLY above this. `DEPLOYMENT.md` carries what an equal cap costs
  * (#938, #939).
  */
