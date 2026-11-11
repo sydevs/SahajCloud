@@ -1,7 +1,5 @@
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import { DEFAULT_LOG_LIMIT } from '@/fields'
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
@@ -25,6 +23,7 @@ import {
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
+import { capture } from '@/plugins/sentry/capture'
 
 import { isEventVerificationEnabled } from './featureFlag'
 import { reminderButtonUrl } from './verifyUrl'
@@ -414,20 +413,16 @@ export const ExpireEvents: TaskConfig<'expireEvents'> = {
         await processEvent({ payload, req, event, now, result })
       } catch (error) {
         result.failed++
-        Sentry.withScope((scope) => {
-          scope.setContext('expireEvents', { eventId: id, dueSince })
+        capture({
+          error,
+          message: 'ExpireEvents: per-event failure — continuing',
+          extra: { eventId: id, dueSince },
           // The id as a TAG as well, because Sentry indexes tags and not
-          // contexts: filtering this issue by one event is what tells a nightly
+          // extras: filtering this issue by one event is what tells a nightly
           // repeat from a one-off. Deriving that here cannot work — a stale
           // import is armed at a watermark years past on its first examination.
-          scope.setTag('expire_events.event_id', String(id))
-          Sentry.captureException(error)
-        })
-        req.payload.logger.warn({
-          msg: 'ExpireEvents: per-event failure — continuing',
-          eventId: id,
-          dueSince,
-          error: error instanceof Error ? error.message : String(error),
+          tags: { 'expire_events.event_id': String(id) },
+          logger: req.payload.logger,
         })
       }
     }

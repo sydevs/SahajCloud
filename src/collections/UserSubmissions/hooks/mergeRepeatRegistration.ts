@@ -1,7 +1,5 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
-import * as Sentry from '@sentry/nextjs'
-
 import type { LogEntry } from '@/fields'
 import { appendLogEntry, asLog } from '@/fields'
 import { isActiveRegistration } from '@/lib/registrations/active'
@@ -9,6 +7,7 @@ import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
+import { capture } from '@/plugins/sentry/capture'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { STATUS_LABELS } from '../statuses'
@@ -194,12 +193,11 @@ function reportOverwrittenConfirmation(
   req: PayloadRequest,
   extra: { eventId: number; submissionId: number; submittedVia: number | null },
 ) {
-  const message = 'mergeRepeatRegistration: a repeat signup replaced a confirmed registration'
-  req.payload.logger.warn({ msg: message, ...extra })
-  Sentry.captureMessage(message, {
+  capture({
+    message: 'mergeRepeatRegistration: a repeat signup replaced a confirmed registration',
     extra,
     fingerprint: ['mergeRepeatRegistration', String(extra.submissionId)],
-    level: 'warning',
+    logger: req.payload.logger,
   })
 }
 

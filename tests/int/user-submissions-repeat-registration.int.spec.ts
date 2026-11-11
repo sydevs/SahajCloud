@@ -404,7 +404,12 @@ describe('a repeat registration updates the existing one', () => {
     expect(captureMessageMock).toHaveBeenCalledTimes(1)
     const [, options] = captureMessageMock.mock.calls[0] as [
       string,
-      { extra: Record<string, unknown>; fingerprint: string[]; level: string },
+      {
+        extra: Record<string, unknown>
+        fingerprint: string[]
+        level: string
+        tags: Record<string, string>
+      },
     ]
     expect(options.level).toBe('warning')
     // Keyed by the row, so repeats against one registration group rather than
@@ -415,6 +420,9 @@ describe('a repeat registration updates the existing one', () => {
       submissionId: first.id,
       submittedVia: client.id,
     })
+    // That the hook reached the shared body rather than the SDK is held by
+    // `sentry-capture.spec.ts`, which fails any other spelling in `src/`.
+    expect(options.tags).toEqual({})
   })
 
   it('does not report a repeat signup into a registration nobody confirmed', async () => {

@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+
+vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
+
+vi.mock('@/lib/env/deploymentEnvironment', () => ({ deploymentEnvironment: () => 'test' }))
 
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
@@ -7,6 +13,11 @@ import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import type { UserSubmission } from '@/payload-types'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
+import { capturedFrom } from '../utils/sentryCapture'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 /**
  * The delivery registry is total over the submission types.
@@ -176,5 +187,28 @@ describe('deliverProposal', () => {
 
     expect(sendEmail).toHaveBeenCalledOnce()
     expect(outcome).toMatchObject({ ok: true })
+  })
+
+  // This submission names no event and sits in no region, so it falls to the
+  // system contact — the one branch that reports.
+  it('reports an unrouted proposal as a notice, tagged with the deployment', async () => {
+    const { payload } = stubEmailPayload()
+
+    await DELIVERERS.proposal.deliver({
+      req: { payload } as never,
+      submission: {
+        id: 3,
+        type: 'proposal',
+        senderEmail: 'aria@example.com',
+        proposed: { eventType: 'offline' },
+        submissionData: [],
+      } as unknown as UserSubmission,
+    })
+
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    expect(sentry.captureMessage.mock.calls[0]![0]).toBe('deliverProposal: no manager to notify')
+    const context = capturedFrom(sentry.captureMessage)
+    expect(context.level).toBe('info')
+    expect(context.extra).toMatchObject({ submissionId: 3 })
   })
 })
