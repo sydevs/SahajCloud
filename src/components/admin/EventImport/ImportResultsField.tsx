@@ -98,7 +98,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             },
           },
           populate: { managers: { name: true, email: true } },
-          req,
+          req: localeIsolatedReq(req),
         }),
         // When each created class was first published: its earliest published version.
         req.payload.findVersions({
@@ -111,7 +111,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           pagination: false,
           overrideAccess: true,
           select: { parent: true, createdAt: true },
-          req,
+          req: localeIsolatedReq(req),
         }),
       ])
     : [{ docs: [] }, { docs: [] }]
