@@ -71,4 +71,5 @@ until a later run reaches them.
 ⚠ **Phase A pages past those rows rather than filtering one page.** A
 referenced row stays expired, so it is read again on every later run and holds
 its place for good; a page's worth of them would starve every delete behind
-it, in every run from then on. Phase B pages for the same reason.
+it, in every run from then on. Phase B pages for the same reason, and
+`collectPaged` is the one loop both of them run.

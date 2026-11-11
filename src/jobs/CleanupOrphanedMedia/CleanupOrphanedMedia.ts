@@ -457,15 +457,60 @@ async function permanentlyDeleteTrashedItems(
   })
 }
 
+/** A media row as every paging caller here reads it. */
+type MediaDoc = { id: number; filename?: string | null; createdAt?: string; tags?: unknown }
+
+/**
+ * Pages `collection` until `keep` has passed `wanted` rows, or the pages run
+ * out. `keep` is also where a caller counts and logs what it rejected.
+ *
+ * ⚠ Pages rather than filtering one page it already holds. What `keep`
+ * rejects it rejects on every later run too — a referenced id stays
+ * referenced, a tagged image stays tagged — so a page's worth of them would
+ * starve every operation behind them, in every run from then on. Lowering
+ * `PAGINATION_LIMIT` instead only makes that starvation cheaper to reach.
+ */
+async function collectPaged(config: {
+  req: PayloadRequest
+  collection: 'files' | 'images'
+  where: Where
+  depth?: number
+  trash?: boolean
+  wanted: number
+  keep: (doc: MediaDoc) => boolean
+}): Promise<MediaDoc[]> {
+  const { req, collection, where, depth = 0, trash = false, wanted, keep } = config
+  const collected: MediaDoc[] = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore && collected.length < wanted) {
+    const found = await req.payload.find({
+      collection,
+      where,
+      limit: PAGINATION_LIMIT,
+      page,
+      depth,
+      trash,
+    })
+
+    for (const doc of found.docs) {
+      if (keep(doc)) {
+        collected.push(doc)
+      }
+    }
+
+    hasMore = found.hasNextPage
+    page++
+  }
+
+  return collected
+}
+
 /**
  * Expired trash Phase A may delete: what nothing points at any more. Counts and
  * names what it holds back along the way, under `dryRun` too, so an operator
  * sees it first. That count is what this loop read, never the whole backlog.
- *
- * ⚠ Pages past the referenced rows rather than filtering one page, for the
- * reason Phase B gives below. A referenced row stays expired, so it is read
- * again on every later run and holds its place for good — a page's worth of
- * them would starve every delete behind it, in every run from then on.
  */
 async function collectDeletableTrash(config: {
   req: PayloadRequest
@@ -474,27 +519,19 @@ async function collectDeletableTrash(config: {
   referenced: Set<number>
   wanted: number
   result: CleanupResult
-}): Promise<Array<{ id: number; filename?: string | null; createdAt?: string }>> {
+}): Promise<MediaDoc[]> {
   const { req, collection, where, referenced, wanted, result } = config
-  const deletable: Array<{ id: number; filename?: string | null; createdAt?: string }> = []
-  let page = 1
-  let hasMore = true
 
-  while (hasMore && deletable.length < wanted) {
+  return collectPaged({
+    req,
+    collection,
+    where,
     // `trash: true` is what includes soft-deleted documents in the results.
-    const expired = await req.payload.find({
-      collection,
-      where,
-      limit: PAGINATION_LIMIT,
-      page,
-      depth: 0,
-      trash: true,
-    })
-
-    for (const doc of expired.docs) {
+    trash: true,
+    wanted,
+    keep: (doc) => {
       if (!referenced.has(doc.id)) {
-        deletable.push(doc)
-        continue
+        return true
       }
       result.skippedReferenced++
       req.payload.logger.info({
@@ -503,25 +540,12 @@ async function collectDeletableTrash(config: {
         id: doc.id,
         filename: doc.filename,
       })
-    }
-
-    hasMore = expired.hasNextPage
-    page++
-  }
-
-  return deletable
+      return false
+    },
+  })
 }
 
-/**
- * Phase B: Move newly detected orphans to trash (soft delete)
- *
- * Option (b): Pagination strategy — loops through the date window fetching
- * candidates until we collect enough orphans to reach maxItemsToProcess for each
- * collection. This ensures all orphans in the window are eventually cleaned up,
- * not just the first batch. The reference filter (which excludes referenced
- * files/images) means naively lowering the fetch limit would starve throughput
- * when referenced items are dense in the window; pagination solves this.
- */
+/** Phase B: Move newly detected orphans to trash (soft delete) */
 async function trashOrphanedMedia(
   req: PayloadRequest,
   result: CleanupResult,
@@ -535,34 +559,22 @@ async function trashOrphanedMedia(
 
   const { files: referencedFiles, images: referencedImages } = referenced
 
-  // Paginate through files until we collect maxItemsToProcess orphans
-  const maxFilesToProcess = Math.floor(maxOperations / 2)
-  const orphanFiles: Array<{ id: number; filename?: string | null; createdAt?: string }> = []
-  let filePageNum = 1
-  let hasMoreFiles = true
-
-  while (hasMoreFiles && orphanFiles.length < maxFilesToProcess) {
-    const potentialOrphanFiles = await req.payload.find({
-      collection: 'files',
-      where: {
-        and: [
-          { createdAt: { greater_than_equal: rangeStart.toISOString() } },
-          { createdAt: { less_than: rangeEnd.toISOString() } },
-          { deletedAt: { exists: false } }, // Not already in trash
-        ],
-      },
-      limit: PAGINATION_LIMIT,
-      page: filePageNum,
-      depth: 0,
-    })
-
-    // Filter out referenced files and add to orphan collection
-    const batchOrphans = potentialOrphanFiles.docs.filter((file) => !referencedFiles.has(file.id))
-    orphanFiles.push(...batchOrphans)
-
-    hasMoreFiles = potentialOrphanFiles.hasNextPage
-    filePageNum++
+  const inScanWindow: Where = {
+    and: [
+      { createdAt: { greater_than_equal: rangeStart.toISOString() } },
+      { createdAt: { less_than: rangeEnd.toISOString() } },
+      { deletedAt: { exists: false } }, // Not already in trash
+    ],
   }
+
+  const maxFilesToProcess = Math.floor(maxOperations / 2)
+  const orphanFiles = await collectPaged({
+    req,
+    collection: 'files',
+    where: inScanWindow,
+    wanted: maxFilesToProcess,
+    keep: (file) => !referencedFiles.has(file.id),
+  })
 
   await processItems({
     req,
@@ -575,41 +587,20 @@ async function trashOrphanedMedia(
     dryRun,
   })
 
-  // Paginate through images until we collect remaining orphans
   const maxImagesToProcess = maxOperations - result.trashedFiles
-  const orphanImages: Array<{
-    id: number
-    filename?: string | null
-    createdAt?: string
-    tags?: unknown
-  }> = []
-  let imagePageNum = 1
-  let hasMoreImages = true
-
-  while (hasMoreImages && orphanImages.length < maxImagesToProcess) {
-    const potentialOrphanImages = await req.payload.find({
-      collection: 'images',
-      where: {
-        and: [
-          { createdAt: { greater_than_equal: rangeStart.toISOString() } },
-          { createdAt: { less_than: rangeEnd.toISOString() } },
-          { deletedAt: { exists: false } }, // Not already in trash
-        ],
-      },
-      limit: PAGINATION_LIMIT,
-      page: imagePageNum,
-      depth: 1, // Include tag objects to check titles
-    })
-
-    // Filter unreferenced images without content tags
-    const batchOrphans = potentialOrphanImages.docs.filter((image) => {
-      // Skip if image is referenced
+  const orphanImages = await collectPaged({
+    req,
+    collection: 'images',
+    where: inScanWindow,
+    depth: 1, // Include tag objects to check titles
+    wanted: maxImagesToProcess,
+    keep: (image) => {
       if (referencedImages.has(image.id)) {
         return false
       }
 
-      // Skip if image has content tags (ignore auto-generated orientation tags)
-      // Image tags are now inline enum strings, not relationships
+      // Image tags are inline enum strings, not relationships. An orientation
+      // tag is added by a hook on upload, so it says nothing about use.
       const hasContentTags =
         Array.isArray(image.tags) &&
         (image.tags as ImageTag[]).some(
@@ -621,13 +612,8 @@ async function trashOrphanedMedia(
       }
 
       return true
-    })
-
-    orphanImages.push(...batchOrphans)
-
-    hasMoreImages = potentialOrphanImages.hasNextPage
-    imagePageNum++
-  }
+    },
+  })
 
   await processItems({
     req,
