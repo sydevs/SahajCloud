@@ -1,4 +1,4 @@
-import type { JSONField } from 'payload'
+import type { FieldAccess, JSONField } from 'payload'
 
 import { z } from 'zod'
 
@@ -190,6 +190,8 @@ export interface LogFieldOptions {
    * headings stable before the data does.
    */
   columns?: LogColumn[]
+  /** A narrower `read` lock than "anyone but a client", for a log of other people's addresses. */
+  read?: FieldAccess
   admin?: Omit<NonNullable<JSONField['admin']>, 'components' | 'description' | 'readOnly'>
 }
 
@@ -203,8 +205,10 @@ export function logField({
   description,
   limit = DEFAULT_LOG_LIMIT,
   columns,
+  read,
   admin = {},
 }: LogFieldOptions): JSONField {
+  const notClient: FieldAccess = ({ req }) => req.user?.collection !== 'clients'
   return jsonField({
     name,
     label,
@@ -226,9 +230,9 @@ export function logField({
     // (#821). A denylist, not `managersOnlyFieldAccess`, so all three keys
     // admit the same callers — equivalent, not wider.
     access: {
-      read: ({ req }) => req.user?.collection !== 'clients',
-      create: ({ req }) => req.user?.collection !== 'clients',
-      update: ({ req }) => req.user?.collection !== 'clients',
+      read: read ?? notClient,
+      create: notClient,
+      update: notClient,
     },
     admin: {
       ...admin,

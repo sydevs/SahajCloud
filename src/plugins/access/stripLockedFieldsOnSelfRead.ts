@@ -1,18 +1,31 @@
 import type {
   CollectionAfterReadHook,
+  Field,
   FieldAccess,
   FlattenedField,
   SanitizedCollectionConfig,
 } from 'payload'
 
+import { isOwnRow } from './adminOnly'
+
 type LockedField = { name: string; read: FieldAccess }
+
+/**
+ * This field's `read` lock, or `undefined` for a field without one — shared
+ * with the sweep in `managers-access.int.spec.ts`, so the two cannot disagree
+ * about what counts as locked.
+ */
+export function readLockOf(field: FlattenedField | Field): FieldAccess | undefined {
+  const read = (field as { access?: { read?: unknown } }).access?.read
+  return typeof read === 'function' ? (read as FieldAccess) : undefined
+}
 
 function lockedReadFields(fields: FlattenedField[]): LockedField[] {
   const locked: LockedField[] = []
   for (const field of fields) {
     if (!('name' in field)) continue
-    const read = (field as { access?: { read?: unknown } }).access?.read
-    if (typeof read === 'function') locked.push({ name: field.name, read: read as FieldAccess })
+    const read = readLockOf(field)
+    if (read) locked.push({ name: field.name, read })
   }
   return locked
 }
@@ -55,6 +68,16 @@ function lockedFields(collection: SanitizedCollectionConfig): LockedField[] {
  * Reads by anyone else are untouched, and so are server-side reads, which run
  * with no user. So is authentication: `APIKeyAuthentication` resolves before
  * `req.user` exists, and matches the `apiKeyIndex` hash rather than the field.
+ *
+ * ⚠ **Only the caller's OWN row** — every operation in the class it closes
+ * re-reads the authenticated document. On any row it also stripped internal
+ * `overrideAccess: true` reads: `syncVerificationOnSave` reads an event's
+ * manager while another manager saves, and a stripped `notificationPreferences`
+ * moved `nextCheckAt` from 30 days to 90 (#908).
+ *
+ * ⚠ Own-row is a proxy: `afterRead` is handed no `overrideAccess`, so an
+ * internal `overrideAccess: true` read of the caller's own row is still
+ * stripped. No such path exists today.
  */
 export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   collection,
@@ -62,11 +85,13 @@ export const stripLockedFieldsOnSelfRead: CollectionAfterReadHook = async ({
   req,
 }) => {
   if (req.user?.collection !== collection.slug) return doc
+  const id = (doc as { id?: number | string })?.id
+  if (!isOwnRow(req.user.id, id)) return doc
 
   for (const field of lockedFields(collection)) {
     const allowed = await field.read({
       req,
-      id: (doc as { id?: number | string })?.id,
+      id,
       data: doc,
       siblingData: doc,
       doc,

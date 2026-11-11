@@ -12,6 +12,7 @@ import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
+import { lockManagerFieldReads } from './access'
 import { setProject } from './endpoints/setProject'
 import { MANAGER_NOTIFICATIONS_TAB } from './login'
 
@@ -50,12 +51,20 @@ export const Managers: CollectionConfig = {
   // accessPlugin detects that pair and attaches the auth strategy and the three
   // auth-response hooks that keep a manager's roles resolved at every locale —
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
-  fields: [
+  // Every field but `name` is locked to the row's holder and to admins (#908).
+  fields: lockManagerFieldReads([
     {
       name: 'name',
       type: 'text',
       required: true,
     },
+    // Base auth fields, declared bare so the lock has something to merge onto.
+    // ⚠ At the TOP LEVEL only: `mergeBaseFields` matches by name at the level
+    // it is handed, so a copy in a tab appends a second field.
+    // ⚠ Each restates its label, or the merge keeps the one `sanitizeFields`
+    // derived from the name — a list column headed `_verified`.
+    { name: 'email', type: 'email', label: ({ t }) => t('general:email') },
+    { name: '_verified', type: 'checkbox', label: ({ t }) => t('authentication:verified') },
     {
       // `null` is the admin "All Content" view, and it has no option of its own.
       // The field is `admin.hidden`, so Payload never renders this select, and
@@ -279,5 +288,5 @@ export const Managers: CollectionConfig = {
       ],
     },
     ...legacyMigrationFields(),
-  ],
+  ]),
 }

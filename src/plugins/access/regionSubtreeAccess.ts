@@ -228,6 +228,42 @@ async function maySetManagerOn(
   return ownedRegionIds.includes(Number(regionId))
 }
 
+/**
+ * Whether this request's user may see the contact details of the managers a
+ * region or an event names: an admin, the event's own manager, or an active
+ * manager whose owned subtree holds the region — so never a sub-region's
+ * (#908). The one gate for the contacts table and `Events.activityLog`.
+ *
+ * `region` and `manager` are the stored row's, never what a form posted.
+ */
+export async function mayReadManagerContacts(
+  req: PayloadRequest,
+  place: { region?: unknown; manager?: unknown },
+): Promise<boolean> {
+  if (isAdminManager(req.user)) return true
+  if (!isManager(req.user)) return false
+
+  const userId = Number(req.user.id)
+  if (relationId(place.manager) === userId) return true
+  const regionId = relationId(place.region)
+  if (regionId === null) return false
+  return (await resolveOwnedRegionIds(req, userId)).includes(regionId)
+}
+
+/**
+ * `Events.activityLog`, which records where each reminder went: readable as
+ * {@link mayReadManagerContacts} answers for the row.
+ *
+ * ⚠ With no row — a `where`, a `sort`, `/api/access` — it answers for admins
+ * alone, and a read selecting the log without `region` and `manager` is
+ * refused rather than re-read.
+ */
+export const eventContactsFieldAccess: FieldAccess = ({ doc, req }) => {
+  if (isAdminManager(req.user)) return true
+  if (!doc) return false
+  return mayReadManagerContacts(req, doc as { region?: unknown; manager?: unknown })
+}
+
 /** `Regions.managers` — the row is the region, so its own id is the subtree test. */
 export const regionManagersFieldAccess: FieldAccess = ({ id, req }) => maySetManagerOn(req, id)
 

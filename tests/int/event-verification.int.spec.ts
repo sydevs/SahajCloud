@@ -649,6 +649,42 @@ describe('Event verification lifecycle', () => {
       const fresh = await getEvent(payload, event.id)
       expect(reminders(fresh.activityLog).filter((e) => e.stage === 'verified')).toHaveLength(1)
     })
+
+    it('hands an escalated region manager the event manager’s email, to follow up', async () => {
+      // #908 locks every field on another manager's row but `name`. The job
+      // reads the event's manager with no user, so the escalation still
+      // carries their address — this is what keeps it that way.
+      const regionManager = await testData.createManager(payload, {
+        name: 'Escalation Manager',
+        email: 'escalation-manager@example.com',
+      })
+      const city = await payload.create({
+        collection: 'regions',
+        overrideAccess: true,
+        data: createData<'regions'>({
+          name: 'Escalation City',
+          level: 'city',
+          mapboxId: 'escalation-city',
+          managers: [regionManager.id],
+        }),
+      })
+      const event = await createEvent({ title: 'Escalated Listing', region: city.id })
+
+      sent.length = 0
+      // verified → reminded reaches the event manager alone; reminded →
+      // escalated is the first stage that loops the region manager in.
+      await makeDue(payload, event.id)
+      await runJob(payload)
+      await makeDue(payload, event.id)
+      await runJob(payload)
+
+      const email = mailTo('escalation-manager@example.com').find((message) =>
+        message.html.includes('Escalated Listing'),
+      )
+      expect(email, 'no escalation reached the region manager').toBeDefined()
+      expect(email!.html).toContain('Event manager')
+      expect(email!.html).toContain('mailto:event-manager@example.com')
+    })
   })
 
   it('resumes a partial fan-out by sending only the un-logged recipient', async () => {
@@ -742,6 +778,53 @@ describe('Event verification lifecycle', () => {
     expect(reminders(fresh.activityLog)).toHaveLength(0)
     const log = fresh.activityLog as NotificationLogEntry[]
     expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
+  })
+
+  it("keeps the event manager's cadence when a different manager saves", async () => {
+    // The verify-on-save hook loads the event's manager with
+    // `overrideAccess: true, req` and reads `notificationPreferences` off that
+    // row. `stripLockedFieldsOnSelfRead` used to re-apply the field locks on
+    // ANY row of an auth collection the caller belongs to, so a save by a
+    // colleague stripped the cadence and `nextCheckAt` silently fell back to
+    // the 90-day default (#908).
+    //
+    // ⚠ The actor must be a NON-ADMIN manager, and not this event's manager:
+    // either one passes `selfOrAdminFieldAccess` and the regression does not
+    // reproduce.
+    //
+    // ⚠ The actor needs the event's region in their own subtree even under
+    // `overrideAccess: true`: `Events.region` narrows its `filterOptions` to
+    // that subtree, and Payload applies those at save time regardless of
+    // access. Hence a region of its own rather than `defaultRegion`, whose
+    // manager list every reminder case here counts recipients from.
+    const otherManager = await testData.createManager(payload, {
+      name: 'Other Manager',
+      email: 'other-manager@example.com',
+    })
+    const region = await payload.create({
+      collection: 'regions',
+      overrideAccess: true,
+      data: createData<'regions'>({
+        name: 'Colleague City',
+        level: 'city',
+        mapboxId: 'colleague-city',
+        managers: [otherManager.id],
+      }),
+    })
+    const event = await createEvent({ region: region.id })
+    const saved = await payload.update({
+      collection: 'events',
+      id: event.id,
+      overrideAccess: true,
+      user: { ...otherManager, collection: 'managers' } as never,
+      data: { title: 'Saved By A Colleague' } as Partial<Event>,
+    })
+
+    // `eventManager` is on `Monthly` — 30 days. The fallback is 90, so the
+    // window is what tells a read cadence from a stripped one.
+    const days = (new Date(saved.nextCheckAt!).getTime() - Date.now()) / DAY_MS
+    expect(days).toBeGreaterThan(25)
+    expect(days).toBeLessThan(35)
   })
 
   describe('systemMeta write protection', () => {

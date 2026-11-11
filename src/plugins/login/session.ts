@@ -19,7 +19,11 @@ interface SessionDocument {
  * and a token minted for it type-checks and authenticates nothing.
  */
 function hasSessionsField(config: SanitizedCollectionConfig): boolean {
-  return config.fields.some((field) => 'name' in field && field.name === 'sessions')
+  return hasTopLevelField(config, 'sessions')
+}
+
+function hasTopLevelField(config: SanitizedCollectionConfig, name: string): boolean {
+  return config.fields.some((field) => 'name' in field && field.name === name)
 }
 
 /**
@@ -79,10 +83,16 @@ export async function createSession(
   // the local API's default `overrideAccess: true`. Only `sessions` is sent:
   // `user` was read at one locale, so writing it back whole would flatten a
   // localized field (`roles`, on `managers`) onto that locale.
+  // `lastLoginAt` rides along on the collections `loginPlugin` serves.
   await payload.update({
     collection,
     id,
-    data: { sessions: [...live, session] } as never,
+    data: {
+      sessions: [...live, session],
+      ...(hasTopLevelField(collectionConfig, 'lastLoginAt')
+        ? { lastLoginAt: session.createdAt }
+        : {}),
+    } as never,
     depth: 0,
   })
 
