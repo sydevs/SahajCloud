@@ -1,158 +1,12 @@
-import type { CollectionConfig, Field, FieldHook } from 'payload'
+import type { CollectionConfig, Field } from 'payload'
 
-import { Temporal } from '@js-temporal/polyfill'
 import { z } from 'zod'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
-import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
-import type { EventSchedule } from '@/types/schedule'
 
 import { appCardsForAudience } from './endpoints/forAudience'
-
-const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
-
-type ViewName = 'startingSoon' | 'liveNow' | 'default'
-
-/**
- * afterRead hook: computes the view schedule spec for event-type app cards.
- *
- * Returns a timeline object: { timezone: "UTC", schedule: { "HH:MM": viewName } }.
- * Each key marks when that view becomes active (24-hour UTC); the selection lasts
- * until the next key. Keys are sorted ascending. Computed from the next upcoming
- * event occurrence. Returns null when no event views are enabled or no future
- * occurrence exists.
- */
-const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
-  if (doc?.type !== 'event') {
-    return { timezone: 'UTC' as const, schedule: { '00:00': 'default' as ViewName } }
-  }
-
-  const schedule = doc.schedule as Partial<EventSchedule> | null | undefined
-  if (!schedule?.firstDate) return null
-
-  const startingSoon = doc.startingSoon as Record<string, unknown> | null | undefined
-  const liveNow = doc.liveNow as Record<string, unknown> | null | undefined
-
-  const startingSoonEnabled = startingSoon?.enabled === true
-  const liveNowEnabled = liveNow?.enabled === true
-  if (!startingSoonEnabled && !liveNowEnabled) return null
-
-  const rule = buildRRuleTemporal(schedule)
-  if (!rule) return null
-
-  const timezone = schedule.firstDate_tz || 'UTC'
-  const endTimeStr = schedule.endTime
-
-  // Compute the next upcoming event start time
-  const now = new Date()
-  type RRuleZDT = { epochMilliseconds: bigint }
-
-  const isRecurring =
-    !!schedule.recurrenceType && ['DAILY', 'WEEKLY', 'MONTHLY'].includes(schedule.recurrenceType)
-
-  let nextISO: string | undefined
-
-  if (isRecurring) {
-    const until = new Date(now)
-    until.setMonth(until.getMonth() + 6)
-    const upcoming = (rule.between(now, until, true) as unknown as RRuleZDT[]).slice(0, 1)
-    if (upcoming.length > 0) {
-      nextISO = new Date(Number(upcoming[0]!.epochMilliseconds)).toISOString()
-    }
-  } else {
-    const all = rule.all() as unknown as RRuleZDT[]
-    const next = all.find((zdt) => Number(zdt.epochMilliseconds) > now.getTime())
-    if (next) {
-      nextISO = new Date(Number(next.epochMilliseconds)).toISOString()
-    }
-  }
-
-  if (!nextISO) return null
-
-  // Parse Starting Soon / Live Now thresholds to total minutes
-  const ssThresholdStr = (startingSoon?.threshold as string | undefined) ?? '1:00'
-  const ssMatch = ssThresholdStr.match(TIME_REGEX)
-  const ssMinutes =
-    startingSoonEnabled && ssMatch
-      ? parseInt(ssMatch[1]!, 10) * 60 + parseInt(ssMatch[2]!, 10)
-      : null
-
-  const lnThresholdStr = (liveNow?.threshold as string | undefined) ?? '0:00'
-  const lnMatch = lnThresholdStr.match(TIME_REGEX)
-  const lnMinutes =
-    liveNowEnabled && lnMatch ? parseInt(lnMatch[1]!, 10) * 60 + parseInt(lnMatch[2]!, 10) : 0
-
-  // Converts a Temporal.Instant to HH:MM in UTC (24-hour clock)
-  const toUTCHHMM = (instant: Temporal.Instant): string => {
-    const d = new Date(Number(instant.epochMilliseconds))
-    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
-  }
-
-  try {
-    const eventStart = Temporal.Instant.from(nextISO).toZonedDateTimeISO(timezone)
-
-    // Event end: use configured endTime or default to +1 hour
-    let eventEnd: Temporal.ZonedDateTime
-    if (endTimeStr) {
-      const m = endTimeStr.match(TIME_REGEX)
-      eventEnd = m
-        ? eventStart.with({
-            hour: parseInt(m[1]!, 10),
-            minute: parseInt(m[2]!, 10),
-            second: 0,
-            millisecond: 0,
-            microsecond: 0,
-            nanosecond: 0,
-          })
-        : eventStart.add({ minutes: 60 })
-    } else {
-      eventEnd = eventStart.add({ minutes: 60 })
-    }
-
-    // Build timeline entries: [HH:MM, viewName] — later entries win on duplicate keys.
-    // "00:00": "default" anchors the start of the 24-hour cycle so every hour is covered.
-    // If an event view starts at midnight it sorts after this baseline and overwrites it.
-    const entries: Array<[string, ViewName]> = [['00:00', 'default']]
-
-    if (startingSoonEnabled && ssMinutes !== null) {
-      entries.push([
-        toUTCHHMM(eventStart.subtract({ minutes: ssMinutes }).toInstant()),
-        'startingSoon',
-      ])
-    }
-
-    // liveNow start: eventStart − lnThreshold (0 = exactly at event start)
-    if (liveNowEnabled) {
-      const lnStartInstant =
-        lnMinutes > 0
-          ? eventStart.subtract({ minutes: lnMinutes }).toInstant()
-          : eventStart.toInstant()
-      entries.push([toUTCHHMM(lnStartInstant), 'liveNow'])
-    } else {
-      // SS-only: default takes over at event start
-      entries.push([toUTCHHMM(eventStart.toInstant()), 'default'])
-    }
-
-    // Event end: switch back to default (liveNow only)
-    if (liveNowEnabled) {
-      entries.push([toUTCHHMM(eventEnd.toInstant()), 'default'])
-    }
-
-    // Sort ascending; duplicate timestamps: last entry wins (event view overrides default baseline)
-    entries.sort((a, b) => a[0].localeCompare(b[0]))
-
-    const timelineSchedule: Record<string, ViewName> = {}
-    for (const [hhmm, view] of entries) {
-      timelineSchedule[hhmm] = view
-    }
-
-    return { timezone: 'UTC' as const, schedule: timelineSchedule }
-  } catch (err) {
-    req.payload.logger.debug({ msg: 'viewSchedule computation failed', error: err })
-    return null
-  }
-}
+import { TIME_REGEX, viewScheduleAfterRead } from './hooks/viewSchedule'
 
 /** Destination row shared across all view tabs. */
 function destinationFields(
@@ -545,7 +399,7 @@ export const AppCards: CollectionConfig = {
           label: 'Appearance',
           fields: [
             jsonField({
-              // Virtual: written by `viewScheduleAfterRead` above, never stored.
+              // Virtual: written by `viewScheduleAfterRead` (`./hooks/viewSchedule`), never stored.
               // The schema exists for the generated type. See `src/collections/AGENTS.md`.
               name: 'viewSchedule',
               virtual: true,
