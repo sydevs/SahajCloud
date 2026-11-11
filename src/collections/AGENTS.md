@@ -489,6 +489,8 @@ exactly that reason.
 
 Use `logField` (`src/fields/logField.ts`) for a manager-readable record of what happened to a document. Its JSDoc, the `LogEntry` type, and `src/components/admin/LogTable/LogTable.tsx` own the conventions — read them before you add a writer.
 
+⚠ **A writer appends through `appendLogEntry` (`@/lib/atomicWrites/appendLogEntry`), never by writing the column.** Rebuilding the array from a copy read earlier drops whatever another writer added since, which for a reminder ledger is a reminder sent twice (#1116). The helper inserts the entry's own row and trims the oldest, and there is no in-memory append left to reach for. One row per entry is what makes the insert parameterised; Payload still rewrites every row of an array field on each save, so the whole-log spelling clobbers exactly as the column did.
+
 ## Plugins
 
 ### Form Builder (`@payloadcms/plugin-form-builder`)

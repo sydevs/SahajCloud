@@ -3,7 +3,7 @@ import type { Endpoint, PayloadRequest } from 'payload'
 import { commitTransaction, createLocalReq, initTransaction, killTransaction } from 'payload'
 import { z } from 'zod'
 
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
 import type { UserSubmission } from '@/payload-types'
 
@@ -138,7 +138,8 @@ async function refuseOpenSubmissions(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { user: { equals: userId }, status: { equals: 'pending' } },
-    select: { activityLog: true, screeningResult: true },
+    // Ids only: the write below reads nothing off the row.
+    select: {},
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -156,20 +157,24 @@ async function refuseOpenSubmissions(args: {
           notes: [BLOCKED_NOTE],
           screenedAt: now,
         },
-        activityLog: appendLogEntry(asLog(row.activityLog), {
-          at: now,
-          type: 'block',
-          key: now,
-          cells: {
-            activity: reason
-              ? `Sender blocked by ${actor}: ${reason}`
-              : `Sender blocked by ${actor}`,
-          },
-        }),
       } satisfies Partial<UserSubmission>,
       depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },
+      req,
+    })
+    await appendLogEntry({
+      payload: req.payload,
+      collection: 'user-submissions',
+      id: row.id,
+      entry: {
+        at: now,
+        type: 'block',
+        key: now,
+        cells: {
+          activity: reason ? `Sender blocked by ${actor}: ${reason}` : `Sender blocked by ${actor}`,
+        },
+      },
       req,
     })
   }
@@ -191,7 +196,8 @@ async function logOnSubmission(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { and: [{ id: { equals: submission } }, { user: { equals: userId } }] },
-    select: { activityLog: true },
+    // Ids only: this read is the ownership check, not a load.
+    select: {},
     depth: 0,
     limit: 1,
     overrideAccess: true,
@@ -200,20 +206,11 @@ async function logOnSubmission(args: {
   const row = docs[0]
   if (!row) return 0
 
-  await req.payload.update({
+  await appendLogEntry({
+    payload: req.payload,
     collection: 'user-submissions',
     id: row.id,
-    data: {
-      activityLog: appendLogEntry(asLog(row.activityLog), {
-        at: now,
-        type: 'unblock',
-        key: now,
-        cells: { activity },
-      }),
-    },
-    depth: 0,
-    overrideAccess: true,
-    context: { skipWriteGuard: true },
+    entry: { at: now, type: 'unblock', key: now, cells: { activity } },
     req,
   })
   return 1

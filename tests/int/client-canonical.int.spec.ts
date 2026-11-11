@@ -9,6 +9,7 @@ import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import { runVerifyEmbeds } from '@/jobs/VerifyEmbeds/VerifyEmbeds'
 import { MAX_EMBED_MOUNTS } from '@/lib/clients/embedMetadata'
 import type { RoutingProbeResult, VerificationResult } from '@/lib/clients/verification'
+import { persistVerification } from '@/lib/embedVerification/persistVerification'
 import type { Client } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -980,6 +981,81 @@ describe('client canonical ownership + embed metadata', () => {
       // The service itself stays on: losing the region is not losing the key.
       expect(doc.enabled).toBe(true)
       expect(output.disabled).toBeGreaterThanOrEqual(1)
+    })
+
+    it('keeps a Check that lands while the nightly render is still running', async () => {
+      // The interleave: both writers read `canonical.verification`, spend
+      // seconds rendering, then write the whole object back. Without the
+      // condition the second to finish discarded the other's attempt.
+      // A page of its own, so the stub can fail this one service and verify
+      // every other service the sweep finds — which is what makes `failed`
+      // below count this service alone.
+      const racedPage = 'https://raced.example/embed'
+      const id = await createOwner('Verify Raced', 'verify-raced', racedPage)
+      const pressedAt = daysAfter(300).toISOString()
+      const pressNext = daysAfter(301).toISOString()
+
+      const output = await runVerifyEmbeds({
+        payload,
+        req: { payload } as never,
+        now: daysAfter(300),
+        deps: {
+          verify: async (mount) => {
+            if (!mount.startsWith(racedPage)) return verified
+            // A manager presses Check while this render is in flight.
+            await persistVerification({
+              req: { payload } as never,
+              clientId: id,
+              expect: null,
+              verification: {
+                verified: null,
+                failureCount: 0,
+                attempts: [{ at: pressedAt, status: 'inconclusive', reason: 'quota' }],
+              },
+              nextVerifyAt: pressNext,
+              disable: false,
+            })
+            return failed
+          },
+        },
+      })
+
+      // The job wrote none of its verdict, so it counts none of it either —
+      // the press that won counts the check it made on its own path.
+      expect(output.processed).toBeGreaterThanOrEqual(1)
+      expect(output.failed).toBe(0)
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.attempts).toEqual([
+        { at: pressedAt, status: 'inconclusive', reason: 'quota' },
+      ])
+      expect(doc.canonical?.verification?.failureCount).toBe(0)
+      expect(doc.canonical?.nextVerifyAt).toBe(pressNext)
+    })
+
+    it('keeps a nightly verdict that lands while a Check is still running', async () => {
+      // The same condition read from the other side: the press holds the state
+      // it read before the run wrote, so its own write is the one refused.
+      const id = await createOwner('Check Raced', 'check-raced')
+      const stale = (await read(id)).canonical?.verification ?? null
+
+      await run(failed, daysAfter(400))
+      const afterRun = await read(id)
+
+      const written = await persistVerification({
+        req: { payload } as never,
+        clientId: id,
+        expect: stale,
+        verification: { verified: null, failureCount: 0, attempts: [] },
+        nextVerifyAt: daysAfter(401).toISOString(),
+        disable: false,
+      })
+
+      expect(written).toBe(false)
+      const doc = await read(id)
+      expect(doc.canonical?.verification?.failureCount).toBe(
+        afterRun.canonical?.verification?.failureCount,
+      )
+      expect(doc.canonical?.nextVerifyAt).toBe(afterRun.canonical?.nextVerifyAt)
     })
 
     it('gives a recovered site its region back, unless another site took it', async () => {

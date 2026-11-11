@@ -7,6 +7,7 @@ import type { RoutingMode } from '@/lib/clients/canonical'
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { primaryPageUrl, reportedMountsFor, supportsClassAddresses } from '@/lib/clients/site'
 import type { SeoCheckResult } from '@/lib/clients/verification'
+import { persistVerification } from '@/lib/embedVerification/persistVerification'
 import { verifyMount } from '@/lib/embedVerification/seoCheckRun'
 import { probeRouting, verifyEmbed } from '@/lib/embedVerification/verifyEmbed'
 import { errorResponse } from '@/lib/endpoints'
@@ -93,6 +94,7 @@ export const verifyEmbedOnDemand: Endpoint = {
 
     const claim = await claimRegion(req, client)
 
+    const current = client.canonical?.verification ?? null
     const {
       outcome: result,
       transition,
@@ -101,7 +103,7 @@ export const verifyEmbedOnDemand: Endpoint = {
     } = await verifyMount({
       req,
       client,
-      current: client.canonical?.verification ?? null,
+      current,
       mount,
       now: new Date(),
       verify: verifyEmbed,
@@ -112,23 +114,33 @@ export const verifyEmbedOnDemand: Endpoint = {
       countsStrikes: false,
     })
 
-    // Only the two keys this owns: Payload keeps the rest of the group as
-    // stored, so an `owned` released while the renders ran is not written back.
-    // `disable` is deliberately ignored here — see the note above.
-    await req.payload.update({
-      collection: 'clients',
-      id: clientId,
-      data: { canonical: { verification, nextVerifyAt: transition.nextVerifyAt } },
-      overrideAccess: true,
+    // Only the two keys this owns, and only while the stored verification is
+    // still the one the fold above was computed from: the nightly job renders
+    // the same page on its own schedule, and whichever of the two finishes
+    // second would otherwise discard the other's attempt and failure count
+    // (#1116). `disable` is deliberately false here — see the note above.
+    const written = await persistVerification({
+      req,
+      clientId,
+      expect: current,
+      verification,
+      nextVerifyAt: transition.nextVerifyAt,
+      disable: false,
     })
+    if (!written) {
+      req.payload.logger.info({
+        msg: 'verify-embed: the nightly run landed during this check; keeping its verdict',
+        clientId,
+      })
+    }
 
     const reason = result.status === 'verified' ? undefined : result.reason
     const body: VerifyEmbedResponse = {
       status: result.status,
       ...(reason ? { reason } : {}),
       message: MESSAGES[result.status](reason),
-      // Answered from the object just written, never re-read through Payload,
-      // so the `canonical.routing` hook's default is applied here by hand (#644).
+      // Answered from this check's own fold, never re-read through Payload, so
+      // the `canonical.routing` hook's default is applied here by hand (#644).
       routing: verification.routingProbe?.verdict ?? 'query',
       seo,
       claim,
