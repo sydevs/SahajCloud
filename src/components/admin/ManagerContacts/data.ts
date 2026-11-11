@@ -134,7 +134,7 @@ export async function loadManagerContacts(
     return [
       {
         id: manager.id,
-        name: manager.name || manager.email,
+        name: manager.name,
         email: manager.email,
         lastSignIn: lastSignIn(manager.lastLoginAt, now),
       },
