@@ -92,7 +92,7 @@ jobs:
         if: ${{ steps.preview.outputs.preview_url != '' }}
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           PREVIEW_KV_NAMESPACE_ID: ${{ vars.PREVIEW_KV_NAMESPACE_ID }}
         run: |

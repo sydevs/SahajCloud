@@ -82,10 +82,11 @@ jobs:
       # PR is exactly the one a reviewer comes back to. ⚠ The Advanced
       # Certificate each Custom Domain generated is NOT removed by the delete,
       # and is known residue to clear by hand.
+      # ⚠ The Cloudflare pair is the job's, above. A second spelling here
+      # shadows it silently, and this step held one naming a secret the
+      # cleanup step had already moved off.
       - name: Sweep closed PRs' preview addresses
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PREVIEW_KV_NAMESPACE_ID: ${{ vars.PREVIEW_KV_NAMESPACE_ID }}
         run: >-

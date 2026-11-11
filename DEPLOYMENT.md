@@ -129,6 +129,8 @@ KV and attaches a Custom Domain, so that token carries Workers KV Storage:Edit, 
 Scripts:Edit, Zone:Read and Workers Routes:Edit on the zone as well — attaching a Custom
 Domain needs the zone's Workers Routes:Edit. Too narrow, and Cloudflare answers the KV write
 `401 10000: Authentication error`, which reads as a wrong token rather than a narrow one.
+In Actions the value is the org secret `CLOUDFLARE_API_TOKEN`, shared with SahajAtlasWeb;
+only the environment variable the scripts read keeps the `CLOUDFLARE_API_KEY` name.
 
 ⚠ **Railway's own address for a preview is shut.** A browser read there is sent
 on to the fixed address and anything else is refused, because Access never sees a
