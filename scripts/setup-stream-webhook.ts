@@ -23,11 +23,11 @@
  */
 import { z } from 'zod'
 
+import { cfFetch, requireEnv } from './lib/cloudflare'
+
 const EXPECTED_HOST = 'cloud.sydevelopers.com'
 
 const WebhookResponseSchema = z.object({
-  success: z.boolean(),
-  errors: z.array(z.object({ code: z.number().optional(), message: z.string() })).default([]),
   result: z
     .object({
       notificationUrl: z.string().optional(),
@@ -82,43 +82,24 @@ function printUsage(): void {
   )
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name]
-  if (!value || value.length === 0) {
-    console.error(`Missing required env var: ${name}`)
-    process.exit(1)
-  }
-  return value
-}
-
 async function cf(
-  method: 'GET' | 'PUT' | 'DELETE',
+  method: 'DELETE' | 'GET' | 'PUT',
   accountId: string,
-  apiKey: string,
   body?: unknown,
 ): Promise<z.infer<typeof WebhookResponseSchema>> {
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/webhook`,
-    {
-      method,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+  return WebhookResponseSchema.parse(
+    await cfFetch(method, `/accounts/${accountId}/stream/webhook`, {
       body: body ? JSON.stringify(body) : undefined,
-    },
+    }),
   )
-  const json = await response.json()
-  return WebhookResponseSchema.parse(json)
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv)
   const accountId = requireEnv('CLOUDFLARE_ACCOUNT_ID')
-  const apiKey = requireEnv('CLOUDFLARE_API_KEY')
 
   if (args.get) {
-    const result = await cf('GET', accountId, apiKey)
+    const result = await cf('GET', accountId)
     console.log(JSON.stringify(result, null, 2))
     return
   }
@@ -128,11 +109,7 @@ async function main(): Promise<void> {
       console.error('--delete and --url are mutually exclusive')
       process.exit(1)
     }
-    const result = await cf('DELETE', accountId, apiKey)
-    if (!result.success) {
-      console.error('Failed to delete webhook:', result.errors)
-      process.exit(1)
-    }
+    await cf('DELETE', accountId)
     console.log('Webhook deleted.')
     return
   }
@@ -162,21 +139,19 @@ async function main(): Promise<void> {
     )
   }
 
-  // Inspect current registration first
-  const current = await cf('GET', accountId, apiKey)
+  // Inspect current registration first. An unreadable one now throws rather
+  // than reading as "nothing registered", which is what used to let a refused
+  // read fall through to the overwrite `--force` exists to gate.
+  const current = await cf('GET', accountId)
   const currentUrl = current.result?.notificationUrl
-  if (current.success && currentUrl && currentUrl !== args.url && !args.force) {
+  if (currentUrl && currentUrl !== args.url && !args.force) {
     console.error(
       `\nRefusing to overwrite existing webhook.\n  Current: ${currentUrl}\n  New:     ${args.url}\n\nPass --force to override.\n`,
     )
     process.exit(1)
   }
 
-  const result = await cf('PUT', accountId, apiKey, { notificationUrl: args.url })
-  if (!result.success) {
-    console.error('Failed to register webhook:', result.errors)
-    process.exit(1)
-  }
+  const result = await cf('PUT', accountId, { notificationUrl: args.url })
 
   const secret = result.result?.secret
   if (!secret) {

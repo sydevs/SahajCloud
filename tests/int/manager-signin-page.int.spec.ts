@@ -256,6 +256,41 @@ describe('manager sign-in page', () => {
       })
     })
 
+    it('refuses a sign-in link already used, before the click', async () => {
+      const manager = await activeManager()
+      const token = tokenOf(
+        await mintSignInLink({ config: managersLogin, id: manager.id, payload }),
+      )
+      const redeemed = await anon(`${REDEEM_PATH}?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+      })
+      expect(redeemed.headers.get('Set-Cookie')).not.toBeNull()
+
+      expect(await deliveredLink(token, payload)).toMatchObject({
+        title: 'This link is not valid',
+      })
+    })
+
+    it('refuses a sign-in link a newer one replaced, and still confirms the newer', async () => {
+      const manager = await activeManager()
+      const older = tokenOf(
+        await mintSignInLink({
+          config: managersLogin,
+          id: manager.id,
+          now: new Date(Date.now() - 1000),
+          payload,
+        }),
+      )
+      const newer = tokenOf(
+        await mintSignInLink({ config: managersLogin, id: manager.id, payload }),
+      )
+
+      expect(await deliveredLink(older, payload)).toMatchObject({
+        title: 'This link is not valid',
+      })
+      expect(await deliveredLink(newer, payload)).toMatchObject({ submitLabel: 'Continue' })
+    })
+
     it('refuses a link to a deactivated or deleted account before the click', async () => {
       const deactivated = await activeManager()
       const deleted = await activeManager()
