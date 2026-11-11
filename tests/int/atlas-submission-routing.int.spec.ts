@@ -301,6 +301,22 @@ describe('atlas submission routing', () => {
       }
     })
 
+    // ⚠ `LIST_ELIGIBLE` tells a filled key from a blank one with `not_equals:
+    // ''`, and `secretField` skips the empty case for exactly that reason:
+    // ciphertext for '' is a non-empty string, which would make this true.
+    it('offers no list from a service whose key is blank', async () => {
+      const halfConfigured = await testData.createClient(payload, admin.id, {
+        label: 'Half Configured',
+        region: region.state,
+        mailingList: { enabled: true, provider: 'brevo', listId: 'blank-key-list', apiKey: '' },
+      } as never)
+      try {
+        expect(await offersMailingList(region.city)).toBe(false)
+      } finally {
+        await payload.delete({ collection: 'clients', id: halfConfigured.id, overrideAccess: true })
+      }
+    })
+
     it('answers a client selecting only the flag, and skips list reads', async () => {
       const stateList = await listClient('State List 2', region.state, 'state-list-2')
       try {

@@ -820,6 +820,23 @@ describe('Clients access', () => {
       )
     })
 
+    // The key dropped `required` with the input: a field the form cannot show
+    // would otherwise refuse the save with an error nobody can act on.
+    it('lets a service switch its list on before it has a key', async () => {
+      const service = await testData.createClient(payload, listedManager.id, {
+        label: 'No Key Yet Service',
+        roles: ['sahaj-atlas-client'],
+        managers: [listedManager.id],
+        primaryContact: listedManager.id,
+        mailingList: { enabled: true, provider: 'brevo', listId: 'list-1' },
+      } as never)
+
+      const stored = await deliveryRead(service.id)
+      expect(stored.mailingList?.enabled).toBe(true)
+      expect(stored.mailingList?.apiKey ?? null).toBeNull()
+      expect(verifyCredentials).not.toHaveBeenCalled()
+    })
+
     it('spends no provider call on a save that changes no credential', async () => {
       await payload.update({
         collection: 'clients',
