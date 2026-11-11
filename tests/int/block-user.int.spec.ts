@@ -9,11 +9,13 @@
  */
 import type { Payload } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { DeliverSubmissions } from '@/jobs/DeliverSubmissions/DeliverSubmissions'
 import type { Manager, User, UserSubmission } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
+import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -189,6 +191,39 @@ describe('Blocking a sender', () => {
       expect(body.blockedReason).toBeNull()
       const user = await payload.findByID({ collection: 'users', id: sender.id })
       expect(user.blockedReason).toBeFalsy()
+    })
+
+    it('keeps a block that lands while the submission is being delivered', async () => {
+      // The interleave: delivery reads the row, spends seconds sending, then
+      // writes its status. A block landing in that window used to be put back
+      // to `accepted` — and the block's own log entry overwritten with it.
+      const sender = await createSender('blocked-mid-send@example.com')
+      const pending = await createSubmission(sender, 'pending', 'In flight.')
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockImplementation(async () => {
+        await adminRest(`/api/users/${sender.id}/block`, {
+          method: 'POST',
+          json: { blocked: true, reason: 'Caught mid-send.' },
+        })
+        return {} as never
+      })
+      onTestFinished(() => sendEmail.mockRestore())
+
+      await runTaskHandler(DeliverSubmissions, {
+        payload,
+        input: { submissionId: pending.id },
+      })
+
+      const row = await reload(pending.id)
+      // The block is the newer answer, and the delivery really did happen.
+      expect(row.status).toBe('spam')
+      expect(row.screeningResult?.verdict).toBe('blocked_sender')
+      expect(row.activityLog).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'block' }),
+          expect.objectContaining({ type: 'delivery', ok: true }),
+        ]),
+      )
     })
 
     it('answers 404 for a Registrant that does not exist', async () => {

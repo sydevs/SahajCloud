@@ -489,6 +489,8 @@ exactly that reason.
 
 Use `logField` (`src/fields/logField.ts`) for a manager-readable record of what happened to a document. Its JSDoc, the `LogEntry` type, and `src/components/admin/LogTable/LogTable.tsx` own the conventions — read them before you add a writer.
 
+⚠ **A writer appends through `appendLogEntry` (`@/lib/atomicWrites/appendLogEntry`), never by writing the column.** Rebuilding the array from a copy read earlier drops whatever another writer added since, which for a reminder ledger is a reminder sent twice (#1116). The helper merges and trims in one statement, and there is no in-memory append left to reach for.
+
 ## Plugins
 
 ### Form Builder (`@payloadcms/plugin-form-builder`)

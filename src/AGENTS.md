@@ -177,6 +177,12 @@ No loose files at the root — every file lives in a named folder:
   transcription task and the transcript seed alike. The HTTP client stays in
   `jobs/TranscribeMeditation/lemonfox/`, which has one consumer until
   sydevs/SahajCloud#1016's subtitles endpoint becomes its second
+- `atomicWrites/` — the two writes a background worker owes a row it read
+  before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
+  into the write's own `where`; `appendLogEntry` adds one `activityLog` entry
+  with `jsonb ||`, on the caller's own connection, so two writers keep each
+  other's entries. Both are deliberately free of lifecycle vocabulary. No
+  barrel: import each module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,

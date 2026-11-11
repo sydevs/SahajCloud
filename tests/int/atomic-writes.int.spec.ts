@@ -114,6 +114,7 @@ describe('atomic writes', () => {
       await seedLog(id, [])
 
       const transactionID = await payload.db.beginTransaction()
+      if (transactionID === null) throw new Error('the adapter opened no transaction')
       await appendLogEntry({
         payload,
         collection: 'events',
