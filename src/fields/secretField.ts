@@ -7,7 +7,6 @@ export interface SecretFieldOptions {
   label?: string
   /** The lock on `create` and `update`. `read` is closed to everyone. */
   writeAccess: FieldAccess
-  admin?: { description?: string }
 }
 
 /**
@@ -23,10 +22,12 @@ export interface SecretFieldOptions {
  * the feature stops rather than the CMS.
  *
  * The admin control belongs to the caller — a credential is proven against its
- * own provider before it is stored, which this factory knows nothing about.
+ * own provider before it is stored, which this factory knows nothing about. It
+ * takes no `admin.description` for the same reason it takes no control:
+ * `admin.disabled` means nothing here is ever rendered to read.
  */
 export function secretField(options: SecretFieldOptions): Field {
-  const { name, label, writeAccess, admin } = options
+  const { name, label, writeAccess } = options
 
   return {
     name,
@@ -35,7 +36,7 @@ export function secretField(options: SecretFieldOptions): Field {
     access: { read: () => false, create: writeAccess, update: writeAccess },
     // Keeps the value out of the edit form's state, so live preview cannot post
     // it to a preview frame and a form save cannot write an older copy back.
-    admin: { disabled: true, ...(admin?.description ? { description: admin.description } : {}) },
+    admin: { disabled: true },
     hooks: { afterRead: [decryptSecret(name)], beforeChange: [encryptSecret] },
   }
 }

@@ -382,7 +382,7 @@ const mailingListGroup: Field = {
       admin: {
         condition: (data) => providerShows(data, 'clientId'),
         description:
-          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.',
+          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and paste its Client Secret with Set key below.',
       },
     },
     {
@@ -409,15 +409,7 @@ const mailingListGroup: Field = {
         components: { Field: '@/components/admin/MailingListKey/MailingListKeyField' },
       },
     },
-    secretField({
-      name: 'apiKey',
-      label: 'API Key',
-      writeAccess: managersOnlyFieldAccess,
-      admin: {
-        description:
-          'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
-      },
-    }),
+    secretField({ name: 'apiKey', label: 'API Key', writeAccess: managersOnlyFieldAccess }),
     {
       name: 'doubleOptIn',
       type: 'checkbox',

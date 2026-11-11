@@ -148,6 +148,11 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
         {`We check this key against ${providerLabel} list ${listId} before storing it. ` +
           'Saving it saves this mailing list’s settings too, and switches the list on.'}
       </p>
+      <p>
+        {provider === 'cleverreach'
+          ? 'Paste your CleverReach app’s Client Secret. It is stored encrypted and never sent to your website.'
+          : 'It is stored encrypted and never sent to your website.'}
+      </p>
       <TextInput
         htmlAttributes={{ autoComplete: 'off' }}
         label="API Key"
