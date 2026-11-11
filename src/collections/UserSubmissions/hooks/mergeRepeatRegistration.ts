@@ -3,6 +3,7 @@ import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 import type { LogEntry } from '@/fields'
 import { appendLogEntry, asLog } from '@/fields'
 import { isActiveRegistration } from '@/lib/registrations/active'
+import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
@@ -90,7 +91,7 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
   const submittedVia = (data.client ?? null) as number | null
   const entry: LogEntry = {
     at: now,
-    type: 'registration-update',
+    type: REGISTRATION_UPDATE_LOG_TYPE,
     key: now,
     cells: {
       activity: {

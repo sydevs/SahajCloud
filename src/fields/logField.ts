@@ -112,6 +112,22 @@ export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean
 }
 
 /**
+ * Has anything of this kind been logged? The question {@link hasLogEntry}
+ * cannot answer, because it matches `type` **and** `key` together.
+ *
+ * A writer that keys an entry on its own timestamp — so that every occurrence
+ * is its own line — leaves no key a later reader could name. `mergeRepeatRegistration`
+ * is one, and the manager's registration notice is worded from this.
+ *
+ * ⚠ **The answer is capped**, because {@link appendLogEntry} drops the oldest
+ * entry past `limit`. Read it where the entry is recent, never as a permanent
+ * fact about the row. A column is what outlives the window.
+ */
+export function hasLogEntryType(log: LogEntry[], type: string): boolean {
+  return log.some((entry) => entry.type === type)
+}
+
+/**
  * One cell. Mirrors {@link LogCell}.
  */
 const logCellSchema = z.union([

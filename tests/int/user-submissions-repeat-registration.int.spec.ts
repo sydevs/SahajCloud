@@ -67,6 +67,8 @@ describe('a repeat registration updates the existing one', () => {
     event: number
     name: string
     startingAt?: string
+    /** Ticks the mailing-list box, as the widget's own opt-in does. */
+    subscribe?: boolean
   }) =>
     payload.create({
       collection: 'user-submissions',
@@ -75,7 +77,10 @@ describe('a repeat registration updates the existing one', () => {
         event: args.event,
         senderEmail: args.email,
         startingAt: args.startingAt,
-        submissionData: [{ field: 'name', value: args.name }],
+        submissionData: [
+          { field: 'name', value: args.name },
+          ...(args.subscribe ? [{ field: 'subscribe', value: 'yes' }] : []),
+        ],
       } as never,
       overrideAccess: false,
       req: clientReq(args.as),
@@ -89,16 +94,19 @@ describe('a repeat registration updates the existing one', () => {
       overrideAccess: true,
     })
 
-  const registrationsOf = async (eventId: number) =>
+  const rowsOf = async (type: UserSubmission['type'], eventId: number) =>
     (
       await payload.find({
         collection: 'user-submissions',
-        where: { and: [{ type: { equals: 'registration' } }, { event: { equals: eventId } }] },
+        where: { and: [{ type: { equals: type } }, { event: { equals: eventId } }] },
         depth: 0,
         pagination: false,
         overrideAccess: true,
       })
     ).docs
+
+  const registrationsOf = (eventId: number) => rowsOf('registration', eventId)
+  const consentRowsOf = (eventId: number) => rowsOf('subscribe', eventId)
 
   const createEvent = async (overrides: Record<string, unknown> = {}): Promise<Event> => {
     const event = await testData.createEvent(payload, {
@@ -445,5 +453,70 @@ describe('a repeat registration updates the existing one', () => {
     })
 
     expect(await registrationsOf(event.id)).toHaveLength(2)
+  })
+
+  /**
+   * A repeat signup is a **create** — the merge above folds it in and then
+   * deletes the new row — so `spawnSubscribeFromRegistration` fires on every
+   * one of them. Without a dedupe the consent rows accumulate, each with its
+   * own status and delivery, and the provider is asked to subscribe the same
+   * address once per signup.
+   */
+  describe('the mailing-list opt-in', () => {
+    it('leaves one consent row however many times the registrant signs up', async () => {
+      const event = await createEvent()
+      const address = email()
+
+      await register({ event: event.id, email: address, name: 'Ann', subscribe: true })
+      await register({ event: event.id, email: address, name: 'Ann Smith', subscribe: true })
+      await register({ event: event.id, email: address, name: 'Ann Smyth', subscribe: true })
+
+      expect(await registrationsOf(event.id)).toHaveLength(1)
+      expect(await consentRowsOf(event.id)).toHaveLength(1)
+    })
+
+    /**
+     * Every status counts. Each is an answer about this person's consent, and
+     * a second row would neither deliver what the first could not nor
+     * overturn a refusal (#1099, decision 2A).
+     *
+     * The hook's `where` names no status at all, so these four are one code
+     * path. The list is the decision, pinned so narrowing it later has to be
+     * deliberate.
+     */
+    it.each(['failed', 'rejected', 'spam', 'accepted'] as const)(
+      'does not spawn a second one beside a consent row at %s',
+      async (status) => {
+        const event = await createEvent()
+        const address = email()
+
+        await register({ event: event.id, email: address, name: 'Ann', subscribe: true })
+        const [held] = (await consentRowsOf(event.id)) as UserSubmission[]
+        await setStatus(held!.id, status)
+
+        await register({ event: event.id, email: address, name: 'Ann Smith', subscribe: true })
+
+        const rows = (await consentRowsOf(event.id)) as UserSubmission[]
+        expect(rows).toHaveLength(1)
+        expect(rows[0]!.id).toBe(held!.id)
+        expect(rows[0]!.status).toBe(status)
+      },
+    )
+
+    /**
+     * The key is `(user, event)`, so a consent row the registrant holds for
+     * another event — or for no event at all, which a list signup of their own
+     * is — says nothing about this one.
+     */
+    it('spawns one per event the registrant signs up for', async () => {
+      const [one, two] = [await createEvent(), await createEvent()]
+      const address = email()
+
+      await register({ event: one.id, email: address, name: 'Ann', subscribe: true })
+      await register({ event: two.id, email: address, name: 'Ann', subscribe: true })
+
+      expect(await consentRowsOf(one.id)).toHaveLength(1)
+      expect(await consentRowsOf(two.id)).toHaveLength(1)
+    })
   })
 })

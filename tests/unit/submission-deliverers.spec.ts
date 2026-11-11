@@ -9,6 +9,7 @@ vi.mock('@/lib/env/deploymentEnvironment', () => ({ deploymentEnvironment: () =>
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'
 import { DELIVERERS } from '@/jobs/DeliverSubmissions/deliverers'
+import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
 import type { UserSubmission } from '@/payload-types'
 
 import { stubEmailPayload } from '../utils/sendEmailStub'
@@ -68,6 +69,101 @@ describe('deliveredStatus', () => {
       expect(DELIVERERS[type].deliveredStatus).toBe('accepted')
     },
   )
+})
+
+/**
+ * The manager notice's wording, decided from the row's own activity log.
+ *
+ * ⚠ **The fixture event carries `registrationNotificationEmail`**, so
+ * `resolveRegistrationRecipient` takes the override-address branch and never
+ * reads a manager — the one routing shape reachable with no `managers` row to
+ * stub. Verified against `src/collections/Events/Events.ts`, which declares
+ * that address beside its `Immediate` cadence.
+ *
+ * The registrant's confirmation goes out first, so the manager's notice is the
+ * last send.
+ */
+describe('deliverRegistration', () => {
+  const EVENT = {
+    id: 42,
+    title: 'Tuesday Evening Meditation',
+    eventType: 'offline',
+    registrationNotificationEmail: 'events-team@example.org',
+    registrationNotificationFrequency: 'Immediate',
+    schedule: { firstDate: '2027-01-06T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+  }
+
+  const deliver = async (activityLog: unknown[]) => {
+    const { payload, sendEmail } = stubEmailPayload()
+    const req = {
+      payload: Object.assign(payload, { findByID: async () => EVENT }),
+    }
+
+    const outcome = await DELIVERERS.registration.deliver({
+      req: req as never,
+      submission: {
+        id: 7,
+        type: 'registration',
+        senderEmail: 'sam@example.com',
+        event: EVENT.id,
+        uuid: 'f0e1d2c3-b4a5-4968-8778-695a4b3c2d1e',
+        startingAt: '2027-01-13T10:00:00.000Z',
+        submissionData: [{ field: 'name', value: 'Sam Seeker' }],
+        activityLog,
+      } as unknown as UserSubmission,
+    })
+
+    expect(outcome).toMatchObject({ ok: true })
+    const managerMessage = sendEmail.mock.calls.at(-1)![0]
+    expect(managerMessage.to).toBe(EVENT.registrationNotificationEmail)
+    return managerMessage
+  }
+
+  it('words a first signup as a new registration', async () => {
+    const { subject, html } = await deliver([])
+
+    expect(subject).toBe('New registration: Tuesday Evening Meditation')
+    expect(html).toContain('New event registration')
+  })
+
+  /**
+   * The discriminator is the entry `mergeRepeatRegistration` appends when it
+   * folds a repeat signup into the row the sender already held. The merge also
+   * puts that row back to `pending`, which is what re-queues this delivery.
+   */
+  it('words a repeat signup as an update', async () => {
+    const { subject, html } = await deliver([
+      {
+        at: '2026-11-10T09:00:00.000Z',
+        type: REGISTRATION_UPDATE_LOG_TYPE,
+        key: '2026-11-10T09:00:00.000Z',
+        cells: { activity: { text: 'Registered again — details updated' } },
+      },
+    ])
+
+    expect(subject).toBe('Updated registration: Tuesday Evening Meditation')
+    expect(html).toContain('Updated event registration')
+  })
+
+  /**
+   * ⚠ **A `delivery` entry is not an update.** `DeliverSubmissions` logs one
+   * per attempt, failures included, so a retried first registration carries
+   * one — and reading "has this been delivered" rather than "has this been
+   * merged" would announce a brand-new signup as an update.
+   */
+  it('words a retried first signup as a new registration', async () => {
+    const { subject } = await deliver([
+      {
+        at: '2026-11-10T09:00:00.000Z',
+        type: 'delivery',
+        key: '2026-11-10T09:00:00.000Z',
+        ok: false,
+        cells: { activity: { text: 'Delivery failed: smtp timeout' } },
+      },
+    ])
+
+    expect(subject).toBe('New registration: Tuesday Evening Meditation')
+  })
 })
 
 /**
