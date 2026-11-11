@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { humanDurationSince } from '@/lib/notifications/eventDetails'
+import { formatShortDate, humanDurationSince } from '@/lib/notifications/eventDetails'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { mayReadManagerContacts } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
@@ -14,7 +14,7 @@ export type ManagerContactRow = {
   name: string
   email: string
   /**
-   * One line, `2026/11/10 - 3 weeks ago`, formatted here because only the
+   * One line, `10 Nov 2026 - 3 weeks ago`, formatted here because only the
    * server knows what "now" is for the read. `stale` once it is long ago.
    */
   lastSignIn: { text: string; stale: boolean } | null
@@ -72,18 +72,13 @@ function idsOf(value: unknown): number[] {
  */
 export const STALE_SIGN_IN_MONTHS = 6
 
-/** `2026/11/10`, the UTC day — one compact, unambiguous spelling in every locale. */
-function signInDay(iso: string): string {
-  return iso.slice(0, 10).replaceAll('-', '/')
-}
-
 function lastSignIn(iso: null | string | undefined, now: Date): ManagerContactRow['lastSignIn'] {
   if (!iso) return null
   const since = humanDurationSince(iso, now)
   const staleBefore = new Date(now)
   staleBefore.setUTCMonth(staleBefore.getUTCMonth() - STALE_SIGN_IN_MONTHS)
   return {
-    text: `${signInDay(iso)} - ${since ? `${since} ago` : 'just now'}`,
+    text: `${formatShortDate(iso)} - ${since ? `${since} ago` : 'just now'}`,
     stale: new Date(iso) < staleBefore,
   }
 }

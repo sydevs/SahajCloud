@@ -206,8 +206,16 @@ describe('Manager contacts (#908)', () => {
 
       const rows = await tableFor(regionManager, 'regions', regionId, now)
       const byName = Object.fromEntries(rows!.map((row) => [row.name, row.lastSignIn]))
+      // Spelled out rather than taken from `formatShortDate`, so the day the
+      // table shows is pinned against the formatter rather than by it.
+      const day = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'UTC',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(signedIn))
       expect(byName['Co Manager']).toEqual({
-        text: `${signedIn.slice(0, 10).replaceAll('-', '/')} - 3 weeks ago`,
+        text: `${day} - 3 weeks ago`,
         stale: false,
       })
       expect(byName['Region Manager']).toBeNull()
