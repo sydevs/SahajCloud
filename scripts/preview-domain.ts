@@ -44,8 +44,14 @@ import { sweepTargets, type PreviewDomain, type PullRequestState } from './previ
 const WORKER_NAME = process.env.PREVIEW_WORKER_NAME || 'sahajcloud-preview-proxy'
 /** A PR reopened within the day keeps its address, and its certificate. */
 const SWEEP_GRACE_MS = 24 * 60 * 60_000
-/** How long to wait for a fresh Custom Domain's certificate, and how often to look. */
-const REACHABLE_TIMEOUT_MS = 3 * 60_000
+/**
+ * How long to wait for a fresh Custom Domain's certificate, and how often to look.
+ *
+ * ⚠ The old 3-minute bound sat on top of the real provisioning time: two first
+ * attaches minutes apart answered at 2m32s and past 3m, so the second failed CI
+ * (#1129). A generous bound costs nothing — the loop returns on the first answer.
+ */
+const REACHABLE_TIMEOUT_MS = 10 * 60_000
 const REACHABLE_POLL_MS = 10_000
 
 /**
@@ -79,8 +85,11 @@ async function waitReachable(hostname: string): Promise<void> {
     }
     await sleep(REACHABLE_POLL_MS)
   }
+  // ⚠ Titled `infrastructure-failure` because the sydevs dispatcher matches an error
+  // annotation's TITLE, and re-runs such a job instead of dispatching a session to
+  // repair it. Neither cause below is repairable from a PR's branch (#1129).
   console.error(
-    `::error title=Preview address never answered::https://${hostname} was attached but did ` +
+    `::error title=infrastructure-failure::https://${hostname} was attached but did ` +
       `not answer within ${REACHABLE_TIMEOUT_MS / 60_000} minutes (${last}). Its edge ` +
       `certificate may still be provisioning, or the Worker is not deployed.`,
   )
