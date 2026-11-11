@@ -64,6 +64,10 @@ counted in `skippedReferenced` and logged with its collection and id. Age
 alone used to be the whole test, which deleted an item hand-trashed while a
 page still showed it (#1118).
 
+⚠ **`skippedReferenced` counts what Phase A read, not the backlog.** The loop
+stops once it has `wanted` deletable rows, so rows past that point go uncounted
+until a later run reaches them.
+
 ⚠ **Phase A pages past those rows rather than filtering one page.** A
 referenced row stays expired, so it is read again on every later run and holds
 its place for good; a page's worth of them would starve every delete behind

@@ -75,6 +75,12 @@ type CleanupResult = {
   trashedFiles: number
   trashedImages: number
   skippedImages: number
+  /**
+   * Expired trash Phase A kept because something still points at it, among the
+   * rows it read while filling its delete budget — not the backlog. The paging
+   * loop stops once it has `wanted` deletable rows, so what sits past that
+   * point is never read, and a later run counts it instead.
+   */
   skippedReferenced: number
   errors: number
 }
@@ -152,6 +158,10 @@ export const CleanupOrphanedMedia: TaskConfig<'cleanupOrphanedMedia'> = {
       name: 'skippedReferenced',
       type: 'number',
       required: true,
+      admin: {
+        description:
+          'Expired trash kept because something still references it, among the rows Phase A read while filling its delete budget. Not a backlog total.',
+      },
     },
     {
       name: 'errors',
@@ -449,7 +459,8 @@ async function permanentlyDeleteTrashedItems(
 
 /**
  * Expired trash Phase A may delete: what nothing points at any more. Counts and
- * names what it holds back, under `dryRun` too, so an operator sees it first.
+ * names what it holds back along the way, under `dryRun` too, so an operator
+ * sees it first. That count is what this loop read, never the whole backlog.
  *
  * ⚠ Pages past the referenced rows rather than filtering one page, for the
  * reason Phase B gives below. A referenced row stays expired, so it is read
