@@ -150,6 +150,16 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
   })
 
   describe('per-type creates', () => {
+    /** The consent rows an event's registrations spawned. */
+    const consentRowsFor = async (eventId: number) =>
+      (
+        await payload.find({
+          collection: 'user-submissions',
+          where: { type: { equals: 'subscribe' }, event: { equals: eventId } },
+          depth: 0,
+        })
+      ).docs
+
     it('accepts a contact submission and returns its uuid', async () => {
       const doc = await send({
         type: 'contact',
@@ -220,14 +230,39 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
         submissionData: [{ field: 'subscribe', value: 'yes' }],
       })
 
-      const { docs } = await payload.find({
-        collection: 'user-submissions',
-        where: { type: { equals: 'subscribe' }, event: { equals: event.id } },
-        depth: 0,
-      })
+      const docs = await consentRowsFor(event.id)
       expect(docs).toHaveLength(1)
       expect(docs[0]!.user).toBe(typeof doc.user === 'object' ? doc.user?.id : doc.user)
       expect(docs[0]!.senderEmail).toBe('opt.in@example.com')
+    })
+
+    /**
+     * The spawn is deduped on `(user, event)` (#1099), and a list signup of the
+     * registrant's own carries a form and no event — so a dedupe keyed on the
+     * person alone would read that row as this event's consent and record
+     * nothing.
+     */
+    it('spawns the opt-in row though the registrant already consented with no event', async () => {
+      const address = 'already.subscribed@example.com'
+      const held = await send({
+        type: 'subscribe',
+        form: subscribeForm.id,
+        senderEmail: address,
+      })
+      expect(held.event).toBeFalsy()
+
+      const event = await publishedEvent()
+      await send({
+        type: 'registration',
+        event: event.id,
+        senderEmail: address,
+        startingAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        submissionData: [{ field: 'subscribe', value: 'yes' }],
+      })
+
+      const docs = await consentRowsFor(event.id)
+      expect(docs).toHaveLength(1)
+      expect(docs[0]!.id).not.toBe(held.id)
     })
 
     it('gates the proposed patch against the live Events config', async () => {

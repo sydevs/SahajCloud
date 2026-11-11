@@ -1,12 +1,14 @@
 import type { CollectionAfterChangeHook } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
+import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { parseOptIn, readSubmissionValue, SUBSCRIBE_OPT_IN } from '../submissionData'
 
 /**
  * afterChange (create): a registration whose registrant ticked the mailing-list
- * box spawns a linked subscribe-type row, in the same request.
+ * box spawns a linked subscribe-type row, in the same request — one per
+ * `(user, event)`, however many times that registrant signs up.
  *
  * **This replaces the `mailingListSubscribedAt` timestamp**, and the difference
  * is the whole point: a timestamp recorded that somebody had consented and
@@ -52,28 +54,76 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   const userId = relationId(data.user)
   if (userId == null) return doc
 
-  // ⚠ Read here, not off `doc.senderEmail`: that virtual resolves under the
-  // caller's access, and a client cannot read `users`, so on every real create
-  // it is absent. `req` because the user row was upserted in this transaction.
-  const sender = await req.payload.findByID({
-    collection: 'users',
-    id: userId,
-    select: { email: true },
-    depth: 0,
-    overrideAccess: true,
-    disableErrors: true,
-    req,
-  })
-  const senderEmail = sender?.email?.trim() ?? ''
-  if (!senderEmail) return doc
+  const eventId = relationId(data.event)
 
+  // ⚠ **Every read below is inside the `try`, not just the create.** This hook
+  // runs in the registration's own transaction, so anything thrown here rolls
+  // that registration back — and the docblock's promise is the opposite: the
+  // registrant is registered by now, and a consent row that could not be
+  // recorded must not undo that. A statement timeout on the existence check is
+  // as capable of throwing as the create is.
   try {
+    // ⚠ **One consent row per `(user, event)`.** A repeat signup is a create —
+    // `mergeRepeatRegistration` folds it in and then deletes the new row — so
+    // this hook fires again on every signup, and without the check the
+    // provider is asked to subscribe the same address once per attempt.
+    //
+    // Any status counts, `failed`, `rejected` and `spam` included: each is an
+    // answer about this person's consent, and a second row would neither
+    // deliver what the first could not nor overturn a refusal.
+    //
+    // Above the `users` read, which a repeat signup then never pays for. Both
+    // inputs come from `data`, so nothing sequences it after that read.
+    //
+    // shortcut: check-then-create, so two signups landing together can still
+    // leave two rows. Turnstile's single-use token closes most of the window.
+    // Upgrade to a partial unique index — this pair is nullable and the other
+    // intakes must stay duplicable — once duplicates are worth a migration.
+    const { docs: held } = await req.payload.find({
+      collection: 'user-submissions',
+      where: {
+        and: [
+          { type: { equals: 'subscribe' } },
+          { user: { equals: userId } },
+          { event: { equals: eventId } },
+        ],
+      },
+      limit: 1,
+      // `pagination: false` so drizzle skips the `COUNT(DISTINCT …)` it
+      // otherwise runs beside every `find` — a second statement, inside the
+      // create's own open transaction, for a total this discards.
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+      // Ours, not the caller's: `validateClientQueryParamsHook` is a
+      // `beforeOperation` hook, so `overrideAccess` does not reach it and a
+      // client read naming no `select` answers 400.
+      req: asTrustedReq(req),
+    })
+    if (held.length > 0) return doc
+
+    // ⚠ Read here, not off `doc.senderEmail`: that virtual resolves under the
+    // caller's access, and a client cannot read `users`, so on every real
+    // create it is absent. `req` because the user row was upserted in this
+    // transaction.
+    const sender = await req.payload.findByID({
+      collection: 'users',
+      id: userId,
+      select: { email: true },
+      depth: 0,
+      overrideAccess: true,
+      disableErrors: true,
+      req,
+    })
+    const senderEmail = sender?.email?.trim() ?? ''
+    if (!senderEmail) return doc
+
     await req.payload.create({
       collection: 'user-submissions',
       data: {
         type: 'subscribe',
         senderEmail,
-        event: relationId(data.event),
+        event: eventId,
         user: userId,
         client: relationId(data.client),
         status: 'pending',
