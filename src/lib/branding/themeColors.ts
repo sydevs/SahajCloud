@@ -251,21 +251,33 @@ export function getBrandColors(project: ProjectSlug): BrandColors {
 }
 
 /**
- * Black or white, whichever can be read on EVERY one of these colours.
+ * Black or white for text on a brand gradient, read from the stop that paints.
  *
- * A brand gradient is read across both its stops, so the text has to clear the
- * worse of them: a pale yellow primary with a paler light stop takes black, and
- * our own teal takes white. Scored by WCAG contrast, taking the minimum over the
- * colours given, so adding a stop can only narrow the answer.
+ * `painted` is the first stop and the only one guaranteed to be there: Outlook's
+ * Word engine drops `background-image` and leaves the `background-color` under
+ * it, so that stop is the whole surface for those readers. `rest` is the
+ * gradient's remaining stops, which every other client renders.
+ *
+ * Both colours legible over every stop → `painted` decides, since it is the one
+ * surface certain to exist. Otherwise the worst stop decides, so a pale second
+ * stop still takes black off a dark primary that would rather have white — the
+ * answer a reader of the gradient needs, and one no solid fill would give.
  *
  * ⚠ **The brand colour itself never moves.** A service's colours are what they
  * chose; only the text on them changes, so an unreadable choice costs legibility
  * nowhere else.
  */
-export function readableTextOn(colors: string[]): '#000000' | '#ffffff' {
-  const against = (text: string) => Math.min(...colors.map((color) => contrastRatio(text, color)))
+export function readableTextOn(painted: string, ...rest: string[]): '#000000' | '#ffffff' {
+  const stops = [painted, ...rest]
+  const over = (text: string, colors: string[]) =>
+    Math.min(...colors.map((color) => contrastRatio(text, color)))
 
-  return against('#000000') >= against('#ffffff') ? '#000000' : '#ffffff'
+  // WCAG AA for large text, the floor shared by both sinks: a 24px heading reads
+  // at it, and a bold button label is the lower bound of what does.
+  const legible = (text: string) => over(text, stops) >= 3
+  const decisive = legible('#000000') && legible('#ffffff') ? [painted] : stops
+
+  return over('#000000', decisive) >= over('#ffffff', decisive) ? '#000000' : '#ffffff'
 }
 
 /** WCAG 2.x contrast ratio between two `#RRGGBB` colours. */

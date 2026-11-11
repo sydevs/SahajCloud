@@ -22,6 +22,7 @@ import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
+import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 const INVITE_URL = 'https://cloud.test/admin/login?token=TKN-123'
@@ -663,6 +664,16 @@ describe('text on a brand gradient', () => {
     expect(brandTextColor({ dark: '#0d3b3e', light: '#2f7f84', primary: '#1E6C71' })).toBe(
       '#ffffff',
     )
+  })
+
+  it('takes the colour that reads where Outlook drops the gradient', () => {
+    // ⚠ Both sites set `primary` as `backgroundColor` beneath the gradient's
+    // `backgroundImage`, and Outlook desktop paints only the first. So a
+    // service on the atlas defaults must get the colour that reads on
+    // `#1E6C71` alone, not the one the unpainted light stop would pick.
+    expect(
+      brandTextColor({ dark: '#0d3b3e', light: ATLAS_DEFAULT_COLORS.color2, primary: ATLAS_DEFAULT_COLORS.color1 }),
+    ).toBe('#ffffff')
   })
 
   it('is what the header title and the filled button are painted with', async () => {

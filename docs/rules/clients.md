@@ -44,8 +44,9 @@ other field.
 - **The sample registrant email** beside the logo and support address renders through the real
   template at `POST /api/clients/:id/email-preview`, from unsaved form values, so the one message
   a service's branding reaches is visible beside the fields that decide it. Email text is black or
-  white by whichever reads on **both** gradient stops (`readableTextOn`); the brand colours
-  themselves are never changed.
+  white by `readableTextOn`: **`color1` decides** wherever both read across the gradient, because
+  Outlook drops the `background-image` and paints that stop alone — and the worse stop decides
+  where one of them is illegible there. The brand colours themselves are never changed.
 
 ## Where the atlas lives — `site` (one domain, one page)
 

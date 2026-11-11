@@ -39,13 +39,16 @@ export const brandGradient = (colors: BrandColors): string =>
 /**
  * The text colour the header title and a filled button take on that gradient.
  *
- * Both stops, because the gradient runs between them and the text crosses both:
- * white over a pale yellow brand is unreadable at the light end even where it
- * clears the dark one. A service's colours are never changed for this — only the
- * text on them.
+ * ⚠ **`primary` is passed first because it is the only stop that always
+ * paints.** Both sites set it as `backgroundColor` under the gradient's
+ * `backgroundImage`, and Outlook desktop drops the image — so a text colour
+ * chosen by the light stop alone is chosen by a surface those readers never
+ * see. `readableTextOn` lets `primary` decide wherever both colours stay
+ * legible across the gradient, and falls back to the worse stop where they do
+ * not. A service's colours are never changed for this — only the text on them.
  */
 export const brandTextColor = (colors: BrandColors): string =>
-  readableTextOn([colors.primary, colors.light])
+  readableTextOn(colors.primary, colors.light)
 
 /**
  * Neutral, non-brand structural styles shared across templates. Brand colors
