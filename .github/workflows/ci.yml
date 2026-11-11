@@ -19,7 +19,11 @@ jobs:
   test:
     name: Lint, Test & Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Covers the unit and integration lanes plus the preview steps after them,
+    # whose longest wait is `REACHABLE_TIMEOUT_MS` in scripts/preview-domain.ts.
+    # Raise this with that bound, or a slow certificate ends the job here instead
+    # of at the error naming it.
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:18
