@@ -127,6 +127,9 @@ export const mailingListKey: Endpoint = {
     try {
       await req.payload.update({
         collection: 'clients',
+        // ⚠ `enabled: true` is load-bearing — `validateMailingList` returns
+        // early without it, so the key would be stored unproven. It commits the
+        // form's unsaved settings along with it, which the drawer says.
         data: { mailingList: { ...parsed.data, enabled: true } },
         id: gate.client.id,
         overrideAccess: false,

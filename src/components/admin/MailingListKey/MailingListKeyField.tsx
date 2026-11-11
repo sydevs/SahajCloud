@@ -144,7 +144,10 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
 
   return (
     <div>
-      <p>{`We check this key against ${providerLabel} list ${listId} before storing it.`}</p>
+      <p>
+        {`We check this key against ${providerLabel} list ${listId} before storing it. ` +
+          'Saving it saves this mailing list’s settings too, and switches the list on.'}
+      </p>
       <TextInput
         htmlAttributes={{ autoComplete: 'off' }}
         label="API Key"
