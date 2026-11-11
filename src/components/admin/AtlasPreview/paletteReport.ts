@@ -68,7 +68,14 @@ const handleMessage = (event: MessageEvent): void => {
   const listening = [...subscriptions].filter((entry) => entry.origin === event.origin)
   if (listening.length === 0) return
 
-  const report = (event.data.roles ?? {}) as PaletteReport
+  // The shape crosses a window boundary, so it is narrowed rather than cast: a
+  // role whose `adjustedBy` is not an array would throw inside a picker's render
+  // and take the whole field down with it.
+  const report = Object.fromEntries(
+    Object.entries((event.data.roles ?? {}) as Record<string, RoleReport>).filter(
+      ([, role]) => Array.isArray(role?.adjustedBy) && typeof role?.light === 'string',
+    ),
+  ) as PaletteReport
 
   cached = { document: listening[0]!.document, report }
   listening.forEach((entry) => entry.cb(report))

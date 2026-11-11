@@ -79,6 +79,29 @@ describe('the palette report', () => {
     expect(getCachedPaletteReport(8)).toEqual({})
   })
 
+  it('drops a role whose shape would throw inside a picker', () => {
+    const cb = listen(ATLAS, 9)
+
+    post(ATLAS, {
+      contrast: {
+        adjustedBy: ['surface'],
+        dark: '#111',
+        entered: null,
+        light: '#222',
+        suggested: null,
+      },
+      primary: {
+        adjustedBy: 'surface',
+        dark: '#aa0',
+        entered: null,
+        light: '#990',
+        suggested: null,
+      },
+    } as unknown as PaletteReport)
+
+    expect(Object.keys(cb.mock.calls[0]![0] as PaletteReport)).toEqual(['contrast'])
+  })
+
   it('maps each stored colour to the role the widget reports under', () => {
     // `BrandTheme` reads `color1`/`color2`/`color3` as these three, so a note
     // shown under the wrong picker would be worse than no note at all.
