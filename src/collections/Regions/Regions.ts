@@ -2,13 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 
-import {
-  hideUntilCreated,
-  legacyMigrationFields,
-  managerContactsField,
-  publicUrlFields,
-  slugField,
-} from '@/fields'
+import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
@@ -237,9 +231,16 @@ export const Regions: CollectionConfig = {
               access: { update: regionManagersFieldAccess },
               admin: {
                 description: 'Managers responsible for this region.',
+                // The description, then their contact details for admins and
+                // the managers of this region and those above — gated inside
+                // the component (#908). ⚠ The empty `afterInput` is what makes
+                // Payload re-render the field's components on every form-state
+                // request (`renderField`'s `hasBeforeOrAfterInput`), so the
+                // table follows a save instead of showing the managers it
+                // loaded with.
+                components: { Description: '@/components/admin/ManagerContacts', afterInput: [] },
               },
             },
-            managerContactsField(),
             {
               name: 'mapboxId',
               type: 'text',

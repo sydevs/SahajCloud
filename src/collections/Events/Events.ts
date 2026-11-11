@@ -18,7 +18,6 @@ import {
   hideUntilCreated,
   legacyMigrationFields,
   logField,
-  managerContactsField,
   publicUrlFields,
   scheduleFields,
   systemMetaField,
@@ -71,6 +70,7 @@ import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
+const MANAGER_CONTACTS = '@/components/admin/ManagerContacts'
 
 /** Bound for the free-text contact fields. Matches the address fields' limit. */
 const CONTACT_TEXT_MAX = 100
@@ -644,9 +644,13 @@ export const Events: CollectionConfig = {
               admin: {
                 description:
                   'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+                // The description, then their contact details for admins and
+                // the managers above — gated inside the component (#908). ⚠ The
+                // empty `afterInput` keeps the table current after a save, as
+                // on `Regions.managers`.
+                components: { Description: MANAGER_CONTACTS, afterInput: [] },
               },
             },
-            managerContactsField(),
             {
               name: 'verificationStage',
               label: 'Verification Process',

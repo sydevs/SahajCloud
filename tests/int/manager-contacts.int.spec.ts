@@ -17,7 +17,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createLocalReq, docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { loadManagerContacts } from '@/components/admin/ManagerContacts/data'
+import { loadManagerContacts, STALE_SIGN_IN_MONTHS } from '@/components/admin/ManagerContacts/data'
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Event } from '@/payload-types'
 import { createSession } from '@/plugins/login'
@@ -194,19 +194,61 @@ describe('Manager contacts (#908)', () => {
       expect(rows![0]!.email).toBe(REMINDER_DESTINATION)
     })
 
-    it('says how long ago each manager last signed in, and "never" for one who has not', async () => {
+    it('says on one line when each manager last signed in, and "never" for one who has not', async () => {
       const now = new Date()
+      const signedIn = new Date(now.getTime() - 21 * DAY_MS).toISOString()
       await payload.update({
         collection: 'managers',
         id: coManager.id,
         overrideAccess: true,
-        data: { lastLoginAt: new Date(now.getTime() - 21 * DAY_MS).toISOString() },
+        data: { lastLoginAt: signedIn },
       })
 
       const rows = await tableFor(regionManager, 'regions', regionId, now)
       const byName = Object.fromEntries(rows!.map((row) => [row.name, row.lastSignIn]))
-      expect(byName['Co Manager']).toMatchObject({ ago: '3 weeks ago' })
+      expect(byName['Co Manager']).toEqual({
+        text: `${signedIn.slice(0, 10).replaceAll('-', '/')} - 3 weeks ago`,
+        stale: false,
+      })
       expect(byName['Region Manager']).toBeNull()
+    })
+
+    it(`marks a sign-in stale once it is over ${STALE_SIGN_IN_MONTHS} months old`, async () => {
+      const now = new Date()
+      const staleAfter = async (months: number, days: number) => {
+        const signedIn = new Date(now)
+        signedIn.setUTCMonth(signedIn.getUTCMonth() - months)
+        signedIn.setUTCDate(signedIn.getUTCDate() - days)
+        await payload.update({
+          collection: 'managers',
+          id: coManager.id,
+          overrideAccess: true,
+          data: { lastLoginAt: signedIn.toISOString() },
+        })
+        const rows = await tableFor(regionManager, 'regions', regionId, now)
+        return rows!.find((row) => row.name === 'Co Manager')!.lastSignIn!.stale
+      }
+
+      expect(await staleAfter(STALE_SIGN_IN_MONTHS, -1)).toBe(false)
+      expect(await staleAfter(STALE_SIGN_IN_MONTHS, 1)).toBe(true)
+    })
+
+    it('sits under both pickers with the empty afterInput that re-renders it after a save', () => {
+      // ⚠ Without an `afterInput`, `renderField` renders a `Description` once
+      // and keeps it through a save, so the table would go on listing the
+      // managers the page loaded with.
+      for (const [collection, name] of [
+        ['regions', 'managers'],
+        ['events', 'manager'],
+      ] as const) {
+        const field = payload.collections[collection].config.flattenedFields.find(
+          (candidate) => candidate.name === name,
+        ) as { admin?: { components?: Record<string, unknown> } } | undefined
+        expect(field?.admin?.components, `${collection}.${name}`).toMatchObject({
+          Description: '@/components/admin/ManagerContacts',
+          afterInput: [],
+        })
+      }
     })
 
     it('answers the create screen, and an unknown row, with nothing', async () => {

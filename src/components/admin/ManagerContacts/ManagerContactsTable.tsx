@@ -2,7 +2,7 @@
 
 import type { ManagerContactRow } from './data'
 
-import { FieldDescription, FieldLabel, Table } from '@payloadcms/ui'
+import { Table } from '@payloadcms/ui'
 
 import styles from './ManagerContacts.module.css'
 import { tableColumn } from '../helpers/tableColumn'
@@ -15,57 +15,49 @@ import { tableColumn } from '../helpers/tableColumn'
  * manager's own auth address, which Payload's `email` validator admits, never
  * text a visitor typed.
  */
-export function ManagerContactsTable({
-  description,
-  path,
-  rows,
-}: {
-  description: string
-  path: string
-  rows: ManagerContactRow[]
-}) {
+export function ManagerContactsTable({ rows }: { rows: ManagerContactRow[] }) {
   return (
-    <div className="field-type ui read-only">
-      <FieldLabel label="Contact details" path={path} />
-      <div className="field-type__wrap">
-        <Table
-          appearance="condensed"
-          data={rows}
-          columns={[
-            tableColumn(
-              'name',
-              'Name',
-              rows.map((row) => <span key={row.id}>{row.name}</span>),
-            ),
-            tableColumn(
-              'email',
-              'Email',
-              rows.map((row) => (
-                <a key={row.id} href={`mailto:${row.email}`}>
-                  {row.email}
-                </a>
-              )),
-            ),
-            tableColumn(
-              'lastSignIn',
-              'Last signed in',
-              rows.map((row) =>
-                row.lastSignIn ? (
-                  <div key={row.id} className={styles.stacked}>
-                    {row.lastSignIn.ago}
-                    <small>{row.lastSignIn.on}</small>
-                  </div>
-                ) : (
-                  <span key={row.id} className={styles.never}>
-                    Never
-                  </span>
-                ),
+    <div className={styles.contacts}>
+      <Table
+        appearance="condensed"
+        data={rows}
+        columns={[
+          tableColumn(
+            'name',
+            'Name',
+            rows.map((row) => <span key={row.id}>{row.name}</span>),
+          ),
+          tableColumn(
+            'email',
+            'Email',
+            rows.map((row) => (
+              <a key={row.id} href={`mailto:${row.email}`}>
+                {row.email}
+              </a>
+            )),
+          ),
+          tableColumn(
+            'lastSignIn',
+            'Last signed in',
+            rows.map((row) =>
+              row.lastSignIn ? (
+                <span
+                  key={row.id}
+                  className={
+                    row.lastSignIn.stale ? `${styles.signIn} ${styles.stale}` : styles.signIn
+                  }
+                >
+                  {row.lastSignIn.text}
+                </span>
+              ) : (
+                <span key={row.id} className={styles.never}>
+                  Never
+                </span>
               ),
             ),
-          ]}
-        />
-      </div>
-      <FieldDescription description={description} path={path} />
+          ),
+        ]}
+      />
     </div>
   )
 }

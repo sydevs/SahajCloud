@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 
-import { formatShortDate, humanDurationSince } from '@/lib/notifications/eventDetails'
+import { humanDurationSince } from '@/lib/notifications/eventDetails'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { mayReadManagerContacts } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
@@ -13,8 +13,11 @@ export type ManagerContactRow = {
   id: number
   name: string
   email: string
-  /** Formatted here, because only the server knows what "now" is for the read. */
-  lastSignIn: { ago: string; on: string } | null
+  /**
+   * One line, `2026/11/10 - 3 weeks ago`, formatted here because only the
+   * server knows what "now" is for the read. `stale` once it is long ago.
+   */
+  lastSignIn: { text: string; stale: boolean } | null
 }
 
 /** The place the gate judges, and who is named there, off the stored row. */
@@ -63,10 +66,26 @@ function idsOf(value: unknown): number[] {
   return [...new Set(ids.filter((id): id is number => id !== null))]
 }
 
+/**
+ * Past this many months, a sign-in reads as long ago. It is no proof a manager
+ * is gone: the reminder's own link verifies an event without a sign-in.
+ */
+export const STALE_SIGN_IN_MONTHS = 6
+
+/** `2026/11/10`, the UTC day — one compact, unambiguous spelling in every locale. */
+function signInDay(iso: string): string {
+  return iso.slice(0, 10).replaceAll('-', '/')
+}
+
 function lastSignIn(iso: null | string | undefined, now: Date): ManagerContactRow['lastSignIn'] {
   if (!iso) return null
   const since = humanDurationSince(iso, now)
-  return { ago: since ? `${since} ago` : 'Just now', on: formatShortDate(iso) }
+  const staleBefore = new Date(now)
+  staleBefore.setUTCMonth(staleBefore.getUTCMonth() - STALE_SIGN_IN_MONTHS)
+  return {
+    text: `${signInDay(iso)} - ${since ? `${since} ago` : 'just now'}`,
+    stale: new Date(iso) < staleBefore,
+  }
 }
 
 /**

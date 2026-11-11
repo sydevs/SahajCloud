@@ -62,6 +62,3 @@ export { legacyMigrationFields } from './legacyFields'
 
 // Admin condition that hides a field (e.g. join fields) until the doc has an id
 export { hideUntilCreated } from './hideUntilCreated'
-
-// Manager contacts - the gated table of a region's or an event's managers
-export { managerContactsField } from './managerContactsField'
