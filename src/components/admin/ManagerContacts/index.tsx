@@ -1,4 +1,4 @@
-import type { ServerComponentProps } from 'payload'
+import type { FieldPaths, RelationshipField, ServerComponentProps } from 'payload'
 
 import { FieldDescription } from '@payloadcms/ui'
 
@@ -27,10 +27,13 @@ export default async function ManagerContacts({
   id,
   path,
   req,
-}: Pick<ServerComponentProps, 'collectionSlug' | 'data' | 'field' | 'id' | 'req'> & {
-  path?: string
-}) {
-  const description = (field as { admin?: { description?: unknown } }).admin?.description
+}: Pick<FieldPaths, 'path'> &
+  Pick<ServerComponentProps, 'collectionSlug' | 'data' | 'id' | 'req'> & {
+    // Narrowed from `ServerComponentProps['field']`, which is the whole `Field`
+    // union — `row` and `tabs` omit `admin.description` from theirs.
+    field: RelationshipField
+  }) {
+  const description = field.admin?.description
   const rows =
     collectionSlug === 'regions' || collectionSlug === 'events'
       ? await loadManagerContacts(
@@ -43,7 +46,7 @@ export default async function ManagerContacts({
   return (
     <>
       {typeof description === 'string' && (
-        <FieldDescription description={description} path={path ?? ''} />
+        <FieldDescription description={description} path={path} />
       )}
       {rows?.length ? <ManagerContactsTable rows={rows} /> : null}
     </>
