@@ -3,9 +3,8 @@ import type { FieldHook } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 
 import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
+import { minutesOfDay } from '@/lib/schedule/time'
 import type { EventSchedule } from '@/types/schedule'
-
-export const TIME_REGEX = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/
 
 type ViewName = 'startingSoon' | 'liveNow' | 'default'
 
@@ -67,16 +66,10 @@ export const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
 
   // Parse Starting Soon / Live Now thresholds to total minutes
   const ssThresholdStr = (startingSoon?.threshold as string | undefined) ?? '1:00'
-  const ssMatch = ssThresholdStr.match(TIME_REGEX)
-  const ssMinutes =
-    startingSoonEnabled && ssMatch
-      ? parseInt(ssMatch[1]!, 10) * 60 + parseInt(ssMatch[2]!, 10)
-      : null
+  const ssMinutes = startingSoonEnabled ? minutesOfDay(ssThresholdStr) : null
 
   const lnThresholdStr = (liveNow?.threshold as string | undefined) ?? '0:00'
-  const lnMatch = lnThresholdStr.match(TIME_REGEX)
-  const lnMinutes =
-    liveNowEnabled && lnMatch ? parseInt(lnMatch[1]!, 10) * 60 + parseInt(lnMatch[2]!, 10) : 0
+  const lnMinutes = (liveNowEnabled ? minutesOfDay(lnThresholdStr) : null) ?? 0
 
   // Converts a Temporal.Instant to HH:MM in UTC (24-hour clock)
   const toUTCHHMM = (instant: Temporal.Instant): string => {
@@ -90,17 +83,18 @@ export const viewScheduleAfterRead: FieldHook = ({ data: doc, req }) => {
     // Event end: use configured endTime or default to +1 hour
     let eventEnd: Temporal.ZonedDateTime
     if (endTimeStr) {
-      const m = endTimeStr.match(TIME_REGEX)
-      eventEnd = m
-        ? eventStart.with({
-            hour: parseInt(m[1]!, 10),
-            minute: parseInt(m[2]!, 10),
-            second: 0,
-            millisecond: 0,
-            microsecond: 0,
-            nanosecond: 0,
-          })
-        : eventStart.add({ minutes: 60 })
+      const endMinutes = minutesOfDay(endTimeStr)
+      eventEnd =
+        endMinutes !== null
+          ? eventStart.with({
+              hour: Math.floor(endMinutes / 60),
+              minute: endMinutes % 60,
+              second: 0,
+              millisecond: 0,
+              microsecond: 0,
+              nanosecond: 0,
+            })
+          : eventStart.add({ minutes: 60 })
       // An end time earlier than the start is the next day's: the event runs past midnight.
       if (Temporal.ZonedDateTime.compare(eventEnd, eventStart) < 0) {
         eventEnd = eventEnd.add({ days: 1 })

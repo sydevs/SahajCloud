@@ -4,9 +4,10 @@ import { z } from 'zod'
 
 import { mediaField, scheduleFields, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { isHHMM } from '@/lib/schedule/time'
 
 import { appCardsForAudience } from './endpoints/forAudience'
-import { TIME_REGEX, viewScheduleAfterRead } from './hooks/viewSchedule'
+import { viewScheduleAfterRead } from './hooks/viewSchedule'
 
 /** Destination row shared across all view tabs. */
 function destinationFields(
@@ -229,7 +230,7 @@ function eventViewFields(thresholdDefault: string): Field[] {
       },
       validate: (value: string | null | undefined) => {
         if (!value) return true
-        if (!TIME_REGEX.test(value)) return 'Enter time in HH:MM format (e.g., 1:00 or 00:30)'
+        if (!isHHMM(value)) return 'Enter time in HH:MM format (e.g., 1:00 or 00:30)'
         return true
       },
     },
