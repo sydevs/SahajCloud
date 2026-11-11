@@ -6,16 +6,12 @@ import { Temporal } from '@js-temporal/polyfill'
 import { useAllFormFields } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
+import { minutesOfDay } from '@/lib/schedule/time'
+
 interface ViewWindow {
   label: string
   timeRange: string
   timezone?: string
-}
-
-function parseMinutes(hhmm: string): number | null {
-  const match = hhmm.match(/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/)
-  if (!match) return null
-  return parseInt(match[1]!, 10) * 60 + parseInt(match[2]!, 10)
 }
 
 function formatZonedTime(zdt: Temporal.ZonedDateTime): string {
@@ -48,17 +44,18 @@ function computeWindows(formState: FormState): ViewWindow[] | null {
   // Fall back to 1 hour when endTime is absent or unparseable
   let eventEnd: Temporal.ZonedDateTime
   if (endTimeStr) {
-    const m = endTimeStr.match(/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/)
-    eventEnd = m
-      ? eventStart.with({
-          hour: parseInt(m[1]!, 10),
-          minute: parseInt(m[2]!, 10),
-          second: 0,
-          millisecond: 0,
-          microsecond: 0,
-          nanosecond: 0,
-        })
-      : eventStart.add({ minutes: 60 })
+    const endMinutes = minutesOfDay(endTimeStr)
+    eventEnd =
+      endMinutes !== null
+        ? eventStart.with({
+            hour: Math.floor(endMinutes / 60),
+            minute: endMinutes % 60,
+            second: 0,
+            millisecond: 0,
+            microsecond: 0,
+            nanosecond: 0,
+          })
+        : eventStart.add({ minutes: 60 })
   } else {
     eventEnd = eventStart.add({ minutes: 60 })
   }
@@ -68,14 +65,14 @@ function computeWindows(formState: FormState): ViewWindow[] | null {
   // Compute liveNow start first — Starting Soon ends where Live Now begins
   const liveNowEnabled = get('liveNow.enabled') as boolean | undefined
   const lnThresholdStr = (get('liveNow.threshold') as string | undefined) ?? '0:00'
-  const lnMinutes = liveNowEnabled === true ? (parseMinutes(lnThresholdStr) ?? 0) : 0
+  const lnMinutes = liveNowEnabled === true ? (minutesOfDay(lnThresholdStr) ?? 0) : 0
   const lnStart = lnMinutes > 0 ? eventStart.subtract({ minutes: lnMinutes }) : eventStart
 
   // Starting Soon: (eventStart − ssThreshold) → lnStart
   const startingSoonEnabled = get('startingSoon.enabled') as boolean | undefined
   if (startingSoonEnabled === true) {
     const thresholdStr = (get('startingSoon.threshold') as string | undefined) ?? '1:00'
-    const minutes = parseMinutes(thresholdStr)
+    const minutes = minutesOfDay(thresholdStr)
     if (minutes !== null) {
       result.push({
         label: 'Starting Soon',
