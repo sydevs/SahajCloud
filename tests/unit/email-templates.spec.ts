@@ -339,6 +339,50 @@ describe('EventRegistrationEmail', () => {
     expect(html).not.toContain('Start date')
     expect(html).not.toContain('Registration answers')
   })
+
+  /**
+   * A repeat signup folds into the registration the sender already held
+   * (`mergeRepeatRegistration`), so the manager of a weekly class would
+   * otherwise read "A new registration has come in" each time a registrant
+   * corrects an answer.
+   */
+  it('words the heading, preview text and intro as an update', async () => {
+    const { html } = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, isUpdate: true }),
+    )
+    const flat = html.replace(/<!-- -->/g, '')
+
+    expect(flat).toContain('Updated event registration')
+    expect(flat).toContain('Sam Seeker updated their registration for Morning Meditation')
+    expect(flat).toContain('A registration has been updated for')
+    expect(flat).not.toContain('New event registration')
+    expect(flat).not.toContain('A new registration has come in for')
+  })
+
+  /**
+   * The wording is the whole difference, which is what makes this one template
+   * rather than two. The case above pins the same fragments for the default
+   * state, so this is the other arm of that pair.
+   */
+  it('keeps the facts, the answers and both CTAs in the update state', async () => {
+    const { html } = await renderEmail(
+      createElement(EventRegistrationEmail, { ...props, isUpdate: true }),
+    )
+
+    for (const fragment of [
+      'Event details',
+      'Start date',
+      'Saturday, 19 July 2026',
+      'Registration answers',
+      'How did you hear about this event?',
+      'A friend recommended it',
+      'mailto:sam@example.com?subject=',
+      'View event',
+      'https://cloud.test/admin/collections/events/42',
+    ]) {
+      expect(html, `an update should carry ${fragment}`).toContain(fragment)
+    }
+  })
 })
 
 describe('buildReplyBody', () => {

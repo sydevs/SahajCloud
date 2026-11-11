@@ -66,22 +66,36 @@ interface Scenario {
   startingAt?: string | null
   /** Raw registrant answers, keyed by question name. Shaped exactly as the endpoint shapes them. */
   questions?: Record<string, unknown>
+  isUpdate?: boolean
+}
+
+/**
+ * The named-manager scenario, and the base the update state is spread from —
+ * so the two differ by the wording alone, which is the thing they exist to
+ * compare.
+ */
+const fullManager: Scenario = {
+  label: 'manager · full',
+  note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
+  recipient: managerRecipient,
+  event: { id: 1042, title: 'Tuesday Evening Meditation' },
+  registrantName: 'Jo Smith',
+  registrantEmail: 'jo.smith@example.com',
+  startingAt: daysFromNow(5),
+  questions: {
+    experience: 'No, this is my first time',
+    referral: 'A friend recommended it',
+    questions: 'Can I bring my partner along?',
+  },
 }
 
 const SCENARIOS: Scenario[] = [
+  fullManager,
   {
-    label: 'manager · full',
-    note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
-    recipient: managerRecipient,
-    event: { id: 1042, title: 'Tuesday Evening Meditation' },
-    registrantName: 'Jo Smith',
-    registrantEmail: 'jo.smith@example.com',
-    startingAt: daysFromNow(5),
-    questions: {
-      experience: 'No, this is my first time',
-      referral: 'A friend recommended it',
-      questions: 'Can I bring my partner along?',
-    },
+    ...fullManager,
+    label: 'manager · update',
+    note: 'the same signup, folded into the registration the sender already held — update wording in the Subject, heading, preview text and intro, with every fact and answer unchanged',
+    isUpdate: true,
   },
   {
     label: 'override · neutral greeting',
@@ -161,6 +175,7 @@ async function main() {
       registrantEmail: scenario.registrantEmail,
       startingAt: scenario.startingAt,
       answers: buildRegistrationAnswers(scenario.questions),
+      isUpdate: scenario.isUpdate,
     })
   }
 
