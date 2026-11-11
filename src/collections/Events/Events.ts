@@ -24,6 +24,7 @@ import {
   urlField,
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { isPublished } from '@/fields/publicUrlFields'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
@@ -42,6 +43,7 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   adminOnlyCondition,
   eventContactsFieldAccess,
@@ -53,6 +55,8 @@ import {
 import { relationId } from '@/plugins/access/documentManagers'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
+import { signEventCalendarToken } from './calendarToken'
+import { eventCalendarFeed } from './endpoints/calendarFeed'
 import { eventsGeoJson } from './endpoints/geojson'
 import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
@@ -129,7 +133,7 @@ export const Events: CollectionConfig = {
   // Computing the listing-quality report costs two extra reads. Nothing that
   // hydrates an Event through a relationship (a registration row, the sidebar)
   // wants that report. Its `afterRead` also opts out of list reads. See the field.
-  defaultPopulate: { qualityReport: false, offersMailingList: false },
+  defaultPopulate: { qualityReport: false, offersMailingList: false, calendarFeedUrl: false },
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
@@ -202,7 +206,7 @@ export const Events: CollectionConfig = {
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
   },
-  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv],
+  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv, eventCalendarFeed],
   fields: [
     {
       // The bulk import this class came from (`src/plugins/eventImport`). The
@@ -823,6 +827,39 @@ export const Events: CollectionConfig = {
               async ({ data, findMany, req }) => {
                 if (findMany || req.context?.skipVerifyHook) return null
                 return (await mailingListClientFor(req, relationId(data?.region))) != null
+              },
+            ],
+          },
+        },
+        {
+          // The subscribable calendar address for this class, so the widget's
+          // "Add to calendar" menu gets it from the single-event read it
+          // already makes rather than composing one (sydevs/SahajAtlasWeb#393).
+          //
+          // ⚠ The token is the feed's only access control, so it is minted for
+          // a single-document read alone: `findMany` and `defaultPopulate`
+          // below both withhold it, or every reader of a registration row would
+          // be handed the class's calendar address.
+          name: 'calendarFeedUrl',
+          type: 'text',
+          virtual: true,
+          custom: virtualFieldInputs('_status'),
+          admin: {
+            readOnly: true,
+            disableListColumn: true,
+            disableListFilter: true,
+            description: 'Subscribable calendar address. Anyone holding it can subscribe.',
+          },
+          hooks: {
+            afterRead: [
+              async ({ data, findMany, req }) => {
+                if (findMany || !data?.id) return null
+                if (!isPublished(data._status, req.locale)) return null
+                const token = await signEventCalendarToken(
+                  { eventId: Number(data.id) },
+                  req.payload.secret,
+                )
+                return `${getServerUrl()}/api/events/calendar/${token}.ics`
               },
             ],
           },

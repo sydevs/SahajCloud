@@ -1986,6 +1986,10 @@ export interface Event {
    */
   offersMailingList?: boolean | null;
   /**
+   * Subscribable calendar address. Anyone holding it can subscribe.
+   */
+  calendarFeedUrl?: string | null;
+  /**
    * Open listing-quality recommendations.
    */
   qualityOpenCount?: number | null;
@@ -5166,6 +5170,7 @@ export interface EventsSelect<T extends boolean = true> {
   nextCheckAt?: T;
   registrationsFull?: T;
   offersMailingList?: T;
+  calendarFeedUrl?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
   systemMeta?: T;

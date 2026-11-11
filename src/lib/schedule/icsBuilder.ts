@@ -30,12 +30,16 @@ import type { ICalRepeatingOptions } from 'ical-generator'
 
 import { Temporal } from '@js-temporal/polyfill'
 import { getVtimezoneComponent } from '@touch4it/ical-timezones'
-import ical, { ICalEventRepeatingFreq, ICalWeekday } from 'ical-generator'
+import ical, { ICalEventRepeatingFreq, ICalEventStatus, ICalWeekday } from 'ical-generator'
 
 import { stripNewlines } from '@/lib/utilities/emailSafeText'
 import type { EventSchedule } from '@/types/schedule'
 
 import { buildRRuleTemporal } from './scheduleHooks'
+
+// Re-exported so a caller setting `status` does not have to reach past this
+// module into the generator to name the one value it may pass.
+export { ICalEventStatus }
 
 /** Fallback duration when an event declares no `endTime`. */
 const DEFAULT_DURATION_MINUTES = 60
@@ -59,6 +63,25 @@ export interface EventCalendarInput {
    * client update the existing entry instead of creating a duplicate.
    */
   uid?: string | null
+  /**
+   * How often a subscribing client should re-fetch, in seconds — emitted as
+   * both `REFRESH-INTERVAL` and `X-PUBLISHED-TTL`.
+   *
+   * ⚠ **A hint, never a guarantee.** Apple's interval is a user setting, Google
+   * publishes none, and `[MS-OXCICAL]` says an importer SHOULD ignore
+   * `X-PUBLISHED-TTL`. Nothing may promise a refresh window from this.
+   */
+  ttl?: number | null
+  /** `STATUS` — `CANCELLED` is how a subscribed client clears a withdrawn class. */
+  status?: ICalEventStatus | null
+  /**
+   * `SEQUENCE` — a revision counter. A client ignores a revision that is not
+   * strictly higher than the one it holds, so a cancellation must outrank the
+   * live document it replaces.
+   */
+  sequence?: number | null
+  /** `LAST-MODIFIED`. */
+  lastModified?: Date | string | null
 }
 
 /**
@@ -138,6 +161,7 @@ export function buildEventCalendar(input: EventCalendarInput): string | null {
     prodId: '//Sahaj Cloud//Events//EN',
     // Supplies the VTIMEZONE component for whichever TZID the events reference.
     timezone: { name: timezone, generator: getVtimezoneComponent },
+    ...(input.ttl != null && { ttl: input.ttl }),
   })
 
   const event = calendar.createEvent({
@@ -149,6 +173,9 @@ export function buildEventCalendar(input: EventCalendarInput): string | null {
     ...(input.description && { description: input.description }),
     ...(input.url && { url: input.url }),
     ...(input.uid && { id: input.uid }),
+    ...(input.status && { status: input.status }),
+    ...(input.sequence != null && { sequence: input.sequence }),
+    ...(input.lastModified && { lastModified: input.lastModified }),
   })
 
   // A one-off event is modelled internally as FREQ=DAILY;COUNT=1 so that
