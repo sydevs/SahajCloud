@@ -256,6 +256,8 @@ describe('servingVerdict', () => {
   it('reports an answer that is not an object as unknown, not as a stale build', () => {
     expect(servingVerdict(null, SHA)).toBe('unknown')
     expect(servingVerdict('ok', SHA)).toBe('unknown')
+    // An array has no `commit` key either, and `isRecord` admits it.
+    expect(servingVerdict([], SHA)).toBe('unknown')
   })
 
   it('refuses an empty expectation rather than matching everything', () => {

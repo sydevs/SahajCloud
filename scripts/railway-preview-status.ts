@@ -191,8 +191,10 @@ export type ServingVerdict = 'behind' | 'fieldless' | 'serving' | 'unknown'
  * answer about the same commit.
  */
 export function servingVerdict(body: unknown, expectedSha: string): ServingVerdict {
-  // A body that is no answer at all names no cause, so it must not claim a stale build.
-  if (!isRecord(body)) return 'unknown'
+  // A body that is no answer at all names no cause, so it must not claim a
+  // stale build. An array is one of those: `isRecord` admits it, and without
+  // this it would read as a build that predates the field.
+  if (!isRecord(body) || Array.isArray(body)) return 'unknown'
   if (!('commit' in body)) return 'fieldless'
 
   const served = body.commit
