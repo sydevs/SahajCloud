@@ -30,6 +30,17 @@ function addMonths(from: Date, months: number): Date {
   return result
 }
 
+/**
+ * When a `finished` event reached from `from` is trashed.
+ *
+ * Exported for the save hook: restoring an event from the trash has to run its
+ * retention from the restore, not from the schedule's end — that one is already
+ * behind us, which is why the event was trashed in the first place (#1116).
+ */
+export function retentionFrom(from: Date): string {
+  return addMonths(from, FINISHED_RETENTION_MONTHS).toISOString()
+}
+
 export interface NextCheckAtInput {
   /** The stage the event is landing on. */
   stage: VerificationStage
@@ -106,9 +117,7 @@ export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
 
   // Retention runs from the schedule's end where there is one, else from the
   // moment it finished — so a finished event always has a date to be trashed on.
-  if (stage === 'finished') {
-    return addMonths(scheduleEnd ?? now, FINISHED_RETENTION_MONTHS).toISOString()
-  }
+  if (stage === 'finished') return retentionFrom(scheduleEnd ?? now)
 
   const deadlines = [stageDeadline, scheduleEnd].filter((date): date is Date => date != null)
   if (deadlines.length === 0) return null

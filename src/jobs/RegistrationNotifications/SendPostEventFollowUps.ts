@@ -5,7 +5,7 @@ import { createElement } from 'react'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { runClock } from '@/lib/jobs/runClock'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -121,25 +121,31 @@ async function sendFollowUp(
     ...(await renderEmail(createElement(PostEventFollowUpEmail, templateProps))),
   })
 
+  // The watermark the sweep filters on, and the manager-readable record of the
+  // same send. A JSON column can't be `where`d cheaply, so both — and the log
+  // half is appended in the database, so a writer working on the same row at
+  // the same time keeps its own entries.
   await payload.update({
     collection: 'user-submissions',
     id: registration.id,
-    data: {
-      // The watermark the sweep filters on, and the manager-readable record of
-      // the same send. A JSON column can't be `where`d cheaply, so both.
-      followUpSentAt: now.toISOString(),
-      activityLog: appendLogEntry(asLog(registration.activityLog), {
-        at: now.toISOString(),
-        type: FOLLOW_UP_LOG_EVENT,
-        key: String(registration.id),
-        cells: {
-          activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
-          sentTo: { label: 'email', text: registrantEmail },
-        },
-      }),
-    },
+    data: { followUpSentAt: now.toISOString() },
     overrideAccess: true,
     context: { skipWriteGuard: true },
+    req,
+  })
+  await appendLogEntry({
+    payload,
+    collection: 'user-submissions',
+    id: registration.id,
+    entry: {
+      at: now.toISOString(),
+      type: FOLLOW_UP_LOG_EVENT,
+      key: String(registration.id),
+      cells: {
+        activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
+        sentTo: { label: 'email', text: registrantEmail },
+      },
+    },
     req,
   })
   return true

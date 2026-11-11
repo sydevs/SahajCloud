@@ -7,8 +7,10 @@ import React from 'react'
 
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 
-import './styles.css'
 import { buildStageTracker, formatStageDate, type TrackerStep } from './timeline'
+import { useLogValue } from '../helpers/useLogValue'
+
+import './styles.css'
 
 /** `if not verified by 10 Jul 2026` / `next reminder on 26 Jun 2026` / `9 May 2026`. */
 function stepDateText(step: TrackerStep): string | null {
@@ -34,7 +36,7 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
   const stage = useFormFields(
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
-  const log = useFormFields(([fields]) => fields?.activityLog?.value)
+  const log = useLogValue('activityLog')
   const nextCheckAt = useFormFields(([fields]) => fields?.nextCheckAt?.value as string | undefined)
   const updatedAt = useFormFields(([fields]) => fields?.updatedAt?.value as string | undefined)
   // The derived end of the final occurrence — tells a capped watermark (the

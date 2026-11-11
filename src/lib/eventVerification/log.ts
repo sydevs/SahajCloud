@@ -3,6 +3,7 @@ import type { VerificationStage } from './stages'
 import { toWords } from 'payload/shared'
 
 import type { LogCell } from '@/fields'
+import { asLog } from '@/fields'
 import type { ReminderAudience, ReminderLevel } from '@/lib/notifications'
 
 /**
@@ -175,7 +176,12 @@ export function hasReminderForStage(
   )
 }
 
-/** Narrow an unknown json value (the stored field) to a log-entry array. */
+/**
+ * Narrow the stored rows to a log-entry array.
+ *
+ * Through `asLog`, so a row's `data` column is spread back out and a reader
+ * sees `kind`, `stage` and `manager` where this module's types say they are.
+ */
 export function asNotificationLog(value: unknown): NotificationLogEntry[] {
-  return Array.isArray(value) ? (value as NotificationLogEntry[]) : []
+  return asLog(value) as unknown as NotificationLogEntry[]
 }
