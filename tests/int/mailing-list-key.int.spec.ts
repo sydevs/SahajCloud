@@ -26,6 +26,8 @@ import { createTestEnvironment } from '../utils/testHelpers'
 let providerVerdict: string | null = null
 /** The credentials the provider was last asked about, or `null` if never. */
 let verifiedWith: MailingListConfig | null = null
+/** Read through a call, so control-flow analysis cannot narrow it to `null`. */
+const lastVerified = (): MailingListConfig | null => verifiedWith
 
 vi.mock('@/lib/mailingList/providers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/mailingList/providers')>()
@@ -179,8 +181,8 @@ describe('Mailing-list key', () => {
         }),
       ).rejects.toThrow(/That list does not exist/)
 
-      expect(verifiedWith?.apiKey).toBe(STORED_KEY)
-      expect(verifiedWith?.listId).toBe('list-2')
+      expect(lastVerified()?.apiKey).toBe(STORED_KEY)
+      expect(lastVerified()?.listId).toBe('list-2')
       providerVerdict = null
     })
 
