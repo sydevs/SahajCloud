@@ -1,5 +1,6 @@
-import type { Payload, PayloadRequest, RequestContext } from 'payload'
+import type { Payload, PayloadRequest, RequestContext, Where } from 'payload'
 
+import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
 import type { Event } from '@/payload-types'
 
 /**
@@ -12,7 +13,6 @@ export type EventBookkeeping = Partial<
   Pick<
     Event,
     | '_status'
-    | 'activityLog'
     | 'confidenceScore'
     | 'nextCheckAt'
     | 'registrationsFull'
@@ -54,6 +54,10 @@ export type EventBookkeeping = Partial<
  *
  * ⚠ Safe only while Events omits `versions.drafts.localizeStatus` — see the
  * warning on `versions` in `Events.ts`.
+ *
+ * `expect` guards a write that follows slow work: see
+ * {@link updateIfUnchanged}. It answers whether the write landed; without one
+ * the write is unconditional and the answer is always `true`.
  */
 export async function updateEventBookkeeping(args: {
   payload: Payload
@@ -61,12 +65,13 @@ export async function updateEventBookkeeping(args: {
   data: EventBookkeeping
   req?: PayloadRequest
   context?: RequestContext
-}): Promise<void> {
-  const { payload, id, data, req, context } = args
+  /** The values the caller read, where something could have changed them since. */
+  expect?: Where
+}): Promise<boolean> {
+  const { payload, id, data, req, context, expect } = args
 
-  await payload.update({
-    collection: 'events',
-    id,
+  const options = {
+    collection: 'events' as const,
     data,
     // Spread `req.context` here rather than at each call site. Payload merges
     // it with this argument itself, so the spread is belt-and-braces — but
@@ -82,5 +87,10 @@ export async function updateEventBookkeeping(args: {
     // callers run inside a visitor's transaction.
     depth: 0,
     req,
-  })
+  }
+
+  if (expect) return updateIfUnchanged({ payload, id, expect, ...options })
+
+  await payload.update({ ...options, id })
+  return true
 }

@@ -2,7 +2,8 @@ import type { ReminderWindow } from './reminderWindow'
 import type { Payload, PayloadRequest, TaskConfig } from 'payload'
 
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { appendLogEntry, asLog, hasLogEntry, type LogEntry } from '@/fields'
+import { asLog, hasLogEntry } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { runClock } from '@/lib/jobs/runClock'
 import type { LocaleCode } from '@/lib/locales'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -124,7 +125,6 @@ interface DueRegistration {
   name: string | null
   clientId: number | null
   locale: LocaleCode | null
-  log: LogEntry[]
   /** Occurrences due (in window, matching startingAt, not already reminded). */
   due: string[]
 }
@@ -200,7 +200,6 @@ async function remindForEvent(args: {
         clientId: relationId(registration.client),
         locale: (readSubmissionValue(registration.submissionData, 'locale') ??
           null) as LocaleCode | null,
-        log,
         due,
       })
     }
@@ -227,7 +226,6 @@ async function remindForEvent(args: {
     const registrantName = item.name?.trim() || registrantEmail
     const client = item.clientId ? await loadClient(payload, req, item.clientId, clientCache) : null
 
-    let log = item.log
     for (const occurrence of item.due) {
       await sendSessionReminder({
         payload,
@@ -243,20 +241,21 @@ async function remindForEvent(args: {
 
       // Persist the ledger entry immediately — it's the exactly-once marker, so
       // a crash mid-run resumes without re-sending what already went out.
-      log = appendLogEntry(log, {
-        at: now.toISOString(),
-        type: REMINDER_LOG_EVENT,
-        key: occurrence,
-        cells: {
-          activity: `Session reminder for ${formatOccurrenceLabel(occurrence)}`,
-          sentTo: { label: 'email', text: registrantEmail },
-        },
-      })
-      await payload.update({
+      // ⚠ Appended in the database rather than written back from the copy read
+      // above: a writer that dropped this entry is a reminder sent twice.
+      await appendLogEntry({
+        payload,
         collection: 'user-submissions',
         id: item.submissionId,
-        data: { activityLog: log },
-        overrideAccess: true,
+        entry: {
+          at: now.toISOString(),
+          type: REMINDER_LOG_EVENT,
+          key: occurrence,
+          cells: {
+            activity: `Session reminder for ${formatOccurrenceLabel(occurrence)}`,
+            sentTo: { label: 'email', text: registrantEmail },
+          },
+        },
         req,
       })
       result.remindersSent++

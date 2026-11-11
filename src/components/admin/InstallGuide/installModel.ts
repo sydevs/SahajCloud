@@ -6,6 +6,7 @@ import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import type { ReportedMount } from '@/lib/clients/site'
 import { isPrimaryPage, normalizeMountPath, reportedMountsFor } from '@/lib/clients/site'
 import type { CanonicalVerification, SeoCheckResult } from '@/lib/clients/verification'
+import { isAtFailureLimit } from '@/lib/clients/verification'
 import type { Client } from '@/payload-types'
 
 import { PLATFORM_LABELS, stepForCheck, TRACK_META } from './steps'
@@ -124,12 +125,24 @@ export function buildInstallModel(args: {
   // so one passing there says nothing about another.
   if (track) inferEarlierSteps(stepStatus, track.steps)
 
+  // A service past its failure budget keeps its last-good snapshot on purpose
+  // (`nextVerificationState`), so reading `verified` alone told a released site
+  // its atlas was live.
+  const live = Boolean(verification?.verified) && !isAtFailureLimit(verification?.failureCount)
+  // ⚠ **The attempt list, not that counter.** `attempts` records an
+  // inconclusive result too — our quota, a bot challenge, checks not configured
+  // — and none of those is evidence about the install, so a service whose
+  // history holds nothing else is still only `seen`. The counter cannot answer
+  // this half: a press of Check never spends the budget, so a volunteer whose
+  // own press just failed would be told nothing had happened.
+  const refused = verification?.attempts.some((attempt) => attempt.status === 'failed') ?? false
+
   const stage: InstallStage = busy
     ? 'verifying'
     : candidate === null
       ? 'waiting'
-      : !verification?.verified
-        ? (verification?.attempts.length ?? 0) > 0
+      : !live
+        ? refused
           ? 'failed'
           : 'seen'
         : failures.length > 0
@@ -335,7 +348,9 @@ export function buildMilestones(args: {
     ...(note ? { note } : {}),
   })
 
-  const confirmed: Milestone = verification?.verified
+  // Off the stage, never `verification.verified` again: that one reads a
+  // released service as confirmed, which is the defect the stage above fixes.
+  const confirmed: Milestone = ['verified', 'warnings'].includes(model.stage)
     ? row('confirmed', 'Install confirmed', 'done')
     : model.stage === 'failed'
       ? row('confirmed', 'Install confirmed', 'failed', 'We could not open your page')
