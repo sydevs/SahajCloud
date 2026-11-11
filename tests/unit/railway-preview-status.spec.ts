@@ -4,11 +4,15 @@ import {
   classifyStatuses,
   discoverPreview,
   HEALTH_ERRORS,
+  pollHealth,
   servingVerdict,
   StatusFetchError,
   type CommitStatus,
   type PreviewStatus,
 } from '../../scripts/railway-preview-status'
+
+const HEAD_SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
+const EARLIER_SHA = 'ffffffffffffffffffffffffffffffffffffffff'
 
 /**
  * Guards the fail-closed rule from #661: a Railway deploy that reports
@@ -221,7 +225,7 @@ describe('discoverPreview', () => {
 })
 
 describe('servingVerdict', () => {
-  const SHA = 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678'
+  const SHA = HEAD_SHA
 
   it('accepts the commit the PR head names', () => {
     expect(servingVerdict({ commit: SHA }, SHA)).toBe('serving')
@@ -236,9 +240,7 @@ describe('servingVerdict', () => {
     // ⚠ The case the lane could not see at all: a preview pushed to twice in
     // quick succession answers `/api/health` from the previous build, so a
     // wait-for-health lane filled and tested the change before this one.
-    expect(servingVerdict({ commit: 'ffffffffffffffffffffffffffffffffffffffff' }, SHA)).toBe(
-      'behind',
-    )
+    expect(servingVerdict({ commit: EARLIER_SHA }, SHA)).toBe('behind')
   })
 
   it('reports a build whose health answer has no commit field as fieldless', () => {
@@ -274,5 +276,86 @@ describe('HEALTH_ERRORS', () => {
   it('annotates every outcome that is not serving', () => {
     // A missing one would fall through to a green smoke run on an unidentified build.
     expect(Object.keys(HEALTH_ERRORS).sort()).toEqual(['behind', 'fieldless', 'silent', 'unknown'])
+  })
+})
+
+/** Drive `pollHealth` over a scripted sequence of health answers. */
+function healthHarness(answers: unknown[], timeoutMs = 5 * 60_000) {
+  let clock = 0
+  const sleep = vi.fn(async (ms: number) => {
+    clock += ms
+  })
+  let call = 0
+  const fetchHealth = vi.fn(async () => {
+    const answer = answers[Math.min(call++, answers.length - 1)]
+    if (answer instanceof Error) throw answer
+    return answer
+  })
+  return {
+    sleep,
+    fetchHealth,
+    run: () =>
+      pollHealth({
+        fetchHealth,
+        expectedSha: HEAD_SHA,
+        timeoutMs,
+        pollIntervalMs: 15_000,
+        sleep,
+        now: () => clock,
+        log: () => {},
+      }),
+  }
+}
+
+describe('pollHealth', () => {
+  it('returns serving on the first answer naming this head, without sleeping', async () => {
+    const h = healthHarness([{ commit: HEAD_SHA }])
+    await expect(h.run()).resolves.toBe('serving')
+    expect(h.fetchHealth).toHaveBeenCalledTimes(1)
+    expect(h.sleep).not.toHaveBeenCalled()
+  })
+
+  it('waits a fieldless answer out, because the previous build is what answers mid-deploy', async () => {
+    // The false fail the terminal version would have produced: on a branch cut
+    // before the `commit` field landed, the first poll after the remedial push
+    // still comes from the old build, and failing there tells the developer to
+    // merge the base they just merged.
+    const h = healthHarness([{ status: 'ok' }, { commit: HEAD_SHA }])
+    await expect(h.run()).resolves.toBe('serving')
+    expect(h.fetchHealth).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns unknown at once, since no later poll changes an unset variable', async () => {
+    const h = healthHarness([{ commit: 'unknown' }])
+    await expect(h.run()).resolves.toBe('unknown')
+    expect(h.fetchHealth).toHaveBeenCalledTimes(1)
+    expect(h.sleep).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['behind', { commit: EARLIER_SHA }],
+    ['fieldless', { status: 'ok' }],
+  ])('reports %s at the deadline, the last healthy verdict it saw', async (expected, answer) => {
+    const h = healthHarness([answer], 45_000)
+    await expect(h.run()).resolves.toBe(expected)
+    expect(h.fetchHealth).toHaveBeenCalledTimes(3)
+  })
+
+  it('reports a preview that never answered as silent, not as behind', async () => {
+    // Reported as behind, a preview that was down sent the reader to Railway's
+    // deploy list for a build that had never started.
+    const h = healthHarness([new Error('HTTP 502')], 45_000)
+    await expect(h.run()).resolves.toBe('silent')
+  })
+
+  it('keeps the verdict of a preview that answered and then went down', async () => {
+    const h = healthHarness([{ commit: EARLIER_SHA }, new Error('HTTP 502')], 45_000)
+    await expect(h.run()).resolves.toBe('behind')
+  })
+
+  it('never sleeps past the deadline, so the health budget is not overrun', async () => {
+    const h = healthHarness([{ commit: EARLIER_SHA }], 40_000)
+    await expect(h.run()).resolves.toBe('behind')
+    expect(h.sleep.mock.calls.map(([ms]) => ms)).toEqual([15_000, 15_000, 10_000])
   })
 })

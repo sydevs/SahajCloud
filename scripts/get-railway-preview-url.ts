@@ -54,11 +54,9 @@ import { appendFileSync } from 'node:fs'
 import {
   discoverPreview,
   HEALTH_ERRORS,
-  servingVerdict,
+  pollHealth,
   StatusFetchError,
   type CommitStatus,
-  type HealthOutcome,
-  type ServingVerdict,
 } from './railway-preview-status'
 
 const GH_TOKEN = process.env.GITHUB_TOKEN
@@ -89,55 +87,16 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
 }
 
 /**
- * Wait until the preview answers AND is serving this PR's own head commit.
+ * Fetch and parse one `/api/health` answer.
  *
- * ⚠ **Healthy is not caught up.** A preview pushed to twice in quick succession
- * answers `/api/health` from the previous build for as long as the new one takes
- * to deploy, so a lane that waited for health alone filled and tested the change
- * before this one.
- *
- * ⚠ **Only `unknown` is terminal.** That build has the field and found the
- * variable unset, which no further poll changes. `fieldless` is waited out
- * alongside `behind`, because the build still answering may be the previous
- * one — failing on the first such answer would reject the very push that
- * fixes it.
- *
- * The poll reaches the Railway host on the one path the preview gate exempts, so
- * it still needs no credential.
+ * The poll reaches the Railway host on the one path the preview gate exempts,
+ * so it still needs no credential. A non-ok response rejects, because an error
+ * page is not an answer about any commit.
  */
-async function waitServing(url: string, sha: string): Promise<HealthOutcome> {
-  const deadline = Date.now() + HEALTH_TIMEOUT_MS
-  let attempt = 0
-  // ⚠ Which failure it was decides what the error tells the reader to look at.
-  // Reported as "behind", a preview that never answered at all sent them to
-  // Railway's deploy list for a build that was down.
-  let lastHealthy: ServingVerdict | null = null
-  while (Date.now() < deadline) {
-    attempt++
-    try {
-      const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
-      if (res.ok) {
-        const verdict = servingVerdict(await res.json(), sha)
-        if (verdict === 'serving') {
-          console.error(`preview serving ${sha} after ${attempt} attempt(s)`)
-          return 'serving'
-        }
-        if (verdict === 'unknown') return 'unknown'
-        lastHealthy = verdict
-        console.error(
-          verdict === 'fieldless'
-            ? `health attempt ${attempt}: healthy, but the build names no commit`
-            : `health attempt ${attempt}: healthy, still on an earlier commit`,
-        )
-      } else {
-        console.error(`health attempt ${attempt}: HTTP ${res.status}`)
-      }
-    } catch (err) {
-      console.error(`health attempt ${attempt}: ${(err as Error).message}`)
-    }
-    await sleep(POLL_INTERVAL_MS)
-  }
-  return lastHealthy ?? 'silent'
+async function fetchHealth(url: string): Promise<unknown> {
+  const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
 }
 
 function exportUrl(url: string): void {
@@ -226,7 +185,15 @@ async function main(): Promise<void> {
   }
 
   console.error(`preview URL: ${outcome.url}`)
-  const serving = await waitServing(outcome.url, SHA)
+  const serving = await pollHealth({
+    fetchHealth: () => fetchHealth(outcome.url),
+    expectedSha: SHA,
+    timeoutMs: HEALTH_TIMEOUT_MS,
+    pollIntervalMs: POLL_INTERVAL_MS,
+    sleep,
+    now: Date.now,
+    log: console.error,
+  })
   if (serving !== 'serving') {
     console.error(HEALTH_ERRORS[serving])
     exportUrl('')

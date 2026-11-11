@@ -3,8 +3,9 @@
  *
  * Split out of `get-railway-preview-url.ts` so the decision is testable
  * without network, a clock, or a direct-run guard on the CI entrypoint.
- * That script keeps the environment, the GitHub fetch, the health check
- * and the exit codes. This module only classifies and polls.
+ * That script keeps the environment, the two fetches and the exit codes.
+ * This module classifies and polls, both for the Railway commit status and
+ * for the preview's own health answer.
  *
  * The case that matters is `unpublished`: Railway reports `success` but
  * publishes no host. Discovery used to treat that as "not ready yet" and
@@ -233,4 +234,65 @@ export const HEALTH_ERRORS: Record<Exclude<HealthOutcome, 'serving'>, string> = 
     '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
     'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
     "the PR environment's deploy logs in Railway.",
+}
+
+export interface HealthDeps {
+  /** Resolves the parsed `/api/health` body, and rejects on anything else. */
+  fetchHealth: () => Promise<unknown>
+  expectedSha: string
+  timeoutMs: number
+  pollIntervalMs: number
+  sleep: (ms: number) => Promise<void>
+  now: () => number
+  log: (message: string) => void
+}
+
+/**
+ * Poll until the preview serves `expectedSha`, or the deadline passes.
+ *
+ * ⚠ **Only `unknown` is terminal.** That build carries the field and found
+ * the variable unset, which no further poll changes. `fieldless` is waited out
+ * alongside `behind`, because the build still answering may be the previous
+ * one — failing on the first such answer would reject the very push that
+ * fixes it.
+ *
+ * ⚠ **At the deadline the last healthy verdict wins.** Which failure it was
+ * decides what the error tells the reader to look at: reported as `behind`, a
+ * preview that never answered at all sent them to Railway's deploy list for a
+ * build that was down.
+ */
+export async function pollHealth(deps: HealthDeps): Promise<HealthOutcome> {
+  const { fetchHealth, expectedSha, timeoutMs, pollIntervalMs, sleep, now, log } = deps
+  const deadline = now() + timeoutMs
+  let attempt = 0
+  let lastHealthy: ServingVerdict | null = null
+
+  while (now() < deadline) {
+    attempt++
+    try {
+      const verdict = servingVerdict(await fetchHealth(), expectedSha)
+      if (verdict === 'serving') {
+        log(`preview serving ${expectedSha} after ${attempt} attempt(s)`)
+        return 'serving'
+      }
+      if (verdict === 'unknown') return 'unknown'
+      lastHealthy = verdict
+      log(
+        verdict === 'fieldless'
+          ? `health attempt ${attempt}: healthy, but the build names no commit`
+          : `health attempt ${attempt}: healthy, still on an earlier commit`,
+      )
+    } catch (err) {
+      log(`health attempt ${attempt}: ${(err as Error).message}`)
+    }
+
+    // Clamped as `discoverPreview`'s is, and for the same reason: the sleep
+    // after the last useful poll gates nothing, and an unclamped one overruns
+    // the advertised budget by up to a full interval.
+    const remaining = deadline - now()
+    if (remaining <= 0) break
+    await sleep(Math.min(pollIntervalMs, remaining))
+  }
+
+  return lastHealthy ?? 'silent'
 }
