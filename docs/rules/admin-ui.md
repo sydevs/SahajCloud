@@ -197,7 +197,7 @@ So a server field component that reads the database from the form's `id` — or 
 
 Two rules, and a component usually wants both:
 
-- **Re-read the row with the caller's own `req` and `overrideAccess: false` before reading anything else, and render nothing when that refuses.** Put the gate in the shared loader where one exists — `loadInstallRecord` gates for the banner and the summary at once, so the next caller inherits it — then do the `overrideAccess: true` read past it, both inside one React `cache`. `select` the narrowest column for the gate: its value is unused.
+- **Re-read the row with the caller's own `req` and `overrideAccess: false` before reading anything else, and render nothing when that refuses.** `gatedRead` (`src/components/admin/helpers/gatedRead.ts`) is that read, under one name a walking spec can key on. Put the gate in the shared loader where one exists — `loadInstallRecord` gates for the banner and the summary at once, so the next caller inherits it — then do the `overrideAccess: true` read past it, both inside one React `cache`. `select` the narrowest column for the gate: its value is unused.
 - **Take the values from the stored row, never from `data`.** `ManagerContacts` and `ImportResultsField` both do. A column that is `admin.readOnly` with `access.update: () => false` can never legitimately differ, so reading it back costs nothing.
 
 A component whose data genuinely needs no gate says so in a comment: `SubmissionSummary` resolves each link under the viewer's own access, and `SubmissionData`'s `formLabels` records that `forms` is `read: () => true` for everyone, so gating it would refuse nobody.

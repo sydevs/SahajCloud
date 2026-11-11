@@ -8,6 +8,7 @@ import type { ImportResultRow } from '@/plugins/eventImport/results'
 
 import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
 import { csvScheduleSummary, liveScheduleSummary } from './scheduleSummary'
+import { gatedRead } from '../helpers/gatedRead'
 
 const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
   published: ['published', 'published'],
@@ -41,16 +42,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
 }) => {
   const importId = Number(id)
   const stored = Number.isInteger(importId)
-    ? await req.payload.findByID({
-        collection: 'imports',
-        id: importId,
-        depth: 0,
-        select: { results: true, targetRegion: true },
-        overrideAccess: false,
-        disableErrors: true,
-        // Its own copy: field components render concurrently on one request.
-        req: localeIsolatedReq(req),
-      })
+    ? await gatedRead(req, 'imports', importId, { results: true, targetRegion: true })
     : null
   if (!stored) return null
   const results = (stored.results ?? []) as ImportResultRow[]

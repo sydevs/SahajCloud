@@ -10,6 +10,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import { type Milestone, milestonesForRecord } from './installModel'
+import { gatedRead } from '../helpers/gatedRead'
 
 interface InstallRecord {
   client: Pick<Client, 'roles' | 'enabled' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
@@ -38,18 +39,8 @@ interface InstallRecord {
  */
 export const loadInstallRecord = cache(
   async (req: PayloadRequest, id: number): Promise<InstallRecord | null> => {
-    const permitted = await req.payload.findByID({
-      collection: 'clients',
-      id,
-      depth: 0,
-      // Value unused: this read is the access check.
-      select: { enabled: true },
-      overrideAccess: false,
-      disableErrors: true,
-      // Each read takes its own copy: these components render concurrently, and
-      // `createLocalReq` assigns locale onto whatever request it is handed.
-      req: localeIsolatedReq(req),
-    })
+    // Value unused: this read is the access check.
+    const permitted = await gatedRead(req, 'clients', id, { enabled: true })
     if (!permitted) return null
 
     // Past the gate, `overrideAccess` so the summary reads the same for every
