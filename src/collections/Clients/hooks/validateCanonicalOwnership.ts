@@ -81,7 +81,7 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
     },
     limit: 1,
     depth: 0,
-    select: { name: true },
+    select: { label: true },
     overrideAccess: true,
     req,
   })
@@ -98,7 +98,7 @@ export const validateCanonicalOwnership: CollectionBeforeChangeHook = async ({
         {
           path: 'canonical.owned',
           message:
-            `"${incumbents[0].name}" is already the home for this region’s atlas links. ` +
+            `"${incumbents[0].label}" is already the home for this region’s atlas links. ` +
             'Release it there first, or pick a different region.',
         },
       ],

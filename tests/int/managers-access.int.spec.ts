@@ -151,7 +151,7 @@ describe('Managers access (#821)', () => {
       } as never,
     })
     client = await testData.createClient(payload, eventManager.id, {
-      name: 'Atlas Widget Key',
+      label: 'Atlas Widget Key',
       roles: ['sahaj-atlas-client'],
     })
   })
@@ -243,7 +243,7 @@ describe('Managers access (#821)', () => {
       const self = (await payload.findByID({
         collection: 'clients',
         id: client.id,
-        select: { name: true, managers: true, primaryContact: true },
+        select: { label: true, managers: true, primaryContact: true },
         depth: 1,
         overrideAccess: false,
         req: clientReq(),

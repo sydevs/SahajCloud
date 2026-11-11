@@ -37,7 +37,7 @@ describe('Events collection', () => {
         email: 'list-manager@example.com',
       })
       const clientDoc = await testData.createClient(payload, manager.id, {
-        name: 'Atlas List Client',
+        label: 'Atlas List Client',
         roles: ['sahaj-atlas-client'],
       })
       clientUser = {

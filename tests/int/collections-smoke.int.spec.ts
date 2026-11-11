@@ -210,10 +210,10 @@ describe('Collections smoke', () => {
   })
 
   it('clients: create + read + populate manager relationship', async () => {
-    const client = await testData.createClient(payload, adminUserId, { name: 'Smoke Client' })
+    const client = await testData.createClient(payload, adminUserId, { label: 'Smoke Client' })
     expect(client.id).toBeDefined()
     const found = await payload.findByID({ collection: 'clients', id: client.id, depth: 1 })
-    expect(found.name).toBe('Smoke Client')
+    expect(found.label).toBe('Smoke Client')
     expect(found.primaryContact).toBeTypeOf('object')
   })
 })

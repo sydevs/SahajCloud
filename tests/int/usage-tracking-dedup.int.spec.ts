@@ -197,7 +197,7 @@ describe('usage metering, per client-reachable route (#891)', () => {
     // reasoning — checked against `src/lib/clients/verification.ts`, the closed
     // schema every `clients` save validates this object against.
     const client = await testData.createClient(payload, managerId, {
-      name: 'Usage Meter Client',
+      label: 'Usage Meter Client',
       roles: ROLES,
       apiKey: API_KEY,
       region: country.id,

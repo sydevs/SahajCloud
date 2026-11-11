@@ -157,7 +157,7 @@ describe('atlasSitemap endpoint', () => {
     routing: 'path' | 'query'
   }): Promise<TestUser> => {
     const doc = await testData.createClient(payload, managerId, {
-      name: args.name,
+      label: args.name,
       roles: ['sahaj-atlas-client'],
       region: args.regionId,
       site: { domain: args.domain, page: args.mount },
@@ -256,7 +256,7 @@ describe('atlasSitemap endpoint', () => {
     })
 
     const plain = await testData.createClient(payload, managerId, {
-      name: 'Atlas Sitemap Reader',
+      label: 'Atlas Sitemap Reader',
       roles: ['sahaj-atlas-client'],
     })
     unownedClient = {

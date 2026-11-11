@@ -2375,9 +2375,9 @@ export interface User {
 export interface Client {
   id: number;
   /**
-   * Client organization or application name
+   * How this service is known inside SahajCloud. Never shown to the public.
    */
-  name: string;
+  label: string;
   /**
    * This service’s API key works only while this is on.
    */
@@ -2402,13 +2402,17 @@ export interface Client {
    * Where the map opens, and the region whose atlas links this service’s site becomes the home for. Leave empty for a worldwide map.
    */
   region?: (number | null) | Region;
-  color1?: string | null;
-  color2?: string | null;
-  color3?: string | null;
+  /**
+   * The name registrants see, e.g. in their confirmation emails. Leave empty to use the site’s domain.
+   */
+  title?: string | null;
   /**
    * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
    */
   logo?: (number | null) | Image;
+  color1?: string | null;
+  color2?: string | null;
+  color3?: string | null;
   /**
    * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
    */
@@ -2676,6 +2680,7 @@ export interface Client {
       )
     | null;
   allowedDomains?: string | null;
+  domain?: string | null;
   /**
    * Public identifier for this service. Auto-generated, or the Atlas public key for imported services.
    */
@@ -4871,17 +4876,18 @@ export interface ManagersSelect<T extends boolean = true> {
  * via the `definition` "clients_select".
  */
 export interface ClientsSelect<T extends boolean = true> {
-  name?: T;
+  label?: T;
   enabled?: T;
   notes?: T;
   roles?: T;
   managers?: T;
   primaryContact?: T;
   region?: T;
+  title?: T;
+  logo?: T;
   color1?: T;
   color2?: T;
   color3?: T;
-  logo?: T;
   supportEmail?: T;
   mailingList?:
     | T
@@ -4926,6 +4932,7 @@ export interface ClientsSelect<T extends boolean = true> {
       };
   language?: T;
   allowedDomains?: T;
+  domain?: T;
   clientId?: T;
   legacyId?: T;
   legacyData?: T;
