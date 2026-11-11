@@ -13,21 +13,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { requireActiveClient } from '@/lib/endpoints'
 
-const sentry = vi.hoisted(() => ({
-  captureMessage: vi.fn(),
-  scope: {
-    setUser: vi.fn(),
-    setTag: vi.fn(),
-    setExtra: vi.fn(),
-    setLevel: vi.fn(),
-    setFingerprint: vi.fn(),
-  },
-}))
+import { capturedFrom } from '../utils/sentryCapture'
 
-vi.mock('@sentry/nextjs', () => ({
-  captureMessage: sentry.captureMessage,
-  withScope: (callback: (scope: typeof sentry.scope) => void) => callback(sentry.scope),
-}))
+const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+
+vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
 
 vi.mock('@/lib/env/deploymentEnvironment', () => ({
   deploymentEnvironment: () => 'test',
@@ -66,8 +56,8 @@ const buildRequest = (
   } as unknown as PayloadRequest
 }
 
-const tags = () => Object.fromEntries(sentry.scope.setTag.mock.calls)
-const extras = () => Object.fromEntries(sentry.scope.setExtra.mock.calls)
+/** The capture context the shared body handed the SDK on its latest call. */
+const captured = () => capturedFrom(sentry.captureMessage)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -89,31 +79,28 @@ describe('a denial whose credential was rejected', () => {
 
   it('is captured at error level, in a group of its own', () => {
     expect(sentry.captureMessage).toHaveBeenCalledOnce()
-    expect(sentry.scope.setLevel).toHaveBeenCalledWith('error')
-    expect(sentry.scope.setFingerprint).toHaveBeenCalledWith([
-      'credential-rejected',
-      '403',
-      'clients',
-    ])
+    expect(captured().level).toBe('error')
+    expect(captured().fingerprint).toEqual(['credential-rejected', '403', 'clients'])
   })
 
   it('carries the same attribution the throwing path established (#734)', () => {
-    expect(tags()).toMatchObject({
+    expect(captured().tags).toMatchObject({
       auth_outcome: 'rejected',
       auth_collection: 'clients',
       auth_scheme: 'API-Key',
       key_fingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
-      environment: 'test',
     })
-    expect(extras()).toMatchObject({ userAgent: USER_AGENT, url: URL, status: 403 })
+    expect(captured().extra).toMatchObject({ userAgent: USER_AGENT, url: URL, status: 403 })
     // The IP goes on Sentry's own user field, where `sendDefaultPii: false` and
     // the project's "Prevent Storing of IP Addresses" setting both reach it.
-    expect(sentry.scope.setUser).toHaveBeenCalledWith({ ip_address: IP })
-    expect(extras()).not.toHaveProperty('ip')
+    expect(captured().user).toEqual({ ip_address: IP })
+    expect(captured().extra).not.toHaveProperty('ip')
   })
 
   it('mirrors the denial to the application log at WARN, naming this path', () => {
     expect(logger.warn).toHaveBeenCalledOnce()
+    // One spelling across both sinks, so neither query splits (#734).
+    expect(logger.warn.mock.calls[0]![0].keyFingerprint).toBe(captured().tags?.key_fingerprint)
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
         msg: 'API credential presented and rejected',
@@ -122,7 +109,7 @@ describe('a denial whose credential was rejected', () => {
         url: URL,
         authCollection: 'clients',
         authScheme: 'API-Key',
-        keyFingerprint: tags().key_fingerprint,
+        keyFingerprint: expect.stringMatching(/^[0-9a-f]{12}$/),
         userAgent: USER_AGENT,
         ip: IP,
       }),
@@ -130,14 +117,7 @@ describe('a denial whose credential was rejected', () => {
   })
 
   it('puts no part of the key into Sentry or the log', () => {
-    const written = JSON.stringify([
-      sentry.captureMessage.mock.calls,
-      sentry.scope.setTag.mock.calls,
-      sentry.scope.setExtra.mock.calls,
-      sentry.scope.setUser.mock.calls,
-      sentry.scope.setFingerprint.mock.calls,
-      logger.warn.mock.calls,
-    ])
+    const written = JSON.stringify([sentry.captureMessage.mock.calls, logger.warn.mock.calls])
 
     expect(written).not.toContain(KEY)
     expect(written).not.toContain(KEY.slice(0, 8))
