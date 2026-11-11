@@ -156,6 +156,19 @@ A service that relays subscribe submissions names its own provider, under **Atla
 
 ⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read project membership never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 
+⚠ **The provider key is write-only.** `mailingList.apiKey` is a `secretField()`
+(`src/fields/AGENTS.md`): `read: () => false` on top of the group lock, `admin.disabled` so it is
+absent from the edit form's state, and encrypted at rest. Nothing reads it back to any browser —
+the Atlas tab's control shows only whether a key is stored and its last four characters, from
+`GET /api/clients/:id/mailing-list-key`. A key is set through
+`POST /api/clients/:id/mailing-list-key`, which proves it against the provider and list it will be
+used beside and then writes through `payload.update`, so the Atlas-tab lock, the field locks and
+`validateMailingList` all run exactly as they do for a form save.
+
+⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to
+the preview iframe on every change, so a key in form state would reach sahajatlas.com
+(`docs/rules/admin-ui.md`). Keeping it out is what lets the Clients preview exist at all.
+
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 
 - It runs **only when one of the credential fields actually changed** — `provider`, `listId`, `apiKey`, CleverReach's `clientId` and `doiFlowId`, and `doubleOptIn`, which changes what is checked. The hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.

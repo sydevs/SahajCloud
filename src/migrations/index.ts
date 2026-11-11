@@ -124,6 +124,7 @@ import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185
 import * as migration_20261110_220603_manager_last_login from './20261110_220603_manager_last_login';
 import * as migration_20261110_234836_clients_label_title from './20261110_234836_clients_label_title';
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
+import * as migration_20261111_182500_encrypt_mailing_list_key from './20261111_182500_encrypt_mailing_list_key';
 
 export const migrations = [
   {
@@ -755,5 +756,10 @@ export const migrations = [
     up: migration_20261111_152439_merge_main_snapshot_7.up,
     down: migration_20261111_152439_merge_main_snapshot_7.down,
     name: '20261111_152439_merge_main_snapshot_7',
+  },
+  {
+    up: migration_20261111_182500_encrypt_mailing_list_key.up,
+    down: migration_20261111_182500_encrypt_mailing_list_key.down,
+    name: '20261111_182500_encrypt_mailing_list_key',
   },
 ];

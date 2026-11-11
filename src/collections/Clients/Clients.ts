@@ -1,7 +1,7 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
-import { colorField, legacyMigrationFields } from '@/fields'
+import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
@@ -32,6 +32,7 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { mailingListKey, mailingListKeyStatus } from './endpoints/mailingListKey'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -406,16 +407,24 @@ const mailingListGroup: Field = {
       },
     },
     {
-      name: 'apiKey',
-      type: 'text',
-      label: 'API Key',
-      required: true,
+      // The Set key / Replace key control, which owns the drawer the key is
+      // typed into. The stored column below renders nothing.
+      name: 'apiKeyControl',
+      type: 'ui',
       admin: {
         condition: (data) => mailingListEnabled(data),
+        components: { Field: '@/components/admin/MailingListKey/MailingListKeyField' },
+      },
+    },
+    secretField({
+      name: 'apiKey',
+      label: 'API Key',
+      writeAccess: managersOnlyFieldAccess,
+      admin: {
         description:
           'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
       },
-    },
+    }),
     {
       name: 'doubleOptIn',
       type: 'checkbox',
@@ -936,7 +945,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
+  endpoints: [clientEmbedReport, mailingListKey, mailingListKeyStatus, verifyEmbedOnDemand],
   hooks: {
     beforeChange: [
       validateClientData,

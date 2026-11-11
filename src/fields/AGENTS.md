@@ -44,3 +44,24 @@ treats `dtstart`'s UTC slot values as real UTC and applies the timezone
 offset again, producing environment-dependent results. `rrule-temporal`
 handles timezones natively via `Temporal.ZonedDateTime`, eliminating this
 class of bugs entirely.
+
+## Secret field
+
+`secretField()` (`src/fields/secretField.ts`) is a stored operator credential: `read: () => false`,
+`admin.disabled: true`, never `required`, and encrypted at rest through `req.payload.encrypt` /
+`decrypt`. It owns the storage properties only — the admin control belongs to the caller, because a
+credential is proven against its own provider before it is stored and this factory knows nothing
+about providers. `Clients.mailingList.apiKey` is its one consumer today.
+
+Two behaviours it must keep:
+
+- ⚠ **`''`, `null` and `undefined` pass through untouched, both ways.** `LIST_ELIGIBLE`
+  (`src/lib/atlas/mailingListOwners.ts`) filters this exact column with `not_equals: ''`, and
+  ciphertext for `''` is a non-empty string — so encrypting the empty case would offer a
+  half-configured service as a region's list owner.
+- ⚠ **A failed decrypt reports through `capture` and answers `null`.** A throw inside `afterRead`
+  takes down every read of the row; `null` reads as unconfigured (`isMailingListConfigured`), so
+  delivery stops rather than the CMS.
+
+It supplies no `validate`, which would replace Payload's own `text` validator
+(`src/collections/AGENTS.md`).
