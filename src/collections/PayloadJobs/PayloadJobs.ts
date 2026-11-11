@@ -92,11 +92,10 @@ export const payloadJobsOverrides = ({
  * week-long window above sweeps the evidence of the cancel with it.
  *
  * An hour clears the longest bound anything here declares twice over —
- * `TRANSCRIPTION_STALL_MS` (30 min, itself sized for a late safety-net pick-up
- * plus Lemonfox's 5-minute request timeout) and `IMPORT_STALL_MS` (15 min,
- * sized for a 500-row class import). `job-retention.spec.ts` holds it above
- * both, so a job that can legitimately run longer has to raise this rather than
- * lose a run to it.
+ * `TRANSCRIPTION_STALL_MS` (30 min, which carries its own reason) and
+ * `IMPORT_STALL_MS` (15 min, sized for a 500-row class import).
+ * `job-retention.spec.ts` holds it above both, so a job that can legitimately
+ * run longer has to raise this rather than lose a run to it.
  */
 export const STALE_JOB_MS = 60 * 60 * 1000
 
@@ -107,7 +106,7 @@ export const STALE_JOB_MS = 60 * 60 * 1000
  * schedule queueing another. A cancelled row is `hasError`, so the window above
  * sweeps it. Logs rather than throws: a failed cleanup must not stop the server
  * starting, and must not end the sweep that runs hourly
- * (`@/jobs/RecoverLostJobs/RecoverLostJobs`).
+ * (`@/lib/jobs/recoverLostJobs`).
  *
  * ⚠ **Deliberately gates on the window alone**, whether a boot or a sweep runs
  * it. A boot is not proof the row's owner died — a rolling deploy starts this
@@ -117,9 +116,12 @@ export const STALE_JOB_MS = 60 * 60 * 1000
  *
  * ⚠ **The rows come back read, not re-read after the cancel.** `jobs.cancel`
  * returns nothing and skips a row that finished in between, so a caller acting
- * on one of these has to tolerate a run that landed after all.
+ * on one of these has to tolerate a run that landed after all. They carry only
+ * what names the run's owner — whose job it was, and what it was given.
  */
-export async function cancelStaleJobs(payload: Payload): Promise<PayloadJob[]> {
+export async function cancelStaleJobs(
+  payload: Payload,
+): Promise<Pick<PayloadJob, 'id' | 'input' | 'taskSlug'>[]> {
   const before = new Date(Date.now() - STALE_JOB_MS).toISOString()
   try {
     const { docs } = await payload.find({
@@ -128,6 +130,7 @@ export async function cancelStaleJobs(payload: Payload): Promise<PayloadJob[]> {
       depth: 0,
       pagination: false,
       overrideAccess: true,
+      select: { input: true, taskSlug: true },
     })
     if (docs.length === 0) return []
     await payload.jobs.cancel({ where: { id: { in: docs.map(({ id }) => id) } } })

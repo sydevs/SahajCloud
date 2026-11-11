@@ -2,13 +2,13 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { cancelStaleJobs, STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
+import { cancelStaleJobs } from '@/collections/PayloadJobs/PayloadJobs'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionConfigOf, retentionEntries } from '@/jobs/CleanupCollections/entries'
 import { RecoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 
 import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const NOW = '2026-10-17T05:00:00.000Z'
@@ -152,23 +152,18 @@ describe('payload-jobs retention', () => {
 
   // Last: the cancelled rows below are `hasError`, which the counts above would see.
   describe('a row a dead container left processing', () => {
-    const markProcessing = (id: number, updatedAt?: string) =>
-      payload.db.updateOne({
-        collection: 'payload-jobs',
-        id,
-        data: { processing: true, ...(updatedAt && { updatedAt }) },
-        req: undefined,
-      })
-
-    const longAgo = () => new Date(Date.now() - 2 * STALE_JOB_MS).toISOString()
-
     const read = (id: number) =>
       payload.findByID({ collection: 'payload-jobs', id, depth: 0, overrideAccess: true })
 
     it('is cancelled, and a live one is left alone', async () => {
       const [stale, live] = [await seedJob({}), await seedJob({})]
-      await markProcessing(stale.id, longAgo())
-      await markProcessing(live.id)
+      await markJobLost(payload, stale.id)
+      await payload.db.updateOne({
+        collection: 'payload-jobs',
+        id: live.id,
+        data: { processing: true },
+        req: undefined,
+      })
 
       expect((await cancelStaleJobs(payload)).map((job) => job.id)).toEqual([stale.id])
 
@@ -190,7 +185,7 @@ describe('payload-jobs retention', () => {
         queue: 'nightly',
         meta: { scheduled: true },
       })
-      await markProcessing(lost.id, longAgo())
+      await markJobLost(payload, lost.id)
 
       const scheduledNow = async () =>
         (await payload.jobs.handleSchedules({ queue: 'nightly' })).queued.map(

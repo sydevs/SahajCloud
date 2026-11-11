@@ -3,15 +3,15 @@
 import type { ImportRun } from './run'
 import type { Payload, PayloadRequest } from 'payload'
 
+import { createLocalReq } from 'payload'
+
+import { isRecord } from '@/lib/utilities/isRecord'
 import type { PayloadJob } from '@/payload-types'
 
+import { IMPORT_TASK } from './constants'
 import { buildResults } from './results'
 import { sendImportSummary } from './summaryEmail'
-import { IMPORT_TASK } from './task'
 
-type ImportStatus = 'completed' | 'failed' | 'review'
-
-/** What a volunteer is told when the container running their import went away. */
 const INTERRUPTED_ERROR = 'The import stopped before it finished running. Upload the file again.'
 
 /** Every class a finished run created is a draft, so it starts in review. */
@@ -49,7 +49,7 @@ export async function failImport(
 function writeOutcome(
   req: PayloadRequest,
   run: ImportRun,
-  data: { status: ImportStatus; error?: string },
+  data: { status: 'failed' | 'review'; error?: string },
 ) {
   return markImport(req, run.importId, {
     ...data,
@@ -100,48 +100,46 @@ export async function refreshImportStatus(req: PayloadRequest, importId: number)
   if (drafts === 0) await markImport(req, importId, { status: 'completed' })
 }
 
+/** The import a cancelled job row was running, or null for a row that ran something else. */
+function interruptedImportId(job: Pick<PayloadJob, 'input' | 'taskSlug'>): number | null {
+  if (job.taskSlug !== IMPORT_TASK || !isRecord(job.input)) return null
+  const importId = Number(job.input.importId)
+  return Number.isInteger(importId) ? importId : null
+}
+
 /**
- * Fail every import whose run was lost with the job rows the stale-job sweep
- * cancelled (`@/jobs/RecoverLostJobs/RecoverLostJobs`).
+ * Fail every import whose run was lost, given the job rows the stale-job sweep
+ * cancelled (`@/lib/jobs/recoverLostJobs`).
  *
  * The task marks the import from its own `catch` (`task.ts`), which a lost run
  * never reaches — so the row stays `pending`, its schedule cannot queue
  * another, and the import page waits on a worker that is gone. `status` is
  * closed to every writer, so there is no retry a volunteer could reach either.
  *
- * ⚠ **Only a `pending` import is touched.** The sweep's rows are read before
- * the cancel, so one of those runs may have landed in between and written its
+ * ⚠ **Only a `pending` import is touched.** The sweep reads its rows before it
+ * cancels them, so one of those runs may have landed in between and written its
  * own outcome — overwriting that would replace a real result with this notice.
  */
 export async function failInterruptedImports(
   payload: Payload,
-  cancelled: PayloadJob[],
+  cancelled: Pick<PayloadJob, 'input' | 'taskSlug'>[],
 ): Promise<void> {
-  for (const job of cancelled) {
-    if (job.taskSlug !== IMPORT_TASK) continue
-    const importId = Number((job.input as { importId?: unknown })?.importId)
-    if (!Number.isInteger(importId)) continue
+  const importIds = cancelled.map(interruptedImportId).filter((id) => id !== null)
+  if (importIds.length === 0) return
 
-    try {
-      const current = await payload.findByID({
-        collection: 'imports',
-        id: importId,
-        depth: 0,
-        overrideAccess: true,
-        disableErrors: true,
-        select: { status: true },
-      })
-      if (current?.status !== 'pending') continue
-      await payload.update({
-        collection: 'imports',
-        id: importId,
-        data: { status: 'failed', error: INTERRUPTED_ERROR },
-        depth: 0,
-        overrideAccess: true,
-        select: { status: true },
-      })
-    } catch (err) {
-      payload.logger.error({ err, import: importId }, 'Interrupted import could not be marked')
-    }
+  // The sweep has no request of its own, and `failImport` is the one writer of
+  // an import's failure.
+  const req = await createLocalReq({}, payload)
+  for (const importId of importIds) {
+    const current = await payload.findByID({
+      collection: 'imports',
+      id: importId,
+      depth: 0,
+      overrideAccess: true,
+      disableErrors: true,
+      select: { status: true },
+      req,
+    })
+    if (current?.status === 'pending') await failImport(req, importId, INTERRUPTED_ERROR)
   }
 }

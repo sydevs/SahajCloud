@@ -31,10 +31,9 @@ import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import { isAdminManager, isManager, resolveOwnedRegionIds } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
-import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS } from './constants'
+import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS, IMPORT_TASK } from './constants'
 import { prepareUpload } from './csv/upload'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
-import { IMPORT_TASK } from './task'
 
 /**
  * One window for every status, because what sets it is the CSV: the file holds

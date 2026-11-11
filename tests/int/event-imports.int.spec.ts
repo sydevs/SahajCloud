@@ -12,10 +12,9 @@ import type { Payload, TaskConfig } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
@@ -24,7 +23,7 @@ import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
 import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -619,15 +618,7 @@ describe('class imports', () => {
     it('fails when the sweep cancels a run that was lost with its container', async () => {
       const created = await createImport([classLine({ title: 'Interrupted', startTime: '06:11' })])
       const job = (await queuedImportJob(created.id))!
-      await payload.db.updateOne({
-        collection: 'payload-jobs',
-        id: job.id,
-        data: {
-          processing: true,
-          updatedAt: new Date(Date.now() - 2 * STALE_JOB_MS).toISOString(),
-        },
-        req: undefined,
-      })
+      await markJobLost(payload, job.id)
 
       expect(await recoverLostJobs(payload)).toBeGreaterThan(0)
 

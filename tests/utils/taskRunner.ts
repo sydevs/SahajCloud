@@ -8,6 +8,28 @@ import type {
   TaskType,
 } from 'payload'
 
+import { STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
+
+/**
+ * Put a job row into the state a dead container leaves behind: `processing`,
+ * and older than the sweep's window.
+ *
+ * `db.updateOne` rather than `payload.update`, because `updatedAt` is Payload's
+ * to write and the collection operation would stamp it with now. One spelling,
+ * so the predicate `cancelStaleJobs` selects on lives in one place — a spec
+ * ageing a row without marking it `processing` would pass for the wrong reason.
+ */
+export const markJobLost = (payload: Payload, id: number): Promise<unknown> =>
+  payload.db.updateOne({
+    collection: 'payload-jobs',
+    id,
+    data: {
+      processing: true,
+      updatedAt: new Date(Date.now() - 2 * STALE_JOB_MS).toISOString(),
+    },
+    req: undefined,
+  })
+
 /**
  * Invoke a job task's `handler` directly, bypassing the queue.
  *

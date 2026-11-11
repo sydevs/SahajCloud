@@ -27,10 +27,9 @@ import path from 'node:path'
 import { extractID } from 'payload/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
-import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
 import {
   RETRANSCRIBE_COOLDOWN_MS,
   TRANSCRIPTION_STALL_MS,
@@ -44,7 +43,7 @@ import {
   type RestClient,
 } from '../utils/restRequest'
 import { seedLatestVersion } from '../utils/storeInvalidEvent'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -424,20 +423,16 @@ describe('meditation transcription', () => {
   describe('a run lost with its container', () => {
     it('reads failed once the sweep cancels its job', async () => {
       const meditation = await createMeditation()
-      await payload.db.updateOne({
-        collection: 'payload-jobs',
-        id: await runOf(meditation.id),
-        data: {
-          processing: true,
-          updatedAt: new Date(Date.now() - 2 * STALE_JOB_MS).toISOString(),
-        },
-        req: undefined,
-      })
+      await markJobLost(payload, await runOf(meditation.id))
       expect((await transcriptOf(meditation.id))?.status).toBe('processing')
 
       await recoverLostJobs(payload)
 
-      expect((await transcriptOf(meditation.id))?.status).toBe('failed')
+      const row = await transcriptOf(meditation.id)
+      expect(row?.status).toBe('failed')
+      // A cancelled row carries `{ cancelled: true }` and no message, so
+      // without its own branch the tab would say `failed` and nothing else.
+      expect(row?.error).toMatch(/interrupted before it finished/)
     })
   })
   /**

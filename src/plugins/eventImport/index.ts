@@ -17,8 +17,6 @@ import { importCollection } from './importCollection'
 import { RUN_CONTEXT_KEY } from './run'
 import { importEventsTask } from './task'
 
-// The stale-job sweep settles an import whose run was lost, and the plugin
-// decides which of the cancelled rows are its own.
 export { failInterruptedImports } from './finish'
 
 export const eventImportPlugin: Plugin = (config) => ({

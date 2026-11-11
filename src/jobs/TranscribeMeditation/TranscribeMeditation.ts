@@ -124,8 +124,7 @@ async function findCurrentRow(
     req,
   })
   const row = docs[0]
-  if (!row?.job) return undefined
-  return String(extractID(row.job)) === String(jobId) ? row : undefined
+  return row?.job && extractID(row.job) === jobId ? row : undefined
 }
 
 /**

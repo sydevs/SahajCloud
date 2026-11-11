@@ -22,9 +22,8 @@ const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcript
  * arriving *through* our zone at the origin; this is an outbound call from the
  * container to the vendor, made by a queued job with no HTTP client waiting.
  *
- * ⚠ **`TRANSCRIPTION_STALL_MS` has to clear this plus a `transcription` tick**,
- * or a run the safety-net cron picked up reads as stalled while it is working.
- * `job-schedules.spec.ts` derives that sum rather than restating it.
+ * ⚠ **`TRANSCRIPTION_STALL_MS` is sized off this**, so raising it moves when a
+ * working run starts reading as stalled. `job-schedules.spec.ts` holds the sum.
  */
 export const REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 

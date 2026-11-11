@@ -11,6 +11,7 @@ import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
+import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
@@ -54,7 +55,6 @@ import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { JOB_AUTO_RUN } from './jobs/queues'
-import { recoverLostJobs } from './jobs/RecoverLostJobs/RecoverLostJobs'
 import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
@@ -234,9 +234,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `@/plugins/previewAdmin` for why each of its three conditions is there, and why
     // production is detected by Railway's environment name rather than NODE_ENV.
     onInit: async (payload) => {
-      // The sweep that runs hourly cannot recover its own lost run — Payload
-      // will not schedule a task that already has a row in flight — so boot
-      // stays the one caller nothing blocks.
+      // Also runs hourly (`RecoverLostJobs`), which cannot recover its own
+      // lost run — that task's docblock says why boot has to keep this call.
       await recoverLostJobs(payload)
       await seedPreviewAdmin(payload)
     },
