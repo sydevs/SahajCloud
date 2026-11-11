@@ -48,6 +48,7 @@ export async function appendLogEntry(args: {
   // have to say which one — no collection has one.
   const table = `${quotedDbSchema(payload)}.${pg.escapeIdentifier(collection.replace(/-/g, '_'))}`
   const log = pg.escapeIdentifier('activity_log')
+  const updatedAt = pg.escapeIdentifier('updated_at')
   // A column holding anything but an array would make `jsonb_array_elements`
   // throw, which `asLog` tolerates on the read side by dropping it.
   const merged =
@@ -63,7 +64,7 @@ export async function appendLogEntry(args: {
                jsonb_array_elements(merged.entries) WITH ORDINALITY
           WHERE ordinality > jsonb_array_length(merged.entries) - ${DEFAULT_LOG_LIMIT}
         ),
-        "updated_at" = now()
+        ${updatedAt} = now()
     WHERE id = ${id}
   `)
 }
@@ -79,6 +80,11 @@ interface Executor {
  * `src/plugins/usage/db.ts` holds the same narrow cast for the pool, and owns
  * the reasoning for casting at all; this is the transaction-aware twin it has
  * no caller for.
+ *
+ * A request naming a transaction the adapter no longer holds falls back to the
+ * plain connection, as Payload's own `getTransaction` does: a session is gone
+ * once it has committed or rolled back, so there is no row lock left for the
+ * fallback to wait on.
  */
 async function session(payload: Payload, req: PayloadRequest | undefined): Promise<Executor> {
   const adapter = payload.db as unknown as {
