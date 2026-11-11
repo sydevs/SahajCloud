@@ -6,6 +6,8 @@
  * - `endpoints/` — the request route, and the one route that spends any link.
  * - `magicLinks.ts` — issuing a sign-in link, shared by the request route and
  *   the sign-in page.
+ * - `preflight.ts` — the checks a delivered link passes, and the per-kind rules
+ *   behind them, shared by the redeem route and the sign-in page.
  * - `token.ts` / `links.ts` — the three link kinds as separate JWT audiences,
  *   and the URLs each is mailed as.
  * - `session.ts` — minting a session without a password, and its cookie.
@@ -16,7 +18,8 @@
  * caller, and exporting them would invite a collection to wire its own copy.
  */
 
-export { EXPIRED_REASON, REDEEM_PATH } from './endpoints/redeem'
+export { REDEEM_PATH } from './endpoints/redeem'
+export { EXPIRED_REASON, preflight } from './preflight'
 export { INVITE_VALID_FOR, composeInvitations } from './invite'
 export { INVITATION_DELAY_MS } from './invitations'
 export { pageLinkUrl } from './links'
@@ -30,7 +33,8 @@ export {
   SIGNIN_VALID_FOR,
 } from './magicLinks'
 export { createSession, sessionCookie, sessionCookieParts } from './session'
-export { summarizeGrants } from './grantSummary'
+export { responsibilityLabel, summarizeGrants } from './grantSummary'
+export type { GrantSummary } from './grantSummary'
 export {
   INVITE_TOKEN_TTL_MS,
   isAdminPath,
@@ -44,5 +48,6 @@ export {
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
 } from './token'
+export type { Preflight } from './preflight'
 export type { LoginToken } from './token'
 export type { LoginCollectionConfig, LoginDocument, LoginMailArgs } from './types'

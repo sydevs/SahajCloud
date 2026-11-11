@@ -1,55 +1,49 @@
 import type { APIRequestContext } from '@playwright/test'
 
+import { PREVIEW_ADMIN_ADDRESS } from '../../../src/lib/preview/proxy'
+
 /**
  * The preview admin's address.
  *
- * ⚠ **The address is the credential.** Managers hold no password since
- * sydevs/SahajCloud#840, and a Railway preview signs this one address in on
- * request rather than mailing it a link (`src/plugins/previewAdmin`). So it comes
- * from CI secrets like the password before it, never from source, and the local
- * part must not be guessable — anyone who opens the preview and types it becomes
- * its admin.
+ * ⚠ **It is no longer a credential**, and that is what changed in #1081. A
+ * preview is reachable only through Cloudflare Access and the proxy gate, so who
+ * may ask is settled before a request arrives — and the account is therefore a
+ * committed constant rather than a CI secret. The credential this lane does hold
+ * is the `github-ci` Access service token, which `playwright.config.ts` attaches
+ * to every request.
  *
- * A getter, so importing this module stays safe for specs that never sign in. The
- * throw lands at first use with a message that says what to set, instead of
- * surfacing as an opaque refusal.
+ * Imported, not copied: the specs import nothing from `src/` as a rule, and
+ * `@/lib/preview/proxy` is the exception the rule allows — it is written with
+ * zero imports of its own, so reading it pulls no module graph into the
+ * Playwright process. A relative path, because Playwright resolves no `@/`.
  */
-export const PREVIEW_ADMIN = {
-  get email(): string {
-    const email = process.env.PREVIEW_ADMIN_EMAIL
-    if (!email) {
-      throw new Error(
-        'PREVIEW_ADMIN_EMAIL is not set. Preview credentials come from CI secrets — set it in ' +
-          'the workflow env before running the preview specs.',
-      )
-    }
-    return email
-  },
-}
+export const PREVIEW_ADMIN = { email: PREVIEW_ADMIN_ADDRESS }
 
 export function getBaseUrl(): string {
   return process.env.PREVIEW_URL ?? 'http://localhost:3000'
 }
 
 /**
- * The route that asks for a sign-in link — and, for the preview admin, answers
- * with the session instead of sending mail.
+ * The route that asks for a sign-in link — and, on a preview, answers with the
+ * session instead of sending mail.
  *
- * ⚠ **Kept in step with `REQUEST_MAGIC_LINK_PATH` by hand.** The specs run over
- * HTTP against a deployed preview, so they import nothing from `src/`.
+ * ⚠ **Kept in step with `REQUEST_MAGIC_LINK_PATH` by hand**, for the reason
+ * above.
  */
-const REQUEST_PATH = '/api/managers/request-magic-link'
+export const REQUEST_PATH = '/api/managers/request-magic-link'
 
 /**
  * Sign in to the preview as the admin and return a JWT.
  *
  * **The deploy provisions the account** — `onInit` reconciles it on every boot of
  * a preview environment (`src/plugins/previewAdmin`, sydevs/SahajCloud#662) — so
- * by the time any spec runs it already exists, accepted and admin.
+ * by the time any spec runs it already exists, accepted and admin. The admin is
+ * what this lane signs in as because `/api/seed/<script>` admits nobody else,
+ * even though a preview now signs in any manager.
  *
  * It used to `POST /api/managers/login`, then a preview-only exchange route.
- * Neither exists now: `PREVIEW_ADMIN_EMAIL` is both the account and the way in,
- * and `issueMagicLink` mints the session where the preview gate holds.
+ * Neither exists now: `issueMagicLink` mints the session wherever the preview
+ * gate holds.
  *
  * A failure here is a real one, so it is reported rather than worked around.
  */
@@ -58,20 +52,22 @@ export async function ensureAdmin(request: APIRequestContext): Promise<string> {
   if (!res.ok()) {
     throw new Error(
       `ensureAdmin: ${REQUEST_PATH} refused the request for ${PREVIEW_ADMIN.email} ` +
-        `at ${getBaseUrl()} (${res.status()}).`,
+        `at ${getBaseUrl()} (${res.status()}). A 302 to a Cloudflare Access login means this ` +
+        `run holds no CF_ACCESS_CLIENT_ID / CF_ACCESS_CLIENT_SECRET, or the token's Service ` +
+        `Auth policy was switched off.`,
     )
   }
-  // ⚠ A missing token is the expected shape for every other address: the route
-  // answers `{ ok: true }` and says nothing. Here it means the preview did not
-  // recognise this address as its admin — a different PREVIEW_ADMIN_EMAIL than
-  // the deploy holds, or a deploy whose [previewAdmin] boot line is missing.
+  // ⚠ A missing token is the expected shape wherever the preview gate does not
+  // hold: the route answers `{ ok: true }` and says nothing. Here it means this
+  // deployment is not a Railway preview, or the admin account is missing or
+  // unaccepted — the JWT strategy yields no user for an unaccepted account, so
+  // `issueMagicLink` refuses rather than minting a token nobody can spend.
   const body = (await res.json()) as { token?: string }
   if (!body.token) {
     throw new Error(
-      `ensureAdmin: the preview accepted the request but signed nobody in. It provisions its ` +
-        `admin from PREVIEW_ADMIN_EMAIL on every deploy and signs in that same address, so ` +
-        `either that deploy step did not run — check the boot log for a [previewAdmin] line — ` +
-        `or this run holds a different value than the deploy did.`,
+      `ensureAdmin: the preview accepted the request but signed nobody in. Either this target ` +
+        `is not a Railway preview environment, or the admin was never provisioned — check the ` +
+        `boot log for a [previewAdmin] line.`,
     )
   }
   return body.token

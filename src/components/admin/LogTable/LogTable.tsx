@@ -1,6 +1,6 @@
 'use client'
 
-import type { FieldClientComponent, JSONFieldClient } from 'payload'
+import type { ArrayFieldClient, ArrayFieldClientComponent } from 'payload'
 
 import {
   Drawer,
@@ -8,7 +8,6 @@ import {
   FieldLabel,
   Table,
   useDrawerSlug,
-  useField,
   useModal,
 } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
@@ -18,6 +17,7 @@ import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
 import { tableColumn } from '../helpers/tableColumn'
+import { useLogValue } from '../helpers/useLogValue'
 
 import './styles.css'
 
@@ -52,9 +52,9 @@ import './styles.css'
  * table being a table. The cursor is the one thing that has to be a stylesheet
  * rule, since it belongs on a `<tr>` we don't render.
  */
-export const LogTable: FieldClientComponent = ({ field }) => {
-  const { name, label, admin } = field as JSONFieldClient
-  const { value } = useField<unknown>()
+export const LogTable: ArrayFieldClientComponent = ({ field, path }) => {
+  const { name, label, admin } = field as ArrayFieldClient
+  const value = useLogValue(path)
 
   // Newest first: a manager opening a document is asking about the last thing
   // that happened. The stored order stays chronological — that's the end the
@@ -87,7 +87,7 @@ export const LogTable: FieldClientComponent = ({ field }) => {
   }
 
   return (
-    <div className="field-type json read-only">
+    <div className="field-type array-field read-only">
       <FieldLabel label={label} path={name} />
       <div className="field-type__wrap">
         {entries.length === 0 ? (

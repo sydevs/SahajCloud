@@ -46,6 +46,7 @@ import type { ScriptMetadata, PaginationResult } from './lib/pagination'
 
 import { seedEnv } from './env'
 import { SCRIPT_DATA_FILES } from './lib/dataFiles'
+import { accessTokenHeaders, PREVIEW_ADMIN_ADDRESS } from '../src/lib/preview/proxy'
 
 const VALID_SCRIPTS: ScriptName[] = [
   'storyblok',
@@ -60,6 +61,9 @@ const VALID_SCRIPTS: ScriptName[] = [
   'atlas-reset',
   // Never in SCRIPT_RUN_ORDER either: every run it queues is a paid vendor call.
   'file-transcripts',
+  // Never in SCRIPT_RUN_ORDER either: it is a preview's content, so a full
+  // seed of any other target must not pull it in.
+  'preview-fixture',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -88,6 +92,7 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
   'atlas-reset': '⚠ Delete every Atlas event, region, user and user-submission (before a re-sync)',
   'file-transcripts': 'Transcribe every audio and video file that has no transcript (paid runs)',
+  'preview-fixture': 'Fill a preview with made-up classes, managers, registrations and messages',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']
@@ -108,12 +113,24 @@ async function loadInlineData(scriptName: ScriptName): Promise<Record<string, st
 }
 
 /**
+ * The Cloudflare Access service-token headers, when this run holds one.
+ *
+ * Access sits in front of every preview address, so a run targeting one carries
+ * these on every request — including the auto-login probe, which would otherwise
+ * read a login page rather than the target. Both or neither: Access logs a blank
+ * client id as a failed service-token attempt.
+ */
+function accessHeaders(): Record<string, string> {
+  return accessTokenHeaders(seedEnv.CF_ACCESS_CLIENT_ID, seedEnv.CF_ACCESS_CLIENT_SECRET)
+}
+
+/**
  * Auth header for a seed request. `null` means we are relying on the target's
  * auto-login (see `authenticate`), so the request must go out *without* an
  * `Authorization` header for Payload's tokenless path to kick in.
  */
 function authHeaders(token: string | null): Record<string, string> {
-  return token ? { Authorization: `JWT ${token}` } : {}
+  return { ...accessHeaders(), ...(token ? { Authorization: `JWT ${token}` } : {}) }
 }
 
 /**
@@ -207,7 +224,10 @@ function printScripts(): void {
  */
 async function hasAutoLogin(baseUrl: string): Promise<boolean> {
   const probe = async (headers?: Record<string, string>): Promise<boolean> => {
-    const response = await fetch(`${baseUrl}/api/managers/me`, { cache: 'no-store', headers })
+    const response = await fetch(`${baseUrl}/api/managers/me`, {
+      cache: 'no-store',
+      headers: { ...accessHeaders(), ...headers },
+    })
     if (!response.ok) return false
     const { user } = (await response.json()) as { user?: unknown }
     return Boolean(user)
@@ -226,6 +246,61 @@ async function hasAutoLogin(baseUrl: string): Promise<boolean> {
     // Unreachable target — let the real seed request report the failure.
     return false
   }
+}
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+/** Enough of a refusal to recognise it, and not enough to bury the advice under it. */
+const excerpt = (body: string): string => {
+  const flat = body.replace(/\s+/g, ' ').trim()
+  if (!flat) return '(empty body)'
+  return flat.length > 300 ? `${flat.slice(0, 300)}…` : flat
+}
+
+/**
+ * Ask a gated preview to sign the provisioned admin in, and return the session.
+ *
+ * ⚠ **This works on a preview and nowhere else**, which is the point:
+ * `previewAutoSignIn` is on only where Railway names a non-production
+ * environment, and on production the same call answers `{ ok: true }` with no
+ * token, because any difference would be an account-enumeration oracle on an
+ * anonymous endpoint. So a target that hands a token back has already decided
+ * this run may have one — and the credential that got the request past Access is
+ * the service token above, never an address.
+ *
+ * `/api/seed/<script>` admits only an admin manager, which is why this asks for
+ * the provisioned admin rather than any of the fixture's managers.
+ */
+async function previewSignIn(baseUrl: string): Promise<{ detail?: string; token?: string }> {
+  const route = `${baseUrl}/api/managers/request-magic-link`
+  let response: Response
+  try {
+    response = await fetch(route, {
+      method: 'POST',
+      headers: { ...accessHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: PREVIEW_ADMIN_ADDRESS }),
+    })
+  } catch (error) {
+    return { detail: `POST ${route} did not answer: ${errorMessage(error)}` }
+  }
+
+  const body = await response.text().catch(errorMessage)
+  const answered = `POST ${route} answered HTTP ${response.status}`
+  if (!response.ok) return { detail: `${answered}: ${excerpt(body)}` }
+
+  let token: string | undefined
+  try {
+    token = (JSON.parse(body) as { token?: string }).token
+  } catch {
+    return { detail: `${answered} with a body that is not JSON: ${excerpt(body)}` }
+  }
+  if (!token) {
+    return { detail: `${answered} and no token, so this target signs nobody in: ${excerpt(body)}` }
+  }
+
+  console.log(`🔐 Signed in as ${PREVIEW_ADMIN_ADDRESS} — this target is a preview\n`)
+  return { token }
 }
 
 /**
@@ -249,12 +324,20 @@ async function authenticate(baseUrl: string): Promise<string | null> {
     return null
   }
 
-  const token = seedEnv.ADMIN_TOKEN
+  const supplied = seedEnv.ADMIN_TOKEN
+  const attempted = supplied ? undefined : await previewSignIn(baseUrl)
+  const token = supplied ?? attempted?.token
 
   if (!token) {
     throw new Error(
-      'Missing authentication credentials.\n' +
-        'Set ADMIN_TOKEN to a manager session token. Request a sign-in link at ' +
+      // The refusal leads, because it is usually the whole answer: a gate 403,
+      // an Access login page and a target with the sign-in off all used to
+      // arrive as the ADMIN_TOKEN advice below, which is wrong for each of them.
+      (attempted?.detail ? `${attempted.detail}\n\n` : '') +
+        'Missing authentication credentials.\n' +
+        'A preview of this repo signs its own admin in, so a run against one needs ' +
+        'only CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET.\n' +
+        'Otherwise set ADMIN_TOKEN to a manager session token. Request a sign-in link at ' +
         "the target's /admin/login, then run\n" +
         "  pnpm tsx scripts/redeem-signin-link.ts '<link>' --seed <script>\n" +
         'which runs this with ADMIN_TOKEN set from the link.\n' +
@@ -268,7 +351,7 @@ async function authenticate(baseUrl: string): Promise<string | null> {
   // Not verified here: the first seeded write reports a stale or wrong token as
   // its own 403, and there is no cheap probe that would not be a second guess at
   // what "authenticated" means.
-  console.log('🔐 Using the supplied ADMIN_TOKEN\n')
+  if (supplied) console.log('🔐 Using the supplied ADMIN_TOKEN\n')
   return token
 }
 

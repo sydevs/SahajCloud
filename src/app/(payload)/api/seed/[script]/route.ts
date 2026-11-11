@@ -440,6 +440,11 @@ async function getImporter(
       const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
       return new AtlasImporter(options)
     }
+    case 'preview-fixture': {
+      const { PreviewFixtureImporter } =
+        await import('../../../../../../seeds/preview-fixture/import')
+      return new PreviewFixtureImporter(options)
+    }
     case 'atlas-reset': {
       const { AtlasResetImporter } = await import('../../../../../../seeds/atlas/reset')
       return new AtlasResetImporter(options)

@@ -47,8 +47,10 @@ sent when a manager is assigned something (`invitations.ts`), never on create. T
 factories: `loginPlugin` is their only caller.
 
 Work with two callers gets its own module beside them rather than living in one
-of their wiring files — `session.ts`, and `magicLinks.ts` for the throttle
-and send that the request endpoint and the manager sign-in page both run.
+of their wiring files — `session.ts`; `magicLinks.ts` for the throttle
+and send that the request endpoint and the manager sign-in page both run; and
+`preflight.ts` for the checks a delivered link passes, which the redeem route
+and that same page must agree on (#1113).
 
 ### `src/jobs/<JobName>/`
 
@@ -113,7 +115,7 @@ No loose files at the root — every file lives in a named folder:
 - `env/` — environment-variable validation (broadly imported config), plus
   `deploymentEnvironment.ts`, which names the deployment (Railway environment
   name, falling back to `NODE_ENV`. Its `clientDeploymentEnvironment()` twin
-  reads the name `next.config.mjs` inlines for the browser, which reads no
+  reads the name `next.config.ts` inlines for the browser, which reads no
   environment at runtime). That one is deliberately **outside** the
   `@/lib/env` barrel and imported by its deep path: the barrel pulls in the
   validated `serverEnv` parse, and Sentry reads it during
@@ -178,6 +180,17 @@ No loose files at the root — every file lives in a named folder:
   because the job is its one caller since every request became a queued run
   (#1016); with one consumer, `tests/unit/lib-boundary.spec.ts` refuses it
   here
+- `atomicWrites/` — the two writes a background worker owes a row it read
+  before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
+  into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
+  with bound parameters, on the caller's own connection, reading no entry, so
+  two writers keep each other's — into the log's own table and, where the
+  collection carries drafts, into the version table beside it, which is what a
+  `draft: true` read serves and what `updateByID` writes the next save back
+  from.
+  Neither knows a stage, a status or a verdict — the Payload
+  flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
+  own. No barrel: import each module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,
