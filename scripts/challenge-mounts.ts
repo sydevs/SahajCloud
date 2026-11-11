@@ -12,7 +12,7 @@ import { siteHosts } from '../src/lib/clients/site'
 import { originOf } from '../src/lib/utilities/url'
 import { normalizeHost } from '../src/plugins/usage/originEnforcement'
 
-export type AuditedClient = Pick<Client, 'id' | 'name' | 'enabled' | 'site' | 'embedMetadata'>
+export type AuditedClient = Pick<Client, 'id' | 'label' | 'enabled' | 'site' | 'embedMetadata'>
 
 export interface StoredMount {
   client: AuditedClient

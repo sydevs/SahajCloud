@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { name: true, enabled: true, site: { domain: true }, embedMetadata: true },
+    select: { label: true, enabled: true, site: { domain: true }, embedMetadata: true },
   })
   const services = docs as AuditedClient[]
   const mounts = storedMounts(services)
@@ -77,10 +77,10 @@ async function main(): Promise<void> {
   console.log(`Allowlist: ${[...new Set(patterns)].join(', ')}\n`)
   for (const { client, mount, ownedBy, record } of refused) {
     console.log(
-      `  ${client.enabled ? '' : '[disabled] '}clients/${client.id} ${JSON.stringify(client.name)}` +
+      `  ${client.enabled ? '' : '[disabled] '}clients/${client.id} ${JSON.stringify(client.label)}` +
         `  domain=${client.site?.domain || '—'}  ${record.mode}  ${mount}  lastSeen=${record.lastSeen}` +
         (ownedBy
-          ? `\n      host owned by disabled clients/${ownedBy.id} ${JSON.stringify(ownedBy.name)} — enable it`
+          ? `\n      host owned by disabled clients/${ownedBy.id} ${JSON.stringify(ownedBy.label)} — enable it`
           : ''),
     )
   }
