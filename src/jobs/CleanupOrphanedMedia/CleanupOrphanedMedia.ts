@@ -85,8 +85,11 @@ type CleanupResult = {
   errors: number
 }
 
+/** The two collections this job sweeps. */
+type MediaCollection = 'files' | 'images'
+
 /** The ids of each media collection that some stored document still points at. */
-type ReferencedIds = Record<'files' | 'images', Set<number>>
+type ReferencedIds = Record<MediaCollection, Set<number>>
 
 /**
  * Cleanup job for orphaned media files.
@@ -282,100 +285,63 @@ function getTotalOperations(result: CleanupResult): number {
   )
 }
 
-/**
- * Generic helper for processing items (delete or trash) with consistent logging and error handling.
- *
- * @param config.req - Payload request object
- * @param config.collection - Target collection ('files' or 'images')
- * @param config.docs - Documents to process
- * @param config.operation - 'delete' for permanent deletion, 'trash' for soft delete
- * @param config.result - CleanupResult object to update counters
- * @param config.resultKey - Which counter to increment on success
- * @param config.maxItemsToProcess - Maximum number of items to process (for early exit optimization)
- * @param config.dryRun - Count and log the operation without performing it
- */
-interface ProcessItemsConfig<
-  T extends { id: number; filename?: string | null; createdAt?: string },
-> {
-  req: PayloadRequest
-  collection: 'files' | 'images'
-  docs: T[]
-  operation: 'delete' | 'trash'
-  result: CleanupResult
-  resultKey: keyof CleanupResult
-  maxItemsToProcess?: number
-  dryRun?: boolean
-}
+/** A media row as every paging caller here reads it. */
+type MediaDoc = { id: number; filename?: string | null; createdAt?: string; tags?: unknown }
 
-async function processItems<T extends { id: number; filename?: string | null; createdAt?: string }>(
-  config: ProcessItemsConfig<T>,
-): Promise<void> {
-  const { req, collection, docs, operation, result, resultKey, maxItemsToProcess, dryRun } = config
+/**
+ * Delete or trash every document handed over, and report what it managed.
+ *
+ * The caller bounds the work by collecting no more rows than it means to
+ * spend, so there is no second limit here to disagree with that one.
+ */
+async function processItems(config: {
+  req: PayloadRequest
+  collection: MediaCollection
+  docs: MediaDoc[]
+  operation: 'delete' | 'trash'
+  dryRun: boolean
+}): Promise<{ processed: number; errors: number }> {
+  const { req, collection, docs, operation, dryRun } = config
+  const deleting = operation === 'delete'
   const itemType = collection === 'files' ? 'file' : 'image'
   const idKey = collection === 'files' ? 'fileId' : 'imageId'
 
-  let processedCount = 0
+  let processed = 0
+  let errors = 0
 
   for (const doc of docs) {
-    // Early exit if we've reached the maximum number of items to process
-    if (maxItemsToProcess !== undefined && processedCount >= maxItemsToProcess) {
-      break
-    }
-
     try {
-      if (operation === 'delete') {
-        if (!dryRun) {
-          // Permanent deletion: trash: true required so delete() can find trashed documents
-          await req.payload.delete({
-            collection,
-            id: doc.id,
-            trash: true,
-          })
-        }
-        ;(result[resultKey] as number)++
-        processedCount++
-        req.payload.logger.info({
-          msg: dryRun
-            ? `Would permanently delete trashed ${itemType}`
-            : `Permanently deleted trashed ${itemType}`,
-          [idKey]: doc.id,
-          filename: doc.filename,
-          dryRun: dryRun === true,
-        })
-      } else {
-        if (!dryRun) {
-          // Soft delete: set deletedAt to move to trash
-          await req.payload.update({
-            collection,
-            id: doc.id,
-            data: {
-              deletedAt: new Date().toISOString(),
-            },
-          })
-        }
-        ;(result[resultKey] as number)++
-        processedCount++
-        req.payload.logger.info({
-          msg: dryRun
-            ? `Would move orphaned ${itemType} to trash`
-            : `Moved orphaned ${itemType} to trash`,
-          [idKey]: doc.id,
-          filename: doc.filename,
-          createdAt: doc.createdAt,
-          dryRun: dryRun === true,
-        })
+      if (!dryRun) {
+        await (deleting
+          ? // `trash: true` is what lets delete() reach a soft-deleted document.
+            req.payload.delete({ collection, id: doc.id, trash: true })
+          : req.payload.update({
+              collection,
+              id: doc.id,
+              data: { deletedAt: new Date().toISOString() },
+            }))
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const actionMsg = operation === 'delete' ? 'permanently delete trashed' : 'trash orphaned'
-      req.payload.logger.error({
-        msg: `Failed to ${actionMsg} ${itemType}`,
+      processed++
+      req.payload.logger.info({
+        msg: deleting
+          ? `${dryRun ? 'Would permanently delete' : 'Permanently deleted'} trashed ${itemType}`
+          : `${dryRun ? 'Would move' : 'Moved'} orphaned ${itemType} to trash`,
         [idKey]: doc.id,
-        error: errorMessage,
+        filename: doc.filename,
+        createdAt: doc.createdAt,
+        dryRun,
       })
-      result.errors++
+    } catch (error) {
+      req.payload.logger.error({
+        msg: `Failed to ${deleting ? 'permanently delete trashed' : 'trash orphaned'} ${itemType}`,
+        [idKey]: doc.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      errors++
     }
   }
+
+  return { processed, errors }
 }
 
 /**
@@ -403,51 +369,56 @@ async function permanentlyDeleteTrashedItems(
     trashCutoff: trashCutoff.toISOString(),
   })
 
-  const expiredTrash = {
+  const expiredTrash: Where = {
     and: [{ deletedAt: { exists: true } }, { deletedAt: { less_than: trashCutoff.toISOString() } }],
   }
 
-  const maxFilesToProcess = Math.floor(maxOperations / 2)
-  const deletableFiles = await collectDeletableTrash({
-    req,
-    collection: 'files',
-    where: expiredTrash,
-    referenced: referenced.files,
-    wanted: maxFilesToProcess,
-    result,
-  })
+  /**
+   * Expired trash nothing points at any more. Names what it holds back as it
+   * goes, under `dryRun` too, so an operator sees it first. That count is what
+   * this loop read, never the whole backlog.
+   */
+  const deletable = (collection: MediaCollection, wanted: number) =>
+    collectPaged({
+      req,
+      collection,
+      where: expiredTrash,
+      // `trash: true` is what includes soft-deleted documents in the results.
+      trash: true,
+      wanted,
+      keep: (doc) => {
+        if (!referenced[collection].has(doc.id)) return true
+        result.skippedReferenced++
+        req.payload.logger.info({
+          msg: 'Kept trashed item: still referenced',
+          collection,
+          id: doc.id,
+          filename: doc.filename,
+        })
+        return false
+      },
+    })
 
-  await processItems({
+  // Files take half the budget, so an expired-trash backlog in one collection
+  // cannot spend the whole run on itself.
+  const files = await processItems({
     req,
     collection: 'files',
-    docs: deletableFiles,
+    docs: await deletable('files', Math.floor(maxOperations / 2)),
     operation: 'delete',
-    result,
-    resultKey: 'permanentlyDeletedFiles',
-    maxItemsToProcess: maxFilesToProcess,
+    dryRun,
+  })
+  const images = await processItems({
+    req,
+    collection: 'images',
+    docs: await deletable('images', maxOperations - files.processed),
+    operation: 'delete',
     dryRun,
   })
 
-  const remainingOps = maxOperations - result.permanentlyDeletedFiles
-  const deletableImages = await collectDeletableTrash({
-    req,
-    collection: 'images',
-    where: expiredTrash,
-    referenced: referenced.images,
-    wanted: remainingOps,
-    result,
-  })
-
-  await processItems({
-    req,
-    collection: 'images',
-    docs: deletableImages,
-    operation: 'delete',
-    result,
-    resultKey: 'permanentlyDeletedImages',
-    maxItemsToProcess: remainingOps,
-    dryRun,
-  })
+  result.permanentlyDeletedFiles = files.processed
+  result.permanentlyDeletedImages = images.processed
+  result.errors += files.errors + images.errors
 
   req.payload.logger.info({
     msg: 'Phase A completed',
@@ -456,9 +427,6 @@ async function permanentlyDeleteTrashedItems(
     skippedReferenced: result.skippedReferenced,
   })
 }
-
-/** A media row as every paging caller here reads it. */
-type MediaDoc = { id: number; filename?: string | null; createdAt?: string; tags?: unknown }
 
 /**
  * Pages `collection` until `keep` has passed `wanted` rows, or the pages run
@@ -472,7 +440,7 @@ type MediaDoc = { id: number; filename?: string | null; createdAt?: string; tags
  */
 async function collectPaged(config: {
   req: PayloadRequest
-  collection: 'files' | 'images'
+  collection: MediaCollection
   where: Where
   depth?: number
   trash?: boolean
@@ -495,54 +463,15 @@ async function collectPaged(config: {
     })
 
     for (const doc of found.docs) {
-      if (keep(doc)) {
-        collected.push(doc)
-      }
+      if (keep(doc)) collected.push(doc)
     }
 
     hasMore = found.hasNextPage
     page++
   }
 
-  return collected
-}
-
-/**
- * Expired trash Phase A may delete: what nothing points at any more. Counts and
- * names what it holds back along the way, under `dryRun` too, so an operator
- * sees it first. That count is what this loop read, never the whole backlog.
- */
-async function collectDeletableTrash(config: {
-  req: PayloadRequest
-  collection: 'files' | 'images'
-  where: Where
-  referenced: Set<number>
-  wanted: number
-  result: CleanupResult
-}): Promise<MediaDoc[]> {
-  const { req, collection, where, referenced, wanted, result } = config
-
-  return collectPaged({
-    req,
-    collection,
-    where,
-    // `trash: true` is what includes soft-deleted documents in the results.
-    trash: true,
-    wanted,
-    keep: (doc) => {
-      if (!referenced.has(doc.id)) {
-        return true
-      }
-      result.skippedReferenced++
-      req.payload.logger.info({
-        msg: 'Kept trashed item: still referenced',
-        collection,
-        id: doc.id,
-        filename: doc.filename,
-      })
-      return false
-    },
-  })
+  // A page is read whole, so the last one can pass more than the budget.
+  return collected.slice(0, wanted)
 }
 
 /** Phase B: Move newly detected orphans to trash (soft delete) */
@@ -557,8 +486,6 @@ async function trashOrphanedMedia(
 ): Promise<void> {
   req.payload.logger.info({ msg: 'Phase B: Trashing orphaned media' })
 
-  const { files: referencedFiles, images: referencedImages } = referenced
-
   const inScanWindow: Where = {
     and: [
       { createdAt: { greater_than_equal: rangeStart.toISOString() } },
@@ -567,64 +494,56 @@ async function trashOrphanedMedia(
     ],
   }
 
-  const maxFilesToProcess = Math.floor(maxOperations / 2)
-  const orphanFiles = await collectPaged({
+  // Files take half the budget, so an orphan backlog in one collection cannot
+  // spend the whole run on itself.
+  const files = await processItems({
     req,
     collection: 'files',
-    where: inScanWindow,
-    wanted: maxFilesToProcess,
-    keep: (file) => !referencedFiles.has(file.id),
-  })
-
-  await processItems({
-    req,
-    collection: 'files',
-    docs: orphanFiles,
     operation: 'trash',
-    result,
-    resultKey: 'trashedFiles',
-    maxItemsToProcess: maxFilesToProcess,
     dryRun,
+    docs: await collectPaged({
+      req,
+      collection: 'files',
+      where: inScanWindow,
+      wanted: Math.floor(maxOperations / 2),
+      keep: (file) => !referenced.files.has(file.id),
+    }),
   })
 
-  const maxImagesToProcess = maxOperations - result.trashedFiles
-  const orphanImages = await collectPaged({
+  const images = await processItems({
     req,
     collection: 'images',
-    where: inScanWindow,
-    depth: 1, // Include tag objects to check titles
-    wanted: maxImagesToProcess,
-    keep: (image) => {
-      if (referencedImages.has(image.id)) {
-        return false
-      }
-
-      // Image tags are inline enum strings, not relationships. An orientation
-      // tag is added by a hook on upload, so it says nothing about use.
-      const hasContentTags =
-        Array.isArray(image.tags) &&
-        (image.tags as ImageTag[]).some(
-          (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
-        )
-      if (hasContentTags) {
-        result.skippedImages++
-        return false
-      }
-
-      return true
-    },
-  })
-
-  await processItems({
-    req,
-    collection: 'images',
-    docs: orphanImages,
     operation: 'trash',
-    result,
-    resultKey: 'trashedImages',
-    maxItemsToProcess: maxImagesToProcess,
     dryRun,
+    docs: await collectPaged({
+      req,
+      collection: 'images',
+      where: inScanWindow,
+      depth: 1, // Include tag objects to check titles
+      wanted: maxOperations - files.processed,
+      keep: (image) => {
+        if (referenced.images.has(image.id)) return false
+
+        // Image tags are inline enum strings, not relationships. An orientation
+        // tag is added by a hook on upload, so it says nothing about use.
+        const hasContentTags =
+          Array.isArray(image.tags) &&
+          (image.tags as ImageTag[]).some(
+            (tag) => typeof tag === 'string' && !ORIENTATION_TAG_TITLES.includes(tag),
+          )
+        if (hasContentTags) {
+          result.skippedImages++
+          return false
+        }
+
+        return true
+      },
+    }),
   })
+
+  result.trashedFiles = files.processed
+  result.trashedImages = images.processed
+  result.errors += files.errors + images.errors
 
   req.payload.logger.info({
     msg: 'Phase B completed',
@@ -640,14 +559,11 @@ async function trashOrphanedMedia(
  */
 async function getAllReferencedIds(
   payload: Payload,
-  targetCollection: 'files' | 'images',
+  targetCollection: MediaCollection,
 ): Promise<Set<number>> {
   const referencedIds = new Set<number>()
-
-  // Discover all field references to the target collection
   const references = discoverReferencesForCollection(payload, targetCollection)
 
-  // Log discovered references for debugging
   payload.logger.info({
     msg: `Discovered ${references.length} field references to ${targetCollection}`,
     references: references.map((r) => ({
@@ -657,40 +573,43 @@ async function getAllReferencedIds(
     })),
   })
 
-  // Separate regular field references from Lexical (richText) references
-  const regularReferences = references.filter((r) => !r.isLexicalBlock)
-  const lexicalReferences = references.filter((r) => r.isLexicalBlock)
-
-  // Group regular references by source collection for efficient scanning
-  const byCollection = groupByCollection(regularReferences)
-
-  // Scan regular field references
-  for (const [collectionSlug, collectionRefs] of byCollection) {
-    await scanCollectionForReferences(
+  // One pass per source collection, whatever mix of references it holds. The
+  // read is `locale: 'all'` over every stored copy and every latest version, so
+  // a second pass for the same collection's rich text doubles the most
+  // expensive read this job makes.
+  for (const [collectionSlug, collectionRefs] of groupByCollection(references)) {
+    await forEachStoredDoc(
       payload,
       collectionSlug,
-      collectionRefs,
-      referencedIds,
-      targetCollection,
+      collectionRefs.map((ref) => ref.fieldPath),
+      (doc) => {
+        for (const ref of collectionRefs) {
+          for (const id of idsFromStoredDoc(doc, ref, targetCollection)) referencedIds.add(id)
+        }
+      },
     )
   }
 
-  // Scan Lexical content for block references
-  // Each lexical reference represents a richText field that may contain blocks
-  const lexicalByCollection = groupByCollection(lexicalReferences)
-  for (const [collectionSlug, collectionRefs] of lexicalByCollection) {
-    for (const ref of collectionRefs) {
-      await scanCollectionForLexicalReferences(
-        payload,
-        collectionSlug,
-        ref,
-        referencedIds,
-        targetCollection,
-      )
+  return referencedIds
+}
+
+/** Every target id one discovered reference reaches in one stored document. */
+function idsFromStoredDoc(
+  doc: Record<string, unknown>,
+  reference: FieldReference,
+  targetCollection: string,
+): Set<number> {
+  if (!reference.isLexicalBlock) return extractIdsFromDocument(doc, reference, targetCollection)
+
+  const ids = new Set<number>()
+  // The read addresses the field by its whole path as one key, so a localized
+  // rich text is marked at the first segment or unreachable.
+  for (const content of localeValues(doc[reference.fieldPath], reference.localizedAt.includes(0))) {
+    for (const id of extractIdsFromLexicalContent(content, reference, targetCollection)) {
+      ids.add(id)
     }
   }
-
-  return referencedIds
+  return ids
 }
 
 /**
@@ -749,49 +668,4 @@ async function forEachStoredDoc(
       page++
     }
   }
-}
-
-/** Scan a collection for references using discovered field paths. */
-async function scanCollectionForReferences(
-  payload: Payload,
-  collectionSlug: string,
-  references: FieldReference[],
-  referencedIds: Set<number>,
-  targetCollection: string,
-): Promise<void> {
-  await forEachStoredDoc(
-    payload,
-    collectionSlug,
-    references.map((ref) => ref.fieldPath),
-    (doc) => {
-      for (const ref of references) {
-        for (const id of extractIdsFromDocument(doc, ref, targetCollection)) referencedIds.add(id)
-      }
-    },
-  )
-}
-
-/**
- * Scan a collection's Lexical content for block references.
- * Uses generic Lexical traversal to find all upload/relationship IDs.
- */
-async function scanCollectionForLexicalReferences(
-  payload: Payload,
-  collectionSlug: string,
-  reference: FieldReference,
-  referencedIds: Set<number>,
-  targetCollection: string,
-): Promise<void> {
-  await forEachStoredDoc(payload, collectionSlug, [reference.fieldPath], (doc) => {
-    // The read addresses the field by its whole path as one key, so a
-    // localized rich text is marked at the first segment or unreachable.
-    for (const content of localeValues(
-      doc[reference.fieldPath],
-      reference.localizedAt.includes(0),
-    )) {
-      for (const id of extractIdsFromLexicalContent(content, reference, targetCollection)) {
-        referencedIds.add(id)
-      }
-    }
-  })
 }

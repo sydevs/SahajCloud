@@ -779,13 +779,11 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
   /**
-   * ⚠ These cases go last on purpose. Each fixture here creates a `files` row,
-   * and `scanCollectionForLexicalReferences` collects upload ids from Lexical
-   * content without regard to the collection they belong to — so an image id
-   * counts as a referenced file id. Inserting a case earlier shifts the file
-   * ids of every case after it, and one then lands on an image id and is
-   * spared as "referenced". That aliasing is a defect in the job, not in the
-   * spec; appending keeps it from deciding whether the suite passes.
+   * These cases used to have to go last. Each fixture here creates a `files`
+   * row, and a Lexical upload id counted for both collections, so an image id
+   * read as a referenced file id and the file ids a case happened to land on
+   * decided whether the suite passed. The scan now matches the collection a
+   * node names (#1118), so the order is free.
    */
   describe('Phase A: Trash Retention', () => {
     /**
