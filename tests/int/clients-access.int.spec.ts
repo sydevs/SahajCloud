@@ -896,6 +896,23 @@ describe('Clients access', () => {
         expect((await deliveryRead(service.id)).mailingList?.apiKey).toBe(PROVIDER_SECRET)
       })
 
+      // The read `MailingListKeyField` runs before it decrypts anything. It
+      // cannot trust the row id it is handed: a `form-state` request names the
+      // row, and Payload's handler checks only `canAccessAdmin`.
+      it('refuses the hint’s own gate to a manager the service does not list', async () => {
+        const refused = await payload.findByID({
+          collection: 'clients',
+          id: listClient.id,
+          depth: 0,
+          disableErrors: true,
+          overrideAccess: false,
+          req: managerReq(outsideManager),
+          select: { id: true } as never,
+        })
+
+        expect(refused).toBeNull()
+      })
+
       it('refuses a manager the service does not list', async () => {
         const outsideRest = await createRestClientAs({ payload, config }, outsideManager)
         const { status } = await setKey(outsideRest, listClient.id, 'OUTSIDER-SECRET')
