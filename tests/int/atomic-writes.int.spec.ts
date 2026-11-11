@@ -107,6 +107,44 @@ describe('atomic writes', () => {
       expect((await storedLog(id)).map((row) => row.key)).toEqual(['only'])
     })
 
+    it('reaches a draft read of a collection carrying versions', async () => {
+      // `events` carries drafts, so the admin edit view — the Activity Log
+      // table's only reader — loads the `latest: true` version row and never
+      // the main one.
+      const id = await newEvent()
+      await seedLog(id, [])
+
+      await appendLogEntry({ payload, collection: 'events', id, entry: entry('visible') })
+
+      const drafted = await payload.findByID({
+        collection: 'events',
+        id,
+        depth: 0,
+        draft: true,
+        overrideAccess: true,
+      })
+      expect(asLog(drafted.activityLog).map((row) => row.key)).toEqual(['visible'])
+    })
+
+    it('survives the next ordinary update of the same row', async () => {
+      // `updateByID` loads the document it is about to write from that same
+      // version row and writes the merged whole back, so an entry missing
+      // there is an entry the next unrelated save deletes.
+      const id = await newEvent()
+      await seedLog(id, [])
+
+      await appendLogEntry({ payload, collection: 'events', id, entry: entry('kept') })
+      await payload.update({
+        collection: 'events',
+        id,
+        data: { confidenceScore: 42 },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      expect((await storedLog(id)).map((row) => row.key)).toEqual(['kept'])
+    })
+
     it('joins the transaction its request carries', async () => {
       // Two callers are `afterChange` hooks whose transaction has already
       // written the row they log on. A write on another connection would wait

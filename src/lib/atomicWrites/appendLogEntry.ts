@@ -1,5 +1,6 @@
 import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
 
+import { hasDraftsEnabled } from 'payload/shared'
 import pg from 'pg'
 
 import { DEFAULT_LOG_LIMIT, type LogEntry } from '@/fields'
@@ -28,9 +29,18 @@ import { quotedDbSchema } from '@/plugins/usage'
  * number. Binding them would mean the pool, which the paragraph above rules
  * out. `persistVerification` is on the pool and binds its values.
  *
- * It writes no version row and runs no hook, which is what the column wants:
- * nothing reads an activity log back as state, and the entry is built here
- * rather than taken from a caller's input.
+ * ⚠ **A collection carrying drafts needs the `latest: true` version row too.**
+ * Payload serves a `draft: true` read from that row whenever one exists, with
+ * no comparison against the main row — so the main row alone leaves the entry
+ * invisible to the admin edit view, which is the log table's only reader. Worse,
+ * `updateByID` loads the document it is about to write from the same row and
+ * writes the merged whole back, so the next ordinary save of the document would
+ * delete every entry appended since. The write Payload made here before this
+ * helper existed reached both rows, through `saveVersion({ unpublish })`.
+ *
+ * It writes no version *history* and runs no hook, which is what the column
+ * wants: nothing reads an activity log back as state, and the entry is built
+ * here rather than taken from a caller's input.
  */
 export async function appendLogEntry(args: {
   payload: Payload
@@ -46,27 +56,46 @@ export async function appendLogEntry(args: {
   // Payload names a table after its slug in snake case, and `logField`'s
   // default field name gives the column. A document with a second log would
   // have to say which one — no collection has one.
-  const table = `${quotedDbSchema(payload)}.${pg.escapeIdentifier(collection.replace(/-/g, '_'))}`
+  const schema = quotedDbSchema(payload)
+  const table = `${schema}.${pg.escapeIdentifier(collection.replace(/-/g, '_'))}`
   const log = pg.escapeIdentifier('activity_log')
   const updatedAt = pg.escapeIdentifier('updated_at')
-  // A column holding anything but an array would make `jsonb_array_elements`
-  // throw, which `asLog` tolerates on the read side by dropping it.
-  const merged =
-    `CASE WHEN jsonb_typeof(${log}) = 'array' THEN ${log} ELSE '[]'::jsonb END` +
-    ` || ${pg.escapeLiteral(JSON.stringify([entry]))}::jsonb`
 
   const executor = await session(payload, req)
   await executor.execute(`
     UPDATE ${table}
-    SET ${log} = (
-          SELECT coalesce(jsonb_agg(value ORDER BY ordinality), '[]'::jsonb)
-          FROM (SELECT ${merged}) AS merged(entries),
-               jsonb_array_elements(merged.entries) WITH ORDINALITY
-          WHERE ordinality > jsonb_array_length(merged.entries) - ${DEFAULT_LOG_LIMIT}
-        ),
+    SET ${log} = ${merged(log, entry)},
         ${updatedAt} = now()
     WHERE id = ${id}
   `)
+
+  if (!hasDraftsEnabled(payload.collections[collection]?.config)) return
+
+  // Payload's own naming for a versions table and its copy of a field. The
+  // version's own `updated_at` is left alone: it dates the save that made the
+  // version, and this append is not one.
+  const versions = `${schema}.${pg.escapeIdentifier(`_${collection.replace(/-/g, '_')}_v`)}`
+  const versionLog = pg.escapeIdentifier('version_activity_log')
+  await executor.execute(`
+    UPDATE ${versions}
+    SET ${versionLog} = ${merged(versionLog, entry)}
+    WHERE ${pg.escapeIdentifier('parent_id')} = ${id} AND ${pg.escapeIdentifier('latest')} = true
+  `)
+}
+
+/** The column's own value, with the entry appended and the oldest trimmed off. */
+function merged(column: string, entry: LogEntry): string {
+  // A column holding anything but an array would make `jsonb_array_elements`
+  // throw, which `asLog` tolerates on the read side by dropping it.
+  const appended =
+    `CASE WHEN jsonb_typeof(${column}) = 'array' THEN ${column} ELSE '[]'::jsonb END` +
+    ` || ${pg.escapeLiteral(JSON.stringify([entry]))}::jsonb`
+  return `(
+          SELECT coalesce(jsonb_agg(value ORDER BY ordinality), '[]'::jsonb)
+          FROM (SELECT ${appended}) AS merged(entries),
+               jsonb_array_elements(merged.entries) WITH ORDINALITY
+          WHERE ordinality > jsonb_array_length(merged.entries) - ${DEFAULT_LOG_LIMIT}
+        )`
 }
 
 /** One statement's worth of Drizzle. */

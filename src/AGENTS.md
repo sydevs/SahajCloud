@@ -181,7 +181,10 @@ No loose files at the root — every file lives in a named folder:
   before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
   into the write's own `where`; `appendLogEntry` adds one `activityLog` entry
   with `jsonb ||`, on the caller's own connection, so two writers keep each
-  other's entries. Neither knows a stage, a status or a verdict — the Payload
+  other's entries — to the main row and, where the collection carries drafts,
+  to its `latest: true` version row, which is what a `draft: true` read serves
+  and what `updateByID` writes the next save back from.
+  Neither knows a stage, a status or a verdict — the Payload
   flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
   own. No barrel: import each module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
