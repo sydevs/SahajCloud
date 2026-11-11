@@ -1,16 +1,17 @@
 /**
  * The contract between a Railway preview, the Cloudflare Worker in front of it,
- * and the scripts that create, sweep and reach its address. Six consumers spell
- * these values, so they live here rather than in any one of them:
+ * and the scripts that create, sweep and reach its address. Seven consumers
+ * spell these values, so they live here rather than in any one of them:
  * `src/middleware.ts` (the gate), `src/lib/utilities/serverUrl.ts` (the CSRF
  * origin), `src/plugins/previewAdmin` (the environment test),
- * `preview-proxy/index.ts` (the Worker), `scripts/preview-domain.ts` and
- * `seeds/run.ts`.
+ * `preview-proxy/index.ts` (the Worker), `next.config.ts` (the preview's
+ * Server Action origin), `scripts/preview-domain.ts` and `seeds/run.ts`.
  *
  * Pure, with no imports: `src/middleware.ts` reaches it from a bundle that must
  * stay free of `serverEnv` and Payload, the Worker reaches it by relative path
- * outside this app's module resolution, and `playwright.config.ts` reaches it
- * outside the app altogether.
+ * outside this app's module resolution, and `next.config.ts` and
+ * `playwright.config.ts` each reach it outside the app altogether — the config
+ * from a file swc transpiles before Next itself has started.
  *
  * ⚠ **Not the live-preview secret.** `@/lib/utilities/previewSecret` and
  * `x-sahajcloud-preview-secret` are the Lexical draft-preview credential, which

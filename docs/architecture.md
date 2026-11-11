@@ -187,7 +187,9 @@ Payload's `autoRun` job system runs background tasks in the same long-lived Node
 ## Key Configuration Files
 
 - `src/payload.config.ts` — Payload configuration (Postgres adapter, `prodMigrations`).
-- `next.config.ts` — Next.js configuration (wrapped with `withSentryConfig`).
+- `next.config.ts` — Next.js configuration (wrapped with `withSentryConfig`). TypeScript, so it
+  reads the preview address shape and the deployment name from `src/` rather than restating
+  them: Next transpiles the config with swc, which resolves its imports and tsconfig paths.
 - `src/payload-types.ts` — generated types. Do not edit.
 - `tsconfig.json` — TypeScript path aliases.
 - `eslint.config.mjs` — ESLint configuration.
