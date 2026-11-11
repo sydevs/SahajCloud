@@ -1,5 +1,5 @@
 /** Usage Plugin DB helpers */
-import type { PayloadRequest } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 import type { Pool } from 'pg'
 
 import pg from 'pg'
@@ -20,9 +20,14 @@ export function getPgPool(req: PayloadRequest): Pool | null {
  * isolated per-suite schema in tests. Raw `pool.query()` runs against the
  * connection's default search_path (public), so table names in raw SQL must be
  * qualified with this schema to resolve under a non-public schema (e.g. tests).
+ *
+ * Takes a `Payload` as well as a request, unlike {@link getPgPool}: a statement
+ * on the caller's own transaction has a request, and one from a Server Action
+ * has only the instance (`@/lib/atomicWrites/appendLogEntry`).
  */
-export function getDbSchema(req: PayloadRequest): string {
-  return (req.payload.db as unknown as { schemaName?: string }).schemaName || 'public'
+export function getDbSchema(from: Payload | PayloadRequest): string {
+  const payload = 'payload' in from ? from.payload : from
+  return (payload.db as unknown as { schemaName?: string }).schemaName || 'public'
 }
 
 /**
@@ -33,6 +38,6 @@ export function getDbSchema(req: PayloadRequest): string {
  * from Payload's adapter config, not user input, but escaping it is correct
  * regardless of source.)
  */
-export function quotedDbSchema(req: PayloadRequest): string {
-  return pg.escapeIdentifier(getDbSchema(req))
+export function quotedDbSchema(from: Payload | PayloadRequest): string {
+  return pg.escapeIdentifier(getDbSchema(from))
 }

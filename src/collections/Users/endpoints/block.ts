@@ -138,7 +138,8 @@ async function refuseOpenSubmissions(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { user: { equals: userId }, status: { equals: 'pending' } },
-    select: { screeningResult: true },
+    // Ids only: the write below reads nothing off the row.
+    select: {},
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -195,7 +196,8 @@ async function logOnSubmission(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { and: [{ id: { equals: submission } }, { user: { equals: userId } }] },
-    select: { status: true },
+    // Ids only: this read is the ownership check, not a load.
+    select: {},
     depth: 0,
     limit: 1,
     overrideAccess: true,

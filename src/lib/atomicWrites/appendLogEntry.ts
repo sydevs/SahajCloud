@@ -3,6 +3,7 @@ import type { CollectionSlug, Payload, PayloadRequest } from 'payload'
 import pg from 'pg'
 
 import { DEFAULT_LOG_LIMIT, type LogEntry } from '@/fields'
+import { quotedDbSchema } from '@/plugins/usage'
 
 /**
  * Add one entry to a document's `activityLog`, in a single statement.
@@ -22,6 +23,11 @@ import { DEFAULT_LOG_LIMIT, type LogEntry } from '@/fields'
  * documents the opposite trade — it is deliberately outside any transaction,
  * because its contended reader is another request.
  *
+ * ⚠ **That connection takes SQL text and no parameters**, so the entry is
+ * escaped with pg's own `escapeLiteral` and the id is checked to be a whole
+ * number. Binding them would mean the pool, which the paragraph above rules
+ * out. `persistVerification` is on the pool and binds its values.
+ *
  * It writes no version row and runs no hook, which is what the column wants:
  * nothing reads an activity log back as state, and the entry is built here
  * rather than taken from a caller's input.
@@ -37,39 +43,27 @@ export async function appendLogEntry(args: {
   const { payload, collection, id, entry, req } = args
   if (!Number.isInteger(id)) throw new Error(`appendLogEntry: ${collection} id ${id} is not a row`)
 
-  const adapter = payload.db as unknown as DrizzleAdapter
-  // `tableNameMap` is keyed by the slug in snake case; every slug here is
-  // lowercase and hyphenated, so the two spellings differ only in the
-  // separator. The column names come off the built table rather than from the
-  // field names, so a `dbName` override still resolves.
-  const tableName = adapter.tableNameMap.get(collection.replace(/-/g, '_'))
-  const table = tableName === undefined ? undefined : adapter.tables[tableName]
-  const log = table?.activityLog?.name
-  const updatedAt = table?.updatedAt?.name
-  if (tableName === undefined || log === undefined || updatedAt === undefined) {
-    throw new Error(`appendLogEntry: ${collection} has no activity log to append to`)
-  }
-
-  const quoted = {
-    table: `${pg.escapeIdentifier(adapter.schemaName || 'public')}.${pg.escapeIdentifier(tableName)}`,
-    log: pg.escapeIdentifier(log),
-    updatedAt: pg.escapeIdentifier(updatedAt),
-  }
+  // Payload names a table after its slug in snake case, and `logField`'s
+  // default field name gives the column. A document with a second log would
+  // have to say which one — no collection has one.
+  const table = `${quotedDbSchema(payload)}.${pg.escapeIdentifier(collection.replace(/-/g, '_'))}`
+  const log = pg.escapeIdentifier('activity_log')
   // A column holding anything but an array would make `jsonb_array_elements`
   // throw, which `asLog` tolerates on the read side by dropping it.
   const merged =
-    `(CASE WHEN jsonb_typeof(${quoted.log}) = 'array' THEN ${quoted.log} ELSE '[]'::jsonb END` +
-    ` || ${pg.escapeLiteral(JSON.stringify([entry]))}::jsonb)`
+    `CASE WHEN jsonb_typeof(${log}) = 'array' THEN ${log} ELSE '[]'::jsonb END` +
+    ` || ${pg.escapeLiteral(JSON.stringify([entry]))}::jsonb`
 
-  const executor = await session(adapter, req)
+  const executor = await session(payload, req)
   await executor.execute(`
-    UPDATE ${quoted.table}
-    SET ${quoted.log} = (
+    UPDATE ${table}
+    SET ${log} = (
           SELECT coalesce(jsonb_agg(value ORDER BY ordinality), '[]'::jsonb)
-          FROM jsonb_array_elements(${merged}) WITH ORDINALITY
-          WHERE ordinality > jsonb_array_length(${merged}) - ${DEFAULT_LOG_LIMIT}
+          FROM (SELECT ${merged}) AS merged(entries),
+               jsonb_array_elements(merged.entries) WITH ORDINALITY
+          WHERE ordinality > jsonb_array_length(merged.entries) - ${DEFAULT_LOG_LIMIT}
         ),
-        ${quoted.updatedAt} = now()
+        "updated_at" = now()
     WHERE id = ${id}
   `)
 }
@@ -80,19 +74,17 @@ interface Executor {
 }
 
 /**
- * Just enough of the Postgres adapter to run one statement on the right
- * connection. `src/plugins/usage/db.ts` holds the same narrow cast for the pool.
+ * The request's own transaction, or the adapter's connection where it has none.
+ *
+ * `src/plugins/usage/db.ts` holds the same narrow cast for the pool, and owns
+ * the reasoning for casting at all; this is the transaction-aware twin it has
+ * no caller for.
  */
-interface DrizzleAdapter {
-  drizzle: Executor
-  schemaName?: string
-  sessions: Record<string, { db: Executor }>
-  tables: Record<string, Record<string, { name?: string } | undefined> | undefined>
-  tableNameMap: Map<string, string>
-}
-
-/** The request's own transaction, or the adapter's connection where it has none. */
-async function session(adapter: DrizzleAdapter, req: PayloadRequest | undefined) {
+async function session(payload: Payload, req: PayloadRequest | undefined): Promise<Executor> {
+  const adapter = payload.db as unknown as {
+    drizzle: Executor
+    sessions: Record<string, { db: Executor }>
+  }
   const transactionId = req?.transactionID === undefined ? undefined : await req.transactionID
   if (transactionId === undefined) return adapter.drizzle
   return adapter.sessions[String(transactionId)]?.db ?? adapter.drizzle

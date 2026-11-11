@@ -112,6 +112,9 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
         // refusal is terminal here.
         ...(passed ? {} : { status: 'spam' as const }),
       },
+      // Nobody reads the returned document, and at the config's default depth
+      // a proposal's afterRead recomputes both review projections for it.
+      depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },
       req,

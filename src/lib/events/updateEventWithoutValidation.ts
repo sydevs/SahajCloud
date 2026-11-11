@@ -13,7 +13,6 @@ export type EventBookkeeping = Partial<
   Pick<
     Event,
     | '_status'
-    | 'activityLog'
     | 'confidenceScore'
     | 'nextCheckAt'
     | 'registrationsFull'

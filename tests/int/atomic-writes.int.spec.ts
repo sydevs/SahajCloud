@@ -17,6 +17,7 @@ import { DEFAULT_LOG_LIMIT, asLog, type LogEntry } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
 
+import { seedLatestVersion } from '../utils/storeInvalidEvent'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -49,14 +50,14 @@ describe('atomic writes', () => {
         .activityLog,
     )
 
-  /** Write the column straight, so a case can start from a shape no hook would write. */
+  /**
+   * Write the column straight, so a case can start from a shape no hook would
+   * write. The shared helper, which seeds the `latest: true` version row too —
+   * `events` carries drafts, and a case reading back through one would
+   * otherwise see the pre-seed value.
+   */
   const seedLog = (id: number, activityLog: unknown) =>
-    payload.db.updateOne({
-      collection: 'events',
-      id,
-      data: { activityLog } as never,
-      req: undefined,
-    })
+    seedLatestVersion(payload, 'events', id, { activityLog })
 
   describe('appendLogEntry', () => {
     it('appends to a log nothing has written yet', async () => {

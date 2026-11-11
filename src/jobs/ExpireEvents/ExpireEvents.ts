@@ -33,17 +33,17 @@ import { reminderButtonUrl } from './verifyUrl'
  * a derived-bookkeeping write must not re-validate stored data — and the
  * hazards it carries live on `updateEventBookkeeping` (#842).
  */
-async function updateBookkeeping(
-  payload: Payload,
-  req: PayloadRequest,
-  id: number,
+async function updateBookkeeping(args: {
+  payload: Payload
+  req: PayloadRequest
+  id: number
   // This job's own allowance, narrower than the shared helper's ceiling. The
-  // type is what keeps a fifth field out of a write that skips validation, so
+  // type is what keeps a fourth field out of a write that skips validation, so
   // it stays here rather than widening to every bookkeeping writer's fields.
-  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | '_status'>>,
-  expect?: Where,
-): Promise<boolean> {
-  return updateEventBookkeeping({ payload, id, data, req, expect })
+  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | '_status'>>
+  expect?: Where
+}): Promise<boolean> {
+  return updateEventBookkeeping(args)
 }
 
 interface ExpireResult {
@@ -76,13 +76,18 @@ interface ExpireResult {
  * retention window elapses (see the `finished` entry in `STAGES`).
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
-  await updateBookkeeping(payload, req, event.id, {
-    verificationStage: 'finished',
-    nextCheckAt: resolveNextCheckAt({
-      stage: 'finished',
-      schedule: event.schedule,
-      inactive: event.inactive,
-    }),
+  await updateBookkeeping({
+    payload,
+    req,
+    id: event.id,
+    data: {
+      verificationStage: 'finished',
+      nextCheckAt: resolveNextCheckAt({
+        stage: 'finished',
+        schedule: event.schedule,
+        inactive: event.inactive,
+      }),
+    },
   })
 }
 
@@ -154,12 +159,17 @@ async function processEvent(args: {
   // Unreachable in practice — a due pre-adoption event has a run-out schedule,
   // which the finish-check above already claimed.
   if (action.kind === 'await-schedule') {
-    await updateBookkeeping(payload, req, event.id, {
-      nextCheckAt: resolveNextCheckAt({
-        stage,
-        schedule: event.schedule,
-        inactive: event.inactive,
-      }),
+    await updateBookkeeping({
+      payload,
+      req,
+      id: event.id,
+      data: {
+        nextCheckAt: resolveNextCheckAt({
+          stage,
+          schedule: event.schedule,
+          inactive: event.inactive,
+        }),
+      },
     })
     return
   }
@@ -185,7 +195,10 @@ async function processEvent(args: {
   // dedup below. `null` when the listing wasn't checked at all.
   const listingProgress = (await buildEventListingProgress({ event, req, now })) ?? undefined
 
-  let log = asNotificationLog(event.activityLog)
+  // The cycle's entries as this run knows them: what was stored when it
+  // started, plus what it has sent since. It feeds the per-stage dedup below
+  // and is never written back — the column is appended to, not replaced.
+  const known = asNotificationLog(event.activityLog)
 
   // Shared across recipients: the absolute date this event is (or was)
   // unpublished — every reminder shows the same date; how long it's gone
@@ -202,7 +215,7 @@ async function processEvent(args: {
     inactive: event.inactive,
   })
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
-  const verifiedAt = log.find((entry) => entry.kind === 'verification')?.at
+  const verifiedAt = known.find((entry) => entry.kind === 'verification')?.at
   const sinceLastVerified = verifiedAt ? humanDurationSince(verifiedAt, now) : 'some time'
   // Public map link, but only while the event stays published: the in-memory
   // event still reads `published` during the unpublishing (expired) transition,
@@ -216,7 +229,7 @@ async function processEvent(args: {
   let allDelivered = true
 
   for (const recipient of recipients) {
-    if (hasReminderForStage(log, stage, recipient.manager.id)) continue
+    if (hasReminderForStage(known, stage, recipient.manager.id)) continue
 
     const eventTitle = typeof event.title === 'string' ? event.title : `Event #${event.id}`
     const verifyUrl = await reminderButtonUrl({
@@ -248,8 +261,8 @@ async function processEvent(args: {
 
     // Persist the log entry immediately — it's the exactly-once marker, so a
     // crash mid-fan-out resumes by sending only the still-missing recipients.
-    // Appended in the database rather than written back from `log`, so a
-    // manager verifying mid-run keeps the entry their verify wrote.
+    // Appended in the database rather than written back from the copy read
+    // above, so a manager verifying mid-run keeps the entry their verify wrote.
     const entry = buildReminderEntry({
       stage,
       level: action.level,
@@ -264,7 +277,7 @@ async function processEvent(args: {
       at: now.toISOString(),
     })
     await appendLogEntry({ payload, collection: 'events', id: event.id, entry, req })
-    log = [...log, entry]
+    known.push(entry)
     result.remindersSent++
   }
 
@@ -280,20 +293,20 @@ async function processEvent(args: {
   // their own, and writing this stage over that reverts the verification — on
   // the `urgent` step, by unpublishing a listing somebody has just vouched for.
   if (allDelivered) {
-    const advanced = await updateBookkeeping(
+    const advanced = await updateBookkeeping({
       payload,
       req,
-      event.id,
-      {
+      id: event.id,
+      data: {
         verificationStage: action.nextStage,
         nextCheckAt: nextCheckAtIso,
         ...(unpublishes ? { _status: 'draft' } : {}),
       },
-      {
+      expect: {
         verificationStage: { equals: stage },
         nextCheckAt: { equals: event.nextCheckAt },
       },
-    )
+    })
     if (advanced) result.advanced++
   }
 }

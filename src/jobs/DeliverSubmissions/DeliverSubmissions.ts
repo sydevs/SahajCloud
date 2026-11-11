@@ -89,6 +89,9 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
       id: submissionId,
       expect: { status: { equals: submission.status } },
       data: { status },
+      // Nothing reads the result, and the config's default depth would make a
+      // proposal's afterRead recompute both review projections for it.
+      depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },
       req,
