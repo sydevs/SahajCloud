@@ -413,7 +413,7 @@ const mailingListGroup: Field = {
       // Whether a key is set, its last four characters, and the button that
       // replaces it. A server component, because the field above is
       // `admin.disabled` and so reaches no client component.
-      name: 'mailingListKey',
+      name: 'apiKeyControl',
       type: 'ui',
       admin: {
         condition: (data) => mailingListEnabled(data),
