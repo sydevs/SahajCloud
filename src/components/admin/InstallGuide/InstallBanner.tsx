@@ -16,11 +16,11 @@ import { loadInstallRecord } from './installRecord'
  * Counts what the Install tab counts, so the banner goes exactly when the tab
  * says "Installation complete".
  */
-const InstallBanner: UIFieldServerComponent = async ({ data, payload }) => {
+const InstallBanner: UIFieldServerComponent = async ({ data, payload, req }) => {
   const id = (data as { id?: unknown } | undefined)?.id
   if (typeof id !== 'number') return null
 
-  const record = await loadInstallRecord(payload, id)
+  const record = await loadInstallRecord(req, id)
   if (!record?.atlas) return null
   const { done, total } = installProgress(record.milestones)
   if (done === total) return null

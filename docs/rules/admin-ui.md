@@ -187,6 +187,21 @@ A module several components share, rather than one a collection registers, goes 
 
 After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it. `tests/unit/sanitized-config-rules.spec.ts` compares it byte for byte against what the generator writes for the sanitized config, so a skipped regeneration and a stale entry both fail the unit lane.
 
+## A server field component owes its own read gate (#1126)
+
+⚠ **A field component renders on the document route and on every `form-state` request, and that request names its own row.** `handleServerFunctions` overwrites only `req`, `user`, `permissions`, `locale` and `cookies`; `id`, `collectionSlug` and `data` stay the browser's. `buildFormState` then gates on `canAccessAdmin({ req })` alone — no document access at all — and `managers` leaves `access.admin` unwritten (`docs/rules/access.md`), so that reduces to "is a manager". A `ui` field is exempt from the field-permission check above it as well.
+
+So a server field component that reads the database from the form's `id` — or from any other value in `data` — answers for whatever row the caller names, one request per id. `InstallSummary` handed any manager another service's embed address, region and install progress that way, and `ImportResultsField` resolved caller-chosen event ids with `overrideAccess: true`, populating each manager's name and email.
+
+Two rules, and a component usually wants both:
+
+- **Re-read the row with the caller's own `req` and `overrideAccess: false` before reading anything else, and render nothing when that refuses.** Put the gate in the shared loader where one exists — `loadInstallRecord` gates for the banner and the summary at once, so the next caller inherits it — then do the `overrideAccess: true` read past it, both inside one React `cache`. `select` the narrowest column for the gate: its value is unused.
+- **Take the values from the stored row, never from `data`.** `ManagerContacts` and `ImportResultsField` both do. A column that is `admin.readOnly` with `access.update: () => false` can never legitimately differ, so reading it back costs nothing.
+
+A component whose data genuinely needs no gate says so in a comment — `SubmissionSummary` resolves each link under the viewer's own access and records why.
+
+Find the shape with `grep -rn "data as { id" src/components/admin/`, and the candidates with a sweep for a server component (no `'use client'`) that reaches `payload.find*`.
+
 ## Custom field components
 
 - **Destructure typed props**: `const { name, label, localized, options: fieldOptions, admin: { description } = {} } = field as SelectFieldClient`.
