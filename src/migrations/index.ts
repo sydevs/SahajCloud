@@ -128,6 +128,8 @@ import * as migration_20261110_234836_clients_label_title from './20261110_23483
 import * as migration_20261111_152106_merge_main_snapshot_8 from './20261111_152106_merge_main_snapshot_8';
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
 import * as migration_20261111_175610_merge_main_snapshot_9 from './20261111_175610_merge_main_snapshot_9';
+import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
+import * as migration_20261111_232621_merge_main_snapshot_10 from './20261111_232621_merge_main_snapshot_10';
 
 export const migrations = [
   {
@@ -778,6 +780,16 @@ export const migrations = [
   {
     up: migration_20261111_175610_merge_main_snapshot_9.up,
     down: migration_20261111_175610_merge_main_snapshot_9.down,
-    name: '20261111_175610_merge_main_snapshot_9'
+    name: '20261111_175610_merge_main_snapshot_9',
+  },
+  {
+    up: migration_20261111_215539_activity_log_rows.up,
+    down: migration_20261111_215539_activity_log_rows.down,
+    name: '20261111_215539_activity_log_rows',
+  },
+  {
+    up: migration_20261111_232621_merge_main_snapshot_10.up,
+    down: migration_20261111_232621_merge_main_snapshot_10.down,
+    name: '20261111_232621_merge_main_snapshot_10'
   },
 ];

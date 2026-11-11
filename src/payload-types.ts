@@ -650,42 +650,24 @@ export type SupportedTimezones =
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
 export type ScheduleUpcomingDates = string[];
-/**
- * @maxItems 500
- */
-export type ActivityLog = {
-  /**
-   * ISO 8601. The first column, and the sort key.
-   */
-  at?: string;
-  /**
-   * Stable slug — matched by jobs, never shown.
-   */
-  type?: string;
-  /**
-   * Exactly-once key, scoped to `type`.
-   */
-  key?: string;
-  /**
-   * What the columns read. Everything outside this is machine data.
-   */
-  cells?: {
-    [k: string]:
-      | string
-      | {
-          /**
-           * Muted, inline before the text.
-           */
-          label?: string;
-          text: string;
-          /**
-           * Muted line beneath the text.
-           */
-          sub?: string;
-        };
-  };
+export type ActivityLogCells = {
+  [k: string]:
+    | string
+    | {
+        /**
+         * Muted, inline before the text.
+         */
+        label?: string;
+        text: string;
+        /**
+         * Muted line beneath the text.
+         */
+        sub?: string;
+      };
+} | null;
+export type ActivityLogData = {
   [k: string]: unknown;
-}[];
+} | null;
 export type EventQualityReport =
   | {
       skipped: true;
@@ -1963,7 +1945,28 @@ export interface Event {
   manager?: (number | null) | Manager;
   verificationStage:
     'unverified' | 'denied' | 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
-  activityLog?: ActivityLog;
+  /**
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification. Keeps the most recent 50 entries.
+   */
+  activityLog?:
+    | {
+        /**
+         * ISO 8601. The sort key.
+         */
+        at?: string | null;
+        /**
+         * Matched by jobs, never shown.
+         */
+        type?: string | null;
+        /**
+         * Exactly-once key, scoped to `type`.
+         */
+        key?: string | null;
+        cells?: ActivityLogCells;
+        data?: ActivityLogData;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.
    */
@@ -2279,7 +2282,28 @@ export interface UserSubmission {
    * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
-  activityLog?: ActivityLog;
+  /**
+   * Everything recorded about this submission — screening, delivery, decisions. Keeps the most recent 50 entries.
+   */
+  activityLog?:
+    | {
+        /**
+         * ISO 8601. The sort key.
+         */
+        at?: string | null;
+        /**
+         * Matched by jobs, never shown.
+         */
+        type?: string | null;
+        /**
+         * Exactly-once key, scoped to `type`.
+         */
+        key?: string | null;
+        cells?: ActivityLogCells;
+        data?: ActivityLogData;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Composed when the submission arrives.
    */
@@ -5159,7 +5183,16 @@ export interface EventsSelect<T extends boolean = true> {
   registrations?: T;
   manager?: T;
   verificationStage?: T;
-  activityLog?: T;
+  activityLog?:
+    | T
+    | {
+        at?: T;
+        type?: T;
+        key?: T;
+        cells?: T;
+        data?: T;
+        id?: T;
+      };
   confidenceScore?: T;
   qualityReport?: T;
   submitter?: T;
@@ -5363,7 +5396,16 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   previewEvent?: T;
   manager?: T;
   region?: T;
-  activityLog?: T;
+  activityLog?:
+    | T
+    | {
+        at?: T;
+        type?: T;
+        key?: T;
+        cells?: T;
+        data?: T;
+        id?: T;
+      };
   subject?: T;
   type?: T;
   status?: T;

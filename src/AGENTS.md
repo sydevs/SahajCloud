@@ -180,6 +180,17 @@ No loose files at the root — every file lives in a named folder:
   (#1016), and the word reader shares `normalize.ts` rather than taking a
   module of its own for the same reason: with one consumer,
   `tests/unit/lib-boundary.spec.ts` refuses it here
+- `atomicWrites/` — the two writes a background worker owes a row it read
+  before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
+  into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
+  with bound parameters, on the caller's own connection, reading no entry, so
+  two writers keep each other's — into the log's own table and, where the
+  collection carries drafts, into the version table beside it, which is what a
+  `draft: true` read serves and what `updateByID` writes the next save back
+  from.
+  Neither knows a stage, a status or a verdict — the Payload
+  flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
+  own. No barrel: import each module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,
