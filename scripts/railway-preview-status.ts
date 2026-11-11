@@ -15,6 +15,8 @@
  * absent preview, and it is terminal on the first poll.
  */
 
+import { isRecord } from '../src/lib/utilities/isRecord'
+
 export interface CommitStatus {
   context?: string
   state?: string
@@ -177,28 +179,58 @@ export type ServingVerdict = 'behind' | 'fieldless' | 'serving' | 'unknown'
  * deploy — so CI used to fill and test whichever build happened to be up,
  * which on a PR pushed twice in quick succession is the one before.
  *
- * Three answers are a broken premise rather than a slow deploy, so the caller
- * fails on each instead of waiting the budget out and testing anyway. They do
- * not share a cause. `commit: 'unknown'` or `''` is `RAILWAY_GIT_COMMIT_SHA`
- * going unset, which is Railway's. **No `commit` key at all** is not: the health
- * route fills that field unconditionally, so a build that omits it predates the
- * field — a branch head cut before the commit that added it, fixed by merging
- * the base. Folded together, the Railway wording sent #1122 to the wrong place.
+ * Neither unnamed answer is worth waiting out, and they have different causes.
+ * `commit: 'unknown'` or `''` is `RAILWAY_GIT_COMMIT_SHA` going unset, which is
+ * Railway's. **No `commit` key** is not: a 200 from the health route fills that
+ * field unconditionally, so a build omitting it predates the field and wants the
+ * base merged in. Folded together, the Railway wording sent #1122 to Railway.
  *
  * Compared by prefix, in the longer-first direction, because the two sides are
  * not guaranteed to be the same length — a short SHA from either is still an
  * answer about the same commit.
  */
 export function servingVerdict(body: unknown, expectedSha: string): ServingVerdict {
-  // Only an answer that is otherwise shaped like one may claim a stale build.
-  // A non-object body names no cause at all, so it keeps the weaker verdict.
-  const answer = typeof body === 'object' && body !== null ? (body as { commit?: unknown }) : null
-  if (answer && !('commit' in answer)) return 'fieldless'
+  // A body that is no answer at all names no cause, so it must not claim a stale build.
+  if (!isRecord(body)) return 'unknown'
+  if (!('commit' in body)) return 'fieldless'
 
-  const served = answer?.commit
+  const served = body.commit
   if (typeof served !== 'string' || served === '' || served === 'unknown') return 'unknown'
 
   const [longer, shorter] =
     served.length >= expectedSha.length ? [served, expectedSha] : [expectedSha, served]
   return shorter.length > 0 && longer.startsWith(shorter) ? 'serving' : 'behind'
+}
+
+/** A verdict, plus the host that answered nothing at all for the whole budget. */
+export type HealthOutcome = ServingVerdict | 'silent'
+
+/**
+ * What CI prints for a health outcome that must not read as green.
+ *
+ * The wording lives here, not at the call site, because the wording is what
+ * failed: #1122 reached the right verdict under an error naming the wrong
+ * cause, and a string built inside the polling loop is one no test can reach.
+ * Exhaustive on purpose — an outcome with no annotation would fall through to
+ * a green smoke run against a build nobody identified.
+ */
+export const HEALTH_ERRORS: Record<Exclude<HealthOutcome, 'serving'>, string> = {
+  unknown:
+    '::error title=Railway preview does not report its commit::`/api/health` answered with ' +
+    '`commit: unknown`, so which build is serving cannot be established. Railway injects ' +
+    "`RAILWAY_GIT_COMMIT_SHA`; without it the preview cannot be filled or tested as this change's. " +
+    'Re-running will not help.',
+  fieldless:
+    '::error title=Railway preview never named a commit::`/api/health` answered for the whole ' +
+    'budget with no `commit` field at all, so the build serving it predates that field — usually ' +
+    'a branch cut before the commit that added it. Merge the base branch into this one and push. ' +
+    'Nothing on Railway needs fixing.',
+  behind:
+    '::error title=Railway preview never caught up::The preview answered but kept serving an ' +
+    'earlier commit for the whole budget, so testing it would have reported on the previous ' +
+    "push. Check the PR environment's deploy list in Railway.",
+  silent:
+    '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
+    'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
+    "the PR environment's deploy logs in Railway.",
 }

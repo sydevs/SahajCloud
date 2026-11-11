@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   classifyStatuses,
   discoverPreview,
+  HEALTH_ERRORS,
   servingVerdict,
   StatusFetchError,
   type CommitStatus,
@@ -241,27 +242,37 @@ describe('servingVerdict', () => {
   })
 
   it('reports a build whose health answer has no commit field as fieldless', () => {
-    // ⚠ The one answer that is not Railway's fault, and so not the Railway
-    // message: the route fills `commit` unconditionally, so a missing key
-    // means the build predates the field rather than that the variable is
-    // unset. Folded into `unknown`, it sent #1122 to Railway for a stale
-    // branch head.
+    // #1122: folded into `unknown`, this sent a stale branch head to Railway.
     expect(servingVerdict({ status: 'ok' }, SHA)).toBe('fieldless')
   })
 
-  it('reports a commit the build could not name as unknown, which no waiting answers', () => {
+  it('reports a commit the build could not name as unknown', () => {
     expect(servingVerdict({ commit: 'unknown' }, SHA)).toBe('unknown')
     expect(servingVerdict({ commit: '' }, SHA)).toBe('unknown')
   })
 
   it('reports an answer that is not an object as unknown, not as a stale build', () => {
-    // No `commit` key, but no health answer either — it names no cause, so
-    // it must not claim the branch is behind.
     expect(servingVerdict(null, SHA)).toBe('unknown')
     expect(servingVerdict('ok', SHA)).toBe('unknown')
   })
 
   it('refuses an empty expectation rather than matching everything', () => {
     expect(servingVerdict({ commit: SHA }, '')).toBe('behind')
+  })
+})
+
+describe('HEALTH_ERRORS', () => {
+  it('sends an answer with no commit field to the base merge, never to Railway', () => {
+    expect(HEALTH_ERRORS.fieldless).toMatch(/merge the base branch/i)
+    expect(HEALTH_ERRORS.fieldless).not.toMatch(/RAILWAY_GIT_COMMIT_SHA/)
+  })
+
+  it('still names the unset variable for a build that carries the field', () => {
+    expect(HEALTH_ERRORS.unknown).toMatch(/RAILWAY_GIT_COMMIT_SHA/)
+  })
+
+  it('annotates every outcome that is not serving', () => {
+    // A missing one would fall through to a green smoke run on an unidentified build.
+    expect(Object.keys(HEALTH_ERRORS).sort()).toEqual(['behind', 'fieldless', 'silent', 'unknown'])
   })
 })

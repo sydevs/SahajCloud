@@ -53,9 +53,12 @@ import { appendFileSync } from 'node:fs'
 
 import {
   discoverPreview,
+  HEALTH_ERRORS,
   servingVerdict,
   StatusFetchError,
   type CommitStatus,
+  type HealthOutcome,
+  type ServingVerdict,
 } from './railway-preview-status'
 
 const GH_TOKEN = process.env.GITHUB_TOKEN
@@ -91,37 +94,41 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
  * ⚠ **Healthy is not caught up.** A preview pushed to twice in quick succession
  * answers `/api/health` from the previous build for as long as the new one takes
  * to deploy, so a lane that waited for health alone filled and tested the change
- * before this one. `unknown` and `fieldless` are terminal rather than waited
- * out: neither names a commit, no further poll will change that, and testing an
- * unidentified build is the thing this prevents. They are kept apart because
- * one is Railway's doing and the other a stale branch head (#1124).
+ * before this one.
+ *
+ * ⚠ **Only `unknown` is terminal.** That build has the field and found the
+ * variable unset, which no further poll changes. `fieldless` is waited out
+ * alongside `behind`, because the build still answering may be the previous
+ * one — failing on the first such answer would reject the very push that
+ * fixes it.
  *
  * The poll reaches the Railway host on the one path the preview gate exempts, so
  * it still needs no credential.
  */
-async function waitServing(
-  url: string,
-  sha: string,
-): Promise<'behind' | 'fieldless' | 'ok' | 'silent' | 'unknown'> {
+async function waitServing(url: string, sha: string): Promise<HealthOutcome> {
   const deadline = Date.now() + HEALTH_TIMEOUT_MS
   let attempt = 0
   // ⚠ Which failure it was decides what the error tells the reader to look at.
   // Reported as "behind", a preview that never answered at all sent them to
   // Railway's deploy list for a build that was down.
-  let answered = false
+  let lastHealthy: ServingVerdict | null = null
   while (Date.now() < deadline) {
     attempt++
     try {
       const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
       if (res.ok) {
-        answered = true
         const verdict = servingVerdict(await res.json(), sha)
         if (verdict === 'serving') {
           console.error(`preview serving ${sha} after ${attempt} attempt(s)`)
-          return 'ok'
+          return 'serving'
         }
-        if (verdict === 'unknown' || verdict === 'fieldless') return verdict
-        console.error(`health attempt ${attempt}: healthy, still on an earlier commit`)
+        if (verdict === 'unknown') return 'unknown'
+        lastHealthy = verdict
+        console.error(
+          verdict === 'fieldless'
+            ? `health attempt ${attempt}: healthy, but the build names no commit`
+            : `health attempt ${attempt}: healthy, still on an earlier commit`,
+        )
       } else {
         console.error(`health attempt ${attempt}: HTTP ${res.status}`)
       }
@@ -130,7 +137,7 @@ async function waitServing(
     }
     await sleep(POLL_INTERVAL_MS)
   }
-  return answered ? 'behind' : 'silent'
+  return lastHealthy ?? 'silent'
 }
 
 function exportUrl(url: string): void {
@@ -220,42 +227,8 @@ async function main(): Promise<void> {
 
   console.error(`preview URL: ${outcome.url}`)
   const serving = await waitServing(outcome.url, SHA)
-  if (serving === 'unknown') {
-    console.error(
-      '::error title=Railway preview does not report its commit::`/api/health` answered with ' +
-        '`commit: unknown`, so which build is serving cannot be established. Railway injects ' +
-        '`RAILWAY_GIT_COMMIT_SHA`; without it the preview cannot be filled or tested as this ' +
-        "change's. Re-running will not help.",
-    )
-    exportUrl('')
-    process.exit(1)
-  }
-  if (serving === 'fieldless') {
-    console.error(
-      '::error title=Railway preview is older than the commit field::`/api/health` answered ' +
-        'with no `commit` field at all, so the build serving this preview predates that field — ' +
-        'usually a branch cut before the commit that added it. Merge the base branch into this ' +
-        'one and push. Nothing on Railway needs fixing.',
-    )
-    exportUrl('')
-    process.exit(1)
-  }
-  if (serving === 'behind') {
-    console.error(
-      '::error title=Railway preview never caught up::The preview answered but kept serving an ' +
-        'earlier commit for the whole budget, so testing it would have reported on the previous ' +
-        "push. Check the PR environment's deploy list in Railway.",
-    )
-    exportUrl('')
-    process.exit(1)
-  }
-
-  if (serving === 'silent') {
-    console.error(
-      '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
-        'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
-        "the PR environment's deploy logs in Railway.",
-    )
+  if (serving !== 'serving') {
+    console.error(HEALTH_ERRORS[serving])
     exportUrl('')
     process.exit(1)
   }
