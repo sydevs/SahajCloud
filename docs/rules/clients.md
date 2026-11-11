@@ -176,7 +176,7 @@ the preview iframe on every change, so a key in form state would reach sahajatla
 
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 
-- It runs **only when one of the credential fields actually changed** — `provider`, `listId`, `apiKey`, CleverReach's `clientId` and `doiFlowId`, and `doubleOptIn`, which changes what is checked. The hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.
+- It runs **only when one of the credential fields actually changed** — `provider`, `listId`, `apiKey`, CleverReach's `clientId` and `doiFlowId`, `doubleOptIn`, which changes what is checked, and `enabled`, because a list switched off can be edited while nothing proves it. The hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.
 - **A provider being unreachable never refuses a save.** An operator cannot fix somebody else's outage, so the credential goes in unproven and delivery is what finds out.
 
 Delivery resolves the target list **at delivery time**, from the subscribe form's `client` or, for a registration-spawned row, the client whose list owns the class's region (#1022). Nothing is stored on the row, so moving a service between providers does not strip pending rows.

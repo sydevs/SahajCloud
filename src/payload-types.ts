@@ -2425,16 +2425,13 @@ export interface Client {
     enabled?: boolean | null;
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
+     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and paste its Client Secret with Set key below.
      */
     clientId?: string | null;
     /**
      * Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.
      */
     listId?: string | null;
-    /**
-     * The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.
-     */
     apiKey?: string | null;
     /**
      * The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.

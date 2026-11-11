@@ -184,6 +184,38 @@ describe('Mailing-list key', () => {
       providerVerdict = null
     })
 
+    it('proves the stored credentials again when a list is switched back on', async () => {
+      // A disabled list returns early from the hook, so credentials can be
+      // edited while nothing proves them. Switching the list on is therefore
+      // the one save that has to ask, however little else changed.
+      const toggled = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'toggled-service-key-for-mailing-list-spec',
+        label: 'Toggled Service',
+        managers: [listedManager.id],
+        mailingList: {
+          apiKey: STORED_KEY,
+          enabled: true,
+          listId: 'list-1',
+          provider: 'mailchimp',
+        },
+        roles: ['sahaj-atlas-client'],
+      })
+      const save = (enabled: boolean) =>
+        payload.update({
+          collection: 'clients',
+          data: { mailingList: { enabled } },
+          id: toggled.id,
+          overrideAccess: false,
+          req: managerReq(listedManager),
+        })
+
+      await save(false)
+      providerVerdict = 'That API key was refused.'
+
+      await expect(save(true)).rejects.toThrow(/That API key was refused/)
+      providerVerdict = null
+    })
+
     it('refuses the endpoint on a service with no atlas role', async () => {
       // `lockTabs` ANDs the Atlas tab's own rule onto every field it holds, and
       // `payload.update` strips what it refuses rather than erroring — so a door

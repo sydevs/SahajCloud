@@ -14,8 +14,14 @@ import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
  * what is sent: with it on, CleverReach's `verifyCredentials` also reads the
  * confirmation flow, so turning it back on makes a stored `doiFlowId`
  * load-bearing again and worth proving.
+ *
+ * ⚠ `enabled` is one of them because a list can be switched off, edited while
+ * nothing proves it — this hook returns early on a disabled list — and switched
+ * back on. Without it here, that path reaches delivery having proved nothing,
+ * and the only report is a failed `activityLog` entry nobody is watching.
  */
 const CREDENTIAL_KEYS = [
+  'enabled',
   'provider',
   'listId',
   'apiKey',
