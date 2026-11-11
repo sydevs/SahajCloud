@@ -238,7 +238,7 @@ describe('meditationSongs endpoint', () => {
 
   it('threads the client req through the songs read (skips query validation)', async () => {
     const client = (await testData.createClient(payload, adminUserId, {
-      name: 'Meditation Songs Forwarding Test',
+      label: 'Meditation Songs Forwarding Test',
     })) as Client
 
     const findSpy = vi.spyOn(payload, 'find')

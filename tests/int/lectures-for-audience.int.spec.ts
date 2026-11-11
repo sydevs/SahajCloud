@@ -999,7 +999,7 @@ describe('lecturesForAudience endpoint', () => {
       void lectureIntermediateOnly
 
       const client = (await testData.createClient(payload, adminUserId, {
-        name: 'Lectures Forwarding Test',
+        label: 'Lectures Forwarding Test',
       })) as Client
 
       const findSpy = vi.spyOn(payload, 'find')

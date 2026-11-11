@@ -144,7 +144,7 @@ describe('atlas Wix endpoints', () => {
     }
 
     const ownerDoc = await testData.createClient(payload, managerId, {
-      name: 'Wix Atlas Client',
+      label: 'Wix Atlas Client',
       roles: ['sahaj-atlas-client'],
       region: region.canada,
       language: 'en',
@@ -163,7 +163,7 @@ describe('atlas Wix endpoints', () => {
     }
 
     const strangerDoc = await testData.createClient(payload, managerId, {
-      name: 'Wix Reader',
+      label: 'Wix Reader',
       roles: ['sahaj-atlas-client'],
     })
     stranger = {

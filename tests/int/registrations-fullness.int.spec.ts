@@ -91,7 +91,7 @@ describe('registrationsFull signal (#599)', () => {
     })
     managerId = manager.id
     const clientDoc = await testData.createClient(payload, managerId, {
-      name: 'Atlas Fullness Client',
+      label: 'Atlas Fullness Client',
       roles: ['sahaj-atlas-client'],
     })
     client = {

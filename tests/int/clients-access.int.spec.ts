@@ -140,14 +140,14 @@ describe('Clients access', () => {
     })
 
     atlasClient = await testData.createClient(payload, adminManager.id, {
-      name: 'Atlas Widget',
+      label: 'Atlas Widget',
       roles: ['sahaj-atlas-client'],
       // Payload returns `apiKey: null` from a create — the column is encrypted —
       // so `restGet` needs the plaintext value it was seeded with.
       apiKey: ATLAS_API_KEY,
     })
     otherClient = await testData.createClient(payload, listedManager.id, {
-      name: 'OTHER SERVICE',
+      label: 'OTHER SERVICE',
       roles: ['wemeditate-web-client'],
       managers: [listedManager.id],
       primaryContact: listedManager.id,
@@ -180,14 +180,14 @@ describe('Clients access', () => {
     }
     writerClient = await testData.createClient(payload, adminManager.id, {
       ...writerFields,
-      name: 'Self Update Probe',
+      label: 'Self Update Probe',
       apiKey: WRITER_API_KEY,
     })
     // The manager counterpart writes a row of its own. Sharing one would make
     // every refusal above depend on running before it.
     managedClient = await testData.createClient(payload, adminManager.id, {
       ...writerFields,
-      name: 'Manager Written Probe',
+      label: 'Manager Written Probe',
     })
   })
 
@@ -207,7 +207,7 @@ describe('Clients access', () => {
 
       // Self-access allows the read, so the document itself must come back — an
       // assertion that only proved the read failed would prove nothing here.
-      expect(own.name).toBe('Atlas Widget')
+      expect(own.label).toBe('Atlas Widget')
       expect(own.apiKey).toBeUndefined()
     })
 
@@ -217,14 +217,14 @@ describe('Clients access', () => {
       // and populates `regions`. `apiKey` is added here so the refusal is the
       // assertion rather than an absent request.
       const { status, body } = await restGet(
-        '/api/clients/me?depth=1&select[name]=true&select[color1]=true&select[color2]=true' +
+        '/api/clients/me?depth=1&select[title]=true&select[color1]=true&select[color2]=true' +
           '&select[color3]=true&select[allowedDomains]=true&select[clientId]=true' +
           '&select[region]=true&select[canonical]=true&select[apiKey]=true',
       )
 
       expect(status).toBe(200)
       const user = (body as { user: Client | null }).user
-      expect(user?.name).toBe('Atlas Widget')
+      expect(user?.id).toBe(atlasClient.id)
       expect(user?.apiKey).toBeUndefined()
       expect(JSON.stringify(body)).not.toContain(ATLAS_API_KEY)
     })
@@ -233,7 +233,7 @@ describe('Clients access', () => {
       // Its own row, so nothing later in the file depends on restoring a value
       // this case overwrites.
       const rotating = await testData.createClient(payload, adminManager.id, {
-        name: 'Rotating Service',
+        label: 'Rotating Service',
         apiKey: 'ROTATING-SERVICE-KEY-BEFORE',
       })
 
@@ -446,7 +446,7 @@ describe('Clients access', () => {
         collection: 'clients',
         id: otherClient.id,
         data: {
-          name: 'OTHER SERVICE, SELF-RENAMED',
+          label: 'OTHER SERVICE, SELF-RENAMED',
           notes: 'Written by its own manager',
           roles: ['wemeditate-web-client', 'sahaj-atlas-client'],
           managers: [listedManager.id, outsideManager.id],
@@ -468,7 +468,7 @@ describe('Clients access', () => {
         depth: 0,
         overrideAccess: true,
       })) as Client
-      expect(row.name).not.toBe('OTHER SERVICE, SELF-RENAMED')
+      expect(row.label).not.toBe('OTHER SERVICE, SELF-RENAMED')
       expect(row.notes ?? null).toBeNull()
       expect(row.roles).toEqual(['wemeditate-web-client'])
       expect(row.managers).toEqual([listedManager.id])
@@ -554,14 +554,14 @@ describe('Clients access', () => {
     }
 
     it('refuses the whole update, not one field at a time', async () => {
-      // `name` carries no field lock and holds nothing sensitive, so it is the
+      // `label` carries no field lock and holds nothing sensitive, so it is the
       // field per-field locks would have left open. `updatedAt` is what says
       // nothing at all landed, including a field nobody thought to enumerate.
       const before = await readWriter()
-      const { status } = await patchSelf({ name: 'RENAMED BY ITS OWN KEY' })
+      const { status } = await patchSelf({ label: 'RENAMED BY ITS OWN KEY' })
 
       const after = await readWriter()
-      expect(after.name).toBe('Self Update Probe')
+      expect(after.label).toBe('Self Update Probe')
       expect(after.updatedAt).toBe(before.updatedAt)
       expect(status).toBe(403)
     })

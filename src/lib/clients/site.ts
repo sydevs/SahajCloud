@@ -107,6 +107,18 @@ export function primaryPageUrl(site: SiteFields | null | undefined): string | nu
   return `https://${host}${page}`
 }
 
+/**
+ * What a service is called to the public — a registrant email's sender name:
+ * its own `title`, else its site's domain. `null` when it has neither; the
+ * internal `label` is never a fallback.
+ */
+export function clientPublicTitle(client: {
+  title?: string | null
+  site?: SiteFields | null
+}): string | null {
+  return client.title?.trim() || client.site?.domain?.trim() || null
+}
+
 /** A mount path, compared the way two spellings of one page should be. */
 export function normalizeMountPath(mount: string): string {
   const [path, query] = mount.split('?')

@@ -1453,7 +1453,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           'clients',
           { legacyId: { equals: client.legacyId } },
           {
-            name: client.label,
+            label: client.label,
             managers: [managerId],
             primaryContact: managerId,
             roles: ['sahaj-atlas-client'],

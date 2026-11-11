@@ -114,7 +114,7 @@ describe('API', () => {
     it('sets firstRequestAt only on first request', async () => {
       // Create a new client with no usage
       const newClient = await testData.createClient(payload, adminUserId, {
-        name: 'New Client for First Request Test',
+        label: 'New Client for First Request Test',
       })
 
       // Verify no firstRequestAt (Payload returns null for empty fields)
@@ -296,7 +296,7 @@ describe('API', () => {
     it('only resets clients with daily requests > 0', async () => {
       // Create a client with 0 daily requests
       const zeroUsageClient = await testData.createClient(payload, adminUserId, {
-        name: 'Zero Usage Client',
+        label: 'Zero Usage Client',
         usage: {
           dailyRequests: 0,
           peakDailyRequests: 10,
