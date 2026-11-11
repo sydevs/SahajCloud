@@ -1,105 +1,13 @@
-import type { LoginToken, LoginTokenKind } from '../token'
-import type { LoginCollectionConfig, LoginDocument } from '../types'
-import type { Endpoint, Payload, SelectType } from 'payload'
+import type { LoginCollectionConfig } from '../types'
+import type { Endpoint } from 'payload'
 
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 
 import { hasAcceptedFlag } from '../magicLinks'
+import { preflight } from '../preflight'
 import { createSession, sessionCookie } from '../session'
-import { seedTabPreference } from '../tabPreference'
-import { readAnyLoginToken } from '../token'
 
 export const REDEEM_PATH = '/redeem'
-
-/**
- * The `?error=` an authentic-but-elapsed token of each kind is sent back with.
- * Each kind's lifetime differs, so the sign-in page words each differently.
- */
-export const EXPIRED_REASON = {
-  invite: 'invite-expired',
-  link: 'link-expired',
-  signin: 'expired',
-} as const satisfies Record<LoginTokenKind, string>
-
-/** What one kind of token does differently once it checks out. */
-interface KindRules {
-  /** The fields `isUnspent` reads, on top of the collection's own `select`. */
-  select?: SelectType
-  /** Whether this token has not been spent yet. */
-  isUnspent: (account: LoginDocument) => boolean
-  /** The stored `magicLinkIssuedAt` a single-use token spends, as ISO. */
-  spends?: string
-  /** The `?error=` a spent token is sent back with, where saying so helps. Otherwise `invalid`. */
-  spentReason?: string
-  /** Where the session lands. Read from the signed claims, never the request. */
-  redirectTo?: string
-  /**
-   * Work to do once the session exists, before the redirect. A failure costs
-   * only that work: it is logged, and the holder is still signed in.
-   */
-  afterRedeem?: (args: { account: LoginDocument; payload: Payload }) => Promise<void>
-}
-
-function rulesFor(config: LoginCollectionConfig, token: LoginToken): KindRules {
-  switch (token.kind) {
-    case 'signin':
-      // Single use, and mutual exclusion between outstanding links, both come
-      // from this one equality: `issueMagicLink` stamps the field with the same
-      // instant it signs into the claim, so a consumed or superseded link no
-      // longer matches. Compared as numbers — see `LoginTokenClaims.issuedAt`.
-      return {
-        select: { magicLinkIssuedAt: true },
-        isUnspent: ({ magicLinkIssuedAt }) =>
-          Boolean(magicLinkIssuedAt) &&
-          new Date(magicLinkIssuedAt!).getTime() === token.claims.issuedAt,
-        spends: new Date(token.claims.issuedAt).toISOString(),
-        // The page that sent the holder to sign in, checked as `isAdminPath`
-        // when the token was read.
-        redirectTo: token.claims.to,
-      }
-    case 'invite':
-      // `_verified` is what makes an invitation single-use: it stamps nothing,
-      // so the flag the acceptance sets is the only thing that can refuse the
-      // second click. A manager assigned to two projects gets two invitations,
-      // and whichever they accept second is spent — they are in already, so say so.
-      return {
-        isUnspent: (account) => account._verified !== true,
-        spentReason: 'invite-accepted',
-      }
-    case 'link': {
-      // ⚠ **Not single-use.** A reminder is re-read and clicked twice, and it
-      // names a page rather than granting anything a sign-in link would not.
-      // It still expires, and still refuses an account that stops qualifying.
-      const { tab, to } = token.claims
-      return {
-        isUnspent: () => true,
-        // Checked at signing and at reading (`isAdminPath`), so this is always
-        // an admin path this server chose.
-        redirectTo: to,
-        // An invitation's "Configure notifications" lands on the account page's
-        // Contact tab, which Payload offers no URL for.
-        afterRedeem: tab
-          ? ({ account, payload }) =>
-              seedTabPreference({ collection: config.slug, payload, tab, userId: account.id })
-          : undefined,
-      }
-    }
-  }
-}
-
-/**
- * Whether this route would still spend `token`, for the sign-in page to ask before it offers a
- * button. Read off {@link rulesFor} rather than restated, so the page and the route cannot
- * disagree about a used or superseded link. `select` is what `isUnspent` reads, beyond
- * `_verified`.
- */
-export function spentRule(
-  config: LoginCollectionConfig,
-  token: LoginToken,
-): Pick<KindRules, 'isUnspent' | 'select' | 'spentReason'> {
-  const { isUnspent, select, spentReason } = rulesFor(config, token)
-  return { isUnspent, select, spentReason }
-}
 
 /**
  * `POST /api/<slug>/redeem?token=…` — spend any delivered link for a session,
@@ -109,7 +17,7 @@ export function spentRule(
  * token's own audience picks its reader (`readAnyLoginToken`), and that reader
  * verifies the same audience, so an invitation still cannot be spent as a
  * sign-in link. What differs by kind — single use, the landing page, the
- * refusal wording — is {@link rulesFor}.
+ * refusal wording — is {@link preflight}'s per-kind rules.
  *
  * ⚠ **`POST` is the whole defence against a mail scanner spending the token**,
  * and the method is the mechanism, not a convention. Nothing here may answer a
@@ -165,48 +73,20 @@ export function redeem(config: LoginCollectionConfig): Endpoint {
     method: 'post',
     handler: async (req) => {
       const { payload } = req
-      const read = await readAnyLoginToken(
-        typeof req.query?.token === 'string' ? req.query.token : null,
-        payload.secret,
-      )
-      if (read.status === 'expired') return refuse(EXPIRED_REASON[read.kind])
-      // ⚠ The claim names its own collection, and this equality is what keeps
-      // the audiences from having to. A token minted for one served collection
-      // cannot sign anyone into another.
-      if (read.status !== 'valid' || read.token.claims.collection !== slug) return refuse('invalid')
+      const checked = await preflight({
+        config,
+        payload,
+        token: typeof req.query?.token === 'string' ? req.query.token : null,
+      })
+      if (checked.status === 'refused') return refuse(checked.reason)
+      const { account, rules } = checked
 
-      const rules = rulesFor(config, read.token)
       // Only where the collection has the column — see `hasAcceptedFlag`.
       const acceptedFlag = hasAcceptedFlag(payload, slug) ? { _verified: true } : {}
 
-      let account: LoginDocument
-      try {
-        account = (await payload.findByID({
-          collection: slug,
-          id: read.token.claims.userId,
-          depth: 0,
-          // `joins` narrows per collection, so over the slug union it collapses
-          // to `undefined`; the result widens for the same reason.
-          joins: false as never,
-          overrideAccess: true,
-          select: { ...acceptedFlag, ...rules.select, ...config.select },
-        })) as unknown as LoginDocument
-      } catch {
-        // A deleted account. `findByID` throws `NotFound` rather than returning null.
-        return refuse('invalid')
-      }
-
-      // Re-checked here, not only at request time: an account deactivated while
-      // a token was outstanding must not be able to spend it.
-      if (config.isEligible && !config.isEligible(account)) return refuse('invalid')
-
-      // Reached only with an authentic, unexpired token for an existing,
-      // eligible account — so naming it spent tells nothing to anyone probing.
-      if (!rules.isUnspent(account)) return refuse(rules.spentReason ?? 'invalid')
-
-      // ⚠ One conditional UPDATE, because the check above is a read: two
-      // concurrent POSTs both pass it, and only the one that clears the stamp
-      // may sign in. Payload's own `forgotPassword` reserves the same way.
+      // ⚠ One conditional UPDATE, because `preflight`'s spent check is a read:
+      // two concurrent POSTs both pass it, and only the one that clears the
+      // stamp may sign in. Payload's own `forgotPassword` reserves the same way.
       if (rules.spends) {
         const spent = await payload.db.updateOne({
           collection: slug,
