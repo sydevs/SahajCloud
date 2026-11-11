@@ -69,7 +69,7 @@ export async function requestSignInLinkAction(
 
   const payload = await getPayload({ config: payloadConfig })
   // Not the bare `managersLogin`: that has no `previewAutoSignIn`, so a preview's
-  // own form would mail its admin rather than sign them in.
+  // own form would mail a manager a link rather than sign them in.
   const config = managersLoginHere()
 
   let signedIn: Awaited<ReturnType<typeof issueMagicLink>>
@@ -90,10 +90,12 @@ export async function requestSignInLinkAction(
     return SENT
   }
 
-  // A Railway preview signs its own admin in rather than mailing a link, which
-  // is the whole of how anyone gets into a preview since #840 — see
-  // `previewAutoSignIn`. Nowhere else can reach this: the option is unset in
-  // production, in CI and in local dev.
+  // A Railway preview signs any manager in rather than mailing a link, which is
+  // the whole of how anyone gets into a preview since #840 — see
+  // `previewAutoSignIn`. Nowhere else can reach this: the option is off in
+  // production, in CI and in local dev. The preview's own page shows the picker
+  // instead of this form (`SignInAsForm`), which must not land in the panel by
+  // the soft navigation `redirect` makes.
   //
   // ⚠ Outside the `try` on purpose: Next signals a navigation by throwing, and
   // a `catch` around `redirect` would swallow it — leaving the caller on this

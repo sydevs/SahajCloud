@@ -1,25 +1,35 @@
 /**
- * The preview admin's auto sign-in, driven the way the smoke lane drives it (#840).
+ * A preview's auto sign-in, driven the way CI and the loop drive it (#840).
  *
- * `tests/unit/preview-auto-signin.spec.ts` covers WHO the option is set for. This
- * covers what it does once it is: the one address the environment names is signed
- * in on request, every other address is answered identically and mailed instead,
- * and an account that could not hold a session is refused rather than handed a
- * token nobody can spend.
+ * `tests/unit/preview-auto-signin.spec.ts` covers WHO the option is set for.
+ * This covers what it does once it is: **any** manager in the environment is
+ * signed in on request — which is what lets a reviewer check what a region or
+ * event manager sees — and an account that could not hold a session is refused
+ * rather than handed a token nobody can spend.
  *
- * ⚠ **The environment is set in `vi.hoisted`, and it has to be.** `serverEnv`
- * parses at import, and `previewAdminEmail()` runs when `testHelpers`
- * constructs the plugin — so an assignment in `beforeAll` would run after both,
- * the option would silently be unset, and every "no token" case below would still
- * pass.
+ * ⚠ **The environment is set in `vi.hoisted`, and it has to be.**
+ * `previewSignInHere()` runs when `testHelpers` constructs the plugin, so an
+ * assignment in `beforeAll` would run after it, the option would silently be off,
+ * and every "no token" case below would still pass.
  *
- * The sign-in form's Server Action is driven here too, because it is the half a
- * person uses: it once took the bare `managersLogin`, so the endpoint signed the
- * preview admin in while the form mailed them a link, and nothing noticed.
+ * ⚠ **Production is asserted through `issueMagicLink` rather than a second
+ * environment.** Naming this environment `production` would also switch the mail
+ * adapter and the storage isolation over, which is a different suite's business;
+ * the uniform answer is entirely `previewAutoSignIn` being off, so the last case
+ * drives that directly.
+ *
+ * The endpoint is also what the preview's sign-in picker posts to, so the cases
+ * below that sign another manager in are how a reviewer becomes one. The
+ * sign-in form's Server Action is driven too: it takes the same config, though a
+ * preview shows the picker in its place.
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
+import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
+import { issueMagicLink } from '@/plugins/login'
+import { managersLoginHere } from '@/plugins/previewAdmin'
 
 import {
   createAnonRestClient,
@@ -29,11 +39,8 @@ import {
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
-const { PREVIEW_ADMIN_EMAIL } = vi.hoisted(() => {
-  const email = 'preview-admin@sydevelopers.test'
+vi.hoisted(() => {
   process.env.RAILWAY_ENVIRONMENT_NAME = 'pr-840'
-  process.env.PREVIEW_ADMIN_EMAIL = email
-  return { PREVIEW_ADMIN_EMAIL: email }
 })
 
 // The action reaches for the app config with `getPayload({ config })`; point it
@@ -70,7 +77,7 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
   const seedPreviewAdmin = async () => {
     const created = await testData.createManager(payload, {
       name: 'Preview Admin',
-      email: PREVIEW_ADMIN_EMAIL,
+      email: PREVIEW_ADMIN_ADDRESS,
       type: 'admin',
       _verified: true,
     })
@@ -94,7 +101,7 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
   })
 
   it('signs the preview admin in, with a session that authenticates', async () => {
-    const res = await request({ email: PREVIEW_ADMIN_EMAIL })
+    const res = await request({ email: PREVIEW_ADMIN_ADDRESS })
 
     expect(res.status).toBe(200)
     const token = tokenFrom(res.body)
@@ -104,17 +111,41 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
 
     const asAdmin = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
     const me = await asAdmin('/api/managers/me')
-    expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_EMAIL)
+    expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_ADDRESS)
   })
 
   it('signs in again straight away, because the throttle must not bound a test run', async () => {
-    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_EMAIL })).body)).toBeTruthy()
+    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_ADDRESS })).body)).toBeTruthy()
   })
 
   it('takes the address as typed, whatever its case', async () => {
-    const shouted = PREVIEW_ADMIN_EMAIL.toUpperCase()
+    const shouted = PREVIEW_ADMIN_ADDRESS.toUpperCase()
 
     expect(tokenFrom((await request({ email: shouted })).body)).toBeTruthy()
+  })
+
+  it('signs any other manager in too, which is how a reviewer checks their view', async () => {
+    // ⚠ The behaviour this ticket is about. The address used to BE the
+    // credential, so one address was signed in and every other manager stayed
+    // unreachable — and the promise a change like #1073 makes, that an event's
+    // own manager sees their registrants and another manager is turned away,
+    // could not be checked at all.
+    // ⚠ `_verified: true` is not optional: an unaccepted account gets the
+    // invitation rather than a session, so the fixture has to be an account
+    // that could actually hold one — which is also why the fixture the CI fill
+    // seeds marks every manager accepted.
+    const other = await testData.createManager(payload, {
+      _verified: true,
+      name: 'Region Manager',
+    })
+
+    const res = await request({ email: other.email })
+
+    const token = tokenFrom(res.body)
+    expect(token).toBeTruthy()
+    const asManager = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
+    const me = await asManager('/api/managers/me')
+    expect((me.body as { user?: { email?: string } }).user?.email).toBe(other.email)
   })
 
   describe('through the sign-in form', () => {
@@ -129,48 +160,41 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
     it('signs the preview admin in and redirects, rather than saying "check your email"', async () => {
       cookieJar.clear()
 
-      await expect(submit(PREVIEW_ADMIN_EMAIL)).rejects.toBe(REDIRECTED)
+      await expect(submit(PREVIEW_ADMIN_ADDRESS)).rejects.toBe(REDIRECTED)
 
       const [token] = [...cookieJar.values()]
       expect(token).toBeTruthy()
       const asAdmin = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
       const me = await asAdmin('/api/managers/me')
-      expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_EMAIL)
+      expect((me.body as { user?: { email?: string } }).user?.email).toBe(PREVIEW_ADMIN_ADDRESS)
     })
 
     it('lands on the page that sent the admin to sign in, or the dashboard', async () => {
-      await expect(submit(PREVIEW_ADMIN_EMAIL, '/admin/collections/events/3')).rejects.toBe(
+      await expect(submit(PREVIEW_ADMIN_ADDRESS, '/admin/collections/events/3')).rejects.toBe(
         REDIRECTED,
       )
       expect(redirectedTo.current).toBe('/admin/collections/events/3')
 
-      await expect(submit(PREVIEW_ADMIN_EMAIL, 'https://evil.example/admin/')).rejects.toBe(
+      await expect(submit(PREVIEW_ADMIN_ADDRESS, 'https://evil.example/admin/')).rejects.toBe(
         REDIRECTED,
       )
       expect(redirectedTo.current).toBe('/admin')
     })
 
-    it('answers any other manager with the uniform message, and sets no cookie', async () => {
-      const other = await testData.createManager(payload, { name: 'Not The Preview Admin' })
+    it('signs another manager in and redirects', async () => {
+      const other = await testData.createManager(payload, {
+        _verified: true,
+        name: 'Event Manager',
+      })
       cookieJar.clear()
 
-      const answer = await submit(other.email)
+      await expect(submit(other.email)).rejects.toBe(REDIRECTED)
 
-      expect(answer.tone).toBe('success')
-      expect(cookieJar.size).toBe(0)
+      const [token] = [...cookieJar.values()]
+      const asManager = createRestClientWithAuth(env, { Authorization: `JWT ${token}` })
+      const me = await asManager('/api/managers/me')
+      expect((me.body as { user?: { email?: string } }).user?.email).toBe(other.email)
     })
-  })
-
-  it('signs nobody else in — another manager is mailed, and told nothing', async () => {
-    // ⚠ The failure this exists for: the address IS the credential here, so a
-    // second manager on the preview must stay unreachable. The answer is the same
-    // `{ ok: true }` either way, so the absent token is the whole assertion.
-    const other = await testData.createManager(payload, { name: 'Not The Preview Admin' })
-
-    const res = await request({ email: other.email })
-
-    expect(res.status).toBe(200)
-    expect(tokenFrom(res.body)).toBeUndefined()
   })
 
   it('refuses a malformed body rather than throwing', async () => {
@@ -186,7 +210,7 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
       overrideAccess: true,
     })
 
-    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_EMAIL })).body)).toBeUndefined()
+    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_ADDRESS })).body)).toBeUndefined()
 
     await payload.update({
       collection: 'managers',
@@ -204,6 +228,22 @@ describe('POST /api/managers/request-magic-link, on a Railway preview', () => {
       overrideAccess: true,
     })
 
-    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_EMAIL })).body)).toBeUndefined()
+    expect(tokenFrom((await request({ email: PREVIEW_ADMIN_ADDRESS })).body)).toBeUndefined()
+  })
+
+  it('mints nothing with the option off, which is production, CI and local dev', async () => {
+    // ⚠ The uniform answer is the whole of what keeps an anonymous endpoint
+    // from being an account-enumeration oracle, and `previewAutoSignIn` being
+    // off is the whole of what makes it uniform. Driven here rather than
+    // through a second environment: see the file header.
+    const config = { ...managersLoginHere(), previewAutoSignIn: false }
+
+    const signedIn = await issueMagicLink({
+      config,
+      email: PREVIEW_ADMIN_ADDRESS,
+      payload,
+    })
+
+    expect(signedIn).toBeUndefined()
   })
 })

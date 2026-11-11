@@ -4,7 +4,13 @@ const sentry = vi.hoisted(() => ({ captureMessage: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => ({ captureMessage: sentry.captureMessage }))
 
-vi.mock('@/lib/env/deploymentEnvironment', () => ({ deploymentEnvironment: () => 'test' }))
+// `railwayEnvironmentName` too: this factory replaces the whole module, and the
+// review link reaches it through `getServerUrl()`. Left out, delivery fails with
+// a mock error and the sender never runs. Off-Railway, to match the name above.
+vi.mock('@/lib/env/deploymentEnvironment', () => ({
+  deploymentEnvironment: () => 'test',
+  railwayEnvironmentName: () => undefined,
+}))
 
 import { SUBMISSION_TYPES } from '@/collections/UserSubmissions/fields'
 import { OPEN_REVIEW_STATUSES } from '@/collections/UserSubmissions/statuses'

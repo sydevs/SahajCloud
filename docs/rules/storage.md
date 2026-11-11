@@ -36,7 +36,7 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 | R2                | `preview-` prefix on the object key             | Refuses keys without the prefix       |
 | Cloudflare Stream | `meta.env=preview` tag (UIDs aren't caller-set) | GETs the video, refuses unless tagged |
 
-**"Is this production?" keys off the Railway environment name, not `NODE_ENV` and not the origin.** Railway previews run with `NODE_ENV=production`, and they inherit the shared `SAHAJCLOUD_URL` variable, so neither can tell prod and preview apart. `isProductionDeployment()` is true only when `RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production` — PR previews are `pr-<number>` (see `RAILWAY_RUNBOOK.md`). It **fails safe**: any other or unknown name is treated as non-production, so the guard stays active. The only failure mode is prod self-isolating from a misnamed environment — loud, never destructive.
+**"Is this production?" keys off the Railway environment name, not `NODE_ENV` and not the origin.** Railway previews run with `NODE_ENV=production`, and they inherit the shared `SAHAJCLOUD_URL` variable, so neither can tell prod and preview apart. `isProductionDeployment()` is true only when `RAILWAY_ENVIRONMENT_NAME` (fallback `RAILWAY_ENVIRONMENT`) equals `production` — PR previews are `SahajCloud-pr-<number>` (see `RAILWAY_RUNBOOK.md`). It **fails safe**: any other or unknown name is treated as non-production, so the guard stays active. The only failure mode is prod self-isolating from a misnamed environment — loud, never destructive.
 
 **The delete guard is the safety mechanism.** In non-prod, each adapter's `handleDelete` refuses any asset without the preview marker, so a preview can never delete a production asset. Production short-circuits the guard and behaves exactly as before. Proven by `tests/unit/storageIsolationGuard.spec.ts`. The image upload path is smoke-tested in `tests/e2e/images.e2e.spec.ts`.
 
@@ -53,7 +53,7 @@ Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so
 | `R2_BUCKET`             | variable     | yes                                  |
 | `R2_JURISDICTION`       | workflow env | only for a jurisdiction-bound bucket |
 
-The workflow hands `CLOUDFLARE_API_TOKEN` to the script as `CLOUDFLARE_API_KEY`, the name Railway uses. ⚠ Both secrets are org-level and shared with SahajAtlasWeb's Smoke lane, which needs Workers Scripts (Edit) from the same token — a rotation must update the org secret, and a re-scope must keep both repos' permissions.
+The workflow hands `CLOUDFLARE_API_TOKEN` to the script as `CLOUDFLARE_API_KEY`, the name Railway uses. ⚠ Both secrets are org-level and shared with SahajAtlasWeb's Smoke lane, which needs Workers Scripts (Edit) from the same token — a rotation must update the org secret, and a re-scope must keep both repos' permissions, including the preview address's (`DEPLOYMENT.md`).
 
 The script exits 1 with any of the required three missing — deliberately, since a cleanup that silently reaps nothing is worse than one that fails loudly.
 

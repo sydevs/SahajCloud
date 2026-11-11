@@ -30,9 +30,11 @@ const ACCEPTED = { ok: true } as const
  * body rather than in elapsed time.
  *
  * ⚠ **One exception, on a Railway preview only.** `previewAutoSignIn` answers
- * its one address with a session — `token` in the body for the smoke lane, and
- * the cookie for a browser. The option is unset everywhere the uniform answer
- * could be read as an oracle.
+ * **any** address this collection holds with a session — `token` in the body for
+ * CI and the loop, and the cookie for a browser. That makes this an anonymous
+ * enumeration surface, so the option is off everywhere the uniform answer could
+ * be read as an oracle, and a preview carries it only behind Cloudflare Access
+ * and the proxy gate (`src/middleware.ts`).
  */
 export function requestMagicLink(config: LoginCollectionConfig): Endpoint {
   return {
