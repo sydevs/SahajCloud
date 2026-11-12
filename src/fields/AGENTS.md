@@ -59,7 +59,7 @@ It returns **two fields, spread into `fields`**, and the collection also spreads
   which runs the factory's `verify` against the form's unsaved `dependsOn` values, encrypts the value
   into `payload.kv` for an hour, and answers a token. The document's own Save applies the token, so
   nothing changes on the row until then and no other field rides along. `GET` on the same route
-  answers whether a value is stored and its last four characters.
+  answers the stored value's last four characters, or `null` when none is stored.
 
 Behaviours it must keep:
 
