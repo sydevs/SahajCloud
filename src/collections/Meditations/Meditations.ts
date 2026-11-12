@@ -20,6 +20,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import { syncTranscriptOnSave } from '@/lib/transcripts/sync'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
@@ -32,7 +33,6 @@ import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
 import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
-import { syncMeditationTranscript } from './hooks/syncMeditationTranscript'
 
 /**
  * What `virtualJoinField`'s hook returns: the user-choices rows pointing at
@@ -122,7 +122,7 @@ export const Meditations: CollectionConfig = {
       extractAudioDuration,
       cacheMeditationNodeWeights,
     ],
-    afterChange: [syncMeditationTranscript],
+    afterChange: [syncTranscriptOnSave('meditations')],
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   defaultPopulate: {
@@ -468,7 +468,9 @@ export const Meditations: CollectionConfig = {
                       name: 'transcriptPanel',
                       type: 'ui',
                       admin: {
-                        components: { Field: '@/components/admin/RecordingTranscript' },
+                        components: {
+                          Field: '@/components/admin/RecordingTranscript#MeditationTranscriptField',
+                        },
                       },
                     },
                   ],

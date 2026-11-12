@@ -1,9 +1,7 @@
 import * as qs from 'qs-esm'
 
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
-
-/** The two kinds of recording a transcript belongs to (`transcripts.source`). */
-export type RecordingCollection = 'meditations' | 'files'
+import type { RecordingCollection } from '@/lib/transcripts/media'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -47,6 +45,26 @@ export const transcriptUrl = (
           // `qs` serialises the nested object, and `sanitizeQueryValue` reads
           // it back through the same guard the Local API uses.
           where: { source: { equals: { relationTo, value: recordingId } } },
+        },
+        { addQueryPrefix: true },
+      )}`
+    : null
+
+/**
+ * The read of a file an upload field holds, or `null` without a file id or a
+ * locale (`transcriptUrl` says why). A list read with an `id` filter rather
+ * than a document read, so a file the editor cannot read answers an empty list
+ * instead of an error.
+ */
+export const fileUrl = (fileId: number | null, locale: string | undefined): string | null =>
+  fileId && locale
+    ? `/api/files${qs.stringify(
+        {
+          depth: 0,
+          limit: 1,
+          locale,
+          select: { filename: true, mimeType: true, mp4Url: true, url: true },
+          where: { id: { equals: fileId } },
         },
         { addQueryPrefix: true },
       )}`

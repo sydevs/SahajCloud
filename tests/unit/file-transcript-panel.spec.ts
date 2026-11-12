@@ -29,6 +29,8 @@ const stub = vi.hoisted(() => ({
   file: undefined as unknown,
   /** The upload field's value — the file id a Path Step holds. */
   fieldValue: undefined as unknown,
+  /** The saved document on the file's own page. */
+  doc: undefined as Partial<TranscribedFile> | undefined,
   mutate: vi.fn(),
 }))
 
@@ -65,7 +67,7 @@ vi.mock('@payloadcms/ui', () => ({
   SuccessIcon: () => null,
   toast: { error: vi.fn(), success: vi.fn() },
   useAuth: () => ({ user: { collection: 'managers', type: 'admin' } }),
-  useDocumentInfo: () => ({ data: AUDIO, id: AUDIO.id }),
+  useDocumentInfo: () => ({ data: stub.doc, id: stub.doc?.id }),
   useField: () => ({ value: stub.fieldValue }),
   useFieldPath: () => 'introAudio',
   useLocale: () => ({ code: stub.locale }),
@@ -130,6 +132,7 @@ describe('a file’s Transcript panel', () => {
     stub.swr = { data: { docs: [row()] }, error: undefined }
     stub.file = AUDIO
     stub.fieldValue = AUDIO.id
+    stub.doc = AUDIO
     play = vi.fn(() => Promise.resolve())
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -151,19 +154,11 @@ describe('a file’s Transcript panel', () => {
     return media
   }
 
-  /** The player and transcript alone, as both pages frame them. */
+  /** The player and transcript alone, as both places frame them. */
   const render = async (file: TranscribedFile) => {
     const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
-    const { useRecordingTranscript } =
-      await import('@/components/admin/RecordingTranscript/useRecordingTranscript')
-    function Harness() {
-      return createElement(FileTranscript, {
-        file,
-        transcript: useRecordingTranscript('files', file.id),
-      })
-    }
     act(() => {
-      root.render(createElement(Harness))
+      root.render(createElement(FileTranscript, { file }))
     })
     return playable()
   }
@@ -308,7 +303,7 @@ describe('a file’s Transcript panel', () => {
   describe('on the file’s own page', () => {
     const mountFilePanel = async () => {
       const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
-      mount(FileTranscriptField, { path: 'transcriptPanel' })
+      mount(FileTranscriptField, { field: { type: 'ui' }, path: 'transcriptPanel' })
     }
 
     it('offers the spoken language once a run has answered', async () => {
@@ -318,6 +313,14 @@ describe('a file’s Transcript panel', () => {
       expect(container.querySelector('audio')).not.toBeNull()
       // The transcript is the point of this page, so it is never folded away.
       expect(container.querySelector('[data-collapsible]')).toBeNull()
+    })
+
+    // A PDF or an image has no transcript, and the page shows no panel at all.
+    it('shows nothing for a file with no transcript to have', async () => {
+      stub.doc = { ...AUDIO, mimeType: 'application/pdf' }
+      await mountFilePanel()
+
+      expect(container.innerHTML).toBe('')
     })
 
     it('offers no language while a run is in flight', async () => {
@@ -334,8 +337,11 @@ describe('a file’s Transcript panel', () => {
   describe('under a Path Step’s upload field', () => {
     const description = 'Audio introduction to this lesson.'
     const mountUnderField = async () => {
-      const { UploadTranscript } = await import('@/components/admin/UploadTranscript')
-      mount(UploadTranscript, { field: { admin: { description } }, path: 'introAudio' })
+      const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
+      mount(FileTranscriptField, {
+        field: { type: 'upload', admin: { description } },
+        path: 'introAudio',
+      })
     }
 
     it('follows the field’s own description, with no label of its own', async () => {
@@ -400,7 +406,7 @@ describe('a file’s Transcript panel', () => {
 
   describe('the language warning above an intro recording', () => {
     const mountWarning = async () => {
-      const { RecordingLanguageWarning } = await import('@/components/admin/UploadTranscript')
+      const { RecordingLanguageWarning } = await import('@/components/admin/RecordingTranscript')
       mount(RecordingLanguageWarning)
     }
 

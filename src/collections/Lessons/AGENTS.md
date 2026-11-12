@@ -53,11 +53,13 @@ video's subtitles, which is why `panels[].subtitles` is gone too.
   (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected on
   the file's Transcript panel, and a re-run there serves every step using it.
 - **Shown, never edited, here.** `introAudio` and `panels[].media` register
-  `UploadTranscript` as their `Description`, the one slot Payload renders after
-  an upload field's description, so the file's player and transcript read as
-  part of the field — folded closed in a Payload `Collapsible` once there are
-  lines to read, because a step carries one per panel video as well. `introAudio` also registers `RecordingLanguageWarning` as
-  `beforeInput`, a banner above the file when its recording is in another
+  `FileTranscriptField` — the file's own Transcript panel — as their
+  `Description`, the one slot Payload renders after an upload field's
+  description, so it renders the description first and the file's player and
+  transcript read as part of the field — folded closed in a Payload
+  `Collapsible` once there are lines to read, because a step carries one per
+  panel video as well. `introAudio` also registers `RecordingLanguageWarning`
+  as `beforeInput`, a banner above the file when its recording is in another
   language than the one being edited. The spoken language is corrected on the
   file alone, and a retry here serves every step using it. Spellings are
   corrected for every transcript by the glossary

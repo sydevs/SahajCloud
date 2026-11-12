@@ -4,10 +4,11 @@ import { useField, useFieldPath, useLocale } from '@payloadcms/ui'
 import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
-import { useRecordingTranscript } from '@/components/admin/RecordingTranscript/useRecordingTranscript'
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
 import { relationId } from '@/lib/utilities/relationId'
+
+import { useRecordingTranscript } from './useRecordingTranscript'
 
 /**
  * Above an upload field narrated per language — a Path Step's intro audio — a

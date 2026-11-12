@@ -19,6 +19,7 @@
 import path from 'path'
 
 import { createLocalReq } from 'payload'
+import { extractID } from 'payload/shared'
 
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { syncRecordingTranscript } from '@/lib/transcripts/sync'
@@ -62,9 +63,7 @@ export class FileTranscriptsImporter extends BaseImporter<BaseImportOptions> {
     const transcribed = new Set(
       transcripts
         .filter((row) => row.source?.relationTo === 'files')
-        .map((row) =>
-          typeof row.source.value === 'object' ? row.source.value.id : row.source.value,
-        ),
+        .map((row) => extractID(row.source.value)),
     )
     const missing = files.filter(
       (file) => file.filename && transcribableMedia(file.mimeType) && !transcribed.has(file.id),

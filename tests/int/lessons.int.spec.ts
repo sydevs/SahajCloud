@@ -57,6 +57,25 @@ describe('Lessons Collection — custom behavior', () => {
     })
   })
 
+  // The MIME type is written out here rather than imported from the field, so
+  // a wrong edit to the filter fails this instead of agreeing with it.
+  describe('introAudio', () => {
+    it('accepts an MP3', async () => {
+      const recording = await testData.createFile(payload)
+      expect(recording.mimeType).toBe('audio/mpeg')
+
+      const lesson = await testData.createLesson(payload, { introAudio: recording.id })
+
+      expect(lesson.introAudio).toBeTruthy()
+    })
+
+    it('refuses any other file, on save as well as in the picker', async () => {
+      const image = await testData.createFile(payload, {}, 'image-1050x700.jpg')
+
+      await expect(testData.createLesson(payload, { introAudio: image.id })).rejects.toThrow()
+    })
+  })
+
   describe('meditation field — locale isolation', () => {
     let enMeditation: Meditation
     let esMeditation: Meditation

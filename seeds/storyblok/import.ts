@@ -21,7 +21,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
-import type { ImportedTranscript } from '@/collections/Files/hooks/syncFileTranscript'
+import type { ImportedTranscript } from '@/lib/transcripts/sync'
 import { type Subtitles, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 import { seedEnv } from '../env'

@@ -73,16 +73,16 @@ export function RecordingTranscript({
   transcript,
   playback,
   filename,
+  recordingLocale,
   player,
   collapsible = false,
 }: {
   transcript: RecordingTranscriptState
   playback: Playback
-  /**
-   * The recording's stored filename, when the document being edited is not the
-   * recording — `RetryTranscript` reads the edited document's otherwise.
-   */
-  filename?: string | null
+  /** The recording's stored filename: without one there is nothing to transcribe. */
+  filename: string | null | undefined
+  /** The recording's own language, where it has one: a meditation's `locale`. */
+  recordingLocale?: unknown
   /**
    * The element `playback` follows, when the recording has none of its own on
    * the page. Given one, the player and the transcript share a frame, and the
@@ -95,7 +95,7 @@ export function RecordingTranscript({
    */
   collapsible?: boolean
 }) {
-  const { error, loaded, phase, recordingId, refresh, relationTo, row, url } = transcript
+  const { error, loaded, phase, row, url } = transcript
   // Two memos, not one: `react-hooks/preserve-manual-memoization` refuses a
   // dependency it cannot prove stable, so the cue array needs its own.
   const segments = useMemo(() => row?.segments ?? [], [row])
@@ -141,15 +141,12 @@ export function RecordingTranscript({
         {notice && (
           <InfoBanner
             action={
-              transcriptPhaseIsRetryable(phase) &&
-              recordingId && (
+              transcriptPhaseIsRetryable(phase) && (
                 <RetryTranscript
                   filename={filename}
                   label={phase === 'none' ? 'Transcribe' : 'Transcribe again'}
-                  onRetried={refresh}
-                  recordingId={recordingId}
-                  relationTo={relationTo}
-                  requestedAt={row?.createdAt}
+                  recordingLocale={recordingLocale}
+                  transcript={transcript}
                 />
               )
             }

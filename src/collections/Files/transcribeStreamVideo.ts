@@ -7,7 +7,7 @@ import { syncRecordingTranscript } from '@/lib/transcripts/sync'
 
 /**
  * Start a video file's transcript once Cloudflare Stream reports it ready —
- * the counterpart of `syncFileTranscript`, which starts an MP3's on save.
+ * the counterpart of `syncTranscriptOnSave`, which starts an MP3's on save.
  *
  * Called by the Stream webhook after it enables downloads, so the MP4 the run
  * fetches is on its way (the run still waits for it: `TranscribeRecording`).

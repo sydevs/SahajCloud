@@ -23,7 +23,7 @@ import {
   transcribeUrl,
   transcriptUrl,
 } from '../../src/components/admin/RecordingTranscript/transcriptModel'
-import { fileUrl } from '../../src/components/admin/UploadTranscript/fileModel'
+import { fileUrl } from '../../src/components/admin/RecordingTranscript/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {

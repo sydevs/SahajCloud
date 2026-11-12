@@ -1,4 +1,3 @@
-import type { TranscriptSource } from './sync'
 import type { PayloadRequest } from 'payload'
 
 import {
@@ -16,6 +15,8 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
+
+import { findTranscript, type TranscriptSource } from './sync'
 
 export const transcriptRefusal = (
   message: string,
@@ -83,24 +84,9 @@ export async function requestTranscript(
     noun: string
   },
 ): Promise<Response> {
-  // ⚠ **No `select`, because the row has to arrive whole.** `status` is
-  // virtual, computed by its own `afterRead` from `segmentCount` and `job`
-  // (`Transcripts.ts`) — so a `select` would starve that hook and the phase
-  // below would read every row as `completed`, refusing every retry. The
-  // integration lane's phase cases are what hold this.
-  //
-  // `overrideAccess` here and on the two writes below: the caller's gate is the
+  // `overrideAccess` on every read and write here: the caller's gate is the
   // authority, and `transcripts` carries no write grant of its own.
-  const { docs } = await req.payload.find({
-    collection: 'transcripts',
-    where: { source: { equals: source } },
-    depth: 0,
-    limit: 1,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  const existing = docs[0]
+  const existing = await findTranscript(req, source)
   const languageChanged = Boolean(existing && language && existing.language !== language)
 
   if (existing) {

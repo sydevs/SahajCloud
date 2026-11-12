@@ -409,7 +409,7 @@ describe('file transcripts', () => {
     })
 
     // A join would answer bare ids here, at any depth — which is why the file
-    // carries its cues as a virtual field (`subtitlesFromTranscript`).
+    // carries its cues as a virtual field (the `subtitles` field's `afterRead`).
     it("carries the file's cues through the populated upload", async () => {
       const file = await completed()
       const lesson = await testData.createLesson(payload, { introAudio: file.id } as never)

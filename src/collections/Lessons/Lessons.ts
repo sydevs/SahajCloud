@@ -5,18 +5,10 @@ import { jsonField } from '@/fields/jsonField'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
+import { readFileSubtitles } from '@/lib/transcripts/read'
+import { relationId } from '@/lib/utilities/relationId'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
-
-import { introSubtitlesFromTranscript } from './hooks/introSubtitlesFromTranscript'
-
-/**
- * One constant, so the picker and Payload's save-time `validateFilterOptions`
- * can never narrow differently (`src/collections/AGENTS.md`).
- */
-const INTRO_AUDIO_FILTER = { mimeType: { equals: 'audio/mpeg' } } as const
-
-const UPLOAD_TRANSCRIPT = '@/components/admin/UploadTranscript'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -83,7 +75,9 @@ export const Lessons: CollectionConfig = {
                     description: 'Image or video for this panel.',
                     // A panel video's subtitles are its file's transcript
                     // (#1016), shown under the field and never stored on the step.
-                    components: { Description: UPLOAD_TRANSCRIPT },
+                    components: {
+                      Description: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                    },
                   },
                 },
               ],
@@ -138,7 +132,7 @@ export const Lessons: CollectionConfig = {
               // (`src/collections/AGENTS.md`). The transcription keeps its own
               // mime check: the field's upload tab can create a non-audio row
               // before this is validated.
-              filterOptions: INTRO_AUDIO_FILTER,
+              filterOptions: { mimeType: { equals: 'audio/mpeg' } },
               admin: {
                 description:
                   'Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.',
@@ -147,8 +141,8 @@ export const Lessons: CollectionConfig = {
                 // stored on the step. A panel video is shown to every language
                 // as it is, so only this field warns of another language.
                 components: {
-                  beforeInput: [`${UPLOAD_TRANSCRIPT}#RecordingLanguageWarning`],
-                  Description: UPLOAD_TRANSCRIPT,
+                  beforeInput: ['@/components/admin/RecordingTranscript#RecordingLanguageWarning'],
+                  Description: '@/components/admin/RecordingTranscript#FileTranscriptField',
                 },
               },
             },
@@ -162,7 +156,17 @@ export const Lessons: CollectionConfig = {
               virtual: true,
               custom: virtualFieldInputs('introAudio'),
               admin: { hidden: true, readOnly: true },
-              hooks: { afterRead: [introSubtitlesFromTranscript] },
+              hooks: {
+                afterRead: [
+                  // A bare id at any depth (`src/collections/AGENTS.md`), and a
+                  // `{ [locale]: id }` map under `locale=all`, which has no one
+                  // language to answer for.
+                  ({ req, siblingData }) => {
+                    const fileId = relationId(siblingData?.introAudio)
+                    return fileId ? readFileSubtitles(req, fileId) : null
+                  },
+                ],
+              },
             }),
           ],
         },

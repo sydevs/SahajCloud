@@ -6,7 +6,7 @@ import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from '@/lib/lemonfox/
 import type { LocaleCode } from '@/lib/locales'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { transcriptHasCues } from '@/lib/transcripts/read'
-import type { TranscriptSource } from '@/lib/transcripts/sync'
+import { findTranscript, type TranscriptSource } from '@/lib/transcripts/sync'
 import { originOf } from '@/lib/utilities/url'
 import type { Transcript } from '@/payload-types'
 import { getCloudflareStreamMp4Url, getR2Url } from '@/plugins/storage'
@@ -174,26 +174,14 @@ async function waitForVideoDownload(url: string): Promise<void> {
 
 /**
  * The recording's transcript row, while it still names `audioFilename`.
- *
- * `source` is unique, so there is at most one row per recording and the file is
- * a field comparison rather than a second query. `overrideAccess` because this
- * run owns the row it is filling in.
+ * `overrideAccess` because this run owns the row it is filling in.
  */
 async function findCurrentRow(
   req: PayloadRequest,
   source: TranscriptSource,
   audioFilename: string,
 ): Promise<Transcript | undefined> {
-  const { docs } = await req.payload.find({
-    collection: 'transcripts',
-    where: { source: { equals: source } },
-    depth: 0,
-    limit: 1,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  const row = docs[0]
+  const row = await findTranscript(req, source)
   return row?.audioFilename === audioFilename ? row : undefined
 }
 

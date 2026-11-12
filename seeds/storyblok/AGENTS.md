@@ -43,7 +43,7 @@ need `locale` passed through both, which no caller does today.
 
 **The intro subtitles become the intro file's transcript** (#1016), not a lesson
 field. `attachLessonFiles` uploads the recording with
-`context.importedTranscript`, so `syncFileTranscript` stores the parsed cues as
+`context.importedTranscript`, so `syncTranscriptOnSave` stores the parsed cues as
 an `imported` English transcript and queues no paid run.
 
 The Storyblok `Intro_stories` array maps to the Payload `panels` array:
