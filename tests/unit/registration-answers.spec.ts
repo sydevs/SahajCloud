@@ -1,11 +1,18 @@
+import { toWords } from 'payload/shared'
 import { describe, expect, it } from 'vitest'
 
-import { buildRegistrationAnswers } from '@/lib/registrations/questions'
+import {
+  buildRegistrationAnswers,
+  EVENT_REGISTRATION_QUESTIONS,
+} from '@/lib/registrations/questions'
+
+const labelOf = (name: (typeof EVENT_REGISTRATION_QUESTIONS)[number]['name']) =>
+  EVENT_REGISTRATION_QUESTIONS.find((question) => question.name === name)!.label
 
 describe('buildRegistrationAnswers', () => {
   it('maps a known question key to its configured label', () => {
     expect(buildRegistrationAnswers({ referral: 'A friend' })).toEqual([
-      { label: 'How did you hear about this event?', value: 'A friend' },
+      { label: labelOf('referral'), value: 'A friend' },
     ])
   })
 
@@ -16,16 +23,16 @@ describe('buildRegistrationAnswers', () => {
       custom: 'extra',
     })
     expect(answers.map((answer) => answer.label)).toEqual([
-      'Have you practised Sahaja Yoga meditation before?', // experience — earlier in config
-      'Do you have any questions for us?', // questions — later in config
-      'Custom', // unconfigured key → labelled from the key, last
+      labelOf('experience'), // earlier in config
+      labelOf('questions'), // later in config
+      toWords('custom'), // unconfigured key → labelled from the key, last
     ])
   })
 
   it('labels an unconfigured question from its key, never as the bare key', () => {
-    expect(buildRegistrationAnswers({ priorExperience: 'hi' })).toEqual([
-      { label: 'Prior Experience', value: 'hi' },
-    ])
+    const [answer] = buildRegistrationAnswers({ priorExperience: 'hi' })
+    expect(answer).toEqual({ label: toWords('priorExperience'), value: 'hi' })
+    expect(answer.label).not.toBe('priorExperience')
   })
 
   it('drops blank / whitespace-only answers', () => {

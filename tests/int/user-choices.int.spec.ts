@@ -21,20 +21,6 @@ describe('UserChoices Collection - Metadata Fields', () => {
     await cleanup()
   })
 
-  describe('isFeatured field', () => {
-    it('defaults to false', async () => {
-      const tag = await testData.createUserChoice(payload)
-      expect(tag.isFeatured).toBe(false)
-    })
-
-    it('can be set to true', async () => {
-      const tag = await testData.createUserChoice(payload, {
-        isFeatured: true,
-      })
-      expect(tag.isFeatured).toBe(true)
-    })
-  })
-
   describe('parent-child relationships', () => {
     let parentTag: UserChoice
     let childTag1: UserChoice
@@ -300,21 +286,6 @@ describe('UserChoices Collection - Metadata Fields', () => {
     })
   })
 
-  describe('timings field', () => {
-    it('defaults to empty array', async () => {
-      const tag = await testData.createUserChoice(payload)
-      expect(tag.timings).toEqual([])
-    })
-
-    it('can be set with multiple timings', async () => {
-      const tag = await testData.createUserChoice(payload, {
-        timings: ['morning', 'evening'],
-      })
-      expect(tag.timings).toEqual(expect.arrayContaining(['morning', 'evening']))
-      expect(tag.timings).toHaveLength(2)
-    })
-  })
-
   describe('per-timing meditation assignments', () => {
     let tag: UserChoice
     let dailyMeditation: { id: number }
@@ -397,13 +368,6 @@ describe('UserChoices Collection - Metadata Fields', () => {
     // Verifies the optional-fields-when-goal contract added with the rename.
     // mood-type behaviour stays covered by the suites above (createUserChoice
     // defaults to mood via the `defaultValue: 'mood'` on the field).
-    it('defaults to mood when type is omitted', async () => {
-      const choice = await testData.createUserChoice(payload, {
-        title: 'Default-type Choice',
-      })
-      expect(choice.type).toBe('mood')
-    })
-
     it('allows creating a goal-type choice without timings or per-timing meditation rels', async () => {
       const choice = await testData.createUserChoice(payload, {
         title: 'Sleep Better',

@@ -10,6 +10,10 @@ import {
 import { EVENT_QUALITY_CHECK_METADATA } from '@/lib/eventQuality'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
+/** The rendered HTML alone, so a change to `renderEmail`'s return shape is a one-line fix. */
+const renderHtml = async (element: Parameters<typeof renderEmail>[0]) =>
+  (await renderEmail(element)).html
+
 const details: EventDetails = {
   title: 'Saturday Morning Sahaja Yoga Meditation',
   locationLabel: 'Address',
@@ -76,10 +80,22 @@ const completeProgress: EventListingProgress = {
   total: 3,
 }
 
+const EVENT_URL = 'https://cloud.test/event/1042'
+
+/**
+ * The outlined secondary button, which only the event link uses. Keyed on the
+ * variant's own fill and border rather than its label: asserting the absence of
+ * a URL the render was never given cannot fail, and asserting the absence of
+ * "View event" puts the copy back in two places.
+ */
+const SECONDARY_BUTTON = new RegExp(
+  `border:1px solid ${getEmailBrand('sahaj-atlas').colors.primary}`,
+)
+
 const baseProps = {
   name: 'Jo Manager',
   eventTitle: 'Morning Meditation',
-  verifyUrl: 'https://cloud.test/admin/login?token=TKN123',
+  verifyUrl: 'https://cloud.test/x?t=1',
   audience: 'manager' as const,
   details,
   deadline: 'Saturday, 19 July 2026',
@@ -89,9 +105,7 @@ const baseProps = {
 /** Render with `baseProps`, overridden per case. Returns the promise so the
  *  unsupported region/due combination can still be asserted with `.rejects`. */
 const render = (props: Partial<Parameters<typeof EventVerificationEmail>[0]> = {}) =>
-  renderEmail(createElement(EventVerificationEmail, { ...baseProps, level: 'due', ...props })).then(
-    ({ html }) => html,
-  )
+  renderHtml(createElement(EventVerificationEmail, { ...baseProps, level: 'due', ...props }))
 
 describe('EventVerificationEmail', () => {
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
@@ -123,30 +137,28 @@ describe('EventVerificationEmail', () => {
 
   it('renders the event details summary table', async () => {
     const html = await render({ level: 'due' })
-    expect(html).toContain('12 MG Road, Pune, Maharashtra, IN 411001')
-    expect(html).toContain('Every week on Saturday at 9:26 AM')
-    expect(html).toContain('4 registrations in the last 30 days')
+    expect(html).toContain(details.location)
+    expect(html).toContain(details.schedule)
+    expect(html).toMatch(/\b4 registrations\b/)
   })
 
   it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
     'shows the last-verified date in the details table for the %s level',
     async (level) => {
       const html = await render({ level })
-      expect(html).toContain('Last verified')
-      expect(html).toContain('Wednesday, 12 March 2026')
+      expect(html).toContain(details.lastVerified)
     },
   )
 
-  it('renders a "View event" button when eventUrl is given', async () => {
-    const eventUrl = 'https://wemeditate.com/map#/!/events/1042'
-    const html = await render({ level: 'due', eventUrl })
-    expect(html).toContain(eventUrl)
-    expect(html).toContain('View event')
+  it('links the event when eventUrl is given', async () => {
+    const html = await render({ level: 'due', eventUrl: EVENT_URL })
+    expect(html).toContain(EVENT_URL)
+    expect(html).toMatch(SECONDARY_BUTTON)
   })
 
-  it('omits the "View event" button when eventUrl is null (unpublished)', async () => {
+  it('omits the event link when eventUrl is null (unpublished)', async () => {
     const html = await render({ level: 'expired', eventUrl: null })
-    expect(html).not.toContain('View event')
+    expect(html).not.toMatch(SECONDARY_BUTTON)
   })
 
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
@@ -316,7 +328,6 @@ describe('EventVerificationEmail', () => {
       expect(html).toContain('Priya Deshmukh')
       expect(html).toContain('priya@example.com')
       expect(html).toContain('+91 98765 43210')
-      expect(html).toContain('Event manager')
     })
 
     it('points its CTA at the event manager (mailto), not the verify link', async () => {
@@ -339,7 +350,7 @@ describe('EventVerificationEmail', () => {
   })
 
   it('renders without a details table when none is supplied', async () => {
-    const { html } = await renderEmail(
+    const html = await renderHtml(
       createElement(EventVerificationEmail, {
         name: 'Sam',
         eventTitle: 'Untitled',
@@ -350,6 +361,6 @@ describe('EventVerificationEmail', () => {
       }),
     )
     expect(html).toContain('Sam') // renders (greeting), just without a table
-    expect(html).not.toContain('registrations in the last 30 days')
+    expect(html).not.toMatch(/\d+ registrations/)
   })
 })

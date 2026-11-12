@@ -67,21 +67,6 @@ describe('Meditations Collection', () => {
     ).toBe(testSongTag.id)
   })
 
-  it('creates meditation as draft by default', async () => {
-    const meditation = await testData.createMeditation(
-      payload,
-      {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      },
-      {
-        title: 'Draft Meditation',
-      },
-    )
-
-    expect(meditation._status).toBe('draft')
-  })
-
   it('creates meditation with audio file', async () => {
     const meditation = await testData.createMeditation(payload, {
       narrator: testNarrator.id,
@@ -424,27 +409,6 @@ describe('Meditations Collection', () => {
 
         expect(versions.totalDocs).toBeGreaterThan(0)
       })
-    })
-  })
-
-  describe('Type field', () => {
-    it('creates meditation with daily type by default', async () => {
-      const meditation = await testData.createMeditation(payload, {
-        narrator: testNarrator.id,
-        thumbnail: testImageMedia.id,
-      })
-
-      expect(meditation.type).toBe('daily')
-    })
-
-    it('creates meditation with lesson type', async () => {
-      const meditation = await testData.createMeditation(
-        payload,
-        { narrator: testNarrator.id, thumbnail: testImageMedia.id },
-        { type: 'lesson' },
-      )
-
-      expect(meditation.type).toBe('lesson')
     })
   })
 

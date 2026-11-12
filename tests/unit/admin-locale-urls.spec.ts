@@ -1,15 +1,15 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Four of the five call sites that carry the fix build a URL
- * or an SWR key from `useLocale().code`, and only a browser can observe them
- * end to end — so the string each one builds is pinned here instead.
+ * option (#701). The call sites that carry the fix build a URL or an SWR key
+ * from `useLocale().code`, and only a browser can observe them end to end — so
+ * the string each one builds is pinned here instead.
  *
  * The sibling integration specs prove the SERVER half: that `?locale=fr` is
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The fifth site, `fetchRelationshipDocs`, is pinned in
- * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
+ * `fetchRelationshipDocs` is pinned in `relationshipDocLoader.spec.ts` against
+ * a stubbed `fetch`.
  *
  * `submissionActionUrl` was one of them until #909 moved submission review onto
  * `WorkflowButtons`. Payload's own document form carries the locale in the
