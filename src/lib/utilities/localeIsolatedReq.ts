@@ -20,8 +20,11 @@ import type { PayloadRequest } from 'payload'
  * and transactional consistency are unaffected — only `locale`/`fallbackLocale`
  * become the copy's own.
  *
- * Not needed when the nested call uses the caller's own locale; only when it
- * deliberately reads another one.
+ * Skip it when the nested call uses the caller's own locale — unless reads run
+ * concurrently on one `req`, where it is needed for that locale too.
+ * `createLocalReq` assigns both keys before the operation reads them back, so a
+ * sibling read can land its assignment inside that window (#982,
+ * `src/collections/AGENTS.md`).
  */
 export function localeIsolatedReq(req: PayloadRequest): PayloadRequest {
   return { ...req } as PayloadRequest
