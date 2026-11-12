@@ -27,11 +27,13 @@ other field.
   an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
   builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
 - **The CMS computes no colours.** Any legibility correction is the widget's own. The widget
-  reports what it rendered (`sahaj-atlas:palette-report`), and each picker shows that as
-  "Visitors see …", with **Use this colour** where the widget offers a seed that renders
-  unchanged (`ColorField/paletteReport.ts`). ⚠ A message is accepted only from the preview
-  iframe's window and origin, checked as it arrives, and a report counts only while its
-  `entered` colour is still the field's value.
+  reports what it rendered (`sahaj-atlas:palette-report`), and `ColorControls`, under the
+  pickers, shows one "Visitors see adjusted colors" line — a swatch per colour whose swatch
+  moved, every reason in one tooltip — and one **Use adjusted colors** button for each colour
+  the widget offers a seed for (`AtlasPreview/paletteReport.ts`). A `panel-text` correction
+  moves the text step, not the swatch, so it is not shown. ⚠ A message is accepted only from
+  the preview iframe's window and origin, checked as it arrives, and a report counts only while
+  its `entered` colour is still the field's value.
 - **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
   in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
   admin previews; that is our own origin, and the atlas reads colours alone.

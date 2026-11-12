@@ -6,7 +6,7 @@ import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import { secretFieldEndpoints } from '@/fields/secretField/endpoints'
-import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
+import { ATLAS_DEFAULT_COLORS, BRAND_COLOR_LABELS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
   CANONICAL_DOMAIN_PATTERN,
@@ -692,28 +692,28 @@ export const Clients: CollectionConfig = {
               fields: [
                 colorField({
                   name: 'color1',
-                  label: 'Primary Color',
+                  label: BRAND_COLOR_LABELS.color1,
                   fallback: ATLAS_DEFAULT_COLORS.color1,
                 }),
                 colorField({
                   name: 'color2',
-                  label: 'Secondary Color',
+                  label: BRAND_COLOR_LABELS.color2,
                   fallback: ATLAS_DEFAULT_COLORS.color2,
                 }),
                 colorField({
                   name: 'color3',
-                  label: 'Tertiary Color',
+                  label: BRAND_COLOR_LABELS.color3,
                   fallback: ATLAS_DEFAULT_COLORS.color3,
                 }),
               ],
             },
             {
-              // Light or dark, posted to the preview iframe, and the colour reset.
-              // Not stored: the mode is a way of looking at the colours.
-              name: 'previewMode',
+              // What the preview reports, the light/dark switch, and the colour actions.
+              // Stores nothing.
+              name: 'colorControls',
               type: 'ui',
               admin: {
-                components: { Field: '@/components/admin/AtlasPreview/PreviewModeField' },
+                components: { Field: '@/components/admin/AtlasPreview/ColorControls' },
               },
             },
             {

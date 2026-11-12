@@ -2,21 +2,11 @@
 
 import type { TextFieldClientComponent } from 'payload'
 
-import {
-  Button,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-  useField,
-  useLivePreviewContext,
-} from '@payloadcms/ui'
-import React, { useCallback, useEffect, useState } from 'react'
+import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
+import React, { useCallback } from 'react'
 
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isBrandColor } from '@/lib/clients/appearance'
-import { originOf } from '@/lib/utilities/url'
-
-import { readAdjustment, type ColorAdjustment } from './paletteReport'
 
 /**
  * Color Field Component
@@ -42,7 +32,6 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
   const fallback = (custom as { colorFallback?: string } | undefined)?.colorFallback
 
   const { value, setValue, showError } = useField<string>()
-  const adjustment = usePreviewAdjustment(name, value)
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,7 +58,10 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
 
   return (
     <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(field.admin)}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+      <div style={{ alignItems: 'baseline', display: 'flex', gap: 'calc(var(--base) / 3)' }}>
+        <FieldLabel label={label} localized={localized} path={name} required={required} />
+        {unset ? <span style={{ color: 'var(--theme-elevation-500)' }}>Default</span> : null}
+      </div>
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
@@ -91,82 +83,9 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         />
       </div>
 
-      {adjustment ? (
-        <div
-          className="field-description"
-          style={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 'var(--base)' }}
-        >
-          <span
-            aria-hidden
-            style={{
-              backgroundColor: adjustment.light,
-              borderRadius: 'var(--style-radius-s)',
-              display: 'inline-block',
-              height: '1em',
-              width: '1em',
-            }}
-          />
-          <span>
-            Visitors see {adjustment.light}
-            {adjustment.reasons.length > 0 ? ` — ${adjustment.reasons.join(', ')}` : ''}
-          </span>
-          {adjustment.suggested && !readOnly ? (
-            <Button
-              buttonStyle="secondary"
-              margin={false}
-              onClick={() => setValue(adjustment.suggested)}
-              size="small"
-            >
-              Use this colour
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-      {fallback ? (
-        <div className="field-description" style={{ display: 'flex', gap: 'var(--base)' }}>
-          {unset ? (
-            <span>Atlas default ({fallback.toUpperCase()})</span>
-          ) : (
-            <span>Custom ({value?.toUpperCase()})</span>
-          )}
-        </div>
-      ) : null}
       <FieldDescription description={description} path={name} />
     </div>
   )
-}
-
-/**
- * What the atlas preview reports about this picker's colour, or `null` while it
- * reports nothing — no preview open, or a colour it left as entered.
- *
- * ⚠ **The sender is checked when each message arrives**, against the preview
- * iframe as it is then. Nothing about the frame is captured at mount, so a panel
- * that opens after this field, reloads or is repointed needs no re-subscribe.
- */
-function usePreviewAdjustment(
-  fieldName: string,
-  value: null | string | undefined,
-): ColorAdjustment | null {
-  const { iframeRef } = useLivePreviewContext()
-  const [message, setMessage] = useState<unknown>(null)
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const frame = iframeRef?.current
-
-      if (!frame?.contentWindow || event.source !== frame.contentWindow) return
-      if (event.origin !== originOf(frame.src)) return
-
-      setMessage(event.data)
-    }
-
-    window.addEventListener('message', onMessage)
-
-    return () => window.removeEventListener('message', onMessage)
-  }, [iframeRef])
-
-  return readAdjustment(message, fieldName, value)
 }
 
 export default ColorField

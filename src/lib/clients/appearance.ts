@@ -29,6 +29,15 @@ export const ATLAS_DEFAULT_COLORS = {
   color3: '#d8735a',
 } as const
 
+export type BrandColorColumn = keyof typeof ATLAS_DEFAULT_COLORS
+
+/** What a manager calls each colour — the Atlas tab's pickers and the Install tab's tiles. */
+export const BRAND_COLOR_LABELS: Record<BrandColorColumn, string> = {
+  color1: 'Primary',
+  color2: 'Secondary',
+  color3: 'Accent',
+}
+
 /** The logo a service without one of its own is shown with. */
 export const DEFAULT_SERVICE_LOGO = '/images/wemeditate-web.svg'
 
