@@ -23,7 +23,7 @@
  * seeds/atlas/local/ and seeds/atlas/data/, both gitignored. See
  * seeds/atlas/AGENTS.md ("The sync pipeline") for the procedure around it.
  */
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -88,10 +88,14 @@ async function fetchStep(backup?: string): Promise<void> {
   let id = backup
   if (!id) {
     console.log(`Capturing a fresh backup of ${HEROKU_APP}…`)
-    const out = execFileSync('heroku', ['pg:backups:capture', '--app', HEROKU_APP], {
+    // The Heroku CLI prints "Backing up … to bNNN" on stderr and only the
+    // progress hints on stdout, so the id has to be read from both.
+    const capture = spawnSync('heroku', ['pg:backups:capture', '--app', HEROKU_APP], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     })
+    const out = `${capture.stdout}\n${capture.stderr}`
+    if (capture.status !== 0) throw new Error(`heroku pg:backups:capture failed:\n${out}`)
     id = out.match(/ to (b\d+)/)?.[1]
     if (!id) throw new Error(`Could not read the backup id from:\n${out}`)
   }
