@@ -11,6 +11,7 @@ import { Managers } from '@/collections/Managers/Managers'
 import { Meditations } from '@/collections/Meditations/Meditations'
 import { Transcripts } from '@/collections/Transcripts/Transcripts'
 import { Videos } from '@/collections/Videos/Videos'
+import { buildDefaultNotificationPreferences } from '@/components/admin/NotificationPreferences/config'
 import { WeMeditateAppStatus } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { TableOfContentsBlock } from '@/lib/richEditor/blocks/TableOfContentsBlock'
 import type { ClientAbuseScore, ReadinessReport } from '@/payload-types'
@@ -199,14 +200,7 @@ describe('Managers.notificationPreferences', () => {
   })
 
   it('accepts the seeded default', () => {
-    expect(
-      runFieldValidate(field, {
-        invitation: { frequency: 'Immediate', method: 'email' },
-        event_verification: { frequency: 'Monthly', method: 'email' },
-        event_registration: { frequency: 'Immediate', method: 'email' },
-        statistics: { frequency: 'Monthly', method: 'email' },
-      }),
-    ).toBe(true)
+    expect(runFieldValidate(field, buildDefaultNotificationPreferences())).toBe(true)
   })
 })
 

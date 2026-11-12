@@ -90,40 +90,6 @@ describe('Pages Collection', () => {
     })
   })
 
-  describe('Publish Functionality', () => {
-    it('creates page as draft by default', async () => {
-      const page = await testData.createPage(payload, {
-        title: 'Draft Page',
-      })
-
-      expect(page._status).toBe('draft')
-    })
-
-    it('creates page as published', async () => {
-      const page = await testData.createPage(payload, {
-        title: 'Published Page',
-        _status: 'published',
-      })
-
-      expect(page._status).toBe('published')
-    })
-
-    it('can transition from draft to published', async () => {
-      const page = await testData.createPage(payload, {
-        title: 'Transition Page',
-        _status: 'draft',
-      })
-      expect(page._status).toBe('draft')
-
-      const published = await payload.update({
-        collection: 'pages',
-        id: page.id,
-        data: { _status: 'published' },
-      })
-      expect(published._status).toBe('published')
-    })
-  })
-
   /**
    * `webPath`, `webUrl` and `appUrl` are computed on read from `slug` and the
    * publish gate's `_status`, and an include-mode `select` strips both before

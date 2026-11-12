@@ -27,7 +27,7 @@ When a route needs real logic, such as signature verification or branching, move
 ```
 src/plugins/storage/cloudflareStreamWebhook.ts             ← pure helpers (exported freely)
 src/app/(payload)/api/webhooks/cloudflare-stream/route.ts  ← thin POST wrapper
-tests/int/cloudflare-stream-webhook.int.spec.ts             ← imports helpers from @/lib/
+tests/unit/cloudflare-stream-webhook.spec.ts               ← imports helpers from @/lib/
 ```
 
 Route wrapper shape, for a handler that is pure and needs no Payload access:
