@@ -1,0 +1,35 @@
+/*
+ * Payload's own API-key field, redrawn: its rules are scoped under `.auth-fields`,
+ * which the Atlas tab sits outside. The input itself takes `.field-type.text`.
+ */
+.mailing-list-key__input-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.field-type.text.mailing-list-key .mailing-list-key__input-wrap input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.mailing-list-key__replace-button.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--base) * 2);
+  margin: 0 0 0 -1px;
+  padding: 0 calc(var(--base) / 2);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 0 var(--style-radius-s) var(--style-radius-s) 0;
+  background: var(--theme-elevation-100);
+  cursor: pointer;
+  --btn-icon-size: 18px;
+}
+
+.mailing-list-key__replace-button.btn:hover {
+  background: var(--theme-elevation-150);
+}
+
+.confirmation-modal .field-type.text {
+  margin: 0;
+}

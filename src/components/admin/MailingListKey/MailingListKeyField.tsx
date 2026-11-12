@@ -4,36 +4,44 @@ import type { UIFieldClientComponent } from 'payload'
 
 import {
   Button,
-  Drawer,
+  FieldDescription,
+  FieldError,
   FieldLabel,
+  Modal,
   TextInput,
   useDocumentInfo,
   useField,
   useModal,
 } from '@payloadcms/ui'
+import { RefreshIcon } from '@payloadcms/ui/icons/Refresh'
 import React, { useCallback, useEffect, useState } from 'react'
 
 import type { MailingListKeyStatus } from '@/collections/Clients/endpoints/mailingListKey'
 import { MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList/types'
 
-const DRAWER_SLUG = 'mailing-list-key'
+import './styles.css'
+
+const MODAL_SLUG = 'mailing-list-key'
+const MASK = '•'.repeat(20)
 
 /**
  * The Atlas tab's control for a service's mailing-list provider key.
  *
- * The key is write-only (`secretField`), so nothing here can show it: the hint
- * reports whether one is stored and its last four characters, from
+ * Drawn as Payload's own API-key field — a masked, disabled input with a
+ * regenerate button on its end — but not built from it: `APIKey` is not
+ * exported, and it is hard-wired to the auth `apiKey` path, the reveal route
+ * and a PATCH of the document. The key is write-only (`secretField`), so the
+ * input shows only its last four characters, from
  * `GET /api/clients/:id/mailing-list-key`.
  *
- * ⚠ **The drawer shows the credentials the key will be proven against rather
+ * ⚠ **The modal states the credentials the key will be proven against rather
  * than re-editing them.** They are the form's own unsaved values, which the
  * endpoint stores beside the key — so the next form save carries identical
- * values and `validateMailingList` has nothing to re-prove, with one editor for
- * each credential instead of two.
+ * values and `validateMailingList` has nothing to re-prove.
  */
 export const MailingListKeyField: UIFieldClientComponent = () => {
   const { id } = useDocumentInfo()
-  const { closeModal, openModal } = useModal()
+  const { closeModal, isModalOpen, openModal } = useModal()
   const [status, setStatus] = useState<MailingListKeyStatus | null>(null)
 
   const provider = useField<string>({ path: 'mailingList.provider' }).value
@@ -55,48 +63,81 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
   }, [loadStatus])
 
   const onStored = useCallback(() => {
-    closeModal(DRAWER_SLUG)
+    closeModal(MODAL_SLUG)
     void loadStatus()
   }, [closeModal, loadStatus])
 
   if (!endpoint) return null
 
+  const label = status?.set ? 'Replace API key' : 'Set API key'
+
   return (
-    <div className="field-type">
-      <FieldLabel label="API Key" />
-      <p>
-        {status?.set
-          ? `Key set, ending ••••${status.last4}`
-          : 'No key set — nothing is sent until you add one.'}
-      </p>
-      <Button buttonStyle="secondary" onClick={() => openModal(DRAWER_SLUG)}>
-        {status?.set ? 'Replace key' : 'Set key'}
-      </Button>
-      {/* Mounted unconditionally so it animates open (docs/rules/admin-ui.md). */}
-      <Drawer slug={DRAWER_SLUG} title="Mailing list API key">
-        <KeyForm
-          credentials={{ clientId, doiFlowId, doubleOptIn, listId, provider }}
-          endpoint={endpoint}
-          onStored={onStored}
+    <div className="field-type text read-only mailing-list-key">
+      <FieldLabel htmlFor="mailingListApiKeyStatus" label="API Key" />
+      <div className="field-type__wrap">
+        <div className="mailing-list-key__input-wrap">
+          <input
+            aria-label="API Key"
+            disabled
+            id="mailingListApiKeyStatus"
+            placeholder="No key set"
+            type="text"
+            value={status?.set ? `${MASK}${status.last4}` : ''}
+          />
+          <Button
+            aria-label={label}
+            buttonStyle="none"
+            className="mailing-list-key__replace-button"
+            icon={<RefreshIcon />}
+            onClick={() => openModal(MODAL_SLUG)}
+            tooltip={label}
+          />
+        </div>
+        <FieldDescription
+          description={
+            status?.set
+              ? 'Stored encrypted. It cannot be shown again — replace it to change it.'
+              : 'Nothing is sent to your list until a key is set.'
+          }
+          path="mailingList.apiKeyControl"
         />
-      </Drawer>
+      </div>
+      <Modal className="confirmation-modal" closeOnBlur={false} slug={MODAL_SLUG}>
+        {isModalOpen(MODAL_SLUG) ? (
+          <KeyForm
+            credentials={{ clientId, doiFlowId, doubleOptIn, listId, provider }}
+            endpoint={endpoint}
+            heading={label}
+            onCancel={() => closeModal(MODAL_SLUG)}
+            onStored={onStored}
+          />
+        ) : null}
+      </Modal>
     </div>
   )
 }
 
 interface KeyFormProps {
   credentials: {
-    clientId?: string
-    doiFlowId?: string
-    doubleOptIn?: boolean
-    listId?: string
-    provider?: string
+    clientId?: string | null
+    doiFlowId?: string | null
+    doubleOptIn?: boolean | null
+    listId?: string | null
+    provider?: string | null
   }
   endpoint: string
+  heading: string
+  onCancel: () => void
   onStored: () => void
 }
 
-function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.ReactElement {
+function KeyForm({
+  credentials,
+  endpoint,
+  heading,
+  onCancel,
+  onStored,
+}: KeyFormProps): React.ReactElement {
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -104,13 +145,15 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
   const { listId, provider } = credentials
   const providerLabel =
     MAILING_LIST_PROVIDER_LABELS[provider as keyof typeof MAILING_LIST_PROVIDER_LABELS]
+  const ready = Boolean(providerLabel && listId)
 
   const submit = async () => {
+    if (saving || apiKey.trim() === '') return
     setError(null)
     setSaving(true)
     try {
       const response = await fetch(endpoint, {
-        body: JSON.stringify({ ...credentials, apiKey }),
+        body: JSON.stringify({ ...credentials, apiKey: apiKey.trim() }),
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         method: 'POST',
@@ -129,7 +172,6 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
         return
       }
 
-      setApiKey('')
       onStored()
     } catch {
       setError('We could not reach the server. Try again.')
@@ -138,32 +180,61 @@ function KeyForm({ credentials, endpoint, onStored }: KeyFormProps): React.React
     }
   }
 
-  if (!providerLabel || !listId) {
-    return <p>Choose a provider and a list on the form, then come back.</p>
-  }
-
   return (
-    <div>
-      <p>
-        {`We check this key against ${providerLabel} list ${listId} before storing it. ` +
-          'Saving it saves this mailing list’s settings too, and switches the list on.'}
-      </p>
-      <p>
-        {provider === 'cleverreach'
-          ? 'Paste your CleverReach app’s Client Secret. It is stored encrypted and never sent to your website.'
-          : 'It is stored encrypted and never sent to your website.'}
-      </p>
-      <TextInput
-        htmlAttributes={{ autoComplete: 'off' }}
-        label="API Key"
-        onChange={(event: React.ChangeEvent<HTMLInputElement>) => setApiKey(event.target.value)}
-        path="mailingListApiKey"
-        value={apiKey}
-      />
-      {error ? <p className="field-error">{error}</p> : null}
-      <Button disabled={saving || apiKey === ''} onClick={() => void submit()}>
-        {saving ? 'Checking…' : 'Save key'}
-      </Button>
+    <div className="confirmation-modal__wrapper">
+      <div className="confirmation-modal__content">
+        <h1>{heading}</h1>
+        {ready ? (
+          <>
+            <p>
+              {`We check this key against ${providerLabel} list ${listId} before storing it. ` +
+                'Saving it also saves this mailing list’s settings, and switches the list on.'}
+            </p>
+            <p>
+              {provider === 'cleverreach'
+                ? 'Paste your CleverReach app’s Client Secret. It is stored encrypted and never sent to your website.'
+                : 'It is stored encrypted and never sent to your website.'}
+            </p>
+          </>
+        ) : (
+          <p>Choose a provider and a list on the form first.</p>
+        )}
+      </div>
+      {ready ? (
+        <TextInput
+          Error={<FieldError message={error ?? undefined} showError={Boolean(error)} />}
+          htmlAttributes={{ autoComplete: 'off' }}
+          label="API Key"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            setApiKey(event.target.value)
+            setError(null)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              void submit()
+            }
+          }}
+          path="mailingListApiKey"
+          readOnly={saving}
+          showError={Boolean(error)}
+          value={apiKey}
+        />
+      ) : null}
+      <div className="confirmation-modal__controls">
+        <Button buttonStyle="secondary" disabled={saving} onClick={onCancel} size="large">
+          Cancel
+        </Button>
+        {ready ? (
+          <Button
+            disabled={saving || apiKey.trim() === ''}
+            onClick={() => void submit()}
+            size="large"
+          >
+            {saving ? 'Checking…' : 'Save key'}
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }

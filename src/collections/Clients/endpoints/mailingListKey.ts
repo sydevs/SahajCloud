@@ -18,10 +18,12 @@ export interface MailingListKeyStatus {
 }
 
 const bodySchema = z.object({
-  apiKey: z.string().min(1),
-  clientId: z.string().optional(),
-  doiFlowId: z.string().optional(),
-  doubleOptIn: z.boolean().optional(),
+  apiKey: z.string().trim().min(1),
+  // ⚠ `nullish`, not `optional`: the admin form holds an empty field as `null`,
+  // and every provider but CleverReach leaves these two empty.
+  clientId: z.string().nullish(),
+  doiFlowId: z.string().nullish(),
+  doubleOptIn: z.boolean().nullish(),
   listId: z.string().min(1),
   provider: z.enum(MAILING_LIST_PROVIDERS),
 })
