@@ -861,7 +861,7 @@ export const Events: CollectionConfig = {
                 // published on purpose (#603), and one with no resolvable schedule
                 // has no document to build. An address for any of them is a menu
                 // row that opens nothing.
-                if (!data.schedule?.firstDate) return null
+                if (data.inactive || !data.schedule?.firstDate) return null
                 if (shouldFinish({ inactive: data.inactive, schedule: data.schedule })) return null
                 const token = await signEventCalendarToken(
                   { eventId: Number(data.id) },

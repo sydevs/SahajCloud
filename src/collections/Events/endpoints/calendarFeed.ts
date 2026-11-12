@@ -54,7 +54,6 @@ const FEED_SELECT = {
   description: true,
   eventType: true,
   inactive: true,
-  onlineUrl: true,
   schedule: true,
   title: true,
   updatedAt: true,
@@ -162,9 +161,12 @@ export const eventCalendarFeed: Endpoint = {
       if (withdrawnAge == null || withdrawnAge > CANCELLED_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
         return notFound()
       }
-    } else if (shouldFinish(event, new Date(now))) {
-      // A finished class has no sessions left to cancel, and the public feeds
-      // have already dropped it.
+    } else if (event.inactive || shouldFinish(event, new Date(now))) {
+      // A dormant class has no sessions to subscribe to, and a finished one has
+      // none left to cancel — the public feeds have already dropped it. The
+      // `inactive` check is its own, rather than left to the builder answering
+      // null: a dormant row can still carry a stale `schedule.firstDate`, which
+      // would otherwise serve a class that is not running.
       return notFound()
     }
 
@@ -185,8 +187,8 @@ export const eventCalendarFeed: Endpoint = {
           }
         : { status: ICalEventStatus.CANCELLED }),
     })
-    // An `inactive` class carries no resolvable schedule, so the builder answers
-    // null and there is nothing to serve.
+    // The one case the builder refuses on its own: a schedule with no usable
+    // `firstDate`.
     if (document === null) return notFound()
 
     return new Response(document, {

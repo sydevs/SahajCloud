@@ -330,6 +330,25 @@ describe('event calendar feed', () => {
     })
   })
 
+  describe('a dormant class', () => {
+    /**
+     * `shouldFinish` exempts an `inactive` class, and such a row can still carry a stale
+     * `firstDate` from before it was switched off — so leaving this to the builder
+     * answering null would serve sessions of a class that is not running.
+     */
+    it('answers 404 even while it carries a schedule', async () => {
+      const dormant = await createClass({
+        title: 'Dormant With Schedule',
+        inactive: true,
+        eventType: 'online',
+        onlineUrl: 'https://example.com/dormant',
+        schedule: weekly(17),
+      })
+
+      expect((await anon(await feedPath(dormant.id))).status).toBe(404)
+    })
+  })
+
   describe('a class taken down', () => {
     it('answers a cancellation that outranks the live feed, for an unpublished class', async () => {
       const event = await createClass({

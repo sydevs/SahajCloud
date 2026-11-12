@@ -55,7 +55,7 @@ async function addKey(db: Db, column: Column, key: string, value: string): Promi
         SET ${col} = coalesce(${col}, '{}'::jsonb) || jsonb_build_object(${key}::text, ${value}::text)
         WHERE "_locale" = 'en'
           AND jsonb_typeof(coalesce(${col}, '{}'::jsonb)) = 'object'
-          AND NOT coalesce(${col}, '{}'::jsonb) ? ${key}
+          AND NOT coalesce(${col}, '{}'::jsonb) ? ${key}::text
           ${latestOnly(t.latestOnly)}`)
   }
 }
