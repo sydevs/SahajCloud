@@ -3,6 +3,7 @@ import type { PayloadRequest } from 'payload'
 import { extractID } from 'payload/shared'
 
 import type { TranscriptStatus } from '@/lib/meditations/transcript'
+import { isRecord } from '@/lib/utilities/isRecord'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { PayloadJob } from '@/payload-types'
 
@@ -42,9 +43,11 @@ export function deriveTranscriptStatus(
 export function transcriptJobError(job: Pick<PayloadJob, 'error'> | null): string | null {
   const error = job?.error
   if (typeof error === 'string') return error
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as { message?: unknown }).message
-    if (typeof message === 'string') return message
+  if (isRecord(error)) {
+    if (typeof error.message === 'string') return error.message
+    // `jobs.cancel` writes `{ cancelled: true }` and no message, so a run the
+    // stale-job sweep ended would otherwise read `failed` with nothing said.
+    if (error.cancelled === true) return 'The transcription was interrupted before it finished.'
   }
   return null
 }

@@ -1,5 +1,7 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
@@ -26,9 +28,11 @@ const configGap = (message: string): Error =>
  * `transcription` queue. That queue's autoRun only picks up a run the start
  * lost.
  *
- * ⚠ **Every write checks the row still names this job's recording.** The audio
- * can be replaced, and transcribed again, while this run waits on Lemonfox. A
- * stale run must not write cues onto the newer request's row.
+ * ⚠ **Every write checks the row is still this run's own.** The audio can be
+ * replaced, and transcribed again, while this run waits on Lemonfox. Each
+ * request gets a fresh row naming its own job, so the row's `job` is what tells
+ * one request from the next — the filename cannot, since a retry of the same
+ * recording carries the same one.
  *
  * ⚠ **A failure throws, and nothing catches it.** `retries: 0`, so the throw
  * ends the run and the retained job row carries the message — which is where
@@ -49,13 +53,13 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
     { name: 'audioFilename', type: 'text', required: true },
   ],
   outputSchema: [{ name: 'status', type: 'text', required: true }],
-  handler: async ({ input, req }) => {
+  handler: async ({ input, job, req }) => {
     const { meditationId, audioFilename } = input
 
     // Neither read feeds the other, and both have to pass before the vendor
     // call.
     const [row, recording] = await Promise.all([
-      findCurrentRow(req, meditationId, audioFilename),
+      findCurrentRow(req, meditationId, job.id),
       findRecording(req, meditationId),
     ])
     // The recording was replaced, which deleted this row. Nothing to write, and
@@ -79,7 +83,7 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
       await requestLemonfoxTranscript({ apiKey, audioUrl, locale: recording.locale }),
     )
 
-    if (!(await findCurrentRow(req, meditationId, audioFilename))) {
+    if (!(await findCurrentRow(req, meditationId, job.id))) {
       return { output: { status: 'superseded' } }
     }
 
@@ -96,16 +100,19 @@ export const TranscribeMeditation: TaskConfig<'transcribeMeditation'> = {
 }
 
 /**
- * The meditation's transcript row, while it still names `audioFilename`.
+ * The meditation's transcript row, while it is still the one this run was
+ * queued for.
  *
- * `source` is unique, so there is at most one row per meditation and the
- * recording is a field comparison rather than a second query. `overrideAccess`
+ * `source` is unique, so there is at most one row per meditation and the owner
+ * is a field comparison rather than a second query. A row naming another job
+ * belongs to a later request: `POST :id/transcribe` deletes and re-creates the
+ * row, so the id moves on even when the recording does not. `overrideAccess`
  * because this run owns the row it is filling in.
  */
 async function findCurrentRow(
   req: PayloadRequest,
   meditationId: number,
-  audioFilename: string,
+  jobId: number | string,
 ): Promise<Transcript | undefined> {
   const { docs } = await req.payload.find({
     collection: 'transcripts',
@@ -117,7 +124,7 @@ async function findCurrentRow(
     req,
   })
   const row = docs[0]
-  return row?.audioFilename === audioFilename ? row : undefined
+  return row?.job && extractID(row.job) === jobId ? row : undefined
 }
 
 /**

@@ -10,6 +10,8 @@ import {
   trashDeletionCutoff,
 } from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
+import { REQUEST_TIMEOUT_MS } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptBounds'
 import {
   INVITATIONS_CRON,
   INVITATIONS_QUEUE,
@@ -157,6 +159,24 @@ describe('Job schedules', () => {
     }
 
     expect(collisions).toEqual([])
+  })
+
+  /**
+   * ⚠ **A tick interval is a worst-case start delay, and a stall bound measured
+   * from the request has to carry it.** The `transcription` cron is the safety
+   * net for a kick lost to a restart, so a run it picks up starts a whole tick
+   * after the row was written and then spends the vendor's own timeout. Below
+   * that sum the Transcript tab calls a working run stalled, and the retry it
+   * then offers deletes the row under it.
+   */
+  it('lets a transcription the safety net picked up finish before calling it stalled', () => {
+    const cron = JOB_AUTO_RUN.find((entry) => entry.queue === 'transcription')?.cron
+    const minutes = [...minutesOf(cron!)].sort((a, b) => a - b)
+    // The wrap, so a cron firing once an hour is measured as an hour.
+    const gaps = minutes.map((minute, at) => (minutes[at + 1] ?? minutes[0]! + 60) - minute)
+
+    expect(minutes.length).toBeGreaterThan(0)
+    expect(TRANSCRIPTION_STALL_MS).toBeGreaterThan(Math.max(...gaps) * 60_000 + REQUEST_TIMEOUT_MS)
   })
 
   /**
@@ -354,6 +374,7 @@ describe('Job schedules', () => {
       'jobs/CleanupOrphanedMedia/CleanupOrphanedMedia.ts',
       'jobs/Digests/SendDigests.ts',
       'jobs/ExpireEvents/ExpireEvents.ts',
+      'jobs/RecoverLostJobs/RecoverLostJobs.ts',
       'jobs/RegistrationNotifications/SendPostEventFollowUps.ts',
       'jobs/RegistrationNotifications/SendSessionReminders.ts',
       'jobs/SyncLectureMetadata/SyncLectureMetadata.ts',

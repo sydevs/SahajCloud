@@ -45,7 +45,7 @@ import { virtualFieldsPlugin } from '@/plugins/virtualFields'
 import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
-import { cancelStaleJobs, payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
+import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { atlasChallenge } from './endpoints/atlas/challenge'
 import { atlasSeo } from './endpoints/atlas/seo'
 import { atlasSitemap } from './endpoints/atlas/sitemap'
@@ -234,7 +234,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // two conditions is there, and why production is detected by Railway's
     // environment name rather than NODE_ENV.
     onInit: async (payload) => {
-      await cancelStaleJobs(payload)
       await seedPreviewAdmin(payload)
     },
     jobs: {
