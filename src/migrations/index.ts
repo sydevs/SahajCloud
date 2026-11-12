@@ -120,17 +120,12 @@ import * as migration_20261108_220039_snapshot_resync from './20261108_220039_sn
 import * as migration_20261110_172159_snapshot_resync from './20261110_172159_snapshot_resync';
 import * as migration_20261110_175935_snapshot_resync from './20261110_175935_snapshot_resync';
 import * as migration_20261110_180359_merge_1075_main_snapshot_5 from './20261110_180359_merge_1075_main_snapshot_5';
-import * as migration_20261110_185146_localize_lesson_intro_audio_and_subtitles from './20261110_185146_localize_lesson_intro_audio_and_subtitles';
 import * as migration_20261110_185320_merge_main_snapshot_6 from './20261110_185320_merge_main_snapshot_6';
-import * as migration_20261110_201010_merge_main_snapshot_7 from './20261110_201010_merge_main_snapshot_7';
 import * as migration_20261110_220603_manager_last_login from './20261110_220603_manager_last_login';
 import * as migration_20261110_234836_clients_label_title from './20261110_234836_clients_label_title';
-import * as migration_20261111_152106_merge_main_snapshot_8 from './20261111_152106_merge_main_snapshot_8';
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
-import * as migration_20261111_175610_merge_main_snapshot_9 from './20261111_175610_merge_main_snapshot_9';
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
-import * as migration_20261111_232621_merge_main_snapshot_10 from './20261111_232621_merge_main_snapshot_10';
-import * as migration_20261111_235137_file_transcripts_replace_intro_subtitles from './20261111_235137_file_transcripts_replace_intro_subtitles';
+import * as migration_20261112_165152_file_transcripts_replace_intro_subtitles from './20261112_165152_file_transcripts_replace_intro_subtitles';
 
 export const migrations = [
   {
@@ -744,19 +739,9 @@ export const migrations = [
     name: '20261110_180359_merge_1075_main_snapshot_5',
   },
   {
-    up: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.up,
-    down: migration_20261110_185146_localize_lesson_intro_audio_and_subtitles.down,
-    name: '20261110_185146_localize_lesson_intro_audio_and_subtitles',
-  },
-  {
     up: migration_20261110_185320_merge_main_snapshot_6.up,
     down: migration_20261110_185320_merge_main_snapshot_6.down,
     name: '20261110_185320_merge_main_snapshot_6',
-  },
-  {
-    up: migration_20261110_201010_merge_main_snapshot_7.up,
-    down: migration_20261110_201010_merge_main_snapshot_7.down,
-    name: '20261110_201010_merge_main_snapshot_7',
   },
   {
     up: migration_20261110_220603_manager_last_login.up,
@@ -769,19 +754,9 @@ export const migrations = [
     name: '20261110_234836_clients_label_title',
   },
   {
-    up: migration_20261111_152106_merge_main_snapshot_8.up,
-    down: migration_20261111_152106_merge_main_snapshot_8.down,
-    name: '20261111_152106_merge_main_snapshot_8',
-  },
-  {
     up: migration_20261111_152439_merge_main_snapshot_7.up,
     down: migration_20261111_152439_merge_main_snapshot_7.down,
     name: '20261111_152439_merge_main_snapshot_7',
-  },
-  {
-    up: migration_20261111_175610_merge_main_snapshot_9.up,
-    down: migration_20261111_175610_merge_main_snapshot_9.down,
-    name: '20261111_175610_merge_main_snapshot_9',
   },
   {
     up: migration_20261111_215539_activity_log_rows.up,
@@ -789,13 +764,8 @@ export const migrations = [
     name: '20261111_215539_activity_log_rows',
   },
   {
-    up: migration_20261111_232621_merge_main_snapshot_10.up,
-    down: migration_20261111_232621_merge_main_snapshot_10.down,
-    name: '20261111_232621_merge_main_snapshot_10',
-  },
-  {
-    up: migration_20261111_235137_file_transcripts_replace_intro_subtitles.up,
-    down: migration_20261111_235137_file_transcripts_replace_intro_subtitles.down,
-    name: '20261111_235137_file_transcripts_replace_intro_subtitles'
+    up: migration_20261112_165152_file_transcripts_replace_intro_subtitles.up,
+    down: migration_20261112_165152_file_transcripts_replace_intro_subtitles.down,
+    name: '20261112_165152_file_transcripts_replace_intro_subtitles'
   },
 ];
