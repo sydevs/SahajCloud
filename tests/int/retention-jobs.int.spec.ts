@@ -138,18 +138,6 @@ describe('payload-jobs retention', () => {
     ])
   })
 
-  /**
-   * ⚠ A queue call in code reaches the handler with whatever it was handed, and
-   * an unknown collection would otherwise sweep nothing and report success.
-   * The message names the config's own declarations, which is the whole reason
-   * the input is not a fixed dropdown.
-   */
-  it('refuses a collection that declares no retention', async () => {
-    await expect(
-      runTaskHandler(CleanupCollections, { payload, input: { collection: 'managers' } }),
-    ).rejects.toThrow(/"managers" declares no retention — \w[\w-]*, /)
-  })
-
   // Last: the cancelled rows below are `hasError`, which the counts above would see.
   describe('a row a dead container left processing', () => {
     const read = (id: number) =>

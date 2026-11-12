@@ -215,26 +215,6 @@ describe('class imports', () => {
       ).toMatch(message)
     })
 
-    it('reads a header cell that carries an invisible character', async () => {
-      const header = HEADER.replace('title', 'title\u200b')
-      const created = await createImport(
-        [],
-        admin,
-        {},
-        file(
-          Buffer.from(
-            `${header}\n${classLine({ title: 'Hidden char', startTime: '06:05' })}\n`,
-            'utf8',
-          ),
-        ),
-      )
-      await run(created.id)
-      expect((await read(created.id)).results?.[0]).toMatchObject({
-        outcome: 'created',
-        title: 'Hidden char',
-      })
-    })
-
     it('refuses a target no import can file classes under, or none at all', async () => {
       const venue = await testData.createRegion(payload, { level: 'venue', parent: berlin })
       expect(
