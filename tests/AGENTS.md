@@ -65,6 +65,29 @@ arguments instead of stubbing globals, to keep tests state-clean.
 Examples: `tests/unit/storage-utils.spec.ts`,
 `tests/unit/cloudflare-stream-webhook.spec.ts`.
 
+## Keeping specs cheap to change
+
+A spec that restates what the source already says is edited every time the source grows, in
+commits that never touched its subject. These rules keep that cost down.
+
+1. **Never pin a count or a list the source already enumerates.** Derive the expected value from
+   the source export (`LOCALES`, `CACHE_TTLS`, `buildDefaultNotificationPreferences()`), or assert
+   a floor or containment. _Exception:_ a security allowlist, where an extra entry is the bug —
+   the wired auth routes in `login-plugin.spec.ts`, `PUBLIC_CREATE_PATHS`, the cacheable globals —
+   uses `toEqual` against a literal and says why in a comment.
+2. **No doc quotes lane counts, and no spec pins them.** File and test counts live only in
+   `tests/PERF.md`, recorded with a measurement. A PR that adds a spec edits no doc for it.
+3. **Assert copy once.** In an email or document spec, keep at most one wording assertion per
+   template, where the wording is the contract. Elsewhere assert structure: the href, the locale
+   picked, a value present. A URL passed in as a fixture is neutral (`https://cloud.test/x?t=1`),
+   not a real route.
+4. **One home for a matrix.** A pure function's edge cases live in one unit spec. A mounted
+   component, a second unit spec, or an int spec proves the wiring with one or two cases and does
+   not re-run the matrix.
+5. **Absorb shape changes in one place.** When a spec calls its subject in more than about ten
+   places, wrap the call in a local helper (`renderHtml` in the email specs). When you delete a
+   module, delete its spec in the same PR, and treat a module only tests import as dead code.
+
 ## Running tests locally
 
 **"Tests no tests" on a file you just edited means the spec doesn't
