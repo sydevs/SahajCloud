@@ -5,11 +5,13 @@ import type { UIFieldClientComponent } from 'payload'
 import { Collapsible, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
+import './EmailPreviewField.scss'
+
 /** How long typing must pause before the sample is re-rendered. */
 const SETTLE_MS = 500
 
 /**
- * A rendered sample registration email, collapsed under the colours.
+ * A rendered sample registration email, under the colours.
  *
  * The branding reaches exactly one thing a visitor receives, and until now a
  * manager could only find out by registering for one of their own classes. It
@@ -18,16 +20,13 @@ const SETTLE_MS = 500
  */
 export const EmailPreviewField: UIFieldClientComponent = () => {
   const { id } = useDocumentInfo()
-  // Only what the template draws. `supportEmail` is the message's `Reply-To`
-  // rather than anything in its body, so it is named under the frame instead of
-  // costing a render on every keystroke in that field.
+  // Only what the template draws.
   const values = useFormFields(([fields]) => ({
     color1: fields['color1']?.value,
     color2: fields['color2']?.value,
     logo: fields['logo']?.value,
     name: fields['title']?.value,
   }))
-  const supportEmail = useFormFields(([fields]) => fields['supportEmail']?.value)
   const [html, setHtml] = useState<null | string>(null)
   const body = JSON.stringify(values)
 
@@ -64,8 +63,8 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
   if (id == null) return null
 
   return (
-    <div className="field-type">
-      <Collapsible header="Sample registration email" initCollapsed>
+    <div className="field-type email-preview-field">
+      <Collapsible header="Preview registration email">
         {html ? (
           // `sandbox` with nothing enabled: the markup is our own template, but it
           // carries a service's logo and title, and a preview has no reason to run
@@ -75,21 +74,18 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
             srcDoc={html}
             style={{
               background: '#ffffff',
-              border: '1px solid var(--theme-elevation-150)',
-              borderRadius: 'var(--style-radius-s)',
-              height: '420px',
+              border: 0,
+              display: 'block',
+              height: '640px',
               width: '100%',
             }}
-            title="Sample registration email"
+            title="Preview registration email"
           />
         ) : (
-          <p className="field-description">Save this service to see a sample email.</p>
+          <p className="field-description" style={{ padding: 'var(--base)' }}>
+            Save this service to see a sample email.
+          </p>
         )}
-        <p className="field-description">
-          {typeof supportEmail === 'string' && supportEmail
-            ? `Replies reach ${supportEmail}.`
-            : 'With no support address, replies reach nobody who can answer.'}
-        </p>
       </Collapsible>
     </div>
   )

@@ -39,7 +39,7 @@ other field.
 - **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
   in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
   admin previews; that is our own origin, and the atlas reads colours alone.
-- **The sample registration email**, collapsed under the colours, renders through the real
+- **The preview registration email**, under the colours, renders through the real
   template at `POST /api/clients/:id/email-preview`, from unsaved form values, so the one message
   a service's branding reaches is visible beside the fields that decide it. Email text is black or
   white by `readableTextOn`: **`color1` decides** wherever both read across the gradient, because
