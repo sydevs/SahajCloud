@@ -1,0 +1,62 @@
+/*
+ * Payload's own API-key field, redrawn: its rules are scoped under `.auth-fields`,
+ * which a secret elsewhere on the form sits outside. `TextInput` renders
+ * `AfterInput` and the description as siblings of the input inside its own
+ * stacked wrap, so laying the input and button side by side is what is left here.
+ */
+.field-type.text.secret-field .field-type__wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.field-type.text.secret-field input {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.field-type.text.secret-field--pending input {
+  border-color: var(--theme-warning-500);
+}
+
+.secret-field__set-button.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--base) * 2);
+  margin: 0 0 0 -1px;
+  padding: 0 calc(var(--base) / 2);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: 0 var(--style-radius-s) var(--style-radius-s) 0;
+  background: var(--theme-elevation-100);
+  cursor: pointer;
+  --btn-icon-size: 18px;
+}
+
+.secret-field__set-button.btn:hover {
+  background: var(--theme-elevation-150);
+}
+
+/* Under the input and the button, not beside them. */
+.secret-field__footer {
+  flex: 0 0 100%;
+}
+
+.secret-field__footer .btn {
+  margin: calc(var(--base) / 2) 0 0;
+}
+
+.secret-field__remove-button.btn {
+  --color: var(--theme-error-500);
+  --hover-color: var(--theme-error-400);
+  --btn-border: 1px solid var(--theme-error-500);
+  --hover-btn-border: 1px solid var(--theme-error-400);
+}
+
+/*
+ * The set modal borrows `confirmation-modal`'s own layout, so its second class
+ * is what keeps this reset off every other confirmation modal in the panel.
+ */
+.secret-field__modal .field-type.text {
+  margin: 0;
+}

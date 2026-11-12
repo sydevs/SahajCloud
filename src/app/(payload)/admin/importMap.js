@@ -47,6 +47,7 @@ import { default as default_62cc53570223acc00863adec1af8b6de } from '@/component
 import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/components/admin/InstallGuide/InstallBanner'
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
 import { default as default_11724ca90c0e3bae2f937752e8aadbff } from '@/components/admin/ColorField/ResetColors'
+import { default as default_15a790addfeffe484dd465108998359a } from '@/components/admin/SecretField'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
 import { default as default_a86ea17da05fe19d05690105977131bd } from '@/components/admin/InstallGuide/InstallView'
@@ -153,6 +154,7 @@ export const importMap = {
   "@/components/admin/InstallGuide/InstallBanner#default": default_d498427cbe3f9e971622125cc691d73d,
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
   "@/components/admin/ColorField/ResetColors#default": default_11724ca90c0e3bae2f937752e8aadbff,
+  "@/components/admin/SecretField#default": default_15a790addfeffe484dd465108998359a,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
   "@/components/admin/InstallGuide/InstallView#default": default_a86ea17da05fe19d05690105977131bd,

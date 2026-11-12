@@ -35,7 +35,6 @@ const FALLBACK_MEMO_KEY = 'atlas:mailingListFallback'
  * not signed off.
  */
 const LIST_ELIGIBLE = [
-  { 'mailingList.enabled': { equals: true } },
   { 'mailingList.provider': { exists: true } },
   { 'mailingList.listId': { exists: true } },
   { 'mailingList.listId': { not_equals: '' } },
