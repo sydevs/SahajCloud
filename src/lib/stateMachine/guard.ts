@@ -10,10 +10,15 @@ import { can, type StateMachine } from './machine'
 /**
  * Judge one write against the table: the refusal's reason, or `null`.
  *
- * `to` absent means the write left the column alone — a collection
+ * `to` **undefined** means the write left the column alone — a collection
  * `beforeChange` receives the patch, not the merged document, so an absent key
  * is the only way to tell "unchanged" from "set to the value it already held".
  * Both are legal: the document form re-posts every stored field.
+ *
+ * ⚠ An explicit `null` is not an absent key, and is judged like any other
+ * target: the column is `required`, so nothing legitimate posts one, and a
+ * refusal that names the writer beats the validator's later complaint about
+ * the value.
  */
 export function judgeTransition<State extends string, Actor extends string>(args: {
   machine: StateMachine<State, Actor>
@@ -23,13 +28,15 @@ export function judgeTransition<State extends string, Actor extends string>(args
   by: Actor | null
 }): string | null {
   const { machine, from, to, by } = args
-  if (from == null || to == null || to === from) return null
+  if (from == null || to === undefined || to === from) return null
 
   if (by === null) {
     return `This change to ${machine.name} names no writer, so nothing can authorise it.`
   }
 
-  if (!can(machine, from, to, by)) {
+  // `to` is narrowed to the state union or `null` here, and `null` is in no
+  // move — the lookup answers it the same way it answers an unknown state.
+  if (!can(machine, from, to as State, by)) {
     return `${by} cannot move ${machine.name} from ${from} to ${to}.`
   }
 

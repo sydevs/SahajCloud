@@ -36,8 +36,24 @@ process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 const SECRET = 'preview-only-secret'
 const ATLAS = 'https://sahajatlas.com'
 
-/** A managed document as the stub returns it: a title, and its public page if it has one. */
-type Doc = { title: string; url?: string }
+/**
+ * A managed document as the stub returns it: a title, its public page if it has
+ * one, and — for a class — the stored fields the invitation's own brief reads.
+ */
+type Doc = {
+  title: string
+  url?: string
+  /** What `describeEvent` composes its three lines from. */
+  listing?: {
+    eventType?: 'offline' | 'online'
+    address?: { city?: string; country?: string; street?: string }
+    contactName?: string
+    contactPhone?: string
+    schedule?: Record<string, unknown>
+    /** Attendee denials, which is what marks a class adopted after a flag. */
+    denials?: number
+  }
+}
 
 type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
@@ -68,6 +84,25 @@ const event = (title: string, published = true): Doc => ({
   ...(published && { url: `${ATLAS}/berlin/${title.toLowerCase().replaceAll(' ', '-')}` }),
 })
 
+/** A real-looking class, so a brief has something to say. */
+const listedEvent = (title: string, denials = 0): Doc => ({
+  ...event(title),
+  listing: {
+    eventType: 'offline',
+    address: { street: '14 Kastanienallee', city: 'Berlin', country: 'Germany' },
+    contactName: 'Lena Fischer',
+    contactPhone: '+49 30 1234 5678',
+    schedule: {
+      firstDate: '2027-01-05T18:30:00.000Z',
+      firstDate_tz: 'Europe/Berlin',
+      recurrenceType: 'WEEKLY',
+      interval: 1,
+      weekdays: ['tuesday'],
+    },
+    denials,
+  },
+})
+
 const SCENARIOS: Scenario[] = [
   {
     label: 'atlas · first assignment',
@@ -81,6 +116,18 @@ const SCENARIOS: Scenario[] = [
     managed: {
       regions: [{ title: 'Berlin', url: `${ATLAS}/germany/berlin` }],
       events: [event('Tuesday Evening Meditation'), event('Sunday Morning Introduction', false)],
+    },
+    queued: true,
+  },
+  {
+    label: 'atlas · adoption, a class the community flagged',
+    note: 'the brief under each class: when and where it meets, what the listing still needs, and why it was taken down',
+    name: 'Mira Keller',
+    type: 'manager',
+    assignedBy: 'Anna Schmidt',
+    roles: {},
+    managed: {
+      events: [listedEvent('Thursday Morning Meditation', 4), listedEvent('Saturday Beginners')],
     },
     queued: true,
   },
@@ -254,6 +301,10 @@ async function main() {
             id: index + 1,
             [titleField]: doc.title,
             webUrl: doc.url ?? null,
+            ...doc.listing,
+            ...(doc.listing?.denials
+              ? { systemMeta: { communityFeedback: { denials: doc.listing.denials } } }
+              : {}),
           })),
         }
       },
