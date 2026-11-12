@@ -3,11 +3,11 @@ import type { Transcript } from '@/payload-types'
 /**
  * The transcript's two time bounds, and the phase they decide.
  *
- * Deliberately apart from `./transcript`, which builds zod schemas at module
+ * Deliberately apart from `./schema`, which builds zod schemas at module
  * scope. The Transcript tab is a `'use client'` component and reads all of
  * this, so reaching it through that module would ship zod to the browser to
  * describe a shape only the server validates — the same reason
- * `framesBeyondDuration.ts` sits apart from `./frames`, and
+ * `lib/meditations/framesBeyondDuration.ts` sits apart from `frames.ts`, and
  * `lib/env/logLevels.ts` outside its barrel. One module rather than three:
  * the two bounds are coupled to each other and the phase is derived from one
  * of them, so a reader who has either has to have both.

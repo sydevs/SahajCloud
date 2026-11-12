@@ -1,7 +1,7 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 import { applyGlossary } from '../glossary'
 

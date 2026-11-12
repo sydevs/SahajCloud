@@ -14,7 +14,7 @@ import {
   retranscribeWaitLabel,
   retranscribeWaitMs,
   TRANSCRIPTION_STALL_MS,
-} from '@/lib/meditations/transcriptBounds'
+} from '@/lib/transcripts/bounds'
 
 const NOW = Date.parse('2026-10-20T12:00:00.000Z')
 const ago = (ms: number) => new Date(NOW - ms).toISOString()

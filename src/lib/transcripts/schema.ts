@@ -1,6 +1,6 @@
 /**
- * The timestamped transcript of a meditation's recording, as stored on
- * `transcripts`.
+ * The timestamped transcript of a recording — a meditation's or a file's — as
+ * stored on `transcripts`.
  */
 import { z } from 'zod'
 
@@ -47,6 +47,6 @@ export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
 
 /**
  * Re-exported, not declared here: a `'use client'` consumer must reach the
- * bound without this module's zod schemas. `./transcriptBounds` says why.
+ * bound without this module's zod schemas. `./bounds` says why.
  */
-export { TRANSCRIPTION_STALL_MS } from './transcriptBounds'
+export { TRANSCRIPTION_STALL_MS } from './bounds'

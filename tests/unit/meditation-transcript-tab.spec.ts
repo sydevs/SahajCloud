@@ -33,8 +33,8 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
-import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptBounds'
+import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/transcripts/bounds'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/schema'
 import type { Transcript } from '@/payload-types'
 
 const PREVIEW_ORIGIN = 'https://preview.example'

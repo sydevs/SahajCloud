@@ -25,7 +25,7 @@ import {
   jobStageWait,
   readJobStageConfig,
 } from '@/components/admin/JobStageView/stages'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/schema'
 import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
 import { importCollection } from '@/plugins/eventImport/importCollection'
 

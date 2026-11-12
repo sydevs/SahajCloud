@@ -9,11 +9,8 @@ import React, { memo, useMemo, useRef } from 'react'
 
 import { formatTime } from '@/components/admin/FrameEditor'
 import { InfoBanner, type InfoBannerType } from '@/components/admin/InfoBanner'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
-import {
-  type TranscriptPhase,
-  transcriptPhaseIsRetryable,
-} from '@/lib/meditations/transcriptBounds'
+import { type TranscriptPhase, transcriptPhaseIsRetryable } from '@/lib/transcripts/bounds'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 import styles from './RecordingTranscript.module.css'
 import { RetryTranscript } from './RetryTranscript'

@@ -15,7 +15,7 @@ import {
   groupTranscript,
   seekSecond,
 } from '@/components/admin/RecordingTranscript/transcriptModel'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({
   content: `${startTimeMs}-${endTimeMs}`,

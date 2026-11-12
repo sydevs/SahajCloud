@@ -13,7 +13,7 @@
 import { z } from 'zod'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 import { groupWordsIntoCues, type TimedWord } from '@/lib/utilities/subtitles'
 
 /**

@@ -1,7 +1,7 @@
 import type { CollectionAfterChangeHook, PayloadRequest } from 'payload'
 
 import { isValidLocale, type LocaleCode } from '@/lib/locales'
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 import type { Transcript } from '@/payload-types'
 
 import { type RecordingCollection, transcribableMedia } from './media'

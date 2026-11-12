@@ -8,7 +8,7 @@ import {
   TRANSCRIPT_STATUSES,
   TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
-} from '@/lib/meditations/transcript'
+} from '@/lib/transcripts/schema'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'

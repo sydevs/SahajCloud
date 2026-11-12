@@ -17,7 +17,7 @@
 import * as path from 'path'
 
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
-import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
+import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/transcripts/schema'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions, loadJsonData, type RunVerification } from '../lib'

@@ -10,7 +10,7 @@ import {
   refusalMessage,
 } from '@/components/admin/helpers/payloadListFetcher'
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
-import { transcriptPhase, type TranscriptPhase } from '@/lib/meditations/transcriptBounds'
+import { transcriptPhase, type TranscriptPhase } from '@/lib/transcripts/bounds'
 import type { RecordingCollection } from '@/lib/transcripts/media'
 import type { Transcript } from '@/payload-types'
 

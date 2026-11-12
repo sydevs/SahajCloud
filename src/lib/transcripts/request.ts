@@ -14,7 +14,7 @@ import {
   retranscribeWaitMs,
   transcriptPhase,
   transcriptPhaseIsRetryable,
-} from '@/lib/meditations/transcriptBounds'
+} from '@/lib/transcripts/bounds'
 
 import { findTranscript, type TranscriptSource } from './sync'
 

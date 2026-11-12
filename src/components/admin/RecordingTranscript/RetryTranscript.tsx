@@ -5,7 +5,7 @@ import type { RecordingTranscriptState } from './useRecordingTranscript'
 import { Button, useAuth, useLocale } from '@payloadcms/ui'
 import React from 'react'
 
-import { retranscribeWaitLabel } from '@/lib/meditations/transcriptBounds'
+import { retranscribeWaitLabel } from '@/lib/transcripts/bounds'
 
 import { mayTranscribeLocale } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'

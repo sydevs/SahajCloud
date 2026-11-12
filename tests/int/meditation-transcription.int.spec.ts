@@ -29,10 +29,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import {
-  RETRANSCRIBE_COOLDOWN_MS,
-  TRANSCRIPTION_STALL_MS,
-} from '@/lib/meditations/transcriptBounds'
+import { RETRANSCRIBE_COOLDOWN_MS, TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import {
@@ -457,7 +454,7 @@ describe('meditation transcription', () => {
    * verified against the code under test:
    *
    * - A row reads `failed` because its retained job row carries `hasError` —
-   *   `deriveTranscriptStatus` (`src/lib/meditations/transcriptStatus.ts`) reads
+   *   `deriveTranscriptStatus` (`src/collections/Transcripts/status.ts`) reads
    *   nothing else, since the collection stores no status column.
    *   `runTaskHandler` bypasses the queue, so a rejected run leaves that flag
    *   unset and the row would read `processing`.

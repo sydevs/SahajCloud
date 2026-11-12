@@ -2,7 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { extractID } from 'payload/shared'
 
-import type { TranscriptStatus } from '@/lib/meditations/transcript'
+import type { TranscriptStatus } from '@/lib/transcripts/schema'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { PayloadJob } from '@/payload-types'
 
