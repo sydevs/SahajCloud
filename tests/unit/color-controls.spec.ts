@@ -10,7 +10,7 @@
  * light/dark mode reaching an atlas that starts listening after its `load`.
  *
  * The stand-in reproduces only what the component reads: `useField` per path,
- * `useLivePreviewContext().iframeRef`, and a `Tooltip` that renders while shown.
+ * `useLivePreviewContext().iframeRef`, and a `Banner` that renders its children.
  */
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -24,10 +24,10 @@ const stub = vi.hoisted(() => ({
 }))
 
 vi.mock('@payloadcms/ui', () => ({
+  Banner: ({ children, className }: { children: React.ReactNode; className?: string }) =>
+    createElement('div', { className }, children),
   Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
     createElement('button', { onClick, type: 'button' }, children),
-  Tooltip: ({ children, show }: { children: React.ReactNode; show?: boolean }) =>
-    show ? createElement('div', { role: 'tooltip' }, children) : null,
   useField: ({ path }: { path: string }) => stub.fields[path],
   useLivePreviewContext: () => ({ iframeRef: stub.iframeRef, url: 'x' }),
 }))
@@ -126,7 +126,7 @@ describe('ColorControls', () => {
       window.dispatchEvent(new MessageEvent('message', { data, origin, source }))
     })
 
-  const summary = () => container.querySelector('.color-controls__summary')
+  const summary = () => container.querySelector('.color-controls__banner')
   const button = (name: string) =>
     [...container.querySelectorAll('button')].find((b) => b.textContent === name)
 
@@ -147,21 +147,18 @@ describe('ColorControls', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows all three colours once one is adjusted, badging the adjusted one', async () => {
+  it('shows all three colours once one is adjusted, marking it and listing why', async () => {
     await mount()
     const frame = openPreview()
 
     await post(report({ contrast: ACCENT, primary: PRIMARY }), frame.contentWindow)
 
-    expect(summary()?.textContent).toContain('Visitors see adjusted colors')
+    expect(summary()?.textContent).toContain('Colors are being adjusted for visibility')
     expect(container.querySelectorAll('.color-controls__swatch')).toHaveLength(3)
-    expect(container.querySelectorAll('.color-controls__swatch--adjusted')).toHaveLength(1)
-
-    act(() => summary()!.dispatchEvent(new FocusEvent('focusin', { bubbles: true })))
-
-    expect(container.querySelector('[role="tooltip"]')?.textContent).toBe(
+    expect(container.querySelectorAll('.color-controls__mark')).toHaveLength(1)
+    expect([...container.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
       'Primary #979726 — darkened for contrast on white',
-    )
+    ])
   })
 
   it('shows no summary while nothing is adjusted', async () => {

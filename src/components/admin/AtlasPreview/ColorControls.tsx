@@ -2,10 +2,11 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Button, Tooltip, useField, useLivePreviewContext } from '@payloadcms/ui'
+import { Banner, Button, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
+import { readableTextOn } from '@/lib/branding/themeColors'
 import { BRAND_COLOR_LABELS, isBrandColor, type BrandColorColumn } from '@/lib/clients/appearance'
 import { originOf } from '@/lib/utilities/url'
 
@@ -95,7 +96,6 @@ export const ColorControls: UIFieldClientComponent = () => {
 
   return (
     <div className="field-type color-controls">
-      {shown ? <AdjustedSummary swatches={shown} /> : null}
       <div className="color-controls__row">
         <ToggleGroup
           aria-label="Map preview"
@@ -103,74 +103,76 @@ export const ColorControls: UIFieldClientComponent = () => {
           options={MODES}
           value={mode}
         />
-        <div className="color-controls__actions">
-          {suggestions.length > 0 ? (
-            <Button
-              buttonStyle="secondary"
-              margin={false}
-              onClick={() =>
-                suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
-              }
-              size="small"
-            >
-              Use adjusted colors
-            </Button>
-          ) : null}
-          {/* Clears rather than writing the defaults: an unset colour follows a
-              later change to the defaults, and a copied one would not. */}
-          {anyCustom ? (
-            <Button
-              buttonStyle="secondary"
-              margin={false}
-              onClick={() => COLUMNS.forEach((column) => fields[column].setValue(null))}
-              size="small"
-            >
-              Reset colors
-            </Button>
-          ) : null}
-        </div>
+        {/* Clears rather than writing the defaults: an unset colour follows a
+            later change to the defaults, and a copied one would not. */}
+        {anyCustom ? (
+          <Button
+            buttonStyle="secondary"
+            margin={false}
+            onClick={() => COLUMNS.forEach((column) => fields[column].setValue(null))}
+            size="medium"
+          >
+            Reset colors
+          </Button>
+        ) : null}
       </div>
+      {shown ? (
+        <AdjustedBanner
+          onUse={
+            suggestions.length > 0
+              ? () => suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
+              : null
+          }
+          swatches={shown}
+        />
+      ) : null}
     </div>
   )
 }
 
 /**
- * All three colours as visitors see them, the adjusted ones badged, with every
- * reason in a single tooltip.
+ * All three colours as visitors see them, the adjusted ones marked, each
+ * adjustment as a bullet, and the one action that takes them all.
  */
-function AdjustedSummary({ swatches }: { swatches: Array<Swatch & { column: BrandColorColumn }> }) {
-  const adjusted = swatches.filter((swatch) => swatch.adjusted)
-
-  const [show, setShow] = useState(false)
-
+function AdjustedBanner({
+  onUse,
+  swatches,
+}: {
+  onUse: (() => void) | null
+  swatches: Array<Swatch & { column: BrandColorColumn }>
+}) {
   return (
-    <div
-      className="color-controls__summary"
-      onBlur={() => setShow(false)}
-      onFocus={() => setShow(true)}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-      tabIndex={0}
-    >
-      <span>Visitors see adjusted colors</span>
-      {swatches.map((item) => (
-        <span
-          aria-label={`${BRAND_COLOR_LABELS[item.column]} ${item.light}${item.adjusted ? ', adjusted' : ''}`}
-          className={`color-controls__swatch${item.adjusted ? ' color-controls__swatch--adjusted' : ''}`}
-          key={item.column}
-          role="img"
-          style={{ backgroundColor: item.light }}
-        />
-      ))}
-      <Tooltip alignCaret="left" position="bottom" show={show}>
-        {adjusted.map((item) => (
-          <div key={item.column}>
-            {BRAND_COLOR_LABELS[item.column]} {item.light}
-            {item.reasons.length > 0 ? ` — ${item.reasons.join(' and ')}` : ''}
-          </div>
+    <Banner className="color-controls__banner" type="info">
+      <strong>Colors are being adjusted for visibility</strong>
+      <div className="color-controls__swatches">
+        {swatches.map((item) => (
+          <span
+            aria-label={`${BRAND_COLOR_LABELS[item.column]} ${item.light}${item.adjusted ? ', adjusted' : ''}`}
+            className="color-controls__swatch"
+            key={item.column}
+            role="img"
+            style={{ backgroundColor: item.light, color: readableTextOn(item.light) }}
+          >
+            {item.adjusted ? <span className="color-controls__mark">!</span> : null}
+          </span>
         ))}
-      </Tooltip>
-    </div>
+      </div>
+      <ul>
+        {swatches
+          .filter((item) => item.adjusted)
+          .map((item) => (
+            <li key={item.column}>
+              {BRAND_COLOR_LABELS[item.column]} {item.light}
+              {item.reasons.length > 0 ? ` — ${item.reasons.join(' and ')}` : ''}
+            </li>
+          ))}
+      </ul>
+      {onUse ? (
+        <Button buttonStyle="secondary" margin={false} onClick={onUse} size="small">
+          Use adjusted colors
+        </Button>
+      ) : null}
+    </Banner>
   )
 }
 
