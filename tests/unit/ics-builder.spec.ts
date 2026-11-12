@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { buildEventCalendar } from '@/lib/schedule/icsBuilder'
+import { buildEventCalendar, ICalEventStatus } from '@/lib/schedule/icsBuilder'
 import type { EventSchedule } from '@/types/schedule'
 
 // 19:00 in Europe/London on Tue 21 Jul 2026 (BST, UTC+1) == 18:00 UTC.
@@ -283,5 +283,57 @@ describe('buildEventCalendar — DST correctness', () => {
 
     expect(line(ics, 'DTSTART')).toBe('DTSTART;TZID=Asia/Kolkata:20260721T190000')
     expect(ics).toContain('TZID:Asia/Kolkata')
+  })
+})
+
+describe('buildEventCalendar — feed properties', () => {
+  it('emits both refresh hints from `ttl`', () => {
+    const ics = build({ recurrenceType: 'WEEKLY', weekdays: ['TU'] }, { ttl: 3600 })!
+
+    // Two spellings of one hint, because no service honours both and some
+    // honour neither (sydevs/SahajAtlasWeb#368).
+    expect(ics).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT1H')
+    expect(ics).toContain('X-PUBLISHED-TTL:PT1H')
+  })
+
+  it('emits STATUS, SEQUENCE and LAST-MODIFIED when given them', () => {
+    const ics = build(
+      { recurrenceType: 'WEEKLY', weekdays: ['TU'] },
+      {
+        status: ICalEventStatus.CANCELLED,
+        sequence: 1,
+        lastModified: new Date('2026-08-01T10:00:00.000Z'),
+      },
+    )!
+
+    expect(line(ics, 'STATUS')).toBe('STATUS:CANCELLED')
+    expect(line(ics, 'SEQUENCE')).toBe('SEQUENCE:1')
+    // No trailing `Z`: a calendar-level timezone makes ical-generator render
+    // every timestamp in that zone, which is already true of the DTSTAMP the
+    // email attachment ships. Clients rank revisions by SEQUENCE regardless.
+    expect(line(ics, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000')
+  })
+
+  // The confirmation email passes none of the four, and its attachment is a
+  // host-visible artefact — see sydevs/SahajCloud#1131.
+  it('leaves the email attachment untouched: no feed property without one', () => {
+    const emailIcs = buildEventCalendar({
+      title: 'Meditation Class',
+      schedule: {
+        firstDate: FIRST_DATE,
+        firstDate_tz: TZ,
+        recurrenceType: 'WEEKLY',
+        weekdays: ['TU'],
+      } as Partial<EventSchedule>,
+      location: '1 Example Street, London',
+      uid: 'registration-abc',
+    })!
+
+    for (const property of ['REFRESH-INTERVAL', 'X-PUBLISHED-TTL', 'STATUS', 'LAST-MODIFIED']) {
+      expect(emailIcs).not.toContain(property)
+    }
+    // ical-generator has always written a SEQUENCE, so its absence is not what
+    // "unchanged" means here — the default value still being 0 is.
+    expect(line(emailIcs, 'SEQUENCE')).toBe('SEQUENCE:0')
   })
 })
