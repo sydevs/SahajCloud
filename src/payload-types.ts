@@ -3197,7 +3197,6 @@ export interface Transcript {
  */
 export interface File {
   id: number;
-  createdAt: string;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
@@ -3228,6 +3227,7 @@ export interface File {
         | 'nl'
       )
     | null;
+  createdAt?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -4734,12 +4734,12 @@ export interface ImagesSelect<T extends boolean = true> {
  * via the `definition` "files_select".
  */
 export interface FilesSelect<T extends boolean = true> {
-  createdAt?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
   subtitles?: T;
   spokenLanguage?: T;
+  createdAt?: T;
   _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;

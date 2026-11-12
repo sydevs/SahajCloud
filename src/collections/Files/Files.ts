@@ -1,5 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
+import { hideUntilCreated } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { deleteChildren } from '@/lib/cascadeDeletion'
 import { getLocaleOptions } from '@/lib/locales'
@@ -55,14 +56,6 @@ export const Files: CollectionConfig = {
     adminThumbnail: videoAdminThumbnail,
   },
   fields: [
-    {
-      name: 'createdAt',
-      type: 'date',
-      label: 'Uploaded At',
-      admin: {
-        readOnly: true,
-      },
-    },
     // url: direct file URL (mixed-media), hlsUrl: HLS manifest (videos),
     // mp4Url: MP4 download (videos), previewUrl: thumbnail
     mixedMediaUrlField({ collection: 'files' }),
@@ -117,6 +110,17 @@ export const Files: CollectionConfig = {
       label: 'Transcript',
       admin: {
         components: { Field: '@/components/admin/TranscriptPanel#FileTranscriptField' },
+      },
+    },
+    {
+      // Last, and only once there is an upload to date: it says nothing on the
+      // create form, where it would be an empty box.
+      name: 'createdAt',
+      type: 'date',
+      label: 'Uploaded At',
+      admin: {
+        condition: hideUntilCreated,
+        readOnly: true,
       },
     },
   ],
