@@ -53,15 +53,20 @@ const isDuplicateTranscript = (error: ValidationError, source: TranscriptSource)
  * owns everything after, so a meditation and a file are refused the same way.
  *
  * ⚠ **A run costs money, so the server decides whether to pay for one**
- * (sydevs/SahajCloud#984, Decision 2). Two bounds, in order: the phase must be
- * retryable, and the existing row must be older than the cooldown. Both are read
- * from the functions the Transcript panel offers the button from, so the control
- * cannot promise what this refuses.
+ * (sydevs/SahajCloud#984, Decision 2). Three bounds, in order: no run may be in
+ * flight, the phase must be retryable, and the existing row must be older than
+ * the cooldown. All are read from the functions the Transcript panel offers the
+ * button from, so the control cannot promise what this refuses.
  *
- * **A changed `language` passes both.** A file's language is detected, and the
- * fix for a wrong guess is a run in the right one (#1016); refusing it until the
- * cooldown would leave a finished transcript in the wrong language for ten
- * minutes for no saving.
+ * **A changed `language` passes the last two.** A file's language is detected,
+ * and the fix for a wrong guess is a run in the right one (#1016); refusing it
+ * until the cooldown would leave a finished transcript in the wrong language for
+ * ten minutes for no saving.
+ *
+ * ⚠ **It does not pass the first.** A language change deletes the row it finds,
+ * so exempting a run in flight would throw away a run already paid for and queue
+ * another — and alternating `?language=` between two values would do that as fast
+ * as an editor can click, which is the bill Decision 2 exists to bound.
  */
 export async function requestTranscript(
   req: PayloadRequest,
@@ -98,23 +103,26 @@ export async function requestTranscript(
   const existing = docs[0]
   const languageChanged = Boolean(existing && language && existing.language !== language)
 
-  if (existing && !languageChanged) {
+  if (existing) {
     const phase = transcriptPhase(existing)
-    if (!transcriptPhaseIsRetryable(phase)) {
-      return transcriptRefusal(
-        phase === 'completed'
-          ? 'This recording already has a transcript. Replace the recording to redo it.'
-          : `A transcription for this ${noun} is already in progress.`,
-        409,
-      )
+    if (phase === 'pending') {
+      return transcriptRefusal(`A transcription for this ${noun} is already in progress.`, 409)
     }
-    const waitMs = retranscribeWaitMs(existing.createdAt)
-    if (waitMs > 0) {
-      return transcriptRefusal(
-        `This transcript was asked for a moment ago. Try again in ${retranscribeWaitLabel(waitMs)}.`,
-        429,
-        { 'Retry-After': String(Math.ceil(waitMs / 1000)) },
-      )
+    if (!languageChanged) {
+      if (!transcriptPhaseIsRetryable(phase)) {
+        return transcriptRefusal(
+          'This recording already has a transcript. Replace the recording to redo it.',
+          409,
+        )
+      }
+      const waitMs = retranscribeWaitMs(existing.createdAt)
+      if (waitMs > 0) {
+        return transcriptRefusal(
+          `This transcript was asked for a moment ago. Try again in ${retranscribeWaitLabel(waitMs)}.`,
+          429,
+          { 'Retry-After': String(Math.ceil(waitMs / 1000)) },
+        )
+      }
     }
   }
 

@@ -287,6 +287,39 @@ describe('file transcripts', () => {
       expect(await queuedRunsFor(file.id)).toHaveLength(2)
     })
 
+    // The bill #984 Decision 2 bounds: a language change deletes the row it
+    // finds, so exempting a run in flight would let an editor alternate
+    // `?language=` and buy a paid run per click.
+    it('refuses a language change while a run is in flight, and keeps the row', async () => {
+      const file = await testData.createFile(payload)
+      const inFlight = await transcriptOf(file.id)
+
+      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+        method: 'post',
+      })
+
+      expect(status).toBe(409)
+      const row = await transcriptOf(file.id)
+      expect(row?.id).toBe(inFlight?.id)
+      expect(await queuedRunsFor(file.id)).toHaveLength(1)
+    })
+
+    it('refuses a second language change until the first run finishes', async () => {
+      const file = await completed()
+
+      const first = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+        method: 'post',
+      })
+      const second = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=en`, {
+        method: 'post',
+      })
+
+      expect(first.status).toBe(200)
+      expect(second.status).toBe(409)
+      expect((await transcriptOf(file.id))?.language).toBe('de')
+      expect(await queuedRunsFor(file.id)).toHaveLength(2)
+    })
+
     it('refuses to re-run a finished transcript in the same language', async () => {
       const file = await completed()
 
