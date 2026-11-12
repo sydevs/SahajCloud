@@ -10,8 +10,7 @@
  *
  * ⚠ **A subscriber names the origin it will hear from, and hears from no other.**
  * A message accepted from any origin lets any page able to reach this window
- * decide what the panel reports: where a frame lands, or what a manager is told
- * their colours look like. The send side derives its `targetOrigin` from the
+ * decide what the panel reports, such as where a frame lands. The send side derives its `targetOrigin` from the
  * iframe; this is the receive side, and it ties the permission to a mounted
  * component rather than to a flag nobody clears.
  *

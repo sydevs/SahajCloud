@@ -394,12 +394,16 @@ export function EmailLayout({ brand, heading, previewText, children, footer }: E
   )
 }
 
+// ⚠ Inline only, never a media query: react-email moves a Section's padding
+// onto an inner `<td>` a class cannot reach in every client. The side padding is
+// what a phone loses three times over, so it is kept narrow everywhere — the
+// 600px container already centres itself on a wide screen.
 const main: CSSProperties = {
   backgroundColor: '#ffffff',
   fontFamily: 'Arial, sans-serif',
   color: '#333333',
   lineHeight: '1.6',
-  padding: '20px',
+  padding: '20px 0',
 }
 
 const container: CSSProperties = {
@@ -408,7 +412,7 @@ const container: CSSProperties = {
 }
 
 const header: CSSProperties = {
-  padding: '30px',
+  padding: '28px 20px',
   textAlign: 'center',
   borderRadius: '8px 8px 0 0',
 }
@@ -429,7 +433,7 @@ const headerTitle: CSSProperties = {
 
 const card: CSSProperties = {
   backgroundColor: '#f9f9f9',
-  padding: '30px',
+  padding: '28px 20px',
   borderRadius: '0 0 8px 8px',
 }
 
@@ -490,7 +494,7 @@ const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
 const detailBlock: CSSProperties = {
   backgroundColor: '#ffffff',
   borderRadius: '6px',
-  padding: '4px 20px',
+  padding: '4px 16px',
   margin: '0 0 24px',
 }
 // Neutral rather than the brand accent, which the links and the CTA carry.

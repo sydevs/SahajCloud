@@ -683,6 +683,14 @@ export const Clients: CollectionConfig = {
               },
             },
             {
+              name: 'supportEmail',
+              type: 'email',
+              admin: {
+                description:
+                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
+              },
+            },
+            {
               name: 'logo',
               type: 'upload',
               relationTo: 'images',
@@ -712,28 +720,12 @@ export const Clients: CollectionConfig = {
               ],
             },
             {
-              // Light or dark, posted to the preview iframe. Not stored: it is a
-              // way of looking at the colours, not a setting the service has.
+              // Light or dark, posted to the preview iframe, and the colour reset.
+              // Not stored: the mode is a way of looking at the colours.
               name: 'previewMode',
               type: 'ui',
               admin: {
                 components: { Field: '@/components/admin/AtlasPreview/PreviewModeField' },
-              },
-            },
-            {
-              // One button for all three, shown while any is the service's own.
-              name: 'resetColors',
-              type: 'ui',
-              admin: {
-                components: { Field: '@/components/admin/ColorField/ResetColors' },
-              },
-            },
-            {
-              name: 'supportEmail',
-              type: 'email',
-              admin: {
-                description:
-                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
               },
             },
             {

@@ -79,7 +79,7 @@ export const clientEmailPreview: Endpoint = {
         brand,
         details: SAMPLE,
         locale: (client.language ?? null) as LocaleCode | null,
-        name: 'Sample Registrant',
+        name: 'Maria Rossi',
         strings: await resolveEmailStrings({
           locale: (client.language ?? null) as LocaleCode | null,
           payload: req.payload,

@@ -1,7 +1,5 @@
 'use client'
 
-import type { UIFieldClientComponent } from 'payload'
-
 import { Button, useField } from '@payloadcms/ui'
 import React from 'react'
 
@@ -15,7 +13,7 @@ import { isBrandColor } from '@/lib/clients/appearance'
  * colour is what follows a change to the defaults, and a copied one would not.
  * The paths are the `Clients` columns themselves, which sit in unnamed groups.
  */
-const ResetColors: UIFieldClientComponent = () => {
+export function ResetColors() {
   const color1 = useField<string | null>({ path: 'color1' })
   const color2 = useField<string | null>({ path: 'color2' })
   const color3 = useField<string | null>({ path: 'color3' })
@@ -24,17 +22,13 @@ const ResetColors: UIFieldClientComponent = () => {
   if (!fields.some((field) => isBrandColor(field.value))) return null
 
   return (
-    <div className="field-type">
-      <Button
-        buttonStyle="secondary"
-        margin={false}
-        onClick={() => fields.forEach((field) => field.setValue(null))}
-        size="small"
-      >
-        Reset colors to defaults
-      </Button>
-    </div>
+    <Button
+      buttonStyle="secondary"
+      margin={false}
+      onClick={() => fields.forEach((field) => field.setValue(null))}
+      size="medium"
+    >
+      Reset colors to defaults
+    </Button>
   )
 }
-
-export default ResetColors

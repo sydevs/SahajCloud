@@ -2,19 +2,26 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Button, FieldLabel, useLivePreviewContext } from '@payloadcms/ui'
+import { ReactSelect, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { originOf } from '@/lib/utilities/url'
 
-import { PREVIEW_MODE_MESSAGE } from './paletteReport'
+import { ResetColors } from '../ColorField/ResetColors'
 
-const MODES = ['light', 'dark'] as const
+/** ⚠ Pinned to the atlas's `startClientsPreview` (sydevs/SahajAtlasWeb#392). */
+const PREVIEW_MODE_MESSAGE = 'sahaj-atlas:preview-mode'
 
-type Mode = (typeof MODES)[number]
+type Mode = 'dark' | 'light'
+
+const OPTIONS: { label: string; value: Mode }[] = [
+  { label: 'Preview: Light', value: 'light' },
+  { label: 'Preview: Dark', value: 'dark' },
+]
 
 /**
- * Switches the preview between the atlas's light and dark looks.
+ * Switches the preview between the atlas's light and dark looks, beside the
+ * button that resets the colours.
  *
  * Not stored: it is a way of looking at the service's colours, not a setting
  * the service has. The mode is re-posted on every iframe load, because a reload
@@ -55,23 +62,24 @@ export const PreviewModeField: UIFieldClientComponent = () => {
   }, [iframeRef, mode, post, url])
 
   return (
-    <div className="field-type">
-      <FieldLabel label="Preview" />
-      <div style={{ display: 'flex', gap: 'var(--base)' }}>
-        {MODES.map((option) => (
-          <Button
-            buttonStyle={option === mode ? 'primary' : 'secondary'}
-            key={option}
-            onClick={() => {
-              setMode(option)
-              post(option)
-            }}
-            size="small"
-          >
-            {option === 'light' ? 'Light' : 'Dark'}
-          </Button>
-        ))}
+    <div
+      className="field-type"
+      style={{ alignItems: 'center', display: 'flex', gap: 'var(--base)' }}
+    >
+      <div style={{ width: '180px' }}>
+        <ReactSelect
+          isClearable={false}
+          isSearchable={false}
+          onChange={(option) => {
+            const next = (option as { value: Mode }).value
+            setMode(next)
+            post(next)
+          }}
+          options={OPTIONS}
+          value={OPTIONS.find((option) => option.value === mode)}
+        />
       </div>
+      <ResetColors />
     </div>
   )
 }

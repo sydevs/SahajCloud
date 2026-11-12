@@ -2,11 +2,11 @@
  * Module-level store for the live-preview playback time.
  *
  * The playhead a newly inserted frame is written at. The store, its origin
- * filter and its cache are `@/lib/livePreview/messageStore`, shared with the
- * Atlas tab's palette report; what belongs here is the message's own shape.
+ * filter and its cache are `./messageStore`; what belongs here is the
+ * message's own shape.
  */
 
-import { createPreviewMessageStore } from '@/lib/livePreview/messageStore'
+import { createPreviewMessageStore } from './messageStore'
 
 /**
  * The FrameEditor has always held one playhead per window, not per document.

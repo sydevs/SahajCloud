@@ -2,14 +2,14 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { FieldLabel, useDocumentInfo, useFormFields } from '@payloadcms/ui'
+import { Collapsible, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 /** How long typing must pause before the sample is re-rendered. */
 const SETTLE_MS = 500
 
 /**
- * A rendered sample registrant email, beside the logo and support address.
+ * A rendered sample registration email, collapsed under the colours.
  *
  * The branding reaches exactly one thing a visitor receives, and until now a
  * manager could only find out by registering for one of their own classes. It
@@ -65,31 +65,32 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
 
   return (
     <div className="field-type">
-      <FieldLabel label="Sample registrant email" />
-      {html ? (
-        // `sandbox` with nothing enabled: the markup is our own template, but it
-        // carries a service's logo and title, and a preview has no reason to run
-        // anything or reach anywhere.
-        <iframe
-          sandbox=""
-          srcDoc={html}
-          style={{
-            background: '#ffffff',
-            border: '1px solid var(--theme-elevation-150)',
-            borderRadius: 'var(--style-radius-s)',
-            height: '420px',
-            width: '100%',
-          }}
-          title="Sample registrant email"
-        />
-      ) : (
-        <p className="field-description">Save this service to see a sample email.</p>
-      )}
-      <p className="field-description">
-        {typeof supportEmail === 'string' && supportEmail
-          ? `Replies reach ${supportEmail}.`
-          : 'With no support address, replies reach nobody who can answer.'}
-      </p>
+      <Collapsible header="Sample registration email" initCollapsed>
+        {html ? (
+          // `sandbox` with nothing enabled: the markup is our own template, but it
+          // carries a service's logo and title, and a preview has no reason to run
+          // anything or reach anywhere.
+          <iframe
+            sandbox=""
+            srcDoc={html}
+            style={{
+              background: '#ffffff',
+              border: '1px solid var(--theme-elevation-150)',
+              borderRadius: 'var(--style-radius-s)',
+              height: '420px',
+              width: '100%',
+            }}
+            title="Sample registration email"
+          />
+        ) : (
+          <p className="field-description">Save this service to see a sample email.</p>
+        )}
+        <p className="field-description">
+          {typeof supportEmail === 'string' && supportEmail
+            ? `Replies reach ${supportEmail}.`
+            : 'With no support address, replies reach nobody who can answer.'}
+        </p>
+      </Collapsible>
     </div>
   )
 }

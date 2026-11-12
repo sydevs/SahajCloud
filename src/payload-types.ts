@@ -2433,16 +2433,16 @@ export interface Client {
    */
   title?: string | null;
   /**
+   * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
+   */
+  supportEmail?: string | null;
+  /**
    * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
    */
   logo?: (number | null) | Image;
   color1?: string | null;
   color2?: string | null;
   color3?: string | null;
-  /**
-   * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
-   */
-  supportEmail?: string | null;
   /**
    * Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.
    */
@@ -4913,11 +4913,11 @@ export interface ClientsSelect<T extends boolean = true> {
   primaryContact?: T;
   region?: T;
   title?: T;
+  supportEmail?: T;
   logo?: T;
   color1?: T;
   color2?: T;
   color3?: T;
-  supportEmail?: T;
   mailingList?:
     | T
     | {

@@ -33,15 +33,13 @@ other field.
 - ⚠ **A save on another tab re-resolves the URL under the panel**, because this collection's
   `livePreview.url` reads `data`. `PreviewTarget` re-applies on that change, so the panel stays
   on its explanation rather than silently showing the atlas again.
-- **The atlas answers back.** It posts what it rendered for each role — the colour, and which
-  legibility checks moved it — and each picker shows that colour with the reason. Where the
-  widget can express the result as a seed, a button writes it into the field. ⚠ A role adjusted
-  only by `panel-text` has no such seed, so it shows the note and no button. The CMS computes no
-  colours: the widget owns the rules and reports them.
+- **The CMS shows no corrected colour.** The atlas may shift a colour for legibility on the map,
+  and says so nowhere in the admin: an in-picker note proved invisible to the managers it was
+  for, so the preview itself is the feedback.
 - **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
   in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
   admin previews; that is our own origin, and the atlas reads colours alone.
-- **The sample registrant email** beside the logo and support address renders through the real
+- **The sample registration email**, collapsed under the colours, renders through the real
   template at `POST /api/clients/:id/email-preview`, from unsaved form values, so the one message
   a service's branding reaches is visible beside the fields that decide it. Email text is black or
   white by `readableTextOn`: **`color1` decides** wherever both read across the gradient, because
