@@ -128,9 +128,12 @@ import * as migration_20261110_234836_clients_label_title from './20261110_23483
 import * as migration_20261111_152106_merge_main_snapshot_8 from './20261111_152106_merge_main_snapshot_8';
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
 import * as migration_20261111_175610_merge_main_snapshot_9 from './20261111_175610_merge_main_snapshot_9';
+import * as migration_20261111_182607_recover_lost_jobs_task from './20261111_182607_recover_lost_jobs_task';
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
+import * as migration_20261111_232203_merge_main_snapshot_8 from './20261111_232203_merge_main_snapshot_8';
 import * as migration_20261111_232621_merge_main_snapshot_10 from './20261111_232621_merge_main_snapshot_10';
 import * as migration_20261111_235137_file_transcripts_replace_intro_subtitles from './20261111_235137_file_transcripts_replace_intro_subtitles';
+import * as migration_20261112_171546_merge_main_snapshot_11 from './20261112_171546_merge_main_snapshot_11';
 
 export const migrations = [
   {
@@ -784,9 +787,19 @@ export const migrations = [
     name: '20261111_175610_merge_main_snapshot_9',
   },
   {
+    up: migration_20261111_182607_recover_lost_jobs_task.up,
+    down: migration_20261111_182607_recover_lost_jobs_task.down,
+    name: '20261111_182607_recover_lost_jobs_task',
+  },
+  {
     up: migration_20261111_215539_activity_log_rows.up,
     down: migration_20261111_215539_activity_log_rows.down,
     name: '20261111_215539_activity_log_rows',
+  },
+  {
+    up: migration_20261111_232203_merge_main_snapshot_8.up,
+    down: migration_20261111_232203_merge_main_snapshot_8.down,
+    name: '20261111_232203_merge_main_snapshot_8',
   },
   {
     up: migration_20261111_232621_merge_main_snapshot_10.up,
@@ -796,6 +809,11 @@ export const migrations = [
   {
     up: migration_20261111_235137_file_transcripts_replace_intro_subtitles.up,
     down: migration_20261111_235137_file_transcripts_replace_intro_subtitles.down,
-    name: '20261111_235137_file_transcripts_replace_intro_subtitles'
+    name: '20261111_235137_file_transcripts_replace_intro_subtitles',
+  },
+  {
+    up: migration_20261112_171546_merge_main_snapshot_11.up,
+    down: migration_20261112_171546_merge_main_snapshot_11.down,
+    name: '20261112_171546_merge_main_snapshot_11'
   },
 ];

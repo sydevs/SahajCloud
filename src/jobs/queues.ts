@@ -16,10 +16,11 @@ type AutoRunEntry = Extract<NonNullable<JobsConfig['autoRun']>, unknown[]>[numbe
 /**
  * `jobs.autoRun` — one entry per queue that runs unattended.
  *
- * ⚠ A cron here has to tick far more often than the schedules on its queue,
- * because the tick is both halves of the cycle: it enqueues a due schedule with
- * `waitUntil` at the next occurrence, and a *later* tick is what runs that row.
- * The tick interval, not the schedule, is the worst-case lateness.
+ * ⚠ A tick is both halves of the cycle: it enqueues a due schedule with
+ * `waitUntil` at that schedule's next occurrence, then runs whatever is due. So
+ * the tick interval, not the schedule, is the worst-case lateness — and a
+ * schedule whose occurrences are a subset of this cron's is the one case with
+ * none, because the tick that queues the row also runs it.
  *
  * ⚠ Stagger the minute. Every tick rewrites the whole `payload-jobs-stats`
  * global from the snapshot it read, so two queues ticking together lose one

@@ -21,6 +21,7 @@
  */
 import type { Payload } from 'payload'
 
+import { extractID } from 'payload/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { transcribeStreamVideo } from '@/collections/Files/transcribeStreamVideo'
@@ -122,10 +123,18 @@ describe('file transcripts', () => {
       })
     ).docs.filter((job) => (job.input as { fileId?: number } | null)?.fileId === fileId)
 
-  const transcribe = (file: File) =>
+  /**
+   * Run the task the way the queue does: as the job row the transcript names.
+   *
+   * ⚠ **A case that replaces the row has to capture `job` first.** The task
+   * tells its own row from a later request's by that id, so defaulting to the
+   * row that exists now would hand a lost run the retry's identity.
+   */
+  const transcribe = async (file: File, job?: number) =>
     runTaskHandler(TranscribeRecording, {
       payload,
       input: { fileId: file.id, audioFilename: file.filename! },
+      job: { id: job ?? Number(extractID((await transcriptOf(file.id))!.job!)) },
     })
 
   /** An MP3 whose run has finished, heard as Czech. */
