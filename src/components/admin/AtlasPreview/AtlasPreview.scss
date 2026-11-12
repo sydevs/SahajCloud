@@ -1,11 +1,11 @@
 .atlas-preview {
-  // The Branding Colors heading with its Reset, level with each other.
+  // Payload's own group title, with Reset level beside it.
   &__group-label {
     align-items: center;
-    display: inline-flex;
+    display: flex;
     gap: var(--base);
 
-    .field-label {
+    .group-field__title {
       margin: 0;
     }
   }
@@ -47,12 +47,20 @@
     width: calc(var(--base) * 1.2);
   }
 
-  // Faded white, with a soft shadow so it still reads on a near-white colour.
+  // Faded white on the light-map colour, faded black on the dark-map one, which
+  // is light by construction.
   &__mark {
-    color: rgb(255 255 255 / 80%);
     font-size: calc(var(--base) * 0.75);
     font-weight: 700;
     line-height: 1;
-    text-shadow: 0 0 2px rgb(0 0 0 / 45%);
+
+    &--light {
+      color: rgb(255 255 255 / 80%);
+      text-shadow: 0 0 2px rgb(0 0 0 / 45%);
+    }
+
+    &--dark {
+      color: rgb(0 0 0 / 55%);
+    }
   }
 }

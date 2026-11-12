@@ -25,12 +25,17 @@ export const BrandingColorsLabel: GroupFieldLabelClientComponent = ({ field }) =
     color2: useField<null | string>({ path: 'color2' }),
     color3: useField<null | string>({ path: 'color3' }),
   }
-  const label = <FieldLabel label={field?.label} />
+  // Payload's own group title markup, so the heading matches every other group's.
+  const label = (
+    <h3 className="group-field__title">
+      <FieldLabel as="span" label={field?.label} />
+    </h3>
+  )
 
   if (!COLUMNS.some((column) => isBrandColor(fields[column].value))) return label
 
   return (
-    <span className="atlas-preview__group-label">
+    <div className="atlas-preview__group-label">
       {label}
       <Button
         buttonStyle="pill"
@@ -40,7 +45,7 @@ export const BrandingColorsLabel: GroupFieldLabelClientComponent = ({ field }) =
       >
         Reset colors
       </Button>
-    </span>
+    </div>
   )
 }
 

@@ -41,6 +41,8 @@ const ATLAS = 'http://localhost:5173'
 const PRIMARY = {
   adjustedBy: ['surface', 'panel-text'],
   dark: '#fefdfb',
+  darkAdjustedBy: ['panel-text'],
+  lightAdjustedBy: ['surface', 'panel-text'],
   entered: '#ffff00',
   light: '#979726',
   suggested: '#979726',
@@ -61,6 +63,8 @@ describe('readSwatch', () => {
     expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#FFFF00')).toEqual({
       adjusted: true,
       dark: '#FEFDFB',
+      darkAdjusted: false,
+      lightAdjusted: true,
       light: '#979726',
       reasons: ['adjusted for contrast with the background'],
       suggested: '#979726',
@@ -71,6 +75,8 @@ describe('readSwatch', () => {
     expect(readSwatch(report({ contrast: ACCENT }), 'color3', '#ff9900')).toEqual({
       adjusted: false,
       dark: '#FFAA33',
+      darkAdjusted: false,
+      lightAdjusted: false,
       light: '#C27A14',
       reasons: [],
       suggested: null,
@@ -93,12 +99,21 @@ describe('readSwatch', () => {
     expect(readSwatch(null, 'color1', '#ffff00')).toBeNull()
   })
 
+  it('marks both modes for an atlas that reports only the union', () => {
+    const { darkAdjustedBy: _dark, lightAdjustedBy: _light, ...unionOnly } = PRIMARY
+
+    expect(readSwatch(report({ primary: unionOnly }), 'color1', '#ffff00')).toMatchObject({
+      darkAdjusted: true,
+      lightAdjusted: true,
+    })
+  })
+
   it('ignores a report about a colour the field no longer holds', () => {
     expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#123456')).toBeNull()
   })
 
   it('still counts a check it has no words for', () => {
-    const future = { ...PRIMARY, adjustedBy: ['something-new'] }
+    const future = { ...PRIMARY, lightAdjustedBy: ['something-new'] }
 
     expect(readSwatch(report({ primary: future }), 'color1', '#ffff00')).toMatchObject({
       adjusted: true,
@@ -166,7 +181,7 @@ describe('AdjustedColors', () => {
     ).toEqual(['#979726', '#FEFDFB', '#5E98BA', '#5E98BA', '#C27A14', '#FFAA33'])
     expect(
       [...container.querySelectorAll('.atlas-preview__mark')].map((mark) => mark.textContent),
-    ).toEqual(['!', '!', '✓', '✓', '✓', '✓'])
+    ).toEqual(['!', '✓', '✓', '✓', '✓', '✓'])
     expect([...container.querySelectorAll('td:last-child')].map((td) => td.textContent)).toEqual([
       'Primary — adjusted for contrast with the background.',
       'Secondary — This color is safe to use.',
@@ -174,12 +189,27 @@ describe('AdjustedColors', () => {
     ])
   })
 
+  it('joins several reasons with semicolons', async () => {
+    await mount(AdjustedColors)
+    const frame = openPreview()
+    const primary = { ...PRIMARY, lightAdjustedBy: ['near-white', 'surface'] }
+
+    await post(report({ contrast: ACCENT, primary }), frame.contentWindow)
+
+    expect(container.querySelector('td:last-child')?.textContent).toBe(
+      'Primary — moved away from near-white; adjusted for contrast with the background.',
+    )
+  })
+
   it('shows nothing while nothing is adjusted', async () => {
     await mount(AdjustedColors)
     const frame = openPreview()
 
     await post(
-      report({ contrast: ACCENT, primary: { ...PRIMARY, adjustedBy: [] } }),
+      report({
+        contrast: ACCENT,
+        primary: { ...PRIMARY, adjustedBy: [], darkAdjustedBy: [], lightAdjustedBy: [] },
+      }),
       frame.contentWindow,
     )
 

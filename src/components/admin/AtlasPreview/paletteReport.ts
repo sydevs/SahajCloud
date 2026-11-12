@@ -31,8 +31,10 @@ const ROLE_OF_COLUMN: Record<BrandColorColumn, string> = {
 }
 
 export interface Swatch {
-  /** Whether the widget moved this colour's swatch away from what was entered. */
+  /** Whether the widget moved this colour's swatch in either mode, and in each. */
   adjusted: boolean
+  darkAdjusted: boolean
+  lightAdjusted: boolean
   /** The solid visitors see in each mode. */
   dark: string
   light: string
@@ -71,6 +73,8 @@ export function readSwatch(
     return {
       adjusted: false,
       dark: fallback,
+      darkAdjusted: false,
+      lightAdjusted: false,
       light: fallback,
       reasons: [],
       suggested: null,
@@ -81,8 +85,10 @@ export function readSwatch(
     | {
         adjustedBy?: unknown
         dark?: unknown
+        darkAdjustedBy?: unknown
         entered?: unknown
         light?: unknown
+        lightAdjustedBy?: unknown
         suggested?: unknown
       }
     | undefined
@@ -91,15 +97,25 @@ export function readSwatch(
   if (!isHex(report.light) || !isHex(report.dark) || typeof report.entered !== 'string') return null
   if (report.entered.toLowerCase() !== current.toLowerCase()) return null
 
-  const checks = report.adjustedBy.filter((check) => check !== 'panel-text')
+  // Per mode where the atlas says so; an atlas that reports only the union marks both.
+  const light = swatchChecks(report.lightAdjustedBy ?? report.adjustedBy)
+  const dark = swatchChecks(report.darkAdjustedBy ?? report.adjustedBy)
+  const checks = [...new Set([...light, ...dark])]
   const adjusted = checks.length > 0
 
   return {
     adjusted,
     dark: report.dark.toUpperCase(),
+    darkAdjusted: dark.length > 0,
+    lightAdjusted: light.length > 0,
     light: report.light.toUpperCase(),
     // A check this CMS has no words for still counts, just without a reason.
     reasons: checks.flatMap((check) => SWATCH_REASONS[check as string] ?? []),
     suggested: adjusted && isHex(report.suggested) ? report.suggested : null,
   }
 }
+
+const swatchChecks = (checks: unknown): string[] =>
+  Array.isArray(checks)
+    ? checks.filter((check): check is string => typeof check === 'string' && check !== 'panel-text')
+    : []

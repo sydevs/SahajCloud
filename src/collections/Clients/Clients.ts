@@ -724,23 +724,23 @@ export const Clients: CollectionConfig = {
                     components: { Field: '@/components/admin/AtlasPreview/AdjustedColors' },
                   },
                 },
+                {
+                  // The preview's light or dark look. Stores nothing.
+                  name: 'mapPreview',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/MapPreviewField' },
+                  },
+                },
+                {
+                  // The one thing a visitor receives that this branding reaches.
+                  name: 'emailPreview',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/EmailPreviewField' },
+                  },
+                },
               ],
-            },
-            {
-              // The preview's light or dark look. Stores nothing.
-              name: 'mapPreview',
-              type: 'ui',
-              admin: {
-                components: { Field: '@/components/admin/AtlasPreview/MapPreviewField' },
-              },
-            },
-            {
-              // The one thing a visitor receives that this branding reaches.
-              name: 'emailPreview',
-              type: 'ui',
-              admin: {
-                components: { Field: '@/components/admin/AtlasPreview/EmailPreviewField' },
-              },
             },
             mailingListGroup,
           ],

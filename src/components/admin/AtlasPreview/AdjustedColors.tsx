@@ -41,51 +41,61 @@ export const AdjustedColors: UIFieldClientComponent = () => {
   const suggestions = swatches.filter((swatch) => swatch.suggested)
 
   return (
-    <Banner className="atlas-preview__banner" type="info">
-      <strong>Colors are being adjusted for visibility</strong>
-      <table className="atlas-preview__table">
-        <tbody>
-          {swatches.map((item) => (
-            <tr key={item.column}>
-              <td>
-                <SwatchTile adjusted={item.adjusted} color={item.light} />
-              </td>
-              <td>
-                <SwatchTile adjusted={item.adjusted} color={item.dark} />
-              </td>
-              <td>
-                <strong>{BRAND_COLOR_LABELS[item.column]}</strong> —{' '}
-                {item.adjusted ? reasonText(item) : 'This color is safe to use.'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {suggestions.length > 0 ? (
-        <div className="atlas-preview__banner-actions">
-          <Button
-            buttonStyle="secondary"
-            margin={false}
-            onClick={() =>
-              suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
-            }
-            size="small"
-          >
-            Use adjusted colors
-          </Button>
-        </div>
-      ) : null}
-    </Banner>
+    <div className="field-type">
+      <Banner className="atlas-preview__banner" type="info">
+        <strong>Colors are being adjusted for visibility</strong>
+        <table className="atlas-preview__table">
+          <tbody>
+            {swatches.map((item) => (
+              <tr key={item.column}>
+                <td>
+                  <SwatchTile adjusted={item.lightAdjusted} color={item.light} mode="light" />
+                </td>
+                <td>
+                  <SwatchTile adjusted={item.darkAdjusted} color={item.dark} mode="dark" />
+                </td>
+                <td>
+                  <strong>{BRAND_COLOR_LABELS[item.column]}</strong> —{' '}
+                  {item.adjusted ? reasonText(item) : 'This color is safe to use.'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {suggestions.length > 0 ? (
+          <div className="atlas-preview__banner-actions">
+            <Button
+              buttonStyle="secondary"
+              margin={false}
+              onClick={() =>
+                suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
+              }
+              size="small"
+            >
+              Use adjusted colors
+            </Button>
+          </div>
+        ) : null}
+      </Banner>
+    </div>
   )
 }
 
 const reasonText = ({ reasons }: Swatch) =>
-  reasons.length > 0 ? `${reasons.join(' and ')}.` : 'adjusted by the atlas.'
+  reasons.length > 0 ? `${reasons.join('; ')}.` : 'adjusted by the atlas.'
 
-function SwatchTile({ adjusted, color }: { adjusted: boolean; color: string }) {
+function SwatchTile({
+  adjusted,
+  color,
+  mode,
+}: {
+  adjusted: boolean
+  color: string
+  mode: 'dark' | 'light'
+}) {
   return (
     <span className="atlas-preview__swatch" style={{ backgroundColor: color }} title={color}>
-      <span aria-hidden className="atlas-preview__mark">
+      <span aria-hidden className={`atlas-preview__mark atlas-preview__mark--${mode}`}>
         {adjusted ? '!' : '✓'}
       </span>
     </span>
