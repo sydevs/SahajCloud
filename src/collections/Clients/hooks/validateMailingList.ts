@@ -2,6 +2,7 @@ import type { CollectionBeforeChangeHook, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import type { SecretVerifyArgs } from '@/fields'
 import { adapterFor, unknownProviderMessage } from '@/lib/mailingList/providers'
 import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
@@ -14,8 +15,13 @@ import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
  * what is sent: with it on, CleverReach's `verifyCredentials` also reads the
  * confirmation flow, so turning it back on makes a stored `doiFlowId`
  * load-bearing again and worth proving.
+ *
+ * ⚠ `provider` is also the list's on switch: a list is switched off by clearing
+ * it, edited while nothing proves it — this hook returns early without one —
+ * and switched back on by choosing it again. That last save changes `provider`,
+ * so it is proven, however little else changed.
  */
-const CREDENTIAL_KEYS = [
+export const CREDENTIAL_KEYS = [
   'provider',
   'listId',
   'apiKey',
@@ -44,21 +50,40 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   originalDoc,
   req,
 }) => {
-  const config = data?.mailingList as MailingListConfig | undefined
-  if (!config?.enabled) return data
-
-  // Incomplete credentials are Payload's `required` to refuse, not ours.
-  // Pinging with a blank key would answer "that API key was refused", blaming
-  // the operator for a field they have not filled in yet.
-  if (!isMailingListConfigured(config)) return data
+  const incoming = data?.mailingList as MailingListConfig | undefined
+  if (!incoming?.provider) return data
 
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
-  const changed = CREDENTIAL_KEYS.some((key) => config[key] !== previous?.[key])
+
+  // ⚠ **A form save carries no key, and one still arrives here.** `secretField`
+  // keeps it out of form state. Its own `beforeValidate` hook resolves a staged
+  // key (or a removal) to plaintext, and otherwise Payload back-fills the
+  // omitted field from the stored document, decrypted — so `incoming.apiKey` is
+  // the plaintext the provider must be asked about, new or stored.
+
+  const changed = CREDENTIAL_KEYS.some((key) => incoming[key] !== previous?.[key])
   // Nothing a provider could have an opinion about has changed. It said yes to
   // these exact values when they were entered.
   if (!changed) return data
 
-  const failure = await checkCredentials(config, req)
+  // ⚠ The key is no field `required` can reach — the form never holds it — so a
+  // chosen provider with no key is refused here. Saved, it would read as a list
+  // while delivering nothing, and `LIST_ELIGIBLE` would hand its region to the
+  // fallback client's list.
+  if (!incoming.apiKey) {
+    throw new APIError(
+      'Mailing list: set its API Key, or clear Mailing List Provider to switch the list off.',
+      400,
+      { code: 'mailing_list_no_key' },
+      true,
+    )
+  }
+
+  // The rest of an incomplete list is Payload's `required` to refuse. Pinging
+  // with a blank field would blame the key for a field not filled in yet.
+  if (!isMailingListConfigured(incoming)) return data
+
+  const failure = await checkCredentials(incoming, req)
   if (failure) {
     // `APIError`, not a field `validate`: the message is the provider's own
     // words, and a validator returning a foreign error string against one field
@@ -68,6 +93,25 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   }
 
   return data
+}
+
+/**
+ * The set modal's check of a key before it is staged, against the form's
+ * unsaved provider and list. Save proves it again through the hook above,
+ * against what is actually saved.
+ */
+export async function verifyMailingListKey({
+  req,
+  siblingData,
+  value,
+}: SecretVerifyArgs): Promise<string | null> {
+  const config = { ...siblingData, apiKey: value } as MailingListConfig
+  if (!config.provider || !config.listId) {
+    return 'Choose a mailing list provider and enter the List ID first.'
+  }
+  const failure = await checkCredentials(config, req)
+  // Adapters word a refusal to follow "Mailing list: "; standing alone it needs a capital.
+  return failure && failure.charAt(0).toUpperCase() + failure.slice(1)
 }
 
 /**
