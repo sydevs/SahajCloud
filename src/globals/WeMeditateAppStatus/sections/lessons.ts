@@ -8,6 +8,7 @@ import {
 } from '@/lib/status'
 import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
 import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
+import { readFinishedFileTranscripts } from '@/lib/transcripts/read'
 import { type Lesson } from '@/payload-types'
 
 import { isolatedReq, readFallbackTitles, type WeMeditateAppStatusConfig } from './shared'
@@ -187,35 +188,13 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     const fileIds = [
       ...new Set(lessons.map((lesson) => refId(lesson.introAudio)).filter((id) => id !== null)),
     ]
-    const { docs: transcripts } = fileIds.length
-      ? await payload.find({
-          collection: 'transcripts',
-          // One `equals` per file: the polymorphic `source` resolves only that
-          // spelling, and `source.value` would match a meditation of the same
-          // number too (`Transcripts.ts`).
-          where: {
-            and: [
-              {
-                or: fileIds.map((id) => ({
-                  source: { equals: { relationTo: 'files', value: id } },
-                })),
-              },
-              { segmentCount: { greater_than: 0 } },
-            ],
-          },
-          select: { source: true, language: true },
-          depth: 0,
-          limit: 0,
-          pagination: false,
-          overrideAccess: true,
-          req: isolatedReq(req),
-        })
-      : { docs: [] }
+    const transcripts = await readFinishedFileTranscripts(payload, fileIds, {
+      req: isolatedReq(req),
+    })
     const subtitledForLocale = new Set(
       transcripts
         .filter((row) => transcriptSpeaksLocale(row.language, locale))
-        .map((row) => refId(row.source?.value))
-        .filter((id) => id !== null),
+        .map((row) => row.fileId),
     )
     return { lessons, labels, subtitledForLocale }
   },

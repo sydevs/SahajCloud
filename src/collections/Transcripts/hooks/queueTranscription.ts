@@ -3,6 +3,7 @@ import type { CollectionAfterChangeHook } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { transcriptHasCues } from '@/lib/transcripts/read'
 
 /**
  * afterChange: a new transcript row is a request to transcribe its recording.
@@ -25,7 +26,7 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
   // A row created with cues is an import of a transcript that already exists
   // (`seeds/meditation-transcripts/`), not a request to produce one. Queueing
   // there would pay the vendor to re-transcribe the whole library.
-  if (Array.isArray(doc.segments) && doc.segments.length > 0) return doc
+  if (transcriptHasCues(doc)) return doc
 
   const relationTo = doc.source?.relationTo
   if (relationTo !== 'meditations' && relationTo !== 'files') return doc
