@@ -88,7 +88,7 @@ export const Files: CollectionConfig = {
       admin: {
         // Only a saved audio or video file has a transcript to show.
         condition: (data) => Boolean(data?.id) && transcribableMedia(data?.mimeType) !== null,
-        components: { Field: '@/components/admin/RecordingTranscript' },
+        components: { Field: '@/components/admin/RecordingTranscript#FileTranscript' },
       },
     },
   ],

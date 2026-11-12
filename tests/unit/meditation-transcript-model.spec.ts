@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   activeSegmentIndex,
+  exactSecond,
   groupTranscript,
   seekSecond,
 } from '@/components/admin/RecordingTranscript/transcriptModel'
@@ -77,5 +78,31 @@ describe('activeSegmentIndex', () => {
     expect(activeSegmentIndex(segments, 1)).toBe(-1)
     expect(activeSegmentIndex(segments, 6)).toBe(-1)
     expect(activeSegmentIndex(segments, 20)).toBe(-1)
+  })
+})
+
+/**
+ * A file's player seeks to the millisecond, so a phrase lights from its own
+ * start there rather than from the whole second the live preview rounds to —
+ * with cues this short, that second would light it while the one before it is
+ * still being spoken.
+ */
+describe('activeSegmentIndex on a player that seeks exactly', () => {
+  const segments = [cue(10000, 12400), cue(12800, 14000)]
+
+  it('keeps the earlier phrase lit until the next one starts', () => {
+    expect(activeSegmentIndex(segments, 12.5, exactSecond)).toBe(0)
+    expect(activeSegmentIndex(segments, 12.5)).toBe(1)
+  })
+
+  it('lights a phrase from the time a click on it seeks to', () => {
+    expect(exactSecond(12800)).toBe(12.8)
+    expect(activeSegmentIndex(segments, 12.8, exactSecond)).toBe(1)
+  })
+
+  // An element seeked to 12.8 can read back a hair less.
+  it('lights it for a playhead a hair short of its start', () => {
+    expect(activeSegmentIndex(segments, 12.79, exactSecond)).toBe(1)
+    expect(activeSegmentIndex(segments, 12.7, exactSecond)).toBe(0)
   })
 })

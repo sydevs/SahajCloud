@@ -1,7 +1,7 @@
 'use client'
 
 import { SelectInput, toast, useLocale } from '@payloadcms/ui'
-import React, { useCallback, useState } from 'react'
+import React, { memo, useCallback, useState } from 'react'
 
 import { refusalMessage } from '@/components/admin/helpers/payloadListFetcher'
 import { getLocaleLabel, LOCALES, type LocaleCode } from '@/lib/locales'
@@ -20,12 +20,16 @@ const FAILED = 'Could not change the language.'
  * lets a changed language past the bounds a plain retry meets — and the new
  * transcript then serves every Path Step and language using the file.
  */
-export const SpokenLanguage: React.FC<{
+export const SpokenLanguage = memo(function SpokenLanguage({
+  fileId,
+  language,
+  onChanged,
+}: {
   fileId: number | string
   language: string | null | undefined
   /** SWR's `mutate`, which re-reads the row and restarts the poll. */
   onChanged: () => void
-}> = ({ fileId, language, onChanged }) => {
+}) {
   const { code: locale } = useLocale()
   const [busy, setBusy] = useState(false)
 
@@ -71,4 +75,4 @@ export const SpokenLanguage: React.FC<{
       value={language ?? ''}
     />
   )
-}
+})

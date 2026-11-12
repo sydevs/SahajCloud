@@ -172,4 +172,81 @@ describe('useFollowPlayhead', () => {
 
     unmount()
   })
+
+  /**
+   * A file's panel bounds its transcript in a box of its own. Following there
+   * scrolls the box alone: `scrollIntoView` would also move the page, pulling
+   * an editor reading another field back to the player.
+   */
+  describe('inside a box that scrolls', () => {
+    const scrollTo = vi.fn()
+    /** The box's own place on screen; the phrase's is `rect`. */
+    const box = { top: 100, bottom: 500 }
+
+    function BoxHarness({ activeIndex }: { activeIndex: number }) {
+      const ref = useRef<HTMLDivElement>(null)
+      useFollowPlayhead(ref, activeIndex, true)
+      return createElement('div', { 'data-box': 'true', ref }, [
+        createElement('span', { 'aria-current': 'true', key: 'current' }, 'spoken'),
+      ])
+    }
+
+    beforeEach(() => {
+      scrollTo.mockClear()
+      Element.prototype.getBoundingClientRect = function getBoundingClientRect() {
+        const own = this instanceof HTMLElement && this.dataset.box ? box : rect
+        return { ...own, left: 0, right: 0, height: 0, width: 0, x: 0, y: 0 } as DOMRect
+      }
+      Object.defineProperties(HTMLElement.prototype, {
+        clientHeight: { configurable: true, get: () => 400 },
+        scrollHeight: { configurable: true, get: () => 2000 },
+      })
+      HTMLElement.prototype.scrollTo = scrollTo as never
+    })
+
+    afterEach(() => {
+      Object.defineProperties(HTMLElement.prototype, {
+        clientHeight: { configurable: true, get: () => 0 },
+        scrollHeight: { configurable: true, get: () => 0 },
+      })
+    })
+
+    const mountBox = (activeIndex: number) => {
+      act(() => {
+        root.render(createElement(BoxHarness, { activeIndex }))
+      })
+    }
+
+    it('scrolls the box, not the page, to a phrase below its bottom edge', () => {
+      rect = { top: 600, bottom: 620 }
+      mountBox(0)
+
+      expect(scrollIntoView).not.toHaveBeenCalled()
+      // 0 + 600 - 100 - (400 - 20) / 2: the phrase's middle at the box's middle.
+      expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ top: 310, behavior: 'smooth' })
+
+      unmount()
+    })
+
+    // The box's own edge decides, not the window's: this phrase is on screen,
+    // and hidden only by the box it scrolls in.
+    it('scrolls to a phrase the box hides though the window would show it', () => {
+      rect = { top: 40, bottom: 60 }
+      mountBox(0)
+
+      expect(scrollTo).toHaveBeenCalledOnce()
+
+      unmount()
+    })
+
+    it('leaves a phrase already in the box alone', () => {
+      rect = { top: 200, bottom: 220 }
+      mountBox(0)
+
+      expect(scrollTo).not.toHaveBeenCalled()
+      expect(scrollIntoView).not.toHaveBeenCalled()
+
+      unmount()
+    })
+  })
 })

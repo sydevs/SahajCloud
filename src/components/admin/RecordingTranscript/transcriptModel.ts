@@ -116,20 +116,37 @@ export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagr
   return paragraphs
 }
 
-/** The whole second a phrase or paragraph plays from, which is what a seek asks for. */
+/**
+ * The second a phrase plays from on the live preview, which takes and reports
+ * whole seconds only.
+ */
 export const seekSecond = (timeMs: number): number => Math.floor(timeMs / 1000)
+
+/** The second a phrase plays from on a media element, which seeks to the millisecond. */
+export const exactSecond = (timeMs: number): number => timeMs / 1000
+
+/**
+ * How far before a phrase's start the playhead may read and still be inside
+ * it: a media element seeked to a phrase can report a hair less than the time
+ * it was given. Below one second, so whole-second playheads compare unchanged.
+ */
+const SEEK_TOLERANCE_SECONDS = 0.05
 
 /**
  * The phrase being spoken at `playheadSeconds`, or `-1` in a pause.
  *
- * A phrase counts from the whole second it starts in, because a click seeks
- * there and the preview reports only whole seconds — so it must light up at
- * once rather than a fraction of a second later.
+ * A phrase counts from the second a click on it seeks to (`startOf`), so it
+ * lights up at once rather than a moment later — on the live preview that is
+ * the whole second it starts in.
  */
-export function activeSegmentIndex(segments: TranscriptSegment[], playheadSeconds: number): number {
+export function activeSegmentIndex(
+  segments: TranscriptSegment[],
+  playheadSeconds: number,
+  startOf: (timeMs: number) => number = seekSecond,
+): number {
   for (let index = segments.length - 1; index >= 0; index -= 1) {
     const segment = segments[index]
-    if (seekSecond(segment.startTimeMs) <= playheadSeconds) {
+    if (startOf(segment.startTimeMs) <= playheadSeconds + SEEK_TOLERANCE_SECONDS) {
       return playheadSeconds < segment.endTimeMs / 1000 + HIGHLIGHT_GRACE_SECONDS ? index : -1
     }
   }

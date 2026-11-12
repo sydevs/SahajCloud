@@ -1,70 +1,41 @@
 'use client'
 
-import type { UIFieldClientComponent } from 'payload'
+import type { Playback } from './playback'
+import type { RecordingTranscriptState } from './useRecordingTranscript'
 
-import { Banner, Spinner, useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { Spinner } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef } from 'react'
-import useSWR from 'swr'
 
-import { formatTime, usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
-import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
+import { formatTime } from '@/components/admin/FrameEditor'
+import { InfoBanner, type InfoBannerType } from '@/components/admin/InfoBanner'
 import type { TranscriptSegment } from '@/lib/meditations/transcript'
 import {
-  transcriptPhase,
   type TranscriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/meditations/transcriptBounds'
-import type { Transcript } from '@/payload-types'
 
 import styles from './RecordingTranscript.module.css'
 import { RetryTranscript } from './RetryTranscript'
-import { SpokenLanguage } from './SpokenLanguage'
 import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
   type TranscriptParagraph,
-  transcriptUrl,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
-import { useTranscriptPhase } from './useTranscriptPhase'
-
-const POLL_INTERVAL_MS = 3000
-
-type TranscriptList = PayloadList<Transcript>
-
-const readTranscripts = payloadListFetcher<Transcript>
-
-const rowOf = (list: TranscriptList | undefined): Transcript | undefined => list?.docs?.[0]
-
-/**
- * Poll only while a transcription is on its way. The stall bound settles the
- * other end: a run nothing will finish reads `stalled`, so this cannot poll
- * forever — but only because `useTranscriptPhase` renders the moment the bound
- * passes. A poll alone never reaches it.
- *
- * ⚠ **Declared once, at module scope.** SWR lists `refreshInterval` in its
- * polling effect's dependencies, so a new arrow each render re-arms the timer
- * from zero — and the playhead re-renders this component about once a second
- * while the recording plays, more often than the interval. An inline arrow
- * would therefore stop the poll exactly while the editor is listening.
- */
-const pollInterval = (latest?: TranscriptList): number =>
-  transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
 
 type Notice = {
-  type: 'error' | 'info'
-  heading?: string
+  type: InfoBannerType
+  title: string
   /** Absent on `failed`, whose sentence is the run's own `error`. */
   detail?: string
   spinner?: boolean
 }
 
 /**
- * The four phases with nothing to read, as one table of `Banner`s — the parts
- * `JobStageView.tsx:75` builds the same notice from. Declared rather than
- * branched so the four cannot drift into three kinds of thing.
+ * The four phases with nothing to read, as one table of notices. Declared
+ * rather than branched so the four cannot drift into three kinds of thing.
  *
  * ⚠ **Which of them offer a retry is not a column here.**
  * `transcriptPhaseIsRetryable` answers that, and the endpoint refuses from the
@@ -72,73 +43,71 @@ type Notice = {
  * disagree with no test failing.
  */
 const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
-  failed: { heading: 'Transcription failed.', type: 'error' },
+  failed: { title: 'Transcription failed', type: 'error' },
   none: {
-    detail: 'No transcript yet. One is made automatically when a recording is added.',
-    type: 'info',
+    detail: 'One is made automatically when a recording is added.',
+    title: 'No transcript yet',
+    type: 'default',
   },
   pending: {
     detail: 'Turning the recording into a timestamped transcript.',
-    heading: 'Transcription in progress.',
     spinner: true,
-    type: 'info',
+    title: 'Transcription in progress',
+    type: 'default',
   },
   stalled: {
     detail: 'It has not finished, and nothing is still working on it.',
-    heading: 'Transcription stopped responding.',
+    title: 'Transcription stopped responding',
     type: 'error',
   },
 }
 
 /**
- * A recording's transcript, on the recording's own edit view: a meditation's
- * Transcript tab, or an audio or video file's (#1016). Reads it as timed
- * paragraphs, follows it as a meditation's live preview plays, and plays from a
- * phrase on click or key — a file has no preview player, so there the phrases
- * only read.
- *
- * It reads the collection rather than the `transcript` join, which carries the
- * same row: that join resolves once at page load, so a panel built on it could
- * never show a run finishing.
- *
- * ⚠ **This panel polls where `JobStageView` deliberately does not.** That view
- * serves a row's own Edit page, opened once; this one sits beside a player an
- * editor is listening to while a run finishes.
+ * A recording's transcript as timed paragraphs, read along with `playback` and
+ * played from a phrase on click or key. One view for every recording (#1016):
+ * a meditation's Transcript tab follows its live preview, and an audio or video
+ * file — on its own page, or on a Path Step using it — follows the player
+ * passed in as `children`.
  */
-export const RecordingTranscript: UIFieldClientComponent = () => {
-  const { collectionSlug, id } = useDocumentInfo()
-  const { code } = useLocale()
-  const relationTo = collectionSlug === 'files' ? 'files' : 'meditations'
-  const url = transcriptUrl(id, code, relationTo)
-
-  const { data, error, mutate } = useSWR(url, readTranscripts, {
-    refreshInterval: pollInterval,
-    revalidateOnFocus: false,
-  })
-
-  const playheadSeconds = usePlaybackTime()
-  const seekTo = useSeekToTime()
-  const row = rowOf(data)
+export function RecordingTranscript({
+  transcript,
+  playback,
+  filename,
+  scrollable = false,
+  children,
+}: {
+  transcript: RecordingTranscriptState
+  playback: Playback
+  /**
+   * The recording's stored filename, when the document being edited is not the
+   * recording — `RetryTranscript` reads the edited document's otherwise.
+   */
+  filename?: string | null
+  /** Bound the transcript's height and scroll inside it, for a panel among other fields. */
+  scrollable?: boolean
+  /** Between the notice and the transcript: a player, a language. */
+  children?: React.ReactNode
+}) {
+  const { error, loaded, phase, recordingId, refresh, relationTo, row, url } = transcript
   // Two memos, not one: `react-hooks/preserve-manual-memoization` refuses a
   // dependency it cannot prove stable, so the cue array needs its own.
   const segments = useMemo(() => row?.segments ?? [], [row])
   const paragraphs = useMemo(() => groupTranscript(segments), [segments])
-  const active = activeSegmentIndex(segments, playheadSeconds)
+  const active = activeSegmentIndex(segments, playback.seconds, playback.startOf)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
-  const phase = useTranscriptPhase(row)
 
   if (!url) {
-    return <Banner type="error">The transcript cannot load without an admin locale.</Banner>
+    return <InfoBanner type="error">The transcript cannot load without an admin locale.</InfoBanner>
   }
   if (error) {
     return (
-      <Banner type="error">
+      <InfoBanner type="error">
         Could not load the transcript. {error instanceof Error ? error.message : ''}
-      </Banner>
+      </InfoBanner>
     )
   }
-  if (!data) return <Spinner loadingText="Loading the transcript…" size="sm" />
+  if (!loaded) return <Spinner loadingText="Loading the transcript…" size="sm" />
 
   const notice = phase === 'completed' ? undefined : NOTICES[phase]
 
@@ -146,40 +115,45 @@ export const RecordingTranscript: UIFieldClientComponent = () => {
     <div className={styles.transcript}>
       <div aria-live="polite" className={styles.status} role="status">
         {notice && (
-          <Banner
+          <InfoBanner
+            action={
+              transcriptPhaseIsRetryable(phase) &&
+              recordingId && (
+                <RetryTranscript
+                  filename={filename}
+                  label={phase === 'none' ? 'Transcribe' : 'Transcribe again'}
+                  onRetried={refresh}
+                  recordingId={recordingId}
+                  relationTo={relationTo}
+                  requestedAt={row?.createdAt}
+                />
+              )
+            }
             icon={notice.spinner ? <Spinner loadingText={null} size="sm" /> : undefined}
+            title={notice.title}
             type={notice.type}
           >
-            {notice.heading && <strong>{notice.heading}</strong>} {notice.detail ?? row?.error}{' '}
-            {transcriptPhaseIsRetryable(phase) && id && (
-              <RetryTranscript
-                label={phase === 'none' ? 'Transcribe' : 'Transcribe again'}
-                onRetried={mutate}
-                recordingId={id}
-                relationTo={relationTo}
-                requestedAt={row?.createdAt}
-              />
-            )}
-          </Banner>
+            {notice.detail ?? row?.error}
+          </InfoBanner>
         )}
       </div>
-      {/* A meditation's language is its own `locale`; a file's is detected,
-          and this is where a wrong guess is corrected. */}
-      {relationTo === 'files' && id && row && phase !== 'pending' && (
-        <SpokenLanguage fileId={id} language={row.language} onChanged={mutate} />
-      )}
+      {children}
       {/* The cues decide, never `status`: `deriveTranscriptStatus` answers
           `completed` from the cues alone, so gating on the string could
           disagree with what there is to read. */}
       {segments.length > 0 && (
-        <div className={styles.paragraphs} ref={container}>
+        <div
+          className={scrollable ? `${styles.paragraphs} ${styles.scrollable}` : styles.paragraphs}
+          ref={container}
+        >
           {paragraphs.map((paragraph) => (
             <Paragraph
               activeIndex={paragraph.segmentIndexes.includes(active) ? active : -1}
               key={paragraph.segmentIndexes[0]}
-              onSeek={seekTo}
+              onSeek={playback.playFrom}
               paragraph={paragraph}
               segments={segments}
+              startOf={playback.startOf}
             />
           ))}
         </div>
@@ -194,26 +168,28 @@ const Paragraph = memo(function Paragraph({
   segments,
   activeIndex,
   onSeek,
+  startOf,
 }: {
   paragraph: TranscriptParagraph
   segments: TranscriptSegment[]
   activeIndex: number
   onSeek: (seconds: number) => void
+  startOf: (timeMs: number) => number
 }) {
-  const start = seekSecond(paragraph.startTimeMs)
+  const label = formatTime(seekSecond(paragraph.startTimeMs))
   return (
     <section className={styles.paragraph}>
       <button
-        aria-label={`Play from ${formatTime(start)}`}
+        aria-label={`Play from ${label}`}
         className={styles.timestamp}
-        onClick={() => onSeek(start)}
+        onClick={() => onSeek(startOf(paragraph.startTimeMs))}
         type="button"
       >
-        {formatTime(start)}
+        {label}
       </button>
       <p className={styles.text}>
         {paragraph.segmentIndexes.map((index) => {
-          const play = () => onSeek(seekSecond(segments[index].startTimeMs))
+          const play = () => onSeek(startOf(segments[index].startTimeMs))
           return (
             <React.Fragment key={index}>
               <span
@@ -243,5 +219,3 @@ const Paragraph = memo(function Paragraph({
     </section>
   )
 })
-
-export default RecordingTranscript

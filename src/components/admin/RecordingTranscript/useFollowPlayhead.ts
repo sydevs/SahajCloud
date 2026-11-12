@@ -50,9 +50,20 @@ export function useFollowPlayhead(
 
   useEffect(() => {
     if (!enabled || Date.now() < pausedUntil.current) return
-    const phrase = container.current?.querySelector('[aria-current="true"]')
-    if (!phrase) return
+    const box = container.current
+    const phrase = box?.querySelector('[aria-current="true"]')
+    if (!box || !phrase) return
     const { top, bottom } = phrase.getBoundingClientRect()
+    // A transcript that scrolls inside its own box follows there alone:
+    // `scrollIntoView` would also scroll the page, pulling an editor reading
+    // another field back to the player.
+    if (box.scrollHeight > box.clientHeight) {
+      const bounds = box.getBoundingClientRect()
+      if (top >= bounds.top && bottom <= bounds.bottom) return
+      const centred = box.scrollTop + top - bounds.top - (box.clientHeight - (bottom - top)) / 2
+      box.scrollTo({ top: centred, behavior: 'smooth' })
+      return
+    }
     if (top >= 0 && bottom <= window.innerHeight) return
     phrase.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [container, activeIndex, enabled])
