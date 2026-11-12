@@ -360,7 +360,9 @@ const mailingListGroup: Field = {
           })),
           enumName: 'enum_clients_mailing_list_provider',
           admin: {
+            // Half the row beside CleverReach's Client ID; the whole row when that is hidden.
             width: '50%',
+            style: { flexGrow: 1 },
             description: 'Leave empty if this service has no mailing list.',
             custom: { descriptions: PROVIDER_SETUP },
             components: { Description: '@/components/admin/SelectDescription' },
