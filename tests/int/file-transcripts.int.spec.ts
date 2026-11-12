@@ -425,4 +425,29 @@ describe('file transcripts', () => {
       expect(audio.subtitles).toHaveLength(2)
     })
   })
+
+  // `readFileSubtitles` batches for a query count and nothing else: every cue
+  // arrives without the batch, so only a count can fail. This is the read it
+  // was built for, through the hooks Payload really runs.
+  describe('a page of files', () => {
+    it('costs one transcripts query for the whole page', async () => {
+      const files = [await completed(), await completed(), await completed()]
+      const find = vi.spyOn(payload, 'find')
+
+      const { docs } = await payload.find({
+        collection: 'files',
+        where: { id: { in: files.map((file) => file.id) } },
+        depth: 0,
+        pagination: false,
+        overrideAccess: true,
+      })
+
+      const reads = find.mock.calls.filter(([args]) => args.collection === 'transcripts')
+      find.mockRestore()
+
+      expect(docs).toHaveLength(3)
+      for (const doc of docs) expect((doc as File).subtitles).toHaveLength(2)
+      expect(reads).toHaveLength(1)
+    })
+  })
 })

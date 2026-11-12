@@ -4,7 +4,9 @@
  * The batch is the load-bearing case: the virtual `subtitles` field cannot take
  * Payload's `findMany` guard, so a page of `files` rows would otherwise pay one
  * `transcripts` query each. Only a query count fails when the batch is lost —
- * every cue still arrives.
+ * every cue still arrives. These cases pin the mechanism; the count a real page
+ * pays is measured in `tests/int/file-transcripts.int.spec.ts`, since nothing
+ * here knows whether Payload reaches the hook in one tick.
  */
 import type { Payload, PayloadRequest, Where } from 'payload'
 
