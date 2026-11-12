@@ -67,7 +67,7 @@ This only works because the authenticated user loads **four times**, not once. `
 | `RecordingTranscript/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
 | `RecordingTranscript/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
 | `RecordingTranscript/transcriptModel.ts` → `POST /api/files/:id/transcribe`       | **Yes**           | The endpoint's permission gate resolves `req.locale`; the spoken language travels as `language`    |
-| `FileTranscriptPreview/previewModel.ts` → `/api/files`                            | **Yes**           | The collection read gate does                                                                      |
+| `UploadTranscript/fileModel.ts` → `/api/files`                                    | **Yes**           | The collection read gate does                                                                      |
 | `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`         | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
 | `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                         | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
 

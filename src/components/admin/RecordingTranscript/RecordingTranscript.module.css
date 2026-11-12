@@ -19,37 +19,44 @@
   gap: var(--base);
 }
 
-/* A panel among a document's other fields reads its transcript in a box,
-   beside the player it follows, rather than stretching the form. */
-.scrollable {
-  max-height: 24rem;
-  overflow-y: auto;
-  padding: calc(var(--base) / 2) var(--base);
+/* A file's player and its transcript share one frame, so the two read as one
+   thing; the transcript scrolls inside it rather than stretching the form. */
+.frame {
+  overflow: hidden;
   border: 1px solid var(--theme-elevation-150);
   border-radius: var(--style-radius-m);
 }
 
 .player {
+  display: flex;
+  justify-content: center;
+  padding: calc(var(--base) / 2);
+  border-bottom: 1px solid var(--theme-elevation-150);
+  background-color: var(--theme-elevation-50);
+}
+
+.player audio {
   display: block;
   width: 100%;
-}
-
-/* Sized by its own shape, not stretched across the column: a portrait panel
-   video at full width would be a tall black box. */
-video.player {
-  align-self: flex-start;
-  width: auto;
-  max-width: 100%;
-  max-height: 20rem;
-  border-radius: var(--style-radius-m);
-}
-
-audio.player {
   height: 40px;
 }
 
-.language {
-  margin-top: var(--base);
+/* Sized by its own shape: a portrait panel video at full width would be a
+   tall black box. */
+.player video {
+  display: block;
+  max-width: 100%;
+  max-height: 20rem;
+  border-radius: var(--style-radius-s);
+}
+
+.scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--base);
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: calc(var(--base) * 0.75) var(--base);
 }
 
 .paragraph {
@@ -119,4 +126,8 @@ audio.player {
   content: '';
   flex: 1;
   border-top: 1px dashed var(--theme-elevation-200);
+}
+
+.language {
+  margin-top: var(--base);
 }

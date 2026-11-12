@@ -35,7 +35,8 @@ import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/component
 import { default as default_aa1cbd65eb0b3cec4fc40542c104a1d5 } from '@/components/admin/JobStageView/JobStageView'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
 import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
-import { default as default_67882b8ac8c55b70bc05df4fdc1ddda4 } from '@/components/admin/FileTranscriptPreview'
+import { default as default_3220668e43000b4a17318a2828bfa99d } from '@/components/admin/UploadTranscript'
+import { RecordingLanguageWarning as RecordingLanguageWarning_3220668e43000b4a17318a2828bfa99d } from '@/components/admin/UploadTranscript'
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
 import { FileTranscript as FileTranscript_e25816ba15d438aeaa450feef1831703 } from '@/components/admin/RecordingTranscript'
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
@@ -140,7 +141,8 @@ export const importMap = {
   "@/components/admin/JobStageView/JobStageView#default": default_aa1cbd65eb0b3cec4fc40542c104a1d5,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
   "@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell#default": default_f90b1f00bd5c69345510453a62d36e0a,
-  "@/components/admin/FileTranscriptPreview#default": default_67882b8ac8c55b70bc05df4fdc1ddda4,
+  "@/components/admin/UploadTranscript#default": default_3220668e43000b4a17318a2828bfa99d,
+  "@/components/admin/UploadTranscript#RecordingLanguageWarning": RecordingLanguageWarning_3220668e43000b4a17318a2828bfa99d,
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
   "@/components/admin/RecordingTranscript#FileTranscript": FileTranscript_e25816ba15d438aeaa450feef1831703,
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,

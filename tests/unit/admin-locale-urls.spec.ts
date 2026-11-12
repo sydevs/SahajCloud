@@ -18,12 +18,12 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { fileUrl } from '../../src/components/admin/FileTranscriptPreview/previewModel'
 import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/utils'
 import {
   transcribeUrl,
   transcriptUrl,
 } from '../../src/components/admin/RecordingTranscript/transcriptModel'
+import { fileUrl } from '../../src/components/admin/UploadTranscript/fileModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {

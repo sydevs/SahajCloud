@@ -1,11 +1,12 @@
 /**
  * @vitest-environment jsdom
  *
- * A file's Transcript panel — on the file's page and on a Path Step using the
- * file — reads along with a player of its own, where a meditation's follows
- * the live preview (`meditation-transcript-tab.spec.ts`). What this pins is
- * the part between the two: which element plays, what a click on a phrase
- * does to it, and how the element's playhead moves the mark.
+ * A file's Transcript panel — on the file's page and under a Path Step's
+ * upload field — reads along with a player framed with it, where a
+ * meditation's follows the live preview (`meditation-transcript-tab.spec.ts`).
+ * What this pins is the part between the two: which element plays, what a
+ * click on a phrase does to it, and how the element's playhead moves the mark;
+ * and which of the two places offers the spoken language, and warns of it.
  *
  * **Mocked at the Payload boundary only** — `@payloadcms/ui` and `swr`, with
  * the behaviours `meditation-transcript-tab.spec.ts` reads off the real thing.
@@ -24,6 +25,10 @@ import type { Transcript } from '@/payload-types'
 const stub = vi.hoisted(() => ({
   locale: 'cs' as string | undefined,
   swr: { data: undefined as unknown, error: undefined as unknown },
+  /** What a Path Step's file read answers: `/api/files?…`. */
+  file: undefined as unknown,
+  /** The upload field's value — the file id a Path Step holds. */
+  fieldValue: undefined as unknown,
   mutate: vi.fn(),
 }))
 
@@ -33,6 +38,8 @@ vi.mock('@payloadcms/ui', () => ({
   Button: ({ children, onClick }: { children?: ReactNode; onClick?: () => void }) =>
     createElement('button', { 'data-retry': 'true', onClick, type: 'button' }, children),
   ErrorIcon: () => null,
+  FieldDescription: ({ description }: { description?: string }) =>
+    createElement('div', { 'data-description': 'true' }, description),
   FieldLabel: ({ label }: { label?: string }) => createElement('label', null, label),
   InfoIcon: () => null,
   SelectInput: ({ label, value }: { label?: string; value?: string }) =>
@@ -42,13 +49,20 @@ vi.mock('@payloadcms/ui', () => ({
   SuccessIcon: () => null,
   toast: { error: vi.fn(), success: vi.fn() },
   useAuth: () => ({ user: { collection: 'managers', type: 'admin' } }),
-  useDocumentInfo: () => ({ data: {}, id: 3 }),
+  useDocumentInfo: () => ({ data: AUDIO, id: AUDIO.id }),
+  useField: () => ({ value: stub.fieldValue }),
+  useFieldPath: () => 'introAudio',
   useLocale: () => ({ code: stub.locale }),
   WarningIcon: () => null,
 }))
 
 vi.mock('swr', () => ({
-  default: () => ({ data: stub.swr.data, error: stub.swr.error, mutate: stub.mutate }),
+  default: (key: unknown) =>
+    typeof key === 'string' && key.startsWith('/api/files')
+      ? { data: { docs: stub.file ? [stub.file] : [] }, error: undefined, mutate: stub.mutate }
+      : key === null
+        ? { data: undefined, error: undefined, mutate: stub.mutate }
+        : { data: stub.swr.data, error: stub.swr.error, mutate: stub.mutate },
 }))
 
 const cue = (content: string, startTimeMs: number, endTimeMs: number) => ({
@@ -98,6 +112,8 @@ describe('a file’s Transcript panel', () => {
     vi.resetModules()
     stub.locale = 'cs'
     stub.swr = { data: { docs: [row()] }, error: undefined }
+    stub.file = AUDIO
+    stub.fieldValue = AUDIO.id
     play = vi.fn(() => Promise.resolve())
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -109,19 +125,37 @@ describe('a file’s Transcript panel', () => {
     container.remove()
   })
 
-  const render = async (file: TranscribedFile, checkLanguage = false) => {
-    const { FileRecordingTranscript } = await import('@/components/admin/RecordingTranscript')
-    act(() => {
-      root.render(
-        createElement(FileRecordingTranscript, { checkLanguage, file, label: 'Subtitles' }),
-      )
-    })
+  /** What a panel's player is made of in jsdom, which plays nothing. */
+  const playable = () => {
     const media = container.querySelector<HTMLMediaElement>('audio, video')
     if (media) {
       Object.defineProperty(media, 'currentTime', { configurable: true, value: 0, writable: true })
       media.play = play as never
     }
     return media
+  }
+
+  /** The player and transcript alone, as both pages frame them. */
+  const render = async (file: TranscribedFile) => {
+    const { FileRecordingTranscript } = await import('@/components/admin/RecordingTranscript')
+    const { useRecordingTranscript } =
+      await import('@/components/admin/RecordingTranscript/useRecordingTranscript')
+    function Harness() {
+      return createElement(FileRecordingTranscript, {
+        file,
+        transcript: useRecordingTranscript('files', file.id),
+      })
+    }
+    act(() => {
+      root.render(createElement(Harness))
+    })
+    return playable()
+  }
+
+  const mount = (component: unknown, props: Record<string, unknown> = {}) => {
+    act(() => {
+      root.render(createElement(component as never, props as never))
+    })
   }
 
   const phrases = () => [...container.querySelectorAll<HTMLElement>('[role="button"]')]
@@ -222,11 +256,37 @@ describe('a file’s Transcript panel', () => {
     })
   })
 
-  describe('the language', () => {
-    it('offers the spoken language once a run has answered', async () => {
+  describe('the frame', () => {
+    it('holds the player and the transcript together', async () => {
       await render(AUDIO)
 
+      const frame = container.querySelector('audio')?.parentElement?.parentElement
+      expect(frame?.querySelector('[role="button"]')).not.toBeNull()
+    })
+
+    it('frames the player alone while there is nothing to read yet', async () => {
+      stub.swr = {
+        data: { docs: [row({ segments: null, status: 'processing' })] },
+        error: undefined,
+      }
+      await render(AUDIO)
+
+      expect(container.querySelector('audio')).not.toBeNull()
+      expect(phrases()).toHaveLength(0)
+    })
+  })
+
+  describe('on the file’s own page', () => {
+    const mountFilePanel = async () => {
+      const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
+      mount(FileTranscript, { path: 'transcriptPanel' })
+    }
+
+    it('offers the spoken language once a run has answered', async () => {
+      await mountFilePanel()
+
       expect(container.querySelector('[data-select="Spoken language"]')?.textContent).toBe('cs')
+      expect(container.querySelector('audio')).not.toBeNull()
     })
 
     it('offers no language while a run is in flight', async () => {
@@ -234,23 +294,93 @@ describe('a file’s Transcript panel', () => {
         data: { docs: [row({ segments: null, status: 'processing' })] },
         error: undefined,
       }
-      await render(AUDIO)
+      await mountFilePanel()
 
       expect(container.querySelector('[data-select]')).toBeNull()
     })
+  })
 
-    it('warns when the recording is not in the language being edited', async () => {
-      stub.locale = 'fr'
-      await render(AUDIO, true)
+  describe('under a Path Step’s upload field', () => {
+    const description = 'Audio introduction to this lesson.'
+    const mountUnderField = async () => {
+      const { UploadTranscript } = await import('@/components/admin/UploadTranscript')
+      mount(UploadTranscript, { field: { admin: { description } }, path: 'introAudio' })
+    }
 
-      expect(text()).toContain('This recording is in Czech')
+    it('follows the field’s own description, with no label of its own', async () => {
+      await mountUnderField()
+
+      const shown = container.querySelector('[data-description]')
+      expect(shown?.textContent).toBe(description)
+      expect(shown?.nextElementSibling?.querySelector('audio')).not.toBeNull()
+      expect(container.querySelector('label')).toBeNull()
     })
 
-    it('warns of nothing for a panel video, shown to every language as it is', async () => {
-      stub.locale = 'fr'
-      await render(AUDIO, false)
+    // The language is corrected on the file, which every step using it shares.
+    it('offers no spoken language', async () => {
+      await mountUnderField()
 
-      expect(text()).not.toContain('This recording is in')
+      expect(phrases()).toHaveLength(SEGMENTS.length)
+      expect(container.querySelector('[data-select]')).toBeNull()
+    })
+
+    it('shows the description alone for a file with no transcript to have', async () => {
+      stub.file = { ...AUDIO, mimeType: 'image/png' }
+      await mountUnderField()
+
+      expect(container.querySelector('[data-description]')?.textContent).toBe(description)
+      expect(container.querySelector('audio')).toBeNull()
+      expect(phrases()).toHaveLength(0)
+    })
+
+    it('shows the description alone with no file chosen', async () => {
+      stub.fieldValue = null
+      stub.file = undefined
+      await mountUnderField()
+
+      expect(container.querySelector('[data-description]')).not.toBeNull()
+      expect(container.querySelector('audio')).toBeNull()
+    })
+  })
+
+  describe('the language warning above an intro recording', () => {
+    const mountWarning = async () => {
+      const { RecordingLanguageWarning } = await import('@/components/admin/UploadTranscript')
+      mount(RecordingLanguageWarning)
+    }
+
+    it('warns when the recording is in another language than the one edited', async () => {
+      stub.locale = 'fr'
+      await mountWarning()
+
+      expect(text()).toBe('This recording is in Czech, but you are editing French.')
+      expect(container.querySelector('[data-banner]')).not.toBeNull()
+    })
+
+    it('says nothing in the recording’s own language', async () => {
+      await mountWarning()
+
+      expect(container.innerHTML).toBe('')
+    })
+
+    // The language is detected, so a run still on its way has none to compare.
+    it('says nothing until a run has named a language', async () => {
+      stub.locale = 'fr'
+      stub.swr = {
+        data: { docs: [row({ language: null, segments: null, status: 'processing' })] },
+        error: undefined,
+      }
+      await mountWarning()
+
+      expect(container.innerHTML).toBe('')
+    })
+
+    it('says nothing with no file chosen', async () => {
+      stub.locale = 'fr'
+      stub.fieldValue = null
+      await mountWarning()
+
+      expect(container.innerHTML).toBe('')
     })
   })
 

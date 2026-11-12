@@ -52,12 +52,15 @@ video's subtitles, which is why `panels[].subtitles` is gone too.
   Cloudflare Stream reports it ready, and the run detects the language
   (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected on
   the file's Transcript panel, and a re-run there serves every step using it.
-- **Shown, never edited, here.** `introTranscript` and `mediaTranscript` are
-  `ui` fields rendering `FileTranscriptPreview`: the file's own Transcript panel
-  (`FileRecordingTranscript`) — a player, the transcript reading along with it,
-  and the spoken language — so a retry or a corrected language here serves every
-  step using the file. Spellings are corrected for every transcript by the
-  glossary (`src/collections/Transcripts/glossary.json`).
+- **Shown, never edited, here.** `introAudio` and `panels[].media` register
+  `UploadTranscript` as their `Description`, the one slot Payload renders after
+  an upload field's description, so the file's player and transcript read as
+  part of the field. `introAudio` also registers `RecordingLanguageWarning` as
+  `beforeInput`, a banner above the file when its recording is in another
+  language than the one being edited. The spoken language is corrected on the
+  file alone, and a retry here serves every step using it. Spellings are
+  corrected for every transcript by the glossary
+  (`src/collections/Transcripts/glossary.json`).
 - **Read by the app through the file**: `introAudio.subtitles` and
   `panels[].media.subtitles`, a virtual field on `files`, because a join on a
   populated upload answers bare ids at any depth.

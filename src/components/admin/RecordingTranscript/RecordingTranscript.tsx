@@ -66,15 +66,14 @@ const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
  * A recording's transcript as timed paragraphs, read along with `playback` and
  * played from a phrase on click or key. One view for every recording (#1016):
  * a meditation's Transcript tab follows its live preview, and an audio or video
- * file — on its own page, or on a Path Step using it — follows the player
- * passed in as `children`.
+ * file — on its own page, or on a Path Step using it — follows the `player`
+ * framed with it.
  */
 export function RecordingTranscript({
   transcript,
   playback,
   filename,
-  scrollable = false,
-  children,
+  player,
 }: {
   transcript: RecordingTranscriptState
   playback: Playback
@@ -83,10 +82,12 @@ export function RecordingTranscript({
    * recording — `RetryTranscript` reads the edited document's otherwise.
    */
   filename?: string | null
-  /** Bound the transcript's height and scroll inside it, for a panel among other fields. */
-  scrollable?: boolean
-  /** Between the notice and the transcript: a player, a language. */
-  children?: React.ReactNode
+  /**
+   * The element `playback` follows, when the recording has none of its own on
+   * the page. Given one, the player and the transcript share a frame, and the
+   * transcript scrolls inside it rather than stretching the form.
+   */
+  player?: React.ReactNode
 }) {
   const { error, loaded, phase, recordingId, refresh, relationTo, row, url } = transcript
   // Two memos, not one: `react-hooks/preserve-manual-memoization` refuses a
@@ -110,6 +111,23 @@ export function RecordingTranscript({
   if (!loaded) return <Spinner loadingText="Loading the transcript…" size="sm" />
 
   const notice = phase === 'completed' ? undefined : NOTICES[phase]
+  // The cues decide, never `status`: `deriveTranscriptStatus` answers
+  // `completed` from the cues alone, so gating on the string could disagree
+  // with what there is to read.
+  const body = segments.length > 0 && (
+    <div className={player ? styles.scroll : styles.paragraphs} ref={container}>
+      {paragraphs.map((paragraph) => (
+        <Paragraph
+          activeIndex={paragraph.segmentIndexes.includes(active) ? active : -1}
+          key={paragraph.segmentIndexes[0]}
+          onSeek={playback.playFrom}
+          paragraph={paragraph}
+          segments={segments}
+          startOf={playback.startOf}
+        />
+      ))}
+    </div>
+  )
 
   return (
     <div className={styles.transcript}>
@@ -137,26 +155,13 @@ export function RecordingTranscript({
           </InfoBanner>
         )}
       </div>
-      {children}
-      {/* The cues decide, never `status`: `deriveTranscriptStatus` answers
-          `completed` from the cues alone, so gating on the string could
-          disagree with what there is to read. */}
-      {segments.length > 0 && (
-        <div
-          className={scrollable ? `${styles.paragraphs} ${styles.scrollable}` : styles.paragraphs}
-          ref={container}
-        >
-          {paragraphs.map((paragraph) => (
-            <Paragraph
-              activeIndex={paragraph.segmentIndexes.includes(active) ? active : -1}
-              key={paragraph.segmentIndexes[0]}
-              onSeek={playback.playFrom}
-              paragraph={paragraph}
-              segments={segments}
-              startOf={playback.startOf}
-            />
-          ))}
+      {player ? (
+        <div className={styles.frame}>
+          <div className={styles.player}>{player}</div>
+          {body}
         </div>
+      ) : (
+        body
       )}
     </div>
   )

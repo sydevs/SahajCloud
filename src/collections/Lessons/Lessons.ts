@@ -16,6 +16,8 @@ import { introSubtitlesFromTranscript } from './hooks/introSubtitlesFromTranscri
  */
 const INTRO_AUDIO_FILTER = { mimeType: { equals: 'audio/mpeg' } } as const
 
+const UPLOAD_TRANSCRIPT = '@/components/admin/UploadTranscript'
+
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
   trash: true,
@@ -79,21 +81,9 @@ export const Lessons: CollectionConfig = {
                   relationTo: 'files',
                   admin: {
                     description: 'Image or video for this panel.',
-                  },
-                },
-                {
-                  // A panel video's subtitles are its file's transcript (#1016),
-                  // shown here and never stored on the step.
-                  name: 'mediaTranscript',
-                  type: 'ui',
-                  admin: {
-                    condition: (_, siblingData) => !!siblingData?.media,
-                    components: {
-                      Field: {
-                        path: '@/components/admin/FileTranscriptPreview',
-                        clientProps: { sourceField: 'media', label: 'Subtitles' },
-                      },
-                    },
+                    // A panel video's subtitles are its file's transcript
+                    // (#1016), shown under the field and never stored on the step.
+                    components: { Description: UPLOAD_TRANSCRIPT },
                   },
                 },
               ],
@@ -152,24 +142,13 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description:
                   'Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.',
-              },
-            },
-            {
-              // The recording's subtitles are its file's transcript (#1016):
-              // shown here, corrected on the file, and never stored on the step.
-              name: 'introTranscript',
-              type: 'ui',
-              admin: {
-                condition: (_, siblingData) => !!siblingData?.introAudio,
+                // The recording's subtitles are its file's transcript (#1016):
+                // shown under the field, corrected on the file, and never
+                // stored on the step. A panel video is shown to every language
+                // as it is, so only this field warns of another language.
                 components: {
-                  Field: {
-                    path: '@/components/admin/FileTranscriptPreview',
-                    clientProps: {
-                      sourceField: 'introAudio',
-                      label: 'Intro Subtitles',
-                      checkLanguage: true,
-                    },
-                  },
+                  beforeInput: [`${UPLOAD_TRANSCRIPT}#RecordingLanguageWarning`],
+                  Description: UPLOAD_TRANSCRIPT,
                 },
               },
             },
