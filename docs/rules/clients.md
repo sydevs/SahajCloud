@@ -171,6 +171,10 @@ stores. The key route writes nothing to the row, so no other field can change wi
 key stores `''` rather than `null`, so `LIST_ELIGIBLE` drops the service and
 `isMailingListConfigured` short-circuits the hook — a removal asks no provider.
 
+⚠ **A chosen provider with no key is refused**, by `validateMailingList` when a credential changed:
+no field `required` reaches a key the form never holds, and a key-less list reads as one while
+delivering nothing. So a removal clears the provider in the same save.
+
 ⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to
 the preview iframe on every change, so a key in form state would reach sahajatlas.com
 (`docs/rules/admin-ui.md`). Keeping it out is what lets the Clients preview exist at all.

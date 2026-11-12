@@ -61,14 +61,27 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   // omitted field from the stored document, decrypted — so `incoming.apiKey` is
   // the plaintext the provider must be asked about, new or stored.
 
-  // Incomplete credentials are Payload's `required` to refuse, not ours.
-  // Pinging with a blank key would answer "that API key was refused", blaming
-  // the operator for a field they have not filled in yet.
-  if (!isMailingListConfigured(incoming)) return data
   const changed = CREDENTIAL_KEYS.some((key) => incoming[key] !== previous?.[key])
   // Nothing a provider could have an opinion about has changed. It said yes to
   // these exact values when they were entered.
   if (!changed) return data
+
+  // ⚠ The key is no field `required` can reach — the form never holds it — so a
+  // chosen provider with no key is refused here. Saved, it would read as a list
+  // while delivering nothing, and `LIST_ELIGIBLE` would hand its region to the
+  // fallback client's list.
+  if (!incoming.apiKey) {
+    throw new APIError(
+      'Mailing list: set its API Key, or clear Mailing List Provider to switch the list off.',
+      400,
+      { code: 'mailing_list_no_key' },
+      true,
+    )
+  }
+
+  // The rest of an incomplete list is Payload's `required` to refuse. Pinging
+  // with a blank field would blame the key for a field not filled in yet.
+  if (!isMailingListConfigured(incoming)) return data
 
   const failure = await checkCredentials(incoming, req)
   if (failure) {

@@ -324,7 +324,7 @@ describe('Mailing-list key', () => {
       expect(await payload.kv.get(key)).toBeNull()
     })
 
-    it('clears the key when Save carries a removal, without asking the provider', async () => {
+    it('removes the key only with the provider, without asking the provider', async () => {
       const removable = await testData.createClient(payload, adminManager.id, {
         apiKey: 'removable-service-key-for-mailing-list-spec',
         label: 'Removable Service',
@@ -334,7 +334,17 @@ describe('Mailing-list key', () => {
       })
 
       verifiedWith = null
-      expect((await saveWith(listedRest, 'remove', removable.id)).status).toBe(200)
+      // A key-less list would read as one and deliver nothing.
+      const refused = await saveWith(listedRest, 'remove', removable.id)
+      expect(refused.status).toBe(400)
+      expect(JSON.stringify(refused.body)).toContain('clear Mailing List Provider')
+      expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBe(STORED_KEY)
+
+      const { status } = await listedRest(`/api/clients/${removable.id}`, {
+        json: { mailingList: { apiKeyChange: 'remove', provider: null } },
+        method: 'PATCH',
+      })
+      expect(status).toBe(200)
       // `''`, not `null`, so `isMailingListConfigured` short-circuits
       // `validateMailingList` and `LIST_ELIGIBLE` drops the service.
       expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBe('')
