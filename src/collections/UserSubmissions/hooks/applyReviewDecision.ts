@@ -32,7 +32,13 @@ export const applyReviewDecision: CollectionAfterChangeHook = async ({
 }) => {
   if (operation !== 'update') return doc
   // `applyReview`'s own write to this row forwards the same `req`.
-  if (context.skipSubmissionReview) return doc
+  //
+  // ⚠ **Keyed on the row, because the flag outlives the write that set it.**
+  // `createLocalReq` assigns a nested write's context onto the request it was
+  // handed, and a bulk update runs every document on one `req` — so a boolean
+  // here let one accept's follow-up write skip another row's decision, leaving
+  // it `accepted` with no event and no log entry.
+  if (context.skipSubmissionReview === (doc as UserSubmission).id) return doc
 
   const previous = previousDoc as UserSubmission
   const verdict = judgeTransition({

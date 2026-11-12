@@ -64,8 +64,10 @@ export async function applyReview(args: {
         // This write forwards the reviewing manager's `req`, so the review hook
         // would see it too. It moves no status, so the machine already answers
         // `unchanged` — the flag is the belt, because a recursion here would
-        // create an event per turn.
-        context: { skipSubmissionReview: true, skipWriteGuard: true },
+        // create an event per turn. ⚠ It names the row rather than saying
+        // "skip": the flag lands on the caller's own request and stays there, so
+        // a bare `true` silenced every later row of a bulk accept.
+        context: { skipSubmissionReview: submission.id, skipWriteGuard: true },
         req,
       })
     }

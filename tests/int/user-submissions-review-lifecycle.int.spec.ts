@@ -22,6 +22,7 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
+import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
@@ -628,6 +629,51 @@ describe('User submission review lifecycle', () => {
       // readable at all — which is why no toast had to carry it.
       expect(lastReviewEntry(after)?.managerId).toBe(regionManager.id)
       expect(lastReviewEntry(after)?.cells?.activity).toBe(`Accepted — event #${eventId} created`)
+    })
+
+    /**
+     * ⚠ **Two decisions on one request, which is what a bulk update is.**
+     * Payload runs every document of a bulk `update` on the same `req` — only
+     * `file` is isolated per document — and `createLocalReq` assigns a nested
+     * write's context onto the request it was handed. So the first accept's own
+     * follow-up write left its skip flag on the reviewer's request, and the
+     * second row reached `applyReviewDecision` already silenced: `accepted`,
+     * with no event created and no decision logged.
+     *
+     * Driven sequentially rather than through `payload.update({ where })`,
+     * because that operation processes its documents in parallel — the leak is
+     * the shared request, and asserting it through the race would be flaky.
+     */
+    it('applies a second decision made on the same request', async () => {
+      const first = await createProposal({
+        region: cityId,
+        proposed: { ...proposedAt('11 Bulk Rd'), schedule: WEEKLY_SCHEDULE },
+      })
+      const second = await createProposal({
+        region: cityId,
+        proposed: { ...proposedAt('12 Bulk Rd'), schedule: WEEKLY_SCHEDULE },
+      })
+
+      const req = await createLocalReq({ user: regionManager as never }, payload)
+      for (const { id } of [first, second]) {
+        await payload.update({
+          collection: 'user-submissions',
+          id,
+          data: { status: 'accepted' } as never,
+          overrideAccess: true,
+          req,
+        })
+      }
+
+      for (const { id } of [first, second]) {
+        const settled = await reload(id)
+        expect(settled.status).toBe('accepted')
+        const eventId = relationId(settled.event)
+        expect(eventId).toBeTruthy()
+        expect(lastReviewEntry(settled)?.cells?.activity).toBe(
+          `Accepted — event #${eventId} created`,
+        )
+      }
     })
 
     it('accept with an assigned manager adopts and verifies the created event', async () => {
