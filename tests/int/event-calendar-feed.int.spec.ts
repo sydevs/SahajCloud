@@ -45,6 +45,14 @@ const property = (ics: string, name: string) =>
     .find((eachLine) => eachLine.startsWith(`${name}:`))
     ?.slice(name.length + 1)
 
+/**
+ * A signature with one character changed, in bits every decoder reads. It has to be the
+ * first: base64url's last character of a 256-bit signature carries two bits no byte
+ * decodes, so changing that one leaves a token in sixteen byte-identical and authentic.
+ */
+const tamper = (signature: string) =>
+  `${signature.startsWith('A') ? 'B' : 'A'}${signature.slice(1)}`
+
 /** Whether the VEVENT declares a property, matched at the start of its own line. */
 const hasProperty = (ics: string, property: string) =>
   vevent(ics)
@@ -213,7 +221,7 @@ describe('event calendar feed', () => {
         // A class that never existed.
         anon(await feedPath(eventId + 10_000)),
         // One character of the signature changed.
-        anon(`/api/events/calendar/${header}.${claims}.${signature!.slice(0, -1)}x.ics`),
+        anon(`/api/events/calendar/${header}.${claims}.${tamper(signature!)}.ics`),
         // Not a token at all.
         anon('/api/events/calendar/not-a-token.ics'),
         // Authentic, signed with the same secret, minted for another link type.
