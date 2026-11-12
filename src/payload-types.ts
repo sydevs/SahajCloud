@@ -2433,7 +2433,7 @@ export interface Client {
    */
   title?: string | null;
   /**
-   * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
+   * This sets the Reply-To on registration emails, so replies reach you instead of us.
    */
   supportEmail?: string | null;
   /**

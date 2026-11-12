@@ -35,6 +35,7 @@ import {
   isAdminManager,
   managersOnlyFieldAccess,
 } from '@/plugins/access'
+import { USER_EMAIL_FROM } from '@/plugins/email/senders'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { clientEmailPreview } from './endpoints/emailPreview'
@@ -687,7 +688,9 @@ export const Clients: CollectionConfig = {
               type: 'email',
               admin: {
                 description:
-                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
+                  'This sets the Reply-To on registration emails, so replies reach you instead of us.',
+                // What a reply reaches with this left empty: the message's own sender.
+                placeholder: USER_EMAIL_FROM,
               },
             },
             {

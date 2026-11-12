@@ -64,7 +64,7 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
 
   return (
     <div className="field-type email-preview-field">
-      <Collapsible header="Preview registration email">
+      <Collapsible header="Preview registration email" initCollapsed>
         {html ? (
           // `sandbox` with nothing enabled: the markup is our own template, but it
           // carries a service's logo and title, and a preview has no reason to run

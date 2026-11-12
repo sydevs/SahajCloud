@@ -28,7 +28,7 @@ export function ResetColors() {
       onClick={() => fields.forEach((field) => field.setValue(null))}
       size="medium"
     >
-      Reset colors to defaults
+      Reset colors
     </Button>
   )
 }
