@@ -153,3 +153,33 @@ export const mailingListKey: Endpoint = {
   method: 'post',
   path: '/:id/mailing-list-key',
 }
+
+/**
+ * `DELETE /api/clients/:id/mailing-list-key`
+ *
+ * Clear the stored provider key. The list's other settings stay, and it reads
+ * as unconfigured until a key is set again, so nothing is delivered — no
+ * provider is asked, because there is nothing left to prove.
+ *
+ * Admin-panel only, so it skips the API-client guard: {@link authorize} admits
+ * `managers` callers alone.
+ */
+export const removeMailingListKey: Endpoint = {
+  handler: async (req) => {
+    const gate = await authorize(req)
+    if ('response' in gate) return gate.response
+
+    await req.payload.update({
+      collection: 'clients',
+      // `''`, not `null`: `LIST_ELIGIBLE` reads an unconfigured key as `not_equals: ''`.
+      data: { mailingList: { apiKey: '' } },
+      id: gate.client.id,
+      overrideAccess: false,
+      req,
+    })
+
+    return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
+  },
+  method: 'delete',
+  path: '/:id/mailing-list-key',
+}

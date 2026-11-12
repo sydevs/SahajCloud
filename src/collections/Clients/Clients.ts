@@ -33,7 +33,11 @@ import {
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { atlasWrites, isAtlasClient } from './access'
-import { mailingListKey, mailingListKeyStatus } from './endpoints/mailingListKey'
+import {
+  mailingListKey,
+  mailingListKeyStatus,
+  removeMailingListKey,
+} from './endpoints/mailingListKey'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -930,7 +934,13 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, mailingListKey, mailingListKeyStatus, verifyEmbedOnDemand],
+  endpoints: [
+    clientEmbedReport,
+    mailingListKey,
+    mailingListKeyStatus,
+    removeMailingListKey,
+    verifyEmbedOnDemand,
+  ],
   hooks: {
     beforeChange: [
       validateClientData,

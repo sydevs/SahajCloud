@@ -4,15 +4,18 @@ import type { UIFieldClientComponent } from 'payload'
 
 import {
   Button,
+  ConfirmationModal,
   FieldDescription,
   FieldError,
   FieldLabel,
   Modal,
   TextInput,
+  toast,
   useDocumentInfo,
   useField,
   useModal,
 } from '@payloadcms/ui'
+import { PlusIcon } from '@payloadcms/ui/icons/Plus'
 import { RefreshIcon } from '@payloadcms/ui/icons/Refresh'
 import React, { useCallback, useEffect, useState } from 'react'
 
@@ -22,6 +25,7 @@ import { MAILING_LIST_PROVIDER_LABELS } from '@/lib/mailingList/types'
 import './styles.css'
 
 const MODAL_SLUG = 'mailing-list-key'
+const REMOVE_MODAL_SLUG = 'mailing-list-key-remove'
 const MASK = '•'.repeat(20)
 
 /**
@@ -67,6 +71,17 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
     void loadStatus()
   }, [closeModal, loadStatus])
 
+  const removeKey = useCallback(async () => {
+    if (!endpoint) return
+    const response = await fetch(endpoint, { credentials: 'include', method: 'DELETE' })
+    if (!response.ok) {
+      toast.error('The API key could not be removed.')
+      return
+    }
+    toast.success('API key removed.')
+    await loadStatus()
+  }, [endpoint, loadStatus])
+
   if (!endpoint) return null
 
   const label = status?.set ? 'Replace API key' : 'Set API key'
@@ -88,7 +103,7 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
             aria-label={label}
             buttonStyle="none"
             className="mailing-list-key__replace-button"
-            icon={<RefreshIcon />}
+            icon={status?.set ? <RefreshIcon /> : <PlusIcon />}
             onClick={() => openModal(MODAL_SLUG)}
             tooltip={label}
           />
@@ -102,6 +117,25 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
           path="mailingList.apiKeyControl"
         />
       </div>
+      {status?.set ? (
+        <div className="mailing-list-key__actions">
+          <Button
+            buttonStyle="secondary"
+            className="mailing-list-key__remove-button"
+            onClick={() => openModal(REMOVE_MODAL_SLUG)}
+            size="small"
+          >
+            Remove API key
+          </Button>
+        </div>
+      ) : null}
+      <ConfirmationModal
+        body="The key is deleted, and nothing is sent to this mailing list until a new one is set. This cannot be undone."
+        confirmLabel="Remove"
+        heading="Remove API key?"
+        modalSlug={REMOVE_MODAL_SLUG}
+        onConfirm={removeKey}
+      />
       <Modal className="confirmation-modal" closeOnBlur={false} slug={MODAL_SLUG}>
         {isModalOpen(MODAL_SLUG) ? (
           <KeyForm
