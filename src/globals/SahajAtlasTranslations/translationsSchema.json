@@ -804,16 +804,6 @@
               "type": "string",
               "description": "Add-to-calendar menu item that downloads an .ics file."
             },
-            "calendar_keeps_updated": {
-              "type": "string",
-              "description": "Add-to-calendar sub-label under each menu row that subscribes, so later changes and cancellations arrive on their own.",
-              "maxLength": 40
-            },
-            "calendar_next_session_only": {
-              "type": "string",
-              "description": "Add-to-calendar sub-label under a menu row that can add the next session alone, not the whole series.",
-              "maxLength": 40
-            },
             "view_photo": {
               "type": "string",
               "description": "Image carousel: open the photo full size."

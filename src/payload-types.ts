@@ -9939,14 +9939,6 @@ export interface SyAtlasTranslationsEventActionsStrings {
    */
   download_ics?: string;
   /**
-   * Add-to-calendar sub-label under each menu row that subscribes, so later changes and cancellations arrive on their own.
-   */
-  calendar_keeps_updated?: string;
-  /**
-   * Add-to-calendar sub-label under a menu row that can add the next session alone, not the whole series.
-   */
-  calendar_next_session_only?: string;
-  /**
    * Image carousel: open the photo full size.
    */
   view_photo?: string;
