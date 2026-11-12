@@ -167,7 +167,9 @@ absent from the edit form's state, and encrypted at rest. Nothing reads it back 
 the Atlas tab's control shows only whether a key is stored and its last four characters. A new key
 is checked against the provider and list on the form (saved or not) in the set modal, then staged;
 the form's own Save applies it, and `validateMailingList` proves it again against what that Save
-stores. The key route writes nothing to the row, so no other field can change with it.
+stores. The key route writes nothing to the row, so no other field can change with it. Removing a
+key stores `''` rather than `null`, so `LIST_ELIGIBLE` drops the service and
+`isMailingListConfigured` short-circuits the hook — a removal asks no provider.
 
 ⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to
 the preview iframe on every change, so a key in form state would reach sahajatlas.com

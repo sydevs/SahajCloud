@@ -100,6 +100,14 @@ const SubmissionData: FieldServerComponent<Field, never, { part?: Part }> = asyn
  * The authored labels of the form a contact or subscribe row names, by block
  * name. Read in the editor's locale; a missing form (a registration, a deleted
  * form) labels nothing.
+ *
+ * ⚠ **`formValue` comes off the form body, and needs no gate** — the one
+ * server field component here that does not (#1126,
+ * `docs/rules/admin-ui.md`). `forms` keeps the form-builder plugin's
+ * `read: () => true`, because a public site renders a form anonymously
+ * (`src/plugins/formBuilder`), so a caller naming another form's id is handed
+ * block labels they could already read unauthenticated. Gating this would
+ * refuse nobody.
  */
 async function formLabels(
   payload: Payload,

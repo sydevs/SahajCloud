@@ -6,7 +6,6 @@ import {
   Button,
   FieldDescription,
   FieldError,
-  FieldLabel,
   Modal,
   TextInput,
   useDocumentInfo,
@@ -20,6 +19,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 
 import type { SecretControlConfig, SecretStaged, SecretStatus } from '@/fields/secretField/types'
 import { REMOVE, STAGE_PREFIX } from '@/fields/secretField/types'
+
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 import './styles.css'
 
@@ -81,16 +82,19 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
   )
 
   const label = config.label
-  const inputId = `field-${path.replace(/\./g, '__')}`
+  const style = mergeFieldStyles(field.admin)
 
   if (!endpoint) {
     return (
-      <div className="field-type text read-only secret-field">
-        <FieldLabel htmlFor={inputId} label={label} />
-        <div className="field-type__wrap">
-          <input disabled id={inputId} placeholder="Save this page first" type="text" />
-        </div>
-      </div>
+      <TextInput
+        className="secret-field"
+        label={label}
+        path={path}
+        placeholder="Save this page first"
+        readOnly
+        style={style}
+        value=""
+      />
     )
   }
 
@@ -106,25 +110,9 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
         : `No ${label} is set.`
 
   return (
-    <div className="field-type text read-only secret-field">
-      <FieldLabel htmlFor={inputId} label={label} />
-      <div className="field-type__wrap">
-        <div
-          className={[
-            'secret-field__input-wrap',
-            (staged || removing) && 'secret-field__input-wrap--pending',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <input
-            aria-label={label}
-            disabled
-            id={inputId}
-            placeholder={removing ? 'Removed on save' : 'Not set'}
-            type="text"
-            value={has ? `${MASK}${shown}` : ''}
-          />
+    <>
+      <TextInput
+        AfterInput={
           <Button
             aria-label={action}
             buttonStyle="none"
@@ -133,28 +121,41 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
             onClick={() => openModal(modalSlug)}
             tooltip={action}
           />
-        </div>
-        <FieldDescription description={description} path={path} />
-        {staged || removing ? (
-          <div className="secret-field__actions">
-            <Button buttonStyle="secondary" onClick={() => setValue(null)} size="small">
-              Undo
-            </Button>
+        }
+        className={['secret-field', (staged || removing) && 'secret-field--pending']
+          .filter(Boolean)
+          .join(' ')}
+        Description={
+          <div className="secret-field__footer">
+            <FieldDescription description={description} path={path} />
+            {staged || removing ? (
+              <Button buttonStyle="secondary" onClick={() => setValue(null)} size="small">
+                Undo
+              </Button>
+            ) : status?.set ? (
+              <Button
+                buttonStyle="secondary"
+                className="secret-field__remove-button"
+                onClick={() => setValue(REMOVE)}
+                size="small"
+              >
+                {`Remove ${label}`}
+              </Button>
+            ) : null}
           </div>
-        ) : status?.set ? (
-          <div className="secret-field__actions">
-            <Button
-              buttonStyle="secondary"
-              className="secret-field__remove-button"
-              onClick={() => setValue(REMOVE)}
-              size="small"
-            >
-              {`Remove ${label}`}
-            </Button>
-          </div>
-        ) : null}
-      </div>
-      <Modal className="confirmation-modal" closeOnBlur={false} slug={modalSlug}>
+        }
+        label={label}
+        path={path}
+        placeholder={removing ? 'Removed on save' : 'Not set'}
+        readOnly
+        style={style}
+        value={has ? `${MASK}${shown}` : ''}
+      />
+      <Modal
+        className="confirmation-modal secret-field__modal"
+        closeOnBlur={false}
+        slug={modalSlug}
+      >
         {isModalOpen(modalSlug) ? (
           <StageForm
             config={config}
@@ -168,7 +169,7 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
           />
         ) : null}
       </Modal>
-    </div>
+    </>
   )
 }
 

@@ -321,7 +321,7 @@ describe('Mailing-list key', () => {
       expect(await payload.kv.get(key)).toBeNull()
     })
 
-    it('clears the key when Save carries a removal', async () => {
+    it('clears the key when Save carries a removal, without asking the provider', async () => {
       const removable = await testData.createClient(payload, adminManager.id, {
         apiKey: 'removable-service-key-for-mailing-list-spec',
         label: 'Removable Service',
@@ -330,9 +330,28 @@ describe('Mailing-list key', () => {
         roles: ['sahaj-atlas-client'],
       })
 
+      verifiedWith = null
       expect((await saveWith(listedRest, 'remove', removable.id)).status).toBe(200)
-      expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBeFalsy()
+      // `''`, not `null`, so `isMailingListConfigured` short-circuits
+      // `validateMailingList` and `LIST_ELIGIBLE` drops the service.
+      expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBe('')
+      expect(lastVerified()).toBeNull()
       expect((await listedRest(secretUrl(removable.id))).body).toEqual({ last4: null, set: false })
+    })
+
+    it('ignores a removal from a manager the Atlas tab locks out', async () => {
+      // A save strips a field its lock refuses rather than erroring, so the
+      // answer is a 200 that must have changed nothing.
+      const appKey = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'locked-app-key-for-mailing-list-spec',
+        label: 'Locked App Key',
+        managers: [listedManager.id],
+        mailingList: { apiKey: STORED_KEY, listId: 'list-1', provider: 'mailchimp' },
+        roles: ['wemeditate-web-client'],
+      })
+
+      expect((await saveWith(listedRest, 'remove', appKey.id)).status).toBe(200)
+      expect((await readPrivileged(appKey.id)).mailingList?.apiKey).toBe(STORED_KEY)
     })
   })
 })

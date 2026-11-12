@@ -981,6 +981,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      recoverLostJobs: TaskRecoverLostJobs;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendDigests: TaskSendDigests;
@@ -1988,6 +1989,10 @@ export interface Event {
    * Registrants are offered a mailing list: this region, one above it, or the atlas fallback service has one switched on.
    */
   offersMailingList?: boolean | null;
+  /**
+   * Subscribable calendar address. Anyone holding it can subscribe.
+   */
+  calendarFeedUrl?: string | null;
   /**
    * Open listing-quality recommendations.
    */
@@ -3287,6 +3292,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
+          | 'recoverLostJobs'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendDigests'
@@ -3338,6 +3344,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
+        | 'recoverLostJobs'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendDigests'
@@ -5199,6 +5206,7 @@ export interface EventsSelect<T extends boolean = true> {
   nextCheckAt?: T;
   registrationsFull?: T;
   offersMailingList?: T;
+  calendarFeedUrl?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
   systemMeta?: T;
@@ -11019,6 +11027,16 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRecoverLostJobs".
+ */
+export interface TaskRecoverLostJobs {
+  input?: unknown;
+  output: {
+    cancelled: number;
   };
 }
 /**

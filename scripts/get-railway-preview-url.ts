@@ -42,9 +42,9 @@
  *                    refused the statuses read with 401/403, the preview
  *                    never became healthy, it never caught up with this
  *                    PR's head commit, or it cannot say which commit it
- *                    serves at all. All of them are broken configuration
- *                    rather than an absent preview, and must not read as
- *                    green.
+ *                    serves at all. None of them is an absent preview, so
+ *                    none may read as green. The error names which one it
+ *                    was, because only some of them are Railway's to fix.
  *
  * It writes `preview_url=<url>` to $GITHUB_OUTPUT and `PREVIEW_URL=<url>`
  * to $GITHUB_ENV.
@@ -53,7 +53,8 @@ import { appendFileSync } from 'node:fs'
 
 import {
   discoverPreview,
-  servingVerdict,
+  HEALTH_ERRORS,
+  pollHealth,
   StatusFetchError,
   type CommitStatus,
 } from './railway-preview-status'
@@ -86,50 +87,16 @@ async function fetchStatuses(): Promise<CommitStatus[]> {
 }
 
 /**
- * Wait until the preview answers AND is serving this PR's own head commit.
+ * Fetch and parse one `/api/health` answer.
  *
- * ⚠ **Healthy is not caught up.** A preview pushed to twice in quick succession
- * answers `/api/health` from the previous build for as long as the new one takes
- * to deploy, so a lane that waited for health alone filled and tested the change
- * before this one. `unknown` is terminal rather than waited out: it means
- * Railway stopped injecting `RAILWAY_GIT_COMMIT_SHA`, so no amount of waiting
- * will answer, and testing an unidentified build is the thing this prevents.
- *
- * The poll reaches the Railway host on the one path the preview gate exempts, so
- * it still needs no credential.
+ * The poll reaches the Railway host on the one path the preview gate exempts,
+ * so it still needs no credential. A non-ok response rejects, because an error
+ * page is not an answer about any commit.
  */
-async function waitServing(
-  url: string,
-  sha: string,
-): Promise<'behind' | 'ok' | 'silent' | 'unknown'> {
-  const deadline = Date.now() + HEALTH_TIMEOUT_MS
-  let attempt = 0
-  // ⚠ Which failure it was decides what the error tells the reader to look at.
-  // Reported as "behind", a preview that never answered at all sent them to
-  // Railway's deploy list for a build that was down.
-  let answered = false
-  while (Date.now() < deadline) {
-    attempt++
-    try {
-      const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
-      if (res.ok) {
-        answered = true
-        const verdict = servingVerdict(await res.json(), sha)
-        if (verdict === 'serving') {
-          console.error(`preview serving ${sha} after ${attempt} attempt(s)`)
-          return 'ok'
-        }
-        if (verdict === 'unknown') return 'unknown'
-        console.error(`health attempt ${attempt}: healthy, still on an earlier commit`)
-      } else {
-        console.error(`health attempt ${attempt}: HTTP ${res.status}`)
-      }
-    } catch (err) {
-      console.error(`health attempt ${attempt}: ${(err as Error).message}`)
-    }
-    await sleep(POLL_INTERVAL_MS)
-  }
-  return answered ? 'behind' : 'silent'
+async function fetchHealth(url: string): Promise<unknown> {
+  const res = await fetch(`${url}${HEALTH_PATH}`, { signal: AbortSignal.timeout(10_000) })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
 }
 
 function exportUrl(url: string): void {
@@ -218,33 +185,17 @@ async function main(): Promise<void> {
   }
 
   console.error(`preview URL: ${outcome.url}`)
-  const serving = await waitServing(outcome.url, SHA)
-  if (serving === 'unknown') {
-    console.error(
-      '::error title=Railway preview does not report its commit::`/api/health` answered with ' +
-        '`commit: unknown`, so which build is serving cannot be established. Railway injects ' +
-        '`RAILWAY_GIT_COMMIT_SHA`; without it the preview cannot be filled or tested as this ' +
-        "change's. Re-running will not help.",
-    )
-    exportUrl('')
-    process.exit(1)
-  }
-  if (serving === 'behind') {
-    console.error(
-      '::error title=Railway preview never caught up::The preview answered but kept serving an ' +
-        'earlier commit for the whole budget, so testing it would have reported on the previous ' +
-        "push. Check the PR environment's deploy list in Railway.",
-    )
-    exportUrl('')
-    process.exit(1)
-  }
-
-  if (serving === 'silent') {
-    console.error(
-      '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
-        'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
-        "the PR environment's deploy logs in Railway.",
-    )
+  const serving = await pollHealth({
+    fetchHealth: () => fetchHealth(outcome.url),
+    expectedSha: SHA,
+    timeoutMs: HEALTH_TIMEOUT_MS,
+    pollIntervalMs: POLL_INTERVAL_MS,
+    sleep,
+    now: Date.now,
+    log: console.error,
+  })
+  if (serving !== 'serving') {
+    console.error(HEALTH_ERRORS[serving])
     exportUrl('')
     process.exit(1)
   }

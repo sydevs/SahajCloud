@@ -407,6 +407,58 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
     },
   },
 
+  '/api/events/calendar/{token}.ics': {
+    get: {
+      tags: ['Events'],
+      summary: "Subscribe to one class's calendar feed",
+      description:
+        'One class as an iCalendar (RFC 5545) document, for a calendar app to ' +
+        '**subscribe** to rather than download. Carries the full recurrence with a ' +
+        '`VTIMEZONE` component, a stable `UID`, and `REFRESH-INTERVAL` / ' +
+        '`X-PUBLISHED-TTL` refresh hints.\n\n' +
+        '**No API key is accepted, and none is needed.** A calendar service fetches ' +
+        'this server-side on a subscriber’s behalf, carrying no credential, no ' +
+        '`Origin` and no `Referer`, so the signed `token` in the path is the whole ' +
+        'access control. Read it off `calendarFeedUrl` on `GET /api/events/{id}`; it ' +
+        'cannot be derived from the class. These fetches are counted in no site’s ' +
+        'usage figures.\n\n' +
+        '**A withdrawn class answers `STATUS:CANCELLED` for 90 days**, with the same ' +
+        '`UID` and a higher `SEQUENCE`, so a subscribed calendar removes it without ' +
+        'the subscriber doing anything. After that window it is a 404, as is a class ' +
+        'whose schedule has fully run out.\n\n' +
+        '⚠ **The refresh hints are hints.** Apple’s interval is a user setting, ' +
+        'Google publishes none, and an Outlook importer may ignore ' +
+        '`X-PUBLISHED-TTL` outright. Expect a change to be picked up within a day.',
+      operationId: 'eventCalendarFeed',
+      // ⚠ Clears the spec-wide `API-Key` requirement `specFilter` applies to every
+      // operation. Left inherited, the published contract would demand a credential
+      // this endpoint accepts none of, contradicting its own description.
+      security: [],
+      parameters: [
+        {
+          name: 'token',
+          in: 'path',
+          required: true,
+          description:
+            "The class's signed feed token, taken from `calendarFeedUrl`. The `.ics` " +
+            'suffix is part of the path, not of the token.',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'The iCalendar document.',
+          content: { 'text/calendar': { schema: { type: 'string' } } },
+        },
+        '404': errorResponse(
+          'No such feed. An unknown, tampered or wrong-kind token, a path not ending ' +
+            '`.ics`, a finished class, and one withdrawn more than 90 days ago are ' +
+            'deliberately indistinguishable.',
+        ),
+      },
+    },
+  },
+
   /**
    * Registered so the contract is written down and reachable from
    * `/api/openapi-raw.json`, but `clients` is in `ALWAYS_HIDDEN_COLLECTIONS`
