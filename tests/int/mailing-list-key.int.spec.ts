@@ -246,6 +246,33 @@ describe('Mailing-list key', () => {
       expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
     })
 
+    it('refuses a DELETE from a manager who does not manage the service', async () => {
+      const { status } = await outsideRest(`/api/clients/${service.id}/mailing-list-key`, {
+        method: 'DELETE',
+      })
+
+      expect(status).toBe(404)
+      expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
+    })
+
+    it('refuses a DELETE on a service with no atlas role', async () => {
+      // ⚠ The one half `payload.update`'s own access cannot cover. A listed
+      // manager holds `update` on the row, and Payload strips a field the Atlas
+      // tab's lock refuses rather than erroring — so a DELETE handler that
+      // skipped `authorize` would answer 200 for a clear that cleared nothing.
+      const appKey = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'app-key-for-mailing-list-delete-spec',
+        label: 'App Key (delete)',
+        managers: [listedManager.id],
+        roles: ['wemeditate-web-client'],
+      })
+      const { status } = await listedRest(`/api/clients/${appKey.id}/mailing-list-key`, {
+        method: 'DELETE',
+      })
+
+      expect(status).toBe(403)
+    })
+
     it('stores nothing when the provider refuses the key', async () => {
       providerVerdict = 'That API key was refused.'
       const { body, status } = await listedRest(`/api/clients/${service.id}/mailing-list-key`, {
@@ -270,6 +297,24 @@ describe('Mailing-list key', () => {
       const hint = await adminRest(`/api/clients/${service.id}/mailing-list-key`)
       expect(hint.status).toBe(200)
       expect(hint.body).toEqual({ last4: '4321', set: true })
+    })
+
+    it('clears the stored key without asking the provider', async () => {
+      // `''`, not `null`, so `isMailingListConfigured` short-circuits
+      // `validateMailingList`: there is nothing left to prove, and a provider
+      // outage must not refuse the clear.
+      verifiedWith = null
+      const { status } = await listedRest(`/api/clients/${service.id}/mailing-list-key`, {
+        method: 'DELETE',
+      })
+
+      expect(status).toBe(200)
+      expect((await readPrivileged()).mailingList?.apiKey).toBe('')
+      expect(lastVerified()).toBeNull()
+      expect((await adminRest(`/api/clients/${service.id}/mailing-list-key`)).body).toEqual({
+        last4: null,
+        set: false,
+      })
     })
   })
 })
