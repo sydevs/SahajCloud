@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { syncCommunityFeedback } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import {
   RESEND_FROM,
   SUBMISSION_MACHINE,
@@ -248,5 +249,64 @@ describe('transition', () => {
         write: vi.fn(),
       }),
     ).rejects.toThrow(/cannot move verification stage from finished to verified/)
+  })
+})
+
+/**
+ * The one caller whose claim travels through a `write` of its own.
+ *
+ * `syncCommunityFeedback` runs inside a visitor's vote, where a throw rolls the
+ * vote back (#842) — so the claim is what keeps an adoption landing mid-recount
+ * from reaching the guard as a move `community` does not hold.
+ */
+describe('syncCommunityFeedback', () => {
+  const votedDown = async (stage: VerificationStage) => {
+    const update = vi.fn().mockResolvedValue({ docs: [{ id: 7 }], errors: [] })
+    const payload = {
+      update,
+      logger: { info: vi.fn() },
+      findDistinct: vi.fn(
+        async ({ where }: { where: { and: { eventFeedback?: { equals: string } }[] } }) => ({
+          // Six denials and nothing else: past `DENIAL_MINIMUM`, and a Wilson
+          // upper bound the threshold clears, so the verdict is `denied`.
+          totalDocs: where.and.some((clause) => clause.eventFeedback?.equals === 'denied') ? 6 : 0,
+        }),
+      ),
+      findByID: vi.fn().mockResolvedValue({ id: 7, verificationStage: stage, systemMeta: {} }),
+    } as unknown as Payload
+
+    await syncCommunityFeedback({
+      collection: { slug: 'user-submissions' },
+      context: {},
+      data: { type: 'registration', event: 7, eventFeedback: 'denied' },
+      doc: {} as UserSubmission,
+      operation: 'update',
+      previousDoc: { eventFeedback: null } as unknown as UserSubmission,
+      req: { payload, context: {}, user: null },
+    } as never)
+
+    return update
+  }
+
+  it('claims the stage it read, so an adoption mid-recount survives', async () => {
+    const update = await votedDown('unverified')
+
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          and: [{ id: { equals: 7 } }, { verificationStage: { equals: 'unverified' } }],
+        },
+      }),
+    )
+    expect(update.mock.calls[0]![0].data).toMatchObject({
+      _status: 'draft',
+      verificationStage: 'denied',
+    })
+  })
+
+  it('writes only the tally once the listing is nobody-to-deny', async () => {
+    const update = await votedDown('verified')
+
+    expect(update.mock.calls[0]![0].data.verificationStage).toBeUndefined()
   })
 })

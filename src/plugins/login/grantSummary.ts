@@ -3,8 +3,8 @@ import type { CollectionSlug, Field, Payload, PayloadRequest, Where } from 'payl
 import { flattenAllFields } from 'payload'
 
 import type { EventListingProgress } from '@/emails/EventVerificationEmail'
-import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
+import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { buildEventListingProgress } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'

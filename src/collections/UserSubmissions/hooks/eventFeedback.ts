@@ -1,4 +1,9 @@
-import type { CollectionAfterChangeHook, CollectionBeforeChangeHook, RequestContext } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeChangeHook,
+  RequestContext,
+  Where,
+} from 'payload'
 
 import { APIError } from 'payload'
 
@@ -171,13 +176,14 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
   // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
   const systemReq = asSystemReq(req)
-  const write = (data: EventBookkeeping, context?: RequestContext) =>
+  const write = (data: EventBookkeeping, context?: RequestContext, expect?: Where) =>
     updateEventBookkeeping({
       payload: req.payload,
       id: eventId,
       data,
       context: { ...context, skipWriteGuard: true },
       req: systemReq,
+      expect,
     })
 
   if (verdict.denied && event.verificationStage === 'unverified') {
@@ -190,7 +196,11 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
       to: 'denied',
       by: 'community',
       data: { ...tally, _status: 'draft' },
-      write: ({ data, context }) => write(data as EventBookkeeping, context),
+      // ⚠ The claim is forwarded, so a manager who adopted the class between
+      // the read above and this write keeps it. Unclaimed, the write reaches
+      // `guardVerificationStage` with a stage no `community` move starts from,
+      // and the refusal it throws rolls back the visitor's vote (#842).
+      write: ({ data, expect, context }) => write(data as EventBookkeeping, context, expect),
     })
     return doc
   }

@@ -189,10 +189,7 @@ describe('summarizeGrants', () => {
   })
 
   it('marks a class the community had voted down, from the tally the adoption left', async () => {
-    const { payload } = fakePayload(
-      {},
-      { events: [TUESDAY, FLAGGED, DISPUTED], regions: [BERLIN] },
-    )
+    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED, DISPUTED], regions: [BERLIN] })
 
     // ⚠ Only the invitation asks for a brief: the preview sign-in picker
     // summarises up to 25 accounts to print one line each, and would pay for a
