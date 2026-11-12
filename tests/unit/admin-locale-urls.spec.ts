@@ -22,8 +22,8 @@ import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/util
 import {
   transcribeUrl,
   transcriptUrl,
-} from '../../src/components/admin/RecordingTranscript/transcriptModel'
-import { fileUrl } from '../../src/components/admin/RecordingTranscript/transcriptModel'
+} from '../../src/components/admin/TranscriptPanel/transcriptModel'
+import { fileUrl } from '../../src/components/admin/TranscriptPanel/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {

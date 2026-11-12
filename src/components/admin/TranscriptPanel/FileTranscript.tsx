@@ -12,9 +12,9 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { File } from '@/payload-types'
 
 import { useMediaPlayback } from './playback'
-import { RecordingTranscript } from './RecordingTranscript'
 import { fileUrl } from './transcriptModel'
-import { useRecordingTranscript } from './useRecordingTranscript'
+import { TranscriptPanel } from './TranscriptPanel'
+import { useTranscript } from './useTranscript'
 
 /** What the panel reads off a file: enough to play it and to name it. */
 export type TranscribedFile = Pick<File, 'filename' | 'mimeType' | 'mp4Url' | 'url'> & {
@@ -34,7 +34,7 @@ export function FileTranscript({
   /** Folded closed: under a Path Step's upload, since a step carries one per panel video. */
   collapsible?: boolean
 }) {
-  const transcript = useRecordingTranscript('files', file.id)
+  const transcript = useTranscript('files', file.id)
   const { mediaRef, playback } = useMediaPlayback()
   const kind = transcribableMedia(file.mimeType)
   // A video plays from its Stream MP4, which answers 404 until Stream has made
@@ -45,7 +45,7 @@ export function FileTranscript({
   const src = kind === 'audio' ? file.url : kind === 'video' && !waiting ? file.mp4Url : null
 
   return (
-    <RecordingTranscript
+    <TranscriptPanel
       collapsible={collapsible}
       filename={file.filename}
       playback={playback}

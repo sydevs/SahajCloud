@@ -26,6 +26,7 @@ import type { Payload } from 'payload'
 import { extractID } from 'payload/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { spokenLanguageOf, transcriptUrl } from '@/components/admin/TranscriptPanel/transcriptModel'
 import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
 import { transcribeStreamVideo } from '@/lib/transcripts/sync'
 import type { File, Lesson, Transcript } from '@/payload-types'
@@ -329,6 +330,25 @@ describe('file transcripts', () => {
 
       expect((await transcriptOf(file.id))?.segments).toHaveLength(2)
       expect(await queuedRunsFor(file.id)).toHaveLength(1)
+    })
+
+    // The mismatch warning reads the language off the panel's own poll, so the
+    // query `transcriptUrl` builds has to bring it — and bring nothing else of
+    // the file, which an editor may read whole.
+    it("comes back on the panel's transcript read, and nothing else of the file", async () => {
+      const file = await completed()
+
+      const { status, body } = await editor(transcriptUrl(file.id, 'cs', 'files')!)
+
+      expect(status).toBe(200)
+      const row = (body as { docs: Transcript[] }).docs[0]
+      expect(spokenLanguageOf(row)).toBe('cs')
+      // `deletedAt` is Payload's own, added to every populated trash-enabled row.
+      expect(Object.keys(row?.source.value as object).sort()).toEqual([
+        'deletedAt',
+        'id',
+        'spokenLanguage',
+      ])
     })
 
     // Every editor role holds `files: create` and no `update`, so the language

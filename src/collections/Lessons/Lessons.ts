@@ -83,7 +83,7 @@ export const Lessons: CollectionConfig = {
                   admin: {
                     components: {
                       Field: {
-                        path: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                        path: '@/components/admin/TranscriptPanel#FileTranscriptField',
                         clientProps: { fileField: 'media' },
                       },
                     },
@@ -148,7 +148,7 @@ export const Lessons: CollectionConfig = {
                 // A panel video is shown to every language as it is, so only
                 // this field warns of a recording in another language.
                 components: {
-                  beforeInput: ['@/components/admin/RecordingTranscript#RecordingLanguageWarning'],
+                  beforeInput: ['@/components/admin/TranscriptPanel#RecordingLanguageWarning'],
                 },
               },
             },
@@ -161,7 +161,7 @@ export const Lessons: CollectionConfig = {
               admin: {
                 components: {
                   Field: {
-                    path: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                    path: '@/components/admin/TranscriptPanel#FileTranscriptField',
                     clientProps: { fileField: 'introAudio' },
                   },
                 },

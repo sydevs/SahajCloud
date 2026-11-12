@@ -23,7 +23,7 @@ export const SUBTITLE_CUE_MAX_CHARS = 30
  * A silence this long ends a cue, whatever its length.
  *
  * The value is the transcript tab's own paragraph break
- * (`RecordingTranscript/transcriptModel.ts`), taken rather than picked so one
+ * (`TranscriptPanel/transcriptModel.ts`), taken rather than picked so one
  * pause reads as a break on both screens the day this shipped. Nothing holds
  * the two together since: they answer different questions, and tuning one is
  * not a reason to tune the other.

@@ -1,14 +1,9 @@
 'use client'
 
-import { toast, useLocale } from '@payloadcms/ui'
-import { useCallback, useState } from 'react'
+import { useLocale } from '@payloadcms/ui'
 import useSWR from 'swr'
 
-import {
-  type PayloadList,
-  payloadListFetcher,
-  refusalMessage,
-} from '@/components/admin/helpers/payloadListFetcher'
+import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
 import { transcriptPhase, type TranscriptPhase } from '@/lib/transcripts/bounds'
 import type { RecordingCollection } from '@/lib/transcripts/media'
 import type { Transcript } from '@/payload-types'
@@ -17,8 +12,6 @@ import { transcribeUrl, transcriptUrl } from './transcriptModel'
 import { useTranscriptPhase } from './useTranscriptPhase'
 
 const POLL_INTERVAL_MS = 3000
-
-const REQUEST_FAILED = 'Could not ask for a transcript.'
 
 type TranscriptList = PayloadList<Transcript>
 
@@ -41,7 +34,7 @@ const rowOf = (list: TranscriptList | undefined): Transcript | undefined => list
 const pollInterval = (latest?: TranscriptList): number =>
   transcriptPhase(rowOf(latest)) === 'pending' ? POLL_INTERVAL_MS : 0
 
-export type RecordingTranscriptState = {
+export type TranscriptState = {
   /** `null` without a recording id or an admin locale — `transcriptUrl` says why. */
   url: string | null
   /** False until the first read answers. */
@@ -49,10 +42,10 @@ export type RecordingTranscriptState = {
   error: unknown
   row: Transcript | undefined
   phase: TranscriptPhase
-  /** Ask for the recording to be transcribed again, then re-read the row, which restarts the poll. */
-  request: () => Promise<void>
-  /** A request is on its way. */
-  requesting: boolean
+  /** Where a retry posts, or `null` where `url` is (`transcribeUrl`). */
+  transcribeUrl: string | null
+  /** Read the row again, which restarts the poll. */
+  reread: () => void
 }
 
 /**
@@ -64,10 +57,10 @@ export type RecordingTranscriptState = {
  * a row's own Edit page, opened once; this one sits beside a player an editor
  * is listening to while a run finishes.
  */
-export function useRecordingTranscript(
+export function useTranscript(
   relationTo: RecordingCollection,
   recordingId: number | string | undefined,
-): RecordingTranscriptState {
+): TranscriptState {
   const { code } = useLocale()
   const url = transcriptUrl(recordingId, code, relationTo)
   const { data, error, mutate } = useSWR(url, readTranscripts, {
@@ -76,48 +69,15 @@ export function useRecordingTranscript(
   })
   const row = rowOf(data)
   const phase = useTranscriptPhase(row)
-  const [requesting, setRequesting] = useState(false)
-
-  const request = useCallback(async () => {
-    // No locale, no request: one resolves the default locale server-side and
-    // reproduces the #701 403 silently — see `transcriptUrl`.
-    const target = transcribeUrl(recordingId, code, relationTo)
-    if (!target) {
-      toast.error(REQUEST_FAILED)
-      return
-    }
-    setRequesting(true)
-    try {
-      const response = await fetch(target, { credentials: 'include', method: 'POST' })
-      const body: unknown = await response.json().catch(() => null)
-      if (response.ok) {
-        toast.success('Transcribing the recording again.')
-      } else {
-        toast.error(refusalMessage(body) ?? REQUEST_FAILED)
-        // ⚠ **A refusal can mean the row moved on.** A run slower than the
-        // stall bound that then finishes reads `stalled` here and `completed`
-        // on the server — and nothing polls a phase that offers a retry, so
-        // without a re-read the panel keeps a notice the server disagrees
-        // with. A 429 is the one refusal that leaves the row as it is here.
-        if (response.status === 429) return
-      }
-      // SWR's own re-read, not `router.refresh()`: this state is SWR's, not
-      // the route's. It restarts the poll (`pollInterval`).
-      void mutate()
-    } catch {
-      toast.error(REQUEST_FAILED)
-    } finally {
-      setRequesting(false)
-    }
-  }, [code, mutate, recordingId, relationTo])
-
   return {
     error,
     loaded: data !== undefined,
     phase,
-    request,
-    requesting,
+    // SWR's own re-read, not `router.refresh()`: this state is SWR's, not the
+    // route's. It restarts the poll (`pollInterval`).
+    reread: () => void mutate(),
     row,
+    transcribeUrl: transcribeUrl(recordingId, code, relationTo),
     url,
   }
 }

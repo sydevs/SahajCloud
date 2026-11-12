@@ -14,7 +14,7 @@ import {
   exactSecond,
   groupTranscript,
   seekSecond,
-} from '@/components/admin/RecordingTranscript/transcriptModel'
+} from '@/components/admin/TranscriptPanel/transcriptModel'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 const cue = (startTimeMs: number, endTimeMs: number): TranscriptSegment => ({

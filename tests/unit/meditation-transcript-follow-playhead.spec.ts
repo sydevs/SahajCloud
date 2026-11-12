@@ -13,7 +13,7 @@ import { act, createElement, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useFollowPlayhead } from '@/components/admin/RecordingTranscript/useFollowPlayhead'
+import { useFollowPlayhead } from '@/components/admin/TranscriptPanel/useFollowPlayhead'
 
 const scrollIntoView = vi.fn()
 

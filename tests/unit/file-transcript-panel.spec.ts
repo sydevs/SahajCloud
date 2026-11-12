@@ -19,7 +19,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { TranscribedFile } from '@/components/admin/RecordingTranscript'
+import type { TranscribedFile } from '@/components/admin/TranscriptPanel'
 import type { Transcript } from '@/payload-types'
 
 const stub = vi.hoisted(() => ({
@@ -163,7 +163,7 @@ describe('a file’s Transcript panel', () => {
 
   /** The player and transcript alone, as both places frame them. */
   const render = async (file: TranscribedFile) => {
-    const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
+    const { FileTranscript } = await import('@/components/admin/TranscriptPanel')
     act(() => {
       root.render(createElement(FileTranscript, { file }))
     })
@@ -309,7 +309,7 @@ describe('a file’s Transcript panel', () => {
 
   describe('on the file’s own page', () => {
     const mountFilePanel = async () => {
-      const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
+      const { FileTranscriptField } = await import('@/components/admin/TranscriptPanel')
       mount(FileTranscriptField, { path: 'transcriptPanel' })
     }
 
@@ -333,7 +333,7 @@ describe('a file’s Transcript panel', () => {
 
   describe('under a Path Step’s upload field', () => {
     const mountUnderField = async () => {
-      const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
+      const { FileTranscriptField } = await import('@/components/admin/TranscriptPanel')
       mount(FileTranscriptField, { fileField: 'introAudio', path: 'introTranscript' })
     }
 
@@ -387,7 +387,7 @@ describe('a file’s Transcript panel', () => {
 
   describe('the language warning above an intro recording', () => {
     const mountWarning = async () => {
-      const { RecordingLanguageWarning } = await import('@/components/admin/RecordingTranscript')
+      const { RecordingLanguageWarning } = await import('@/components/admin/TranscriptPanel')
       mount(RecordingLanguageWarning)
     }
 

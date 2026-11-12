@@ -6,8 +6,8 @@ import { useDocumentInfo } from '@payloadcms/ui'
 import React from 'react'
 
 import { useLivePreviewPlayback } from './playback'
-import { RecordingTranscript } from './RecordingTranscript'
-import { useRecordingTranscript } from './useRecordingTranscript'
+import { TranscriptPanel } from './TranscriptPanel'
+import { useTranscript } from './useTranscript'
 
 /**
  * A meditation's Transcript tab. It reads along with the live preview, which
@@ -19,10 +19,10 @@ import { useRecordingTranscript } from './useRecordingTranscript'
  */
 export const MeditationTranscriptField: UIFieldClientComponent = () => {
   const { data, id } = useDocumentInfo()
-  const transcript = useRecordingTranscript('meditations', id)
+  const transcript = useTranscript('meditations', id)
   const playback = useLivePreviewPlayback()
   return (
-    <RecordingTranscript
+    <TranscriptPanel
       filename={data?.filename as string | null | undefined}
       playback={playback}
       recordingLocale={data?.locale}

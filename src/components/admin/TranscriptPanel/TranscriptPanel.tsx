@@ -1,7 +1,7 @@
 'use client'
 
 import type { Playback } from './playback'
-import type { RecordingTranscriptState } from './useRecordingTranscript'
+import type { TranscriptState } from './useTranscript'
 
 import { Collapsible, Spinner } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
@@ -12,13 +12,13 @@ import { InfoBanner, type InfoBannerType } from '@/components/admin/InfoBanner'
 import type { TranscriptPhase } from '@/lib/transcripts/bounds'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
-import styles from './RecordingTranscript.module.css'
 import {
   activeSegmentIndex,
   groupTranscript,
   seekSecond,
   type TranscriptParagraph,
 } from './transcriptModel'
+import styles from './TranscriptPanel.module.css'
 import { useFollowPlayhead } from './useFollowPlayhead'
 import { useRetryTranscript } from './useRetryTranscript'
 
@@ -66,7 +66,7 @@ const NOTICES: Record<Exclude<TranscriptPhase, 'completed'>, Notice> = {
  * file — on its own page, or on a Path Step using it — follows the `player`
  * framed with it.
  */
-export function RecordingTranscript({
+export function TranscriptPanel({
   transcript,
   playback,
   filename,
@@ -74,7 +74,7 @@ export function RecordingTranscript({
   player,
   collapsible = false,
 }: {
-  transcript: RecordingTranscriptState
+  transcript: TranscriptState
   playback: Playback
   /** The recording's stored filename: without one there is nothing to transcribe. */
   filename: string | null | undefined

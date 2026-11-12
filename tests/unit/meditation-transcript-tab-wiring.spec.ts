@@ -16,7 +16,7 @@ import { collections } from '@/collections'
  * import map, and that `transcriptPanel` does not shadow the `transcript` join.
  */
 
-const PANEL = '@/components/admin/RecordingTranscript#MeditationTranscriptField'
+const PANEL = '@/components/admin/TranscriptPanel#MeditationTranscriptField'
 
 const isTabs = (field: Field): field is TabsField => field.type === 'tabs'
 

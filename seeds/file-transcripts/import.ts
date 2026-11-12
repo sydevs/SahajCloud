@@ -9,7 +9,7 @@
  * cues into transcripts.
  *
  * Each missing transcript is created the way an upload creates one
- * (`syncRecordingTranscript`), so its run is queued and started by the
+ * (`replaceTranscript`), so its run is queued and started by the
  * transcript's own hook, on the target's own server and with its own vendor key.
  * Re-running finds nothing left to do. `--dry-run` counts the files and stops.
  *

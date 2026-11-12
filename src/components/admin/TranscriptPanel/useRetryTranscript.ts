@@ -1,14 +1,18 @@
 'use client'
 
-import type { RecordingTranscriptState } from './useRecordingTranscript'
+import type { TranscriptState } from './useTranscript'
 
-import { useAuth, useLocale } from '@payloadcms/ui'
+import { toast, useAuth, useLocale } from '@payloadcms/ui'
+import { useState } from 'react'
 
+import { refusalMessage } from '@/components/admin/helpers/payloadListFetcher'
 import type { InfoBannerAction } from '@/components/admin/InfoBanner'
 import { retranscribeWaitLabel, transcriptPhaseIsRetryable } from '@/lib/transcripts/bounds'
 
 import { mayTranscribeLocale } from './transcriptModel'
 import { useRetryCooldown } from './useTranscriptPhase'
+
+const REQUEST_FAILED = 'Could not ask for a transcript.'
 
 /**
  * The Transcribe-again action for the notice that says why a transcript needs
@@ -28,25 +32,58 @@ import { useRetryCooldown } from './useTranscriptPhase'
  *   refuses a non-admin manager outside the language they are editing in
  *   (`mayTranscribeLocale`).
  * - **The cooldown** becomes a sentence naming the wait.
+ *
+ * The click posts the request and re-reads the row, which restarts the poll.
  */
 export function useRetryTranscript({
   transcript,
   filename,
   recordingLocale,
 }: {
-  transcript: RecordingTranscriptState
+  transcript: TranscriptState
   filename: string | null | undefined
   /** The recording's own language: a meditation's `locale`. A file has none. */
   recordingLocale?: unknown
 }): { action?: InfoBannerAction; wait?: string } {
   const { code: locale } = useLocale()
   const { user } = useAuth()
-  const { phase, request, requesting, row } = transcript
+  const { phase, reread, row, transcribeUrl } = transcript
   const cooldownMs = useRetryCooldown(row?.createdAt)
+  const [requesting, setRequesting] = useState(false)
 
   if (!transcriptPhaseIsRetryable(phase) || !filename) return {}
   if (!mayTranscribeLocale(user, locale, recordingLocale)) return {}
   if (cooldownMs > 0) return { wait: retranscribeWaitLabel(cooldownMs) }
+
+  const request = async () => {
+    // No locale, no request: one resolves the default locale server-side and
+    // reproduces the #701 403 silently — see `transcriptUrl`.
+    if (!transcribeUrl) {
+      toast.error(REQUEST_FAILED)
+      return
+    }
+    setRequesting(true)
+    try {
+      const response = await fetch(transcribeUrl, { credentials: 'include', method: 'POST' })
+      const body: unknown = await response.json().catch(() => null)
+      if (response.ok) {
+        toast.success('Transcribing the recording again.')
+      } else {
+        toast.error(refusalMessage(body) ?? REQUEST_FAILED)
+        // ⚠ **A refusal can mean the row moved on.** A run slower than the
+        // stall bound that then finishes reads `stalled` here and `completed`
+        // on the server — and nothing polls a phase that offers a retry, so
+        // without a re-read the panel keeps a notice the server disagrees
+        // with. A 429 is the one refusal that leaves the row as it is here.
+        if (response.status === 429) return
+      }
+      reread()
+    } catch {
+      toast.error(REQUEST_FAILED)
+    } finally {
+      setRequesting(false)
+    }
+  }
 
   const label = phase === 'none' ? 'Transcribe' : 'Transcribe again'
   return {

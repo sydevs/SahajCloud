@@ -9,7 +9,7 @@ import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { spokenLanguageOf } from './transcriptModel'
-import { useRecordingTranscript } from './useRecordingTranscript'
+import { useTranscript } from './useTranscript'
 
 /**
  * Above an upload field narrated per language — a Path Step's intro audio — a
@@ -24,7 +24,7 @@ export function RecordingLanguageWarning() {
   const path = useFieldPath()
   const { value } = useField<unknown>({ path })
   const { code } = useLocale()
-  const { row } = useRecordingTranscript('files', relationId(value) ?? undefined)
+  const { row } = useTranscript('files', relationId(value) ?? undefined)
   const language = spokenLanguageOf(row)
 
   // The rule Launch Readiness reads too, so the two cannot disagree.

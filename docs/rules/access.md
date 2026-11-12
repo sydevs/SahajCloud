@@ -60,16 +60,16 @@ This only works because the authenticated user loads **four times**, not once. `
 
 **The condition is the gate, not the call.** `grep "fetch('/api/"` over `src/components` finds more call sites than this rule governs, so check what the target does before you "fix" one:
 
-| Call site                                                                         | Sends the locale? | Why                                                                                                |
-| --------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                            | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
-| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`                     | **Yes**           | The collection read gate does                                                                      |
-| `RecordingTranscript/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
-| `RecordingTranscript/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
-| `RecordingTranscript/transcriptModel.ts` → `POST /api/files/:id/transcribe`       | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
-| `RecordingTranscript/transcriptModel.ts` → `/api/files`                           | **Yes**           | The collection read gate does                                                                      |
-| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`         | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
-| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                         | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
+| Call site                                                                     | Sends the locale? | Why                                                                                                |
+| ----------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `FrameEditor/utils.ts` → `/api/frames/by-narrator/:id`                        | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `ThumbnailCell/relationshipDocLoader.ts` → `/api/:collection`                 | **Yes**           | The collection read gate does                                                                      |
+| `TranscriptPanel/transcriptModel.ts` → `/api/transcripts`                     | **Yes**           | The collection read gate does, and it is the SWR key, so it must carry the locale twice over       |
+| `TranscriptPanel/transcriptModel.ts` → `POST /api/meditations/:id/transcribe` | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `TranscriptPanel/transcriptModel.ts` → `POST /api/files/:id/transcribe`       | **Yes**           | The endpoint's permission gate resolves `req.locale`                                               |
+| `TranscriptPanel/transcriptModel.ts` → `/api/files`                           | **Yes**           | The collection read gate does                                                                      |
+| `ProjectSelector.tsx`, `ProjectContext.tsx` → `/api/managers/set-project`     | No                | Gated on `requireActiveManager`, then reads with `overrideAccess: true` — no per-locale check runs |
+| `TranslationsRow/useEnglishTranslation.ts` → `?locale=en`                     | Pinned to `en`    | It wants the English **text** for translators, not the caller's roles. Admin-only today            |
 
 Submission review was a **Yes** row of its own until #909 put it on Payload's own document form. `DocumentInfo` builds the form `action` with `qs.stringify({ depth: 0, 'fallback-locale': 'null', locale, … })`, so a review that submits the form carries the locale without anything here arranging it — which is the cheapest way to satisfy this rule: don't hand-roll the call.
 

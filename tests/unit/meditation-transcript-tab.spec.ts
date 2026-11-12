@@ -163,7 +163,7 @@ describe('the Transcript tab', () => {
     stub.iframe = iframeRef
 
     MeditationTranscriptField = (
-      await import('@/components/admin/RecordingTranscript/MeditationTranscriptField')
+      await import('@/components/admin/TranscriptPanel/MeditationTranscriptField')
     ).MeditationTranscriptField
 
     container = document.createElement('div')

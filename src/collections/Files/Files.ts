@@ -115,7 +115,7 @@ export const Files: CollectionConfig = {
       type: 'ui',
       label: 'Transcript',
       admin: {
-        components: { Field: '@/components/admin/RecordingTranscript#FileTranscriptField' },
+        components: { Field: '@/components/admin/TranscriptPanel#FileTranscriptField' },
       },
     },
   ],

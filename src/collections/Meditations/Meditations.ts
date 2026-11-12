@@ -469,7 +469,7 @@ export const Meditations: CollectionConfig = {
                       type: 'ui',
                       admin: {
                         components: {
-                          Field: '@/components/admin/RecordingTranscript#MeditationTranscriptField',
+                          Field: '@/components/admin/TranscriptPanel#MeditationTranscriptField',
                         },
                       },
                     },
