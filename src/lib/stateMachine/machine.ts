@@ -19,6 +19,13 @@ import type { PayloadRequest } from 'payload'
  * `name` is how a collection's own `afterChange` knows which decision it is
  * acting on; the work stays in that hook. A machine that needs more wants
  * XState, not a bigger version of this (#1120).
+ *
+ * ⚠ **The conditions widen the limit #1121 set — a table, a lookup and the
+ * claim — and that was the price of one table rather than two.** A review
+ * decision is a row only if a row can carry the condition it turns on, so
+ * folding `reviewMove` in brought `when`, `person` and `refusal` with it. Each
+ * stays pure and nothing but the guard reads one, which is what kept the
+ * actions, the nested states and the timers out behind them.
  */
 
 /** A move's `from` standing for every state: the job's "any stage → finished". */
