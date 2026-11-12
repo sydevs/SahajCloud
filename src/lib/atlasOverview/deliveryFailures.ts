@@ -4,7 +4,6 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { UserSubmission } from '@/payload-types'
 
-import { countNote } from './countNote'
 import { listPath } from './listPath'
 
 /**
@@ -72,7 +71,7 @@ export async function failedDeliveriesPath(req: PayloadRequest): Promise<`/${str
 
 /**
  * Deliveries still unsent, and the sentence the admin digest shows — `null`
- * when everything went out.
+ * when everything went out, so the caller leaves the line out.
  *
  * No window, unlike the spam count: a failed send stays failed until somebody
  * sends it again, so an old one is no less undelivered than today's.
@@ -81,10 +80,18 @@ export async function failedDeliveries(args: {
   overrideAccess: boolean
   req: PayloadRequest
 }): Promise<null | { count: number; text: string }> {
-  return countNote({
-    ...args,
-    where: await failedDeliveriesWhere(args.req),
-    text: (count) =>
-      `${count} message${count === 1 ? '' : 's'} could not be delivered and can be sent again`,
+  const { overrideAccess, req } = args
+
+  const { totalDocs: count } = await req.payload.count({
+    collection: 'user-submissions',
+    where: await failedDeliveriesWhere(req),
+    overrideAccess,
+    req: localeIsolatedReq(req),
   })
+
+  if (count === 0) return null
+  return {
+    count,
+    text: `${count} message${count === 1 ? '' : 's'} could not be delivered and can be sent again`,
+  }
 }
