@@ -35,7 +35,7 @@ import { hasDirective, SRC, sourceOf } from '../utils/importGraph'
 // here cannot drift from the one those guards walk.
 const inFolder = (file: string) => join(SRC, 'components/admin/JobStageView', file)
 
-// The server half. `CheckAgain.tsx` is deliberately not here: it carries the
+// The server half. `WaitingNotice.tsx` is deliberately not here: it carries the
 // click that re-reads the stage, so it is the folder's one client component
 // and is asserted as such below.
 const VIEW_FILES = ['JobStageView.tsx', 'stages.ts'].map(inFolder)
@@ -242,7 +242,7 @@ describe('the view itself', () => {
    * handed the `req` and `payload` props the fall-through forwards.
    */
   it("keeps the refresh control as the folder's only client component", () => {
-    expect(hasDirective(inFolder('CheckAgain.tsx'), 'use client')).toBe(true)
+    expect(hasDirective(inFolder('WaitingNotice.tsx'), 'use client')).toBe(true)
   })
 
   it('stays a server component that fetches nothing', () => {

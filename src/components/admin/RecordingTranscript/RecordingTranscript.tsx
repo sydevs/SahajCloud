@@ -9,11 +9,10 @@ import React, { memo, useMemo, useRef } from 'react'
 
 import { formatTime } from '@/components/admin/FrameEditor'
 import { InfoBanner, type InfoBannerType } from '@/components/admin/InfoBanner'
-import { type TranscriptPhase, transcriptPhaseIsRetryable } from '@/lib/transcripts/bounds'
+import type { TranscriptPhase } from '@/lib/transcripts/bounds'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 import styles from './RecordingTranscript.module.css'
-import { RetryTranscript } from './RetryTranscript'
 import {
   activeSegmentIndex,
   groupTranscript,
@@ -21,6 +20,7 @@ import {
   type TranscriptParagraph,
 } from './transcriptModel'
 import { useFollowPlayhead } from './useFollowPlayhead'
+import { useRetryTranscript } from './useRetryTranscript'
 
 type Notice = {
   type: InfoBannerType
@@ -100,6 +100,7 @@ export function RecordingTranscript({
   const active = activeSegmentIndex(segments, playback.seconds, playback.startOf)
   const container = useRef<HTMLDivElement>(null)
   useFollowPlayhead(container, active, segments.length > 0)
+  const retry = useRetryTranscript({ filename, recordingLocale, transcript })
 
   if (!url) {
     return <InfoBanner type="error">The transcript cannot load without an admin locale.</InfoBanner>
@@ -137,21 +138,13 @@ export function RecordingTranscript({
       <div aria-live="polite" className={styles.status} role="status">
         {notice && (
           <InfoBanner
-            action={
-              transcriptPhaseIsRetryable(phase) && (
-                <RetryTranscript
-                  filename={filename}
-                  label={phase === 'none' ? 'Transcribe' : 'Transcribe again'}
-                  recordingLocale={recordingLocale}
-                  transcript={transcript}
-                />
-              )
-            }
+            action={retry.action}
             icon={notice.spinner ? <Spinner loadingText={null} size="sm" /> : undefined}
             title={notice.title}
             type={notice.type}
           >
             {notice.detail ?? row?.error}
+            {retry.wait && <div>You can ask for it again in {retry.wait}.</div>}
           </InfoBanner>
         )}
       </div>
