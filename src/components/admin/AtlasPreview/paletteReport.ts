@@ -7,7 +7,7 @@
  * (sydevs/SahajAtlasWeb#392).
  */
 
-import type { BrandColorColumn } from '@/lib/clients/appearance'
+import { ATLAS_DEFAULT_COLORS, isBrandColor, type BrandColorColumn } from '@/lib/clients/appearance'
 
 export const PALETTE_REPORT_MESSAGE = 'sahaj-atlas:palette-report'
 
@@ -29,11 +29,13 @@ const ROLE_OF_COLUMN: Record<BrandColorColumn, string> = {
   color3: 'contrast',
 }
 
-export interface ColorAdjustment {
+export interface Swatch {
+  /** Whether the widget moved this colour's swatch away from what was entered. */
+  adjusted: boolean
   /** The solid visitors see, in light mode. */
   light: string
   reasons: string[]
-  /** A seed that renders unchanged — `null` where no seed can express the correction. */
+  /** A seed that renders unchanged — `null` where none is needed or none can express it. */
   suggested: null | string
 }
 
@@ -41,38 +43,50 @@ const isHex = (value: unknown): value is string =>
   typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
 
 /**
- * One colour's adjustment out of a palette report, or `null` when there is none
- * to show: another message, a swatch the widget left alone, or a report about
- * a colour other than `current`.
+ * What visitors see for one colour, out of a palette report, or `null` when the
+ * report cannot say: another message, or a report about a colour other than
+ * `current`.
+ *
+ * An unset colour is the Atlas default, which the widget reports nothing about,
+ * so it is shown as that default and never as adjusted.
  *
  * ⚠ **Matched against the field's current value.** A report describes the
  * colour it was computed from, so one that arrives late, or outlives a closed
  * preview, must not label a colour it never saw.
  */
-export function readAdjustment(
+export function readSwatch(
   data: unknown,
   column: BrandColorColumn,
   current: null | string | undefined,
-): ColorAdjustment | null {
+): null | Swatch {
   const message = data as { roles?: Record<string, unknown>; type?: unknown } | null
 
   if (message?.type !== PALETTE_REPORT_MESSAGE) return null
+
+  if (!isBrandColor(current)) {
+    return {
+      adjusted: false,
+      light: ATLAS_DEFAULT_COLORS[column].toUpperCase(),
+      reasons: [],
+      suggested: null,
+    }
+  }
 
   const report = message.roles?.[ROLE_OF_COLUMN[column]] as
     { adjustedBy?: unknown; entered?: unknown; light?: unknown; suggested?: unknown } | undefined
 
   if (!report || !Array.isArray(report.adjustedBy)) return null
   if (!isHex(report.light) || typeof report.entered !== 'string') return null
-  if (report.entered.toLowerCase() !== current?.toLowerCase()) return null
+  if (report.entered.toLowerCase() !== current.toLowerCase()) return null
 
   const checks = report.adjustedBy.filter((check) => check !== 'panel-text')
-
-  if (checks.length === 0) return null
+  const adjusted = checks.length > 0
 
   return {
+    adjusted,
     light: report.light.toUpperCase(),
     // A check this CMS has no words for still counts, just without a reason.
     reasons: checks.flatMap((check) => SWATCH_REASONS[check as string] ?? []),
-    suggested: isHex(report.suggested) ? report.suggested : null,
+    suggested: adjusted && isHex(report.suggested) ? report.suggested : null,
   }
 }

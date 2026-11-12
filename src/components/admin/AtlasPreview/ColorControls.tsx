@@ -9,7 +9,7 @@ import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import { BRAND_COLOR_LABELS, isBrandColor, type BrandColorColumn } from '@/lib/clients/appearance'
 import { originOf } from '@/lib/utilities/url'
 
-import { readAdjustment, type ColorAdjustment } from './paletteReport'
+import { readSwatch, type Swatch } from './paletteReport'
 
 import './ColorControls.scss'
 
@@ -41,38 +41,61 @@ export const ColorControls: UIFieldClientComponent = () => {
     color3: useField<null | string>({ path: 'color3' }),
   }
 
-  const adjusted = COLUMNS.flatMap((column) => {
-    const adjustment = readAdjustment(report, column, fields[column].value)
+  const swatches = COLUMNS.map((column) => {
+    const swatch = readSwatch(report, column, fields[column].value)
 
-    return adjustment ? [{ column, ...adjustment }] : []
+    return swatch ? { column, ...swatch } : null
   })
-  const suggestions = adjusted.filter((item) => item.suggested)
+  // All three or none: a colour the report has not caught up with yet would
+  // leave a gap that reads as a colour visitors do not see.
+  const complete = swatches.every((swatch) => swatch !== null)
+  const shown = complete && swatches.some((swatch) => swatch.adjusted) ? swatches : null
+  const suggestions = (shown ?? []).filter((swatch) => swatch.suggested)
   const anyCustom = COLUMNS.some((column) => isBrandColor(fields[column].value))
 
   // ⚠ Keyed on the panel's `url`, not on the ref alone. `autoOpen` opens the panel
   // after this field has mounted, so an effect depending only on stable values
-  // runs while there is no iframe and never attaches — leaving the atlas on its
-  // own theme until the first change, with the control claiming otherwise.
+  // runs while there is no iframe and never attaches.
   useEffect(() => {
     const frame = iframeRef?.current
     if (!frame) return
 
     // The iframe's own origin, read at send time: a reload can land elsewhere.
-    // Re-posted on every load, because a reload starts the atlas on its default.
     const post = () => {
       const origin = originOf(frame.src)
       if (origin) frame.contentWindow?.postMessage({ mode, type: PREVIEW_MODE_MESSAGE }, origin)
     }
 
-    post()
-    frame.addEventListener('load', post)
+    // ⚠ **Sent again on the atlas's first message after each load**, not on the load
+    // alone. The atlas listens only once it has verified its preview token, which
+    // is after `load`, so a mode posted then is dropped and the map keeps the
+    // viewer's system theme while the toggle says otherwise. Its first message is
+    // the earliest proof it is listening; answering only the first keeps the
+    // repaint each mode change causes from echoing back forever.
+    let heard = false
+    const onLoad = () => {
+      heard = false
+      post()
+    }
+    const onMessage = (event: MessageEvent) => {
+      if (heard || event.source !== frame.contentWindow) return
+      heard = true
+      post()
+    }
 
-    return () => frame.removeEventListener('load', post)
+    post()
+    frame.addEventListener('load', onLoad)
+    window.addEventListener('message', onMessage)
+
+    return () => {
+      frame.removeEventListener('load', onLoad)
+      window.removeEventListener('message', onMessage)
+    }
   }, [iframeRef, mode, url])
 
   return (
     <div className="field-type color-controls">
-      {adjusted.length > 0 ? <AdjustedSummary adjusted={adjusted} /> : null}
+      {shown ? <AdjustedSummary swatches={shown} /> : null}
       <div className="color-controls__row">
         <ToggleGroup
           aria-label="Map preview"
@@ -111,12 +134,13 @@ export const ColorControls: UIFieldClientComponent = () => {
   )
 }
 
-/** One line for every adjusted colour, with every reason in a single tooltip. */
-function AdjustedSummary({
-  adjusted,
-}: {
-  adjusted: Array<ColorAdjustment & { column: BrandColorColumn }>
-}) {
+/**
+ * All three colours as visitors see them, the adjusted ones badged, with every
+ * reason in a single tooltip.
+ */
+function AdjustedSummary({ swatches }: { swatches: Array<Swatch & { column: BrandColorColumn }> }) {
+  const adjusted = swatches.filter((swatch) => swatch.adjusted)
+
   const [show, setShow] = useState(false)
 
   return (
@@ -129,10 +153,10 @@ function AdjustedSummary({
       tabIndex={0}
     >
       <span>Visitors see adjusted colors</span>
-      {adjusted.map((item) => (
+      {swatches.map((item) => (
         <span
-          aria-label={`${BRAND_COLOR_LABELS[item.column]} ${item.light}`}
-          className="color-controls__swatch"
+          aria-label={`${BRAND_COLOR_LABELS[item.column]} ${item.light}${item.adjusted ? ', adjusted' : ''}`}
+          className={`color-controls__swatch${item.adjusted ? ' color-controls__swatch--adjusted' : ''}`}
           key={item.column}
           role="img"
           style={{ backgroundColor: item.light }}
