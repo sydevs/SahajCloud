@@ -1,6 +1,7 @@
 'use client'
 
-import { useLocale } from '@payloadcms/ui'
+import { useDocumentInfo, useLocale } from '@payloadcms/ui'
+import { useEffect, useRef } from 'react'
 import useSWR from 'swr'
 
 import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
@@ -56,6 +57,12 @@ export type TranscriptState = {
  * ⚠ **It polls where `JobStageView` deliberately does not.** That view serves
  * a row's own Edit page, opened once; this one sits beside a player an editor
  * is listening to while a run finishes.
+ *
+ * ⚠ **On the recording's own page, a save re-reads the row.** A save that
+ * replaces the recording or changes its language replaces the transcript too
+ * (`syncTranscriptOnSave`), and nothing polls a finished one, so without this
+ * the panel keeps the old cues until a reload — a save that looks like it did
+ * nothing. `lastUpdateTime` is what Payload's edit view moves on every save.
  */
 export function useTranscript(
   relationTo: RecordingCollection,
@@ -69,6 +76,22 @@ export function useTranscript(
   })
   const row = rowOf(data)
   const phase = useTranscriptPhase(row)
+
+  const document = useDocumentInfo()
+  const savedAt =
+    document.collectionSlug === relationTo &&
+    recordingId !== undefined &&
+    String(document.id) === String(recordingId)
+      ? document.lastUpdateTime
+      : undefined
+  // The value at mount is the page load, which SWR is already reading.
+  const lastSave = useRef(savedAt)
+  useEffect(() => {
+    if (savedAt === lastSave.current) return
+    lastSave.current = savedAt
+    void mutate()
+  }, [mutate, savedAt])
+
   return {
     error,
     loaded: data !== undefined,

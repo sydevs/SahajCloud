@@ -31,6 +31,11 @@ const stub = vi.hoisted(() => ({
   fieldValue: undefined as unknown,
   /** The saved document on the file's own page. */
   doc: undefined as Partial<TranscribedFile> | undefined,
+  /** Which collection the edited document is in, and when it was last saved. */
+  collectionSlug: 'files' as string,
+  lastUpdateTime: 1,
+  /** What the create form's upload holds: the `File` an editor chose. */
+  upload: undefined as unknown,
   mutate: vi.fn(),
 }))
 
@@ -58,17 +63,24 @@ vi.mock('@payloadcms/ui', () => ({
   ErrorIcon: () => null,
   FieldLabel: ({ label }: { label?: string }) => createElement('label', null, label),
   InfoIcon: () => null,
+  SelectField: ({ path }: { path?: string }) => createElement('div', { 'data-select-field': path }),
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   SuccessIcon: () => null,
   toast: { error: vi.fn(), success: vi.fn() },
   useAuth: () => ({ user: { collection: 'managers', type: 'admin' } }),
-  useDocumentInfo: () => ({ data: stub.doc, id: stub.doc?.id }),
+  useDocumentInfo: () => ({
+    collectionSlug: stub.collectionSlug,
+    data: stub.doc,
+    id: stub.doc?.id,
+    lastUpdateTime: stub.lastUpdateTime,
+  }),
   useField: () => ({ value: stub.fieldValue }),
   useFieldPath: () => 'introAudio',
-  // The form's fields by path, as the upload field beside the transcript holds them.
+  // The form's fields by path: the upload field beside the transcript, and the
+  // create form's own upload.
   useFormFields: (select: (context: [Record<string, { value: unknown }>]) => unknown) =>
-    select([{ introAudio: { value: stub.fieldValue } }]),
+    select([{ file: { value: stub.upload }, introAudio: { value: stub.fieldValue } }]),
   useLocale: () => ({ code: stub.locale }),
   WarningIcon: () => null,
 }))
@@ -140,6 +152,10 @@ describe('a file’s Transcript panel', () => {
     stub.file = AUDIO
     stub.fieldValue = AUDIO.id
     stub.doc = AUDIO
+    stub.collectionSlug = 'files'
+    stub.lastUpdateTime = 1
+    stub.upload = undefined
+    stub.mutate.mockClear()
     play = vi.fn(() => Promise.resolve())
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -329,6 +345,54 @@ describe('a file’s Transcript panel', () => {
 
       expect(container.innerHTML).toBe('')
     })
+
+    // A save that changes the language or the recording replaces the row, and
+    // a finished row is not polled — so the save itself has to re-read it.
+    it('reads the transcript again when the file is saved, and not on load', async () => {
+      await mountFilePanel()
+      expect(stub.mutate).not.toHaveBeenCalled()
+
+      stub.lastUpdateTime = 2
+      await mountFilePanel()
+
+      expect(stub.mutate).toHaveBeenCalledOnce()
+    })
+  })
+
+  describe('the Spoken language field', () => {
+    const mountLanguage = async () => {
+      const { SpokenLanguageField } = await import('@/components/admin/TranscriptPanel')
+      mount(SpokenLanguageField, { path: 'spokenLanguage' })
+    }
+    const shown = () => container.querySelector('[data-select-field]') !== null
+    const chosen = (name: string, type: string) => new File([''], name, { type })
+
+    // The title takes the first two values, so the object comes last.
+    it.each([
+      ['a saved audio file', true, AUDIO],
+      ['a saved video file', true, VIDEO],
+      ['a saved image', false, { ...AUDIO, mimeType: 'image/png' }],
+    ])('on %s: shown %s', async (_label, expected, doc) => {
+      stub.doc = doc
+      await mountLanguage()
+
+      expect(shown()).toBe(expected)
+    })
+
+    // The create form has no stored type yet, so the file the editor chose
+    // decides — which no server-side `admin.condition` could see.
+    it.each([
+      ['no file chosen yet', false, undefined],
+      ['an MP3 chosen', true, chosen('intro.mp3', 'audio/mpeg')],
+      ['a video chosen', true, chosen('panel.mp4', 'video/mp4')],
+      ['an image chosen', false, chosen('cover.jpg', 'image/jpeg')],
+    ])('on the create form, with %s: shown %s', async (_label, expected, upload) => {
+      stub.doc = undefined
+      stub.upload = upload
+      await mountLanguage()
+
+      expect(shown()).toBe(expected)
+    })
   })
 
   describe('under a Path Step’s upload field', () => {
@@ -336,6 +400,18 @@ describe('a file’s Transcript panel', () => {
       const { FileTranscriptField } = await import('@/components/admin/TranscriptPanel')
       mount(FileTranscriptField, { fileField: 'introAudio', path: 'introTranscript' })
     }
+
+    // The step's own save changes nothing about its files' transcripts.
+    it('reads nothing again when the step is saved', async () => {
+      stub.collectionSlug = 'lessons'
+      stub.doc = { id: 4 } as Partial<TranscribedFile>
+      await mountUnderField()
+
+      stub.lastUpdateTime = 2
+      await mountUnderField()
+
+      expect(stub.mutate).not.toHaveBeenCalled()
+    })
 
     // The upload field above already names the recording.
     it('shows the file the sibling field holds, with no label of its own', async () => {

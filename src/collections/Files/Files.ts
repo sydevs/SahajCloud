@@ -104,10 +104,11 @@ export const Files: CollectionConfig = {
       type: 'select',
       options: getLocaleOptions(),
       admin: {
-        // Before a file is chosen there is no type to judge by, so it shows.
-        condition: (data) => !data?.mimeType || transcribableMedia(data.mimeType) !== null,
+        // Shown for an audio or video file alone, the one chosen on the create
+        // form included — which no `condition` can see (the component says why).
+        components: { Field: '@/components/admin/TranscriptPanel#SpokenLanguageField' },
         description:
-          'Leave it empty to detect it from the recording. Changing it transcribes the recording again, for every page that uses this file.',
+          'Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file.',
       },
     },
     {
