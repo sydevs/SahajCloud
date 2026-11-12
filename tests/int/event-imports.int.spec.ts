@@ -15,15 +15,17 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { ImportResultsField } from '@/components/admin/EventImport/ImportResultsField'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
+import { failLostImports } from '@/plugins/eventImport'
 import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
 import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -144,6 +146,18 @@ describe('class imports', () => {
     })
 
   const run = (importId: number) => runTaskHandler(importTask, { payload, input: { importId } })
+
+  /** The row the import's own afterChange queued, which a lost run leaves behind. */
+  const queuedImportJob = async (importId: number) => {
+    const { docs } = await payload.find({
+      collection: 'payload-jobs',
+      where: { taskSlug: { equals: 'importEvents' } },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+    })
+    return docs.find((job) => (job.input as { importId?: number } | null)?.importId === importId)
+  }
 
   /**
    * The field is an async function component, so calling it returns the element
@@ -287,7 +301,13 @@ describe('class imports', () => {
       }
     })
 
-    it('moves to completed once no draft is left, and back while one is', async () => {
+    /**
+     * ⚠ The last step is the load-bearing one. An imported class is re-drafted
+     * long after the import is done — ExpireEvents unpublishes an expired one,
+     * a community denial drafts one — and reopening the import for either asks
+     * a volunteer to review work that is not import work.
+     */
+    it('moves to completed once no draft is left, and stays there', async () => {
       const created = await createImport([
         classLine({ title: 'Publish me', startTime: '06:07' }),
         classLine({ title: 'Delete me', startTime: '06:08' }),
@@ -315,7 +335,7 @@ describe('class imports', () => {
         data: { _status: 'draft' },
         overrideAccess: true,
       })
-      expect((await read(created.id)).status).toBe('review')
+      expect((await read(created.id)).status).toBe('completed')
     })
 
     it('creates the rows the uploader may write and refuses the rest, naming why', async () => {
@@ -614,6 +634,41 @@ describe('class imports', () => {
       } finally {
         logged.mockRestore()
       }
+    })
+
+    /**
+     * The run never reaches the task's own `catch`, so nothing in the import
+     * plugin marks the row. The stale-job sweep is what does, and `status` is
+     * closed to every writer, so there is no retry a volunteer could reach.
+     */
+    it('fails when the sweep cancels a run that was lost with its container', async () => {
+      const created = await createImport([classLine({ title: 'Interrupted', startTime: '06:11' })])
+      const job = (await queuedImportJob(created.id))!
+      await markJobLost(payload, job.id)
+
+      expect(await recoverLostJobs(payload)).toBeGreaterThan(0)
+
+      const after = await read(created.id)
+      expect(after.status).toBe('failed')
+      expect(after.error).toMatch(/Upload the file again/)
+      expect(
+        await payload.findByID({ collection: 'payload-jobs', id: job.id, overrideAccess: true }),
+      ).toMatchObject({ hasError: true, processing: false })
+    })
+
+    /**
+     * ⚠ The sweep reads its rows before it cancels them, so a run can land in
+     * between — and this notice would then replace a real result.
+     */
+    it('leaves an import whose run landed after all', async () => {
+      const created = await createImport([classLine({ title: 'Landed', startTime: '06:12' })])
+      const job = (await queuedImportJob(created.id))!
+      await run(created.id)
+      expect((await read(created.id)).status).toBe('review')
+
+      await failLostImports(payload, [job])
+
+      expect((await read(created.id)).status).toBe('review')
     })
 
     it('fails as expected when its uploader is no longer active', async () => {

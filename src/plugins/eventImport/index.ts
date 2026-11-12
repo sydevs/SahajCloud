@@ -17,6 +17,8 @@ import { importCollection } from './importCollection'
 import { RUN_CONTEXT_KEY } from './run'
 import { importEventsTask } from './task'
 
+export { failLostImports } from './finish'
+
 export const eventImportPlugin: Plugin = (config) => ({
   ...config,
   collections: [...(config.collections ?? []).map(withImportHooks), importCollection],
@@ -48,9 +50,9 @@ function withImportHooks(collection: CollectionConfig): CollectionConfig {
 }
 
 /**
- * Move an import between review and completed as its classes are published or
- * deleted, wherever that happens. The job's own creates are skipped: the run
- * writes the outcome itself, once.
+ * Finish an import once the last of its classes is published or deleted,
+ * wherever that happens. The job's own creates are skipped: the run writes the
+ * outcome itself, once.
  */
 const refreshFromEvent = async ({
   doc,

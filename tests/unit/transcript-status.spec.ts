@@ -73,9 +73,20 @@ describe('transcriptJobError', () => {
     expect(transcriptJobError({ error: 'No timestamped speech.' })).toBe('No timestamped speech.')
   })
 
+  /**
+   * ⚠ `jobs.cancel` writes `{ cancelled: true }` and no message, so the row the
+   * stale-job sweep ends is the one failure with nothing to read off it.
+   */
+  it('says a cancelled run was interrupted, which carries no message of its own', () => {
+    expect(transcriptJobError({ error: { cancelled: true } })).toMatch(
+      /interrupted before it finished/,
+    )
+  })
+
   it('answers null for no job, no error, and an error carrying no message', () => {
     expect(transcriptJobError(null)).toBeNull()
     expect(transcriptJobError({})).toBeNull()
     expect(transcriptJobError({ error: { cause: 'nothing readable' } })).toBeNull()
+    expect(transcriptJobError({ error: { cancelled: false } })).toBeNull()
   })
 })

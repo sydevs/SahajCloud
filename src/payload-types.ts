@@ -981,6 +981,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      recoverLostJobs: TaskRecoverLostJobs;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendDigests: TaskSendDigests;
@@ -3287,6 +3288,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
+          | 'recoverLostJobs'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendDigests'
@@ -3338,6 +3340,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
+        | 'recoverLostJobs'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendDigests'
@@ -11019,6 +11022,16 @@ export interface TaskExpireEvents {
     trashed: number;
     remindersSent: number;
     failed: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRecoverLostJobs".
+ */
+export interface TaskRecoverLostJobs {
+  input?: unknown;
+  output: {
+    cancelled: number;
   };
 }
 /**
