@@ -90,6 +90,22 @@ const ServerEnvSchema = ClientEnvSchema.extend({
     }),
 
   /**
+   * Run the nightly `SendDigests` job (`src/jobs/Digests`). **Off unless set to
+   * `true` or `1`**, the reverse of `EVENT_VERIFICATION_ENABLED`: the Atlas
+   * cutover imports every legacy manager, and none of them should receive a
+   * digest before the migration email has introduced the new CMS.
+   * shortcut: a temporary pause, delete it about a week after the Atlas cutover.
+   * @default false
+   */
+  DIGESTS_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const flag = value?.trim().toLowerCase()
+      return flag === 'true' || flag === '1'
+    }),
+
+  /**
    * Nirmala Vidya API key. Fetches lecture metadata from Vimeo.
    * Optional at startup. The app validates it at the point of use, when it
    * creates or refreshes lectures.

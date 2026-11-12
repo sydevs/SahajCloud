@@ -50,7 +50,7 @@ import {
   mapNotificationPreferences,
 } from './helpers/managerMapper'
 import { isUnreachableInactive } from './helpers/reachability'
-import { registrationSubmissionData } from './helpers/registrations'
+import { importedFollowUpSentAt, registrationSubmissionData } from './helpers/registrations'
 import {
   type AtlasSchedule,
   isAtlasOneOff,
@@ -1378,6 +1378,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const total = data.registrations.length
     const offset = this.options.pagination?.offset ?? 0
     const registrants = new Map(data.users.map((user) => [user.legacyId, user]))
+    const now = new Date()
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
@@ -1426,6 +1427,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             startingAt_tz: reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
             submissionData: registrationSubmissionData(reg, registrant),
             uuid: reg.uuid,
+            followUpSentAt: importedFollowUpSentAt(reg.startingAt, now),
             // An historical registration was confirmed when it happened.
             // `accepted` is also what suppresses both queues: screening returns
             // early for a row that is not `pending`, and delivery refuses one.

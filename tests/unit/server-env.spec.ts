@@ -53,6 +53,22 @@ describe('serverEnv', () => {
     expect(serverEnv.EVENT_VERIFICATION_ENABLED).toBe(expected)
   })
 
+  it.each([
+    [undefined, false],
+    ['', false],
+    ['false', false],
+    ['yes', false],
+    ['true', true],
+    [' TRUE ', true],
+    ['1', true],
+  ])('parses DIGESTS_ENABLED=%s as %s', async (raw, expected) => {
+    process.env = { ...baseEnv, ...requiredEnv }
+    if (raw !== undefined) process.env.DIGESTS_ENABLED = raw
+    const { serverEnv } = await import('../../src/lib/env/server')
+
+    expect(serverEnv.DIGESTS_ENABLED).toBe(expected)
+  })
+
   it('throws a client-specific error if server variables are accessed in a browser bundle', async () => {
     process.env = { ...baseEnv }
     vi.stubGlobal('window', {})

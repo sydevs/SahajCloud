@@ -129,6 +129,10 @@ takes Atlas's side of every manager and client field, prunes managers Atlas
 deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
 role, and any manager a non-Atlas client or form names), and never touches a
 client Atlas did not create. Every event gets a fresh verification lease.
+Every registration whose session has started is stamped `followUpSentAt`
+(`importedFollowUpSentAt`, [helpers/registrations.ts](helpers/registrations.ts)),
+so `SendPostEventFollowUps` never asks about a class taken under the legacy
+Atlas — and never asks twice after a reset wiped an earlier run's stamps.
 
 Then check the captcha (#1077). `scripts/audit-challenge-parents.ts`, run as its
 docblock says (`railway run` with the public `DATABASE_URL`), must print no refused
