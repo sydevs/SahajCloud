@@ -8,20 +8,24 @@ Re-measure with the same command after any change to `vitest.config.mts`
 (parallelism, pool), `tests/utils/testHelpers.ts` (per-suite bootstrap), or
 the schema surface. Record the machine and DB, so the numbers stay honest.
 
-Every figure the three-tier contract states — in `docs/rules/testing-reqs.md`,
+Every timing the three-tier contract states — in `docs/rules/testing-reqs.md`,
 `tests/AGENTS.md`, `AGENTS.md` and `README.md` — is a copy of one recorded
-here. Change a number there only with a measurement, and add it below with
+here. Change a timing there only with a measurement, and add it below with
 its machine and date. Those budgets drifted an order of magnitude from the
 lane they describe because nothing held them to a run (#990).
 
-`tests/unit/perf-figures-pinned.spec.ts` is that run. It reds when the file
-count here stops matching the tracked specs, when a consumer doc stops
-quoting the lane figure here, or when either tier's target drops below the
+`tests/unit/perf-figures-pinned.spec.ts` reds when a consumer doc stops
+quoting the lane figure here, and when either tier's target drops below the
 measurement its own row is set from — Tier 2's cold gate, Tier 1's widest
 per-edit selection. ⚠ **It asserts no wall-clock time** — a timing bound
 inside the lane reddens on a loaded machine, and a check everyone learns to
-ignore is worse than prose. Re-measuring therefore edits this file and the
-four consumers in one commit, by design.
+ignore is worse than prose. Re-measuring the lane therefore edits this file
+and the four consumers in one commit, by design.
+
+**Lane file and test counts live only here, and only as recorded with a
+measurement.** No doc quotes them and no spec pins them to the tree, so a PR
+that adds a spec edits none of these files. A pin once made every such PR
+bump this file and the four docs above.
 
 ## How to measure
 
@@ -135,14 +139,12 @@ regression. A maintainer's laptop is faster again. Record your own row above
 rather than replacing one.
 
 Everything below is the second session's run unless the row says otherwise.
-**The file and test counts are the current tree's**, because the spec pins
-them to what is on disk; every timing is the session its row names.
-`| Files / tests |` and the three `**bold**` cells are the captures the spec
+The whole-lane, Tier 2 and per-edit `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 269 / 3594                                                        |
+| Files / tests (second session)                                                                  | 203 / 2643                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |

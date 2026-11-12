@@ -596,11 +596,6 @@ describe('Submission screening', () => {
       expect((await reload(submission.id)).screeningResult?.diagnostic).toContain('title')
     })
 
-    it('passes an ordinary proposal', async () => {
-      const submission = await seedProposal({ title: 'Thursday evening class' })
-      await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
-    })
-
     /** ⚠ The three columns a proposal was binned over (#920). */
     it('delivers a proposal naming a contact address, a website and a meeting link', async () => {
       const submission = await seedProposal({

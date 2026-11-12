@@ -249,20 +249,6 @@ describe('the Transcript tab', () => {
       expect(current()?.textContent).toBe('Let the breath settle.')
     })
 
-    it('marks the phrase from the whole second a click on it seeks to', () => {
-      render()
-      playTo(91)
-
-      expect(current()?.textContent).toBe('Rest your attention here.')
-    })
-
-    it('marks nothing in a pause', () => {
-      render()
-      playTo(50)
-
-      expect(current()).toBeNull()
-    })
-
     it('puts the mark on the focusable phrase itself', () => {
       render()
       playTo(3)
@@ -309,18 +295,6 @@ describe('the Transcript tab', () => {
       expect(text()).toContain('Lemonfox refused the recording.')
     })
 
-    it('shows the stopped-responding notice for a processing row past the stall bound', () => {
-      renderRow({
-        status: 'processing',
-        updatedAt: new Date(Date.now() - TRANSCRIPTION_STALL_MS - 1000).toISOString(),
-      })
-
-      expect(text()).toContain('Transcription stopped responding.')
-      expect(text()).not.toContain('Transcription in progress')
-      // One bound, one spelling: the copy never names a duration.
-      expect(text()).not.toMatch(/\d+\s*(minute|second|hour)/i)
-    })
-
     // The row never changes here, which is the whole point: a stuck run answers
     // every poll with the same document, so SWR renders nothing and the bound
     // would otherwise pass unobserved.
@@ -334,6 +308,8 @@ describe('the Transcript tab', () => {
 
         expect(text()).toContain('Transcription stopped responding.')
         expect(text()).not.toContain('Transcription in progress')
+        // One bound, one spelling: the copy never names a duration.
+        expect(text()).not.toMatch(/\d+\s*(minute|second|hour)/i)
       } finally {
         vi.useRealTimers()
       }

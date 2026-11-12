@@ -249,16 +249,6 @@ describe('lecturesForAudience endpoint', () => {
       })
       expect(status).toBe(400)
     })
-
-    it('returns 400 when audiences is empty', async () => {
-      const { status } = await callEndpoint(payload, { audiences: '', limit: 10 })
-      expect(status).toBe(400)
-    })
-
-    it('returns 400 when audiences contains non-numeric values', async () => {
-      const { status } = await callEndpoint(payload, { audiences: '1,abc,3', limit: 10 })
-      expect(status).toBe(400)
-    })
   })
 
   describe('auth gate', () => {

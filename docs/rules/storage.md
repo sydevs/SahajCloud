@@ -270,7 +270,7 @@ Check `railway logs` for `MP4 downloads enabled via webhook` (success) or `Faile
 
 ### Webhook key files
 
-`src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` (Next.js handler, see `routes.md`), `src/plugins/storage/cloudflareStreamWebhook.ts` (pure helpers), `src/plugins/storage/cloudflareSchemas.ts` (`CloudflareStreamWebhookPayloadSchema`), `scripts/setup-stream-webhook.ts`, and `tests/int/cloudflare-stream-webhook.int.spec.ts`.
+`src/app/(payload)/api/webhooks/cloudflare-stream/route.ts` (Next.js handler, see `routes.md`), `src/plugins/storage/cloudflareStreamWebhook.ts` (pure helpers), `src/plugins/storage/cloudflareSchemas.ts` (`CloudflareStreamWebhookPayloadSchema`), `scripts/setup-stream-webhook.ts`, and `tests/unit/cloudflare-stream-webhook.spec.ts`.
 
 ## External Cloudflare API response validation (Zod)
 

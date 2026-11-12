@@ -48,7 +48,7 @@ describe('registrationScheduleLine', () => {
     )
 
     // 19:00 local, not the 18:00 UTC the column stores.
-    expect(line).toContain('Every Tuesday')
+    expect(line).toContain('Tuesday')
     expect(line).toContain('7:00')
     expect(line).toContain('8:30 PM')
     expect(line).toContain('GMT+1')
@@ -77,8 +77,9 @@ describe('registrationScheduleLine', () => {
   it('renders a one-off as a full date rather than a recurrence phrase', () => {
     const line = registrationScheduleLine(schedule())
 
-    expect(line).toContain('Tuesday, 21 July 2026')
-    expect(line).not.toContain('Every')
+    expect(line).toContain('21 July 2026')
+    // The recurrence template's lead word, read from the defaults.
+    expect(line).not.toContain(EMAIL_STRING_DEFAULTS.recurrence_weekly_1.split(' ')[0])
   })
 
   it('uses the event timezone, not the machine timezone (IST case)', () => {

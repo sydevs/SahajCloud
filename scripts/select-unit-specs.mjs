@@ -28,7 +28,7 @@ const MODULE_EXT = /\.(ts|tsx|mts|cts|js|mjs|cjs|json)$/
 
 /**
  * Markdown is selectable because a spec can assert on a doc's text, and the pins that do are the
- * ones an edit to that doc breaks: `perf-figures-pinned.spec.ts` holds four docs in agreement.
+ * ones an edit to that doc breaks: `perf-figures-pinned.spec.ts` reads `tests/PERF.md`.
  */
 const DOC_EXT = /\.md$/
 

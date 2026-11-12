@@ -4,7 +4,7 @@
  * The union across the app's locales (English needs only one/other; Russian,
  * Ukrainian, and Czech add few/many). `EMAIL_STRING_DEFAULTS` must define the
  * whole family for every plural key in the `emails` group, else `withDefaults`
- * drops a translated form — a guard test in `translations-field.int.spec.ts`
+ * drops a translated form — a guard test in `unit/translations-field.spec.ts`
  * enforces that sync against this exported constant.
  *
  * It lives here, rather than in `@/fields/translationsField`, because two

@@ -19,11 +19,11 @@ validation.
 
 ## Test lanes (Vitest projects)
 
-| Lane            | Files                                              | Speed                                                                                                                                  | When                                                                                                                               |
-| --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 269 files / 3594 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
-| **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
-| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
+| Lane            | Files                                              | Speed                                                                                                                          | When                                                                                                                               |
+| --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for the whole lane; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
+| **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                               | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
+| **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                              | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
 ### When to put a test in `tests/unit/`
 
@@ -62,8 +62,35 @@ Use `vi.resetModules()` + a dynamic `await import(...)` to swap env vars
 between cases. Inject dependencies (`fetchFn`, `logger`) as function
 arguments instead of stubbing globals, to keep tests state-clean.
 
-Examples: `tests/int/storage-utils.int.spec.ts`,
-`tests/int/cloudflare-stream-webhook.int.spec.ts`.
+Examples: `tests/unit/storage-utils.spec.ts`,
+`tests/unit/cloudflare-stream-webhook.spec.ts`.
+
+## Keeping specs cheap to change
+
+A spec that restates what the source already says is edited every time the source grows, in
+commits that never touched its subject. These rules keep that cost down.
+
+1. **Never pin a count or a list the source already enumerates.** Derive the expected value from
+   the source export (`LOCALES`, `CACHE_TTLS`, `buildDefaultNotificationPreferences()`), or assert
+   a floor or containment. _Exception:_ a security allowlist, where an extra entry is the bug —
+   the wired auth routes in `login-plugin.spec.ts`, `PUBLIC_CREATE_PATHS`, the cacheable globals —
+   uses `toEqual` against a literal and says why in a comment.
+2. **No doc quotes lane counts, and no spec pins them.** File and test counts live only in
+   `tests/PERF.md`, recorded with a measurement. A PR that adds a spec edits no doc for it.
+3. **Assert copy once.** In an email or document spec, keep at most one wording assertion per
+   template, where the wording is the contract. Elsewhere assert structure: the href, the locale
+   picked, a value present. A URL passed in as a fixture is neutral (`https://cloud.test/x?t=1`),
+   not a real route.
+4. **One home for a matrix.** A pure function's edge cases live in one unit spec. A mounted
+   component, a second unit spec, or an int spec proves the wiring with one or two cases and does
+   not re-run the matrix.
+5. **A structural check needs both directions.** Replacing per-item cases with one derived check
+   covers the direction it asserts and no other. Documented ⊆ registered catches a stale entry;
+   registered ⊆ documented catches a missing one, and only the second is why the per-endpoint
+   cases existed. State which direction each case holds.
+6. **Absorb shape changes in one place.** When a spec calls its subject in more than about ten
+   places, wrap the call in a local helper (`renderHtml` in the email specs). When you delete a
+   module, delete its spec in the same PR, and treat a module only tests import as dead code.
 
 ## Running tests locally
 
