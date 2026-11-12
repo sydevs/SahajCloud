@@ -1,13 +1,19 @@
-import type { CollectionAfterChangeHook, CollectionBeforeChangeHook } from 'payload'
+import type {
+  CollectionAfterChangeHook,
+  CollectionBeforeChangeHook,
+  RequestContext,
+} from 'payload'
 
 import { APIError } from 'payload'
 
+import type { EventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
+import { transition } from '@/lib/stateMachine/transition'
 import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Event } from '@/payload-types'
 import { asSystemReq, asTrustedReq } from '@/plugins/usage/hooks'
 
 /**
@@ -158,27 +164,42 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
   // unguarded, so a throw killed the visitor's transaction: the vote was rolled
   // back behind "Could not record your answer" (#842). The denial branch still
   // unpublishes — that is the community verdict, not editor content.
-  const eventPatch: Partial<
-    Pick<Event, 'confidenceScore' | 'systemMeta' | 'verificationStage' | '_status'>
-  > = {
+  const tally: EventBookkeeping = {
     confidenceScore: verdict.score,
     systemMeta: {
       ...(isRecord(event.systemMeta) ? event.systemMeta : {}),
       communityFeedback: { confirmations, denials, updatedAt: new Date().toISOString() },
     },
-    ...(verdict.denied && event.verificationStage === 'unverified'
-      ? { verificationStage: 'denied', _status: 'draft' }
-      : {}),
   }
-  await updateEventBookkeeping({
-    payload: req.payload,
-    id: eventId,
-    data: eventPatch,
-    context: { skipWriteGuard: true },
-    // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
-    // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
-    req: asSystemReq(req),
-  })
+
+  // A SYSTEM write in the caller's transaction — see `asSystemReq` for why
+  // `overrideAccess` alone isn't enough (filterOptions still sees `req.user`).
+  const systemReq = asSystemReq(req)
+  const write = (data: EventBookkeeping, context?: RequestContext) =>
+    updateEventBookkeeping({
+      payload: req.payload,
+      id: eventId,
+      data,
+      context: { ...context, skipWriteGuard: true },
+      req: systemReq,
+    })
+
+  if (verdict.denied && event.verificationStage === 'unverified') {
+    await transition({
+      payload: req.payload,
+      machine: EVENT_MACHINE,
+      collection: 'events',
+      id: eventId,
+      from: 'unverified',
+      to: 'denied',
+      by: 'community',
+      data: { ...tally, _status: 'draft' },
+      write: ({ data, context }) => write(data as EventBookkeeping, context),
+    })
+    return doc
+  }
+
+  await write(tally)
 
   return doc
 }

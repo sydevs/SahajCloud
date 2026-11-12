@@ -66,6 +66,7 @@ import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
+import { guardVerificationStage } from './hooks/guardVerificationStage'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
 
@@ -192,11 +193,16 @@ export const Events: CollectionConfig = {
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
-    // lands on: verify, or just re-arm the pre-adoption watermark. Both
-    // stamping hooks must run after it. `syncEventFullness` writes
-    // `registrationsFull`, and `stampEventQuality`'s skip rules read
-    // `verificationStage`.
-    beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
+    // lands on: verify, or just re-arm the pre-adoption watermark, and it
+    // names the writer `guardVerificationStage` then judges. Both stamping
+    // hooks must run after it. `syncEventFullness` writes `registrationsFull`,
+    // and `stampEventQuality`'s skip rules read `verificationStage`.
+    beforeChange: [
+      syncVerificationOnSave,
+      guardVerificationStage,
+      syncEventFullness,
+      stampEventQuality,
+    ],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
     afterChange: [revalidateAtlasSidebarHook],
