@@ -84,7 +84,11 @@ commits that never touched its subject. These rules keep that cost down.
 4. **One home for a matrix.** A pure function's edge cases live in one unit spec. A mounted
    component, a second unit spec, or an int spec proves the wiring with one or two cases and does
    not re-run the matrix.
-5. **Absorb shape changes in one place.** When a spec calls its subject in more than about ten
+5. **A structural check needs both directions.** Replacing per-item cases with one derived check
+   covers the direction it asserts and no other. Documented ⊆ registered catches a stale entry;
+   registered ⊆ documented catches a missing one, and only the second is why the per-endpoint
+   cases existed. State which direction each case holds.
+6. **Absorb shape changes in one place.** When a spec calls its subject in more than about ten
    places, wrap the call in a local helper (`renderHtml` in the email specs). When you delete a
    module, delete its spec in the same PR, and treat a module only tests import as dead code.
 

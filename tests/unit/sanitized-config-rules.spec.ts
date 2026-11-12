@@ -409,7 +409,9 @@ const customSpec = (): OpenAPISpec =>
 describe('custom endpoint document structure (OpenAPI)', () => {
   // `payload-oapi` generates nothing for a custom endpoint, so the document is
   // hand-written. A path left behind after its endpoint is renamed or deleted
-  // sends an integrator to a 404.
+  // sends an integrator to a 404. This holds documented ⊆ registered only; the
+  // other direction is `openapi-endpoint-coverage.spec.ts`, which cannot live
+  // here because sanitization mutates the raw collection configs it reads.
   it(
     'documents only endpoints the config registers',
     async () => {
