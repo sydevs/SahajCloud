@@ -2437,7 +2437,7 @@ export interface Client {
    */
   supportEmail?: string | null;
   /**
-   * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
+   * Logo shown in registrant emails.
    */
   logo?: (number | null) | Image;
   color1?: string | null;

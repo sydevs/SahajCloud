@@ -563,10 +563,7 @@ export const Clients: CollectionConfig = {
           label: 'Config',
           admin: { condition: adminTabs },
           fields: [
-            previewTargetField(
-              { autoClose: true, unavailable: 'atlas-tab-only' },
-              'config__preview_target',
-            ),
+            previewTargetField({ autoClose: true }, 'config__preview_target'),
             {
               name: 'label',
               type: 'text',
@@ -698,8 +695,7 @@ export const Clients: CollectionConfig = {
               type: 'upload',
               relationTo: 'images',
               admin: {
-                description:
-                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
+                description: 'Logo shown in registrant emails.',
               },
             },
             {
@@ -749,10 +745,7 @@ export const Clients: CollectionConfig = {
           description: 'API usage statistics',
           admin: { condition: adminTabs },
           fields: [
-            previewTargetField(
-              { autoClose: true, unavailable: 'atlas-tab-only' },
-              'usage__preview_target',
-            ),
+            previewTargetField({ autoClose: true }, 'usage__preview_target'),
             jsonField({
               // Virtual: written by the hook below, never stored. The schema generates
               // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
@@ -792,10 +785,7 @@ export const Clients: CollectionConfig = {
           label: 'Diagnostics',
           admin: { condition: adminTabs },
           fields: [
-            previewTargetField(
-              { autoClose: true, unavailable: 'atlas-tab-only' },
-              'diagnostics__preview_target',
-            ),
+            previewTargetField({ autoClose: true }, 'diagnostics__preview_target'),
             {
               name: 'canonical',
               type: 'group',

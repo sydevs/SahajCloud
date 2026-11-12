@@ -3,7 +3,7 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { ReactSelect, useLivePreviewContext } from '@payloadcms/ui'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { originOf } from '@/lib/utilities/url'
 
@@ -31,35 +31,25 @@ export const PreviewModeField: UIFieldClientComponent = () => {
   const { iframeRef, url } = useLivePreviewContext()
   const [mode, setMode] = useState<Mode>('light')
 
-  const post = useCallback(
-    (next: Mode) => {
-      const frame = iframeRef?.current
-      const origin = originOf(frame?.src ?? '')
-
-      // The iframe's own origin, never a constant: the panel can be repointed at
-      // the admin's explanation page, and that page is nobody's atlas.
-      if (frame?.contentWindow && origin) {
-        frame.contentWindow.postMessage({ mode: next, type: PREVIEW_MODE_MESSAGE }, origin)
-      }
-    },
-    [iframeRef],
-  )
-
   // ⚠ Keyed on the panel's `url`, not on the ref alone. `autoOpen` opens the panel
   // after this field has mounted, so an effect depending only on stable values
   // runs while there is no iframe and never attaches — leaving the atlas on its
-  // own theme until the first click, with the control claiming otherwise.
+  // own theme until the first change, with the control claiming otherwise.
   useEffect(() => {
     const frame = iframeRef?.current
     if (!frame) return
 
-    post(mode)
+    // The iframe's own origin, read at send time: a reload can land elsewhere.
+    const post = () => {
+      const origin = originOf(frame.src)
+      if (origin) frame.contentWindow?.postMessage({ mode, type: PREVIEW_MODE_MESSAGE }, origin)
+    }
 
-    const onLoad = () => post(mode)
-    frame.addEventListener('load', onLoad)
+    post()
+    frame.addEventListener('load', post)
 
-    return () => frame.removeEventListener('load', onLoad)
-  }, [iframeRef, mode, post, url])
+    return () => frame.removeEventListener('load', post)
+  }, [iframeRef, mode, url])
 
   return (
     <div
@@ -70,11 +60,7 @@ export const PreviewModeField: UIFieldClientComponent = () => {
         <ReactSelect
           isClearable={false}
           isSearchable={false}
-          onChange={(option) => {
-            const next = (option as { value: Mode }).value
-            setMode(next)
-            post(next)
-          }}
+          onChange={(option) => setMode((option as { value: Mode }).value)}
           options={OPTIONS}
           value={OPTIONS.find((option) => option.value === mode)}
         />

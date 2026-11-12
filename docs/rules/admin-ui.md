@@ -136,17 +136,6 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
-A fifth rule arrived with `clients` (#1110): **`unavailable` is the one target that may change
-the origin.** It names a `LivePreviewUnavailableReason` rather than a URL, so it carries no origin
-and no credential and resolves against `window.location.origin` — the admin's own. Everything else
-still goes through `composeTargetUrl`, which refuses a cross-origin path.
-
-⚠ **And a collection whose `livePreview.url` reads `data` re-resolves it on every save**, which
-would otherwise put the real page back in a panel that should be explaining itself. `clients`
-cannot avoid reading `data` — the preview opens the service's own region — so `PreviewTarget`
-re-applies its target whenever the resolved URL changes under it. The bullet above about a
-data-dependent URL is the rule for a **global**, where there is a choice; here there is not.
-
 Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path. `user-submissions` declares a conditioned pair: `autoOpen` for a proposal and `autoClose` for every other intake, because Payload keeps one open/closed preference per collection and a panel left open on a proposal would otherwise greet the next contact message.
 
 ## Styling — PayloadCMS CSS variables
@@ -330,7 +319,7 @@ Page, video, and image tags are inline enum selects, not separate collections.
 
 ## Frame editor
 
-`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. `createPreviewMessageStore` (`messageStore.ts`, this folder) owns the origin filter, the per-document cache and the lazy listener; a second field reading a preview message moves it to `src/lib/` and instantiates it rather than repeating it. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
+`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Inserting at an occupied timestamp replaces rather than throws.
 
 Frames filter by narrator gender automatically, with category pills for the visible library. Two layers gate frames, and only one of them errors. On Meditations the `frames` validator returns `'At least one frame is required'`, on update only and never on create — which is what refuses a publish with no frames. Its `beforeChange` hook silently drops any entry with no id or a negative or non-finite timestamp, then sorts the rest; `afterRead` rounds each timestamp and enriches it with its Frame collection details. Duplicate timestamps are allowed here, as is one frame at several times — whole numbers, no duplicates and the one-hour cap are `validateTimestamp`'s rules in the editor alone.
 

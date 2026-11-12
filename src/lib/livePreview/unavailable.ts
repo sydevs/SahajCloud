@@ -6,7 +6,7 @@
  * rather than breaking, which is the right way round for a panel.
  */
 export type LivePreviewUnavailableReason =
-  'atlas-tab-only' | 'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+  'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
 
 /**
  * The URL to point the Live Preview panel at when there is no page to show.

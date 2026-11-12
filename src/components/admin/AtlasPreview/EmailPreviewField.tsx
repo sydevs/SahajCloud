@@ -41,7 +41,6 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
       try {
         const response = await fetch(`/api/clients/${id}/email-preview`, {
           body,
-          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           method: 'POST',
           signal: abort.signal,

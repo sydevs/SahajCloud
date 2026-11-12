@@ -53,13 +53,8 @@ stub.useStubbedContext = function useStubbedContext() {
 
 const DEFAULT_URL = 'https://atlas.example/preview?secret=s3cret&locale=fr'
 
-/**
- * What the panel is showing, and whether it is open. `resolve` stands in for
- * the third provider behaviour: Payload overwrites `url` whenever the
- * server-resolved one changes, which a save on a `data`-reading collection does
- * (`providers/LivePreview/index.js:100-104`).
- */
-const panel = { open: false, resolve: (_url: string) => {}, url: DEFAULT_URL }
+/** What the panel is showing, and whether it is open. */
+const panel = { open: false, url: DEFAULT_URL }
 
 /** Payload's provider, reduced to the two behaviours the component relies on. */
 function Provider({ children }: { children: ReactNode }) {
@@ -79,7 +74,6 @@ function Provider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     panel.url = url
-    panel.resolve = setUrl
   }, [url])
 
   return createElement(
@@ -137,31 +131,6 @@ describe('PreviewTarget', () => {
     openTab({ path: '/search' })
 
     expect(panel.url).toBe('https://atlas.example/search?secret=s3cret&locale=fr')
-  })
-
-  it('points the panel at the explanation page for an `unavailable` target', () => {
-    // ⚠ The one target that leaves the default's origin, and it lands on the
-    // admin's own. `composeTargetUrl` is not asked, because the declaration is
-    // a reason code rather than a path.
-    openTab({ autoClose: true, unavailable: 'atlas-tab-only' })
-
-    expect(new URL(panel.url).origin).toBe(window.location.origin)
-    expect(panel.url).toContain('/live-preview-unavailable?reason=atlas-tab-only')
-    expect(panel.open).toBe(false)
-  })
-
-  it('re-applies that target when the resolved URL changes under it', () => {
-    // A save on this tab re-resolves `livePreview.url` and calls `setURL` with
-    // the real atlas, which would put it back in a panel that should be
-    // explaining itself. `clients` reads `data`, so it cannot avoid the
-    // re-resolution the way a global can.
-    openTab({ autoClose: true, unavailable: 'atlas-tab-only' })
-
-    act(() => {
-      panel.resolve('https://atlas.example/preview?secret=s3cret&locale=fr&saved=1')
-    })
-
-    expect(panel.url).toContain('/live-preview-unavailable?reason=atlas-tab-only')
   })
 
   it('restores the default when the tab closes, and never closes the panel', () => {

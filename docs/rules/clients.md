@@ -23,19 +23,10 @@ to the frame on every change, and the widget reads the three colours out of it a
 other field.
 
 - **The panel belongs to the Atlas tab**, through `previewTargetField`: `autoOpen` there, and
-  `autoClose` plus `unavailable: 'atlas-tab-only'` on Config, Usage and Diagnostics, which only
-  an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
-  builder rather than from a target.
-- ⚠ **`unavailable` is the one preview target that changes the origin**, and it is safe because
-  the declaration is a reason **code**: no origin, no credential, and it lands on the admin's own
-  origin. `composeTargetUrl` itself still refuses every cross-origin path
-  (`docs/rules/admin-ui.md`).
-- ⚠ **A save on another tab re-resolves the URL under the panel**, because this collection's
-  `livePreview.url` reads `data`. `PreviewTarget` re-applies on that change, so the panel stays
-  on its explanation rather than silently showing the atlas again.
-- **The CMS shows no corrected colour.** The atlas may shift a colour for legibility on the map,
-  and says so nowhere in the admin: an in-picker note proved invisible to the managers it was
-  for, so the preview itself is the feedback.
+  `autoClose` on Config, Usage and Diagnostics, which only an admin sees. A service without the
+  atlas role gets `no-atlas-role` on every tab, from the URL builder.
+- **The CMS computes no colours.** Any legibility correction is the widget's own, and the
+  preview is where a manager sees it.
 - **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
   in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
   admin previews; that is our own origin, and the atlas reads colours alone.

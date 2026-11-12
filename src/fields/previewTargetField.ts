@@ -1,7 +1,5 @@
 import type { UIField } from 'payload'
 
-import type { LivePreviewUnavailableReason } from '@/lib/livePreview/unavailable'
-
 /**
  * Where the Live Preview panel should point while one tab is open.
  *
@@ -40,16 +38,6 @@ export interface PreviewTarget {
    * is what stops a panel opened on one document greeting the next.
    */
   autoClose?: boolean
-  /**
-   * Point the panel at the explanation page instead of the consumer site, so an
-   * editor who reopens it on the wrong tab is told why it is empty.
-   *
-   * ⚠ **This is the one target that changes the origin**, and the exception is
-   * safe because the declaration is a reason CODE, not a URL: it carries no
-   * origin and no credential, and it lands on the admin's own origin.
-   * `composeTargetUrl` itself stays strict and refuses every cross-origin path.
-   */
-  unavailable?: LivePreviewUnavailableReason
 }
 
 /**
