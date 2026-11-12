@@ -1,15 +1,23 @@
 /*
  * Payload's own API-key field, redrawn: its rules are scoped under `.auth-fields`,
- * which the Atlas tab sits outside. The input itself takes `.field-type.text`.
+ * which the Atlas tab sits outside. `TextInput` renders `AfterInput` as a sibling
+ * of the input inside its own stacked wrap, so laying the two out side by side is
+ * what is left here.
  */
-.mailing-list-key__input-wrap {
+.field-type.text.mailing-list-key .field-type__wrap {
   display: flex;
-  align-items: stretch;
+  flex-wrap: wrap;
 }
 
-.field-type.text.mailing-list-key .mailing-list-key__input-wrap input {
+.field-type.text.mailing-list-key input {
+  flex: 1;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+/* Under the input and the button, not beside them. */
+.field-type.text.mailing-list-key .field-description {
+  flex: 0 0 100%;
 }
 
 .mailing-list-key__replace-button.btn {

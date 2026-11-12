@@ -5,9 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import {
   Button,
   ConfirmationModal,
-  FieldDescription,
   FieldError,
-  FieldLabel,
   Modal,
   TextInput,
   toast,
@@ -31,9 +29,9 @@ const MASK = '•'.repeat(20)
 /**
  * The Atlas tab's control for a service's mailing-list provider key.
  *
- * Drawn as Payload's own API-key field — a masked, disabled input with a
- * regenerate button on its end — but not built from it: `APIKey` is not
- * exported, and it is hard-wired to the auth `apiKey` path, the reveal route
+ * Drawn as Payload's own API-key field — a masked, read-only `TextInput` with a
+ * replace button in its `AfterInput` slot — but not built from it: `APIKey` is
+ * not exported, and it is hard-wired to the auth `apiKey` path, the reveal route
  * and a PATCH of the document. The key is write-only (`secretField`), so the
  * input shows only its last four characters, from
  * `GET /api/clients/:id/mailing-list-key`.
@@ -87,18 +85,9 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
   const label = status?.set ? 'Replace API key' : 'Set API key'
 
   return (
-    <div className="field-type text read-only mailing-list-key">
-      <FieldLabel htmlFor="mailingListApiKeyStatus" label="API Key" />
-      <div className="field-type__wrap">
-        <div className="mailing-list-key__input-wrap">
-          <input
-            aria-label="API Key"
-            disabled
-            id="mailingListApiKeyStatus"
-            placeholder="No key set"
-            type="text"
-            value={status?.set ? `${MASK}${status.last4}` : ''}
-          />
+    <>
+      <TextInput
+        AfterInput={
           <Button
             aria-label={label}
             buttonStyle="none"
@@ -107,16 +96,19 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
             onClick={() => openModal(MODAL_SLUG)}
             tooltip={label}
           />
-        </div>
-        <FieldDescription
-          description={
-            status?.set
-              ? 'Stored encrypted. It cannot be shown again — replace it to change it.'
-              : 'Nothing is sent to your list until a key is set.'
-          }
-          path="mailingList.apiKeyControl"
-        />
-      </div>
+        }
+        className="mailing-list-key"
+        description={
+          status?.set
+            ? 'Stored encrypted. It cannot be shown again — replace it to change it.'
+            : 'Nothing is sent to your list until a key is set.'
+        }
+        label="API Key"
+        path="mailingList.apiKeyControl"
+        placeholder="No key set"
+        readOnly
+        value={status?.set ? `${MASK}${status.last4}` : ''}
+      />
       {status?.set ? (
         <div className="mailing-list-key__actions">
           <Button
@@ -147,7 +139,7 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
           />
         ) : null}
       </Modal>
-    </div>
+    </>
   )
 }
 
