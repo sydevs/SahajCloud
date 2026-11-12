@@ -5,7 +5,8 @@ import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { useRecordingTranscript } from '@/components/admin/RecordingTranscript/useRecordingTranscript'
-import { baseLanguage, getLocaleLabel, isValidLocale, type LocaleCode } from '@/lib/locales'
+import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
+import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
 import { relationId } from '@/lib/utilities/relationId'
 
 /**
@@ -15,7 +16,8 @@ import { relationId } from '@/lib/utilities/relationId'
  * detected, so a file still waiting on its first run has none to compare.
  *
  * Reads the same transcript query the field's own panel does, which SWR
- * answers once for both.
+ * answers once for both, and the language rule `intro-subtitles-set` reads
+ * (`transcriptSpeaksLocale`).
  */
 export function RecordingLanguageWarning() {
   const path = useFieldPath()
@@ -23,10 +25,10 @@ export function RecordingLanguageWarning() {
   const { code } = useLocale()
   const { phase, row } = useRecordingTranscript('files', relationId(value) ?? undefined)
 
-  const language = isValidLocale(row?.language ?? '') ? (row?.language as LocaleCode) : null
-  if (phase !== 'completed' || !language || !isValidLocale(code ?? '')) return null
+  // The rule Launch Readiness reads too, so the two cannot disagree.
+  if (phase !== 'completed' || transcriptSpeaksLocale(row?.language, code)) return null
+  const language = row?.language as LocaleCode
   const editing = code as LocaleCode
-  if (baseLanguage(language) === baseLanguage(editing)) return null
 
   return (
     <InfoBanner title="Incorrect audio language" type="warning">

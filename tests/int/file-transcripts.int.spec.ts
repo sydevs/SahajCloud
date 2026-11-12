@@ -29,7 +29,7 @@ import type { File, Lesson, Transcript } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const lemonfox = vi.hoisted(() => ({
@@ -229,6 +229,34 @@ describe('file transcripts', () => {
       expect(row?.language ?? null).toBeNull()
       expect(row?.segments).toHaveLength(2)
     })
+
+    // A corrected language replaces the row and keeps `audioFilename`, so a
+    // guard reading only the filename passes here and then updates an id that
+    // is gone — a throw where `superseded` is the answer.
+    it('answers superseded when a language change replaced the row mid-run', async () => {
+      const file = await testData.createFile(payload)
+      const original = await transcriptOf(file.id)
+      lemonfox.requestLemonfoxTranscript.mockImplementation(async () => {
+        await payload.delete({ collection: 'transcripts', id: original!.id, overrideAccess: true })
+        await payload.create({
+          collection: 'transcripts',
+          data: createData<'transcripts'>({
+            audioFilename: file.filename!,
+            language: 'de',
+            source: { relationTo: 'files', value: file.id },
+          }),
+          overrideAccess: true,
+        })
+        return VENDOR_BODY
+      })
+
+      const output = await transcribe(file)
+
+      expect(output.status).toBe('superseded')
+      const row = await transcriptOf(file.id)
+      expect(row?.id).not.toBe(original?.id)
+      expect(row?.segments ?? null).toBeNull()
+    })
   })
 
   describe('POST /api/files/:id/transcribe', () => {
@@ -256,6 +284,39 @@ describe('file transcripts', () => {
       const row = await transcriptOf(file.id)
       expect(row?.language).toBe('de')
       expect(row?.segments ?? null).toBeNull()
+      expect(await queuedRunsFor(file.id)).toHaveLength(2)
+    })
+
+    // The bill #984 Decision 2 bounds: a language change deletes the row it
+    // finds, so exempting a run in flight would let an editor alternate
+    // `?language=` and buy a paid run per click.
+    it('refuses a language change while a run is in flight, and keeps the row', async () => {
+      const file = await testData.createFile(payload)
+      const inFlight = await transcriptOf(file.id)
+
+      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+        method: 'post',
+      })
+
+      expect(status).toBe(409)
+      const row = await transcriptOf(file.id)
+      expect(row?.id).toBe(inFlight?.id)
+      expect(await queuedRunsFor(file.id)).toHaveLength(1)
+    })
+
+    it('refuses a second language change until the first run finishes', async () => {
+      const file = await completed()
+
+      const first = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+        method: 'post',
+      })
+      const second = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=en`, {
+        method: 'post',
+      })
+
+      expect(first.status).toBe(200)
+      expect(second.status).toBe(409)
+      expect((await transcriptOf(file.id))?.language).toBe('de')
       expect(await queuedRunsFor(file.id)).toHaveLength(2)
     })
 

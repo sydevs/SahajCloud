@@ -7,6 +7,7 @@ import {
   type SectionSpec,
 } from '@/lib/status'
 import { containsRelationship, richTextHasContent } from '@/lib/status/helpers'
+import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
 import { type Lesson } from '@/payload-types'
 
 import { isolatedReq, readFallbackTitles, type WeMeditateAppStatusConfig } from './shared'
@@ -19,12 +20,16 @@ interface Ctx {
    */
   labels: Map<number | string, unknown>
   /**
-   * The intro files whose transcript is finished. A step's intro subtitles are
-   * its intro file's transcript (#1016), so this is what `intro-subtitles-set`
-   * reads — one query for every step, rather than the virtual
-   * `introSubtitles` resolving one file per step.
+   * The intro files whose finished transcript is in the language being read.
+   * A step's intro subtitles are its intro file's transcript (#1016), so this
+   * is what `intro-subtitles-set` reads — one query for every step, rather
+   * than the virtual `introSubtitles` resolving one file per step.
+   *
+   * ⚠ **A transcript in another language does not count.** The same mismatch
+   * `RecordingLanguageWarning` warns the editor about would otherwise read green
+   * here, which is the one screen an operator decides a locale from.
    */
-  transcribedFiles: Set<number | string>
+  subtitledForLocale: Set<number | string>
 }
 
 /**
@@ -72,7 +77,7 @@ function buildUnitDocs(
   lessons: Lesson[],
   unit: string,
   labels: Ctx['labels'],
-  transcribedFiles: Ctx['transcribedFiles'],
+  subtitledForLocale: Ctx['subtitledForLocale'],
 ): DocumentReport[] {
   return lessons
     .filter((l) => l.unit === unit)
@@ -91,7 +96,7 @@ function buildUnitDocs(
         { key: 'intro-audio-set', passed: isUploadAssigned(lesson.introAudio) },
         {
           key: 'intro-subtitles-set',
-          passed: transcribedFiles.has(refId(lesson.introAudio) ?? ''),
+          passed: subtitledForLocale.has(refId(lesson.introAudio) ?? ''),
         },
         { key: 'meditation-set', passed: refId(lesson.meditation) !== null },
         { key: 'article-localized', passed: richTextHasContent(lesson.article) },
@@ -110,8 +115,8 @@ const unitGroupSpecs: GroupSpec<Ctx, WeMeditateAppStatusConfig>[] = UNIT_GROUPS.
   description: u.description,
   optional: u.optional,
   type: 'documents',
-  evaluate: async ({ lessons, labels, transcribedFiles }) =>
-    buildUnitDocs(lessons, u.unit, labels, transcribedFiles),
+  evaluate: async ({ lessons, labels, subtitledForLocale }) =>
+    buildUnitDocs(lessons, u.unit, labels, subtitledForLocale),
 }))
 
 export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
@@ -140,7 +145,7 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     'intro-subtitles-set': {
       label: 'Intro subtitles set',
       description:
-        'The intro audio for this locale has a finished transcript, which is its subtitles. Most locales have no intro audio of their own yet — the recordings were English-only until they became per-language.',
+        'The intro audio for this locale has a finished transcript in this language, which is its subtitles. A recording transcribed in another language does not count — that is the mismatch the editor is warned about. Most locales have no intro audio of their own yet — the recordings were English-only until they became per-language.',
     },
     'meditation-set': {
       label: 'Meditation assigned',
@@ -198,7 +203,7 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
               { segmentCount: { greater_than: 0 } },
             ],
           },
-          select: { source: true },
+          select: { source: true, language: true },
           depth: 0,
           limit: 0,
           pagination: false,
@@ -206,10 +211,13 @@ export const lessonsSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
           req: isolatedReq(req),
         })
       : { docs: [] }
-    const transcribedFiles = new Set(
-      transcripts.map((row) => refId(row.source?.value)).filter((id) => id !== null),
+    const subtitledForLocale = new Set(
+      transcripts
+        .filter((row) => transcriptSpeaksLocale(row.language, locale))
+        .map((row) => refId(row.source?.value))
+        .filter((id) => id !== null),
     )
-    return { lessons, labels, transcribedFiles }
+    return { lessons, labels, subtitledForLocale }
   },
   groups: unitGroupSpecs,
 }
