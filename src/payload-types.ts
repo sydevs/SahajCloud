@@ -3202,7 +3202,7 @@ export interface File {
   previewUrl?: string | null;
   subtitles?: Subtitles;
   /**
-   * Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file.
+   * Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file. A recording with no transcript yet is transcribed from the panel below instead.
    */
   spokenLanguage?:
     | (

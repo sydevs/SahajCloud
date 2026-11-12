@@ -101,7 +101,7 @@ export const Files: CollectionConfig = {
         // form included — which no `condition` can see (the component says why).
         components: { Field: '@/components/admin/TranscriptPanel#SpokenLanguageField' },
         description:
-          'Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file.',
+          'Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file. A recording with no transcript yet is transcribed from the panel below instead.',
       },
     },
     {

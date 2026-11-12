@@ -78,7 +78,10 @@ export async function replaceTranscript(
  * upload whose MP4 — the only form the vendor can fetch — exists only after
  * Stream has processed it, so it starts from Stream's `ready` webhook instead
  * (`transcribeStreamVideo`, below). A language change re-runs one that has
- * already started.
+ * already started; a video with no run yet is left to the panel's own
+ * Transcribe (`useRetryTranscript`), because a run queued while Stream is still
+ * preparing the MP4 would burn its wait and then leave the webhook nothing to
+ * start — a row naming the filename is a row `transcribeStreamVideo` skips.
  *
  * **A change supersedes a run in flight**, as a replaced recording always has:
  * the run's cues would be in a language the recording no longer claims. Only

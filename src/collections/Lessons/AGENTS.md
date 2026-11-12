@@ -52,7 +52,9 @@ video's subtitles, which is why `panels[].subtitles` is gone too.
   Cloudflare Stream reports it ready (`src/lib/transcripts/`,
   `TranscribeRecording`). The language is the file's own `spokenLanguage`:
   stated on upload, or detected by the first run and written there. Changing
-  it transcribes the file again, and the re-run serves every step using it.
+  it transcribes the file again, and the re-run serves every step using it —
+  except for a video that has no transcript yet, whose first run is Stream's
+  webhook's and which is transcribed from the Transcript panel instead.
   Only an admin can change it after upload — editors hold `files: create`
   alone.
 - **Shown, never edited, here.** A `ui` field follows each upload —

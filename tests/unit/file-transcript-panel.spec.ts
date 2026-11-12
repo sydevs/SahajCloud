@@ -517,6 +517,17 @@ describe('a file’s Transcript panel', () => {
     })
   })
 
+  // A video uploaded before #1016 has no row and no second Stream `ready`
+  // webhook coming, so this button is where its language is acted on: saving
+  // `spokenLanguage` alone starts no run for it (`syncTranscriptOnSave`).
+  it('offers a first transcription for a recording that has none', async () => {
+    stub.swr = { data: { docs: [] }, error: undefined }
+    await render(VIDEO)
+
+    expect(text()).toContain('No transcript yet')
+    expect(container.querySelector('[data-retry]')?.textContent).toBe('Transcribe')
+  })
+
   it('names a failure in a title with no full stop, and offers it again', async () => {
     stub.swr = {
       data: {
