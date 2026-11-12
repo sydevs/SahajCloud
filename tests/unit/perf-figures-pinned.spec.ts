@@ -4,15 +4,20 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 /**
- * Each tier target in the three-tier contract must cover the measurement its own row is set from
- * in `tests/PERF.md`. The budgets once drifted an order of magnitude — `< 5 s` described a 59 s
- * lane — because no command compared them to a run (#990).
+ * Two claims, each red on its own:
+ *
+ * 1. Every consumer doc states PERF.md's lane figure, so a re-measurement that stops at PERF.md
+ *    reddens all four rather than passing quietly.
+ * 2. Each tier target covers the measurement its own row is set from — Tier 2's cold gate, Tier
+ *    1's slowest per-edit selection. The budgets once drifted an order of magnitude — `< 5 s`
+ *    described a 59 s lane — because no command compared them to a run (#990).
  *
  * ⚠ **Timings are deliberately not asserted.** A wall-clock bound in the lane would redden on a
- * loaded runner and teach everyone to ignore it.
+ * loaded runner and teach everyone to ignore it. What is pinned is agreement between the docs and
+ * PERF.md, which only a re-measurement moves.
  *
- * Lane file and test counts are deliberately not pinned either: pinning them made every PR that
- * added a spec edit PERF.md and four docs. Docs point at PERF.md instead of quoting the counts.
+ * Lane file and test counts are deliberately not pinned: pinning them made every PR that added a
+ * spec edit PERF.md and four docs. Docs point at PERF.md instead of quoting the counts.
  */
 
 const ROOT = resolve(__dirname, '../..')
@@ -32,6 +37,7 @@ function capture(source: string, label: string, pattern: RegExp): string {
 const PERF = read('tests/PERF.md')
 
 const figures = {
+  lane: capture(PERF, 'the whole-lane median', /\|\s*Whole lane,[^|]*\|\s*\*\*([\d.]+) s\*\*\s*\|/),
   gateCold: Number(
     capture(PERF, "the gate's cold figure", /\|\s*Tier 2 lean gate[^|]*\|\s*\*\*(\d+) s\*\* cold/),
   ),
@@ -44,6 +50,12 @@ const figures = {
   ),
 }
 
+/** Rounded, because a doc quotes "78 s" where PERF.md records 77.9 s. */
+const laneSeconds = Math.round(Number(figures.lane))
+
+/** Every file the PERF.md invariant names. Add a consumer here when one starts quoting a figure. */
+const CONSUMERS = ['docs/rules/testing-reqs.md', 'tests/AGENTS.md', 'AGENTS.md', 'README.md']
+
 /** A tier's own row of the three-tier contract, so a target is read from the tier it belongs to. */
 function tierRow(tier: string): string {
   const row = read('docs/rules/testing-reqs.md').match(
@@ -52,6 +64,12 @@ function tierRow(tier: string): string {
   if (!row) throw new Error(`the three-tier contract no longer has a ${tier} row`)
   return row[0]
 }
+
+describe('tests/PERF.md is the single writer of every tier timing', () => {
+  it.each(CONSUMERS)('%s states PERF.md’s lane figure', (path) => {
+    expect(read(path)).toContain(`${laneSeconds} s`)
+  })
+})
 
 describe('each tier target covers its measurement in tests/PERF.md', () => {
   it('gives Tier 2 a target the gate named in its own row can meet', () => {

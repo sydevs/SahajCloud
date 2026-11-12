@@ -14,11 +14,13 @@ here. Change a timing there only with a measurement, and add it below with
 its machine and date. Those budgets drifted an order of magnitude from the
 lane they describe because nothing held them to a run (#990).
 
-`tests/unit/perf-figures-pinned.spec.ts` reds when either tier's target drops
-below the measurement its own row is set from — Tier 2's cold gate, Tier 1's
-widest per-edit selection. ⚠ **It asserts no wall-clock time** — a timing
-bound inside the lane reddens on a loaded machine, and a check everyone
-learns to ignore is worse than prose.
+`tests/unit/perf-figures-pinned.spec.ts` reds when a consumer doc stops
+quoting the lane figure here, and when either tier's target drops below the
+measurement its own row is set from — Tier 2's cold gate, Tier 1's widest
+per-edit selection. ⚠ **It asserts no wall-clock time** — a timing bound
+inside the lane reddens on a loaded machine, and a check everyone learns to
+ignore is worse than prose. Re-measuring the lane therefore edits this file
+and the four consumers in one commit, by design.
 
 **Lane file and test counts live only here, and only as recorded with a
 measurement.** No doc quotes them and no spec pins them to the tree, so a PR
@@ -133,8 +135,8 @@ regression. A maintainer's laptop is faster again. Record your own row above
 rather than replacing one.
 
 Everything below is the second session's run unless the row says otherwise.
-The Tier 2 and per-edit `**bold**` cells are the captures the spec reads, so
-keep those labels and cell shapes when you add a row.
+The whole-lane, Tier 2 and per-edit `**bold**` cells are the captures the spec
+reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
