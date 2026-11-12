@@ -10,7 +10,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import { type Milestone, milestonesForRecord } from './installModel'
-import { gatedRead } from '../helpers/gatedRead'
+import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
 interface InstallRecord {
   client: Pick<Client, 'roles' | 'enabled' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
@@ -27,11 +27,11 @@ interface InstallRecord {
  * A service's install, off its stored row, for the server components that show
  * it outside the Install tab: the edit form's banner and the Atlas tab's summary.
  *
- * ⚠ **The gated read is the gate, and it has to come first.** A `form-state`
- * request names its own `id` past nothing but `canAccessAdmin`, so without a
- * read under the caller's own access any manager is handed any service's
- * address, region and install progress (#1126, `docs/rules/admin-ui.md`).
- * Gating here rather than at each caller is what covers the next one.
+ * ⚠ **`readAsRequestUser` has to come first.** A `form-state` request names its
+ * own `id` past nothing but `canAccessAdmin`, so without a read under the
+ * caller's own access any manager is handed any service's address, region and
+ * install progress (#1126, `docs/rules/admin-ui.md`). Gating here rather than
+ * at each caller is what covers the next one.
  *
  * Wrapped in React's `cache`, so one request reads the row once however many of
  * them render — and so both count the same milestones. ⚠ The key is the
@@ -39,8 +39,7 @@ interface InstallRecord {
  */
 export const loadInstallRecord = cache(
   async (req: PayloadRequest, id: number): Promise<InstallRecord | null> => {
-    // Value unused: this read is the access check.
-    const permitted = await gatedRead(req, 'clients', id, { enabled: true })
+    const permitted = await readAsRequestUser(req, 'clients', id, { enabled: true })
     if (!permitted) return null
 
     // Past the gate, `overrideAccess` so the summary reads the same for every
