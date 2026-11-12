@@ -17,7 +17,7 @@ import { randomBytes } from 'node:crypto'
 const PREFIX = 'secret-stage:'
 
 /** How long a staged value waits for its Save. */
-export const STAGE_TTL_MS = 60 * 60 * 1000
+const STAGE_TTL_MS = 60 * 60 * 1000
 
 /** One staged value, bound to the exact field, document and person it was set for. */
 export interface StagedSecret {

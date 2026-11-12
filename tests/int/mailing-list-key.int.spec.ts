@@ -13,7 +13,7 @@
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MailingListConfig } from '@/lib/mailingList/types'
 import type { Client, Manager } from '@/payload-types'
@@ -114,6 +114,12 @@ describe('Mailing-list key', () => {
     })
   })
 
+  // A failed assertion must not leave the next case a refusing provider.
+  beforeEach(() => {
+    providerVerdict = null
+    verifiedWith = null
+  })
+
   afterAll(async () => {
     providerVerdict = null
     await cleanup()
@@ -173,7 +179,7 @@ describe('Mailing-list key', () => {
     it('reports only the stored key’s tail', async () => {
       const { body, status } = await listedRest(secretUrl(service.id))
       expect(status).toBe(200)
-      expect(body).toEqual({ last4: STORED_KEY.slice(-4), set: true })
+      expect(body).toEqual({ last4: STORED_KEY.slice(-4) })
     })
   })
 
@@ -210,7 +216,6 @@ describe('Mailing-list key', () => {
 
       expect(lastVerified()?.apiKey).toBe(STORED_KEY)
       expect(lastVerified()?.listId).toBe('list-2')
-      providerVerdict = null
     })
 
     it('proves the stored credentials again when a provider is chosen again', async () => {
@@ -237,7 +242,6 @@ describe('Mailing-list key', () => {
       providerVerdict = 'That API key was refused.'
 
       await expect(save('mailchimp')).rejects.toThrow(/That API key was refused/)
-      providerVerdict = null
     })
   })
 
@@ -278,7 +282,6 @@ describe('Mailing-list key', () => {
       expect(JSON.stringify(body)).toContain('That API key was refused.')
       expect(token).toBeUndefined()
       expect(lastVerified()).toMatchObject({ apiKey: 'wrong-key', listId: 'list-unsaved' })
-      providerVerdict = null
     })
 
     it('stores nothing until Save applies the token, then proves it again', async () => {
@@ -336,7 +339,7 @@ describe('Mailing-list key', () => {
       // `validateMailingList` and `LIST_ELIGIBLE` drops the service.
       expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBe('')
       expect(lastVerified()).toBeNull()
-      expect((await listedRest(secretUrl(removable.id))).body).toEqual({ last4: null, set: false })
+      expect((await listedRest(secretUrl(removable.id))).body).toEqual({ last4: null })
     })
 
     it('ignores a removal from a manager the Atlas tab locks out', async () => {

@@ -53,9 +53,8 @@ export interface SecretFieldMarker {
   dependsOn: string[]
 }
 
-/** `GET /api/<collection>/:id/secrets/:path` — whether a value is stored, and its tail. */
+/** `GET /api/<collection>/:id/secrets/:path` — the stored value's tail. */
 export interface SecretStatus {
-  set: boolean
   /** The stored value's last four characters, or `null` when none is stored. */
   last4: string | null
 }
@@ -63,5 +62,4 @@ export interface SecretStatus {
 /** `POST /api/<collection>/:id/secrets/:path` — the staged value's token. */
 export interface SecretStaged {
   token: string
-  last4: string
 }

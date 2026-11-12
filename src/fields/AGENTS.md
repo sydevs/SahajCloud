@@ -71,8 +71,8 @@ Behaviours it must keep:
   the new value to prove it against what is actually saved.
 - ⚠ **A token applies once, on the field, document and person it was staged for**, within its hour;
   anything else refuses the Save with a 400 rather than saving without the key.
-- ⚠ **The routes evaluate the sanitized field's write locks, parents and control included**, not the
-  factory's `writeAccess` alone: `lockTabs` stamps more onto `Clients` fields than they declare, and
+- ⚠ **The routes evaluate the row's own `update` and the sanitized field's write locks, parents and
+  control included**, not the factory's `writeAccess` alone: `lockTabs` stamps more onto `Clients` fields than they declare, and
   a route asking less than Save would stage what no Save can apply.
 - ⚠ **`''`, `null` and `undefined` pass through encryption untouched, both ways.** `LIST_ELIGIBLE`
   (`src/lib/atlas/mailingListOwners.ts`) filters this exact column with `not_equals: ''`, and

@@ -82,7 +82,7 @@ const subscribe = (config: MailingListConfig) =>
   subscribeToMailingList({ config, email: 'person@example.test', name: 'Ada' })
 
 describe('isMailingListConfigured', () => {
-  it('needs the switch and all three credentials', () => {
+  it('needs a provider, a list and a key', () => {
     expect(isMailingListConfigured(MAILCHIMP)).toBe(true)
     expect(isMailingListConfigured({ ...MAILCHIMP, provider: null })).toBe(false)
     expect(isMailingListConfigured({ ...MAILCHIMP, apiKey: '' })).toBe(false)

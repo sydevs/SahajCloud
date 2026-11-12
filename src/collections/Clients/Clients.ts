@@ -39,7 +39,11 @@ import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
-import { validateMailingList, verifyMailingListKey } from './hooks/validateMailingList'
+import {
+  CREDENTIAL_KEYS,
+  validateMailingList,
+  verifyMailingListKey,
+} from './hooks/validateMailingList'
 
 /**
  * The bare-host rule the admin field used to enforce with
@@ -396,7 +400,7 @@ const mailingListGroup: Field = {
       label: 'API Key',
       writeAccess: managersOnlyFieldAccess,
       verify: verifyMailingListKey,
-      dependsOn: ['provider', 'listId', 'clientId', 'doiFlowId', 'doubleOptIn'],
+      dependsOn: CREDENTIAL_KEYS.filter((key) => key !== 'apiKey'),
       setDescription: 'We check this key with your mailing list provider first.',
       admin: { condition: (data) => hasMailingList(data) },
     }),

@@ -17,10 +17,9 @@ import { PlusIcon } from '@payloadcms/ui/icons/Plus'
 import { RefreshIcon } from '@payloadcms/ui/icons/Refresh'
 import React, { useCallback, useEffect, useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { SecretControlConfig, SecretStaged, SecretStatus } from '@/fields/secretField/types'
 import { REMOVE, STAGE_PREFIX } from '@/fields/secretField/types'
-
-import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 import './styles.css'
 
@@ -41,11 +40,10 @@ const MASK = '•'.repeat(20)
 export const SecretField: TextFieldClientComponent = ({ field, path }) => {
   const config = field.admin?.custom?.secret as SecretControlConfig
   const { value: change, setValue } = useField<string | null>({ path })
-  const { collectionSlug, id, lastUpdateTime } = useDocumentInfo()
+  const { collectionSlug, id, savedDocumentData } = useDocumentInfo()
   const { getDataByPath } = useForm()
   const { closeModal, isModalOpen, openModal } = useModal()
   const [status, setStatus] = useState<SecretStatus | null>(null)
-  const [stagedLast4, setStagedLast4] = useState<string | null>(null)
 
   const parentPath = path.split('.').slice(0, -1).join('.')
   const at = (name: string) => (parentPath ? `${parentPath}.${name}` : name)
@@ -53,7 +51,9 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
   const endpoint =
     id == null ? null : `/api/${collectionSlug}/${id}/secrets/${at(config.secretName)}`
 
-  // Re-read after every save: that is when an instruction is applied.
+  // Re-read after every save, which is when an instruction is applied.
+  // (`lastUpdateTime` also moves on the document-lock heartbeat.)
+  const savedAt = savedDocumentData?.updatedAt
   useEffect(() => {
     if (!endpoint) return
     let current = true
@@ -64,17 +64,12 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
     return () => {
       current = false
     }
-  }, [endpoint, lastUpdateTime])
+  }, [endpoint, savedAt])
 
   const staged = typeof change === 'string' && change.startsWith(STAGE_PREFIX)
   const removing = change === REMOVE
-  useEffect(() => {
-    if (!staged) setStagedLast4(null)
-  }, [staged])
-
   const onStaged = useCallback(
-    ({ last4, token }: SecretStaged) => {
-      setStagedLast4(last4)
+    ({ token }: SecretStaged) => {
       setValue(`${STAGE_PREFIX}${token}`)
       closeModal(modalSlug)
     },
@@ -98,14 +93,15 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
     )
   }
 
-  const shown = staged ? stagedLast4 : removing ? null : status?.set ? status.last4 : null
-  const has = shown !== null
+  const stored = status?.last4 ?? null
+  // A staged value shows the mask alone: nothing but its token is kept client-side.
+  const has = staged || (!removing && stored !== null)
   const action = has ? `Replace ${label}` : `Set ${label}`
   const description = staged
     ? `New ${label} — it is saved when you save this page.`
     : removing
       ? `The ${label} is removed when you save this page.`
-      : status?.set
+      : stored !== null
         ? 'Stored encrypted. It cannot be shown again.'
         : `No ${label} is set.`
 
@@ -132,7 +128,7 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
               <Button buttonStyle="secondary" onClick={() => setValue(null)} size="small">
                 Undo
               </Button>
-            ) : status?.set ? (
+            ) : stored !== null ? (
               <Button
                 buttonStyle="secondary"
                 className="secret-field__remove-button"
@@ -149,7 +145,7 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
         placeholder={removing ? 'Removed on save' : 'Not set'}
         readOnly
         style={style}
-        value={has ? `${MASK}${shown}` : ''}
+        value={staged ? MASK : has ? `${MASK}${stored}` : ''}
       />
       <Modal
         className="confirmation-modal secret-field__modal"

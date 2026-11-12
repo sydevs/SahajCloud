@@ -21,7 +21,7 @@ import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
  * and switched back on by choosing it again. That last save changes `provider`,
  * so it is proven, however little else changed.
  */
-const CREDENTIAL_KEYS = [
+export const CREDENTIAL_KEYS = [
   'provider',
   'listId',
   'apiKey',
