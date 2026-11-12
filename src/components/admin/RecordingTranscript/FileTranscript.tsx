@@ -25,7 +25,7 @@ export type TranscribedFile = Pick<File, 'filename' | 'mimeType' | 'mp4Url' | 'u
  * (`UploadTranscript`). Clicking a phrase plays the file from it, and the
  * playing phrase follows the player either way.
  */
-export function FileRecordingTranscript({
+export function FileTranscript({
   file,
   transcript,
   collapsible = false,
@@ -68,7 +68,7 @@ export function FileRecordingTranscript({
  * The Transcript panel on an audio or video file's own edit view, and the one
  * place a file's spoken language is corrected — for every page using the file.
  */
-export const FileTranscript: UIFieldClientComponent = ({ path }) => {
+export const FileTranscriptField: UIFieldClientComponent = ({ path }) => {
   const { data, id } = useDocumentInfo()
   const transcript = useRecordingTranscript('files', id)
   if (!id) return null
@@ -83,7 +83,7 @@ export const FileTranscript: UIFieldClientComponent = ({ path }) => {
   return (
     <div className="field-type" style={{ marginBottom: 'var(--spacing-field)' }}>
       <FieldLabel label="Transcript" path={path} />
-      <FileRecordingTranscript file={file} transcript={transcript} />
+      <FileTranscript file={file} transcript={transcript} />
       {/* Below what it describes: a correction, not the first thing to read. */}
       {row && phase !== 'pending' && (
         <div className={styles.language}>
@@ -94,4 +94,4 @@ export const FileTranscript: UIFieldClientComponent = ({ path }) => {
   )
 }
 
-export default FileTranscript
+export default FileTranscriptField

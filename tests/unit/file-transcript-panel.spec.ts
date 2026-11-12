@@ -153,11 +153,11 @@ describe('a file’s Transcript panel', () => {
 
   /** The player and transcript alone, as both pages frame them. */
   const render = async (file: TranscribedFile) => {
-    const { FileRecordingTranscript } = await import('@/components/admin/RecordingTranscript')
+    const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
     const { useRecordingTranscript } =
       await import('@/components/admin/RecordingTranscript/useRecordingTranscript')
     function Harness() {
-      return createElement(FileRecordingTranscript, {
+      return createElement(FileTranscript, {
         file,
         transcript: useRecordingTranscript('files', file.id),
       })
@@ -307,8 +307,8 @@ describe('a file’s Transcript panel', () => {
 
   describe('on the file’s own page', () => {
     const mountFilePanel = async () => {
-      const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
-      mount(FileTranscript, { path: 'transcriptPanel' })
+      const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
+      mount(FileTranscriptField, { path: 'transcriptPanel' })
     }
 
     it('offers the spoken language once a run has answered', async () => {

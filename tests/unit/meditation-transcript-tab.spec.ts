@@ -140,7 +140,7 @@ const SEGMENTS = [
 const fetchMock = vi.fn()
 
 describe('the Transcript tab', () => {
-  let MeditationTranscript: UIFieldClientComponent
+  let MeditationTranscriptField: UIFieldClientComponent
   let container: HTMLDivElement
   let root: Root
 
@@ -163,9 +163,9 @@ describe('the Transcript tab', () => {
     stub.swrCalls = []
     stub.iframe = iframeRef
 
-    MeditationTranscript = (
-      await import('@/components/admin/RecordingTranscript/MeditationTranscript')
-    ).MeditationTranscript
+    MeditationTranscriptField = (
+      await import('@/components/admin/RecordingTranscript/MeditationTranscriptField')
+    ).MeditationTranscriptField
 
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -181,7 +181,7 @@ describe('the Transcript tab', () => {
 
   const render = () => {
     act(() => {
-      root.render(createElement(MeditationTranscript as never))
+      root.render(createElement(MeditationTranscriptField as never))
     })
   }
 

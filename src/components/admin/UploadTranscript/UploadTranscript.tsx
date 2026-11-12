@@ -7,10 +7,7 @@ import React from 'react'
 import useSWR from 'swr'
 
 import { type PayloadList, payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
-import {
-  FileRecordingTranscript,
-  type TranscribedFile,
-} from '@/components/admin/RecordingTranscript'
+import { FileTranscript, type TranscribedFile } from '@/components/admin/RecordingTranscript'
 import { useRecordingTranscript } from '@/components/admin/RecordingTranscript/useRecordingTranscript'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { relationId } from '@/lib/utilities/relationId'
@@ -47,17 +44,17 @@ export const UploadTranscript: UploadFieldDescriptionClientComponent = ({ field,
       <FieldDescription description={field?.admin?.description} path={fieldPath} />
       {file && transcribable && (
         // Keyed, so a swapped file starts its player and playhead afresh.
-        <FileTranscriptBody file={file} key={file.id} />
+        <UploadFileTranscript file={file} key={file.id} />
       )}
     </>
   )
 }
 
-function FileTranscriptBody({ file }: { file: TranscribedFile }) {
+function UploadFileTranscript({ file }: { file: TranscribedFile }) {
   const transcript = useRecordingTranscript('files', file.id)
   return (
     <div style={{ marginTop: 'calc(var(--base) * 0.75)' }}>
-      <FileRecordingTranscript collapsible file={file} transcript={transcript} />
+      <FileTranscript collapsible file={file} transcript={transcript} />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-export { FileRecordingTranscript, FileTranscript, type TranscribedFile } from './FileTranscript'
-export { MeditationTranscript } from './MeditationTranscript'
-export { default } from './MeditationTranscript'
+export { FileTranscript, FileTranscriptField, type TranscribedFile } from './FileTranscript'
+export { MeditationTranscriptField } from './MeditationTranscriptField'
+export { default } from './MeditationTranscriptField'
 export { RecordingTranscript } from './RecordingTranscript'
