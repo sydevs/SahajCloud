@@ -8,6 +8,13 @@
 export type LivePreviewUnavailableReason =
   'atlas-tab-only' | 'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
 
+const UNAVAILABLE_PATH = '/live-preview-unavailable'
+
+/** Whether a resolved panel URL is already an explanation, absolute or not. */
+export function isLivePreviewUnavailableUrl(url: string): boolean {
+  return URL.parse(url, 'http://relative.invalid')?.pathname === UNAVAILABLE_PATH
+}
+
 /**
  * The URL to point the Live Preview panel at when there is no page to show.
  *
@@ -17,13 +24,6 @@ export type LivePreviewUnavailableReason =
  * next time they open any document of that collection. See the page's own
  * docblock for the full reasoning.
  */
-const UNAVAILABLE_PATH = '/live-preview-unavailable'
-
-/** Whether a resolved panel URL is already an explanation, absolute or not. */
-export function isLivePreviewUnavailableUrl(url: string): boolean {
-  return URL.parse(url, 'http://relative.invalid')?.pathname === UNAVAILABLE_PATH
-}
-
 export function livePreviewUnavailableUrl(reason: LivePreviewUnavailableReason): string {
   // ⚠ **Root-relative, not absolute.** Payload's `formatAbsoluteURL` resolves
   // it against the admin window, so it is `'self'` by construction and the CSP
