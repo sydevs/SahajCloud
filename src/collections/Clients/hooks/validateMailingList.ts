@@ -2,6 +2,7 @@ import type { CollectionBeforeChangeHook, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import type { SecretVerifyArgs } from '@/fields'
 import { adapterFor, unknownProviderMessage } from '@/lib/mailingList/providers'
 import { isMailingListConfigured } from '@/lib/mailingList/subscribe'
 import type { MailingListConfig } from '@/lib/mailingList/types'
@@ -15,13 +16,12 @@ import { PROVIDER_TIMEOUT_MS } from '@/lib/mailingList/types'
  * confirmation flow, so turning it back on makes a stored `doiFlowId`
  * load-bearing again and worth proving.
  *
- * ⚠ `enabled` is one of them because a list can be switched off, edited while
- * nothing proves it — this hook returns early on a disabled list — and switched
- * back on. Without it here, that path reaches delivery having proved nothing,
- * and the only report is a failed `activityLog` entry nobody is watching.
+ * ⚠ `provider` is also the list's on switch: a list is switched off by clearing
+ * it, edited while nothing proves it — this hook returns early without one —
+ * and switched back on by choosing it again. That last save changes `provider`,
+ * so it is proven, however little else changed.
  */
 const CREDENTIAL_KEYS = [
-  'enabled',
   'provider',
   'listId',
   'apiKey',
@@ -51,14 +51,15 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   const incoming = data?.mailingList as MailingListConfig | undefined
-  if (!incoming?.enabled) return data
+  if (!incoming?.provider) return data
 
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
 
   // ⚠ **A form save carries no key, and one still arrives here.** `secretField`
-  // keeps it out of form state, and Payload's `beforeValidate` field pass then
-  // back-fills the omitted field from the stored document, decrypted — so
-  // `incoming.apiKey` is the plaintext the provider must be asked about.
+  // keeps it out of form state. Its own `beforeValidate` hook resolves a staged
+  // key (or a removal) to plaintext, and otherwise Payload back-fills the
+  // omitted field from the stored document, decrypted — so `incoming.apiKey` is
+  // the plaintext the provider must be asked about, new or stored.
 
   // Incomplete credentials are Payload's `required` to refuse, not ours.
   // Pinging with a blank key would answer "that API key was refused", blaming
@@ -79,6 +80,25 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   }
 
   return data
+}
+
+/**
+ * The set modal's check of a key before it is staged, against the form's
+ * unsaved provider and list. Save proves it again through the hook above,
+ * against what is actually saved.
+ */
+export async function verifyMailingListKey({
+  req,
+  siblingData,
+  value,
+}: SecretVerifyArgs): Promise<string | null> {
+  const config = { ...siblingData, apiKey: value } as MailingListConfig
+  if (!config.provider || !config.listId) {
+    return 'Choose a mailing list provider and enter the List ID first.'
+  }
+  const failure = await checkCredentials(config, req)
+  // Adapters word a refusal to follow "Mailing list: "; standing alone it needs a capital.
+  return failure && failure.charAt(0).toUpperCase() + failure.slice(1)
 }
 
 /**

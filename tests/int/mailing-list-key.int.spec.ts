@@ -1,11 +1,11 @@
 /**
- * The mailing-list provider key as a stored secret (#1109).
+ * The mailing-list provider key as a `secretField` (#1109).
  *
  * Three guarantees, and the first is why the other two exist: Payload's live
  * preview posts the whole edit form's state to the preview iframe, so a key in
  * that state would reach sahajatlas.com. Keeping it out means no read returns
- * it, and that in turn means a key can only be set through an endpoint that
- * proves it first.
+ * it, and that in turn means a key reaches the row only through a staged token
+ * the form's own Save applies — the secret routes stage, they never write.
  *
  * ⚠ The fixtures store a **real** key. A probe against a service with none
  * returns `null` either way, which reads exactly like a protected field and
@@ -43,6 +43,7 @@ vi.mock('@/lib/mailingList/providers', async (importOriginal) => {
 })
 
 const STORED_KEY = 'SECRET-MAILING-LIST-KEY-98765'
+const SECRET_PATH = 'mailingList.apiKey'
 
 describe('Mailing-list key', () => {
   let payload: Payload
@@ -66,8 +67,31 @@ describe('Mailing-list key', () => {
     }) as unknown as PayloadRequest
 
   /** The row as the database holds it — the decrypting `afterRead` still runs. */
-  const readPrivileged = (): Promise<Client> =>
-    payload.findByID({ collection: 'clients', depth: 0, id: service.id, overrideAccess: true })
+  const readPrivileged = (id: number = service.id): Promise<Client> =>
+    payload.findByID({ collection: 'clients', depth: 0, id, overrideAccess: true })
+
+  const secretUrl = (id: number) => `/api/clients/${id}/secrets/${SECRET_PATH}`
+
+  /** Stage a key as `rest`, answering the token. */
+  const stage = async (
+    rest: RestClient,
+    value: string,
+    id: number = service.id,
+    siblings: Record<string, unknown> = { listId: 'list-1', provider: 'mailchimp' },
+  ) => {
+    const { body, status } = await rest(secretUrl(id), {
+      json: { siblings, value },
+      method: 'POST',
+    })
+    return { body, status, token: (body as { token?: string }).token }
+  }
+
+  /** A form-shaped Save carrying only the control's instruction. */
+  const saveWith = (rest: RestClient, change: string | null, id: number = service.id) =>
+    rest(`/api/clients/${id}`, {
+      json: { mailingList: { apiKeyChange: change } },
+      method: 'PATCH',
+    })
 
   beforeAll(async () => {
     const env = await createTestEnvironment()
@@ -85,12 +109,7 @@ describe('Mailing-list key', () => {
       apiKey: 'service-own-browser-key-for-mailing-list-spec',
       label: 'Mailing List Service',
       managers: [listedManager.id],
-      mailingList: {
-        apiKey: STORED_KEY,
-        enabled: true,
-        listId: 'list-1',
-        provider: 'mailchimp',
-      },
+      mailingList: { apiKey: STORED_KEY, listId: 'list-1', provider: 'mailchimp' },
       roles: ['sahaj-atlas-client'],
     })
   })
@@ -128,32 +147,41 @@ describe('Mailing-list key', () => {
         req: managerReq(manager()),
       })
 
-      expect(doc.mailingList?.enabled).toBe(true)
+      expect(doc.mailingList?.provider).toBe('mailchimp')
       expect(doc.mailingList?.apiKey).toBeUndefined()
+      expect(doc.mailingList?.apiKeyChange ?? null).toBeNull()
     })
 
-    it('declares the field out of form state on the booted config', () => {
+    it('declares the key out of form state, behind a control that comes first', () => {
       // `admin.disabled` is what keeps a field out of the form state live preview
-      // posts — the same property `site` carries. Payload's own form-state builder
-      // is not reachable from `@payloadcms/ui`'s exports map, so the read above is
-      // the outcome and this is the declaration behind it.
+      // posts. Payload's form-state builder is not reachable from
+      // `@payloadcms/ui`'s exports map, so the read above is the outcome and this
+      // is the declaration behind it.
       const group = payload.collections.clients.config.flattenedFields.find(
         (entry) => entry.name === 'mailingList',
       ) as {
-        flattenedFields?: { admin?: { disabled?: boolean }; name: string; required?: boolean }[]
+        flattenedFields: { admin?: { disabled?: boolean }; name: string; required?: boolean }[]
       }
-      const field = group.flattenedFields?.find((entry) => entry.name === 'apiKey')
+      const names = group.flattenedFields.map((entry) => entry.name)
+      const field = group.flattenedFields.find((entry) => entry.name === 'apiKey')
 
       expect(field?.admin?.disabled).toBe(true)
       expect(field?.required).toBeFalsy()
+      expect(names.indexOf('apiKeyChange')).toBeLessThan(names.indexOf('apiKey'))
+    })
+
+    it('reports only the stored key’s tail', async () => {
+      const { body, status } = await listedRest(secretUrl(service.id))
+      expect(status).toBe(200)
+      expect(body).toEqual({ last4: STORED_KEY.slice(-4), set: true })
     })
   })
 
-  describe('writes', () => {
+  describe('saves', () => {
     it('keeps the stored key through a form-shaped save that carries none', async () => {
       await payload.update({
         collection: 'clients',
-        data: { mailingList: { enabled: true, listId: 'list-1', provider: 'mailchimp' } },
+        data: { mailingList: { listId: 'list-1', provider: 'mailchimp' } },
         id: service.id,
         overrideAccess: false,
         req: managerReq(listedManager),
@@ -163,18 +191,17 @@ describe('Mailing-list key', () => {
     })
 
     it('still proves a changed credential against the provider on a form save', async () => {
-      // ⚠ The key is absent from form state, so the save carries none — and the
-      // provider is still handed the stored plaintext, because Payload
-      // back-fills an omitted field from the decrypted stored document before
-      // the hook runs. Asserting the argument is what tells that apart from a
-      // guard that short-circuited and proved nothing.
+      // ⚠ The save carries no key — and the provider is still handed the stored
+      // plaintext, because Payload back-fills an omitted field from the decrypted
+      // stored document before the hook runs. Asserting the argument is what
+      // tells that apart from a guard that short-circuited and proved nothing.
       providerVerdict = 'That list does not exist.'
       verifiedWith = null
 
       await expect(
         payload.update({
           collection: 'clients',
-          data: { mailingList: { enabled: true, listId: 'list-2', provider: 'mailchimp' } },
+          data: { mailingList: { listId: 'list-2', provider: 'mailchimp' } },
           id: service.id,
           overrideAccess: false,
           req: managerReq(listedManager),
@@ -186,90 +213,126 @@ describe('Mailing-list key', () => {
       providerVerdict = null
     })
 
-    it('proves the stored credentials again when a list is switched back on', async () => {
-      // A disabled list returns early from the hook, so credentials can be
-      // edited while nothing proves them. Switching the list on is therefore
-      // the one save that has to ask, however little else changed.
+    it('proves the stored credentials again when a provider is chosen again', async () => {
+      // Clearing the provider switches the list off and returns early from the
+      // hook, so credentials can be edited while nothing proves them. Choosing the
+      // provider again is therefore the one save that has to ask.
       const toggled = await testData.createClient(payload, adminManager.id, {
         apiKey: 'toggled-service-key-for-mailing-list-spec',
         label: 'Toggled Service',
         managers: [listedManager.id],
-        mailingList: {
-          apiKey: STORED_KEY,
-          enabled: true,
-          listId: 'list-1',
-          provider: 'mailchimp',
-        },
+        mailingList: { apiKey: STORED_KEY, listId: 'list-1', provider: 'mailchimp' },
         roles: ['sahaj-atlas-client'],
       })
-      const save = (enabled: boolean) =>
+      const save = (provider: 'mailchimp' | null) =>
         payload.update({
           collection: 'clients',
-          data: { mailingList: { enabled } },
+          data: { mailingList: { provider } },
           id: toggled.id,
           overrideAccess: false,
           req: managerReq(listedManager),
         })
 
-      await save(false)
+      await save(null)
       providerVerdict = 'That API key was refused.'
 
-      await expect(save(true)).rejects.toThrow(/That API key was refused/)
+      await expect(save('mailchimp')).rejects.toThrow(/That API key was refused/)
       providerVerdict = null
     })
+  })
 
-    it('refuses the endpoint on a service with no atlas role', async () => {
-      // `lockTabs` ANDs the Atlas tab's own rule onto every field it holds, and
-      // `payload.update` strips what it refuses rather than erroring — so a door
-      // gating on less would answer 200 for a write that stored nothing.
+  describe('staging', () => {
+    it('refuses a service with no atlas role', async () => {
+      // `lockTabs` ANDs the Atlas tab's own rule onto every field it holds, and a
+      // save strips what it refuses rather than erroring — so a route gating on
+      // less would stage a key no Save could apply.
       const appKey = await testData.createClient(payload, adminManager.id, {
         apiKey: 'app-key-for-mailing-list-spec',
         label: 'App Key',
         managers: [listedManager.id],
         roles: ['wemeditate-web-client'],
       })
-      const { status } = await listedRest(`/api/clients/${appKey.id}/mailing-list-key`, {
-        json: { apiKey: 'k', listId: 'list-1', provider: 'mailchimp' },
-        method: 'POST',
-      })
 
-      expect(status).toBe(403)
+      expect((await stage(listedRest, 'k', appKey.id)).status).toBe(403)
     })
 
     it('refuses a manager who does not manage the service', async () => {
-      const { status } = await outsideRest(`/api/clients/${service.id}/mailing-list-key`, {
-        json: { apiKey: 'nope', listId: 'list-1', provider: 'mailchimp' },
-        method: 'POST',
-      })
-
-      expect(status).toBe(404)
-      expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
+      expect((await stage(outsideRest, 'nope')).status).toBe(404)
+      expect((await outsideRest(secretUrl(service.id))).status).toBe(404)
     })
 
-    it('stores nothing when the provider refuses the key', async () => {
+    it('refuses a path that is not a secret', async () => {
+      const { status } = await listedRest(`/api/clients/${service.id}/secrets/mailingList.listId`)
+      expect(status).toBe(404)
+    })
+
+    it('checks the key against the form’s unsaved values, and stages nothing it refuses', async () => {
       providerVerdict = 'That API key was refused.'
-      const { body, status } = await listedRest(`/api/clients/${service.id}/mailing-list-key`, {
-        json: { apiKey: 'wrong-key', listId: 'list-1', provider: 'mailchimp' },
-        method: 'POST',
+      verifiedWith = null
+      const { body, status, token } = await stage(listedRest, 'wrong-key', service.id, {
+        listId: 'list-unsaved',
+        provider: 'mailchimp',
       })
 
       expect(status).toBe(400)
       expect(JSON.stringify(body)).toContain('That API key was refused.')
-      expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
+      expect(token).toBeUndefined()
+      expect(lastVerified()).toMatchObject({ apiKey: 'wrong-key', listId: 'list-unsaved' })
+      providerVerdict = null
     })
 
-    it('stores the key once the provider accepts it, and reports only its tail', async () => {
-      providerVerdict = null
-      const { status } = await listedRest(`/api/clients/${service.id}/mailing-list-key`, {
-        json: { apiKey: 'NEW-PROVEN-KEY-4321', listId: 'list-1', provider: 'mailchimp' },
-        method: 'POST',
-      })
+    it('stores nothing until Save applies the token, then proves it again', async () => {
+      const { status, token } = await stage(listedRest, 'NEW-PROVEN-KEY-4321')
       expect(status).toBe(200)
-      expect((await readPrivileged()).mailingList?.apiKey).toBe('NEW-PROVEN-KEY-4321')
+      expect((await readPrivileged()).mailingList?.apiKey).toBe(STORED_KEY)
 
-      const hint = await adminRest(`/api/clients/${service.id}/mailing-list-key`)
-      expect(hint.status).toBe(200)
-      expect(hint.body).toEqual({ last4: '4321', set: true })
+      verifiedWith = null
+      const saved = await saveWith(listedRest, `stage:${token}`)
+      expect(saved.status).toBe(200)
+      expect((await readPrivileged()).mailingList?.apiKey).toBe('NEW-PROVEN-KEY-4321')
+      expect(lastVerified()?.apiKey).toBe('NEW-PROVEN-KEY-4321')
+
+      // Spent: the same token cannot be applied twice.
+      expect((await saveWith(listedRest, `stage:${token}`)).status).toBe(400)
+    })
+
+    it('applies a token only for the person and service it was staged for', async () => {
+      const { token } = await stage(listedRest, 'SOMEONE-ELSES-KEY-1111')
+      const other = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'other-service-key-for-mailing-list-spec',
+        label: 'Other Service',
+        managers: [listedManager.id],
+        mailingList: { apiKey: STORED_KEY, listId: 'list-1', provider: 'mailchimp' },
+        roles: ['sahaj-atlas-client'],
+      })
+
+      expect((await saveWith(adminRest, `stage:${token}`)).status).toBe(400)
+      expect((await saveWith(listedRest, `stage:${token}`, other.id)).status).toBe(400)
+      expect((await readPrivileged(other.id)).mailingList?.apiKey).toBe(STORED_KEY)
+    })
+
+    it('refuses an expired token', async () => {
+      const { token } = await stage(listedRest, 'EXPIRED-KEY-2222')
+      const key = `secret-stage:${token}`
+      const entry = await payload.kv.get<{ expiresAt: number }>(key)
+      await payload.kv.set(key, { ...entry, expiresAt: Date.now() - 1 })
+
+      expect((await saveWith(listedRest, `stage:${token}`)).status).toBe(400)
+      expect(await payload.kv.get(key)).toBeNull()
+    })
+
+    it('clears the key when Save carries a removal', async () => {
+      const removable = await testData.createClient(payload, adminManager.id, {
+        apiKey: 'removable-service-key-for-mailing-list-spec',
+        label: 'Removable Service',
+        managers: [listedManager.id],
+        mailingList: { apiKey: STORED_KEY, listId: 'list-1', provider: 'mailchimp' },
+        roles: ['sahaj-atlas-client'],
+      })
+
+      expect((await saveWith(listedRest, 'remove', removable.id)).status).toBe(200)
+      expect((await readPrivileged(removable.id)).mailingList?.apiKey).toBeFalsy()
+      expect((await listedRest(secretUrl(removable.id))).body).toEqual({ last4: null, set: false })
     })
   })
 })

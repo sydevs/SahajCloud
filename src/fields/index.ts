@@ -70,6 +70,7 @@ export { legacyMigrationFields } from './legacyFields'
 // Admin condition that hides a field (e.g. join fields) until the doc has an id
 export { hideUntilCreated } from './hideUntilCreated'
 
-// Secret field - a write-only, encrypted-at-rest stored credential
+// Secret field - a write-only, encrypted-at-rest stored credential. Its routes,
+// `secretFieldEndpoints`, are imported by deep path: they reach server-only code.
 export { secretField } from './secretField'
-export type { SecretFieldOptions } from './secretField'
+export type { SecretFieldOptions, SecretVerifyArgs } from './secretField'

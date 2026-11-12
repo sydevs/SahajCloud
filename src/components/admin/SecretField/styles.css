@@ -1,18 +1,23 @@
 /*
  * Payload's own API-key field, redrawn: its rules are scoped under `.auth-fields`,
- * which the Atlas tab sits outside. The input itself takes `.field-type.text`.
+ * which a secret elsewhere on the form sits outside. The input takes `.field-type.text`.
  */
-.mailing-list-key__input-wrap {
+.secret-field__input-wrap {
   display: flex;
   align-items: stretch;
+  border-radius: var(--style-radius-s);
 }
 
-.field-type.text.mailing-list-key .mailing-list-key__input-wrap input {
+.secret-field__input-wrap--pending {
+  box-shadow: 0 0 0 2px var(--theme-warning-500);
+}
+
+.field-type.text.secret-field .secret-field__input-wrap input {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-.mailing-list-key__replace-button.btn {
+.secret-field__set-button.btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -26,22 +31,25 @@
   --btn-icon-size: 18px;
 }
 
-.mailing-list-key__replace-button.btn:hover {
+.secret-field__set-button.btn:hover {
   background: var(--theme-elevation-150);
 }
 
-.confirmation-modal .field-type.text {
-  margin: 0;
-}
-
-.mailing-list-key__actions {
+.secret-field__actions {
   margin-top: calc(var(--base) / 2);
 }
 
-.mailing-list-key__remove-button.btn {
+.secret-field__actions .btn {
   margin: 0;
+}
+
+.secret-field__remove-button.btn {
   --color: var(--theme-error-500);
   --hover-color: var(--theme-error-400);
   --btn-border: 1px solid var(--theme-error-500);
   --hover-btn-border: 1px solid var(--theme-error-400);
+}
+
+.confirmation-modal .field-type.text {
+  margin: 0;
 }

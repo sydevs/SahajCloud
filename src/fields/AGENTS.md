@@ -47,21 +47,43 @@ class of bugs entirely.
 
 ## Secret field
 
-`secretField()` (`src/fields/secretField.ts`) is a stored operator credential: `read: () => false`,
-`admin.disabled: true`, never `required`, and encrypted at rest through `req.payload.encrypt` /
-`decrypt`. It owns the storage properties only — the admin control belongs to the caller, because a
-credential is proven against its own provider before it is stored and this factory knows nothing
-about providers. `Clients.mailingList.apiKey` is its one consumer today.
+`secretField()` (`src/fields/secretField/`) is a stored credential and the control that sets it.
+It returns **two fields, spread into `fields`**, and the collection also spreads
+`secretFieldEndpoints(slug)` into `endpoints`. `Clients.mailingList.apiKey` is its one consumer today.
 
-Two behaviours it must keep:
+- **The stored field**: `read: () => false`, `admin.disabled: true`, never `required`, and
+  encrypted at rest through `req.payload.encrypt` / `decrypt`. Nothing ever reads it back.
+- **The control** is a virtual `<name>Change` field drawn as Payload's API-key field. Its form value
+  is an instruction, never the secret: empty (keep), `remove`, or `stage:<token>`.
+- **Setting a value stages it.** The modal posts it to `POST /api/<collection>/:id/secrets/<path>`,
+  which runs the factory's `verify` against the form's unsaved `dependsOn` values, encrypts the value
+  into `payload.kv` for an hour, and answers a token. The document's own Save applies the token, so
+  nothing changes on the row until then and no other field rides along. `GET` on the same route
+  answers whether a value is stored and its last four characters.
 
-- ⚠ **`''`, `null` and `undefined` pass through untouched, both ways.** `LIST_ELIGIBLE`
+Behaviours it must keep:
+
+- ⚠ **The control comes first.** Payload runs a field's `beforeValidate` hooks and then its access
+  check, in field order. The control's own write lock has to strip a refused instruction before the
+  stored field's hook reads it.
+- ⚠ **The instruction resolves in `beforeValidate`, not `beforeChange`.** A collection
+  `beforeChange` hook — `validateMailingList` — runs before any field's `beforeChange`, and must see
+  the new value to prove it against what is actually saved.
+- ⚠ **A token applies once, on the field, document and person it was staged for**, within its hour;
+  anything else refuses the Save with a 400 rather than saving without the key.
+- ⚠ **The routes evaluate the sanitized field's write locks, parents and control included**, not the
+  factory's `writeAccess` alone: `lockTabs` stamps more onto `Clients` fields than they declare, and
+  a route asking less than Save would stage what no Save can apply.
+- ⚠ **`''`, `null` and `undefined` pass through encryption untouched, both ways.** `LIST_ELIGIBLE`
   (`src/lib/atlas/mailingListOwners.ts`) filters this exact column with `not_equals: ''`, and
   ciphertext for `''` is a non-empty string — so encrypting the empty case would offer a
-  half-configured service as a region's list owner.
+  half-configured service as a region's list owner. A removal stores `''` for the same reason.
 - ⚠ **A failed decrypt reports through `capture` and answers `null`.** A throw inside `afterRead`
   takes down every read of the row; `null` reads as unconfigured (`isMailingListConfigured`), so
   delivery stops rather than the CMS.
+
+`verify` is a courtesy that answers inside the modal. The guard that must hold on every write — a
+REST `PATCH` can still set the stored field directly — is the collection's own hook.
 
 It supplies no `validate`, which would replace Payload's own `text` validator
 (`src/collections/AGENTS.md`).

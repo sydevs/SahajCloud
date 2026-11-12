@@ -2443,26 +2443,29 @@ export interface Client {
    */
   supportEmail?: string | null;
   /**
-   * Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.
+   * Add people who sign up for news on this site to your own mailing list.
    */
   mailingList?: {
-    enabled?: boolean | null;
+    /**
+     * Leave empty if this service has no mailing list.
+     */
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and paste its Client Secret with Set key below.
+     * From your CleverReach app.
      */
     clientId?: string | null;
     /**
-     * Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.
+     * The list new subscribers are added to.
      */
     listId?: string | null;
+    apiKeyChange?: string | null;
     apiKey?: string | null;
     /**
-     * The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.
+     * People are only added after they click the link in that email.
      */
     doubleOptIn?: boolean | null;
     /**
-     * The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.
+     * The CleverReach form that sends the confirmation email. Copy its Flow ID.
      */
     doiFlowId?: string | null;
   };
@@ -4915,10 +4918,10 @@ export interface ClientsSelect<T extends boolean = true> {
   mailingList?:
     | T
     | {
-        enabled?: T;
         provider?: T;
         clientId?: T;
         listId?: T;
+        apiKeyChange?: T;
         apiKey?: T;
         doubleOptIn?: T;
         doiFlowId?: T;

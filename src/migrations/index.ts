@@ -126,6 +126,7 @@ import * as migration_20261110_234836_clients_label_title from './20261110_23483
 import * as migration_20261111_152439_merge_main_snapshot_7 from './20261111_152439_merge_main_snapshot_7';
 import * as migration_20261111_182500_encrypt_mailing_list_key from './20261111_182500_encrypt_mailing_list_key';
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
+import * as migration_20261112_181728_drop_mailing_list_enabled from './20261112_181728_drop_mailing_list_enabled';
 
 export const migrations = [
   {
@@ -767,5 +768,10 @@ export const migrations = [
     up: migration_20261111_215539_activity_log_rows.up,
     down: migration_20261111_215539_activity_log_rows.down,
     name: '20261111_215539_activity_log_rows',
+  },
+  {
+    up: migration_20261112_181728_drop_mailing_list_enabled.up,
+    down: migration_20261112_181728_drop_mailing_list_enabled.down,
+    name: '20261112_181728_drop_mailing_list_enabled'
   },
 ];

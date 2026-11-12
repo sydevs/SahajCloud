@@ -15,7 +15,6 @@ import type { MailingListConfig } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
 
 const MAILCHIMP: MailingListConfig = {
-  enabled: true,
   provider: 'mailchimp',
   listId: 'list-1',
   apiKey: 'key-us14',
@@ -23,21 +22,18 @@ const MAILCHIMP: MailingListConfig = {
 }
 
 const BREVO: MailingListConfig = {
-  enabled: true,
   provider: 'brevo',
   listId: '7',
   apiKey: 'brevo-key',
 }
 
 const KLAVIYO: MailingListConfig = {
-  enabled: true,
   provider: 'klaviyo',
   listId: 'ABC123',
   apiKey: 'pk_klaviyo',
 }
 
 const CLEVERREACH: MailingListConfig = {
-  enabled: true,
   provider: 'cleverreach',
   listId: '1337',
   apiKey: 'cr-secret',
@@ -88,7 +84,7 @@ const subscribe = (config: MailingListConfig) =>
 describe('isMailingListConfigured', () => {
   it('needs the switch and all three credentials', () => {
     expect(isMailingListConfigured(MAILCHIMP)).toBe(true)
-    expect(isMailingListConfigured({ ...MAILCHIMP, enabled: false })).toBe(false)
+    expect(isMailingListConfigured({ ...MAILCHIMP, provider: null })).toBe(false)
     expect(isMailingListConfigured({ ...MAILCHIMP, apiKey: '' })).toBe(false)
     expect(isMailingListConfigured({ ...MAILCHIMP, listId: null })).toBe(false)
     expect(isMailingListConfigured(null)).toBe(false)
@@ -139,7 +135,7 @@ describe('subscribeToMailingList', () => {
   })
 
   it('calls no provider at all when the list is off', async () => {
-    const result = await subscribe({ ...MAILCHIMP, enabled: false })
+    const result = await subscribe({ ...MAILCHIMP, provider: null })
     expect(result).toEqual(
       expect.objectContaining({ ok: false, code: 'not_configured', retryable: false }),
     )
