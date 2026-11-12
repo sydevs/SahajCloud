@@ -123,6 +123,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | fifty-ninth, #1131 dropping the calendar menu's sub-labels (2026-11-12)    | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
 | sixtieth, #1131 fixing CI after merging `main` (2026-11-12)                | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
 | sixty-first, #1129 addressing the critic's second pass (2026-11-12)        | 270 / 3600    | 51.34 s (inside the gate)                    | 51.3 s     |
+| sixty-second, #1129 fixing CI (2026-11-12)                                 | 271 / 3608    | 50.12 s (inside the gate)                    | 50.1 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -142,7 +143,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 270 / 3600                                                        |
+| Files / tests                                                                                   | 271 / 3608                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
