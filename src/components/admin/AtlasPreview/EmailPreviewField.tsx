@@ -28,14 +28,21 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
     name: fields['title']?.value,
   }))
   const [html, setHtml] = useState<null | string>(null)
+  // The collapsible starts closed, and a render is a full server-side template
+  // render, so an ungated effect spends one on every Atlas-tab visit for a
+  // sample nobody opened.
+  const [open, setOpen] = useState(false)
   const body = JSON.stringify(values)
 
   useEffect(() => {
-    if (id == null) return
+    if (id == null || !open) return
 
     // One render per pause in typing, not per keystroke: each is a full
     // server-side template render. The abort is what keeps an older render from
     // landing after a newer one and showing colours nobody is looking at.
+    //
+    // ⚠ Not `useDebouncedEffect`: it discards the effect's return value, so
+    // there is nowhere to hang the abort, and a stale render wins the race.
     const abort = new AbortController()
     const timer = setTimeout(async () => {
       try {
@@ -57,13 +64,17 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
       clearTimeout(timer)
       abort.abort()
     }
-  }, [body, id])
+  }, [body, id, open])
 
   if (id == null) return null
 
   return (
     <div className="field-type email-preview-field">
-      <Collapsible header="Preview registration email" initCollapsed>
+      <Collapsible
+        header="Preview registration email"
+        initCollapsed
+        onToggle={(collapsed) => setOpen(!collapsed)}
+      >
         {html ? (
           // `sandbox` with nothing enabled: the markup is our own template, but it
           // carries a service's logo and title, and a preview has no reason to run
@@ -82,7 +93,7 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
           />
         ) : (
           <p className="field-description" style={{ padding: 'var(--base)' }}>
-            Save this service to see a sample email.
+            Rendering a sample…
           </p>
         )}
       </Collapsible>
