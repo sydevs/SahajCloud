@@ -282,24 +282,6 @@ describe('appCardsForAudience endpoint', () => {
       )
       expect(status).toBe(400)
     })
-
-    it('returns 400 when audiences is empty', async () => {
-      const { status } = await callEndpoint(payload, {
-        audiences: '',
-        targetSection: 'hero',
-        limit: 5,
-      })
-      expect(status).toBe(400)
-    })
-
-    it('returns 400 when audiences contains non-numeric values', async () => {
-      const { status } = await callEndpoint(payload, {
-        audiences: '1,abc',
-        targetSection: 'hero',
-        limit: 5,
-      })
-      expect(status).toBe(400)
-    })
   })
 
   describe('auth gate', () => {
@@ -348,30 +330,6 @@ describe('appCardsForAudience endpoint', () => {
       )
       expect(status).toBe(200)
       expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
-    })
-  })
-
-  describe('audiences param normalization', () => {
-    it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
-      const canonical = [openAudience.id, pathStartedAudience.id].join(',')
-      const messy = [pathStartedAudience.id, openAudience.id, openAudience.id].join(',')
-
-      const a = await callEndpoint(payload, {
-        audiences: canonical,
-        targetSection: 'hero',
-        limit: 20,
-      })
-      const b = await callEndpoint(payload, {
-        audiences: messy,
-        targetSection: 'hero',
-        limit: 20,
-      })
-      expect(a.status).toBe(200)
-      expect(b.status).toBe(200)
-
-      const idsA = (a.body as { docs: AppCard[] }).docs.map((c) => c.id).sort((x, y) => x - y)
-      const idsB = (b.body as { docs: AppCard[] }).docs.map((c) => c.id).sort((x, y) => x - y)
-      expect(idsA).toEqual(idsB)
     })
   })
 

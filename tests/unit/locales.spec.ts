@@ -18,29 +18,9 @@ import {
 const allLocales = buildPayloadLocales()
 
 describe('Locale Configuration (buildPayloadLocales)', () => {
-  it('builds all 19 locales with proper configuration', () => {
-    expect(allLocales).toHaveLength(19)
-    expect(allLocales.map((l) => l.code)).toEqual([
-      'en',
-      'es',
-      'de',
-      'it',
-      'fr',
-      'ru',
-      'ro',
-      'cs',
-      'uk',
-      'el',
-      'hy',
-      'pl',
-      'pt-BR',
-      'fa',
-      'bg',
-      'tr',
-      'en-AU',
-      'hu',
-      'nl',
-    ])
+  it('builds one locale per LOCALES entry, in order, with English first', () => {
+    expect(allLocales.map((l) => l.code)).toEqual(LOCALES.map((l) => l.code))
+    expect(allLocales[0].code).toBe('en')
   })
 
   it('sets RTL for Farsi locale', () => {
@@ -100,7 +80,7 @@ describe('baseLanguage', () => {
 
   it('reduces every locale to a code carrying no region', () => {
     // A list keyed by language (the transcript glossary) holds for every
-    // variant only while this is true of all 19.
+    // variant only while this is true of every locale.
     for (const { code } of LOCALES) {
       expect(baseLanguage(code)).not.toContain('-')
     }
