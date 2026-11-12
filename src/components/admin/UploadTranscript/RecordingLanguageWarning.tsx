@@ -29,7 +29,7 @@ export function RecordingLanguageWarning() {
   if (baseLanguage(language) === baseLanguage(editing)) return null
 
   return (
-    <InfoBanner type="warning">
+    <InfoBanner title="Incorrect audio language" type="warning">
       This recording is in {getLocaleLabel(language)}, but you are editing {getLocaleLabel(editing)}
       .
     </InfoBanner>

@@ -3,7 +3,7 @@
 import type { Playback } from './playback'
 import type { RecordingTranscriptState } from './useRecordingTranscript'
 
-import { Spinner } from '@payloadcms/ui'
+import { Collapsible, Spinner } from '@payloadcms/ui'
 import { AudioLines } from 'lucide-react'
 import React, { memo, useMemo, useRef } from 'react'
 
@@ -74,6 +74,7 @@ export function RecordingTranscript({
   playback,
   filename,
   player,
+  collapsible = false,
 }: {
   transcript: RecordingTranscriptState
   playback: Playback
@@ -88,6 +89,11 @@ export function RecordingTranscript({
    * transcript scrolls inside it rather than stretching the form.
    */
   player?: React.ReactNode
+  /**
+   * Fold the framed player and transcript behind a header, closed, for a
+   * transcript that is one part of a longer form rather than the page's point.
+   */
+  collapsible?: boolean
 }) {
   const { error, loaded, phase, recordingId, refresh, relationTo, row, url } = transcript
   // Two memos, not one: `react-hooks/preserve-manual-memoization` refuses a
@@ -155,13 +161,26 @@ export function RecordingTranscript({
           </InfoBanner>
         )}
       </div>
-      {player ? (
+      {!player ? (
+        body
+      ) : collapsible && segments.length > 0 ? (
+        <Collapsible
+          className={styles.collapsible}
+          header={
+            <span>
+              Transcript <span className={styles.count}>· {segments.length} lines</span>
+            </span>
+          }
+          initCollapsed
+        >
+          <div className={styles.player}>{player}</div>
+          {body}
+        </Collapsible>
+      ) : (
         <div className={styles.frame}>
           <div className={styles.player}>{player}</div>
           {body}
         </div>
-      ) : (
-        body
       )}
     </div>
   )

@@ -28,9 +28,12 @@ export type TranscribedFile = Pick<File, 'filename' | 'mimeType' | 'mp4Url' | 'u
 export function FileRecordingTranscript({
   file,
   transcript,
+  collapsible = false,
 }: {
   file: TranscribedFile
   transcript: RecordingTranscriptState
+  /** Closed behind a header, under a field of a longer form. */
+  collapsible?: boolean
 }) {
   const { mediaRef, playback } = useMediaPlayback()
   const kind = transcribableMedia(file.mimeType)
@@ -42,6 +45,7 @@ export function FileRecordingTranscript({
 
   return (
     <RecordingTranscript
+      collapsible={collapsible}
       filename={file.filename}
       playback={playback}
       player={

@@ -57,7 +57,7 @@ function FileTranscriptBody({ file }: { file: TranscribedFile }) {
   const transcript = useRecordingTranscript('files', file.id)
   return (
     <div style={{ marginTop: 'calc(var(--base) * 0.75)' }}>
-      <FileRecordingTranscript file={file} transcript={transcript} />
+      <FileRecordingTranscript collapsible file={file} transcript={transcript} />
     </div>
   )
 }

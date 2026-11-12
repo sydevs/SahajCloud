@@ -27,6 +27,20 @@
   border-radius: var(--style-radius-m);
 }
 
+/* Payload's Collapsible, holding the same two parts edge to edge: its own
+   content padding would inset the player strip. */
+.collapsible :global(.collapsible__content) {
+  padding: 0;
+}
+
+.collapsible .player {
+  border-top: 1px solid var(--theme-elevation-150);
+}
+
+.count {
+  color: var(--theme-elevation-500);
+}
+
 .player {
   display: flex;
   justify-content: center;

@@ -37,6 +37,22 @@ vi.mock('@payloadcms/ui', () => ({
     createElement('div', { 'data-banner': 'true' }, children),
   Button: ({ children, onClick }: { children?: ReactNode; onClick?: () => void }) =>
     createElement('button', { 'data-retry': 'true', onClick, type: 'button' }, children),
+  // Payload's own keeps its content mounted while closed, under a zero height.
+  Collapsible: ({
+    children,
+    header,
+    initCollapsed,
+  }: {
+    children?: ReactNode
+    header?: ReactNode
+    initCollapsed?: boolean
+  }) =>
+    createElement(
+      'div',
+      { 'data-collapsible': initCollapsed ? 'closed' : 'open' },
+      createElement('div', { 'data-collapsible-header': 'true' }, header),
+      children,
+    ),
   ErrorIcon: () => null,
   FieldDescription: ({ description }: { description?: string }) =>
     createElement('div', { 'data-description': 'true' }, description),
@@ -287,6 +303,8 @@ describe('a file’s Transcript panel', () => {
 
       expect(container.querySelector('[data-select="Spoken language"]')?.textContent).toBe('cs')
       expect(container.querySelector('audio')).not.toBeNull()
+      // The transcript is the point of this page, so it is never folded away.
+      expect(container.querySelector('[data-collapsible]')).toBeNull()
     })
 
     it('offers no language while a run is in flight', async () => {
@@ -314,6 +332,30 @@ describe('a file’s Transcript panel', () => {
       expect(shown?.textContent).toBe(description)
       expect(shown?.nextElementSibling?.querySelector('audio')).not.toBeNull()
       expect(container.querySelector('label')).toBeNull()
+    })
+
+    it('folds the player and transcript closed behind a header', async () => {
+      await mountUnderField()
+
+      const fold = container.querySelector('[data-collapsible]')
+      expect(fold?.getAttribute('data-collapsible')).toBe('closed')
+      expect(fold?.querySelector('[data-collapsible-header]')?.textContent).toBe(
+        'Transcript · 2 lines',
+      )
+      expect(fold?.querySelector('audio')).not.toBeNull()
+      expect(fold?.querySelectorAll('[role="button"]')).toHaveLength(SEGMENTS.length)
+    })
+
+    // Nothing to read yet, so nothing to fold: the player stays in reach.
+    it('leaves the player unfolded while there is nothing to read', async () => {
+      stub.swr = {
+        data: { docs: [row({ segments: null, status: 'processing' })] },
+        error: undefined,
+      }
+      await mountUnderField()
+
+      expect(container.querySelector('[data-collapsible]')).toBeNull()
+      expect(container.querySelector('audio')).not.toBeNull()
     })
 
     // The language is corrected on the file, which every step using it shares.
@@ -353,7 +395,9 @@ describe('a file’s Transcript panel', () => {
       stub.locale = 'fr'
       await mountWarning()
 
-      expect(text()).toBe('This recording is in Czech, but you are editing French.')
+      expect(text()).toBe(
+        'Incorrect audio languageThis recording is in Czech, but you are editing French.',
+      )
       expect(container.querySelector('[data-banner]')).not.toBeNull()
     })
 
