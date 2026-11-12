@@ -2,7 +2,7 @@ import type { EmailTestAdapter } from '../utils/emailTestAdapter'
 import type { FixtureOverrides } from '../utils/testData'
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { SendDigests } from '@/jobs/Digests/SendDigests'
 import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
@@ -11,13 +11,6 @@ import type { UserSubmission } from '@/payload-types'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
-
-// The flag is off by default until the Atlas cutover's digest pause is removed.
-// Mocking the helper keeps the bootstrapped instance's own env intact, and the
-// default `true` runs every other case as production will once it is set.
-const { digestsEnabledMock } = vi.hoisted(() => ({ digestsEnabledMock: vi.fn(() => true) }))
-
-vi.mock('@/jobs/Digests/featureFlag', () => ({ areDigestsEnabled: digestsEnabledMock }))
 
 const SCHEDULE = {
   firstDate: '2026-07-01T09:00:00.000Z',
@@ -147,29 +140,6 @@ describe('SendDigests job', () => {
   const watermarksOf = async (managerId: number) =>
     (await payload.findByID({ collection: 'managers', id: managerId, overrideAccess: true }))
       .digestWatermarks ?? {}
-
-  describe('paused by DIGESTS_ENABLED', () => {
-    afterEach(() => digestsEnabledMock.mockReturnValue(true))
-
-    it('sends nothing and advances no watermark, so the first run after covers the pause', async () => {
-      const managerId = await createManager('paused@example.com', {
-        event_registration: { frequency: 'Daily' },
-        open_items: { frequency: 'Never' },
-        statistics: { frequency: 'Never' },
-      })
-      await register(await createEvent(managerId, 'Paused Digest Event'), 'Dana')
-
-      digestsEnabledMock.mockReturnValue(false)
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      expect(emailsTo('paused@example.com')).toHaveLength(0)
-      expect((await watermarksOf(managerId)).program).toBeUndefined()
-
-      digestsEnabledMock.mockReturnValue(true)
-      await runDigests(payload)
-      expect(emailsTo('paused@example.com')).toHaveLength(1)
-    })
-  })
 
   describe('one email per manager per role', () => {
     it('sends the program email, and re-sends nothing on the next run', async () => {

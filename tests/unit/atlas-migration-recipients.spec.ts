@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { describeHoldings } from '@/emails/AtlasMigrationEmail'
-
 import { selectRecipients } from '../../scripts/atlas-migration-recipients'
 
 const manager = (id: number, extra: Record<string, unknown> = {}) => ({
@@ -51,12 +49,5 @@ describe('selectRecipients', () => {
     const [recipient] = select({ managers: [manager(5)], liveEventManagers: [5] })
 
     expect(recipient?.email).toBe('m5@example.com')
-  })
-})
-
-describe('describeHoldings', () => {
-  it('names classes and regions, singular where there is one', () => {
-    expect(describeHoldings({ admin: false, events: 1, regions: 2 })).toBe('1 class and 2 regions')
-    expect(describeHoldings({ admin: false, events: 0, regions: 0 })).toBeNull()
   })
 })

@@ -35,10 +35,12 @@ import { createElement } from 'react'
 
 import { ATLAS_MIGRATION_SUBJECT, AtlasMigrationEmail } from '../src/emails/AtlasMigrationEmail'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '../src/plugins/email'
+import { MANAGERS_COLLECTION, summarizeGrants } from '../src/plugins/login/grantSummary'
 import { selectRecipients } from './atlas-migration-recipients'
 import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 const SIGN_IN_URL = 'https://cloud.sydevelopers.com/admin/login'
+const MAP_URL = 'https://sahajatlas.com'
 const DEFAULT_LEDGER = 'seeds/atlas/local/migration-email-ledger.json'
 /** Resend's default limit is 2 requests a second. */
 const SEND_SPACING_MS = 600
@@ -47,7 +49,26 @@ const SAMPLE: MigrationRecipient = {
   id: 0,
   email: 'manager@example.com',
   name: 'Sample Manager',
-  holds: { admin: false, events: 3, regions: 1 },
+  holds: { admin: false, events: 2, regions: 1 },
+}
+
+/** What a sample recipient looks after, for a render against a database with no Atlas managers. */
+const SAMPLE_SUMMARY = {
+  responsibilities: [
+    {
+      label: 'Regions',
+      singular: 'Region',
+      items: [{ title: 'Sample City', url: 'https://sahajatlas.com/sample-city' }],
+    },
+    {
+      label: 'Events',
+      singular: 'Event',
+      items: [
+        { title: 'Evening Meditation at the Library', url: 'https://sahajatlas.com/sample-city/1' },
+        { title: 'Morning Meditation Online', url: null },
+      ],
+    },
+  ],
 }
 
 function option(name: string): string | undefined {
@@ -107,8 +128,23 @@ async function findRecipients(payload: Payload, alreadySent: Set<string>) {
   })
 }
 
-async function compose(recipient: MigrationRecipient, subjectPrefix = '') {
+/**
+ * The email for one recipient. What it lists is what an invitation naming everything they hold
+ * would list (`summarizeGrants`), so the two cannot describe one manager differently.
+ */
+async function compose(payload: Payload, recipient: MigrationRecipient, subjectPrefix = '') {
   const brand = getEmailBrand('sahaj-atlas')
+  const summary =
+    recipient.id === SAMPLE.id
+      ? SAMPLE_SUMMARY
+      : (
+          await summarizeGrants({
+            collection: MANAGERS_COLLECTION,
+            id: recipient.id,
+            payload,
+            type: recipient.holds.admin ? 'admin' : 'manager',
+          })
+        ).find((part) => part.project === 'sahaj-atlas')
   return {
     from: `${brand.productName} <${MANAGER_EMAIL_FROM}>`,
     subject: `${subjectPrefix}${ATLAS_MIGRATION_SUBJECT}`,
@@ -116,8 +152,10 @@ async function compose(recipient: MigrationRecipient, subjectPrefix = '') {
       createElement(AtlasMigrationEmail, {
         brand,
         email: recipient.email,
-        holds: recipient.holds,
+        fullAccess: recipient.holds.admin,
+        mapUrl: MAP_URL,
         name: recipient.name,
+        responsibilities: summary?.responsibilities ?? [],
         signInUrl: SIGN_IN_URL,
       }),
     )),
@@ -153,7 +191,7 @@ async function main(): Promise<void> {
 
   const htmlFile = option('--html')
   if (htmlFile) {
-    writeFileSync(htmlFile, (await compose(sample!)).html)
+    writeFileSync(htmlFile, (await compose(payload, sample!)).html)
     console.log(`Rendered ${sample!.email}'s email to ${htmlFile}. Nothing sent.`)
   }
 
@@ -162,7 +200,7 @@ async function main(): Promise<void> {
   const previewTo = option('--preview')
   if (previewTo) {
     console.log(`Sending a preview of ${sample!.email}'s email to ${previewTo} via ${transport}…`)
-    await payload.sendEmail({ to: previewTo, ...(await compose(sample!, '[Preview] ')) })
+    await payload.sendEmail({ to: previewTo, ...(await compose(payload, sample!, '[Preview] ')) })
     console.log('Preview sent.')
   }
 
@@ -176,7 +214,7 @@ async function main(): Promise<void> {
   let failed = 0
   for (const recipient of recipients) {
     try {
-      await payload.sendEmail({ to: recipient.email, ...(await compose(recipient)) })
+      await payload.sendEmail({ to: recipient.email, ...(await compose(payload, recipient)) })
       sent.add(recipient.email)
       writeLedger(ledgerFile, sent)
       console.log(`  sent  managers/${recipient.id}`)

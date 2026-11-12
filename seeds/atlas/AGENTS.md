@@ -125,7 +125,7 @@ appeared. `clients.region` goes null until the import re-links it, which it
 does only for clients Atlas created — so the reset also refuses while a client
 SahajCloud made for itself points at a region. **Take a database backup
 before running it against production.** `--update` then
-takes Atlas's side of every manager and client field, prunes managers Atlas
+takes Atlas's side of every manager and client field (bar the adopted services below), prunes managers Atlas
 deleted (keeping, with a warning, any admin, any manager holding a non-Atlas
 role, and any manager a non-Atlas client or form names), and never touches a
 client Atlas did not create. Every event gets a fresh verification lease.
@@ -489,6 +489,12 @@ the clients table, ahead of the overlay:
   Ile-de-France. ⚠ A split's id is negative so no Atlas row can take it. Its
   region is found by name under the source's country, because Atlas renumbers
   geo nodes, and the build throws if none or several match.
+
+- **`ADOPTED_CLIENT_LEGACY_IDS`** names Atlas services SahajCloud has taken
+  over, whose sites serve live users: Sahaja Yoga Canada (#1) and syuk.org
+  (#12). A re-sync only re-links their region, which `atlas-reset` nulls, and
+  leaves the label, managers, contact, roles, language and colour SahajCloud
+  gave them.
 
 ⚠ **Production's "Yoga Essonne" (`clients/43`) was created by hand before
 the split existed**, so it needs `legacyId: -32` before the next `atlas

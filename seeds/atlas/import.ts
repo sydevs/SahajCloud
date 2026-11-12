@@ -65,7 +65,11 @@ import {
   venueToEventAddress,
 } from './helpers/venueRouter'
 import { buildImportVerification, importDeletedAt } from './helpers/verification'
-import { EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './sync/merges'
+import {
+  ADOPTED_CLIENT_LEGACY_IDS,
+  EXCLUDED_EVENT_LEGACY_IDS,
+  MERGED_EVENT_TARGETS,
+} from './sync/merges'
 
 // --- SOURCE DATA TYPES (shape of seeds/atlas/data/*.json) ---
 
@@ -1466,6 +1470,24 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       const region = client.location
         ? this.idMaps.regions.get(geoRefKey(client.location))
         : undefined
+      // An adopted service keeps everything SahajCloud gave it; only the
+      // region the reset cleared goes back.
+      if (
+        ADOPTED_CLIENT_LEGACY_IDS.has(client.legacyId) &&
+        this.hasPreloaded('clients', String(client.legacyId))
+      ) {
+        try {
+          await this.upsert(
+            'clients',
+            { legacyId: { equals: client.legacyId } },
+            { region },
+            { identifier: client.label, current: i + 1, total },
+          )
+        } catch (error) {
+          this.addError(`Client "${client.label}" (#${client.legacyId})`, error as Error)
+        }
+        continue
+      }
       try {
         await this.upsert(
           'clients',

@@ -12,7 +12,6 @@ import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '@/plugins/email'
 import { capture } from '@/plugins/sentry/capture'
 
 import { buildDigest } from './buildDigest'
-import { areDigestsEnabled } from './featureFlag'
 
 const PAGINATION_LIMIT = 200
 
@@ -89,7 +88,10 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
     { name: 'sectionsFailed', type: 'number', required: true },
     { name: 'failed', type: 'number', required: true },
   ],
-  schedule: [{ cron: '0 7 * * *', queue: 'nightly' }],
+  // shortcut: unscheduled so no imported Atlas manager gets a digest before the
+  // migration email; restore `[{ cron: '0 7 * * *', queue: 'nightly' }]` about a
+  // week after the Atlas cutover.
+  schedule: [],
   handler: async ({ req }) => {
     const payload = req.payload
     const runStart = runClock(req)
@@ -99,13 +101,6 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
       quiet: 0,
       sectionsFailed: 0,
       sent: 0,
-    }
-
-    // Returns before any read, so no watermark advances while paused: the first
-    // run after the pause covers the whole paused window.
-    if (!areDigestsEnabled()) {
-      payload.logger.info({ msg: 'SendDigests: disabled by DIGESTS_ENABLED' })
-      return { output: result }
     }
 
     // Managers are staff — a bounded set — so the run scans them and reads
