@@ -172,20 +172,19 @@ describe('payload-jobs retention', () => {
     })
 
     /**
-     * ⚠ The failure the hourly sweep exists for, and the reason boot still
-     * calls it too. `defaultBeforeSchedule` refuses to queue a scheduled task
-     * while one of its own rows is runnable or active, so until something
-     * cancels the lost row the schedule is simply never consulted again — no
-     * error, and no job row.
+     * ⚠ The failure the sweep's own `beforeSchedule` exists for. The default
+     * one refuses to queue a scheduled task while one of its own rows is
+     * runnable or active, and this sweep is the only thing that ever settles
+     * such a row — so a run lost mid-sweep would hold its own schedule for
+     * ever, with no error and no job row to show for it.
      */
-    it('holds its own schedule until the sweep cancels it', async () => {
-      const lost = await payload.jobs.queue({
+    it('blocks its own schedule while running, and stops once past the window', async () => {
+      const row = await payload.jobs.queue({
         task: RecoverLostJobs.slug,
         input: {},
         queue: 'nightly',
         meta: { scheduled: true },
       })
-      await markJobLost(payload, lost.id)
 
       const scheduledNow = async () =>
         (await payload.jobs.handleSchedules({ queue: 'nightly' })).queued.map(
@@ -194,9 +193,14 @@ describe('payload-jobs retention', () => {
 
       expect(await scheduledNow()).not.toContain(RecoverLostJobs.slug)
 
-      await runTaskHandler(RecoverLostJobs, { payload })
+      await markJobLost(payload, row.id)
 
       expect(await scheduledNow()).toContain(RecoverLostJobs.slug)
+
+      // The window only says the row is lost; the run it let through is what
+      // settles it.
+      await runTaskHandler(RecoverLostJobs, { payload })
+      expect(await read(row.id)).toMatchObject({ hasError: true, processing: false })
     })
   })
 })

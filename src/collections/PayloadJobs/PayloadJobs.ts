@@ -82,13 +82,13 @@ export const payloadJobsOverrides = ({
 })
 
 /**
- * How long a `processing` row may stand before a boot treats it as dead.
+ * How long a `processing` row may stand before the sweep treats it as dead.
  *
  * ⚠ **This measures time since pick-up, not time since a sign of life.**
  * Payload writes the row when it claims it and again when it finishes, and
  * nothing in between for a plain task — only a workflow writes between its
  * steps. So the window has to clear the longest run a *healthy* task can have,
- * or a boot cancels one still working: the row then reads `hasError` and the
+ * or the sweep cancels one still working: the row then reads `hasError` and the
  * week-long window above sweeps the evidence of the cancel with it.
  *
  * An hour clears the longest bound anything here declares twice over —
@@ -104,14 +104,12 @@ export const STALE_JOB_MS = 60 * 60 * 1000
  * again, and answer the rows it asked to cancel. Payload never recovers such a
  * row, and while it stands `countRunnableOrActiveJobsForQueue` stops its
  * schedule queueing another. A cancelled row is `hasError`, so the window above
- * sweeps it. Logs rather than throws: a failed cleanup must not stop the server
- * starting, and must not end the sweep that runs hourly
- * (`@/lib/jobs/recoverLostJobs`).
+ * sweeps it. Logs rather than throws: a failed cleanup must not end the sweep
+ * that runs hourly (`@/jobs/RecoverLostJobs/recover`).
  *
- * ⚠ **Deliberately gates on the window alone**, whether a boot or a sweep runs
- * it. A boot is not proof the row's owner died — a rolling deploy starts this
- * container while the old one is still finishing its job, and a dev restart
- * shares the database with nothing else. {@link STALE_JOB_MS} is the whole
+ * ⚠ **Deliberately gates on the window alone.** Running here is not proof the
+ * row's owner died — a rolling deploy sweeps from the new container while the
+ * old one is still finishing its job. {@link STALE_JOB_MS} is the whole
  * discriminator, which is why it is not shorter.
  *
  * ⚠ **The rows come back read, not re-read after the cancel.** `jobs.cancel`

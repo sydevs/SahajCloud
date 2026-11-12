@@ -11,7 +11,6 @@ import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv } from '@/lib/env'
-import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
@@ -235,9 +234,6 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // two conditions is there, and why production is detected by Railway's
     // environment name rather than NODE_ENV.
     onInit: async (payload) => {
-      // Also runs hourly (`RecoverLostJobs`), which cannot recover its own
-      // lost run — that task's docblock says why boot has to keep this call.
-      await recoverLostJobs(payload)
       await seedPreviewAdmin(payload)
     },
     jobs: {

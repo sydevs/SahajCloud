@@ -1,26 +1,82 @@
 import type { TaskConfig } from 'payload'
 
-import { recoverLostJobs } from '@/lib/jobs/recoverLostJobs'
+import { STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
+
+import { recoverLostJobs } from './recover'
+
+const SLUG = 'recoverLostJobs'
+
+/** `payload` exports no `BeforeScheduleFn`, so it is read off the config it lives on. */
+type BeforeSchedule = NonNullable<
+  NonNullable<NonNullable<TaskConfig<typeof SLUG>['schedule']>[number]['hooks']>['beforeSchedule']
+>
+
+/**
+ * Queue the sweep even while a lost run of it still sits `processing`.
+ *
+ * `defaultBeforeSchedule` counts such a row as active and refuses, and this
+ * sweep is the only thing that ever settles one — so the schedule would never
+ * be consulted again, with no error and no job row to show for it. Past
+ * {@link STALE_JOB_MS} a `processing` row is no longer evidence of a live run,
+ * so it stops blocking here. The run this lets through is what cancels it: a
+ * window says which rows are lost, and a write is what recovers one.
+ *
+ * ⚠ **Delegate first, and only narrow the refusal.** The count below mirrors
+ * `defaultBeforeSchedule`'s own, minus the rows past the window, so that
+ * function stays the authority on every other reason not to queue.
+ */
+const scheduleUnlessRunning: BeforeSchedule = async (args) => {
+  const scheduled = await args.defaultBeforeSchedule(args)
+  if (scheduled.shouldSchedule) return scheduled
+
+  const { totalDocs } = await args.req.payload.count({
+    collection: 'payload-jobs',
+    req: args.req,
+    overrideAccess: true,
+    where: {
+      and: [
+        { taskSlug: { equals: SLUG } },
+        { queue: { equals: args.queueable.scheduleConfig.queue } },
+        { completedAt: { exists: false } },
+        { error: { exists: false } },
+        { 'meta.scheduled': { equals: true } },
+        {
+          or: [
+            { processing: { equals: false } },
+            {
+              updatedAt: {
+                greater_than_equal: new Date(Date.now() - STALE_JOB_MS).toISOString(),
+              },
+            },
+          ],
+        },
+      ],
+    },
+  })
+
+  return totalDocs === 0 ? { ...scheduled, shouldSchedule: true } : scheduled
+}
 
 /**
  * The hourly sweep for a container that died mid-job.
  *
- * ⚠ **`payload.config.ts` runs the same routine on boot, and that call is not
- * redundant.** `defaultBeforeSchedule` will not queue a scheduled task while one
- * of its own rows is runnable or active, so a sweep lost mid-run blocks every
- * later sweep. Only a dead process leaves a row that way, and whatever replaces
- * it boots — which is why boot is enough, and why it has to stay.
- *
  * `nightly` is the hourly queue, despite the name.
  */
 export const RecoverLostJobs: TaskConfig<'recoverLostJobs'> = {
-  slug: 'recoverLostJobs',
+  slug: SLUG,
   label: 'Recover Lost Jobs',
   // The next hour's run is the retry, and it re-reads the world first.
   retries: 0,
   outputSchema: [{ name: 'cancelled', type: 'number', required: true }],
-  // The `nightly` tick's own minute, deliberately: an aligned schedule is
-  // queued and run by one tick, so the sweep is never a tick late (`queues.ts`).
-  schedule: [{ cron: '0 * * * *', queue: 'nightly' }],
+  schedule: [
+    {
+      // The `nightly` tick's own minute, deliberately: an aligned schedule is
+      // queued and run by one tick, so the sweep is never a tick late
+      // (`queues.ts`).
+      cron: '0 * * * *',
+      queue: 'nightly',
+      hooks: { beforeSchedule: scheduleUnlessRunning },
+    },
+  ],
   handler: async ({ req }) => ({ output: { cancelled: await recoverLostJobs(req.payload) } }),
 }

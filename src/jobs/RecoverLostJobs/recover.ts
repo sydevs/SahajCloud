@@ -9,8 +9,7 @@ import { failLostImports } from '@/plugins/eventImport'
  *
  * Cancelling alone frees the queue and tells nobody. A document whose status
  * the run writes still reads as in progress, because the write that would have
- * settled it died with the container — so the two steps are one routine, and
- * boot and the hourly task both get both.
+ * settled it died with the container — so the two steps are one routine.
  */
 export async function recoverLostJobs(payload: Payload): Promise<number> {
   const cancelled = await cancelStaleJobs(payload)

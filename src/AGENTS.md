@@ -132,10 +132,7 @@ No loose files at the root — every file lives in a named folder:
   row queued with `req` cannot run until that transaction commits, and every
   queue with an `autoRun` entry wants the same best-effort kick. And
   `runClock`, the time a task run treats as now — `req.context.now` when a
-  test sets one. And `recoverLostJobs`, which cancels the rows a dead container
-  left `processing` and then settles the documents those runs owned — two
-  consumers, `RecoverLostJobs` and `payload.config.ts`'s `onInit`, because the
-  hourly task cannot recover its own lost run
+  test sets one
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
   `requestMemo` — collapses a per-request load to one in-flight promise,
