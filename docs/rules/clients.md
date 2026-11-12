@@ -164,11 +164,13 @@ the Atlas tab's control shows only whether a key is stored and its last four cha
 `GET /api/clients/:id/mailing-list-key`. A key is set through
 `POST /api/clients/:id/mailing-list-key`, which proves it against the provider and list it will be
 used beside and then writes through `payload.update`, so the Atlas-tab lock, the field locks and
-`validateMailingList` all run exactly as they do for a form save.
+`validateMailingList` all run exactly as they do for a form save. `DELETE` on the same path clears
+it to `''` rather than `null`, so `LIST_ELIGIBLE` drops the service and `isMailingListConfigured`
+short-circuits the hook — clearing a key asks no provider, and a provider outage cannot refuse it.
 
-⚠ **That write switches the list on, and commits the form's unsaved settings with it.** The drawer
-reads the provider and list off form state, and `enabled: true` is what makes
-`validateMailingList` prove them at all — so the key cannot be stored without them. The drawer says
+⚠ **That write switches the list on, and commits the form's unsaved settings with it.** The key
+modal reads the provider and list off form state, and `enabled: true` is what makes
+`validateMailingList` prove them at all — so the key cannot be stored without them. The modal says
 so, which is the whole of what keeps it from being a silent write.
 
 ⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to

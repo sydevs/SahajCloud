@@ -404,7 +404,7 @@ const mailingListGroup: Field = {
       },
     },
     {
-      // The Set key / Replace key control, which owns the drawer the key is
+      // The Set key / Replace key control, which owns the modal the key is
       // typed into. The stored column below renders nothing.
       name: 'apiKeyControl',
       type: 'ui',

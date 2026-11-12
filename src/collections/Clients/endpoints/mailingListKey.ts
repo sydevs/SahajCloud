@@ -131,7 +131,7 @@ export const mailingListKey: Endpoint = {
         collection: 'clients',
         // ⚠ `enabled: true` is load-bearing — `validateMailingList` returns
         // early without it, so the key would be stored unproven. It commits the
-        // form's unsaved settings along with it, which the drawer says.
+        // form's unsaved settings along with it, which the modal says.
         data: { mailingList: { ...parsed.data, enabled: true } },
         id: gate.client.id,
         overrideAccess: false,
