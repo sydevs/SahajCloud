@@ -4,6 +4,7 @@ import type { LogEntry } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { isActiveRegistration } from '@/lib/registrations/active'
 import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
+import { can } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
@@ -12,7 +13,7 @@ import { capture } from '@/plugins/sentry/capture'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { SUBMISSION_MACHINE } from '../machine'
-import { STATUS_LABELS } from '../statuses'
+import { STATUS_LABELS, SUBMISSION_STATUSES } from '../statuses'
 
 /**
  * afterChange (create): a registrant signing up again for an event they are
@@ -231,17 +232,22 @@ function reportOverwrittenConfirmation(
 }
 
 /**
- * The statuses a repeat signup may fold into. `spam` and `rejected` are left
- * out: each is a verdict on that row, which a fresh signup must neither hide
- * behind nor overturn.
+ * The statuses a repeat signup may fold into — read off the move table, which
+ * is what the guard refuses on, so the two cannot name different sets.
  *
- * ⚠ **`accepted` stays in, though the address is never verified** (#1093).
- * Dropping it would put a confirmed registrant's own repeat signup on a second
- * row, a second seat and a second confirmation — the defect this hook exists to
- * fix, back for the case that happens most. So an overwrite of a confirmed
- * registration is reported instead: {@link reportOverwrittenConfirmation}.
+ * `spam` and `rejected` are absent there: each is a verdict on that row, which
+ * a fresh signup must neither hide behind nor overturn.
+ *
+ * ⚠ **`accepted` is in it, though the address is never verified** (#1093).
+ * Leaving it out would put a confirmed registrant's own repeat signup on a
+ * second row, a second seat and a second confirmation — the defect this hook
+ * exists to fix, back for the case that happens most. So an overwrite of a
+ * confirmed registration is reported instead:
+ * {@link reportOverwrittenConfirmation}.
  */
-const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = ['accepted', 'pending', 'failed']
+const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = SUBMISSION_STATUSES.filter(
+  (status) => can(SUBMISSION_MACHINE, status, 'pending', 'repeat-signup'),
+)
 
 /**
  * The registration a repeat signup from this sender updates.

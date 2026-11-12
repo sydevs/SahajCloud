@@ -115,3 +115,23 @@ export function readCommunityFeedback(systemMeta: unknown): CommunityFeedback | 
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
   }
 }
+
+/**
+ * Whether an event is still collecting community feedback.
+ *
+ * One predicate, because four surfaces ask it: the vote hook refusing a late
+ * vote, the feedback page explaining why it will not take one, the follow-up
+ * mail deciding whether to ask at all, and the import results table marking a
+ * listing nobody has vouched for yet. Spelled at each, they were four chances
+ * to disagree about when voting closes.
+ *
+ * Both halves are load-bearing. `unverified` is the only stage the vote means
+ * anything on — every other stage has a manager who has vouched for the class,
+ * or the community has already voted it down — and an unpublished listing is
+ * one nobody can attend, so there is nothing to confirm.
+ */
+export function isFeedbackOpen(
+  event: { _status?: string | null; verificationStage?: string | null } | null | undefined,
+): boolean {
+  return event?.verificationStage === 'unverified' && event._status === 'published'
+}

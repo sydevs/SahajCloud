@@ -10,18 +10,40 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
-import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
+import { LADDER, STAGES, unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
+
+/** Every stage a reminder lands on — the ladder's own steps, past its first. */
+const REMINDED_STAGES: VerificationStage[] = LADDER.flatMap((stage) => {
+  const action = STAGES[stage].onDue
+  return action.kind === 'remind' ? [action.nextStage] : []
+})
+
+/**
+ * Overdue, as a reader meets it: a listing that has had a reminder and is
+ * still on the map.
+ *
+ * ⚠ **Deliberately wider than {@link OVERDUE_QUERY_STAGES}**, and the two are
+ * derived from the ladder rather than listed, so neither can drift from what
+ * the job does. A `reminded` listing still counts as healthy for a region
+ * manager, who does not join another manager's event until it escalates
+ * (`docs/rules/access.md`). Resist merging them.
+ */
+export const OVERDUE_STATUS_STAGES: VerificationStage[] = REMINDED_STAGES.filter(
+  (stage) => STAGES[stage].published,
+)
 
 /**
  * The stages a query treats as overdue: escalated or worse.
  *
- * ⚠ **Deliberately narrower than the Overdue status**, which also carries
- * `reminded`: a reminded listing still counts as healthy, and a region manager
- * does not join another manager's event until it escalates
- * (`docs/rules/access.md`). Resist merging them.
+ * Every stage a reminder that *included the region* lands on — which is the
+ * question being asked, since these are the listings a region manager has been
+ * told about.
  */
-export const OVERDUE_QUERY_STAGES = ['escalated', 'urgent', 'expired'] as const
+export const OVERDUE_QUERY_STAGES: VerificationStage[] = LADDER.flatMap((stage) => {
+  const action = STAGES[stage].onDue
+  return action.kind === 'remind' && action.includeRegion ? [action.nextStage] : []
+})
 
 /** ⚠ One definition, so the Total events tile and the Programs column agree. */
 export function isProgramStage(stage: string): boolean {
@@ -236,7 +258,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
 
   const statuses: OpenItemStatus[] = []
 
-  if (stage === 'urgent' || stage === 'reminded' || stage === 'escalated') {
+  if (OVERDUE_STATUS_STAGES.includes(stage)) {
     // ⚠ From the stage's own check, not from now: the ladder's offsets start when it comes due.
     const due = unpublishDate(
       stage,

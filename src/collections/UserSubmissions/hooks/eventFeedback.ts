@@ -8,7 +8,10 @@ import { APIError } from 'payload'
 
 import type { EventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
-import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
+import {
+  computeCommunityVerdict,
+  isFeedbackOpen,
+} from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { transition } from '@/lib/stateMachine/transition'
@@ -65,7 +68,7 @@ export const gateEventFeedback: CollectionBeforeChangeHook = async ({ data, orig
           })
           .catch(() => null)
 
-  if (!event || event._status !== 'published' || event.verificationStage !== 'unverified') {
+  if (!isFeedbackOpen(event)) {
     throw new APIError('Feedback is closed for this event.', 409, { code: 'feedback_closed' }, true)
   }
 

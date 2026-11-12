@@ -38,6 +38,21 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
   if (operation !== 'create' || data?.type !== 'registration') return data
   if (req.user?.collection !== 'clients') return data
 
+  // ⚠ **A registration with no session is one nobody can follow up.**
+  // `SendPostEventFollowUps` selects on `startingAt`, so a row without one is
+  // invisible to it for ever — the registrant attends and is never asked how it
+  // went. The widget has always sent the session the visitor picked
+  // (sydevs/SahajAtlasWeb `src/types/registration.ts`), so requiring it closes
+  // the gap rather than narrowing the contract (#1120 decision 5). A repeat
+  // sign-up keeps whatever date it posts.
+  //
+  // No `code` on this one: the error-code union is a file three repos sync, and
+  // a widget that cannot produce this refusal has nothing to map. The envelope
+  // is the same — `errors[].message`, 4xx.
+  if (data.startingAt == null || data.startingAt === '') {
+    throw new APIError('A registration must say which session it is for.', 400, undefined, true)
+  }
+
   // Not `required` on a registration row, deliberately — a registration may be
   // recorded before its occurrence is resolved. No event, nothing to gate.
   const eventId = relationId(data?.event)

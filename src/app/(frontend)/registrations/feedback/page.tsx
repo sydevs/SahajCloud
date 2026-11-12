@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 
+import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { verifyFeedbackToken } from '@/lib/registrations/feedbackLinks'
 import type { Event, UserSubmission } from '@/payload-types'
 import { getProjectEmailIcon } from '@/plugins/access'
@@ -66,10 +67,7 @@ export default async function RegistrationFeedbackPage({
   const eventTitle =
     typeof event === 'object' && typeof event.title === 'string' ? event.title : 'this class'
 
-  if (
-    typeof event === 'object' &&
-    (event.verificationStage !== 'unverified' || event._status !== 'published')
-  ) {
+  if (typeof event === 'object' && !isFeedbackOpen(event)) {
     return (
       <VerificationCard
         brand={brand}
