@@ -157,14 +157,36 @@ A service that relays subscribe submissions names its own provider, under **Atla
 
 ⚠ **No API client can read any of it, at any depth.** Two things hold that up, and both are needed. The group carries `managersOnlyFieldAccess` (`@/plugins/access`), which closes the read project membership never reaches — self-access hands a published key its own row whole over `GET /api/clients/me`. And `stripLockedFieldsOnSelfRead`, the `afterRead` hook `accessPlugin` gives every auth collection, closes `POST /api/clients/refresh-token`, which re-reads the row at `overrideAccess: true` and so skips field access entirely (#822). The group still appears in `payload-types.ts`; both strip it at runtime, not from the generated type.
 
+**Choosing a provider is what turns the list on.** There is no separate switch: an empty
+`provider` is no list, clearing it switches one off, and every other field shows only once one is
+chosen. Clearing it keeps the other values stored, so choosing it again is proven like a new list.
+
+⚠ **The provider key is write-only.** `mailingList.apiKey` is a `secretField()`
+(`src/fields/AGENTS.md`): `read: () => false` on top of the group lock, `admin.disabled` so it is
+absent from the edit form's state, and encrypted at rest. Nothing reads it back to any browser —
+the Atlas tab's control shows only whether a key is stored and its last four characters. A new key
+is checked against the provider and list on the form (saved or not) in the set modal, then staged;
+the form's own Save applies it, and `validateMailingList` proves it again against what that Save
+stores. The key route writes nothing to the row, so no other field can change with it. Removing a
+key stores `''` rather than `null`, so `LIST_ELIGIBLE` drops the service and
+`isMailingListConfigured` short-circuits the hook — a removal asks no provider.
+
+⚠ **A chosen provider with no key is refused**, by `validateMailingList` when a credential changed:
+no field `required` reaches a key the form never holds, and a key-less list reads as one while
+delivering nothing. So a removal clears the provider in the same save.
+
+⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to
+the preview iframe on every change, so a key in form state would reach sahajatlas.com
+(`docs/rules/admin-ui.md`). Keeping it out is what lets the Clients preview exist at all.
+
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 
-- It runs **only when one of the credential fields actually changed** — `provider`, `listId`, `apiKey`, CleverReach's `clientId` and `doiFlowId`, and `doubleOptIn`, which changes what is checked. The hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.
+- It runs **only when one of the credential fields actually changed** — `provider`, `listId`, `apiKey`, CleverReach's `clientId` and `doiFlowId`, and `doubleOptIn`, which changes what is checked. `provider` is also the on switch, so choosing it again after a list was switched off — and edited while nothing proved it — is proven too. The hook fires on every save of the row, and the Install tab saves each choice as it is made — without the gate, an outage at Mailchimp would lock every client document in the CMS.
 - **A provider being unreachable never refuses a save.** An operator cannot fix somebody else's outage, so the credential goes in unproven and delivery is what finds out.
 
 Delivery resolves the target list **at delivery time**, from the subscribe form's `client` or, for a registration-spawned row, the client whose list owns the class's region (#1022). Nothing is stored on the row, so moving a service between providers does not strip pending rows.
 
-**A list owns a region through `clients.region`**, the same column canonical ownership reads — but not canonical ownership itself: it needs no verified embed. `mailingListClientFor` (`src/lib/atlas/mailingListOwners.ts`) walks the class's region chain to the nearest client whose list is enabled and complete, then falls back to `sy-atlas-config`'s `canonicalFallbackClient` (We Meditate) if its list is, then answers none. The Events `offersMailingList` field reads the same function, so the widget offers the opt-in exactly where a list will receive it.
+**A list owns a region through `clients.region`**, the same column canonical ownership reads — but not canonical ownership itself: it needs no verified embed. `mailingListClientFor` (`src/lib/atlas/mailingListOwners.ts`) walks the class's region chain to the nearest client whose list is complete — a provider, a list and a key, then falls back to `sy-atlas-config`'s `canonicalFallbackClient` (We Meditate) if its list is, then answers none. The Events `offersMailingList` field reads the same function, so the widget offers the opt-in exactly where a list will receive it.
 
 Each provider reports what it can actually justify: Mailchimp and CleverReach `subscribed` or `pending` by the double opt-in checkbox, Brevo always `subscribed` (single opt-in only), Klaviyo always `accepted` — its subscribe job answers 202 with no per-profile result, so it can tell none of the three cases apart. ⚠ **An address that opted out is never re-added.** Mailchimp and Brevo each report it in their own words and the attempt is terminal, never retried; on Klaviyo the case cannot be detected inline, so the adapter uses the plain subscribe job and nothing that bypasses suppression.
 

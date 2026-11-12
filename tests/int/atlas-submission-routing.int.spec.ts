@@ -9,7 +9,7 @@
  * Fixture pre-mortem: `createRegionNode` stores `mapboxId` as `<prefix>-<slug>`,
  * which `MAPBOX_FEATURE_ID` in `src/collections/UserSubmissions/fields.ts`
  * accepts, and its `level` values are the four `Regions.level` options. A
- * client's list ownership is `clients.region` + `mailingList.enabled` +
+ * client's list ownership is `clients.region` + `mailingList.provider` +
  * published, read in `src/lib/atlas/mailingListOwners.ts`.
  */
 import type { Payload, PayloadRequest } from 'payload'
@@ -30,7 +30,7 @@ const { verifyMock, subscribeMock, reviewMock } = vi.hoisted(() => ({
 
 vi.mock('@/lib/turnstile/verifyTurnstile', () => ({ verifyTurnstileToken: verifyMock }))
 
-// Saving an enabled list asks the provider whether the key works.
+// Saving a list asks the provider whether the key works.
 vi.mock('@/lib/mailingList/providers', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/mailingList/providers')>()),
   adapterFor: () => ({ verifyCredentials: async () => null }),
@@ -77,7 +77,7 @@ describe('atlas submission routing', () => {
     testData.createClient(payload, admin.id, {
       label: name,
       ...(regionId != null ? { region: regionId } : {}),
-      mailingList: { enabled: true, provider: 'brevo', listId, apiKey: 'key' },
+      mailingList: { provider: 'brevo', listId, apiKey: 'key' },
     } as never)
 
   const setFallback = (id: number | null) =>
