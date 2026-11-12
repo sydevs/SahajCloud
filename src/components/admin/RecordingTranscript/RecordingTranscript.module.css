@@ -141,7 +141,3 @@
   flex: 1;
   border-top: 1px dashed var(--theme-elevation-200);
 }
-
-.language {
-  margin-top: var(--base);
-}

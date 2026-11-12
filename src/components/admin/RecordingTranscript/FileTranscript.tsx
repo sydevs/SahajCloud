@@ -13,8 +13,6 @@ import type { File } from '@/payload-types'
 
 import { useMediaPlayback } from './playback'
 import { RecordingTranscript } from './RecordingTranscript'
-import styles from './RecordingTranscript.module.css'
-import { SpokenLanguage } from './SpokenLanguage'
 import { fileUrl } from './transcriptModel'
 import { useRecordingTranscript } from './useRecordingTranscript'
 
@@ -30,16 +28,11 @@ export type TranscribedFile = Pick<File, 'filename' | 'mimeType' | 'mp4Url' | 'u
  */
 export function FileTranscript({
   file,
-  ownPage = false,
+  collapsible = false,
 }: {
   file: TranscribedFile
-  /**
-   * On the file's own page: open, and with the language control. Anywhere else
-   * the file is used it is folded closed, since a Path Step carries one per
-   * panel video, and the language is corrected on the file, for every page
-   * using it.
-   */
-  ownPage?: boolean
+  /** Folded closed: under a Path Step's upload, since a step carries one per panel video. */
+  collapsible?: boolean
 }) {
   const transcript = useRecordingTranscript('files', file.id)
   const { mediaRef, playback } = useMediaPlayback()
@@ -50,31 +43,22 @@ export function FileTranscript({
   // listen to. An audio file is its own R2 object from the moment it is saved.
   const waiting = transcript.phase === 'pending'
   const src = kind === 'audio' ? file.url : kind === 'video' && !waiting ? file.mp4Url : null
-  const { phase, request, requesting, row } = transcript
 
   return (
-    <>
-      <RecordingTranscript
-        collapsible={!ownPage}
-        filename={file.filename}
-        playback={playback}
-        player={
-          src &&
-          (kind === 'video' ? (
-            <video controls preload="metadata" ref={mediaRef} src={src} />
-          ) : (
-            <audio controls preload="metadata" ref={mediaRef} src={src} />
-          ))
-        }
-        transcript={transcript}
-      />
-      {/* Below what it describes: a correction, not the first thing to read. */}
-      {ownPage && row && phase !== 'pending' && (
-        <div className={styles.language}>
-          <SpokenLanguage language={row.language} request={request} requesting={requesting} />
-        </div>
-      )}
-    </>
+    <RecordingTranscript
+      collapsible={collapsible}
+      filename={file.filename}
+      playback={playback}
+      player={
+        src &&
+        (kind === 'video' ? (
+          <video controls preload="metadata" ref={mediaRef} src={src} />
+        ) : (
+          <audio controls preload="metadata" ref={mediaRef} src={src} />
+        ))
+      }
+      transcript={transcript}
+    />
   )
 }
 
@@ -82,7 +66,7 @@ export function FileTranscript({
  * A file's Transcript, as a `ui` field (#1016).
  *
  * - **With no `fileField`**, the edited document is the file: its own page,
- *   and the one place its spoken language is corrected.
+ *   below the field that corrects its spoken language (`SpokenLanguageField`).
  * - **With a `fileField`**, it shows the file the named sibling upload field
  *   holds, folded closed beneath it — a Path Step's intro audio and panel
  *   media. Read-only there, and never stored on the step: the transcript is
@@ -103,7 +87,7 @@ export function FileTranscriptField({
     <div className="field-type" style={{ marginBottom: 'var(--spacing-field)' }}>
       {!fileField && <FieldLabel label="Transcript" path={fieldPath} />}
       {/* Keyed, so a swapped file starts its player and playhead afresh. */}
-      <FileTranscript file={file} key={file.id} ownPage={!fileField} />
+      <FileTranscript collapsible={Boolean(fileField)} file={file} key={file.id} />
     </div>
   )
 }

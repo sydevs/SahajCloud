@@ -50,8 +50,8 @@ video's subtitles, which is why `panels[].subtitles` is gone too.
 
 - **Made on upload.** An MP3 is transcribed when it is saved, a video when
   Cloudflare Stream reports it ready, and the run detects the language
-  (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected on
-  the file's Transcript panel, and a re-run there serves every step using it.
+  (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected in
+  the file's Spoken language field, and the re-run serves every step using it.
 - **Shown, never edited, here.** A `ui` field follows each upload —
   `introTranscript` after `introAudio`, `mediaTranscript` after
   `panels[].media` — rendering `FileTranscriptField`, the file's own

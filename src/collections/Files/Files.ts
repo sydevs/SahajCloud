@@ -92,6 +92,14 @@ export const Files: CollectionConfig = {
       },
     }),
     {
+      // Above the transcript it corrects: a wrong guess is the first thing to fix.
+      name: 'spokenLanguage',
+      type: 'ui',
+      admin: {
+        components: { Field: '@/components/admin/RecordingTranscript#SpokenLanguageField' },
+      },
+    },
+    {
       name: 'transcriptPanel',
       type: 'ui',
       label: 'Transcript',

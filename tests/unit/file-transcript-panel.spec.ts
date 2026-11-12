@@ -159,7 +159,7 @@ describe('a file’s Transcript panel', () => {
   const render = async (file: TranscribedFile) => {
     const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
     act(() => {
-      root.render(createElement(FileTranscript, { file, ownPage: true }))
+      root.render(createElement(FileTranscript, { file }))
     })
     return playable()
   }
@@ -306,22 +306,37 @@ describe('a file’s Transcript panel', () => {
       const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
       mount(FileTranscriptField, { path: 'transcriptPanel' })
     }
+    const mountLanguage = async () => {
+      const { SpokenLanguageField } = await import('@/components/admin/RecordingTranscript')
+      mount(SpokenLanguageField, { path: 'spokenLanguage' })
+    }
 
-    it('offers the spoken language once a run has answered', async () => {
+    // The transcript is the point of this page, so it is never folded away.
+    it('shows the transcript open, under a label of its own', async () => {
       await mountFilePanel()
 
-      expect(container.querySelector('[data-select="Spoken language"]')?.textContent).toBe('cs')
+      expect(container.querySelector('label')?.textContent).toBe('Transcript')
       expect(container.querySelector('audio')).not.toBeNull()
-      // The transcript is the point of this page, so it is never folded away.
       expect(container.querySelector('[data-collapsible]')).toBeNull()
+      // The language is a field of its own, above this one.
+      expect(container.querySelector('[data-select]')).toBeNull()
     })
 
     // A PDF or an image has no transcript, and the page shows no panel at all.
-    it('shows nothing for a file with no transcript to have', async () => {
+    it.each([
+      ['the transcript', mountFilePanel],
+      ['the spoken language', mountLanguage],
+    ])('shows neither for a file with no transcript to have (%s)', async (_label, mountIt) => {
       stub.doc = { ...AUDIO, mimeType: 'application/pdf' }
-      await mountFilePanel()
+      await mountIt()
 
       expect(container.innerHTML).toBe('')
+    })
+
+    it('offers the spoken language once a run has answered', async () => {
+      await mountLanguage()
+
+      expect(container.querySelector('[data-select="Spoken language"]')?.textContent).toBe('cs')
     })
 
     it('offers no language while a run is in flight', async () => {
@@ -329,9 +344,9 @@ describe('a file’s Transcript panel', () => {
         data: { docs: [row({ segments: null, status: 'processing' })] },
         error: undefined,
       }
-      await mountFilePanel()
+      await mountLanguage()
 
-      expect(container.querySelector('[data-select]')).toBeNull()
+      expect(container.innerHTML).toBe('')
     })
   })
 

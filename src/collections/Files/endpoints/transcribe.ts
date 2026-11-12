@@ -9,8 +9,9 @@ import { requestTranscript, transcriptRefusal as refusal } from '@/lib/transcrip
  * POST /api/files/:id/transcribe — ask for this file's recording to be
  * transcribed again, optionally in a named language (`?language=cs`).
  *
- * The Transcript panel is the only caller (`RecordingTranscript`), on the file
- * itself or on a Path Step showing the file's transcript. Past the gate and the
+ * The admin panel is the only caller: Transcribe again on a file's transcript,
+ * on the file itself or on a Path Step showing it, and the file's Spoken
+ * language field (`useRecordingTranscript`). Past the gate and the
  * read below it is `requestTranscript`: the same flow and the same bounds as
  * `POST /api/meditations/:id/transcribe`.
  *
