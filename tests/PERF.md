@@ -127,6 +127,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | fifty-ninth, #1131 dropping the calendar menu's sub-labels (2026-11-12)    | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
 | sixtieth, #1131 fixing CI after merging `main` (2026-11-12)                | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
 | sixty-first, #1127 resolving a fourth `main` conflict (2026-11-12)         | 269 / 3594    | 57.12 s (inside the gate)                    | 57.1 s     |
+| sixty-second, #1127 resolving a fifth `main` conflict (2026-11-12)         | 270 / 3641    | 55.67 s (inside the gate)                    | 55.7 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
