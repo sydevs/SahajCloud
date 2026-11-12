@@ -27,7 +27,8 @@ import { addDays } from './periods'
  *   Imported or accepted from a public submission (`unverified`, published so
  *   the community can vouch for it), or community-rejected (`denied`,
  *   unpublished and closed to further voting). Assigning a manager and saving
- *   is the only exit from either.
+ *   is the only exit from either, and it **publishes** as well as verifies —
+ *   a manager vouching for a class is what puts it (back) on the map (#1120).
  * - `verified → reminded → escalated → urgent → expired` — the **reminder
  *   ladder**: each stage marks the last reminder sent, region managers join
  *   from `escalated`, and `expired` is unpublished then trashed.

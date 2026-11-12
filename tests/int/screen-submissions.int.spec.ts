@@ -21,6 +21,7 @@ import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -252,15 +253,13 @@ describe('Submission screening', () => {
     ) => {
       for (let i = 0; i < 6; i += 1) {
         const row = await seed({ senderEmail: email })
-        await payload.update({
+        // History, not a decision: `setLifecycleState` writes the row beneath
+        // the lifecycle guard, which refuses a status change naming no writer.
+        await setLifecycleState({
+          payload,
           collection: 'user-submissions',
           id: row.id,
-          data: {
-            status,
-            screeningResult: { verdict, screenedAt: new Date().toISOString() },
-          } as never,
-          overrideAccess: true,
-          req: systemReq(),
+          data: { status, screeningResult: { verdict, screenedAt: new Date().toISOString() } },
         })
       }
     }
@@ -671,12 +670,13 @@ describe('Submission screening', () => {
 
     it('leaves a row a manager has already settled alone', async () => {
       const submission = await seed()
-      await payload.update({
+      // The state the case starts from: a manager's own decision, which no
+      // system writer may make.
+      await setLifecycleState({
+        payload,
         collection: 'user-submissions',
         id: submission.id,
-        data: { status: 'accepted' } as never,
-        overrideAccess: true,
-        req: systemReq(),
+        data: { status: 'accepted' },
       })
 
       await screen(submission.id)

@@ -30,6 +30,7 @@ import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { withActor } from '@/lib/stateMachine/actor'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import type { NotificationPreferences, Region } from '@/payload-types'
 import { normalizeHost } from '@/plugins/usage/originEnforcement'
@@ -1344,7 +1345,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // Atlas's own listings are not new classes: which of them repeat another
       // is decided by evidence in sync/merges.ts, and pairs left unmerged on
       // purpose (two managers, one slot) must still import.
-      context: { skipVerifyHook: true, skipDuplicateClassCheck: true },
+      //
+      // ⚠ **`import` is the writer, and the stage guard refuses a write that
+      // names none** (#1121). The dump is the system of record here, so this
+      // actor may land a listing on any stage — which no other writer may.
+      context: withActor({ skipVerifyHook: true, skipDuplicateClassCheck: true }, 'import'),
     }
     const where = { legacyId: { equals: event.legacyId } }
 

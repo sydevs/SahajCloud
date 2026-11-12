@@ -10,7 +10,12 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
-import { LADDER, STAGES, unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
+import {
+  LADDER,
+  STAGES,
+  unpublishDate,
+  type VerificationStage,
+} from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
 /** Every stage a reminder lands on — the ladder's own steps, past its first. */
@@ -112,6 +117,14 @@ export type OpenItemRow =
   | { kind: 'proposal'; id: number; title: string; receivedAt: string }
   | { kind: 'refusal'; id: number; title: string; reason: string; receivedAt: string }
   | {
+      kind: 'delivery-failed'
+      id: number
+      title: string
+      /** What the row is — "sign-up", "message" — so the line says what is stuck. */
+      intake: string
+      receivedAt: string
+    }
+  | {
       kind: 'service'
       id: number
       title: string
@@ -173,6 +186,16 @@ const STATUS_TABLE = {
     label: 'Flagged as spam',
     pill: 'success',
     rank: 1,
+    filter: null,
+    counts: true,
+  },
+  // In no filter, like the refusals beside it: only an admin's list holds these.
+  // Ranked with Overdue — a confirmation that never arrived is as public a
+  // failure as a listing falling off the map.
+  'delivery-failed': {
+    label: 'Delivery failed',
+    pill: 'error',
+    rank: 2,
     filter: null,
     counts: true,
   },
@@ -417,6 +440,7 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
     link: 'Review the sign-up',
     after: ' and confirm it as spam or release it.',
   },
+  'delivery-failed': { link: 'Open the row', after: ' and send it again.' },
   'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
@@ -439,6 +463,15 @@ function rowStatuses(row: OpenItemRow, now: Date): OpenItemStatus[] {
   const received = `Received ${shortDate(row.receivedAt)}`
   if (row.kind === 'proposal') {
     return [status('class-proposed', { lines: [received], action, deadline: row.receivedAt })]
+  }
+  if (row.kind === 'delivery-failed') {
+    return [
+      status('delivery-failed', {
+        lines: [`This ${row.intake} was never delivered`, received],
+        action: { label: 'Send again', target: rowTarget(row) },
+        deadline: row.receivedAt,
+      }),
+    ]
   }
   return [
     status('confirmed-spam-pending', {

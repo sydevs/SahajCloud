@@ -47,9 +47,7 @@ export function can<State extends string, Actor extends string>(
   to: State,
   by: Actor,
 ): boolean {
-  return machine.moves.some(
-    (move) => move.to === to && starts(move, from) && move.by.includes(by),
-  )
+  return machine.moves.some((move) => move.to === to && starts(move, from) && move.by.includes(by))
 }
 
 /**

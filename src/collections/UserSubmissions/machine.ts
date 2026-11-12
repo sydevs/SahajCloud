@@ -1,4 +1,10 @@
-import { can, type Move, type StateMachine, targetsFor } from '@/lib/stateMachine/machine'
+import {
+  ANY_STATE,
+  can,
+  type Move,
+  type StateMachine,
+  targetsFor,
+} from '@/lib/stateMachine/machine'
 import type { UserSubmission } from '@/payload-types'
 
 import {
@@ -26,6 +32,7 @@ export const SUBMISSION_ACTORS = [
   'admin',
   'block',
   'delivery',
+  'import',
   'repeat-signup',
   'review',
   'screening',
@@ -74,6 +81,15 @@ export const SUBMISSION_MACHINE: StateMachine<Status, SubmissionActor> = {
     // A second sign-up from the same person folds into the row that exists,
     // which re-opens it whatever it had settled on.
     { from: ['accepted', 'pending', 'failed'], to: 'pending', by: ['repeat-signup'] },
+
+    // A seed importer mirrors a system of record — the legacy Atlas's own rows,
+    // or a preview's fixture — so the file decides the status, as it does for
+    // an event's stage. Nothing but a seed may name this actor.
+    ...SUBMISSION_STATUSES.map((status) => ({
+      from: ANY_STATE,
+      to: status,
+      by: ['import'] as const,
+    })),
   ],
 }
 

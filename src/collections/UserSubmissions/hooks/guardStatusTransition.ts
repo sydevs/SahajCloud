@@ -59,15 +59,20 @@ export const guardStatusTransition: CollectionBeforeChangeHook = ({
       req,
     })
 
-  if (req.user?.collection !== 'managers') {
-    const by = resolveActor({
-      actors: SUBMISSION_ACTORS,
-      // No system writer is a person, so there is nobody to fall back to: a
-      // writer that names itself is the whole of this gate.
-      actorFromRequest: () => null,
-      req,
-      context,
-    })
+  // ⚠ **A declared writer wins, whoever's request carries it.** A system write
+  // can ride a manager's own request — the seed importer runs as an admin, and
+  // the repeat-signup fold runs inside a client's create — and judging those by
+  // what the request's user may do would refuse a move the writer is for.
+  const by = resolveActor({
+    actors: SUBMISSION_ACTORS,
+    // No system writer is a person, so there is nobody to fall back to: a
+    // writer that names itself is the whole of this gate.
+    actorFromRequest: () => null,
+    req,
+    context,
+  })
+
+  if (by !== null || req.user?.collection !== 'managers') {
     const verdict = judgeTransition({ machine: SUBMISSION_MACHINE, from: previous.status, to, by })
     if (verdict.kind === 'illegal') refuse(verdict.reason, by)
     return data

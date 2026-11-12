@@ -2,8 +2,8 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/watermark'
-import { declareActor } from '@/lib/stateMachine/actor'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
+import { declareActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSchedule } from '@/types/schedule'
 

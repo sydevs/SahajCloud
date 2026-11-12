@@ -1,7 +1,7 @@
 import type { TaskConfig } from 'payload'
 
-import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { transition } from '@/lib/stateMachine/transition'
 import type { UserSubmission } from '@/payload-types'
 

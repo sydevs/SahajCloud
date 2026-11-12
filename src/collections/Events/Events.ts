@@ -64,9 +64,9 @@ import {
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { guardVerificationStage } from './hooks/guardVerificationStage'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
-import { guardVerificationStage } from './hooks/guardVerificationStage'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
 
@@ -649,7 +649,7 @@ export const Events: CollectionConfig = {
               access: { update: eventManagerFieldAccess },
               admin: {
                 description:
-                  'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+                  'Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.',
                 // The description, then the contacts table (#908). ⚠ The empty
                 // `afterInput` makes Payload re-render it after a save.
                 components: { Description: MANAGER_CONTACTS, afterInput: [] },

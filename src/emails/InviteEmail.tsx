@@ -4,7 +4,7 @@ import { Link, Text } from 'react-email'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 import { responsibilityLabel } from '@/plugins/login/grantSummary'
-import type { LocaleGrant, Responsibility } from '@/plugins/login/grantSummary'
+import type { LocaleGrant, Responsibility, ResponsibilityItem } from '@/plugins/login/grantSummary'
 
 import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
 
@@ -136,6 +136,7 @@ export function InviteEmail({
                       <span style={notYetPublic}> (Not yet public)</span>
                     </>
                   )}
+                  {item.event ? <EventBrief event={item.event} /> : null}
                 </Fragment>
               ))}
             </DetailRow>
@@ -160,6 +161,53 @@ export function InviteEmail({
 }
 
 const notYetPublic = { fontSize: '12px', color: '#6b7280', fontStyle: 'italic' as const }
+
+const brief = { fontSize: '12px', color: '#4b5563', lineHeight: '18px' }
+
+const flaggedNote = { ...brief, color: '#b45309' }
+
+/**
+ * What a class the manager has just been given looks like today: when and
+ * where it meets, what the listing is still missing, and — for one the
+ * community had voted down — why it was off the map.
+ *
+ * ⚠ **Shown under the class, not as a section of its own.** An invitation can
+ * name several classes, and a section would have to say which one it was
+ * about. The flagged line comes first, because it is the one fact that changes
+ * what the manager should do before anything else.
+ */
+function EventBrief({ event }: { event: NonNullable<ResponsibilityItem['event']> }) {
+  const { details, flagged, progress } = event
+  const stillToDo = progress?.open.map((suggestion) => suggestion.label) ?? []
+  return (
+    <>
+      {flagged ? (
+        <div style={flaggedNote}>
+          Attendees reported they could not find this class, so it was taken off the map. Please
+          check the details before anything else.
+        </div>
+      ) : null}
+      <div style={brief}>
+        {details.schedule}
+        <br />
+        {details.locationLabel}: {details.location}
+        {details.contact ? (
+          <>
+            <br />
+            {details.contact}
+          </>
+        ) : null}
+        {progress ? (
+          <>
+            <br />
+            Listing checklist: {progress.resolved} of {progress.total} done
+            {stillToDo.length ? ` — still to do: ${stillToDo.join(', ')}` : ''}
+          </>
+        ) : null}
+      </div>
+    </>
+  )
+}
 
 /**
  * The invitation's heading, which is also its subject: what to look after.

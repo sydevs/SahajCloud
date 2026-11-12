@@ -7,8 +7,8 @@ import type { LogRow } from '@/fields'
 import { toLogRow } from '@/fields'
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
-import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import { can } from '@/lib/stateMachine/machine'
@@ -180,7 +180,13 @@ export async function applyVerification(args: {
         .then(() => true),
   })
 
-  return payload.findByID({ collection: 'events', id: eventId, depth: 1, overrideAccess: true, req })
+  return payload.findByID({
+    collection: 'events',
+    id: eventId,
+    depth: 1,
+    overrideAccess: true,
+    req,
+  })
 }
 
 /**

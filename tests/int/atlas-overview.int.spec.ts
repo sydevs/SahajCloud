@@ -9,6 +9,7 @@ import { getAtlasRegionData } from '@/components/admin/Dashboard/AtlasRegion/dat
 import type { DashboardQuery } from '@/components/admin/Dashboard/shared/model'
 import { countEventsByRegion, RecordAtlasSnapshot } from '@/jobs/AtlasSnapshot/RecordAtlasSnapshot'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
@@ -104,12 +105,21 @@ describe('Atlas overview', () => {
       region: managedCity.id,
       title: 'Assigned program',
     })
-    // ⚠ Published: `stampEventQuality` skips a draft, so only a published fixture has recommendations.
+    // ⚠ Published: `stampEventQuality` skips a draft, so only a published
+    // fixture has recommendations. The stage is a fixture too — the ladder
+    // reaches `urgent` over weeks, and the guard refuses a stage change naming
+    // no writer.
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
-      data: { _status: 'published', verificationStage: 'urgent' },
+      data: { _status: 'published' },
       id: own.id,
+    })
+    await setLifecycleState({
+      payload,
+      collection: 'events',
+      id: own.id,
+      data: { verificationStage: 'urgent' },
     })
 
     // Another manager's listing, far enough up the ladder for a region
@@ -123,8 +133,14 @@ describe('Atlas overview', () => {
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
-      data: { _status: 'published', verificationStage: 'escalated' },
+      data: { _status: 'published' },
       id: escalated.id,
+    })
+    await setLifecycleState({
+      payload,
+      collection: 'events',
+      id: escalated.id,
+      data: { verificationStage: 'escalated' },
     })
 
     // Unadopted, in the subtree.
@@ -151,8 +167,14 @@ describe('Atlas overview', () => {
     await payload.update({
       collection: 'events',
       context: { skipVerifyHook: true },
-      data: { _status: 'published', verificationStage: 'urgent' },
+      data: { _status: 'published' },
       id: orphanEvent.id,
+    })
+    await setLifecycleState({
+      payload,
+      collection: 'events',
+      id: orphanEvent.id,
+      data: { verificationStage: 'urgent' },
     })
 
     const secondCity = await payload.create({
@@ -457,12 +479,14 @@ describe('Atlas overview', () => {
         '/admin/collections/user-submissions?where[and][0][type][equals]=registration&where[and][1][status][equals]=spam',
       )
 
+      // As the admin, because confirming a refusal is an admin's move and
+      // nobody else's — a write naming no writer is refused (#1121).
       await payload.update({
         collection: 'user-submissions',
         data: { status: 'confirmed_spam' } as never,
         id: refused.id,
         overrideAccess: true,
-        req: systemReq(),
+        req: await reqAs(admin),
       })
       expect(titles((await load()).items.rows.docs)).not.toContain('Nadia Haddad')
 

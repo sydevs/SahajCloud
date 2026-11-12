@@ -58,12 +58,24 @@ approves. Both read one answer, `reviewMove` in
 `UserSubmissions/lifecycle/review.ts`. `POST /api/user-submissions/:id/review`
 is gone, and with it the hand-rolled locale on the call.
 
+⚠ **That guard answers for two writers, not one** (#1121). A manager at the
+keyboard is `reviewMove`'s, as above. Everything else — screening, delivery,
+the block endpoint, the repeat-signup fold — is a system writer, and
+`SUBMISSION_MACHINE` (`UserSubmissions/machine.ts`) is its whole gate: each
+names itself on the write's own context, and a status change naming no writer
+is refused and reported. Before that the exemption below _was_ their gate, so
+each could write any status from anywhere. The two tables are pinned against
+each other in `user-submissions-review-lifecycle.int.spec.ts`, and the review
+buttons are built from the machine so a button and the guard cannot name
+different sets.
+
 ⚠ **A reviewer is a manager holding the `user-submissions: update` grant, not
 whoever a row's `manager` field names.** The collection's own `update` admits
 the second through the document-manager fallback, which would make being
 assigned a proposal authority to publish the event accepting it writes — see
-`docs/rules/access.md`. Nothing else binds, so screening and delivery, which
-carry no manager, pass untouched.
+`docs/rules/access.md`. Nothing else binds `reviewMove`, so screening and
+delivery, which carry no manager, never reach it — the move table above is what
+answers for them.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
 buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule and fall

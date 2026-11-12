@@ -1,12 +1,12 @@
 import type { SubmissionScreeningResult, SubmissionVerdict } from './verdicts'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
-import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
-import { transition } from '@/lib/stateMachine/transition'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { transition } from '@/lib/stateMachine/transition'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 

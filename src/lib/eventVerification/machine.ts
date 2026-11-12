@@ -84,9 +84,11 @@ export const EVENT_MACHINE: StateMachine<VerificationStage, EventActor> = {
     // community had voted.
     { from: ['unverified', 'denied'], to: 'verified', by: ['adoption'] },
 
-    { from: ANY_STATE, to: 'unverified', by: ['import'] },
-    { from: ANY_STATE, to: 'denied', by: ['import'] },
-    { from: ANY_STATE, to: 'verified', by: ['import'] },
-    { from: ANY_STATE, to: 'finished', by: ['import'] },
+    // The dump decides, so the importer may land a listing anywhere.
+    ...VERIFICATION_STAGES.map((stage) => ({
+      from: ANY_STATE,
+      to: stage,
+      by: ['import'] as const,
+    })),
   ],
 }

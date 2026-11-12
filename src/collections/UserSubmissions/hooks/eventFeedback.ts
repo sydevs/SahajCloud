@@ -1,17 +1,10 @@
-import type {
-  CollectionAfterChangeHook,
-  CollectionBeforeChangeHook,
-  RequestContext,
-} from 'payload'
+import type { CollectionAfterChangeHook, CollectionBeforeChangeHook, RequestContext } from 'payload'
 
 import { APIError } from 'payload'
 
 import type { EventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
-import {
-  computeCommunityVerdict,
-  isFeedbackOpen,
-} from '@/lib/eventVerification/communityFeedback'
+import { computeCommunityVerdict, isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
 import { transition } from '@/lib/stateMachine/transition'

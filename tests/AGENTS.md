@@ -21,7 +21,7 @@ validation.
 
 | Lane            | Files                                              | Speed                                                                                                                                  | When                                                                                                                               |
 | --------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 266 files / 3555 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
+| **Unit**        | `tests/unit/**/*.spec.ts`                          | ~78 s for 267 files / 3592 cases; 1–3 s for one named spec, under 9 s for the specs one edit can break (4 cores — see `tests/PERF.md`) | Pure functions, no Payload bootstrap. **No** `globalSetup`/`setupFiles`.                                                           |
 | **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                                       | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                                      | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
@@ -165,6 +165,19 @@ validators refuse, which no `payload.create` or `payload.update` can reach.
 It seeds the main row **and** the `latest: true` version row, because
 `updateByID` loads the document it is about to change from that version —
 seed only the main row and the case passes for the wrong reason.
+
+A fourth: `setLifecycleState({ payload, collection, id, data })`
+(`tests/utils/lifecycleFixtures.ts`) puts a document at a lifecycle state
+beneath the hooks. Each lifecycle's guard refuses a state change that names no
+writer (#1121), and most states a case needs to **start** from are nobody's to
+write twice — a reviewer's own decision, or a ladder step the job reaches over
+weeks. ⚠ **Setup only.** A case asserting that a writer may make a move has to
+make the move, through that writer's own path, or it asserts nothing about the
+guard; where the writer is what the case stands in for, name it with
+`withActor` (`@/lib/stateMachine/actor`) on the write's own `context` instead.
+⚠ It cannot seed an array column — Payload generates each row's own id — so a
+case needing both splits into an ordinary update for the array and this for the
+state.
 
 ### Driving the REST API from the integration lane
 

@@ -20,21 +20,25 @@
  * `user-submissions-create.int.spec.ts`'s subject, and nothing here depends on
  * them — so this file needs no external stubs at all.
  */
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
   SPAM_REVIEW_STATUSES,
+  SUBMISSION_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
 import type { WorkflowButtonsProps, WorkflowRule } from '@/components/admin/WorkflowButtons/stages'
 import { asLog } from '@/fields'
+import { ANY_STATE, can } from '@/lib/stateMachine/machine'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -42,6 +46,7 @@ describe('User submission review lifecycle', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let regionManager: Awaited<ReturnType<typeof testData.authUser>>
+  let adminManager: Awaited<ReturnType<typeof testData.authUser>>
   let countryId: number
   let cityId: number
   let secondCityId: number
@@ -138,13 +143,9 @@ describe('User submission review lifecycle', () => {
    * Both review hooks let it through, which is what puts a row at a status this
    * file's cases start from.
    */
+  /** The status a case starts from — a fixture, never a move (`setLifecycleState`). */
   const settle = (id: number, status: UserSubmission['status']) =>
-    payload.update({
-      collection: 'user-submissions',
-      id,
-      data: { status },
-      overrideAccess: true,
-    })
+    setLifecycleState({ payload, collection: 'user-submissions', id, data: { status } })
 
   /** The event a decided proposal ended up pointing at. */
   const acceptedEventId = async (id: number) => relationId((await reload(id)).event)
@@ -189,6 +190,15 @@ describe('User submission review lifecycle', () => {
       parent: countryId,
     })
     secondCityId = secondCity.id
+
+    adminManager = await testData.authUser(
+      payload,
+      await testData.createManager(payload, {
+        name: 'Submissions Admin',
+        email: 'submissions-admin@example.com',
+        type: 'admin',
+      }),
+    )
   })
 
   afterAll(async () => {
@@ -461,13 +471,25 @@ describe('User submission review lifecycle', () => {
       expect(Object.keys(ruleFor('admin').stages).sort()).toEqual([...SPAM_REVIEW_STATUSES].sort())
     })
 
+    /**
+     * The intake a rule is for: the one it names, else an intake with no review
+     * path at all. The admin-gated rules are deliberately intake-agnostic —
+     * settling a refusal and sending a delivery again are moves on every row —
+     * so judging them as a proposal would answer for the one intake they are
+     * not mainly for, and the resend rule would read as refused.
+     */
+    const typeFor = (rule: WorkflowRule<UserSubmission['status']>): UserSubmission['type'] =>
+      rule.when?.field === 'type'
+        ? (rule.when.equals as UserSubmission['type'])
+        : ('registration' as const)
+
     it('aims every button at a move the server would accept', () => {
       for (const rule of declaration().rules) {
         for (const { button, from, to } of offers(rule)) {
           const move = reviewMove({
             from,
             to,
-            type: 'proposal',
+            type: typeFor(rule),
             // An admin, so the only thing left for `reviewMove` to judge is the
             // transition — `bypassPermissions` admits them before any role
             // lookup. Whether a given manager holds the grant is the
@@ -493,7 +515,7 @@ describe('User submission review lifecycle', () => {
           const move = reviewMove({
             from,
             to,
-            type: 'proposal',
+            type: typeFor(rule),
             req: { locale: 'en', user: { ...regionManager, collection: 'managers' } } as never,
           })
           expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
@@ -640,12 +662,13 @@ describe('User submission review lifecycle', () => {
         _status: 'published',
         contactPhone: '+1-555-0100',
       })
-      // Age the stage so the re-verify is observable.
-      await payload.update({
+      // Age the stage so the re-verify is observable. A fixture, not a move:
+      // the ladder step it stands in for is the job's, reached over weeks.
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id: event.id,
         data: { verificationStage: 'reminded' },
-        context: { skipVerifyHook: true },
       })
 
       const created = await createProposal({
@@ -926,5 +949,129 @@ describe('User submission review lifecycle', () => {
         expect((await reload(id)).subject).toBe('Edited by a manager')
       },
     )
+  })
+
+  /**
+   * ⚠ **Two tables, one answer.** `reviewMove` owns what a manager may do and
+   * why; `SUBMISSION_MACHINE` is what the buttons are built from and what the
+   * guard refuses a system writer on. Nothing but these two cases stops them
+   * drifting — a move in one and not the other is either a button the server
+   * refuses, or a refusal no surface ever offers.
+   */
+  describe('the move table and the review predicate agree', () => {
+    const asAdmin = {
+      locale: 'en',
+      user: { collection: 'managers', type: 'admin' },
+    } as unknown as PayloadRequest
+
+    /** The intakes a move is a decision on — empty means `reviewMove` refuses it. */
+    const decidedOn = (from: UserSubmission['status'], to: UserSubmission['status']) =>
+      (['proposal', 'registration'] as const).filter(
+        (type) => reviewMove({ from, to, type, req: asAdmin }).kind === 'decision',
+      )
+
+    it('holds every move reviewMove grants', () => {
+      for (const from of SUBMISSION_STATUSES) {
+        for (const to of SUBMISSION_STATUSES) {
+          if (from === to || decidedOn(from, to).length === 0) continue
+          expect(can(SUBMISSION_MACHINE, from, to, 'admin'), `${from} → ${to}`).toBe(true)
+        }
+      }
+    })
+
+    it('grants no human move reviewMove would refuse', () => {
+      for (const move of SUBMISSION_MACHINE.moves) {
+        if (!move.by.some((actor) => actor === 'admin' || actor === 'review')) continue
+        const origins = move.from === ANY_STATE ? SUBMISSION_STATUSES : move.from
+        for (const from of origins) {
+          expect(decidedOn(from, move.to), `${from} → ${move.to}`).not.toEqual([])
+        }
+      }
+    })
+  })
+
+  describe('sending a failed delivery again', () => {
+    let formId: number
+
+    beforeAll(async () => {
+      const form = await payload.create({
+        collection: 'forms',
+        data: {
+          title: 'Undelivered contact',
+          actionType: 'contact',
+          recipient: regionManager.id,
+          confirmationType: 'redirect',
+          redirect: { url: '/thanks' },
+          fields: [
+            { blockType: 'email', name: 'email', label: 'Email' },
+            { blockType: 'textarea', name: 'message', label: 'Message' },
+          ],
+        } as never,
+        overrideAccess: true,
+      })
+      formId = form.id
+    })
+
+    /** A contact row whose decision was fine and whose send was not. */
+    const failedContact = async () => {
+      const created = (await payload.create({
+        collection: 'user-submissions',
+        data: createData<'user-submissions'>({
+          type: 'contact',
+          senderEmail: 'undelivered@example.com',
+          form: formId,
+        }),
+        overrideAccess: true,
+      })) as UserSubmission
+      await setLifecycleState({
+        payload,
+        collection: 'user-submissions',
+        id: created.id,
+        data: { status: 'failed' },
+      })
+      return created.id
+    }
+
+    const moveAs = (
+      id: number,
+      user: Awaited<ReturnType<typeof testData.authUser>>,
+      status: UserSubmission['status'],
+    ) =>
+      payload.update({
+        collection: 'user-submissions',
+        id,
+        data: { status } as never,
+        user: user as never,
+        overrideAccess: true,
+      }) as Promise<UserSubmission>
+
+    it('lets an admin re-queue the delivery, and records it', async () => {
+      const id = await failedContact()
+
+      await moveAs(id, adminManager, 'pending')
+
+      const fresh = await reload(id)
+      expect(fresh.status).toBe('pending')
+      expect(lastReviewEntry(fresh)?.cells?.activity).toBe('Queued for delivery again')
+
+      // The row is only re-queued: `DeliverSubmissions` is what settles it.
+      const { totalDocs } = await payload.count({
+        collection: 'payload-jobs',
+        where: { taskSlug: { equals: 'deliverSubmission' } },
+        overrideAccess: true,
+      })
+      expect(totalDocs).toBeGreaterThan(0)
+    })
+
+    it('refuses it to a reviewer who is not an admin', async () => {
+      // A resend mails a visitor, so it is an admin's — and the button is not
+      // offered to anyone else either (`the review buttons`, above).
+      const id = await failedContact()
+
+      await expect(moveAs(id, regionManager, 'pending')).rejects.toMatchObject({
+        data: { errors: [{ path: 'status' }] },
+      })
+      expect((await reload(id)).status).toBe('failed')
+    })
   })
 })

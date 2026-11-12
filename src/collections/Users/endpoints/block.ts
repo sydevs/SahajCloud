@@ -5,9 +5,8 @@ import { z } from 'zod'
 
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
-import { transition } from '@/lib/stateMachine/transition'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
-import type { UserSubmission } from '@/payload-types'
+import { transition } from '@/lib/stateMachine/transition'
 
 const bodySchema = z.object({
   blocked: z.boolean(),

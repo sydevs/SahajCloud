@@ -41,7 +41,14 @@ type FindArgs = {
 }
 
 /** A managed document: its id, title, public page, and (for events) its stage. */
-type Doc = { id: number; title: string; url?: string; verificationStage?: string }
+type Doc = {
+  id: number
+  title: string
+  url?: string
+  verificationStage?: string
+  /** The stored vote tally, which is what says a class was adopted after a denial. */
+  systemMeta?: { communityFeedback?: { confirmations: number; denials: number } }
+}
 type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
 /**
@@ -99,6 +106,7 @@ function fakePayload(roles: unknown, managed: Managed = {}) {
           [titleField]: doc.title,
           webUrl: doc.url ?? null,
           verificationStage: doc.verificationStage,
+          systemMeta: doc.systemMeta,
         }))
       return { docs }
     },
@@ -111,6 +119,12 @@ const BERLIN: Doc = { id: 1, title: 'Berlin', url: 'https://atlas.test/berlin' }
 const TUESDAY: Doc = { id: 7, title: 'Tuesday Evening Meditation', url: 'https://atlas.test/7' }
 const DRAFT: Doc = { id: 8, title: 'Sunday Workshop' }
 const FINISHED: Doc = { id: 9, title: 'Summer Retreat', verificationStage: 'finished' }
+/** Adopted after the community voted it down — the tally is what survives the adoption. */
+const FLAGGED: Doc = {
+  id: 10,
+  title: 'Thursday Morning',
+  systemMeta: { communityFeedback: { confirmations: 0, denials: 4 } },
+}
 
 describe('summarizeGrants', () => {
   const summarize = (roles: unknown, managed: Managed = {}, extra: Record<string, unknown> = {}) =>
@@ -151,13 +165,18 @@ describe('summarizeGrants', () => {
         {
           label: 'Events',
           singular: 'Event',
+          // Each class also carries its brief — asserted on its own below.
           items: [
-            { title: TUESDAY.title, url: TUESDAY.url },
-            { title: DRAFT.title, url: null },
+            { title: TUESDAY.title, url: TUESDAY.url, event: expect.anything() },
+            { title: DRAFT.title, url: null, event: expect.anything() },
           ],
         },
       ],
     })
+    // Only a class gets a brief: a region or a page has no listing to describe.
+    const regions = atlas!.responsibilities.find((r) => r.label === 'Regions')
+    expect(regions!.items[0]!.event).toBeUndefined()
+
     // Each join asks its own collection for the documents naming this manager.
     expect(reads.find((read) => read.collection === 'events')?.where?.and?.[0]).toEqual({
       manager: { in: [1] },
@@ -165,6 +184,18 @@ describe('summarizeGrants', () => {
     expect(reads.find((read) => read.collection === 'regions')?.where?.and?.[0]).toEqual({
       managers: { in: [1] },
     })
+  })
+
+  it('marks a class the community had voted down, from the tally the adoption left', async () => {
+    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED] })
+
+    const [atlas] = await summarizeGrants({ ...managers, payload, type: 'manager' })
+    const items = atlas!.responsibilities.find((r) => r.label === 'Events')!.items
+
+    // The adoption already moved it to `verified`, so the stage cannot say this
+    // and the stored denials are what do.
+    expect(items.find((item) => item.title === FLAGGED.title)!.event!.flagged).toBe(true)
+    expect(items.find((item) => item.title === TUESDAY.title)!.event!.flagged).toBe(false)
   })
 
   it('splits what it names by project — one invitation each', async () => {

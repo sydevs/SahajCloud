@@ -2,9 +2,12 @@ import type { CollectionSlug, Field, Payload, PayloadRequest, Where } from 'payl
 
 import { flattenAllFields } from 'payload'
 
+import type { EventDetails, EventListingProgress } from '@/emails/EventVerificationEmail'
 import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
+import { buildEventEmailDetails } from '@/lib/notifications/eventDetails'
+import { buildEventListingProgress } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import type { ProjectSlug } from '@/payload-types'
+import type { Event, ProjectSlug } from '@/payload-types'
 import {
   getJoinProject,
   getProjectCollections,
@@ -41,6 +44,24 @@ export interface ResponsibilityItem {
   title: string
   /** Its public page, or `null` while it has none — an unpublished event. */
   url: null | string
+  /**
+   * For a class: what its listing says, how complete it is, and whether the
+   * community had voted it down before a manager took it on.
+   *
+   * ⚠ **One email, not two.** Adopting a listing used to send an invitation
+   * naming the class and nothing else, leaving the new manager to open the
+   * admin to find out what they had taken on — and leaving a listing the
+   * community had flagged indistinguishable from any other (#1120 decision 4).
+   * A second email would be the obvious fix and the wrong one: it arrives
+   * beside the first, about the same class.
+   */
+  event?: {
+    details: EventDetails
+    /** The listing checklist, exactly as the reminder email computes it. */
+    progress: EventListingProgress | null
+    /** Attendees had denied this class before it was adopted. */
+    flagged: boolean
+  }
 }
 
 /** One kind of document the account is named on as a manager. */
@@ -296,19 +317,21 @@ async function readManaged(
       req,
     })
 
-    const items = docs.flatMap((doc) => {
+    const items: ResponsibilityItem[] = []
+    for (const doc of docs) {
       const record = doc as unknown as Record<string, unknown>
       // A finished event keeps its page for late visitors, but it is over —
       // nothing to look after.
-      if (record.verificationStage === 'finished') return []
+      if (record.verificationStage === 'finished') continue
       const title = record[titleField]
-      return [
-        {
-          title: typeof title === 'string' && title.trim() ? title : 'Untitled',
-          url: typeof record.webUrl === 'string' ? record.webUrl : null,
-        },
-      ]
-    })
+      items.push({
+        title: typeof title === 'string' && title.trim() ? title : 'Untitled',
+        url: typeof record.webUrl === 'string' ? record.webUrl : null,
+        ...(join.collection === 'events'
+          ? { event: await describeEvent(payload, doc as unknown as Event, req) }
+          : {}),
+      })
+    }
     if (items.length === 0) continue
 
     const { plural, singular } = config.labels ?? {}
@@ -324,4 +347,33 @@ async function readManaged(
   }
 
   return found
+}
+
+/**
+ * What a new manager needs to know about a class they have just been given.
+ *
+ * ⚠ **The checklist comes from the same builder the reminder email uses**, so
+ * what an adoption email asks for and what the first reminder asks for cannot
+ * be two different lists. A report that cannot be built at all — a listing the
+ * quality registry skips — is `null`, and the email leaves the section out.
+ *
+ * `flagged` reads the stored vote tally rather than the stage: by the time this
+ * runs the adoption has already moved the class to `verified`, so `denied` is
+ * no longer there to read, and the denials that put it there are.
+ */
+async function describeEvent(
+  payload: Payload,
+  event: Event,
+  /** Absent only where the caller holds no request — the checklist needs one. */
+  req: PayloadRequest | undefined,
+): Promise<ResponsibilityItem['event']> {
+  const [details, progress] = await Promise.all([
+    buildEventEmailDetails({ payload, event, req }),
+    req ? buildEventListingProgress({ event, req }).catch(() => null) : null,
+  ])
+  return {
+    details,
+    progress,
+    flagged: (event.systemMeta?.communityFeedback?.denials ?? 0) > 0,
+  }
 }

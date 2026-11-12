@@ -710,6 +710,9 @@ describe('User submissions intake (POST /api/user-submissions)', () => {
             event: event.id,
             form: contactForm.id,
             senderEmail: 'confused@example.com',
+            // The gate refuses a registration with no session ahead of every
+            // field validator, so without this the case would read its message.
+            startingAt: new Date(Date.now() + 86_400_000).toISOString(),
           }),
         ),
       ).toEqual(['event: A registration submission names an event, not a form.'])

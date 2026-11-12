@@ -23,6 +23,7 @@
 import * as path from 'path'
 
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { withActor } from '@/lib/stateMachine/actor'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions } from '../lib'
@@ -302,7 +303,15 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
         // `accepted` stands in for `pending` at create, so the row skips
         // screening; the update below is what makes it pending.
         { ...row.data, status: row.status === 'pending' ? 'accepted' : row.status },
-        { current: index + 1, identifier: row.data.uuid, total: rows.length },
+        {
+          current: index + 1,
+          identifier: row.data.uuid,
+          total: rows.length,
+          // ⚠ The fixture file decides the status, and the lifecycle guard
+          // refuses a status change naming no writer — which a re-run of this
+          // seed makes, since it writes each row's authored status back.
+          context: withActor(undefined, 'import'),
+        },
       )
 
       // ⚠ Guarded on the id, not on `dryRun` alone. `upsert` also returns the
@@ -316,6 +325,7 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
         id: created.doc.id,
         data: { status: 'pending' },
         overrideAccess: true,
+        context: withActor(undefined, 'import'),
       })
     }
   }

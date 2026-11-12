@@ -19,6 +19,7 @@ import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
 import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import {
   createData,
@@ -1074,10 +1075,20 @@ describe('Role-Based Access Control', () => {
       expect(grants(assignee, 'managers')).toBe(false)
       expect(grants(assignee, 'regions')).toBe(false)
 
+      // ⚠ **Two writes.** A managed stage requires a manager, so the stage has
+      // to come down first — and no writer moves `verified` back to
+      // `unverified`, which is why the lifecycle guard refuses it (#1121). The
+      // un-assignment itself is the ordinary save under test.
+      await setLifecycleState({
+        payload,
+        collection: 'events',
+        id: event.id,
+        data: { verificationStage: 'unverified' },
+      })
       await payload.update({
         collection: 'events',
         id: event.id,
-        data: { manager: null, verificationStage: 'unverified' },
+        data: { manager: null },
         overrideAccess: true,
         context: { skipVerifyHook: true },
       })

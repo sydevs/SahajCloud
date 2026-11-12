@@ -4,17 +4,15 @@ import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import type { EventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
-import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import {
   asNotificationLog,
   buildReminderEntry,
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { addDays } from '@/lib/eventVerification/periods'
 import { stageAction, transitionUnpublishes, unpublishDate } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
-import type { TransitionWrite } from '@/lib/stateMachine/transition'
-import { transition } from '@/lib/stateMachine/transition'
 import {
   buildEventEmailDetails,
   buildEventListingProgress,
@@ -26,6 +24,8 @@ import {
   type ReminderPayload,
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { TransitionWrite } from '@/lib/stateMachine/transition'
+import { transition } from '@/lib/stateMachine/transition'
 import type { Event } from '@/payload-types'
 import { capture } from '@/plugins/sentry/capture'
 
