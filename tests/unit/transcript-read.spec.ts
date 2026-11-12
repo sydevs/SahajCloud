@@ -1,14 +1,20 @@
 /**
  * The shared reads over a recording's transcript row.
  *
- * The `source` clause is the load-bearing case: the polymorphic value has to be
- * named one `equals` per file, or a meditation of the same number matches too.
+ * The batch is the load-bearing case: the virtual `subtitles` field cannot take
+ * Payload's `findMany` guard, so a page of `files` rows would otherwise pay one
+ * `transcripts` query each. Only a query count fails when the batch is lost —
+ * every cue still arrives.
  */
-import type { Payload, Where } from 'payload'
+import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { readFinishedFileTranscripts, transcriptHasCues } from '@/lib/transcripts/read'
+import {
+  readFileSubtitles,
+  readFinishedFileTranscripts,
+  transcriptHasCues,
+} from '@/lib/transcripts/read'
 
 const cue = (content: string) => [{ content, startTimeMs: 0, endTimeMs: 1000 }]
 
@@ -17,6 +23,66 @@ function sourceIds(where: Where | undefined): Array<number | string> {
   const clauses = (where?.or ?? []) as Array<{ source?: { equals?: { value?: number | string } } }>
   return clauses.map((clause) => clause.source?.equals?.value as number | string)
 }
+
+function fakeReq(docs: unknown[]) {
+  const find = vi.fn().mockResolvedValue({ docs })
+  const req = { context: {}, payload: { find } } as unknown as PayloadRequest
+  return { req, find }
+}
+
+describe('readFileSubtitles', () => {
+  it('reads every file asked for in one tick with one query', async () => {
+    const { req, find } = fakeReq([
+      { source: { relationTo: 'files', value: 7 }, segments: cue('seven') },
+      { source: { relationTo: 'files', value: 9 }, segments: cue('nine') },
+    ])
+
+    const [seven, eight, nine] = await Promise.all([
+      readFileSubtitles(req, 7),
+      readFileSubtitles(req, 8),
+      readFileSubtitles(req, 9),
+    ])
+
+    expect(find).toHaveBeenCalledTimes(1)
+    expect(sourceIds(find.mock.calls[0]![0].where)).toEqual([7, 8, 9])
+    expect(seven).toEqual(cue('seven'))
+    expect(nine).toEqual(cue('nine'))
+    // A file with no transcript row, inside a batch that found others.
+    expect(eight).toBeNull()
+  })
+
+  it('answers the same file twice from one read', async () => {
+    const { req, find } = fakeReq([
+      { source: { relationTo: 'files', value: 3 }, segments: cue('three') },
+    ])
+
+    await Promise.all([readFileSubtitles(req, 3), readFileSubtitles(req, 3)])
+    expect(find).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens a new batch for a read that arrives after the first closed', async () => {
+    const { req, find } = fakeReq([
+      { source: { relationTo: 'files', value: 1 }, segments: cue('one') },
+    ])
+
+    expect(await readFileSubtitles(req, 1)).toEqual(cue('one'))
+    expect(await readFileSubtitles(req, 2)).toBeNull()
+
+    expect(find).toHaveBeenCalledTimes(2)
+    expect(sourceIds(find.mock.calls[1]![0].where)).toEqual([2])
+  })
+
+  it('answers null for a row whose cues are empty', async () => {
+    const { req } = fakeReq([{ source: { relationTo: 'files', value: 4 }, segments: [] }])
+    expect(await readFileSubtitles(req, 4)).toBeNull()
+  })
+
+  it('reads a transcribable file without joining the caller transaction', async () => {
+    const { req, find } = fakeReq([])
+    await readFileSubtitles(req, 5)
+    expect(find.mock.calls[0]![0].req).toBeUndefined()
+  })
+})
 
 describe('readFinishedFileTranscripts', () => {
   it('names one source per file and asks only for finished rows', async () => {

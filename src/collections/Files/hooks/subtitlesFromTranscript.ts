@@ -13,7 +13,8 @@ import { readFileSubtitles } from '@/lib/transcripts/read'
  * populated file as well, so the cues arrive where they are used.
  *
  * No `findMany` guard: a populated upload is itself read by a `find`, so the
- * guard would empty exactly the reads this exists for.
+ * guard would empty exactly the reads this exists for. `readFileSubtitles`
+ * batches instead, which is what keeps a page of rows to one query.
  */
 export const subtitlesFromTranscript: FieldHook = async ({ data, req }) => {
   const id = Number(data?.id)
