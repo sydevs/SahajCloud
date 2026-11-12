@@ -37,11 +37,14 @@ export function FileRecordingTranscript({
 }) {
   const { mediaRef, playback } = useMediaPlayback()
   const kind = transcribableMedia(file.mimeType)
-  const hasCues = (transcript.row?.segments?.length ?? 0) > 0
-  // A video plays from its Stream MP4, which exists only once Stream has made
-  // it — and its transcript waited for exactly that, so the cues say it does.
-  // An audio file is its own R2 object from the moment it is saved.
-  const src = kind === 'audio' ? file.url : kind === 'video' && hasCues ? file.mp4Url : null
+  // A video plays from its Stream MP4, whose address answers 404 until Stream
+  // has made it. Cues are not that answer: a run that failed after the
+  // download was made leaves the editor reading "Try again" with nothing to
+  // listen to. Only a run still in flight is waiting on the MP4 itself
+  // (`waitForVideoDownload`). An audio file is its own R2 object from the
+  // moment it is saved.
+  const waiting = transcript.phase === 'pending'
+  const src = kind === 'audio' ? file.url : kind === 'video' && !waiting ? file.mp4Url : null
 
   return (
     <RecordingTranscript

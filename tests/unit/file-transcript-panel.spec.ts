@@ -207,6 +207,19 @@ describe('a file’s Transcript panel', () => {
       expect(text()).toContain('Transcription in progress')
     })
 
+    // The MP4 outlives the run that read it: a failure after Stream made the
+    // download is exactly when an editor wants to hear the recording.
+    it('plays a video whose transcription failed', async () => {
+      stub.swr = {
+        data: { docs: [row({ segments: null, status: 'failed', error: 'Lemonfox 500' })] },
+        error: undefined,
+      }
+      const media = await render(VIDEO)
+
+      expect(media?.tagName).toBe('VIDEO')
+      expect(media?.getAttribute('src')).toBe(VIDEO.mp4Url)
+    })
+
     it('keeps an audio file playable while its transcript is on its way', async () => {
       stub.swr = {
         data: { docs: [row({ segments: null, status: 'processing' })] },
