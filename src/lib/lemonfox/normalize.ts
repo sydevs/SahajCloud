@@ -13,8 +13,8 @@
 import { z } from 'zod'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
+import { groupWordsIntoCues, type TimedWord } from '@/lib/transcripts/cues'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
-import { groupWordsIntoCues, type TimedWord } from '@/lib/utilities/subtitles'
 
 /**
  * Lemonfox exposes an OpenAI-compatible `verbose_json`, but documents no

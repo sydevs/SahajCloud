@@ -6,10 +6,9 @@ import {
   groupWordsIntoCues,
   SUBTITLE_CUE_MAX_CHARS,
   SUBTITLE_CUE_MAX_GAP_MS,
-  subtitlesSchema,
-  subtitlesZodSchema,
   type TimedWord,
-} from '@/lib/utilities/subtitles'
+} from '@/lib/transcripts/cues'
+import { subtitlesSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 /**
  * The Zod schema and the JSON Schema describe the same cues for two different
