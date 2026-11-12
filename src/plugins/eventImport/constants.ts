@@ -1,4 +1,11 @@
-/** Thresholds the bulk class import turns on. */
+/** Thresholds the bulk class import turns on, and the slug of the job behind it. */
+
+/**
+ * The import job's slug. Here rather than beside the task, so a module naming
+ * the slug alone — `finish.ts`, reading it off a cancelled job row — does not
+ * import the task that imports it back.
+ */
+export const IMPORT_TASK = 'importEvents'
 
 /**
  * Hard cap on CSV data rows per import, which bounds the geocoder spend. A
