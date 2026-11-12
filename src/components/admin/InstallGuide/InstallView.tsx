@@ -151,8 +151,7 @@ async function readAppearance(props: DocumentViewServerProps, client: Client): P
       color3: client.color3 ?? null,
     },
     replyTo: client.supportEmail || USER_EMAIL_FROM,
-    mailingList:
-      list?.enabled && list.provider ? MAILING_LIST_PROVIDER_LABELS[list.provider] : null,
+    mailingList: list?.provider ? MAILING_LIST_PROVIDER_LABELS[list.provider] : null,
   }
 }
 

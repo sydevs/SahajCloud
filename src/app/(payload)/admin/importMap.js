@@ -45,6 +45,7 @@ import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/component
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
 import { default as default_6b2a1f1d3d7c1767f2f71d769fd12691 } from '@/components/admin/AtlasPreview/PreviewModeField'
 import { default as default_bfddde23a5acec01e52744b5de11ce22 } from '@/components/admin/AtlasPreview/EmailPreviewField'
+import { default as default_15a790addfeffe484dd465108998359a } from '@/components/admin/SecretField'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
 import { default as default_a86ea17da05fe19d05690105977131bd } from '@/components/admin/InstallGuide/InstallView'
@@ -149,6 +150,7 @@ export const importMap = {
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
   "@/components/admin/AtlasPreview/PreviewModeField#default": default_6b2a1f1d3d7c1767f2f71d769fd12691,
   "@/components/admin/AtlasPreview/EmailPreviewField#default": default_bfddde23a5acec01e52744b5de11ce22,
+  "@/components/admin/SecretField#default": default_15a790addfeffe484dd465108998359a,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,
   "@/components/admin/InstallGuide/InstallView#default": default_a86ea17da05fe19d05690105977131bd,
