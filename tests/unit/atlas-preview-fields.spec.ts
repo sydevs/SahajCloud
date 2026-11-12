@@ -39,7 +39,6 @@ const { MapPreviewField } = await import('@/components/admin/AtlasPreview/MapPre
 const ATLAS = 'http://localhost:5173'
 
 const PRIMARY = {
-  adjustedBy: ['surface', 'panel-text'],
   dark: '#fefdfb',
   darkAdjustedBy: ['panel-text'],
   lightAdjustedBy: ['surface', 'panel-text'],
@@ -49,7 +48,8 @@ const PRIMARY = {
 }
 
 const ACCENT = {
-  adjustedBy: ['panel-text'],
+  darkAdjustedBy: ['panel-text'],
+  lightAdjustedBy: ['panel-text'],
   dark: '#ffaa33',
   entered: '#ff9900',
   light: '#c27a14',
@@ -97,15 +97,6 @@ describe('readSwatch', () => {
       readSwatch({ ...report({ primary: PRIMARY }), type: 'other' }, 'color1', '#ffff00'),
     ).toBeNull()
     expect(readSwatch(null, 'color1', '#ffff00')).toBeNull()
-  })
-
-  it('marks both modes for an atlas that reports only the union', () => {
-    const { darkAdjustedBy: _dark, lightAdjustedBy: _light, ...unionOnly } = PRIMARY
-
-    expect(readSwatch(report({ primary: unionOnly }), 'color1', '#ffff00')).toMatchObject({
-      darkAdjusted: true,
-      lightAdjusted: true,
-    })
   })
 
   it('ignores a report about a colour the field no longer holds', () => {
@@ -208,7 +199,7 @@ describe('AdjustedColors', () => {
     await post(
       report({
         contrast: ACCENT,
-        primary: { ...PRIMARY, adjustedBy: [], darkAdjustedBy: [], lightAdjustedBy: [] },
+        primary: { ...PRIMARY, darkAdjustedBy: [], lightAdjustedBy: [] },
       }),
       frame.contentWindow,
     )
@@ -219,7 +210,7 @@ describe('AdjustedColors', () => {
   it('applies every suggestion at once, and skips a colour with none', async () => {
     await mount(AdjustedColors)
     const frame = openPreview()
-    const accent = { ...ACCENT, adjustedBy: ['selected-distinct'] }
+    const accent = { ...ACCENT, lightAdjustedBy: ['selected-distinct'] }
 
     await post(report({ contrast: accent, primary: PRIMARY }), frame.contentWindow)
     act(() => button('Use adjusted colors')!.click())

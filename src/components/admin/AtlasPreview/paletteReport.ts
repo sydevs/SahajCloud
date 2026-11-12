@@ -83,7 +83,6 @@ export function readSwatch(
 
   const report = message.roles?.[ROLE_OF_COLUMN[column]] as
     | {
-        adjustedBy?: unknown
         dark?: unknown
         darkAdjustedBy?: unknown
         entered?: unknown
@@ -93,13 +92,14 @@ export function readSwatch(
       }
     | undefined
 
-  if (!report || !Array.isArray(report.adjustedBy)) return null
+  if (!report || !Array.isArray(report.lightAdjustedBy) || !Array.isArray(report.darkAdjustedBy)) {
+    return null
+  }
   if (!isHex(report.light) || !isHex(report.dark) || typeof report.entered !== 'string') return null
   if (report.entered.toLowerCase() !== current.toLowerCase()) return null
 
-  // Per mode where the atlas says so; an atlas that reports only the union marks both.
-  const light = swatchChecks(report.lightAdjustedBy ?? report.adjustedBy)
-  const dark = swatchChecks(report.darkAdjustedBy ?? report.adjustedBy)
+  const light = swatchChecks(report.lightAdjustedBy)
+  const dark = swatchChecks(report.darkAdjustedBy)
   const checks = [...new Set([...light, ...dark])]
   const adjusted = checks.length > 0
 
@@ -115,7 +115,5 @@ export function readSwatch(
   }
 }
 
-const swatchChecks = (checks: unknown): string[] =>
-  Array.isArray(checks)
-    ? checks.filter((check): check is string => typeof check === 'string' && check !== 'panel-text')
-    : []
+const swatchChecks = (checks: unknown[]): string[] =>
+  checks.filter((check): check is string => typeof check === 'string' && check !== 'panel-text')

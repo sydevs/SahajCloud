@@ -1,15 +1,4 @@
 .atlas-preview {
-  // Payload's own group title, with Reset level beside it.
-  &__group-label {
-    align-items: center;
-    display: flex;
-    gap: var(--base);
-
-    .group-field__title {
-      margin: 0;
-    }
-  }
-
   &__banner {
     align-items: flex-start;
     display: flex;

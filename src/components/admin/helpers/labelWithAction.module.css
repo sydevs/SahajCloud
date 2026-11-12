@@ -1,0 +1,25 @@
+/* The heading and its action on one baseline, the heading's own margin dropped. */
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--base) / 2);
+}
+
+.row > :first-child {
+  margin: 0;
+}
+
+/* A text link, so the action sits beside the heading without competing with it. */
+.action {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--theme-elevation-650);
+  font-size: calc(var(--base-body-size) * 1px);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.action:hover {
+  color: var(--theme-text);
+}
