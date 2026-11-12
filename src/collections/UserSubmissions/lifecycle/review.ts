@@ -15,7 +15,7 @@ import {
 } from '../statuses'
 import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
 
-export type ReviewAction = 'accept' | 'confirm-spam' | 'reject' | 'reopen'
+export type ReviewAction = 'accept' | 'confirm-spam' | 'reject' | 'reopen' | 'resend'
 
 /**
  * What one write means for review: nothing to judge, a move no reviewer may
@@ -100,12 +100,19 @@ function actionFor(
  * the grant alone. `holdsCollectionPermission` is that same gate, minus the 403
  * an endpoint returns and a hook cannot.
  *
- * Nothing else binds, which is why no system writer had to change: screening's
- * `pending` → `spam` and delivery's moves run on a job `req` carrying no
- * manager, and a client cannot write the field at all. A per-writer opt-out
- * flag would fail in the dangerous direction — a future internal writer that
- * forgot one would have its write refused, or worse have an event created for a
- * decision no human made.
+ * ⚠ **This answers for a manager's write and nothing else.** A request
+ * carrying no manager gets `none` here, which was once the whole gate on the
+ * system writers: screening, delivery, the block endpoint and the repeat-signup
+ * fold each ran on a `req` with no user, so each could write any status from
+ * anywhere. `SUBMISSION_MACHINE` is their gate now, and `guardStatusTransition`
+ * routes a write to whichever of the two answers for it. The two tables agree
+ * by test, not by hope.
+ *
+ * What has not changed is why the exemption was right: a per-writer opt-out
+ * flag fails in the dangerous direction — a future internal writer that forgot
+ * one would have its write refused, or worse have an event created for a
+ * decision no human made. Naming the writer is the opposite shape: a writer
+ * absent from the table is refused until someone adds its move.
  */
 export function reviewMove(args: {
   from: UserSubmission['status'] | undefined
@@ -142,6 +149,17 @@ export function reviewMove(args: {
     return { kind: 'decision', action: spamAction }
   }
 
+  // Sending a delivery again. `failed` means the decision was fine and the
+  // email was not, so there is nothing to review and nothing a reviewer's
+  // judgement adds — but a resend can mail a visitor, so it is an admin's
+  // (#1120 decision 2). A failed *proposal* is still open for review below.
+  if (from === 'failed' && to === 'pending' && !reviewable) {
+    if (!isAdminManager(req.user)) {
+      return { kind: 'illegal', reason: 'Only an admin can send a failed delivery again.' }
+    }
+    return { kind: 'decision', action: 'resend' }
+  }
+
   if (!reviewable) {
     return { kind: 'illegal', reason: `A ${type} submission is not reviewable.` }
   }
@@ -166,7 +184,8 @@ export function reviewMove(args: {
  *
  * A spam decision is a status move whose effect is which rows
  * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select;
- * releasing a sign-up or message also queues the delivery screening withheld.
+ * releasing a sign-up or message also queues the delivery screening withheld,
+ * which is the same work a resend queues after a send that failed.
  *
  * Accept:
  * - update proposal (`event` set) → the proposed patch is applied with a
@@ -231,15 +250,18 @@ export async function applyReview(args: {
     return
   }
 
-  if (action === 'reopen') {
-    if (submission.type === 'proposal') {
-      // A screening false positive, or a rejection a manager wants back.
-      await decide('Reopened for review')
-      return
-    }
+  if (action === 'reopen' && submission.type === 'proposal') {
+    // A screening false positive, or a rejection a manager wants back.
+    await decide('Reopened for review')
+    return
+  }
+
+  if (action === 'reopen' || action === 'resend') {
     // ⚠ A released sign-up or message was never delivered: screening queues
-    // delivery only on a pass, so releasing it must queue what that pass would have.
-    await decide('Released as not spam')
+    // delivery only on a pass, so releasing it must queue what that pass would
+    // have. A resend is the same act for the other reason — the send itself
+    // failed — and both leave the row `pending` for the delivery job to settle.
+    await decide(action === 'resend' ? 'Queued for delivery again' : 'Released as not spam')
     await payload.jobs.queue({
       task: 'deliverSubmission',
       input: { submissionId: submission.id },

@@ -3,7 +3,9 @@ import type { Endpoint, PayloadRequest } from 'payload'
 import { commitTransaction, createLocalReq, initTransaction, killTransaction } from 'payload'
 import { z } from 'zod'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { transition } from '@/lib/stateMachine/transition'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
 import type { UserSubmission } from '@/payload-types'
 
@@ -147,17 +149,21 @@ async function refuseOpenSubmissions(args: {
   })
 
   for (const row of docs) {
-    await req.payload.update({
+    await transition({
+      payload: req.payload,
+      machine: SUBMISSION_MACHINE,
       collection: 'user-submissions',
       id: row.id,
+      from: 'pending',
+      to: 'spam',
+      by: 'block',
       data: {
-        status: 'spam',
         screeningResult: {
           verdict: 'blocked_sender',
           notes: [BLOCKED_NOTE],
           screenedAt: now,
         },
-      } satisfies Partial<UserSubmission>,
+      },
       depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },

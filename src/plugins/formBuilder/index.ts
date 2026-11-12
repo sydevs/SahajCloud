@@ -22,12 +22,9 @@ import {
   syncFullnessAfterDelete,
 } from '@/collections/UserSubmissions/hooks/syncFullness'
 import { validateProposal } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { RESEND_FROM, reviewableFrom } from '@/collections/UserSubmissions/machine'
 import { orphanedUserHooks } from '@/collections/UserSubmissions/orphanedUsers'
 import type { SpamReviewStatus } from '@/collections/UserSubmissions/statuses'
-import {
-  OPEN_REVIEW_STATUSES,
-  REOPENABLE_REVIEW_STATUSES,
-} from '@/collections/UserSubmissions/statuses'
 import type {
   WorkflowButton,
   WorkflowButtonsProps,
@@ -147,6 +144,21 @@ const REVIEW_BUTTONS: WorkflowButton[] = [
 
 const REOPEN_BUTTONS: WorkflowButton[] = [{ label: 'Reopen', overrides: { status: 'pending' } }]
 
+/**
+ * Sending a delivery that failed (#1120 decision 2).
+ *
+ * `failed` means the decision was fine and the email was not, so this is not a
+ * review — it re-queues the delivery job. Admin-only on both sides of the wire,
+ * as the spam rule is.
+ */
+const RESEND_BUTTONS: WorkflowButton[] = [
+  {
+    label: 'Send again',
+    overrides: { status: 'pending' },
+    confirm: 'Send this submission again?',
+  },
+]
+
 const NOT_SPAM: WorkflowButton = {
   label: 'Not spam',
   overrides: { status: 'pending' },
@@ -161,6 +173,11 @@ const NOT_SPAM: WorkflowButton = {
  * members are offered different decisions: there is nothing left to confirm
  * once an admin has.
  */
+const RESEND_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = stagesFor(
+  RESEND_FROM,
+  RESEND_BUTTONS,
+)
+
 const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
   spam: [
     NOT_SPAM,
@@ -176,12 +193,11 @@ const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
 /**
  * Which buttons a reviewer is offered at which status.
  *
- * ⚠ **Built from the two status sets, never from a list of its own.** The
- * server decides the same thing from `OPEN_REVIEW_STATUSES` and
- * `REOPENABLE_REVIEW_STATUSES` (`reviewMove`), so a hand-written map here could
- * offer a button whose transition the guard then refuses, or leave a newly-open
- * status with no button at all. `SubmissionActions` imported both sets for
- * exactly this reason before the move to data.
+ * ⚠ **Built from the move table, never from a list of its own.** Which
+ * statuses a reviewer may accept from, and which they may re-open, are
+ * `SUBMISSION_MACHINE`'s answer — so a hand-written map here could offer a
+ * button whose transition the guard then refuses, or leave a newly-open status
+ * with no button at all (#1121).
  *
  * The two spam statuses are in `REOPENABLE_REVIEW_STATUSES` too, so they get a
  * Reopen here. An admin sees `SPAM_STAGES` on such a row instead, since that
@@ -190,8 +206,8 @@ const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
  * covers settling a refusal, not re-opening a proposal.
  */
 const REVIEW_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = {
-  ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS),
-  ...stagesFor(REOPENABLE_REVIEW_STATUSES, REOPEN_BUTTONS),
+  ...stagesFor(reviewableFrom('review', 'accepted'), REVIEW_BUTTONS),
+  ...stagesFor(reviewableFrom('review', 'pending'), REOPEN_BUTTONS),
   // A stage with no action, not a missing one: Payload's own ⋯ menu carries this
   // row's Delete, for whoever holds the grant.
   accepted: [],
@@ -354,6 +370,11 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
                   // is offered it.
                   { stages: SPAM_STAGES, when: { userType: 'admin' } },
                   { stages: REVIEW_STAGES, when: { equals: 'proposal', field: 'type' } },
+                  // Last, and after the review rule on purpose: a *proposal*
+                  // that failed to deliver is still open for review, and that
+                  // rule names `failed`, so it claims the stage first. On the
+                  // three intakes nobody reviews, this is what `failed` reaches.
+                  { stages: RESEND_STAGES, when: { userType: 'admin' } },
                 ],
                 statusField: 'status',
               } satisfies WorkflowButtonsProps<UserSubmission['status']>,

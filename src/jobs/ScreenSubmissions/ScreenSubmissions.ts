@@ -3,7 +3,9 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { transition } from '@/lib/stateMachine/transition'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
@@ -103,22 +105,39 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
     const passed = verdict === 'ok'
 
-    await payload.update({
-      collection: 'user-submissions',
-      id: submissionId,
-      data: {
-        screeningResult: result,
-        // A pass leaves the row `pending` — delivery is what settles it. Only a
-        // refusal is terminal here.
-        ...(passed ? {} : { status: 'spam' as const }),
-      },
+    // A pass leaves the row `pending` — delivery is what settles it. Only a
+    // refusal is terminal here, and a refusal is a stage move, so it names
+    // itself and goes through the table (#1121).
+    const common = {
       // Nobody reads the returned document, and at the config's default depth
       // a proposal's afterRead recomputes both review projections for it.
       depth: 0,
       overrideAccess: true,
-      context: { skipWriteGuard: true },
       req,
-    })
+    }
+
+    if (passed) {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submissionId,
+        data: { screeningResult: result },
+        context: { skipWriteGuard: true },
+        ...common,
+      })
+    } else {
+      await transition({
+        payload,
+        machine: SUBMISSION_MACHINE,
+        collection: 'user-submissions',
+        id: submissionId,
+        from: 'pending',
+        to: 'spam',
+        by: 'screening',
+        data: { screeningResult: result },
+        context: { skipWriteGuard: true },
+        ...common,
+      })
+    }
 
     await appendLogEntry({
       payload,

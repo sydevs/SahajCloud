@@ -4,12 +4,14 @@ import type { LogEntry } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { isActiveRegistration } from '@/lib/registrations/active'
 import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
+import { transition } from '@/lib/stateMachine/transition'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { capture } from '@/plugins/sentry/capture'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
+import { SUBMISSION_MACHINE } from '../machine'
 import { STATUS_LABELS } from '../statuses'
 
 /**
@@ -108,9 +110,15 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     submittedVia,
   }
 
-  const updated = await req.payload.update({
+  let updated!: UserSubmission
+  await transition({
+    payload: req.payload,
+    machine: SUBMISSION_MACHINE,
     collection: 'user-submissions',
     id: existing.id,
+    from: existing.status,
+    to: 'pending',
+    by: 'repeat-signup',
     // `data` is the create's input after `prepareUserSubmission`, which `doc`
     // (shaped by the client's read access) is not.
     //
@@ -130,15 +138,26 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       ),
       startingAt: data.startingAt ?? null,
       startingAt_tz: data.startingAt_tz,
-      status: 'pending',
       // `ScreenSubmissions` skips a row that already carries a verdict. The
       // generated type omits the column's `null` (src/collections/AGENTS.md).
       screeningResult: null as unknown as UserSubmission['screeningResult'],
     },
-    depth: 0,
-    overrideAccess: true,
-    context: { skipWriteGuard: true },
-    req: trusted,
+    // ⚠ **By id, because the caller reads the row back.** The claim form
+    // answers whether a write landed, not what it wrote, and this hook runs
+    // inside the create's own transaction — there is no window for another
+    // writer to race it.
+    write: async ({ data: patch, context }) => {
+      updated = (await req.payload.update({
+        collection: 'user-submissions',
+        id: existing.id,
+        data: patch as never,
+        depth: 0,
+        overrideAccess: true,
+        context: { ...context, skipWriteGuard: true },
+        req: trusted,
+      })) as UserSubmission
+      return true
+    },
   })
   // Appended rather than written back from `existing`: this hook runs inside
   // the create's transaction, and the row it logs on is one other writers are
