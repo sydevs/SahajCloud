@@ -118,6 +118,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | fifty-fourth, #1131 resolving a `main` conflict (2026-11-12)              | 267 / 3569    | 59.68 s (inside the gate)                    | 59.7 s     |
 | fifty-fifth, #1131 spelling the feed's eligibility rule once (2026-11-12) | 268 / 3571    | 52.01 s (inside the gate)                    | 52.0 s     |
 | fifty-sixth, #1131 dropping the calendar menu's sub-labels (2026-11-12)   | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
+| fifty-seventh, #1131 fixing CI after merging `main` (2026-11-12)          | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -137,7 +138,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 268 / 3584                                                        |
+| Files / tests                                                                                   | 268 / 3587                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
