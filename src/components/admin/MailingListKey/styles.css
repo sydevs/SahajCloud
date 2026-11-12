@@ -38,7 +38,11 @@
   background: var(--theme-elevation-150);
 }
 
-.confirmation-modal .field-type.text {
+/*
+ * The key modal borrows `confirmation-modal`'s own layout, so its second class
+ * is what keeps this reset off every other confirmation modal in the panel.
+ */
+.mailing-list-key__modal .field-type.text {
   margin: 0;
 }
 

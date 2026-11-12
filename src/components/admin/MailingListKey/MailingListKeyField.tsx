@@ -128,7 +128,11 @@ export const MailingListKeyField: UIFieldClientComponent = () => {
         modalSlug={REMOVE_MODAL_SLUG}
         onConfirm={removeKey}
       />
-      <Modal className="confirmation-modal" closeOnBlur={false} slug={MODAL_SLUG}>
+      <Modal
+        className="confirmation-modal mailing-list-key__modal"
+        closeOnBlur={false}
+        slug={MODAL_SLUG}
+      >
         {isModalOpen(MODAL_SLUG) ? (
           <KeyForm
             credentials={{ clientId, doiFlowId, doubleOptIn, listId, provider }}
