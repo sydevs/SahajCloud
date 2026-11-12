@@ -367,10 +367,11 @@ describe('a file’s Transcript panel', () => {
     const shown = () => container.querySelector('[data-select-field]') !== null
     const chosen = (name: string, type: string) => new File([''], name, { type })
 
-    // The title takes the first two values, so the object comes last.
+    // Where the type is read from — the stored one, or the chosen file's — not
+    // which types count. The title takes the first two values, so the object
+    // comes last.
     it.each([
       ['a saved audio file', true, AUDIO],
-      ['a saved video file', true, VIDEO],
       ['a saved image', false, { ...AUDIO, mimeType: 'image/png' }],
     ])('on %s: shown %s', async (_label, expected, doc) => {
       stub.doc = doc
@@ -384,7 +385,6 @@ describe('a file’s Transcript panel', () => {
     it.each([
       ['no file chosen yet', false, undefined],
       ['an MP3 chosen', true, chosen('intro.mp3', 'audio/mpeg')],
-      ['a video chosen', true, chosen('panel.mp4', 'video/mp4')],
       ['an image chosen', false, chosen('cover.jpg', 'image/jpeg')],
     ])('on the create form, with %s: shown %s', async (_label, expected, upload) => {
       stub.doc = undefined
