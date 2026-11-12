@@ -66,7 +66,7 @@ export async function transition<State extends string, Actor extends string, Doc
   const held: Where = { [machine.field]: { equals: from } }
   const claim: Where = expect ? { and: [held, expect] } : held
   const payload = { ...data, [machine.field]: to }
-  const context = withActor(args.context, by)
+  const context = withActor(args.context, machine, by)
 
   if (write) return write({ data: payload, expect: claim, context })
 

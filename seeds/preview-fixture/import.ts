@@ -22,6 +22,7 @@
  */
 import * as path from 'path'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { withActor } from '@/lib/stateMachine/actor'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
@@ -310,7 +311,7 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
           // ⚠ The fixture file decides the status, and the lifecycle guard
           // refuses a status change naming no writer — which a re-run of this
           // seed makes, since it writes each row's authored status back.
-          context: withActor(undefined, 'import'),
+          context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
         },
       )
 
@@ -325,7 +326,7 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
         id: created.doc.id,
         data: { status: 'pending' },
         overrideAccess: true,
-        context: withActor(undefined, 'import'),
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
     }
   }

@@ -13,6 +13,7 @@ import {
   buildReminderEntry,
   buildVerificationEntry,
 } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { withActor } from '@/lib/stateMachine/actor'
 import type { Event, Manager } from '@/payload-types'
 import { readLinkToken, signLinkToken } from '@/plugins/login'
@@ -983,7 +984,7 @@ describe('Event verification lifecycle', () => {
           collection: 'events',
           id: event.id,
           overrideAccess: true,
-          context: withActor({ skipVerifyHook: true }, 'adoption'),
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'adoption'),
           data: { verificationStage: 'verified' },
         }),
       ).rejects.toThrow(/Verification > Manager/i)

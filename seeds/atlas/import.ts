@@ -27,6 +27,7 @@ import type { Payload } from 'payload'
 import * as path from 'path'
 
 import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -1349,7 +1350,11 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // ⚠ **`import` is the writer, and the stage guard refuses a write that
       // names none** (#1121). The dump is the system of record here, so this
       // actor may land a listing on any stage — which no other writer may.
-      context: withActor({ skipVerifyHook: true, skipDuplicateClassCheck: true }, 'import'),
+      context: withActor(
+        { skipVerifyHook: true, skipDuplicateClassCheck: true },
+        EVENT_MACHINE,
+        'import',
+      ),
     }
     const where = { legacyId: { equals: event.legacyId } }
 

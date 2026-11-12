@@ -16,6 +16,7 @@ import {
   VERIFICATION_STAGES,
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
+import { declaredActor, withActor } from '@/lib/stateMachine/actor'
 import { judgeTransition } from '@/lib/stateMachine/guard'
 import { ANY_STATE, can, defineStateMachine } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
@@ -83,7 +84,7 @@ describe('judgeTransition', () => {
   const as = (role?: 'boss' | 'staff', declared?: string) =>
     ({
       user: role ? { role } : null,
-      context: declared ? { stageActor: declared } : {},
+      context: declared ? withActor({}, machine, declared as 'job') : {},
     }) as unknown as PayloadRequest
   const judge = (
     from: 'a' | 'b' | 'c',
@@ -286,6 +287,28 @@ describe('EVENT_MACHINE', () => {
     expect(denies('unverified')).toEqual(['denied'])
     expect(denies('verified')).toEqual([])
   })
+
+  // `import` is declarable in both tables, and one request writes both
+  // collections, so a shared context key would hand a submission's importer
+  // every event-stage move on the same request.
+  it('does not read an actor another machine declared on the same request', () => {
+    const req = {
+      user: null,
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
+    } as unknown as PayloadRequest
+
+    expect(declaredActor(req.context, SUBMISSION_MACHINE)).toBe('import')
+    expect(declaredActor(req.context, EVENT_MACHINE)).toBeUndefined()
+    expect(
+      judgeTransition({
+        machine: EVENT_MACHINE,
+        from: 'verified',
+        to: 'expired',
+        doc: {},
+        req,
+      }),
+    ).toMatchObject({ kind: 'refused', by: null })
+  })
 })
 
 describe('SUBMISSION_MACHINE', () => {
@@ -397,7 +420,7 @@ describe('transition', () => {
       by: 'job:expireEvents',
       write,
     })
-    expect(write.mock.calls[0]![0].context).toMatchObject({ stageActor: 'job:expireEvents' })
+    expect(declaredActor(write.mock.calls[0]![0].context, EVENT_MACHINE)).toBe('job:expireEvents')
   })
 
   it('throws on a move nobody holds — a defect here, not a race', async () => {

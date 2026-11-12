@@ -1,5 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/watermark'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
@@ -81,7 +82,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   // deadline would trash a live listing.
   if (!managerId) {
     if (originalDoc?.verificationStage !== 'finished' && !restored) return data
-    declareActor(req, 'hook:save')
+    declareActor(req, EVENT_MACHINE, 'hook:save')
     return {
       ...data,
       verificationStage: 'unverified',
@@ -101,7 +102,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   // its own validation errors, which is the same answer `applyVerification`
   // gives.
   const adopted = isPreAdoptionStage(originalDoc?.verificationStage)
-  declareActor(req, adopted ? 'adoption' : 'hook:save')
+  declareActor(req, EVENT_MACHINE, adopted ? 'adoption' : 'hook:save')
 
   return {
     ...data,

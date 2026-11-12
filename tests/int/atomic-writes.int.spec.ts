@@ -16,6 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DEFAULT_LOG_LIMIT, asLog, type LogEntry, toLogRow } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { withActor } from '@/lib/stateMachine/actor'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
@@ -179,7 +180,7 @@ describe('atomic writes', () => {
         overrideAccess: true,
         // The caller this stands in for is the nightly advance, and the
         // lifecycle guard reads the writer off the write's own context.
-        context: withActor({ skipVerifyHook: true }, 'job:expireEvents'),
+        context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
       })
 
       expect(written).toBe(true)
@@ -207,7 +208,7 @@ describe('atomic writes', () => {
         overrideAccess: true,
         // The caller this stands in for is the nightly advance, and the
         // lifecycle guard reads the writer off the write's own context.
-        context: withActor({ skipVerifyHook: true }, 'job:expireEvents'),
+        context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
       })
 
       expect(written).toBe(false)
@@ -233,7 +234,7 @@ describe('atomic writes', () => {
           expect: { nextCheckAt: { equals: null } },
           data: { verificationStage: 'reminded' },
           overrideAccess: true,
-          context: withActor({ skipVerifyHook: true }, 'job:expireEvents'),
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
         }),
       ).toBe(true)
       expect(await stageOf(id)).toBe('reminded')

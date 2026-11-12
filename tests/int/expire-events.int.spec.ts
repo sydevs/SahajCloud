@@ -10,6 +10,7 @@ import {
   updateEventBookkeeping,
 } from '@/lib/events/updateEventWithoutValidation'
 import { asNotificationLog, buildVerificationEntry } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { withActor } from '@/lib/stateMachine/actor'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
@@ -474,7 +475,7 @@ describe('ExpireEvents job', () => {
           id: event.id,
           // The writer this stands in for: a manager following a verify link
           // while the run is still sending. Naming it is what the guard reads.
-          context: withActor({ skipVerifyHook: true }, 'verify'),
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'verify'),
           data: {
             verificationStage: 'verified',
             nextCheckAt: verifiedUntil,
@@ -670,7 +671,7 @@ describe('ExpireEvents job', () => {
           data: { verificationStage } as EventBookkeeping,
           // The job is this helper's caller, and the guard reads the writer off
           // the write's own context.
-          context: withActor(undefined, 'job:expireEvents'),
+          context: withActor(undefined, EVENT_MACHINE, 'job:expireEvents'),
         })
 
       // A submitted field is still validated — the stored contact above is not.

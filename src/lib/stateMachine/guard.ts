@@ -26,15 +26,16 @@ export type Writer<Actor extends string> =
  * what the person may do would refuse a move the writer is for. The other
  * direction is closed by `declarable`: no write may claim to be the person.
  *
- * One request can write both collections, so an actor another machine declared
- * on the same context answers for nothing here.
+ * One request can write both collections, and the two tables share actor names,
+ * so the context key carries the column — an actor declared for another machine
+ * is invisible here (`declaredActor`).
  */
 export function resolveWriter<State extends string, Actor extends string, Doc>(
   machine: StateMachine<State, Actor, Doc>,
   req: PayloadRequest,
   context: RequestContext | undefined = req.context,
 ): Writer<Actor> {
-  const declared = declaredActor(context)
+  const declared = declaredActor(context, machine)
   if (declared !== undefined && (machine.declarable as readonly string[]).includes(declared)) {
     return { kind: 'system', actor: declared as Actor }
   }
