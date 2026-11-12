@@ -233,17 +233,39 @@ describe('meditation transcription', () => {
   }
 
   describe('a recording is transcribed by itself', () => {
-    it('creates a row naming that recording, with the meditation locale, and queues one run', async () => {
+    it('creates a row naming that recording, and queues one run', async () => {
       const meditation = await createMeditation('cs')
 
       const row = await transcriptOf(meditation.id)
       expect(row?.audioFilename).toBe(meditation.filename)
-      expect(row?.language).toBe('cs')
       expect(row?.segments ?? null).toBeNull()
       // The row carries the run it queued, which is where `status` is read
       // from. A row without one derives `failed`.
       expect(row?.job).toBeTruthy()
       expect(await queuedJobs(meditation.id)).toHaveLength(1)
+    })
+
+    // The language is the meditation's own `locale`, read by the run, so a
+    // transcript made in the old one would be in a language it no longer claims.
+    it('is transcribed again when its locale changes, in the new one', async () => {
+      const meditation = await createMeditation('cs')
+      const before = await transcriptOf(meditation.id)
+
+      const moved = (await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        locale: 'de',
+        data: { locale: 'de' },
+        overrideAccess: true,
+      })) as Meditation
+
+      const row = await transcriptOf(meditation.id)
+      expect(row?.id).not.toBe(before?.id)
+      expect(await queuedJobs(meditation.id)).toHaveLength(2)
+      await transcribe(moved)
+      expect(lemonfox.requestLemonfoxTranscript).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locale: 'de' }),
+      )
     })
 
     it('adds no meditation version, and leaves its _status alone', async () => {
@@ -533,7 +555,6 @@ describe('meditation transcription', () => {
         // The recording did not change, so the new row names it and the task
         // will not read it as superseded.
         expect(row?.audioFilename).toBe(meditation.filename)
-        expect(row?.language).toBe(meditation.locale)
         expect(row?.segments ?? null).toBeNull()
         // Queued by the new row's own afterChange, not by the handler.
         expect(row?.job).toBeTruthy()

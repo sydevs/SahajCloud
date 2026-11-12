@@ -83,26 +83,40 @@ describe('readFileSubtitles', () => {
 })
 
 describe('readFinishedFileTranscripts', () => {
-  it('names one source per file and asks only for finished rows', async () => {
-    const find = vi.fn().mockResolvedValue({
-      docs: [{ source: { relationTo: 'files', value: 11 }, language: 'cs' }],
-    })
-    const payload = { find } as unknown as Payload
+  /** The transcripts query answers `transcripts`, the files query `files`. */
+  const fakePayload = (transcripts: unknown[], files: unknown[]) => {
+    const find = vi.fn(({ collection }: { collection: string }) =>
+      Promise.resolve({ docs: collection === 'transcripts' ? transcripts : files }),
+    )
+    return { find, payload: { find } as unknown as Payload }
+  }
+
+  // The language is the file's own (#1016), so it comes from the second query.
+  it('names one source per file, asks only for finished rows, and reads their files', async () => {
+    const { find, payload } = fakePayload(
+      [{ source: { relationTo: 'files', value: 11 } }],
+      [{ id: 11, spokenLanguage: 'cs' }],
+    )
 
     const rows = await readFinishedFileTranscripts(payload, [11, 12])
 
     expect(rows).toEqual([{ fileId: 11, language: 'cs' }])
-    const { where } = find.mock.calls[0]![0]
+    const { where } = find.mock.calls[0]![0] as unknown as { where: { and: Where[] } }
     expect(sourceIds(where.and[0])).toEqual([11, 12])
     expect(where.and[1]).toEqual({ segmentCount: { greater_than: 0 } })
+    expect(find.mock.calls[1]![0]).toMatchObject({ where: { id: { in: [11] } } })
   })
 
   it('reports no language rather than undefined, so the locale check can read it', async () => {
-    const find = vi
-      .fn()
-      .mockResolvedValue({ docs: [{ source: { relationTo: 'files', value: 2 } }] })
-    const rows = await readFinishedFileTranscripts({ find } as unknown as Payload, [2])
+    const { payload } = fakePayload([{ source: { relationTo: 'files', value: 2 } }], [{ id: 2 }])
+    const rows = await readFinishedFileTranscripts(payload, [2])
     expect(rows).toEqual([{ fileId: 2, language: null }])
+  })
+
+  it('reads no file when none is finished', async () => {
+    const { find, payload } = fakePayload([], [])
+    expect(await readFinishedFileTranscripts(payload, [3])).toEqual([])
+    expect(find).toHaveBeenCalledOnce()
   })
 
   it('queries nothing for an empty set', async () => {

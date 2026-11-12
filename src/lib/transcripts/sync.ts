@@ -2,107 +2,119 @@ import type { CollectionAfterChangeHook, Payload, PayloadRequest } from 'payload
 
 import { createLocalReq } from 'payload'
 
-import { isValidLocale, type LocaleCode } from '@/lib/locales'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 import { type RecordingCollection, transcribableMedia } from './media'
-import { findTranscript, type TranscriptSource } from './read'
+import { findTranscript, type TranscriptSource, whereSource } from './read'
 
 /**
- * `req.context.importedTranscript`: cues that already exist for the recording
- * being uploaded, in a known language. The Storyblok seed passes a Path Step's
- * hand-made subtitles this way, so the upload stores them rather than paying
- * for a run (`seeds/storyblok/import.ts`). Unreachable over REST, where Payload
- * hard-codes an empty `context`.
+ * The `req.context` key a run sets when it writes the language it detected
+ * back to a file that stated none (`TranscribeRecording`). The save hook below
+ * reads it as "not a correction": re-running there would pay for the same
+ * transcript twice.
  */
-export type ImportedTranscript = { language: LocaleCode; segments: TranscriptSegment[] }
+export const LANGUAGE_DETECTED = 'transcriptLanguageDetected'
 
 /**
- * Make the recording's transcript row follow its current file, and nothing else.
- *
- * #897's 2026-10-12 Decision — transcribed "by itself when a recording is
- * added". A **replacement** deletes the old row before creating the new one:
- * cues produced from a recording nobody can hear any more are misleading, not
- * history (review, #968).
+ * Give the recording a fresh transcript row for its current file, deleting the
+ * one it had. Cues produced from a recording nobody can hear any more, or in a
+ * language it is not spoken in, are misleading, not history (review, #968).
  *
  * It creates and deletes a row; queueing the run belongs to the transcript's own
  * afterChange (`queueTranscription`), so a row cannot exist without a request
- * behind it. Called with the caller's `req`, so the row commits or rolls back
- * with the save that added the recording.
+ * behind it. `segments` are cues that already exist for the recording, and a
+ * row created with them queues nothing, so the vendor is not paid to redo them.
  *
- * `language` is `null` where nobody knows it yet — a file, whose language the
- * run detects (#1016) — and the meditation's own `locale` otherwise.
+ * Runs on the caller's `req`, so the row commits or rolls back with whatever
+ * asked for it.
  *
- * `importedSegments` are cues that already exist for the recording. A row
- * created with cues queues no run (`queueTranscription`), so the vendor is not
- * paid to redo them.
+ * ⚠ **The delete is by `where`, and its `errors` are read.** A request that loses
+ * a race finds the row already gone, and a delete by id would answer that with a
+ * 404 that reads as a missing recording. But a delete by `where` collects a
+ * row's failure rather than throwing it, so unread, a row that refused to go
+ * would fall through to the create and trip the unique index on `source` — and
+ * be reported as a race, with the real cause logged nowhere.
  */
-export async function syncRecordingTranscript(
+export async function replaceTranscript(
   req: PayloadRequest,
-  {
-    source,
-    audioFilename,
-    language,
-    importedSegments,
-  }: {
-    source: TranscriptSource
-    audioFilename: string
-    language: LocaleCode | null
-    importedSegments?: TranscriptSegment[]
-  },
-): Promise<void> {
-  const existing = await findTranscript(req, source)
-  if (existing) {
-    if (existing.audioFilename === audioFilename) return
-    await req.payload.delete({
-      collection: 'transcripts',
-      id: existing.id,
-      overrideAccess: true,
-      req,
-    })
+  source: TranscriptSource,
+  { audioFilename, segments }: { audioFilename: string; segments?: TranscriptSegment[] },
+): Promise<number> {
+  const { errors } = await req.payload.delete({
+    collection: 'transcripts',
+    where: whereSource(source),
+    overrideAccess: true,
+    req,
+  })
+  if (errors.length > 0) {
+    throw new Error(
+      `the previous transcript could not be deleted: ${errors[0]?.message ?? 'no reason given'}`,
+    )
   }
 
-  await req.payload.create({
+  const created = await req.payload.create({
     collection: 'transcripts',
-    data: importedSegments?.length
-      ? { source, audioFilename, language, provider: 'imported', segments: importedSegments }
-      : { source, audioFilename, language },
+    data: segments?.length
+      ? { source, audioFilename, provider: 'imported', segments }
+      : { source, audioFilename },
     depth: 0,
     overrideAccess: true,
     req,
   })
+  return created.id
 }
 
 /**
- * afterChange for a collection of recordings: an audio upload is transcribed
- * as soon as it is saved, and again when it is replaced, so its transcript is
- * usually ready by the time anyone reads it.
+ * afterChange for a collection of recordings: a recording is transcribed when
+ * it is added, and again when its file or its language changes, so its
+ * transcript is usually ready by the time anyone reads it and is always in the
+ * language the recording says it is in (#897's 2026-10-12 Decision —
+ * transcribed "by itself when a recording is added").
  *
- * **A video is not transcribed here.** It is a Cloudflare Stream upload whose
- * MP4 — the only form the vendor can fetch — exists only after Stream has
- * processed it, so its transcript starts from Stream's `ready` webhook instead
- * (`transcribeStreamVideo`, below).
+ * `languageField` is where the recording states that language: a meditation's
+ * `locale`, a file's `spokenLanguage` (#1016). The run reads it from there.
  *
- * The language is the recording's own `locale` where it has one — a meditation
- * is one language — and left empty otherwise, for the run to detect: a file has
- * none, and the admin locale it was uploaded under says nothing about it.
+ * **A video's first run does not start here.** It is a Cloudflare Stream
+ * upload whose MP4 — the only form the vendor can fetch — exists only after
+ * Stream has processed it, so it starts from Stream's `ready` webhook instead
+ * (`transcribeStreamVideo`, below). A language change re-runs one that has
+ * already started.
+ *
+ * **A change supersedes a run in flight**, as a replaced recording always has:
+ * the run's cues would be in a language the recording no longer claims. Only
+ * the transcribe endpoint, which one click reaches, bounds a run by its cost.
+ *
+ * `req.context.importedSegments`: cues that already exist for the recording
+ * being uploaded. The Storyblok seed passes a Path Step's hand-made subtitles
+ * this way, with the file's `spokenLanguage`, so the upload stores them rather
+ * than paying for a run (`seeds/storyblok/import.ts`). Unreachable over REST,
+ * where Payload hard-codes an empty `context`.
  */
 export const syncTranscriptOnSave =
-  (relationTo: RecordingCollection): CollectionAfterChangeHook =>
-  async ({ doc, previousDoc, req }) => {
-    if (transcribableMedia(doc.mimeType) !== 'audio') return doc
+  (
+    relationTo: RecordingCollection,
+    languageField: 'locale' | 'spokenLanguage',
+  ): CollectionAfterChangeHook =>
+  async ({ context, doc, previousDoc, req }) => {
+    const media = transcribableMedia(doc.mimeType)
     const audioFilename = doc.filename
-    if (!audioFilename || previousDoc?.filename === audioFilename) return doc
+    if (!media || !audioFilename) return doc
 
-    const imported = req.context?.importedTranscript as ImportedTranscript | undefined
-    const ownLanguage: unknown = doc.locale
-    await syncRecordingTranscript(req, {
-      source: { relationTo, value: Number(doc.id) },
+    const source = { relationTo, value: Number(doc.id) }
+    const fileChanged = previousDoc?.filename !== audioFilename
+    const languageChanged =
+      !context[LANGUAGE_DETECTED] &&
+      (previousDoc?.[languageField] ?? null) !== (doc[languageField] ?? null)
+
+    const transcribe =
+      media === 'audio'
+        ? fileChanged || languageChanged
+        : !fileChanged && languageChanged && (await findTranscript(req, source)) !== undefined
+    if (!transcribe) return doc
+
+    await replaceTranscript(req, source, {
       audioFilename,
-      language:
-        imported?.language ??
-        (typeof ownLanguage === 'string' && isValidLocale(ownLanguage) ? ownLanguage : null),
-      importedSegments: imported?.segments,
+      segments: context.importedSegments as TranscriptSegment[] | undefined,
     })
     return doc
   }
@@ -116,8 +128,8 @@ export const syncTranscriptOnSave =
  * A `videos` upload shares the account and the webhook, and finds no `files`
  * row here, which is the answer wanted.
  *
- * Idempotent, because Cloudflare may deliver `ready` more than once:
- * `syncRecordingTranscript` leaves a row naming this filename alone.
+ * Idempotent, because Cloudflare may deliver `ready` more than once: a row
+ * already naming this filename is left alone.
  */
 export async function transcribeStreamVideo(payload: Payload, uid: string): Promise<void> {
   const { docs } = await payload.find({
@@ -132,9 +144,8 @@ export async function transcribeStreamVideo(payload: Payload, uid: string): Prom
   const file = docs[0]
   if (!file?.filename || transcribableMedia(file.mimeType) !== 'video') return
 
-  await syncRecordingTranscript(await createLocalReq({}, payload), {
-    source: { relationTo: 'files', value: file.id },
-    audioFilename: file.filename,
-    language: null,
-  })
+  const req = await createLocalReq({}, payload)
+  const source = { relationTo: 'files', value: file.id } as const
+  if ((await findTranscript(req, source))?.audioFilename === file.filename) return
+  await replaceTranscript(req, source, { audioFilename: file.filename })
 }

@@ -72,7 +72,6 @@ export const meditationTranscribe: Endpoint = {
     return requestTranscript(req, {
       source: { relationTo: 'meditations', value: id },
       audioFilename: meditation.filename,
-      language: meditation.locale,
       noun: 'meditation',
     })
   },

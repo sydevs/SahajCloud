@@ -1,7 +1,9 @@
 /**
- * A file's transcript (#1016): an MP3 is transcribed when it is saved, a video
- * when Cloudflare Stream reports it ready, the run detects the language, and a
- * Path Step reads its intro subtitles from the file rather than storing them.
+ * A file's transcript (#1016): an MP3 is transcribed when it is saved and again
+ * when its spoken language changes, a video when Cloudflare Stream reports it
+ * ready, the run detects a language the file does not state and writes it there,
+ * and a Path Step reads its intro subtitles from the file rather than storing
+ * them.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
  * `@/jobs/TranscribeRecording/lemonfoxClient` — `tests/AGENTS.md`'s boundary
@@ -30,7 +32,7 @@ import type { File, Lesson, Transcript } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { runTaskHandler } from '../utils/taskRunner'
-import { createData, testData } from '../utils/testData'
+import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const lemonfox = vi.hoisted(() => ({
@@ -144,14 +146,17 @@ describe('file transcripts', () => {
     return file
   }
 
+  const fileOf = async (fileId: number): Promise<File> =>
+    payload.findByID({ collection: 'files', id: fileId, depth: 0, overrideAccess: true })
+
   describe('an upload', () => {
-    it('queues a run for an MP3, with no language yet', async () => {
+    it('queues a run for an MP3 that states no language', async () => {
       const file = await testData.createFile(payload)
 
       const row = await transcriptOf(file.id)
       expect(row?.audioFilename).toBe(file.filename)
-      expect(row?.language ?? null).toBeNull()
       expect(row?.segments ?? null).toBeNull()
+      expect(file.spokenLanguage ?? null).toBeNull()
       expect(await queuedRunsFor(file.id)).toHaveLength(1)
     })
 
@@ -178,21 +183,23 @@ describe('file transcripts', () => {
       const cues = [{ content: 'Hand-made line', startTimeMs: 0, endTimeMs: 900 }]
       const file = await payload.create({
         collection: 'files',
-        data: {},
+        data: { spokenLanguage: 'en' },
         filePath: 'tests/files/audio-42s.mp3',
-        context: { importedTranscript: { language: 'en', segments: cues } },
+        context: { importedSegments: cues },
       })
 
       const row = await transcriptOf(file.id)
       expect(row?.provider).toBe('imported')
-      expect(row?.language).toBe('en')
       expect(row?.segments).toEqual(cues)
+      expect(file.spokenLanguage).toBe('en')
       expect(await queuedRunsFor(file.id)).toHaveLength(0)
     })
   })
 
   describe('a run', () => {
-    it('stores subtitle-length cues and the language it heard', async () => {
+    // The write-back is flagged, so the file's save hook does not read the
+    // language it heard as a correction and queue a second, paid run.
+    it('stores subtitle-length cues, and the language it heard on the file', async () => {
       const file = await testData.createFile(payload)
 
       const output = await transcribe(file)
@@ -205,27 +212,47 @@ describe('file transcripts', () => {
       })
       const row = await transcriptOf(file.id)
       expect(row?.provider).toBe('lemonfox')
-      expect(row?.language).toBe('cs')
       expect(row?.segments).toEqual([
         { content: 'Vítejte v prvním kroku cesty.', startTimeMs: 0, endTimeMs: 4250 },
         { content: 'Zavřete oči.', startTimeMs: 4250, endTimeMs: 6000 },
       ])
+      expect((await fileOf(file.id)).spokenLanguage).toBe('cs')
+      expect(await queuedRunsFor(file.id)).toHaveLength(1)
     })
 
-    it('asks in the language a row names, and keeps it', async () => {
-      const file = await testData.createFile(payload)
-      const row = await transcriptOf(file.id)
-      await payload.update({
-        collection: 'transcripts',
-        id: row!.id,
-        data: { language: 'de' },
-        overrideAccess: true,
+    // The glossary pass reads the language off the file, so the run has to
+    // write what it heard there before the cues it corrects.
+    it('corrects spellings in the language it heard', async () => {
+      lemonfox.requestLemonfoxTranscript.mockResolvedValue({
+        language: 'czech',
+        segments: [
+          {
+            start: 0,
+            end: 2,
+            text: ' Probuďte kundalini.',
+            words: [
+              { word: 'Probuďte', start: 0, end: 1 },
+              { word: 'kundalini.', start: 1, end: 2 },
+            ],
+          },
+        ],
       })
+      const file = await testData.createFile(payload)
+
+      await transcribe(file)
+
+      expect((await transcriptOf(file.id))?.segments).toEqual([
+        { content: 'Probuďte Kundalini.', startTimeMs: 0, endTimeMs: 2000 },
+      ])
+    })
+
+    it('asks in the language the file states, and leaves it', async () => {
+      const file = await testData.createFile(payload, { spokenLanguage: 'de' })
 
       await transcribe(file)
 
       expect(lemonfox.requestLemonfoxTranscript.mock.calls[0]![0]).toMatchObject({ locale: 'de' })
-      expect((await transcriptOf(file.id))?.language).toBe('de')
+      expect((await fileOf(file.id)).spokenLanguage).toBe('de')
     })
 
     it('leaves the language empty when no locale here speaks it', async () => {
@@ -234,37 +261,108 @@ describe('file transcripts', () => {
 
       await transcribe(file)
 
-      const row = await transcriptOf(file.id)
-      expect(row?.language ?? null).toBeNull()
-      expect(row?.segments).toHaveLength(2)
+      expect((await fileOf(file.id)).spokenLanguage ?? null).toBeNull()
+      expect((await transcriptOf(file.id))?.segments).toHaveLength(2)
     })
 
-    // A corrected language replaces the row and keeps `audioFilename`, so a
-    // guard reading only the filename passes here and then updates an id that
-    // is gone — a throw where `superseded` is the answer.
+    // A changed language replaces the row and keeps `audioFilename`, so a guard
+    // reading only the filename passes here and then updates an id that is
+    // gone — a throw where `superseded` is the answer. The language a person
+    // stated meanwhile must survive the run that detected another.
     it('answers superseded when a language change replaced the row mid-run', async () => {
       const file = await testData.createFile(payload)
       const original = await transcriptOf(file.id)
+      const job = Number(extractID(original!.job!))
       lemonfox.requestLemonfoxTranscript.mockImplementation(async () => {
-        await payload.delete({ collection: 'transcripts', id: original!.id, overrideAccess: true })
-        await payload.create({
-          collection: 'transcripts',
-          data: createData<'transcripts'>({
-            audioFilename: file.filename!,
-            language: 'de',
-            source: { relationTo: 'files', value: file.id },
-          }),
+        await payload.update({
+          collection: 'files',
+          id: file.id,
+          data: { spokenLanguage: 'de' },
           overrideAccess: true,
         })
         return VENDOR_BODY
       })
 
-      const output = await transcribe(file)
+      const output = await transcribe(file, job)
 
       expect(output.status).toBe('superseded')
       const row = await transcriptOf(file.id)
       expect(row?.id).not.toBe(original?.id)
       expect(row?.segments ?? null).toBeNull()
+      expect((await fileOf(file.id)).spokenLanguage).toBe('de')
+    })
+  })
+
+  describe('a saved file', () => {
+    let editor: RestClient
+
+    beforeAll(async () => {
+      const pathEditor = await testData.createManager(payload, {
+        type: 'manager',
+        roles: { cs: ['path-editor'] },
+      })
+      editor = await createRestClientAs(env, pathEditor)
+    })
+
+    it('is transcribed again when its language changes', async () => {
+      const file = await completed()
+
+      await payload.update({
+        collection: 'files',
+        id: file.id,
+        data: { spokenLanguage: 'de' },
+        overrideAccess: true,
+      })
+
+      expect((await transcriptOf(file.id))?.segments ?? null).toBeNull()
+      expect(await queuedRunsFor(file.id)).toHaveLength(2)
+      await transcribe(file)
+      expect(lemonfox.requestLemonfoxTranscript).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locale: 'de' }),
+      )
+    })
+
+    it('is not transcribed again by a save that leaves the language alone', async () => {
+      const file = await completed()
+
+      await payload.update({ collection: 'files', id: file.id, data: {}, overrideAccess: true })
+
+      expect((await transcriptOf(file.id))?.segments).toHaveLength(2)
+      expect(await queuedRunsFor(file.id)).toHaveLength(1)
+    })
+
+    // Every editor role holds `files: create` and no `update`, so the language
+    // is theirs to state on upload and an admin's to change after.
+    it('refuses an editor changing the language', async () => {
+      const file = await completed()
+
+      const { status } = await editor(`/api/files/${file.id}?locale=cs`, {
+        method: 'PATCH',
+        json: { spokenLanguage: 'de' },
+      })
+
+      expect(status).toBe(403)
+      expect((await fileOf(file.id)).spokenLanguage).toBe('cs')
+    })
+
+    // Its first run belongs to Stream's webhook; a language changed before then
+    // reaches that run, which reads it off the file.
+    it('re-runs a video for a language change only once its run has started', async () => {
+      const file = await testData.createFile(payload, {}, 'video-30s.mp4')
+      const setLanguage = (spokenLanguage: 'de' | 'fr') =>
+        payload.update({
+          collection: 'files',
+          id: file.id,
+          data: { spokenLanguage },
+          overrideAccess: true,
+        })
+
+      await setLanguage('de')
+      expect(await transcriptOf(file.id)).toBeUndefined()
+
+      await transcribeStreamVideo(payload, file.filename!)
+      await setLanguage('fr')
+      expect(await queuedRunsFor(file.id)).toHaveLength(2)
     })
   })
 
@@ -282,73 +380,46 @@ describe('file transcripts', () => {
       bystander = await createRestClientAs(env, noRole)
     })
 
-    it('re-runs a finished transcript in a corrected language', async () => {
-      const file = await completed()
+    // The lost-run case: no row at all, so the request creates one.
+    it('asks again for a file whose transcript is gone', async () => {
+      const file = await testData.createFile(payload)
+      await payload.delete({
+        collection: 'transcripts',
+        where: { source: { equals: { relationTo: 'files', value: file.id } } },
+        overrideAccess: true,
+      })
 
-      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs`, {
         method: 'post',
       })
 
       expect(status).toBe(200)
-      const row = await transcriptOf(file.id)
-      expect(row?.language).toBe('de')
-      expect(row?.segments ?? null).toBeNull()
+      expect((await transcriptOf(file.id))?.audioFilename).toBe(file.filename)
       expect(await queuedRunsFor(file.id)).toHaveLength(2)
     })
 
-    // The bill #984 Decision 2 bounds: a language change deletes the row it
-    // finds, so exempting a run in flight would let an editor alternate
-    // `?language=` and buy a paid run per click.
-    it('refuses a language change while a run is in flight, and keeps the row', async () => {
+    it('refuses while a run is in flight, and keeps the row', async () => {
       const file = await testData.createFile(payload)
       const inFlight = await transcriptOf(file.id)
 
-      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
+      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs`, {
         method: 'post',
       })
 
       expect(status).toBe(409)
-      const row = await transcriptOf(file.id)
-      expect(row?.id).toBe(inFlight?.id)
+      expect((await transcriptOf(file.id))?.id).toBe(inFlight?.id)
       expect(await queuedRunsFor(file.id)).toHaveLength(1)
     })
 
-    it('refuses a second language change until the first run finishes', async () => {
+    it('refuses to re-run a finished transcript', async () => {
       const file = await completed()
 
-      const first = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=de`, {
-        method: 'post',
-      })
-      const second = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=en`, {
-        method: 'post',
-      })
-
-      expect(first.status).toBe(200)
-      expect(second.status).toBe(409)
-      expect((await transcriptOf(file.id))?.language).toBe('de')
-      expect(await queuedRunsFor(file.id)).toHaveLength(2)
-    })
-
-    it('refuses to re-run a finished transcript in the same language', async () => {
-      const file = await completed()
-
-      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs&language=cs`, {
+      const { status } = await editor(`/api/files/${file.id}/transcribe?locale=cs`, {
         method: 'post',
       })
 
       expect(status).toBe(409)
       expect((await transcriptOf(file.id))?.segments).toHaveLength(2)
-    })
-
-    it('refuses a language no locale here offers', async () => {
-      const file = await testData.createFile(payload)
-
-      const { status } = await editor(
-        `/api/files/${file.id}/transcribe?locale=cs&language=klingon`,
-        { method: 'post' },
-      )
-
-      expect(status).toBe(400)
     })
 
     it('refuses a file that is not audio or video', async () => {

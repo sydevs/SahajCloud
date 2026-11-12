@@ -16,15 +16,7 @@ import {
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type SectionSpec } from '@/lib/status'
 import type { ReadinessReport } from '@/payload-types'
-import type {
-  AppCard,
-  Lesson,
-  Manager,
-  Page,
-  Transcript,
-  UserChoice,
-  WmAppStatus,
-} from '@/payload-types'
+import type { AppCard, File, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -128,17 +120,18 @@ describe('WeMeditateAppStatus Global', () => {
   /**
    * An intro recording whose transcript has finished, which is what
    * `intro-subtitles-set` reads since a step's subtitles are its file's
-   * (#1016). The upload made the row; this fills it in, as a run would.
+   * (#1016), spoken in `language`. The upload made the row; this fills it in,
+   * as a run would.
    */
   const transcribedRecording = async (
     content: string,
-    language: NonNullable<Transcript['language']> = 'en',
+    language: NonNullable<File['spokenLanguage']> = 'en',
   ) => {
-    const file = await testData.createFile(payload, {}, 'audio-42s.mp3')
+    const file = await testData.createFile(payload, { spokenLanguage: language }, 'audio-42s.mp3')
     await payload.update({
       collection: 'transcripts',
       where: { source: { equals: { relationTo: 'files', value: file.id } } },
-      data: { language, segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
+      data: { segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
       overrideAccess: true,
     })
     return file
@@ -294,7 +287,7 @@ describe('WeMeditateAppStatus Global', () => {
     // Readiness is where an operator decides a locale is done, and the editor's
     // own panel warns about this recording — so a finished transcript in another
     // language cannot read green here.
-    it('fails intro-subtitles-set when the transcript is in another language', async () => {
+    it('fails intro-subtitles-set when the recording is in another language', async () => {
       const czechIntro = await transcribedRecording('Zavřete oči', 'cs')
       const lesson = await testData.createLesson(payload, {
         title: 'Step with a Czech recording',

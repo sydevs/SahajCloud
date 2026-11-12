@@ -21,12 +21,13 @@ interface Ctx {
    */
   labels: Map<number | string, unknown>
   /**
-   * The intro files whose finished transcript is in the language being read.
+   * The intro files with a finished transcript, spoken in the language being
+   * read — the file's own `spokenLanguage`.
    * A step's intro subtitles are its intro file's transcript (#1016), so this
    * is what `intro-subtitles-set` reads — one query for every step, rather
    * than the virtual `introSubtitles` resolving one file per step.
    *
-   * ⚠ **A transcript in another language does not count.** The same mismatch
+   * ⚠ **A recording in another language does not count.** The same mismatch
    * `RecordingLanguageWarning` warns the editor about would otherwise read green
    * here, which is the one screen an operator decides a locale from.
    */

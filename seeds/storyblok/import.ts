@@ -21,7 +21,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
-import type { ImportedTranscript } from '@/lib/transcripts/sync'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 import { type Subtitles, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 import { seedEnv } from '../env'
@@ -538,9 +538,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       try {
         const audioId = await this.createFileAttachment(
           content.Audio_intro[0].Audio_track.filename,
-          introSubtitles?.length
-            ? { importedTranscript: { language: 'en', segments: introSubtitles } }
-            : undefined,
+          introSubtitles?.length ? { language: 'en', segments: introSubtitles } : undefined,
         )
         if (audioId) {
           await this.payload.update({
@@ -656,10 +654,14 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
    * Creates a file attachment for audio, video, and image files.
    * Uploads to the Files collection.
    * Returns null if URL is missing, file type unsupported, or upload fails.
+   *
+   * `transcript` is cues that already exist for the recording, in a known
+   * language: the upload stores them as its transcript and pays for no run
+   * (`syncTranscriptOnSave`).
    */
   private async createFileAttachment(
     url: string,
-    context?: { importedTranscript: ImportedTranscript },
+    transcript?: { language: 'en'; segments: TranscriptSegment[] },
   ): Promise<string | null> {
     if (!url) {
       this.addWarning('URL is required for creating file attachment - skipping')
@@ -700,8 +702,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       const attachment = await this.payload.create({
         collection: 'files',
-        data: {},
-        ...(context ? { context } : {}),
+        data: transcript ? { spokenLanguage: transcript.language } : {},
+        ...(transcript ? { context: { importedSegments: transcript.segments } } : {}),
         file: {
           data: fileBuffer,
           name: filename,

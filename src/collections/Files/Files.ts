@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { jsonField } from '@/fields/jsonField'
 import { deleteChildren } from '@/lib/cascadeDeletion'
+import { getLocaleOptions } from '@/lib/locales'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { readFileSubtitles } from '@/lib/transcripts/read'
 import { syncTranscriptOnSave } from '@/lib/transcripts/sync'
@@ -29,7 +30,7 @@ export const Files: CollectionConfig = {
   endpoints: [fileTranscribe],
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
-    afterChange: [syncTranscriptOnSave('files')],
+    afterChange: [syncTranscriptOnSave('files', 'spokenLanguage')],
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   admin: {
@@ -92,11 +93,21 @@ export const Files: CollectionConfig = {
       },
     }),
     {
-      // Above the transcript it corrects: a wrong guess is the first thing to fix.
+      // The language the recording is in (#1016), which its transcript is made
+      // in and a Path Step compares with the language being edited. Empty until
+      // someone states it or the first run detects it, which writes it here.
+      //
+      // ⚠ **Admins alone change it after upload.** Every editor role holds
+      // `files: create` and no `update` (`roles.ts`), so an editor states it on
+      // upload and reads it after.
       name: 'spokenLanguage',
-      type: 'ui',
+      type: 'select',
+      options: getLocaleOptions(),
       admin: {
-        components: { Field: '@/components/admin/RecordingTranscript#SpokenLanguageField' },
+        // Before a file is chosen there is no type to judge by, so it shows.
+        condition: (data) => !data?.mimeType || transcribableMedia(data.mimeType) !== null,
+        description:
+          'Leave it empty to detect it from the recording. Changing it transcribes the recording again, for every page that uses this file.',
       },
     },
     {

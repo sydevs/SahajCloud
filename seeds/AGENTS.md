@@ -299,8 +299,8 @@ pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed meditation-transc
 ```
 
 The glossary is applied by the collection's `applyGlossaryToSegments` hook, not
-here. `language` is the meditation's own `locale`, sent on every write so the
-hook has its key.
+here, in the meditation's own `locale`, which the hook reads off the meditation:
+a transcript stores no language of its own (#1016).
 
 ### `file-transcripts` — the one-off for files uploaded before #1016
 

@@ -98,10 +98,14 @@ describe('the file transcript sites', () => {
     expect(transcribeUrl(7, 'fr', 'files')).toBe('/api/files/7/transcribe?locale=fr')
   })
 
-  it('carries a corrected spoken language beside the admin locale', () => {
-    expect(transcribeUrl(7, 'fr', 'files', 'cs')).toBe(
-      '/api/files/7/transcribe?language=cs&locale=fr',
-    )
+  // The file's own row brings its spoken language, for the mismatch warning;
+  // a meditation's would bring the whole document, so it populates nothing.
+  it("populates a file's spoken language and nothing of a meditation", () => {
+    const files = transcriptUrl(7, 'fr', 'files')!
+    expect(files).toContain('depth=1')
+    expect(files).toContain(encodeURIComponent('populate[files][spokenLanguage]') + '=true')
+    expect(transcriptUrl(7, 'fr', 'meditations')).toContain('depth=0')
+    expect(transcriptUrl(7, 'fr', 'meditations')).not.toContain('populate')
   })
 
   it('reads the file itself with the locale, and refuses without one', () => {

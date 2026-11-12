@@ -8,7 +8,6 @@ import {
   ValidationError,
 } from 'payload'
 
-import type { LocaleCode } from '@/lib/locales'
 import {
   retranscribeWaitLabel,
   retranscribeWaitMs,
@@ -16,7 +15,8 @@ import {
   transcriptPhaseIsRetryable,
 } from '@/lib/transcripts/bounds'
 
-import { findTranscript, type TranscriptSource, whereSource } from './read'
+import { findTranscript, type TranscriptSource } from './read'
+import { replaceTranscript } from './sync'
 
 export const transcriptRefusal = (
   message: string,
@@ -46,8 +46,8 @@ const isDuplicateTranscript = (error: ValidationError, source: TranscriptSource)
   error.data.errors.some(({ path }) => path === `${source.relationTo}_id, path`)
 
 /**
- * Ask for a recording to be transcribed again: the delete-and-create pair
- * `syncRecordingTranscript` runs for a replaced recording, behind the bounds a
+ * Ask for a recording to be transcribed again: the replacement
+ * `syncTranscriptOnSave` makes for a changed recording, behind the bounds a
  * paid run needs. The new row's own `afterChange` queues the run.
  *
  * The caller owns the gate and the reads that prove the recording exists — this
@@ -58,28 +58,16 @@ const isDuplicateTranscript = (error: ValidationError, source: TranscriptSource)
  * flight, the phase must be retryable, and the existing row must be older than
  * the cooldown. All are read from the functions the Transcript panel offers the
  * button from, so the control cannot promise what this refuses.
- *
- * **A changed `language` passes the last two.** A file's language is detected,
- * and the fix for a wrong guess is a run in the right one (#1016); refusing it
- * until the cooldown would leave a finished transcript in the wrong language for
- * ten minutes for no saving.
- *
- * ⚠ **It does not pass the first.** A language change deletes the row it finds,
- * so exempting a run in flight would throw away a run already paid for and queue
- * another — and alternating `?language=` between two values would do that as fast
- * as an editor can click, which is the bill Decision 2 exists to bound.
  */
 export async function requestTranscript(
   req: PayloadRequest,
   {
     source,
     audioFilename,
-    language,
     noun,
   }: {
     source: TranscriptSource
     audioFilename: string
-    language: LocaleCode | null
     /** How a refusal names the recording: "meditation", "file". */
     noun: string
   },
@@ -87,28 +75,24 @@ export async function requestTranscript(
   // `overrideAccess` on every read and write here: the caller's gate is the
   // authority, and `transcripts` carries no write grant of its own.
   const existing = await findTranscript(req, source)
-  const languageChanged = Boolean(existing && language && existing.language !== language)
-
   if (existing) {
     const phase = transcriptPhase(existing)
     if (phase === 'pending') {
       return transcriptRefusal(`A transcription for this ${noun} is already in progress.`, 409)
     }
-    if (!languageChanged) {
-      if (!transcriptPhaseIsRetryable(phase)) {
-        return transcriptRefusal(
-          'This recording already has a transcript. Replace the recording to redo it.',
-          409,
-        )
-      }
-      const waitMs = retranscribeWaitMs(existing.createdAt)
-      if (waitMs > 0) {
-        return transcriptRefusal(
-          `This transcript was asked for a moment ago. Try again in ${retranscribeWaitLabel(waitMs)}.`,
-          429,
-          { 'Retry-After': String(Math.ceil(waitMs / 1000)) },
-        )
-      }
+    if (!transcriptPhaseIsRetryable(phase)) {
+      return transcriptRefusal(
+        'This recording already has a transcript. Replace the recording to redo it.',
+        409,
+      )
+    }
+    const waitMs = retranscribeWaitMs(existing.createdAt)
+    if (waitMs > 0) {
+      return transcriptRefusal(
+        `This transcript was asked for a moment ago. Try again in ${retranscribeWaitLabel(waitMs)}.`,
+        429,
+        { 'Retry-After': String(Math.ceil(waitMs / 1000)) },
+      )
     }
   }
 
@@ -118,39 +102,10 @@ export async function requestTranscript(
   // `create` before `delete` is not an alternative: `source` is unique.
   const opened = await initTransaction(req)
   try {
-    if (existing) {
-      // By `where`, not by id: a request that loses the race finds the row
-      // already gone, and a delete by id answers that with a 404 — which reads
-      // as a missing recording. Deleting nothing leaves the duplicate insert
-      // below to say what actually happened.
-      //
-      // ⚠ **A delete by `where` collects per-document failures into `errors`
-      // rather than throwing.** Unread, a row that refused to go would fall
-      // through to the create, trip the unique index, and be reported as a race
-      // — with the real cause logged nowhere.
-      const { errors } = await req.payload.delete({
-        collection: 'transcripts',
-        where: whereSource(source),
-        overrideAccess: true,
-        req,
-      })
-      if (errors.length > 0) {
-        throw new Error(
-          `the previous transcript could not be deleted: ${errors[0]?.message ?? 'no reason given'}`,
-        )
-      }
-    }
-    // No row at all is the lost-run case — create without the delete. A file
-    // keeps the language its last run settled on unless the request names one.
-    const created = await req.payload.create({
-      collection: 'transcripts',
-      data: { audioFilename, language: language ?? existing?.language ?? null, source },
-      depth: 0,
-      overrideAccess: true,
-      req,
-    })
+    // No row at all is the lost-run case, and the replacement simply creates.
+    const transcriptId = await replaceTranscript(req, source, { audioFilename })
     if (opened) await commitTransaction(req)
-    return Response.json({ ok: true, transcriptId: created.id })
+    return Response.json({ ok: true, transcriptId })
   } catch (error) {
     await killTransaction(req)
     // A second request, not a server fault — and the winner's run is already

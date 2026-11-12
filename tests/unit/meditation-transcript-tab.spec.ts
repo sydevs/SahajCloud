@@ -121,7 +121,6 @@ const row = (overrides: Partial<Transcript> = {}): Transcript => ({
   source: { relationTo: 'meditations', value: 7 },
   audioFilename: 'calm.mp3',
   provider: 'lemonfox',
-  language: 'en',
   segments: null,
   status: 'completed',
   error: null,

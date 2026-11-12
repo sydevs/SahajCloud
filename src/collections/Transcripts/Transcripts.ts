@@ -2,7 +2,6 @@ import type { CollectionConfig } from 'payload'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
-import { getLocaleOptions } from '@/lib/locales'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import {
   TRANSCRIPT_PROVIDERS,
@@ -24,6 +23,10 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  * restores from, and would race their draft. It sits in the two projects that
  * carry `meditations` (`config/projects.ts`), so whoever may read a recording
  * may read its transcript — there is no second **read** permission to hold.
+ *
+ * **No language column.** The language is the recording's — a meditation's
+ * `locale`, a file's `spokenLanguage` — and a copy here could disagree with it
+ * (#1016). The run and the glossary pass read it off the recording.
  *
  * Nor is there a write grant here. The one write an editor can ask for is
  * `POST /api/meditations/:id/transcribe` (#984), which gates on
@@ -91,18 +94,6 @@ export const Transcripts: CollectionConfig = {
       name: 'provider',
       type: 'select',
       options: [...TRANSCRIPT_PROVIDERS],
-    },
-    {
-      // A `select`, not free text: the glossary pass keys on this value, and a
-      // code no entry can match would disable it silently (#897, line 8).
-      //
-      // Not `required` (#1016): a file states no language, so its row starts
-      // empty and the run fills in the language Lemonfox heard. A meditation's
-      // row always has one — its own `locale`. Empty after a run means Lemonfox
-      // heard a language no locale here speaks, and the glossary pass skips it.
-      name: 'language',
-      type: 'select',
-      options: getLocaleOptions(),
     },
     jsonField({
       // Null until the run completes, so the generated type has to carry it.

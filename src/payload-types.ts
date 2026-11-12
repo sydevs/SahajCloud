@@ -3181,7 +3181,31 @@ export interface Transcript {
       };
   audioFilename?: string | null;
   provider?: ('lemonfox' | 'imported') | null;
-  language?:
+  segments?: TranscriptSegments;
+  segmentCount?: number | null;
+  job?: (number | null) | PayloadJob;
+  status?: ('processing' | 'completed' | 'failed') | null;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files".
+ */
+export interface File {
+  id: number;
+  createdAt: string;
+  hlsUrl?: string | null;
+  mp4Url?: string | null;
+  previewUrl?: string | null;
+  subtitles?: Subtitles;
+  /**
+   * Leave it empty to detect it from the recording. Changing it transcribes the recording again, for every page that uses this file.
+   */
+  spokenLanguage?:
     | (
         | 'en'
         | 'es'
@@ -3204,27 +3228,6 @@ export interface Transcript {
         | 'nl'
       )
     | null;
-  segments?: TranscriptSegments;
-  segmentCount?: number | null;
-  job?: (number | null) | PayloadJob;
-  status?: ('processing' | 'completed' | 'failed') | null;
-  error?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * Media files (images, audio, video) and PDFs used by other collections. A file nothing links to is moved to the trash automatically, and deleted for good after 45 days there.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "files".
- */
-export interface File {
-  id: number;
-  createdAt: string;
-  hlsUrl?: string | null;
-  mp4Url?: string | null;
-  previewUrl?: string | null;
-  subtitles?: Subtitles;
   _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -4523,7 +4526,6 @@ export interface TranscriptsSelect<T extends boolean = true> {
   source?: T;
   audioFilename?: T;
   provider?: T;
-  language?: T;
   segments?: T;
   segmentCount?: T;
   job?: T;
@@ -4737,6 +4739,7 @@ export interface FilesSelect<T extends boolean = true> {
   mp4Url?: T;
   previewUrl?: T;
   subtitles?: T;
+  spokenLanguage?: T;
   _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;

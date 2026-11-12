@@ -2,12 +2,14 @@ import type { PayloadRequest, TaskConfig } from 'payload'
 
 import { extractID } from 'payload/shared'
 
+import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { localeForLemonfoxLanguage } from '@/lib/lemonfox/languages'
 import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from '@/lib/lemonfox/normalize'
 import type { LocaleCode } from '@/lib/locales'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { findTranscript, type TranscriptSource } from '@/lib/transcripts/read'
+import { LANGUAGE_DETECTED } from '@/lib/transcripts/sync'
 import { originOf } from '@/lib/utilities/url'
 import type { Transcript } from '@/payload-types'
 import { getCloudflareStreamMp4Url, getR2Url } from '@/plugins/storage'
@@ -31,7 +33,7 @@ const configGap = (message: string): Error =>
 const VIDEO_READY_ATTEMPTS = 6
 const VIDEO_READY_INTERVAL_MS = 20 * 1000
 
-/** The recording a run fetches, and the language it is asked for when one is known. */
+/** The recording a run fetches, and the language it states, if it states one. */
 type Recording = {
   filename: string
   audioUrl: string | undefined
@@ -53,7 +55,7 @@ type Recording = {
  * too since #1016.
  *
  * ⚠ **Every write checks the row is still this run's own.** The audio can be
- * replaced, and the transcript can be asked for again in another language, while
+ * replaced, its language changed, and the transcript asked for again, while
  * this run waits on Lemonfox. Each request gets a fresh row naming its own job,
  * so the row's `job` is what tells one request from the next — the filename
  * cannot, since a retry of the same recording carries the same one.
@@ -68,10 +70,10 @@ type Recording = {
  * that flag forever — so a key would block a re-request after a stall, for
  * good. The row checks above stop duplicate writes.
  *
- * **A file's language is detected unless its row names one.** A file has no
- * language of its own, so the first run asks for none and stores the language
- * Lemonfox reports; an editor who corrects it asks for a run in that language
- * (#1016). The glossary pass then keys on whichever was stored.
+ * **A file's language is detected unless the file states one** (#1016). The run
+ * asks in the recording's own language — a meditation's `locale`, a file's
+ * `spokenLanguage` — and otherwise writes the language Lemonfox heard back to
+ * the file, before the cues, because the glossary pass reads it from there.
  */
 export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
   slug: 'transcribeMeditation',
@@ -116,30 +118,50 @@ export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
     }
     if (recording.isStreamVideo) await waitForVideoDownload(audioUrl)
 
-    // The row's language wins: it is a correction, or a meditation's own.
-    const askedFor = (row.language as LocaleCode | null | undefined) ?? recording.language
     const body = await requestLemonfoxTranscript({
       apiKey,
       audioUrl,
-      locale: askedFor ?? undefined,
+      locale: recording.language ?? undefined,
       wordTimings: true,
     })
     const segments = normalizeLemonfoxCues(body)
-    const language = askedFor ?? localeForLemonfoxLanguage(lemonfoxDetectedLanguage(body)) ?? null
+    // Null where Lemonfox heard a language no locale here speaks.
+    const detected = recording.language
+      ? null
+      : localeForLemonfoxLanguage(lemonfoxDetectedLanguage(body))
 
-    // ⚠ **By id, not by truthiness.** A corrected language replaces the row
-    // and keeps this job's id nowhere, so the row read back must also be the
-    // one read above — the update below would otherwise throw on a deleted
+    // ⚠ **By id, not by truthiness.** A changed language replaces the row and
+    // keeps this job's id nowhere, so the row read back must also be the one
+    // read above — the update below would otherwise throw on a deleted
     // document instead of answering `superseded`.
     const current = await findCurrentRow(req, source, job.id)
     if (current?.id !== row.id) {
       return { output: { status: 'superseded' } }
     }
 
+    // Only while the file still holds this recording and still states no
+    // language: one stated since is a person's, and wins. Flagged, so the
+    // file's save hook does not read it as a correction and pay again.
+    if (source.relationTo === 'files' && detected) {
+      await updateIfUnchanged({
+        payload: req.payload,
+        collection: 'files',
+        id: source.value,
+        expect: {
+          and: [{ filename: { equals: audioFilename } }, { spokenLanguage: { exists: false } }],
+        },
+        data: { spokenLanguage: detected },
+        context: { [LANGUAGE_DETECTED]: true },
+        depth: 0,
+        overrideAccess: true,
+        req,
+      })
+    }
+
     await req.payload.update({
       collection: 'transcripts',
       id: row.id,
-      data: { provider: 'lemonfox', segments, language },
+      data: { provider: 'lemonfox', segments },
       depth: 0,
       overrideAccess: true,
       req,
@@ -197,7 +219,7 @@ async function findCurrentRow(
  *
  * A meditation is read as its latest **draft**: the editor hears and places
  * frames against the draft's audio, so that is the recording a transcript must
- * match. A file states no language — the run detects it.
+ * match. A file that states no language has it detected.
  */
 async function findRecording(
   req: PayloadRequest,
@@ -227,7 +249,7 @@ async function findRecording(
     collection: 'files',
     id: source.value,
     depth: 0,
-    select: { filename: true, mimeType: true },
+    select: { filename: true, mimeType: true, spokenLanguage: true },
     overrideAccess: true,
     disableErrors: true,
     req,
@@ -241,7 +263,7 @@ async function findRecording(
     filename: file.filename,
     audioUrl:
       media === 'video' ? getCloudflareStreamMp4Url(file.filename) : getR2Url(file.filename),
-    language: null,
+    language: file.spokenLanguage ?? null,
     isStreamVideo: media === 'video',
   }
 }

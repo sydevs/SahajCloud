@@ -128,6 +128,7 @@ import * as migration_20261111_182607_recover_lost_jobs_task from './20261111_18
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
 import * as migration_20261111_232203_merge_main_snapshot_8 from './20261111_232203_merge_main_snapshot_8';
 import * as migration_20261112_184359_file_transcripts_replace_intro_subtitles from './20261112_184359_file_transcripts_replace_intro_subtitles';
+import * as migration_20261112_213652_files_spoken_language from './20261112_213652_files_spoken_language';
 
 export const migrations = [
   {
@@ -778,6 +779,11 @@ export const migrations = [
   {
     up: migration_20261112_184359_file_transcripts_replace_intro_subtitles.up,
     down: migration_20261112_184359_file_transcripts_replace_intro_subtitles.down,
-    name: '20261112_184359_file_transcripts_replace_intro_subtitles'
+    name: '20261112_184359_file_transcripts_replace_intro_subtitles',
+  },
+  {
+    up: migration_20261112_213652_files_spoken_language.up,
+    down: migration_20261112_213652_files_spoken_language.down,
+    name: '20261112_213652_files_spoken_language'
   },
 ];

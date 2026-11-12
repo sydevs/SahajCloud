@@ -2,6 +2,7 @@ import * as qs from 'qs-esm'
 
 import type { RecordingCollection } from '@/lib/transcripts/media'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
+import type { Transcript } from '@/payload-types'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -24,6 +25,11 @@ export type TranscriptParagraph = {
  * The collection query the panel reads, or `null` without a recording id or a
  * locale.
  *
+ * A file's row brings the file's `spokenLanguage` with it (`spokenLanguageOf`),
+ * so the language a run detects reaches the screen on the poll that brings its
+ * cues. Nothing else of the recording is populated: a meditation's is its whole
+ * document.
+ *
  * A manager's roles are per locale, so the request must name the active admin
  * locale — one naming none resolves to the default locale and 403s a manager
  * whose roles live only elsewhere (#701). `useLocale()`'s context default is
@@ -39,7 +45,9 @@ export const transcriptUrl = (
   recordingId && locale
     ? `/api/transcripts${qs.stringify(
         {
-          depth: 0,
+          ...(relationTo === 'files'
+            ? { depth: 1, populate: { files: { spokenLanguage: true } } }
+            : { depth: 0 }),
           limit: 1,
           locale,
           // `qs` serialises the nested object, and `sanitizeQueryValue` reads
@@ -49,6 +57,14 @@ export const transcriptUrl = (
         { addQueryPrefix: true },
       )}`
     : null
+
+/** The language a file states, off a row `transcriptUrl` read. */
+export function spokenLanguageOf(row: Transcript | undefined): string | null {
+  const source = row?.source
+  return source?.relationTo === 'files' && typeof source.value === 'object'
+    ? (source.value.spokenLanguage ?? null)
+    : null
+}
 
 /**
  * The read of a file an upload field holds, or `null` without a file id or a
@@ -73,21 +89,14 @@ export const fileUrl = (fileId: number | null, locale: string | undefined): stri
 /**
  * Where the Transcribe button posts, or `null` without a recording id or a
  * locale — `transcriptUrl`'s own docblock carries why both are required.
- *
- * `language` is a file's spoken language, corrected by an editor (#1016); a
- * meditation's is its own `locale`, so it never sends one.
  */
 export const transcribeUrl = (
   recordingId: number | string | undefined,
   locale: string | undefined,
   relationTo: RecordingCollection = 'meditations',
-  language?: string,
 ): string | null =>
   recordingId && locale
-    ? `/api/${relationTo}/${recordingId}/transcribe${qs.stringify(
-        language ? { language, locale } : { locale },
-        { addQueryPrefix: true },
-      )}`
+    ? `/api/${relationTo}/${recordingId}/transcribe${qs.stringify({ locale }, { addQueryPrefix: true })}`
     : null
 
 /**

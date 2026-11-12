@@ -50,11 +50,13 @@ export async function findTranscript(
 }
 
 /**
- * Which of these files have a finished transcript, and the language each is in.
+ * Which of these files have a finished transcript, and the language each file
+ * is spoken in (#1016).
  *
- * One query for the whole set, and `segmentCount` rather than the cues, because
- * the stored count is what says a transcript is finished without serving the
- * column it counts (`Transcripts.ts`).
+ * `segmentCount` rather than the cues, because the stored count is what says a
+ * transcript is finished without serving the column it counts
+ * (`Transcripts.ts`). The language is the file's own, so one stated before its
+ * run finished is already the answer.
  *
  * Pass an isolated `req` where a sibling read runs concurrently on the caller's
  * own (`src/collections/AGENTS.md`).
@@ -65,21 +67,34 @@ export async function readFinishedFileTranscripts(
   { req }: { req?: PayloadRequest } = {},
 ): Promise<Array<{ fileId: number | string; language: string | null }>> {
   if (fileIds.length === 0) return []
-  const { docs } = await payload.find({
+  const { docs: transcripts } = await payload.find({
     collection: 'transcripts',
     where: { and: [{ or: fileIds.map(fileSource) }, { segmentCount: { greater_than: 0 } }] },
-    select: { source: true, language: true },
+    select: { source: true },
     depth: 0,
     limit: 0,
     pagination: false,
     overrideAccess: true,
     req,
   })
-  return docs.flatMap((doc) => {
+  const finished = transcripts.flatMap((doc) => {
     const value = doc.source?.value
-    if (value === null || value === undefined) return []
-    return [{ fileId: extractID(value), language: doc.language ?? null }]
+    return value === null || value === undefined ? [] : [extractID(value)]
   })
+  if (finished.length === 0) return []
+
+  const { docs: files } = await payload.find({
+    collection: 'files',
+    where: { id: { in: finished } },
+    select: { spokenLanguage: true },
+    depth: 0,
+    limit: 0,
+    pagination: false,
+    overrideAccess: true,
+    trash: true,
+    req,
+  })
+  return files.map((file) => ({ fileId: file.id, language: file.spokenLanguage ?? null }))
 }
 
 /**

@@ -44,7 +44,6 @@ describe('transcripts', () => {
       collection: 'transcripts',
       data: createData<'transcripts'>({
         source: { relationTo, value },
-        language: 'en',
         ...extra,
       }),
     })
@@ -253,7 +252,7 @@ describe('transcripts', () => {
       await expect(
         payload.create({
           collection: 'transcripts',
-          data: createData<'transcripts'>({ language: 'en' } as never),
+          data: createData<'transcripts'>({ audioFilename: 'no-source.mp3' } as never),
         }),
       ).rejects.toThrow()
     })
@@ -313,22 +312,6 @@ describe('transcripts', () => {
       expect(job.input).toMatchObject({ fileId: file.id })
     })
 
-    // A file's language is detected by its first run, so its row starts with
-    // none (#1016); the glossary pass skips a row until it has one.
-    it('accepts a row with no language yet', async () => {
-      const file = await createFileWithoutTranscript()
-
-      const row = await payload.create({
-        collection: 'transcripts',
-        data: createData<'transcripts'>({
-          source: { relationTo: 'files', value: file.id },
-        } as never),
-        overrideAccess: true,
-      })
-
-      expect(row.language ?? null).toBeNull()
-    })
-
     it('refuses a segment missing `start`, and one carrying word timings', async () => {
       const meditation = await createMeditationWithoutTranscript()
       const withSegments = (segments: unknown) =>
@@ -336,7 +319,6 @@ describe('transcripts', () => {
           collection: 'transcripts',
           data: createData<'transcripts'>({
             source: { relationTo: 'meditations', value: meditation.id },
-            language: 'en',
             segments: segments as never,
           }),
         })
@@ -370,7 +352,9 @@ describe('transcripts', () => {
       ])
     })
 
-    it('reads the language off the stored row when an update omits it', async () => {
+    // The row stores no language: the hook reads the recording's own, from the
+    // source the update does not repeat (#1016).
+    it('reads the language off the recording when an update writes only cues', async () => {
       const meditation = await createMeditationWithoutTranscript()
       const row = await createTranscript('meditations', meditation.id)
 

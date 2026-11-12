@@ -198,12 +198,12 @@ No loose files at the root — every file lives in a named folder:
   — because four surfaces show the same list. No barrel: import each module
   by its own path
 - `transcripts/` — a recording's transcript, wherever the recording lives
-  (#1016): `sync.ts` starts a run when a recording is saved or, for a video,
-  when Stream has made it, `request.ts` is a re-request and the bounds a paid
-  run needs, `read.ts` the row lookup, a file's cues (batched per request) and
-  which files' rows are finished, `cues.ts` the cue
+  (#1016): `sync.ts` starts a run when a recording or its language is saved
+  or, for a video, when Stream has made it, `request.ts` is a re-request and
+  the bounds a paid run needs, `read.ts` the row lookup, a file's cues
+  (batched per request) and which files' rows are finished, `cues.ts` the cue
   vocabulary a provider's words are grouped into and the two bounds that cut
-  one, `language.ts` whether a transcript's language is the one being read, and
+  one, `language.ts` whether a recording's language is the one being read, and
   `media.ts` which files carry one at all. Meditations, files, lessons, the
   job and a seed all read it; deep imports, no barrel, because `media.ts` is
   also read in the browser

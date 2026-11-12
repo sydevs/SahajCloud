@@ -6,7 +6,7 @@
  * meditation's follows the live preview (`meditation-transcript-tab.spec.ts`).
  * What this pins is the part between the two: which element plays, what a
  * click on a phrase does to it, and how the element's playhead moves the mark;
- * and which of the two places offers the spoken language, and warns of it.
+ * and when a Path Step warns that the file is spoken in another language.
  *
  * **Mocked at the Payload boundary only** — `@payloadcms/ui` and `swr`, with
  * the behaviours `meditation-transcript-tab.spec.ts` reads off the real thing.
@@ -58,8 +58,6 @@ vi.mock('@payloadcms/ui', () => ({
   ErrorIcon: () => null,
   FieldLabel: ({ label }: { label?: string }) => createElement('label', null, label),
   InfoIcon: () => null,
-  SelectInput: ({ label, value }: { label?: string; value?: string }) =>
-    createElement('div', { 'data-select': label }, value),
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   SuccessIcon: () => null,
@@ -92,12 +90,20 @@ const cue = (content: string, startTimeMs: number, endTimeMs: number) => ({
 
 const SEGMENTS = [cue('Sit comfortably.', 10000, 12400), cue('Close your eyes.', 12800, 14000)]
 
+/**
+ * The source as `transcriptUrl` reads a file's row: populated with the file's
+ * `spokenLanguage` and nothing else.
+ */
+const spokenIn = (spokenLanguage: string | null): Transcript['source'] => ({
+  relationTo: 'files',
+  value: { id: 9, spokenLanguage } as never,
+})
+
 const row = (overrides: Partial<Transcript> = {}): Transcript => ({
   id: 1,
-  source: { relationTo: 'files', value: 9 },
+  source: spokenIn('cs'),
   audioFilename: 'intro.mp3',
   provider: 'lemonfox',
-  language: 'cs',
   segments: SEGMENTS,
   status: 'completed',
   error: null,
@@ -306,10 +312,6 @@ describe('a file’s Transcript panel', () => {
       const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
       mount(FileTranscriptField, { path: 'transcriptPanel' })
     }
-    const mountLanguage = async () => {
-      const { SpokenLanguageField } = await import('@/components/admin/RecordingTranscript')
-      mount(SpokenLanguageField, { path: 'spokenLanguage' })
-    }
 
     // The transcript is the point of this page, so it is never folded away.
     it('shows the transcript open, under a label of its own', async () => {
@@ -318,33 +320,12 @@ describe('a file’s Transcript panel', () => {
       expect(container.querySelector('label')?.textContent).toBe('Transcript')
       expect(container.querySelector('audio')).not.toBeNull()
       expect(container.querySelector('[data-collapsible]')).toBeNull()
-      // The language is a field of its own, above this one.
-      expect(container.querySelector('[data-select]')).toBeNull()
     })
 
     // A PDF or an image has no transcript, and the page shows no panel at all.
-    it.each([
-      ['the transcript', mountFilePanel],
-      ['the spoken language', mountLanguage],
-    ])('shows neither for a file with no transcript to have (%s)', async (_label, mountIt) => {
+    it('shows nothing for a file with no transcript to have', async () => {
       stub.doc = { ...AUDIO, mimeType: 'application/pdf' }
-      await mountIt()
-
-      expect(container.innerHTML).toBe('')
-    })
-
-    it('offers the spoken language once a run has answered', async () => {
-      await mountLanguage()
-
-      expect(container.querySelector('[data-select="Spoken language"]')?.textContent).toBe('cs')
-    })
-
-    it('offers no language while a run is in flight', async () => {
-      stub.swr = {
-        data: { docs: [row({ segments: null, status: 'processing' })] },
-        error: undefined,
-      }
-      await mountLanguage()
+      await mountFilePanel()
 
       expect(container.innerHTML).toBe('')
     })
@@ -388,14 +369,6 @@ describe('a file’s Transcript panel', () => {
       expect(container.querySelector('audio')).not.toBeNull()
     })
 
-    // The language is corrected on the file, which every step using it shares.
-    it('offers no spoken language', async () => {
-      await mountUnderField()
-
-      expect(phrases()).toHaveLength(SEGMENTS.length)
-      expect(container.querySelector('[data-select]')).toBeNull()
-    })
-
     it('shows nothing for a file with no transcript to have', async () => {
       stub.file = { ...AUDIO, mimeType: 'image/png' }
       await mountUnderField()
@@ -423,8 +396,21 @@ describe('a file’s Transcript panel', () => {
       await mountWarning()
 
       expect(text()).toBe(
-        'Incorrect audio languageThis recording is in Czech, but you are editing French.',
+        "Incorrect audio languageThis recording is in Czech, but you are editing French. Choose a recording in French, or ask an admin to correct the file's spoken language if it is wrong.",
       )
+      expect(container.querySelector('[data-banner]')).not.toBeNull()
+    })
+
+    // The language is the file's, so one stated on upload warns before a run
+    // has produced a line.
+    it('warns while the transcript is still on its way', async () => {
+      stub.locale = 'fr'
+      stub.swr = {
+        data: { docs: [row({ segments: null, status: 'processing' })] },
+        error: undefined,
+      }
+      await mountWarning()
+
       expect(container.querySelector('[data-banner]')).not.toBeNull()
     })
 
@@ -434,11 +420,11 @@ describe('a file’s Transcript panel', () => {
       expect(container.innerHTML).toBe('')
     })
 
-    // The language is detected, so a run still on its way has none to compare.
-    it('says nothing until a run has named a language', async () => {
+    // Nobody stated one, and the run has not detected one yet.
+    it('says nothing while the file states no language', async () => {
       stub.locale = 'fr'
       stub.swr = {
-        data: { docs: [row({ language: null, segments: null, status: 'processing' })] },
+        data: { docs: [row({ source: spokenIn(null), segments: null, status: 'processing' })] },
         error: undefined,
       }
       await mountWarning()

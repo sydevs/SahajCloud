@@ -9,7 +9,6 @@ import {
   payloadListFetcher,
   refusalMessage,
 } from '@/components/admin/helpers/payloadListFetcher'
-import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
 import { transcriptPhase, type TranscriptPhase } from '@/lib/transcripts/bounds'
 import type { RecordingCollection } from '@/lib/transcripts/media'
 import type { Transcript } from '@/payload-types'
@@ -50,11 +49,8 @@ export type RecordingTranscriptState = {
   error: unknown
   row: Transcript | undefined
   phase: TranscriptPhase
-  /**
-   * Ask for the recording to be transcribed again — in `language`, for a file
-   * whose detected one is wrong — then re-read the row, which restarts the poll.
-   */
-  request: (language?: LocaleCode) => Promise<void>
+  /** Ask for the recording to be transcribed again, then re-read the row, which restarts the poll. */
+  request: () => Promise<void>
   /** A request is on its way. */
   requesting: boolean
 }
@@ -82,45 +78,38 @@ export function useRecordingTranscript(
   const phase = useTranscriptPhase(row)
   const [requesting, setRequesting] = useState(false)
 
-  const request = useCallback(
-    async (language?: LocaleCode) => {
-      // No locale, no request: one resolves the default locale server-side and
-      // reproduces the #701 403 silently — see `transcriptUrl`.
-      const target = transcribeUrl(recordingId, code, relationTo, language)
-      if (!target) {
-        toast.error(REQUEST_FAILED)
-        return
+  const request = useCallback(async () => {
+    // No locale, no request: one resolves the default locale server-side and
+    // reproduces the #701 403 silently — see `transcriptUrl`.
+    const target = transcribeUrl(recordingId, code, relationTo)
+    if (!target) {
+      toast.error(REQUEST_FAILED)
+      return
+    }
+    setRequesting(true)
+    try {
+      const response = await fetch(target, { credentials: 'include', method: 'POST' })
+      const body: unknown = await response.json().catch(() => null)
+      if (response.ok) {
+        toast.success('Transcribing the recording again.')
+      } else {
+        toast.error(refusalMessage(body) ?? REQUEST_FAILED)
+        // ⚠ **A refusal can mean the row moved on.** A run slower than the
+        // stall bound that then finishes reads `stalled` here and `completed`
+        // on the server — and nothing polls a phase that offers a retry, so
+        // without a re-read the panel keeps a notice the server disagrees
+        // with. A 429 is the one refusal that leaves the row as it is here.
+        if (response.status === 429) return
       }
-      setRequesting(true)
-      try {
-        const response = await fetch(target, { credentials: 'include', method: 'POST' })
-        const body: unknown = await response.json().catch(() => null)
-        if (response.ok) {
-          toast.success(
-            language
-              ? `Transcribing the recording again, in ${getLocaleLabel(language)}.`
-              : 'Transcribing the recording again.',
-          )
-        } else {
-          toast.error(refusalMessage(body) ?? REQUEST_FAILED)
-          // ⚠ **A refusal can mean the row moved on.** A run slower than the
-          // stall bound that then finishes reads `stalled` here and `completed`
-          // on the server — and nothing polls a phase that offers a retry, so
-          // without a re-read the panel keeps a notice the server disagrees
-          // with. A 429 is the one refusal that leaves the row as it is here.
-          if (response.status === 429) return
-        }
-        // SWR's own re-read, not `router.refresh()`: this state is SWR's, not
-        // the route's. It restarts the poll (`pollInterval`).
-        void mutate()
-      } catch {
-        toast.error(REQUEST_FAILED)
-      } finally {
-        setRequesting(false)
-      }
-    },
-    [code, mutate, recordingId, relationTo],
-  )
+      // SWR's own re-read, not `router.refresh()`: this state is SWR's, not
+      // the route's. It restarts the poll (`pollInterval`).
+      void mutate()
+    } catch {
+      toast.error(REQUEST_FAILED)
+    } finally {
+      setRequesting(false)
+    }
+  }, [code, mutate, recordingId, relationTo])
 
   return {
     error,

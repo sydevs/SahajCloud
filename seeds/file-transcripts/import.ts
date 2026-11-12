@@ -22,7 +22,7 @@ import { createLocalReq } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { transcribableMedia } from '@/lib/transcripts/media'
-import { syncRecordingTranscript } from '@/lib/transcripts/sync'
+import { replaceTranscript } from '@/lib/transcripts/sync'
 
 import { BaseImporter, type BaseImportOptions } from '../lib'
 
@@ -79,11 +79,11 @@ export class FileTranscriptsImporter extends BaseImporter<BaseImportOptions> {
     for (const [index, file] of missing.entries()) {
       const identifier = `${file.id} (${file.filename})`
       try {
-        await syncRecordingTranscript(req, {
-          source: { relationTo: 'files', value: file.id },
-          audioFilename: file.filename!,
-          language: null,
-        })
+        await replaceTranscript(
+          req,
+          { relationTo: 'files', value: file.id },
+          { audioFilename: file.filename! },
+        )
         this.report.incrementCreated()
         await this.reportDocument('transcripts', identifier, 'created', {
           current: index + 1,

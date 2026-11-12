@@ -49,9 +49,12 @@ follow a recording that is no longer attached. The same holds for a panel
 video's subtitles, which is why `panels[].subtitles` is gone too.
 
 - **Made on upload.** An MP3 is transcribed when it is saved, a video when
-  Cloudflare Stream reports it ready, and the run detects the language
-  (`src/lib/transcripts/`, `TranscribeRecording`). A wrong guess is corrected in
-  the file's Spoken language field, and the re-run serves every step using it.
+  Cloudflare Stream reports it ready (`src/lib/transcripts/`,
+  `TranscribeRecording`). The language is the file's own `spokenLanguage`:
+  stated on upload, or detected by the first run and written there. Changing
+  it transcribes the file again, and the re-run serves every step using it.
+  Only an admin can change it after upload — editors hold `files: create`
+  alone.
 - **Shown, never edited, here.** A `ui` field follows each upload —
   `introTranscript` after `introAudio`, `mediaTranscript` after
   `panels[].media` — rendering `FileTranscriptField`, the file's own
@@ -59,8 +62,9 @@ video's subtitles, which is why `panels[].subtitles` is gone too.
   transcript, folded closed in a Payload `Collapsible` once there are lines to
   read, because a step carries one per panel video as well. `introAudio` also
   registers `RecordingLanguageWarning` as `beforeInput`, a banner above the
-  file when its recording is in another language than the one being edited. The spoken language is corrected on the
-  file alone, and a retry here serves every step using it. Spellings are
+  file when it states another language than the one being edited, which tells
+  an editor to choose another recording or ask an admin. A retry here serves
+  every step using the file. Spellings are
   corrected for every transcript by the glossary
   (`src/collections/Transcripts/glossary.json`).
 - **Read by the app through the file**: `introAudio.subtitles` and

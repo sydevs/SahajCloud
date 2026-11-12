@@ -66,7 +66,7 @@ export function FileTranscript({
  * A file's Transcript, as a `ui` field (#1016).
  *
  * - **With no `fileField`**, the edited document is the file: its own page,
- *   below the field that corrects its spoken language (`SpokenLanguageField`).
+ *   below its Spoken language.
  * - **With a `fileField`**, it shows the file the named sibling upload field
  *   holds, folded closed beneath it — a Path Step's intro audio and panel
  *   media. Read-only there, and never stored on the step: the transcript is
