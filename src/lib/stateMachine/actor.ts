@@ -10,8 +10,10 @@ import type { PayloadRequest, RequestContext } from 'payload'
  * its move is in the table, rather than silently joining the ones that were
  * never checked.
  *
- * A manager's own save through the admin panel names no actor and does not need
- * to: the guard resolves one from `req.user`.
+ * There is no fallback to `req.user`: a manager's own save names no actor and
+ * resolves to `null`, which each collection answers for itself.
+ * `guardStatusTransition` takes that case to `reviewMove` before the shared
+ * guard runs; `guardVerificationStage` lets the refusal stand.
  */
 const STAGE_ACTOR = 'stageActor'
 
