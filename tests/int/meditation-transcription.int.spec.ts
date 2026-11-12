@@ -27,7 +27,7 @@ import path from 'node:path'
 import { extractID } from 'payload/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { recoverLostJobs } from '@/jobs/RecoverLostJobs/recover'
+import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import {

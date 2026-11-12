@@ -109,7 +109,7 @@ function lostImportId(job: Pick<PayloadJob, 'input' | 'taskSlug'>): number | nul
 
 /**
  * Fail every import whose run was lost, given the job rows the stale-job sweep
- * cancelled (`@/jobs/RecoverLostJobs/recover`).
+ * cancelled (`@/jobs/RecoverLostJobs/RecoverLostJobs`).
  *
  * The task marks the import from its own `catch` (`task.ts`), which a lost run
  * never reaches — so the row stays `pending`, its schedule cannot queue

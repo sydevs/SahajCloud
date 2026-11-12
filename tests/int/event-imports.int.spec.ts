@@ -15,7 +15,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { ImportResultsField } from '@/components/admin/EventImport/ImportResultsField'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
-import { recoverLostJobs } from '@/jobs/RecoverLostJobs/recover'
+import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'

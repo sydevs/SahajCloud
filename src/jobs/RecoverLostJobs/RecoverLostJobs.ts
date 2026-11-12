@@ -1,8 +1,7 @@
-import type { TaskConfig } from 'payload'
+import type { Payload, TaskConfig } from 'payload'
 
-import { STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
-
-import { recoverLostJobs } from './recover'
+import { cancelStaleJobs, STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
+import { failLostImports } from '@/plugins/eventImport'
 
 const SLUG = 'recoverLostJobs'
 
@@ -55,6 +54,20 @@ const scheduleUnlessRunning: BeforeSchedule = async (args) => {
   })
 
   return totalDocs === 0 ? { ...scheduled, shouldSchedule: true } : scheduled
+}
+
+/**
+ * Cancel the rows a lost run left `processing`, then settle the documents those
+ * runs owned, and answer how many rows were swept.
+ *
+ * Cancelling alone frees the queue and tells nobody. A document whose status
+ * the run writes still reads as in progress, because the write that would have
+ * settled it died with the container — so the two steps are one routine.
+ */
+export async function recoverLostJobs(payload: Payload): Promise<number> {
+  const cancelled = await cancelStaleJobs(payload)
+  await failLostImports(payload, cancelled)
+  return cancelled.length
 }
 
 /**

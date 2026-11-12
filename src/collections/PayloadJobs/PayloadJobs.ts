@@ -105,7 +105,7 @@ export const STALE_JOB_MS = 60 * 60 * 1000
  * row, and while it stands `countRunnableOrActiveJobsForQueue` stops its
  * schedule queueing another. A cancelled row is `hasError`, so the window above
  * sweeps it. Logs rather than throws: a failed cleanup must not end the sweep
- * that runs hourly (`@/jobs/RecoverLostJobs/recover`).
+ * that runs hourly (`@/jobs/RecoverLostJobs/RecoverLostJobs`).
  *
  * ⚠ **Deliberately gates on the window alone.** Running here is not proof the
  * row's owner died — a rolling deploy sweeps from the new container while the
