@@ -122,7 +122,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | fifty-eighth, #1131 spelling the feed's eligibility rule once (2026-11-12) | 268 / 3571    | 52.01 s (inside the gate)                    | 52.0 s     |
 | fifty-ninth, #1131 dropping the calendar menu's sub-labels (2026-11-12)    | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
 | sixtieth, #1131 fixing CI after merging `main` (2026-11-12)                | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
-| sixty-first, #1129 addressing the critic's second pass (2026-11-12)        | 270 / 3600    | 51.41 s                                      | 51.4 s     |
+| sixty-first, #1129 addressing the critic's second pass (2026-11-12)        | 270 / 3600    | 51.34 s (inside the gate)                    | 51.3 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
