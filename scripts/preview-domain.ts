@@ -47,9 +47,13 @@ const SWEEP_GRACE_MS = 24 * 60 * 60_000
 /**
  * How long to wait for a fresh Custom Domain's certificate, and how often to look.
  *
- * ⚠ The old 3-minute bound sat on top of the real provisioning time: two first
- * attaches minutes apart answered at 2m32s and past 3m, so the second failed CI
- * (#1129). A generous bound costs nothing — the loop returns on the first answer.
+ * ⚠ Cloudflare takes several minutes to provision a brand-new address's edge
+ * certificate, so a bound in single minutes fails the first push of every PR
+ * while the address itself is fine: two first attaches minutes apart answered at
+ * 2m32s and past 3m, and the old 3-minute bound failed the second (#1129). The
+ * ceiling is `ci.yml`'s `timeout-minutes`: a wait that outlives the job replaces
+ * this step's named error with an opaque job timeout, which reads as
+ * infrastructure rather than as a missing Worker.
  */
 const REACHABLE_TIMEOUT_MS = 10 * 60_000
 const REACHABLE_POLL_MS = 10_000

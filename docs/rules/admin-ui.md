@@ -198,6 +198,23 @@ A module several components share, rather than one a collection registers, goes 
 
 After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it. `tests/unit/sanitized-config-rules.spec.ts` compares it byte for byte against what the generator writes for the sanitized config, so a skipped regeneration and a stale entry both fail the unit lane.
 
+## A server field component owes its own read gate (#1126)
+
+⚠ **A field component renders on the document route and is reachable on any `form-state` request, and that request names its own row.** `handleServerFunctions` overwrites only `req`, `user`, `permissions`, `locale` and `cookies`; `id`, `collectionSlug` and `data` stay the browser's. `buildFormState` then gates on `canAccessAdmin({ req })` alone — no document access at all — and `managers` leaves `access.admin` unwritten (`docs/rules/access.md`), so that reduces to "is a manager". A `ui` field is exempt from the field-permission check above it as well, and a crafted request that omits `formState` renders the component anyway — so the gate is not optional.
+
+So a server field component that reads the database from the form's `id` — or from any other value in `data` — answers for whatever row the caller names, one request per id. `InstallSummary` handed any manager another service's embed address, region and install progress that way, and `ImportResultsField` resolved caller-chosen event ids with `overrideAccess: true`, populating each manager's name and email.
+
+Two rules, and a component usually wants both:
+
+- **Re-read the row with the caller's own `req` and `overrideAccess: false` before reading anything else, and render nothing when that refuses.** `readAsRequestUser` (`src/components/admin/helpers/readAsRequestUser.ts`) is that read, under one name a walking spec can key on. Put the gate in the shared loader where one exists — `loadInstallRecord` gates for the banner and the summary at once, so the next caller inherits it — then do the `overrideAccess: true` read past it, both inside one React `cache`. `select` the narrowest column for the gate: its value is unused.
+- **Take the values from the stored row, never from `data`.** `ManagerContacts` and `ImportResultsField` both do. A column that is `admin.readOnly` with `access.update: () => false` can never legitimately differ, so reading it back costs nothing.
+
+A component whose data genuinely needs no gate says so in a comment: `SubmissionSummary` resolves each link under the viewer's own access, and `SubmissionData`'s `formLabels` records that `forms` is `read: () => true` for everyone, so gating it would refuse nobody.
+
+**A central `form-state` wrapper is deliberately not the rule**: `form-state` is one of six base handlers taking a caller-chosen `id`, so it would read as complete while covering a sixth of the surface.
+
+Find the shape with `grep -rn "data as { id" src/components/admin/`, and the candidates with a sweep for a server component (no `'use client'`) that reaches `payload.find*`. ⚠ That sweep lists the whole population but answers nothing — it listed `SubmissionData` while #1126 was being fixed and the component was read past anyway. Open every file it names.
+
 ## Custom field components
 
 - **Destructure typed props**: `const { name, label, localized, options: fieldOptions, admin: { description } = {} } = field as SelectFieldClient`.
@@ -245,13 +262,13 @@ Four things are load-bearing:
 
 - **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
 - **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again** (`CheckAgain.tsx`, the folder's one client component) calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
-- **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens and setting the status column back to its queued value is the retry.
+- **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens. Setting the status column back to its queued value is the retry **only where someone may write it** — `imports` closes `status` to every writer, so past the window its page opens with no retry on it. What settles such a row is the hourly stale-job sweep, which cancels the job and then marks the import failed (`@/jobs/RecoverLostJobs/RecoverLostJobs`). Check which of the two a collection has before you rely on the window alone.
 - **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
 - **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
 
 **`tests/unit/sanitized-config-rules.spec.ts` holds the declaration's wiring.** Every `jobStage` a collection declares has to parse, and every collection registering `JobStageView` has to declare one — which is what answers for a collection that left `satisfies JobStageConfig` off and misspelled a key.
 
-`imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` moves it between review and completed as its drafts are published or deleted.
+`imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` finishes it once the last of its drafts is published or deleted.
 
 ⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
 
