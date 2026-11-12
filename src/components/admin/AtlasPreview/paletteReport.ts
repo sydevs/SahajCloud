@@ -18,8 +18,9 @@ export const PALETTE_REPORT_MESSAGE = 'sahaj-atlas:palette-report'
  * the swatch, so a role adjusted only by it looks exactly as entered.
  */
 const SWATCH_REASONS: Record<string, string> = {
+  'near-white': 'moved away from near-white',
   'selected-distinct': 'shifted to stand out from Primary',
-  surface: 'darkened for contrast on white',
+  surface: 'adjusted for contrast with the background',
 }
 
 /** `color1`–`color3` map to the widget's brand roles. */
@@ -32,7 +33,8 @@ const ROLE_OF_COLUMN: Record<BrandColorColumn, string> = {
 export interface Swatch {
   /** Whether the widget moved this colour's swatch away from what was entered. */
   adjusted: boolean
-  /** The solid visitors see, in light mode. */
+  /** The solid visitors see in each mode. */
+  dark: string
   light: string
   reasons: string[]
   /** A seed that renders unchanged — `null` where none is needed or none can express it. */
@@ -64,19 +66,29 @@ export function readSwatch(
   if (message?.type !== PALETTE_REPORT_MESSAGE) return null
 
   if (!isBrandColor(current)) {
+    const fallback = ATLAS_DEFAULT_COLORS[column].toUpperCase()
+
     return {
       adjusted: false,
-      light: ATLAS_DEFAULT_COLORS[column].toUpperCase(),
+      dark: fallback,
+      light: fallback,
       reasons: [],
       suggested: null,
     }
   }
 
   const report = message.roles?.[ROLE_OF_COLUMN[column]] as
-    { adjustedBy?: unknown; entered?: unknown; light?: unknown; suggested?: unknown } | undefined
+    | {
+        adjustedBy?: unknown
+        dark?: unknown
+        entered?: unknown
+        light?: unknown
+        suggested?: unknown
+      }
+    | undefined
 
   if (!report || !Array.isArray(report.adjustedBy)) return null
-  if (!isHex(report.light) || typeof report.entered !== 'string') return null
+  if (!isHex(report.light) || !isHex(report.dark) || typeof report.entered !== 'string') return null
   if (report.entered.toLowerCase() !== current.toLowerCase()) return null
 
   const checks = report.adjustedBy.filter((check) => check !== 'panel-text')
@@ -84,6 +96,7 @@ export function readSwatch(
 
   return {
     adjusted,
+    dark: report.dark.toUpperCase(),
     light: report.light.toUpperCase(),
     // A check this CMS has no words for still counts, just without a reason.
     reasons: checks.flatMap((check) => SWATCH_REASONS[check as string] ?? []),

@@ -1,13 +1,13 @@
-.color-controls {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--base) / 2);
+.atlas-preview {
+  // The Branding Colors heading with its Reset, level with each other.
+  &__group-label {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--base);
 
-  &__row {
-    align-items: stretch;
-    display: flex;
-    flex-wrap: wrap;
-    gap: calc(var(--base) / 3);
+    .field-label {
+      margin: 0;
+    }
   }
 
   &__banner {
@@ -23,16 +23,16 @@
     margin-top: calc(var(--base) / 4);
   }
 
-  // Chromeless: a swatch beside each colour's line, and nothing else.
+  // Chromeless: each colour's light and dark swatch beside its line, and nothing else.
   &__table {
     border-collapse: collapse;
 
     td {
-      padding: calc(var(--base) / 8) 0;
+      padding: calc(var(--base) / 8) calc(var(--base) / 4) calc(var(--base) / 8) 0;
       vertical-align: middle;
     }
 
-    td:first-child {
+    td:nth-child(2) {
       padding-right: calc(var(--base) / 2);
     }
   }

@@ -688,32 +688,50 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              type: 'row',
+              // Unnamed, so it groups the pickers on screen and stores nothing of its own:
+              // the colours stay top-level `color1`–`color3`.
+              type: 'group',
+              label: 'Branding Colors',
+              admin: {
+                components: { Label: '@/components/admin/AtlasPreview/BrandingColorsLabel' },
+              },
               fields: [
-                colorField({
-                  name: 'color1',
-                  label: BRAND_COLOR_LABELS.color1,
-                  fallback: ATLAS_DEFAULT_COLORS.color1,
-                }),
-                colorField({
-                  name: 'color2',
-                  label: BRAND_COLOR_LABELS.color2,
-                  fallback: ATLAS_DEFAULT_COLORS.color2,
-                }),
-                colorField({
-                  name: 'color3',
-                  label: BRAND_COLOR_LABELS.color3,
-                  fallback: ATLAS_DEFAULT_COLORS.color3,
-                }),
+                {
+                  type: 'row',
+                  fields: [
+                    colorField({
+                      name: 'color1',
+                      label: BRAND_COLOR_LABELS.color1,
+                      fallback: ATLAS_DEFAULT_COLORS.color1,
+                    }),
+                    colorField({
+                      name: 'color2',
+                      label: BRAND_COLOR_LABELS.color2,
+                      fallback: ATLAS_DEFAULT_COLORS.color2,
+                    }),
+                    colorField({
+                      name: 'color3',
+                      label: BRAND_COLOR_LABELS.color3,
+                      fallback: ATLAS_DEFAULT_COLORS.color3,
+                    }),
+                  ],
+                },
+                {
+                  // What the preview reports it rendered. Stores nothing.
+                  name: 'adjustedColors',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/AdjustedColors' },
+                  },
+                },
               ],
             },
             {
-              // What the preview reports, the light/dark switch, and the colour actions.
-              // Stores nothing.
-              name: 'colorControls',
+              // The preview's light or dark look. Stores nothing.
+              name: 'mapPreview',
               type: 'ui',
               admin: {
-                components: { Field: '@/components/admin/AtlasPreview/ColorControls' },
+                components: { Field: '@/components/admin/AtlasPreview/MapPreviewField' },
               },
             },
             {

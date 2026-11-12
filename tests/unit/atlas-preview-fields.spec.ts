@@ -1,15 +1,15 @@
 /**
  * @vitest-environment jsdom
  *
- * The controls under the Atlas tab's colour pickers, and what the atlas preview
- * reports it rendered (`sahaj-atlas:palette-report`, sydevs/SahajAtlasWeb#392).
+ * The Atlas tab's preview fields: what the atlas reports it rendered
+ * (`sahaj-atlas:palette-report`, sydevs/SahajAtlasWeb#392), the banner that shows
+ * it, and the light/dark mode sent back.
  *
- * `readSwatch` is the contract. The component tests pin what a listener
- * gets wrong — hearing a sender other than the preview frame, or missing a frame
- * that opened after the field mounted — the one action over all three, and the
- * light/dark mode reaching an atlas that starts listening after its `load`.
+ * `readSwatch` is the contract. The component tests pin what a listener gets
+ * wrong — hearing a sender other than the preview frame, or a mode dropped by an
+ * atlas that starts listening after its `load` — and the one action over all three.
  *
- * The stand-in reproduces only what the component reads: `useField` per path,
+ * The stand-in reproduces only what the components read: `useField` per path,
  * `useLivePreviewContext().iframeRef`, and a `Banner` that renders its children.
  */
 import { act, createElement } from 'react'
@@ -28,17 +28,19 @@ vi.mock('@payloadcms/ui', () => ({
     createElement('div', { className }, children),
   Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
     createElement('button', { onClick, type: 'button' }, children),
+  FieldLabel: ({ label }: { label: string }) => createElement('label', null, label),
   useField: ({ path }: { path: string }) => stub.fields[path],
   useLivePreviewContext: () => ({ iframeRef: stub.iframeRef, url: 'x' }),
 }))
 
-const { ColorControls } = await import('@/components/admin/AtlasPreview/ColorControls')
+const { AdjustedColors } = await import('@/components/admin/AtlasPreview/AdjustedColors')
+const { MapPreviewField } = await import('@/components/admin/AtlasPreview/MapPreviewField')
 
 const ATLAS = 'http://localhost:5173'
 
 const PRIMARY = {
   adjustedBy: ['surface', 'panel-text'],
-  dark: '#ffff33',
+  dark: '#fefdfb',
   entered: '#ffff00',
   light: '#979726',
   suggested: '#979726',
@@ -55,11 +57,12 @@ const ACCENT = {
 const report = (roles: Record<string, unknown>) => ({ roles, type: PALETTE_REPORT_MESSAGE })
 
 describe('readSwatch', () => {
-  it('reads the rendered colour, the reason and the suggestion', () => {
+  it('reads both modes, the reason and the suggestion', () => {
     expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#FFFF00')).toEqual({
       adjusted: true,
+      dark: '#FEFDFB',
       light: '#979726',
-      reasons: ['darkened for contrast on white'],
+      reasons: ['adjusted for contrast with the background'],
       suggested: '#979726',
     })
   })
@@ -67,6 +70,7 @@ describe('readSwatch', () => {
   it('reads a swatch the widget left alone — panel text is not the swatch', () => {
     expect(readSwatch(report({ contrast: ACCENT }), 'color3', '#ff9900')).toEqual({
       adjusted: false,
+      dark: '#FFAA33',
       light: '#C27A14',
       reasons: [],
       suggested: null,
@@ -76,6 +80,7 @@ describe('readSwatch', () => {
   it('shows an unset colour as the Atlas default, never adjusted', () => {
     expect(readSwatch(report({}), 'color2', null)).toMatchObject({
       adjusted: false,
+      dark: '#5E98BA',
       light: '#5E98BA',
     })
   })
@@ -102,71 +107,75 @@ describe('readSwatch', () => {
   })
 })
 
-describe('ColorControls', () => {
-  let container: HTMLDivElement
-  let root: Root
+let container: HTMLDivElement
+let root: Root
 
-  const openPreview = () => {
-    const frame = document.createElement('iframe')
+const openPreview = () => {
+  const frame = document.createElement('iframe')
 
-    frame.src = `${ATLAS}/?live-preview=x`
-    document.body.appendChild(frame)
-    stub.iframeRef.current = frame
+  frame.src = `${ATLAS}/?live-preview=x`
+  document.body.appendChild(frame)
+  stub.iframeRef.current = frame
 
-    return frame
-  }
+  return frame
+}
 
-  const mount = () =>
-    act(async () => {
-      root.render(createElement(ColorControls as never, {}))
-    })
-
-  const post = (data: unknown, source: Window | null, origin = ATLAS) =>
-    act(() => {
-      window.dispatchEvent(new MessageEvent('message', { data, origin, source }))
-    })
-
-  const summary = () => container.querySelector('.color-controls__banner')
-  const button = (name: string) =>
-    [...container.querySelectorAll('button')].find((b) => b.textContent === name)
-
-  beforeEach(() => {
-    stub.iframeRef.current = null
-    stub.fields = Object.fromEntries(
-      ['color1', 'color2', 'color3'].map((path) => [path, { setValue: vi.fn(), value: null }]),
-    )
-    stub.fields.color1.value = '#ffff00'
-    stub.fields.color3.value = '#ff9900'
-    container = document.createElement('div')
-    document.body.appendChild(container)
-    root = createRoot(container)
+const mount = (component: unknown) =>
+  act(async () => {
+    root.render(createElement(component as never, {}))
   })
 
-  afterEach(() => {
-    act(() => root.unmount())
-    document.body.innerHTML = ''
+const post = (data: unknown, source: Window | null, origin = ATLAS) =>
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data, origin, source }))
   })
 
-  it('shows all three colours once one is adjusted, marking each and saying why', async () => {
-    await mount()
+const banner = () => container.querySelector('.atlas-preview__banner')
+const button = (name: string) =>
+  [...container.querySelectorAll('button')].find((b) => b.textContent === name)
+
+beforeEach(() => {
+  stub.iframeRef.current = null
+  stub.fields = Object.fromEntries(
+    ['color1', 'color2', 'color3'].map((path) => [path, { setValue: vi.fn(), value: null }]),
+  )
+  stub.fields.color1.value = '#ffff00'
+  stub.fields.color3.value = '#ff9900'
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+})
+
+afterEach(() => {
+  act(() => root.unmount())
+  document.body.innerHTML = ''
+})
+
+describe('AdjustedColors', () => {
+  it('shows every colour in both modes once one is adjusted, marking each and saying why', async () => {
+    await mount(AdjustedColors)
     const frame = openPreview()
 
     await post(report({ contrast: ACCENT, primary: PRIMARY }), frame.contentWindow)
 
-    expect(summary()?.textContent).toContain('Colors are being adjusted for visibility')
-    expect(container.querySelectorAll('.color-controls__swatch')).toHaveLength(3)
+    expect(banner()?.textContent).toContain('Colors are being adjusted for visibility')
     expect(
-      [...container.querySelectorAll('.color-controls__mark')].map((m) => m.textContent),
-    ).toEqual(['!', '✓', '✓'])
+      [...container.querySelectorAll('.atlas-preview__swatch')].map((swatch) =>
+        swatch.getAttribute('title'),
+      ),
+    ).toEqual(['#979726', '#FEFDFB', '#5E98BA', '#5E98BA', '#C27A14', '#FFAA33'])
+    expect(
+      [...container.querySelectorAll('.atlas-preview__mark')].map((mark) => mark.textContent),
+    ).toEqual(['!', '!', '✓', '✓', '✓', '✓'])
     expect([...container.querySelectorAll('td:last-child')].map((td) => td.textContent)).toEqual([
-      'Primary #979726 — darkened for contrast on white',
+      'Primary — adjusted for contrast with the background.',
       'Secondary — This color is safe to use.',
       'Accent — This color is safe to use.',
     ])
   })
 
-  it('shows no summary while nothing is adjusted', async () => {
-    await mount()
+  it('shows nothing while nothing is adjusted', async () => {
+    await mount(AdjustedColors)
     const frame = openPreview()
 
     await post(
@@ -174,12 +183,11 @@ describe('ColorControls', () => {
       frame.contentWindow,
     )
 
-    expect(summary()).toBeNull()
-    expect(button('Use adjusted colors')).toBeUndefined()
+    expect(banner()).toBeNull()
   })
 
   it('applies every suggestion at once, and skips a colour with none', async () => {
-    await mount()
+    await mount(AdjustedColors)
     const frame = openPreview()
     const accent = { ...ACCENT, adjustedBy: ['selected-distinct'] }
 
@@ -191,16 +199,16 @@ describe('ColorControls', () => {
   })
 
   it('ignores the same report from any window but the preview frame', async () => {
-    await mount()
+    await mount(AdjustedColors)
     openPreview()
 
     await post(report({ contrast: ACCENT, primary: PRIMARY }), window)
 
-    expect(summary()).toBeNull()
+    expect(banner()).toBeNull()
   })
 
   it('ignores the preview frame once it has navigated to another origin', async () => {
-    await mount()
+    await mount(AdjustedColors)
     const frame = openPreview()
 
     await post(
@@ -209,14 +217,16 @@ describe('ColorControls', () => {
       'https://elsewhere.example',
     )
 
-    expect(summary()).toBeNull()
+    expect(banner()).toBeNull()
   })
+})
 
+describe('MapPreviewField', () => {
   it("re-sends the mode on the atlas's first message, and only its first", async () => {
     const frame = openPreview()
     const sent = vi.spyOn(frame.contentWindow!, 'postMessage')
 
-    await mount()
+    await mount(MapPreviewField)
     sent.mockClear()
 
     await post(report({}), frame.contentWindow)

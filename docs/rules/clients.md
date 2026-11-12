@@ -27,10 +27,12 @@ other field.
   an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
   builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
 - **The CMS computes no colours.** Any legibility correction is the widget's own. The widget
-  reports what it rendered (`sahaj-atlas:palette-report`), and `ColorControls`, under the
-  pickers, shows an info banner once any swatch moved — all three colours as visitors see them,
-  each marked moved or safe with its reason, and one **Use adjusted colors** button for
-  each colour the widget offers a seed for (`AtlasPreview/paletteReport.ts`). A `panel-text` correction
+  reports what it rendered (`sahaj-atlas:palette-report`). The pickers sit in an unnamed
+  **Branding Colors** group (Reset beside its title, the Import classes shape), and its
+  `AdjustedColors` banner appears once any swatch moved: each colour's light and dark swatch,
+  marked moved or safe, why, and one **Use adjusted colors** button for each colour the widget
+  offers a seed for (`AtlasPreview/paletteReport.ts`). The light/dark **Map Preview** toggle is
+  its own field below the group. A `panel-text` correction
   moves the text step, not the swatch, so it is not shown. ⚠ A message is accepted only from
   the preview iframe's window and origin, checked as it arrives, and a report counts only while
   its `entered` colour is still the field's value. The light/dark mode is re-sent on the atlas's
