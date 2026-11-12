@@ -82,6 +82,16 @@ const completeProgress: EventListingProgress = {
 
 const EVENT_URL = 'https://cloud.test/event/1042'
 
+/**
+ * The outlined secondary button, which only the event link uses. Keyed on the
+ * variant's own fill and border rather than its label: asserting the absence of
+ * a URL the render was never given cannot fail, and asserting the absence of
+ * "View event" puts the copy back in two places.
+ */
+const SECONDARY_BUTTON = new RegExp(
+  `border:1px solid ${getEmailBrand('sahaj-atlas').colors.primary}`,
+)
+
 const baseProps = {
   name: 'Jo Manager',
   eventTitle: 'Morning Meditation',
@@ -143,11 +153,12 @@ describe('EventVerificationEmail', () => {
   it('links the event when eventUrl is given', async () => {
     const html = await render({ level: 'due', eventUrl: EVENT_URL })
     expect(html).toContain(EVENT_URL)
+    expect(html).toMatch(SECONDARY_BUTTON)
   })
 
   it('omits the event link when eventUrl is null (unpublished)', async () => {
     const html = await render({ level: 'expired', eventUrl: null })
-    expect(html).not.toContain(EVENT_URL)
+    expect(html).not.toMatch(SECONDARY_BUTTON)
   })
 
   it('marks the urgent level as the final reminder, expired as unpublished', async () => {
