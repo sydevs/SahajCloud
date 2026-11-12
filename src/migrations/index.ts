@@ -772,6 +772,6 @@ export const migrations = [
   {
     up: migration_20261111_232203_merge_main_snapshot_8.up,
     down: migration_20261111_232203_merge_main_snapshot_8.down,
-    name: '20261111_232203_merge_main_snapshot_8'
+    name: '20261111_232203_merge_main_snapshot_8',
   },
 ];
