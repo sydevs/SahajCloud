@@ -43,7 +43,8 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
   const { collectionSlug, id, savedDocumentData } = useDocumentInfo()
   const { getDataByPath } = useForm()
   const { closeModal, isModalOpen, openModal } = useModal()
-  const [status, setStatus] = useState<SecretStatus | null>(null)
+  /** `null` until the status answers; `'unknown'` when it could not be read. */
+  const [status, setStatus] = useState<SecretStatus | 'unknown' | null>(null)
 
   const parentPath = path.split('.').slice(0, -1).join('.')
   const at = (name: string) => (parentPath ? `${parentPath}.${name}` : name)
@@ -57,10 +58,14 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
   useEffect(() => {
     if (!endpoint) return
     let current = true
-    void fetch(endpoint, { credentials: 'include' }).then(async (response) => {
-      const body = response.ok ? ((await response.json()) as SecretStatus) : null
-      if (current) setStatus(body)
-    })
+    void fetch(endpoint, { credentials: 'include' })
+      .then(async (response) =>
+        response.ok ? ((await response.json()) as SecretStatus) : ('unknown' as const),
+      )
+      .catch(() => 'unknown' as const)
+      .then((body) => {
+        if (current) setStatus(body)
+      })
     return () => {
       current = false
     }
@@ -93,7 +98,7 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
     )
   }
 
-  const stored = status?.last4 ?? null
+  const stored = status && status !== 'unknown' ? status.last4 : null
   // A staged value shows the mask alone: nothing but its token is kept client-side.
   const has = staged || (!removing && stored !== null)
   const action = has ? `Replace ${label}` : `Set ${label}`
@@ -103,7 +108,11 @@ export const SecretField: TextFieldClientComponent = ({ field, path }) => {
       ? `The ${label} is removed when you save this page.`
       : stored !== null
         ? 'Stored encrypted. It cannot be shown again.'
-        : `No ${label} is set.`
+        : status === 'unknown'
+          ? `We could not check whether a ${label} is set. Reload to try again.`
+          : status === null
+            ? ''
+            : `No ${label} is set.`
 
   return (
     <>
