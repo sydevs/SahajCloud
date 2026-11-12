@@ -16,7 +16,15 @@ import {
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type SectionSpec } from '@/lib/status'
 import type { ReadinessReport } from '@/payload-types'
-import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
+import type {
+  AppCard,
+  Lesson,
+  Manager,
+  Page,
+  Transcript,
+  UserChoice,
+  WmAppStatus,
+} from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -122,12 +130,15 @@ describe('WeMeditateAppStatus Global', () => {
    * `intro-subtitles-set` reads since a step's subtitles are its file's
    * (#1016). The upload made the row; this fills it in, as a run would.
    */
-  const transcribedRecording = async (content: string) => {
+  const transcribedRecording = async (
+    content: string,
+    language: NonNullable<Transcript['language']> = 'en',
+  ) => {
     const file = await testData.createFile(payload, {}, 'audio-42s.mp3')
     await payload.update({
       collection: 'transcripts',
       where: { source: { equals: { relationTo: 'files', value: file.id } } },
-      data: { language: 'en', segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
+      data: { language, segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
       overrideAccess: true,
     })
     return file
@@ -278,6 +289,26 @@ describe('WeMeditateAppStatus Global', () => {
           'article-has-lecture-link',
         ]),
       )
+    })
+
+    // Readiness is where an operator decides a locale is done, and the editor's
+    // own panel warns about this recording — so a finished transcript in another
+    // language cannot read green here.
+    it('fails intro-subtitles-set when the transcript is in another language', async () => {
+      const czechIntro = await transcribedRecording('Zavřete oči', 'cs')
+      const lesson = await testData.createLesson(payload, {
+        title: 'Step with a Czech recording',
+        unit: 'Unit 1',
+        step: 8,
+        introAudio: czechIntro.id,
+      } as Partial<Lesson>)
+
+      const report = await run(lessonsSection, payload)
+      const unit1 = report.groups.find((g) => g.key === 'unit-1')
+      if (unit1?.type !== 'documents') throw new Error('unit-1 is not a documents group')
+      const doc = unit1.documents.find((d) => d.id === lesson.id)
+      expect(doc?.checks.find((c) => c.key === 'intro-audio-set')?.passed).toBe(true)
+      expect(doc?.checks.find((c) => c.key === 'intro-subtitles-set')?.passed).toBe(false)
     })
 
     it('reports a step whose title is blank', async () => {

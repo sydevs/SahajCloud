@@ -199,7 +199,8 @@ No loose files at the root — every file lives in a named folder:
   by its own path
 - `transcripts/` — a recording's transcript, wherever the recording lives
   (#1016): `sync.ts` keeps the row following its file, `request.ts` is a
-  re-request and the bounds a paid run needs, `read.ts` a file's cues, and
+  re-request and the bounds a paid run needs, `read.ts` a file's cues,
+  `language.ts` whether a transcript's language is the one being read, and
   `media.ts` which files carry one at all. Meditations, files, lessons, the
   job and a seed all read it; deep imports, no barrel, because `media.ts` is
   also read in the browser

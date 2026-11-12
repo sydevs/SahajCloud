@@ -17,8 +17,9 @@ import { InfoBanner } from '@/components/admin/InfoBanner'
 import { RetryTranscript } from '@/components/admin/RecordingTranscript/RetryTranscript'
 import { transcriptUrl } from '@/components/admin/RecordingTranscript/transcriptModel'
 import { useTranscriptPhase } from '@/components/admin/RecordingTranscript/useTranscriptPhase'
-import { baseLanguage, getLocaleLabel, isValidLocale, type LocaleCode } from '@/lib/locales'
+import { getLocaleLabel, isValidLocale, type LocaleCode } from '@/lib/locales'
 import { transcriptPhase } from '@/lib/meditations/transcriptBounds'
+import { transcriptSpeaksLocale } from '@/lib/transcripts/language'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { relationId } from '@/lib/utilities/relationId'
 import type { File, Transcript } from '@/payload-types'
@@ -141,11 +142,7 @@ export function FileTranscriptPreview({ sourceField, label, checkLanguage = fals
   } else {
     const segments = row?.segments ?? []
     const language = isValidLocale(row?.language ?? '') ? (row?.language as LocaleCode) : null
-    const mismatch =
-      checkLanguage &&
-      language !== null &&
-      isValidLocale(code ?? '') &&
-      baseLanguage(language) !== baseLanguage(code as LocaleCode)
+    const mismatch = checkLanguage && language !== null && !transcriptSpeaksLocale(language, code)
     body = (
       <>
         {mismatch && (

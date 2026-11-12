@@ -120,6 +120,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | fifty-sixth, #1116 resolving a `main` conflict (2026-11-11)          | 266 / 3555    | 51.44 s (inside the gate)                    | 51.4 s     |
 | fifty-seventh, #1104 resolving a third `main` conflict (2026-11-11)  | 267 / 3599    | 55.43 s (inside the gate)                    | 55.4 s     |
 | fifty-eighth, #1104 onto file transcripts, macOS (2026-11-11)        | 266 / 3588    | 22.30 s                                      | 22.3 s     |
+| fifty-ninth, #1104 addressing a review (2026-11-12)                  | 267 / 3594    | 60.73 s (inside the gate)                    | 60.7 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
@@ -139,7 +140,7 @@ reads, so keep those labels and cell shapes when you add a row.
 
 | Metric                                                                                          | Value                                                             |
 | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests                                                                                   | 266 / 3588                                                        |
+| Files / tests                                                                                   | 267 / 3594                                                        |
 | Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
 | One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
 | Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
