@@ -68,8 +68,21 @@ export type TimedWord = {
 export const SUBTITLE_CUE_MAX_CHARS = 30
 
 /**
+ * A silence this long ends a cue, whatever its length.
+ *
+ * Borrowed from the transcript tab's paragraph break
+ * (`RecordingTranscript/transcriptModel.ts`) rather than picked, so one pause
+ * reads as a break on both screens. The two rules are separate: tuning one is
+ * not a reason to tune the other.
+ */
+export const SUBTITLE_CUE_MAX_GAP_MS = 3000
+
+/**
  * Group spoken words into subtitle cues of at most {@link SUBTITLE_CUE_MAX_CHARS}
  * characters.
+ *
+ * A pause of {@link SUBTITLE_CUE_MAX_GAP_MS} ends a cue too, so a line does not
+ * linger on screen across a silence.
  *
  * A cue takes its start from its first word and its end from its last, so a
  * silence between two words stays a silence: nothing stretches a cue to meet
@@ -97,6 +110,8 @@ export function groupWordsIntoCues(words: readonly TimedWord[]): Subtitles {
   for (const word of words) {
     const content = word.content.trim()
     if (!content) continue
+    const previous = line[line.length - 1]
+    if (previous && word.startTimeMs - previous.endTimeMs >= SUBTITLE_CUE_MAX_GAP_MS) flush()
     // The space before this word is what the limit has to account for, and the
     // first word of a cue needs none. Measured after the flush, never before:
     // a length computed against the old line is one too big for the new one.

@@ -5,6 +5,7 @@ import { jsonField } from '@/fields/jsonField'
 import {
   groupWordsIntoCues,
   SUBTITLE_CUE_MAX_CHARS,
+  SUBTITLE_CUE_MAX_GAP_MS,
   subtitlesSchema,
   subtitlesZodSchema,
   type TimedWord,
@@ -143,6 +144,31 @@ describe('groupWordsIntoCues', () => {
     expect(cues).toHaveLength(2)
     expect(cues[0]!.endTimeMs).toBe(1700)
     expect(cues[1]!.startTimeMs).toBe(9000)
+  })
+
+  // A cue held across a pause keeps its words on screen through the silence,
+  // which is what the length rule alone cannot see: these three words fit one
+  // cue twice over.
+  it('breaks a cue on a silence the length rule would not break', () => {
+    const cues = groupWordsIntoCues(words(['Be', 0, 300], ['still', 300, 800], ['now', 5000, 5400]))
+
+    expect(cues.map((cue) => cue.content)).toEqual(['Be still', 'now'])
+    expect(cues[0]).toMatchObject({ startTimeMs: 0, endTimeMs: 800 })
+    expect(cues[1]).toMatchObject({ startTimeMs: 5000, endTimeMs: 5400 })
+  })
+
+  // The bound is read here rather than retyped, so tuning it moves this case
+  // instead of reddening it.
+  it('keeps a pause shorter than the bound inside one cue', () => {
+    const cues = groupWordsIntoCues(
+      words(
+        ['Be', 0, 300],
+        ['still', 300, 800],
+        ['now', 800 + SUBTITLE_CUE_MAX_GAP_MS - 100, 6000],
+      ),
+    )
+
+    expect(cues.map((cue) => cue.content)).toEqual(['Be still now'])
   })
 
   // Splitting a word mid-syllable reads worse than one long line, so this cue
