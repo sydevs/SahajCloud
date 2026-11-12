@@ -50,9 +50,10 @@ type Recording = {
  * rebuild (`src/migrations/AGENTS.md`) for a label. The task has served files
  * too since #1016.
  *
- * ⚠ **Every write checks the row still names this job's recording.** The audio
- * can be replaced, and transcribed again, while this run waits on Lemonfox. A
- * stale run must not write cues onto the newer request's row.
+ * ⚠ **Every write checks the row is still the one this run was queued for.** The
+ * audio can be replaced, and the transcript can be asked for again in another
+ * language, while this run waits on Lemonfox. A stale run must not write cues
+ * onto the newer request's row.
  *
  * ⚠ **A failure throws, and nothing catches it.** `retries: 0`, so the throw
  * ends the run and the retained job row carries the message — which is where
@@ -125,7 +126,12 @@ export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
     const segments = normalizeLemonfoxCues(body)
     const language = askedFor ?? localeForLemonfoxLanguage(lemonfoxDetectedLanguage(body)) ?? null
 
-    if (!(await findCurrentRow(req, source, audioFilename))) {
+    // ⚠ **By id, not by truthiness.** A corrected language replaces the row
+    // and keeps `audioFilename`, so a filename match here would pass while
+    // `row.id` names a deleted document — and the update below would throw
+    // instead of answering `superseded`.
+    const current = await findCurrentRow(req, source, audioFilename)
+    if (current?.id !== row.id) {
       return { output: { status: 'superseded' } }
     }
 

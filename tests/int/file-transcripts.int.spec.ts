@@ -29,7 +29,7 @@ import type { File, Lesson, Transcript } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { runTaskHandler } from '../utils/taskRunner'
-import { testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const lemonfox = vi.hoisted(() => ({
@@ -228,6 +228,34 @@ describe('file transcripts', () => {
       const row = await transcriptOf(file.id)
       expect(row?.language ?? null).toBeNull()
       expect(row?.segments).toHaveLength(2)
+    })
+
+    // A corrected language replaces the row and keeps `audioFilename`, so a
+    // guard reading only the filename passes here and then updates an id that
+    // is gone — a throw where `superseded` is the answer.
+    it('answers superseded when a language change replaced the row mid-run', async () => {
+      const file = await testData.createFile(payload)
+      const original = await transcriptOf(file.id)
+      lemonfox.requestLemonfoxTranscript.mockImplementation(async () => {
+        await payload.delete({ collection: 'transcripts', id: original!.id, overrideAccess: true })
+        await payload.create({
+          collection: 'transcripts',
+          data: createData<'transcripts'>({
+            audioFilename: file.filename!,
+            language: 'de',
+            source: { relationTo: 'files', value: file.id },
+          }),
+          overrideAccess: true,
+        })
+        return VENDOR_BODY
+      })
+
+      const output = await transcribe(file)
+
+      expect(output.status).toBe('superseded')
+      const row = await transcriptOf(file.id)
+      expect(row?.id).not.toBe(original?.id)
+      expect(row?.segments ?? null).toBeNull()
     })
   })
 
