@@ -28547,6 +28547,7 @@
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
+        "recoverLostJobs",
         "screenSubmission",
         "sendPostEventFollowUps",
         "sendDigests",
@@ -28578,6 +28579,7 @@
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
+        "recoverLostJobs",
         "screenSubmission",
         "sendPostEventFollowUps",
         "sendDigests",
@@ -29070,6 +29072,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "37f8177c-90de-4f6a-ac89-0d76fce63d86",
+  "id": "c07eeffa-5d23-4620-a551-c8a57a681564",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

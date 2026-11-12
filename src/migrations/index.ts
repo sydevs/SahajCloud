@@ -128,7 +128,7 @@ import * as migration_20261111_182500_encrypt_mailing_list_key from './20261111_
 import * as migration_20261111_182607_recover_lost_jobs_task from './20261111_182607_recover_lost_jobs_task';
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
 import * as migration_20261111_232203_merge_main_snapshot_8 from './20261111_232203_merge_main_snapshot_8';
-import * as migration_20261112_181728_drop_mailing_list_enabled from './20261112_181728_drop_mailing_list_enabled';
+import * as migration_20261112_211802_drop_mailing_list_enabled from './20261112_211802_drop_mailing_list_enabled';
 
 export const migrations = [
   {
@@ -782,8 +782,8 @@ export const migrations = [
     name: '20261111_232203_merge_main_snapshot_8',
   },
   {
-    up: migration_20261112_181728_drop_mailing_list_enabled.up,
-    down: migration_20261112_181728_drop_mailing_list_enabled.down,
-    name: '20261112_181728_drop_mailing_list_enabled'
+    up: migration_20261112_211802_drop_mailing_list_enabled.up,
+    down: migration_20261112_211802_drop_mailing_list_enabled.down,
+    name: '20261112_211802_drop_mailing_list_enabled'
   },
 ];
