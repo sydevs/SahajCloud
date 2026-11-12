@@ -73,10 +73,19 @@ export const Lessons: CollectionConfig = {
                   relationTo: 'files',
                   admin: {
                     description: 'Image or video for this panel.',
-                    // A panel video's subtitles are its file's transcript
-                    // (#1016), shown under the field and never stored on the step.
+                  },
+                },
+                {
+                  // A panel video's subtitles are its file's transcript
+                  // (#1016), shown under the field and never stored on the step.
+                  name: 'mediaTranscript',
+                  type: 'ui',
+                  admin: {
                     components: {
-                      Description: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                      Field: {
+                        path: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                        clientProps: { fileField: 'media' },
+                      },
                     },
                   },
                 },
@@ -136,13 +145,25 @@ export const Lessons: CollectionConfig = {
               admin: {
                 description:
                   'Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.',
-                // The recording's subtitles are its file's transcript (#1016):
-                // shown under the field, corrected on the file, and never
-                // stored on the step. A panel video is shown to every language
-                // as it is, so only this field warns of another language.
+                // A panel video is shown to every language as it is, so only
+                // this field warns of a recording in another language.
                 components: {
                   beforeInput: ['@/components/admin/RecordingTranscript#RecordingLanguageWarning'],
-                  Description: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                },
+              },
+            },
+            {
+              // The recording's subtitles are its file's transcript (#1016):
+              // shown under the field, corrected on the file, and never stored
+              // on the step.
+              name: 'introTranscript',
+              type: 'ui',
+              admin: {
+                components: {
+                  Field: {
+                    path: '@/components/admin/RecordingTranscript#FileTranscriptField',
+                    clientProps: { fileField: 'introAudio' },
+                  },
                 },
               },
             },

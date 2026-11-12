@@ -56,8 +56,6 @@ vi.mock('@payloadcms/ui', () => ({
       children,
     ),
   ErrorIcon: () => null,
-  FieldDescription: ({ description }: { description?: string }) =>
-    createElement('div', { 'data-description': 'true' }, description),
   FieldLabel: ({ label }: { label?: string }) => createElement('label', null, label),
   InfoIcon: () => null,
   SelectInput: ({ label, value }: { label?: string; value?: string }) =>
@@ -70,6 +68,9 @@ vi.mock('@payloadcms/ui', () => ({
   useDocumentInfo: () => ({ data: stub.doc, id: stub.doc?.id }),
   useField: () => ({ value: stub.fieldValue }),
   useFieldPath: () => 'introAudio',
+  // The form's fields by path, as the upload field beside the transcript holds them.
+  useFormFields: (select: (context: [Record<string, { value: unknown }>]) => unknown) =>
+    select([{ introAudio: { value: stub.fieldValue } }]),
   useLocale: () => ({ code: stub.locale }),
   WarningIcon: () => null,
 }))
@@ -158,7 +159,7 @@ describe('a file’s Transcript panel', () => {
   const render = async (file: TranscribedFile) => {
     const { FileTranscript } = await import('@/components/admin/RecordingTranscript')
     act(() => {
-      root.render(createElement(FileTranscript, { file }))
+      root.render(createElement(FileTranscript, { file, ownPage: true }))
     })
     return playable()
   }
@@ -303,7 +304,7 @@ describe('a file’s Transcript panel', () => {
   describe('on the file’s own page', () => {
     const mountFilePanel = async () => {
       const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
-      mount(FileTranscriptField, { field: { type: 'ui' }, path: 'transcriptPanel' })
+      mount(FileTranscriptField, { path: 'transcriptPanel' })
     }
 
     it('offers the spoken language once a run has answered', async () => {
@@ -335,21 +336,16 @@ describe('a file’s Transcript panel', () => {
   })
 
   describe('under a Path Step’s upload field', () => {
-    const description = 'Audio introduction to this lesson.'
     const mountUnderField = async () => {
       const { FileTranscriptField } = await import('@/components/admin/RecordingTranscript')
-      mount(FileTranscriptField, {
-        field: { type: 'upload', admin: { description } },
-        path: 'introAudio',
-      })
+      mount(FileTranscriptField, { fileField: 'introAudio', path: 'introTranscript' })
     }
 
-    it('follows the field’s own description, with no label of its own', async () => {
+    // The upload field above already names the recording.
+    it('shows the file the sibling field holds, with no label of its own', async () => {
       await mountUnderField()
 
-      const shown = container.querySelector('[data-description]')
-      expect(shown?.textContent).toBe(description)
-      expect(shown?.nextElementSibling?.querySelector('audio')).not.toBeNull()
+      expect(container.querySelector('audio')?.getAttribute('src')).toBe(AUDIO.url)
       expect(container.querySelector('label')).toBeNull()
     })
 
@@ -385,22 +381,19 @@ describe('a file’s Transcript panel', () => {
       expect(container.querySelector('[data-select]')).toBeNull()
     })
 
-    it('shows the description alone for a file with no transcript to have', async () => {
+    it('shows nothing for a file with no transcript to have', async () => {
       stub.file = { ...AUDIO, mimeType: 'image/png' }
       await mountUnderField()
 
-      expect(container.querySelector('[data-description]')?.textContent).toBe(description)
-      expect(container.querySelector('audio')).toBeNull()
-      expect(phrases()).toHaveLength(0)
+      expect(container.innerHTML).toBe('')
     })
 
-    it('shows the description alone with no file chosen', async () => {
+    it('shows nothing with no file chosen', async () => {
       stub.fieldValue = null
       stub.file = undefined
       await mountUnderField()
 
-      expect(container.querySelector('[data-description]')).not.toBeNull()
-      expect(container.querySelector('audio')).toBeNull()
+      expect(container.innerHTML).toBe('')
     })
   })
 

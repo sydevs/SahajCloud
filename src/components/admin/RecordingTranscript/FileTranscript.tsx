@@ -1,15 +1,8 @@
 'use client'
 
-import type { StaticDescription } from 'payload'
+import type { UIFieldClientProps } from 'payload'
 
-import {
-  FieldDescription,
-  FieldLabel,
-  useDocumentInfo,
-  useField,
-  useFieldPath,
-  useLocale,
-} from '@payloadcms/ui'
+import { FieldLabel, useDocumentInfo, useFieldPath, useFormFields, useLocale } from '@payloadcms/ui'
 import React from 'react'
 import useSWR from 'swr'
 
@@ -37,16 +30,16 @@ export type TranscribedFile = Pick<File, 'filename' | 'mimeType' | 'mp4Url' | 'u
  */
 export function FileTranscript({
   file,
-  under = false,
+  ownPage = false,
 }: {
   file: TranscribedFile
   /**
-   * Shown under another document's upload field rather than on the file's own
-   * page: folded closed, since a Path Step carries one per panel video, and
-   * with no language control — the language is corrected on the file, for
-   * every page using it.
+   * On the file's own page: open, and with the language control. Anywhere else
+   * the file is used it is folded closed, since a Path Step carries one per
+   * panel video, and the language is corrected on the file, for every page
+   * using it.
    */
-  under?: boolean
+  ownPage?: boolean
 }) {
   const transcript = useRecordingTranscript('files', file.id)
   const { mediaRef, playback } = useMediaPlayback()
@@ -62,7 +55,7 @@ export function FileTranscript({
   return (
     <>
       <RecordingTranscript
-        collapsible={under}
+        collapsible={!ownPage}
         filename={file.filename}
         playback={playback}
         player={
@@ -76,7 +69,7 @@ export function FileTranscript({
         transcript={transcript}
       />
       {/* Below what it describes: a correction, not the first thing to read. */}
-      {!under && row && phase !== 'pending' && (
+      {ownPage && row && phase !== 'pending' && (
         <div className={styles.language}>
           <SpokenLanguage language={row.language} request={request} requesting={requesting} />
         </div>
@@ -86,67 +79,49 @@ export function FileTranscript({
 }
 
 /**
- * A file's Transcript, registered in two places (#1016):
+ * A file's Transcript, as a `ui` field (#1016).
  *
- * - **On the file's own page**, as a `ui` field: the one place its spoken
- *   language is corrected.
- * - **Under an upload field holding the file**, as that field's `Description`
- *   — the one slot Payload renders after an upload field's description, which
- *   it replaces — so it renders the description first, and the transcript
- *   reads as part of the field. A Path Step's intro audio and panel media.
+ * - **With no `fileField`**, the edited document is the file: its own page,
+ *   and the one place its spoken language is corrected.
+ * - **With a `fileField`**, it shows the file the named sibling upload field
+ *   holds, folded closed beneath it — a Path Step's intro audio and panel
+ *   media. Read-only there, and never stored on the step: the transcript is
+ *   the file's, and a retry serves every step using it.
  *
- * Read-only there, and never stored on the step: the transcript is the file's.
+ * Nothing renders for a file with no transcript to have, or none chosen.
  */
 export function FileTranscriptField({
-  field,
+  fileField,
   path,
-}: {
-  field?: { type?: string; admin?: { description?: unknown } }
-  path?: string
-}) {
-  const under = field?.type === 'upload'
-  const fieldPath = useFieldPath() || path || ''
-  const file = useShownFile(under, fieldPath)
-  const panel =
-    file && transcribableMedia(file.mimeType) ? (
-      // Keyed, so a swapped file starts its player and playhead afresh.
-      <FileTranscript file={file} key={file.id} under={under} />
-    ) : null
+}: UIFieldClientProps & { fileField?: string }) {
+  const fieldPath = useFieldPath() || path
+  // A sibling's path: `panels.0.mediaTranscript` reads `panels.0.media`.
+  const file = useShownFile(fileField ? fieldPath.replace(/[^.]+$/, fileField) : null)
+  if (!file || !transcribableMedia(file.mimeType)) return null
 
-  if (under) {
-    return (
-      <>
-        <FieldDescription
-          description={field?.admin?.description as StaticDescription | undefined}
-          path={fieldPath}
-        />
-        {panel && <div style={{ marginTop: 'calc(var(--base) * 0.75)' }}>{panel}</div>}
-      </>
-    )
-  }
-  if (!panel) return null
   return (
     <div className="field-type" style={{ marginBottom: 'var(--spacing-field)' }}>
-      <FieldLabel label="Transcript" path={fieldPath} />
-      {panel}
+      {!fileField && <FieldLabel label="Transcript" path={fieldPath} />}
+      {/* Keyed, so a swapped file starts its player and playhead afresh. */}
+      <FileTranscript file={file} key={file.id} ownPage={!fileField} />
     </div>
   )
 }
 
 /**
- * The file the panel shows: the one an upload field holds, read by id — or,
- * on the file's own page, the saved document itself.
+ * The file the panel shows: the one an upload field at `uploadPath` holds,
+ * read by id — or, with none, the saved document itself.
  */
-function useShownFile(under: boolean, path: string): TranscribedFile | undefined {
+function useShownFile(uploadPath: string | null): TranscribedFile | undefined {
   const { data, id } = useDocumentInfo()
-  const { value } = useField<unknown>({ path })
+  const value = useFormFields(([fields]) => (uploadPath ? fields[uploadPath]?.value : undefined))
   const { code } = useLocale()
   const { data: list } = useSWR(
-    under ? fileUrl(relationId(value), code) : null,
+    uploadPath ? fileUrl(relationId(value), code) : null,
     payloadListFetcher<File>,
     { revalidateOnFocus: false },
   )
-  if (under) return list?.docs?.[0]
+  if (uploadPath) return list?.docs?.[0]
   if (!id) return undefined
   return {
     filename: data?.filename as string | null | undefined,
