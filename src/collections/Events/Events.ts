@@ -24,7 +24,6 @@ import {
   urlField,
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
-import { isPublished } from '@/fields/publicUrlFields'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
@@ -43,7 +42,6 @@ import {
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
-import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   adminOnlyCondition,
@@ -57,7 +55,7 @@ import { relationId } from '@/plugins/access/documentManagers'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 import { signEventCalendarToken } from './calendarToken'
-import { eventCalendarFeed } from './endpoints/calendarFeed'
+import { calendarFeedAnswer, eventCalendarFeed } from './endpoints/calendarFeed'
 import { eventsGeoJson } from './endpoints/geojson'
 import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
@@ -844,7 +842,7 @@ export const Events: CollectionConfig = {
           name: 'calendarFeedUrl',
           type: 'text',
           virtual: true,
-          custom: virtualFieldInputs('_status', 'schedule', 'inactive'),
+          custom: virtualFieldInputs('_status', 'deletedAt', 'inactive', 'schedule', 'updatedAt'),
           admin: {
             readOnly: true,
             disableListColumn: true,
@@ -855,14 +853,9 @@ export const Events: CollectionConfig = {
             afterRead: [
               async ({ data, findMany, req }) => {
                 if (findMany || !data?.id) return null
-                if (!isPublished(data._status, req.locale)) return null
-                // ⚠ The three states the feed itself answers 404 for, and a
-                // published class can be in all three: a finished class stays
-                // published on purpose (#603), and one with no resolvable schedule
-                // has no document to build. An address for any of them is a menu
-                // row that opens nothing.
-                if (data.inactive || !data.schedule?.firstDate) return null
-                if (shouldFinish({ inactive: data.inactive, schedule: data.schedule })) return null
+                // The feed's own rule, so no address is handed out for a class it
+                // refuses or answers a cancellation for.
+                if (calendarFeedAnswer(data, req.locale, new Date()) !== 'live') return null
                 const token = await signEventCalendarToken(
                   { eventId: Number(data.id) },
                   req.payload.secret,

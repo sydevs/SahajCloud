@@ -529,6 +529,37 @@ describe('event calendar feed', () => {
       expect(doc.calendarFeedUrl).toBeNull()
     })
 
+    /**
+     * The feed answers a withdrawn class a cancellation, never its sessions, so an
+     * address here would be a menu row offering a class that is down.
+     */
+    it('is null for a trashed class the feed still answers', async () => {
+      const trashed = await createClass({
+        title: 'Trashed Addressed Class',
+        eventType: 'online',
+        onlineUrl: 'https://example.com/trashed-addressed',
+        schedule: weekly(18),
+      })
+      await payload.update({
+        collection: 'events',
+        id: trashed.id,
+        data: { deletedAt: new Date(Date.now() - 2 * DAY_MS).toISOString() },
+        trash: true,
+      })
+
+      const feed = await anon(await feedPath(trashed.id))
+      expect(feed.status).toBe(200)
+      expect(feed.raw).toContain('STATUS:CANCELLED')
+
+      const doc = await payload.findByID({
+        collection: 'events',
+        id: trashed.id,
+        select: { calendarFeedUrl: true },
+        trash: true,
+      })
+      expect(doc.calendarFeedUrl).toBeNull()
+    })
+
     it('is null for an unpublished class', async () => {
       await payload.update({ collection: 'events', id: eventId, data: { _status: 'draft' } })
 

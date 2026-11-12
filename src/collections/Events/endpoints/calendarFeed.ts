@@ -4,9 +4,11 @@ import { isPublished } from '@/fields/publicUrlFields'
 import { addressOneLine } from '@/lib/notifications/eventDetails'
 import { lexicalToPlainText } from '@/lib/richEditor/lexicalToPlainText'
 import { buildEventCalendar, ICalEventStatus } from '@/lib/schedule/icsBuilder'
+import { buildRRuleTemporal } from '@/lib/schedule/scheduleHooks'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
+import type { EventSchedule } from '@/types/schedule'
 
 import { readEventCalendarToken } from '../calendarToken'
 
@@ -97,6 +99,75 @@ function ageMs(value: string | null | undefined, now: number): number | null {
 }
 
 /**
+ * Whether the schedule yields a recurrence, which is what every answer needs a
+ * document from.
+ *
+ * ⚠ **A throw is an unresolvable schedule, not an error to surface.**
+ * `buildRRuleTemporal` leaves its `until` parse and the rule construction
+ * outside its own try, so a stored schedule neither can read throws — and this
+ * runs on an ordinary `events` document read, where a 500 would replace a class
+ * that simply has no feed.
+ */
+function hasRecurrence(schedule: Partial<EventSchedule> | null | undefined): boolean {
+  try {
+    return buildRRuleTemporal(schedule ?? {}) != null
+  } catch {
+    return false
+  }
+}
+
+/** What the feed has to say about a class. */
+export type CalendarFeedAnswer = 'live' | 'cancelled' | 'none'
+
+/** What {@link calendarFeedAnswer} reads. A field hook is handed a partial document. */
+export interface CalendarFeedSubject {
+  _status?: unknown
+  deletedAt?: string | null
+  inactive?: boolean | null
+  schedule?: Partial<EventSchedule> | null
+  updatedAt?: string | null
+}
+
+/**
+ * The one rule deciding what this feed answers.
+ *
+ * ⚠ **`Events.calendarFeedUrl` hands out this feed's address, so it reads this
+ * rule too** and withholds an address for anything but `live`. Written once
+ * here: two spellings let the field advertise a class the feed refuses, and no
+ * spec would fail.
+ */
+export function calendarFeedAnswer(
+  event: CalendarFeedSubject,
+  locale: string | undefined,
+  now: Date,
+): CalendarFeedAnswer {
+  // Nothing to build in either direction without a resolvable recurrence.
+  if (!hasRecurrence(event.schedule)) return 'none'
+
+  if (!isPublished(event._status, locale) || event.deletedAt != null) {
+    // ⚠ An unpublished class has no takedown timestamp of its own, so the window
+    // runs from `updatedAt` — which any later write restarts. The effect is that a
+    // class somebody keeps editing while unpublished keeps answering CANCELLED past
+    // 90 days, which is the harmless direction: it tells subscribers to drop a
+    // class that is in fact down.
+    const withdrawnAge = ageMs(event.deletedAt ?? event.updatedAt, now.getTime())
+    // Outside the window the class is gone for good: every subscriber has had
+    // 90 days of cancelled answers to clear it.
+    if (withdrawnAge == null || withdrawnAge > CANCELLED_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
+      return 'none'
+    }
+    return 'cancelled'
+  }
+
+  // A dormant class has no sessions to subscribe to, and a finished one has none
+  // left to cancel — the public feeds have already dropped it. The `inactive`
+  // check is its own, rather than left to the recurrence failing to resolve: a
+  // dormant row can still carry a stale `schedule.firstDate`.
+  if (event.inactive || shouldFinish(event, now)) return 'none'
+  return 'live'
+}
+
+/**
  * GET /api/events/calendar/:file — one class as a subscribable iCalendar feed.
  *
  * ⚠ **No `requireActiveClient`, and no hand-rolled substitute.** A calendar
@@ -146,29 +217,9 @@ export const eventCalendarFeed: Endpoint = {
     })) as Event | null
     if (!event) return notFound()
 
-    const now = Date.now()
-    const live = isPublished(event._status, req.locale) && event.deletedAt == null
-    // ⚠ An unpublished class has no takedown timestamp of its own, so the window
-    // runs from `updatedAt` — which any later write restarts. The effect is that a
-    // class somebody keeps editing while unpublished keeps answering CANCELLED past
-    // 90 days, which is the harmless direction: it tells subscribers to drop a
-    // class that is in fact down.
-    const withdrawnAge = ageMs(event.deletedAt ?? event.updatedAt, now)
-
-    if (!live) {
-      // Outside the window the class is gone for good: every subscriber has had
-      // 90 days of cancelled answers to clear it.
-      if (withdrawnAge == null || withdrawnAge > CANCELLED_WINDOW_DAYS * 24 * 60 * 60 * 1000) {
-        return notFound()
-      }
-    } else if (event.inactive || shouldFinish(event, new Date(now))) {
-      // A dormant class has no sessions to subscribe to, and a finished one has
-      // none left to cancel — the public feeds have already dropped it. The
-      // `inactive` check is its own, rather than left to the builder answering
-      // null: a dormant row can still carry a stale `schedule.firstDate`, which
-      // would otherwise serve a class that is not running.
-      return notFound()
-    }
+    const answer = calendarFeedAnswer(event, req.locale, new Date())
+    if (answer === 'none') return notFound()
+    const live = answer === 'live'
 
     const document = buildEventCalendar({
       title: event.title,
@@ -187,8 +238,8 @@ export const eventCalendarFeed: Endpoint = {
           }
         : { status: ICalEventStatus.CANCELLED }),
     })
-    // The one case the builder refuses on its own: a schedule with no usable
-    // `firstDate`.
+    // Unreachable: the answer above required a resolvable recurrence, which is the
+    // one thing the builder refuses. Kept because its signature still admits null.
     if (document === null) return notFound()
 
     return new Response(document, {
