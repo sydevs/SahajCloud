@@ -1,13 +1,12 @@
-import type { CollectionAfterChangeHook, PayloadRequest } from 'payload'
+import type { CollectionAfterChangeHook, Payload, PayloadRequest } from 'payload'
+
+import { createLocalReq } from 'payload'
 
 import { isValidLocale, type LocaleCode } from '@/lib/locales'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
-import type { Transcript } from '@/payload-types'
 
 import { type RecordingCollection, transcribableMedia } from './media'
-
-/** A recording a transcript can belong to: its own upload row. */
-export type TranscriptSource = { relationTo: RecordingCollection; value: number }
+import { findTranscript, type TranscriptSource } from './read'
 
 /**
  * `req.context.importedTranscript`: cues that already exist for the recording
@@ -17,30 +16,6 @@ export type TranscriptSource = { relationTo: RecordingCollection; value: number 
  * hard-codes an empty `context`.
  */
 export type ImportedTranscript = { language: LocaleCode; segments: TranscriptSegment[] }
-
-/**
- * The recording's transcript row. `source` is unique, so there is at most one.
- *
- * ⚠ **No `select`, because the row has to arrive whole.** `status` is virtual,
- * computed by its own `afterRead` from `segmentCount` and `job`
- * (`Transcripts.ts`), so a `select` would starve that hook and every row would
- * read `completed`.
- */
-export async function findTranscript(
-  req: PayloadRequest,
-  source: TranscriptSource,
-): Promise<Transcript | undefined> {
-  const { docs } = await req.payload.find({
-    collection: 'transcripts',
-    where: { source: { equals: source } },
-    depth: 0,
-    limit: 1,
-    pagination: false,
-    overrideAccess: true,
-    req,
-  })
-  return docs[0]
-}
 
 /**
  * Make the recording's transcript row follow its current file, and nothing else.
@@ -106,7 +81,7 @@ export async function syncRecordingTranscript(
  * **A video is not transcribed here.** It is a Cloudflare Stream upload whose
  * MP4 — the only form the vendor can fetch — exists only after Stream has
  * processed it, so its transcript starts from Stream's `ready` webhook instead
- * (`transcribeStreamVideo`).
+ * (`transcribeStreamVideo`, below).
  *
  * The language is the recording's own `locale` where it has one — a meditation
  * is one language — and left empty otherwise, for the run to detect: a file has
@@ -131,3 +106,35 @@ export const syncTranscriptOnSave =
     })
     return doc
   }
+
+/**
+ * Start a video file's transcript once Cloudflare Stream reports it ready —
+ * the counterpart of `syncTranscriptOnSave`, which starts an MP3's on save.
+ *
+ * Called by the Stream webhook after it enables downloads, so the MP4 the run
+ * fetches is on its way (the run still waits for it: `TranscribeRecording`).
+ * A `videos` upload shares the account and the webhook, and finds no `files`
+ * row here, which is the answer wanted.
+ *
+ * Idempotent, because Cloudflare may deliver `ready` more than once:
+ * `syncRecordingTranscript` leaves a row naming this filename alone.
+ */
+export async function transcribeStreamVideo(payload: Payload, uid: string): Promise<void> {
+  const { docs } = await payload.find({
+    collection: 'files',
+    where: { filename: { equals: uid } },
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    select: { filename: true, mimeType: true },
+  })
+  const file = docs[0]
+  if (!file?.filename || transcribableMedia(file.mimeType) !== 'video') return
+
+  await syncRecordingTranscript(await createLocalReq({}, payload), {
+    source: { relationTo: 'files', value: file.id },
+    audioFilename: file.filename,
+    language: null,
+  })
+}

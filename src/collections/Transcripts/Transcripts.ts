@@ -3,10 +3,10 @@ import type { CollectionConfig } from 'payload'
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
 import { getLocaleOptions } from '@/lib/locales'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import {
   TRANSCRIPT_PROVIDERS,
   TRANSCRIPT_STATUSES,
-  TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
 } from '@/lib/transcripts/schema'
 import { virtualFieldInputs } from '@/plugins/virtualFields'

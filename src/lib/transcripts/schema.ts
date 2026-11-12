@@ -44,9 +44,3 @@ export type TranscriptStatus = (typeof TRANSCRIPT_STATUSES)[number]
 export const TRANSCRIPT_PROVIDERS = ['lemonfox', 'imported'] as const
 
 export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
-
-/**
- * Re-exported, not declared here: a `'use client'` consumer must reach the
- * bound without this module's zod schemas. `./bounds` says why.
- */
-export { TRANSCRIPTION_STALL_MS } from './bounds'

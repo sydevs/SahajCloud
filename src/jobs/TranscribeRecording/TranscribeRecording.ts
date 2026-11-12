@@ -7,8 +7,7 @@ import { localeForLemonfoxLanguage } from '@/lib/lemonfox/languages'
 import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from '@/lib/lemonfox/normalize'
 import type { LocaleCode } from '@/lib/locales'
 import { transcribableMedia } from '@/lib/transcripts/media'
-import { transcriptHasCues } from '@/lib/transcripts/read'
-import { findTranscript, type TranscriptSource } from '@/lib/transcripts/sync'
+import { findTranscript, type TranscriptSource } from '@/lib/transcripts/read'
 import { originOf } from '@/lib/utilities/url'
 import type { Transcript } from '@/payload-types'
 import { getCloudflareStreamMp4Url, getR2Url } from '@/plugins/storage'
@@ -99,7 +98,7 @@ export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
     // The recording was replaced, which deleted this row. Nothing to write, and
     // nothing wrong: the replacement queued its own run.
     if (!row) return { output: { status: 'superseded' } }
-    if (transcriptHasCues(row)) return { output: { status: 'completed' } }
+    if (row.segmentCount) return { output: { status: 'completed' } }
 
     if (recording?.filename !== audioFilename) {
       throw new ExpectedJobFailure('The recording was replaced while it was being transcribed.')

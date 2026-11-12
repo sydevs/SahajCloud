@@ -16,7 +16,7 @@ import {
   transcriptPhaseIsRetryable,
 } from '@/lib/transcripts/bounds'
 
-import { findTranscript, type TranscriptSource } from './sync'
+import { findTranscript, type TranscriptSource, whereSource } from './read'
 
 export const transcriptRefusal = (
   message: string,
@@ -130,7 +130,7 @@ export async function requestTranscript(
       // — with the real cause logged nowhere.
       const { errors } = await req.payload.delete({
         collection: 'transcripts',
-        where: { source: { equals: source } },
+        where: whereSource(source),
         overrideAccess: true,
         req,
       })

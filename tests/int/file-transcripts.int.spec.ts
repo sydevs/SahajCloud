@@ -24,8 +24,8 @@ import type { Payload } from 'payload'
 import { extractID } from 'payload/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { transcribeStreamVideo } from '@/collections/Files/transcribeStreamVideo'
 import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
+import { transcribeStreamVideo } from '@/lib/transcripts/sync'
 import type { File, Lesson, Transcript } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'

@@ -24,9 +24,9 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 
-import { transcribeStreamVideo } from '@/collections/Files/transcribeStreamVideo'
 import { serverEnv } from '@/lib/env'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
+import { transcribeStreamVideo } from '@/lib/transcripts/sync'
 import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 

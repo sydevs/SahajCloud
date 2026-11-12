@@ -34,7 +34,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
 import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/transcripts/bounds'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/schema'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Transcript } from '@/payload-types'
 
 const PREVIEW_ORIGIN = 'https://preview.example'

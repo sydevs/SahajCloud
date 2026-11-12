@@ -1,24 +1,52 @@
+import type { RecordingCollection } from './media'
 import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { extractID } from 'payload/shared'
 
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Subtitles } from '@/lib/utilities/subtitles'
+import type { Transcript } from '@/payload-types'
+
+/** A recording a transcript can belong to: its own upload row. */
+export type TranscriptSource = { relationTo: RecordingCollection; value: number }
 
 /**
- * The polymorphic `source` clause for one file.
+ * The `where` naming one recording's transcript row.
  *
- * ⚠ **One `equals` per file, never `source.value`.** Payload resolves only that
- * spelling, and the bare value would match a meditation of the same number
- * (`Transcripts.ts`).
+ * ⚠ **Always this spelling, never `source.value`.** Payload resolves only an
+ * `equals` on the whole pair, and the bare value would match a meditation and
+ * a file of the same number (`Transcripts.ts`).
  */
-const fileSource = (fileId: number | string): Where => ({
-  source: { equals: { relationTo: 'files', value: fileId } },
-})
+export const whereSource = (source: {
+  relationTo: RecordingCollection
+  value: number | string
+}): Where => ({ source: { equals: source } })
 
-/** Whether a transcript row already carries its cues. */
-export function transcriptHasCues(row: { segments?: unknown } | null | undefined): boolean {
-  return Array.isArray(row?.segments) && row.segments.length > 0
+const fileSource = (fileId: number | string): Where =>
+  whereSource({ relationTo: 'files', value: fileId })
+
+/**
+ * The recording's transcript row. `source` is unique, so there is at most one.
+ *
+ * ⚠ **No `select`, because the row has to arrive whole.** `status` is virtual,
+ * computed by its own `afterRead` from `segmentCount` and `job`
+ * (`Transcripts.ts`), so a `select` would starve that hook and every row would
+ * read `completed`.
+ */
+export async function findTranscript(
+  req: PayloadRequest,
+  source: TranscriptSource,
+): Promise<Transcript | undefined> {
+  const { docs } = await req.payload.find({
+    collection: 'transcripts',
+    where: whereSource(source),
+    depth: 0,
+    limit: 1,
+    pagination: false,
+    overrideAccess: true,
+    req,
+  })
+  return docs[0]
 }
 
 /**

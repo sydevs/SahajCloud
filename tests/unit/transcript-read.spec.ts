@@ -12,11 +12,7 @@ import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  readFileSubtitles,
-  readFinishedFileTranscripts,
-  transcriptHasCues,
-} from '@/lib/transcripts/read'
+import { readFileSubtitles, readFinishedFileTranscripts } from '@/lib/transcripts/read'
 
 const cue = (content: string) => [{ content, startTimeMs: 0, endTimeMs: 1000 }]
 
@@ -113,18 +109,5 @@ describe('readFinishedFileTranscripts', () => {
     const find = vi.fn()
     expect(await readFinishedFileTranscripts({ find } as unknown as Payload, [])).toEqual([])
     expect(find).not.toHaveBeenCalled()
-  })
-})
-
-describe('transcriptHasCues', () => {
-  it.each([
-    [{ segments: cue('a') }, true],
-    [{ segments: [] }, false],
-    [{ segments: null }, false],
-    [{}, false],
-    [null, false],
-    [undefined, false],
-  ])('answers %o as %s', (row, expected) => {
-    expect(transcriptHasCues(row)).toBe(expected)
   })
 })
