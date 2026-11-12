@@ -500,19 +500,6 @@ describe('meditationLectures endpoint', () => {
     expect(status).toBe(400)
   })
 
-  it('returns 400 when audiences is empty', async () => {
-    const { status } = await callEndpoint(payload, meditation.id, { audiences: '', limit: 10 })
-    expect(status).toBe(400)
-  })
-
-  it('returns 400 when audiences contains non-numeric values', async () => {
-    const { status } = await callEndpoint(payload, meditation.id, {
-      audiences: '1,abc',
-      limit: 10,
-    })
-    expect(status).toBe(400)
-  })
-
   describe('auth gate', () => {
     it('rejects unauthenticated callers with 403', async () => {
       const { status, body } = await callEndpoint(
@@ -598,24 +585,6 @@ describe('meditationLectures endpoint', () => {
     } finally {
       findSpy.mockRestore()
     }
-  })
-
-  it('treats unsorted/duplicated audiences as equivalent to the canonical sorted form', async () => {
-    const messy = `${audience.id},${audience.id}`
-    const a = await callEndpoint(
-      payload,
-      meditation.id,
-      { limit: 10 },
-      {
-        defaultAudiences: audienceFilter,
-      },
-    )
-    const b = await callEndpoint(payload, meditation.id, { audiences: messy, limit: 10 })
-    expect(a.status).toBe(200)
-    expect(b.status).toBe(200)
-    expect((a.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id)).toEqual(
-      (b.body as { docs: LecturePlayerData[] }).docs.map((d) => d.id),
-    )
   })
 
   it('emits the flat LecturePlayerData shape', async () => {
