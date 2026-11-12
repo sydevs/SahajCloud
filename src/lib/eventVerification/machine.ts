@@ -1,6 +1,6 @@
 import { ANY_STATE, type Move, type StateMachine } from '@/lib/stateMachine/machine'
 
-import { LADDER, STAGES, VERIFICATION_STAGES, type VerificationStage } from './stages'
+import { LADDER, LADDER_STEPS, VERIFICATION_STAGES, type VerificationStage } from './stages'
 
 /**
  * Every writer that may move an event's verification stage.
@@ -27,15 +27,15 @@ export type EventActor = (typeof EVENT_ACTORS)[number]
 /**
  * The reminder ladder, as moves.
  *
- * Derived from `STAGES` rather than listed again: the job advances a stage to
- * whatever its own `onDue` action names, so a second spelling here would be
- * free to disagree with what the job actually does.
+ * Read off the ladder's own steps rather than listed again: the job advances a
+ * stage to whatever its own `onDue` action names, so a second spelling here
+ * would be free to disagree with what the job actually does.
  */
-const LADDER_MOVES: Move<VerificationStage, EventActor>[] = LADDER.flatMap((stage) => {
-  const action = STAGES[stage].onDue
-  if (action.kind !== 'remind') return []
-  return [{ from: [stage], to: action.nextStage, by: ['job:expireEvents'] as const }]
-})
+const LADDER_MOVES: Move<VerificationStage, EventActor>[] = LADDER_STEPS.map((step) => ({
+  from: [step.from],
+  to: step.to,
+  by: ['job:expireEvents'] as const,
+}))
 
 /** Where a manager's save may re-open a verification cycle from. */
 const RE_SAVE_FROM: VerificationStage[] = [...LADDER, 'expired', 'finished']

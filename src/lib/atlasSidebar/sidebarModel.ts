@@ -100,7 +100,7 @@ export function bucketForEvent(event: {
   deletedAt?: string | null
 }): EventBucket {
   if (event.deletedAt) return 'trashed'
-  return BUCKET_BY_STAGE[event.verificationStage] ?? 'verified'
+  return BUCKET_BY_STAGE[event.verificationStage]
 }
 
 /** Untitled events still need a stable, clickable label. */

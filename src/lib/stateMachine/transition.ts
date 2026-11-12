@@ -6,14 +6,15 @@ import { withActor } from './actor'
 import { can, type StateMachine } from './machine'
 
 /**
- * The write a transition makes, for a collection whose stage changes cannot go
- * through a plain `payload.update`.
+ * The write a transition makes, where the default one will not do.
  *
- * Events is that collection: its stage writes are derived bookkeeping, and
- * re-validating the stored document would let a manager's unrelated data
- * problem pin a listing on a stage forever (#842). It passes
- * `updateEventBookkeeping` here rather than this module learning Payload's
- * validation-scoping flag on its behalf.
+ * ⚠ **Two reasons, and a caller says which.** Either the collection's state
+ * writes must not re-validate the stored document — Events, where a manager's
+ * unrelated data problem would otherwise pin a listing on a stage forever
+ * (#842) — or the caller needs an id-addressed write: one that throws
+ * `Forbidden` rather than narrowing the selection, or that hands back the
+ * document it wrote. The second kind forgoes the claim, which costs nothing
+ * where no slow work precedes the write.
  */
 export type TransitionWrite = (args: {
   data: Record<string, unknown>

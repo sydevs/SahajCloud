@@ -1,8 +1,7 @@
-import type { Payload, PayloadRequest, TaskConfig, Where } from 'payload'
+import type { Payload, PayloadRequest, RequestContext, TaskConfig, Where } from 'payload'
 
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
-import type { EventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import { updateEventBookkeeping } from '@/lib/events/updateEventWithoutValidation'
 import {
   asNotificationLog,
@@ -12,7 +11,7 @@ import {
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { addDays } from '@/lib/eventVerification/periods'
 import { stageAction, transitionUnpublishes, unpublishDate } from '@/lib/eventVerification/stages'
-import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
+import { remindersSilenced, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
   buildEventListingProgress,
@@ -37,15 +36,20 @@ import { reminderButtonUrl } from './verifyUrl'
  * a derived-bookkeeping write must not re-validate stored data — and the
  * hazards it carries live on `updateEventBookkeeping` (#842).
  */
+/**
+ * This job's own allowance, narrower than the shared helper's ceiling. The type
+ * is what keeps a fourth field out of a write that skips validation, so it
+ * stays here rather than widening to every bookkeeping writer's fields.
+ */
+type BookkeepingData = Partial<Pick<Event, '_status' | 'nextCheckAt' | 'verificationStage'>>
+
 async function updateBookkeeping(args: {
   payload: Payload
   req: PayloadRequest
   id: number
-  // This job's own allowance, narrower than the shared helper's ceiling. The
-  // type is what keeps a fourth field out of a write that skips validation, so
-  // it stays here rather than widening to every bookkeeping writer's fields.
-  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | '_status'>>
+  data: BookkeepingData
   expect?: Where
+  context?: RequestContext
 }): Promise<boolean> {
   return updateEventBookkeeping(args)
 }
@@ -59,14 +63,10 @@ async function updateBookkeeping(args: {
  */
 function bookkeepingWrite(payload: Payload, req: PayloadRequest, id: number): TransitionWrite {
   return ({ data, expect, context }) =>
-    updateEventBookkeeping({
-      payload,
-      id,
-      data: data as EventBookkeeping,
-      expect,
-      context,
-      req,
-    })
+    // The cast is where `transition`'s open patch meets this job's own narrow
+    // allowance, which is what keeps a fourth field out of a write that skips
+    // validation.
+    updateBookkeeping({ payload, req, id, data: data as BookkeepingData, expect, context })
 }
 
 interface ExpireResult {
@@ -176,7 +176,10 @@ async function processEvent(args: {
   // watermark rule already leaves such a row out of the due query from its next
   // save on; this answers the rows written before that rule existed, by writing
   // the watermark the rule now gives them.
-  if (action.kind === 'remind' && event._status !== 'published') {
+  //
+  // shortcut: a backfill in the run rather than a migration, because the rows
+  // clear themselves one run each; delete it once no row predates #1121.
+  if (remindersSilenced({ stage, status: event._status })) {
     await updateBookkeeping({
       payload,
       req,

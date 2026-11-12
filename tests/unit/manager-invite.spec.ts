@@ -165,18 +165,14 @@ describe('summarizeGrants', () => {
         {
           label: 'Events',
           singular: 'Event',
-          // Each class also carries its brief — asserted on its own below.
+          // No brief: `describeEvents` is off unless the caller renders one.
           items: [
-            { title: TUESDAY.title, url: TUESDAY.url, event: expect.anything() },
-            { title: DRAFT.title, url: null, event: expect.anything() },
+            { title: TUESDAY.title, url: TUESDAY.url },
+            { title: DRAFT.title, url: null },
           ],
         },
       ],
     })
-    // Only a class gets a brief: a region or a page has no listing to describe.
-    const regions = atlas!.responsibilities.find((r) => r.label === 'Regions')
-    expect(regions!.items[0]!.event).toBeUndefined()
-
     // Each join asks its own collection for the documents naming this manager.
     expect(reads.find((read) => read.collection === 'events')?.where?.and?.[0]).toEqual({
       manager: { in: [1] },
@@ -187,10 +183,23 @@ describe('summarizeGrants', () => {
   })
 
   it('marks a class the community had voted down, from the tally the adoption left', async () => {
-    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED] })
+    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED], regions: [BERLIN] })
 
-    const [atlas] = await summarizeGrants({ ...managers, payload, type: 'manager' })
+    // ⚠ Only the invitation asks for a brief: the preview sign-in picker
+    // summarises up to 25 accounts to print one line each, and would pay for a
+    // listing checklist per class it renders nothing from.
+    const [atlas] = await summarizeGrants({
+      ...managers,
+      describeEvents: true,
+      payload,
+      type: 'manager',
+    })
     const items = atlas!.responsibilities.find((r) => r.label === 'Events')!.items
+
+    // A region has no listing to describe.
+    expect(
+      atlas!.responsibilities.find((r) => r.label === 'Regions')!.items[0]!.event,
+    ).toBeUndefined()
 
     // The adoption already moved it to `verified`, so the stage cannot say this
     // and the stored denials are what do.

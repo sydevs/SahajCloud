@@ -138,11 +138,6 @@ describe('User submission review lifecycle', () => {
       overrideAccess: true,
     }) as Promise<UserSubmission>
 
-  /**
-   * A system status write — screening's and delivery's shape, with no user.
-   * Both review hooks let it through, which is what puts a row at a status this
-   * file's cases start from.
-   */
   /** The status a case starts from — a fixture, never a move (`setLifecycleState`). */
   const settle = (id: number, status: UserSubmission['status']) =>
     setLifecycleState({ payload, collection: 'user-submissions', id, data: { status } })
@@ -1023,12 +1018,7 @@ describe('User submission review lifecycle', () => {
         }),
         overrideAccess: true,
       })) as UserSubmission
-      await setLifecycleState({
-        payload,
-        collection: 'user-submissions',
-        id: created.id,
-        data: { status: 'failed' },
-      })
+      await settle(created.id, 'failed')
       return created.id
     }
 

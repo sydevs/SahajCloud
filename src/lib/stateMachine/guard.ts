@@ -7,20 +7,13 @@ import { capture } from '@/plugins/sentry/capture'
 import { declaredActor } from './actor'
 import { can, type StateMachine } from './machine'
 
-/** What one write means for a machine. */
-export type TransitionVerdict =
-  | { kind: 'legal' }
-  | { kind: 'illegal'; reason: string }
-  /** The write never moved the state, so there is nothing to judge. */
-  | { kind: 'none' }
-
 /**
- * Judge one write against the table.
+ * Judge one write against the table: the refusal's reason, or `null`.
  *
  * `to` absent means the write left the column alone — a collection
  * `beforeChange` receives the patch, not the merged document, so an absent key
  * is the only way to tell "unchanged" from "set to the value it already held".
- * Both are `none`: the document form re-posts every stored field.
+ * Both are legal: the document form re-posts every stored field.
  */
 export function judgeTransition<State extends string, Actor extends string>(args: {
   machine: StateMachine<State, Actor>
@@ -28,22 +21,19 @@ export function judgeTransition<State extends string, Actor extends string>(args
   to: State | null | undefined
   /** `null` for a writer that named none. */
   by: Actor | null
-}): TransitionVerdict {
+}): string | null {
   const { machine, from, to, by } = args
-  if (from == null || to == null || to === from) return { kind: 'none' }
+  if (from == null || to == null || to === from) return null
 
   if (by === null) {
-    return {
-      kind: 'illegal',
-      reason: `This change to ${machine.name} names no writer, so nothing can authorise it.`,
-    }
+    return `This change to ${machine.name} names no writer, so nothing can authorise it.`
   }
 
   if (!can(machine, from, to, by)) {
-    return { kind: 'illegal', reason: `${by} cannot move ${machine.name} from ${from} to ${to}.` }
+    return `${by} cannot move ${machine.name} from ${from} to ${to}.`
   }
 
-  return { kind: 'legal' }
+  return null
 }
 
 /**
@@ -79,26 +69,29 @@ export function refuseTransition(args: {
 export interface TransitionGuardConfig<State extends string, Actor extends string> {
   machine: StateMachine<State, Actor>
   /**
-   * Who this write speaks for, where the declared actor does not answer it —
-   * the manager at the keyboard, whom no write declares.
+   * The actors a write may **name**, which is never every actor in the table.
+   *
+   * ⚠ **Not derived from the moves**, on purpose. A machine whose table holds
+   * human actors — a reviewer, an admin — must not let a write claim to be one:
+   * `req.context` is written by whatever code made the call, so a declarable
+   * human actor would be an authority check anything server-side could skip.
+   * Declaring is for a writer that has no person behind it.
    */
-  actorFromRequest: (req: PayloadRequest) => Actor | null
-  /** The declared actors this machine accepts, so another machine's cannot leak in. */
-  actors: readonly Actor[]
+  declarable: readonly Actor[]
 }
 
 /**
- * The one `beforeChange` guard a machine owns: a stage change not in the table
+ * The one `beforeChange` guard a machine owns: a state change not in the table
  * is refused, reported, and never written.
  *
  * ⚠ **Register it after any hook that writes the column itself.** A collection
- * `beforeChange` array runs in order, so a hook deriving the stage must have
+ * `beforeChange` array runs in order, so a hook deriving the state must have
  * run — and declared its actor — before this judges the patch it produced.
  */
 export function guardTransition<State extends string, Actor extends string>(
   config: TransitionGuardConfig<State, Actor>,
 ): CollectionBeforeChangeHook {
-  const { machine, actorFromRequest, actors } = config
+  const { machine, declarable } = config
 
   return ({ collection, data, originalDoc, req, context }) => {
     // No original document means a create: the column holds its default or a
@@ -108,9 +101,9 @@ export function guardTransition<State extends string, Actor extends string>(
     const from = originalDoc[machine.field] as State | undefined
     const to = (machine.field in data ? data[machine.field] : undefined) as State | undefined
 
-    const by = resolveActor({ actors, actorFromRequest, req, context })
-    const verdict = judgeTransition({ machine, from, to, by })
-    if (verdict.kind !== 'illegal') return data
+    const by = resolveActor(declarable, context)
+    const reason = judgeTransition({ machine, from, to, by })
+    if (!reason) return data
 
     refuseTransition({
       machine,
@@ -118,29 +111,25 @@ export function guardTransition<State extends string, Actor extends string>(
       from,
       to,
       by,
-      reason: verdict.reason,
+      reason,
       req,
     })
   }
 }
 
 /**
- * The actor a write speaks for.
+ * The actor a write named, checked against what this machine lets a write name.
  *
- * A declared one wins, and is checked against this machine's own vocabulary —
- * one request can write both collections, and an `events` actor left on the
+ * One request can write both collections, so an `events` actor left on the
  * context must not answer for a submission.
  */
-export function resolveActor<Actor extends string>(args: {
-  actors: readonly Actor[]
-  actorFromRequest: (req: PayloadRequest) => Actor | null
-  req: PayloadRequest
-  context: RequestContext | undefined
-}): Actor | null {
-  const { actors, actorFromRequest, req, context } = args
+export function resolveActor<Actor extends string>(
+  declarable: readonly Actor[],
+  context: RequestContext | undefined,
+): Actor | null {
   const declared = declaredActor(context)
-  if (declared !== undefined && (actors as readonly string[]).includes(declared)) {
+  if (declared !== undefined && (declarable as readonly string[]).includes(declared)) {
     return declared as Actor
   }
-  return actorFromRequest(req)
+  return null
 }

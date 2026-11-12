@@ -147,6 +147,7 @@ export async function applyVerification(args: {
     now,
   })
 
+  let verified: Event | undefined
   await transition({
     payload,
     machine: EVENT_MACHINE,
@@ -161,32 +162,29 @@ export async function applyVerification(args: {
     data: { ...fields, _status: 'published' },
     context: { skipVerifyHook: true },
     req,
-    // ⚠ **By id, not a claim.** The claim form is a `payload.update` carrying a
-    // `where`, and access control there narrows the selection rather than
-    // throwing — so a manager who may not update the event would read as a lost
-    // race instead of a `Forbidden`, and `POST :id/verify` would answer 200.
-    // Nothing slow runs between the read above and this write, which is the
-    // window a claim exists to close.
-    write: ({ data, context }) =>
-      payload
-        .update({
-          collection: 'events',
-          id: eventId,
-          data: data as never,
-          context,
-          overrideAccess,
-          req,
-        })
-        .then(() => true),
+    // ⚠ **By id, not a claim, and the write's own result.** The claim form is a
+    // `payload.update` carrying a `where`: access control narrows the selection
+    // there rather than throwing, so a manager who may not update the event
+    // would read as a lost race instead of a `Forbidden`, and `POST :id/verify`
+    // would answer 200. Nothing slow runs between the read above and this
+    // write, which is the window a claim exists to close.
+    write: async ({ data, context }) => {
+      verified = await payload.update({
+        collection: 'events',
+        id: eventId,
+        data: data as never,
+        context,
+        // What the verify page's `webUrl` needs, and what spares this a second
+        // read of the row it just wrote.
+        depth: 1,
+        overrideAccess,
+        req,
+      })
+      return true
+    },
   })
 
-  return payload.findByID({
-    collection: 'events',
-    id: eventId,
-    depth: 1,
-    overrideAccess: true,
-    req,
-  })
+  return verified as Event
 }
 
 /**

@@ -49,29 +49,3 @@ export function can<State extends string, Actor extends string>(
 ): boolean {
   return machine.moves.some((move) => move.to === to && starts(move, from) && move.by.includes(by))
 }
-
-/**
- * Every state `by` may move a document at `from` to.
- *
- * What a surface offering the move reads, so a button and the guard behind it
- * cannot name different sets.
- */
-export function targetsFor<State extends string, Actor extends string>(
-  machine: StateMachine<State, Actor>,
-  from: State,
-  by: Actor,
-): State[] {
-  const targets = machine.moves
-    .filter((move) => starts(move, from) && move.by.includes(by))
-    .map((move) => move.to)
-  return [...new Set(targets)]
-}
-
-/** Every state `by` may move a document out of — the states where it has work. */
-export function originsFor<State extends string, Actor extends string>(
-  machine: StateMachine<State, Actor>,
-  states: readonly State[],
-  by: Actor,
-): State[] {
-  return states.filter((state) => targetsFor(machine, state, by).length > 0)
-}

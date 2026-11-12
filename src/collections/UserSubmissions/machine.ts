@@ -1,18 +1,7 @@
-import {
-  ANY_STATE,
-  can,
-  type Move,
-  type StateMachine,
-  targetsFor,
-} from '@/lib/stateMachine/machine'
+import { ANY_STATE, can, type Move, type StateMachine } from '@/lib/stateMachine/machine'
 import type { UserSubmission } from '@/payload-types'
 
-import {
-  isSpamStatus,
-  OPEN_REVIEW_STATUSES,
-  REOPENABLE_REVIEW_STATUSES,
-  SUBMISSION_STATUSES,
-} from './statuses'
+import { OPEN_REVIEW_STATUSES, REOPENABLE_REVIEW_STATUSES, SUBMISSION_STATUSES } from './statuses'
 
 type Status = UserSubmission['status']
 
@@ -42,6 +31,17 @@ export type SubmissionActor = (typeof SUBMISSION_ACTORS)[number]
 
 /** An admin is a reviewer too, so every reviewer move is also theirs. */
 const REVIEWERS = ['review', 'admin'] as const
+
+/**
+ * The actors a write may **name** — everything but the two human ones.
+ *
+ * ⚠ A write that could claim to be `review` or `admin` would be a way past
+ * `reviewMove`'s grant check, since `req.context` is written by whatever code
+ * made the call. Who the person is comes from the request, never from a claim.
+ */
+export const SUBMISSION_SYSTEM_ACTORS: readonly SubmissionActor[] = SUBMISSION_ACTORS.filter(
+  (actor) => !(REVIEWERS as readonly string[]).includes(actor),
+)
 
 const REVIEW_MOVES: Move<Status, SubmissionActor>[] = [
   { from: OPEN_REVIEW_STATUSES, to: 'accepted', by: REVIEWERS },
@@ -95,22 +95,16 @@ export const SUBMISSION_MACHINE: StateMachine<Status, SubmissionActor> = {
 
 /** Statuses a reviewer is offered `to` from — what a button map is built from. */
 export function reviewableFrom(actor: SubmissionActor, to: Status): Status[] {
-  return SUBMISSION_STATUSES.filter((status) =>
-    targetsFor(SUBMISSION_MACHINE, status, actor).includes(to),
-  )
+  return SUBMISSION_STATUSES.filter((status) => can(SUBMISSION_MACHINE, status, to, actor))
 }
 
 /**
- * Where an admin may send a delivery again: `failed`, and nothing else.
+ * Where an admin may send a delivery again.
  *
- * Derived rather than spelled, so the button and the guard cannot disagree. It
- * is the move to `pending` that is an admin's alone and is not a spam
- * withdrawal — a reviewer's own Reopen reaches `pending` too, from the statuses
- * nothing was ever sent for.
+ * ⚠ **Named, not derived.** Deriving it from "an admin may reach `pending` and
+ * a reviewer may not" happens to answer `failed` today, and would silently
+ * widen the day another admin-only move to `pending` is added — putting a
+ * "Send again" button on rows nothing was ever sent for. It is one state, and
+ * it is the `from` of the move three lines above.
  */
-export const RESEND_FROM: Status[] = SUBMISSION_STATUSES.filter(
-  (status) =>
-    !isSpamStatus(status) &&
-    can(SUBMISSION_MACHINE, status, 'pending', 'admin') &&
-    !can(SUBMISSION_MACHINE, status, 'pending', 'review'),
-)
+export const RESEND_FROM: readonly Status[] = ['failed']

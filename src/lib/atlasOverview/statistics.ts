@@ -10,8 +10,6 @@
 
 import type { PayloadRequest, Where } from 'payload'
 
-import * as qs from 'qs-esm'
-
 import { getRegionTree } from '@/lib/atlas/regionTree'
 import { addDays } from '@/lib/eventVerification/periods'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
@@ -19,6 +17,7 @@ import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { WINDOW_DAYS } from './filters'
+import { listPath } from './listPath'
 import { type OverviewArgs, scopeRegionIds } from './scope'
 import { countPrograms, isProgramStage } from './status'
 
@@ -116,24 +115,6 @@ export interface StatTile {
   better?: 'down' | 'up'
   /** The admin list of what the tile counts, under the admin route; absent where the reader has none. */
   path?: `/${string}`
-}
-
-/**
- * ⚠ An `in` list goes as one comma-joined value, which Payload splits; indexed
- * keys make a subtree's URL kilobytes long.
- */
-const listPath = (collection: string, and: Where[]): `/${string}` =>
-  `/collections/${collection}${qs.stringify({ where: { and: joinIn(and) } }, { addQueryPrefix: true })}`
-
-const joinIn = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(joinIn)
-  if (!value || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value).map(([key, inner]) => [
-      key,
-      key === 'in' && Array.isArray(inner) ? inner.join(',') : joinIn(inner),
-    ]),
-  )
 }
 
 /** How far back a missing day may be covered by an older snapshot. */

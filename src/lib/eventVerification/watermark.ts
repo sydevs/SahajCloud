@@ -13,7 +13,7 @@
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import type { EventSchedule } from '@/types/schedule'
 
-import { isPreAdoptionStage, STAGES, type VerificationStage } from './stages'
+import { isPreAdoptionStage, stageAction, type VerificationStage } from './stages'
 
 /**
  * How long a `finished` event's page keeps resolving before the retention
@@ -39,6 +39,22 @@ function addMonths(from: Date, months: number): Date {
  */
 export function retentionFrom(from: Date): string {
   return addMonths(from, FINISHED_RETENTION_MONTHS).toISOString()
+}
+
+/**
+ * Whether the reminder ladder is silent on this class: a draft on a stage that
+ * sends reminders.
+ *
+ * ⚠ **One predicate, because the job reads it too.** The watermark rule below
+ * keeps such a row out of the due query from its next save on, and
+ * `ExpireEvents` applies the same answer to a row written before the rule
+ * existed — two spellings would be free to disagree on exactly those rows.
+ */
+export function remindersSilenced(args: {
+  stage: VerificationStage
+  status?: string | null
+}): boolean {
+  return args.status === 'draft' && stageAction(args.stage).kind === 'remind'
 }
 
 export interface NextCheckAtInput {
@@ -132,7 +148,7 @@ export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
   // A hidden class is nobody's to chase. Only the reminder ladder is silenced:
   // `expired` is unpublished by the ladder itself, and its trash countdown is
   // what finally clears it.
-  if (status === 'draft' && STAGES[stage]?.onDue.kind === 'remind') return null
+  if (remindersSilenced({ stage, status })) return null
 
   const deadlines = [stageDeadline, scheduleEnd].filter((date): date is Date => date != null)
   if (deadlines.length === 0) return null

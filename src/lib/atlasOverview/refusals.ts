@@ -1,9 +1,9 @@
 import type { PayloadRequest, Where } from 'payload'
 
-import * as qs from 'qs-esm'
-
 import { addDays } from '@/lib/eventVerification/periods'
-import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+import { countNote } from './countNote'
+import { listPath } from './listPath'
 
 /** How far back a surface counts sign-ups the spam check filed. */
 const SPAM_SIGNUP_WINDOW_DAYS = 7
@@ -14,10 +14,7 @@ export const SPAM_SIGNUPS: Where[] = [
 ]
 
 /** The admin list of those sign-ups, as a path under the admin route. */
-export const SPAM_SIGNUPS_PATH: `/${string}` = `/collections/user-submissions${qs.stringify(
-  { where: { and: SPAM_SIGNUPS } },
-  { addQueryPrefix: true },
-)}`
+export const SPAM_SIGNUPS_PATH: `/${string}` = listPath('user-submissions', SPAM_SIGNUPS)
 
 /**
  * Sign-ups filed as spam in the last week, and the sentence the admin home and
@@ -28,19 +25,11 @@ export async function spamSignups(args: {
   overrideAccess: boolean
   req: PayloadRequest
 }): Promise<null | { count: number; text: string }> {
-  const { now, overrideAccess, req } = args
-  const since = addDays(now, -SPAM_SIGNUP_WINDOW_DAYS)
-
-  const { totalDocs: count } = await req.payload.count({
-    collection: 'user-submissions',
+  const since = addDays(args.now, -SPAM_SIGNUP_WINDOW_DAYS)
+  return countNote({
+    ...args,
     where: { and: [...SPAM_SIGNUPS, { createdAt: { greater_than: since.toISOString() } }] },
-    overrideAccess,
-    req: localeIsolatedReq(req),
+    text: (count) =>
+      `${count} sign-up${count === 1 ? '' : 's'} filed as spam in the last ${SPAM_SIGNUP_WINDOW_DAYS} days`,
   })
-
-  if (count === 0) return null
-  return {
-    count,
-    text: `${count} sign-up${count === 1 ? '' : 's'} filed as spam in the last ${SPAM_SIGNUP_WINDOW_DAYS} days`,
-  }
 }

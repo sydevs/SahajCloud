@@ -7,6 +7,7 @@ import type { UserSubmission } from '@/payload-types'
 import { holdsCollectionPermission } from '@/plugins/access'
 import { isAdminManager } from '@/plugins/access/adminOnly'
 
+import { RESEND_FROM } from '../machine'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
@@ -153,7 +154,7 @@ export function reviewMove(args: {
   // email was not, so there is nothing to review and nothing a reviewer's
   // judgement adds — but a resend can mail a visitor, so it is an admin's
   // (#1120 decision 2). A failed *proposal* is still open for review below.
-  if (from === 'failed' && to === 'pending' && !reviewable) {
+  if (RESEND_FROM.includes(from) && to === 'pending' && !reviewable) {
     if (!isAdminManager(req.user)) {
       return { kind: 'illegal', reason: 'Only an admin can send a failed delivery again.' }
     }

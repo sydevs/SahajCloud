@@ -2,12 +2,23 @@ import type { Payload } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { RESEND_FROM, SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
+import {
+  RESEND_FROM,
+  SUBMISSION_MACHINE,
+  type SubmissionActor,
+} from '@/collections/UserSubmissions/machine'
+import { SUBMISSION_STATUSES } from '@/collections/UserSubmissions/statuses'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
-import { LADDER, STAGES, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
+import {
+  LADDER,
+  STAGES,
+  VERIFICATION_STAGES,
+  type VerificationStage,
+} from '@/lib/eventVerification/stages'
 import { judgeTransition } from '@/lib/stateMachine/guard'
-import { ANY_STATE, can, originsFor, targetsFor } from '@/lib/stateMachine/machine'
+import { ANY_STATE, can } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
+import type { UserSubmission } from '@/payload-types'
 
 /**
  * The lifecycle table, its lookup and its claim (#1121).
@@ -17,7 +28,15 @@ import { transition } from '@/lib/stateMachine/transition'
  * that re-lists them would only pin a second copy of what it is checking.
  * Each asserts the derivation's consequence instead.
  */
-describe('can / targetsFor', () => {
+/** Every state `by` may reach from `from` — the whole set, not one membership. */
+const reachable = <S extends string, A extends string>(
+  machine: Parameters<typeof can<S, A>>[0],
+  states: readonly S[],
+  from: S,
+  by: A,
+): S[] => states.filter((to) => can(machine, from, to, by))
+
+describe('can', () => {
   const machine = {
     name: 'test state',
     field: 'state',
@@ -35,8 +54,8 @@ describe('can / targetsFor', () => {
 
   it('lets a wildcard move start anywhere', () => {
     expect(can(machine, 'b', 'z', 'two')).toBe(true)
-    expect(targetsFor(machine, 'a', 'one')).toEqual(['b', 'z'])
-    expect(originsFor(machine, ['a', 'b', 'z'], 'two')).toEqual(['a', 'b', 'z'])
+    expect(reachable(machine, ['a', 'b', 'z'], 'a', 'one')).toEqual(['b', 'z'])
+    expect(reachable(machine, ['a', 'b', 'z'], 'b', 'two')).toEqual(['z'])
   })
 })
 
@@ -48,18 +67,17 @@ describe('judgeTransition', () => {
   } as const
 
   it('judges nothing when the write left the column alone', () => {
-    expect(judgeTransition({ machine, from: 'a', to: undefined, by: 'one' }).kind).toBe('none')
-    expect(judgeTransition({ machine, from: 'a', to: 'a', by: 'one' }).kind).toBe('none')
+    expect(judgeTransition({ machine, from: 'a', to: undefined, by: 'one' })).toBeNull()
+    expect(judgeTransition({ machine, from: 'a', to: 'a', by: 'one' })).toBeNull()
   })
 
   it('refuses a move that names no writer', () => {
-    const verdict = judgeTransition({ machine, from: 'a', to: 'b', by: null })
-    expect(verdict).toEqual({ kind: 'illegal', reason: expect.stringContaining('names no writer') })
+    expect(judgeTransition({ machine, from: 'a', to: 'b', by: null })).toContain('names no writer')
   })
 
   it('refuses a move the table does not hold', () => {
-    expect(judgeTransition({ machine, from: 'b', to: 'a', by: 'one' }).kind).toBe('illegal')
-    expect(judgeTransition({ machine, from: 'a', to: 'b', by: 'one' }).kind).toBe('legal')
+    expect(judgeTransition({ machine, from: 'b', to: 'a', by: 'one' })).toContain('cannot move')
+    expect(judgeTransition({ machine, from: 'a', to: 'b', by: 'one' })).toBeNull()
   })
 })
 
@@ -90,37 +108,43 @@ describe('EVENT_MACHINE', () => {
   })
 
   it('adopts from the two pre-adoption stages and nowhere else', () => {
-    expect(targetsFor(EVENT_MACHINE, 'unverified', 'adoption')).toEqual(['verified'])
-    expect(targetsFor(EVENT_MACHINE, 'denied', 'adoption')).toEqual(['verified'])
-    expect(targetsFor(EVENT_MACHINE, 'expired', 'adoption')).toEqual([])
+    const adopts = (from: VerificationStage) =>
+      reachable(EVENT_MACHINE, VERIFICATION_STAGES, from, 'adoption')
+    expect(adopts('unverified')).toEqual(['verified'])
+    expect(adopts('denied')).toEqual(['verified'])
+    expect(adopts('expired')).toEqual([])
   })
 
   it('lets the community deny only a listing it can still see', () => {
-    expect(targetsFor(EVENT_MACHINE, 'unverified', 'community')).toEqual(['denied'])
-    expect(targetsFor(EVENT_MACHINE, 'verified', 'community')).toEqual([])
+    const denies = (from: VerificationStage) =>
+      reachable(EVENT_MACHINE, VERIFICATION_STAGES, from, 'community')
+    expect(denies('unverified')).toEqual(['denied'])
+    expect(denies('verified')).toEqual([])
   })
 })
 
 describe('SUBMISSION_MACHINE', () => {
   it('keeps every system writer to the moves it is for', () => {
-    expect(targetsFor(SUBMISSION_MACHINE, 'pending', 'screening')).toEqual(['spam'])
-    expect(targetsFor(SUBMISSION_MACHINE, 'accepted', 'screening')).toEqual([])
-    expect(targetsFor(SUBMISSION_MACHINE, 'pending', 'block')).toEqual(['spam'])
-    expect(targetsFor(SUBMISSION_MACHINE, 'failed', 'delivery').sort()).toEqual([
-      'accepted',
-      'failed',
-      'pending',
-    ])
+    const from = (status: UserSubmission['status'], by: SubmissionActor) =>
+      reachable(SUBMISSION_MACHINE, SUBMISSION_STATUSES, status, by).sort()
+
+    expect(from('pending', 'screening')).toEqual(['spam'])
+    expect(from('accepted', 'screening')).toEqual([])
+    expect(from('pending', 'block')).toEqual(['spam'])
+    expect(from('failed', 'delivery')).toEqual(['accepted', 'failed', 'pending'])
     // A verdict on a row is not something a second sign-up may fold away.
-    expect(targetsFor(SUBMISSION_MACHINE, 'spam', 'repeat-signup')).toEqual([])
-    expect(targetsFor(SUBMISSION_MACHINE, 'rejected', 'repeat-signup')).toEqual([])
+    expect(from('spam', 'repeat-signup')).toEqual([])
+    expect(from('rejected', 'repeat-signup')).toEqual([])
   })
 
-  it('offers a resend from `failed` alone', () => {
+  it('offers a resend from `failed`, to an admin alone', () => {
     expect(RESEND_FROM).toEqual(['failed'])
-    // A reviewer's own Reopen reaches `pending` too, which is why RESEND_FROM
-    // is derived by subtracting it rather than listed.
-    expect(can(SUBMISSION_MACHINE, 'failed', 'pending', 'review')).toBe(false)
+    for (const status of RESEND_FROM) {
+      expect(can(SUBMISSION_MACHINE, status, 'pending', 'admin')).toBe(true)
+      expect(can(SUBMISSION_MACHINE, status, 'pending', 'review')).toBe(false)
+    }
+    // A reviewer's own Reopen reaches `pending` too, from the statuses nothing
+    // was ever sent for — which is why the two are not one set.
     expect(can(SUBMISSION_MACHINE, 'rejected', 'pending', 'review')).toBe(true)
   })
 

@@ -1,10 +1,11 @@
 import type { PayloadRequest, Where } from 'payload'
 
-import * as qs from 'qs-esm'
-
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { UserSubmission } from '@/payload-types'
+
+import { countNote } from './countNote'
+import { listPath } from './listPath'
 
 /**
  * The intakes a Sahaj Atlas service sends, besides a registration.
@@ -13,6 +14,11 @@ import type { UserSubmission } from '@/payload-types'
  * contact message or a mailing-list sign-up can come from either product, and
  * these rows reach an Atlas admin's list. We Meditate's own failures wait for
  * their own home (#1119).
+ *
+ * ⚠ **Not `FORM_BACKED_TYPES`, which today holds the same pair.** That one
+ * answers "must carry a `form`"; this one answers "a service sends it". They
+ * part the day an intake carries a form and nothing to deliver, or the other
+ * way round.
  */
 const SHARED_INTAKES: UserSubmission['type'][] = ['contact', 'subscribe']
 
@@ -58,8 +64,10 @@ export async function failedDeliveriesWhere(req: PayloadRequest): Promise<Where>
 
 /** The admin list of those rows, as a path under the admin route. */
 export async function failedDeliveriesPath(req: PayloadRequest): Promise<`/${string}`> {
-  const where = await failedDeliveriesWhere(req)
-  return `/collections/user-submissions${qs.stringify({ where }, { addQueryPrefix: true })}`
+  // `listPath` is what keeps the client-id list one comma-joined value — this
+  // `where` names every Atlas service, and indexed keys would make the URL
+  // kilobytes long.
+  return listPath('user-submissions', (await failedDeliveriesWhere(req)).and as Where[])
 }
 
 /**
@@ -73,18 +81,10 @@ export async function failedDeliveries(args: {
   overrideAccess: boolean
   req: PayloadRequest
 }): Promise<null | { count: number; text: string }> {
-  const { overrideAccess, req } = args
-
-  const { totalDocs: count } = await req.payload.count({
-    collection: 'user-submissions',
-    where: await failedDeliveriesWhere(req),
-    overrideAccess,
-    req: localeIsolatedReq(req),
+  return countNote({
+    ...args,
+    where: await failedDeliveriesWhere(args.req),
+    text: (count) =>
+      `${count} message${count === 1 ? '' : 's'} could not be delivered and can be sent again`,
   })
-
-  if (count === 0) return null
-  return {
-    count,
-    text: `${count} message${count === 1 ? '' : 's'} could not be delivered and can be sent again`,
-  }
 }

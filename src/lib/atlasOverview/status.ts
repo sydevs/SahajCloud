@@ -11,18 +11,15 @@
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
 import {
-  LADDER,
-  STAGES,
+  isPublishedStage,
+  LADDER_STEPS,
   unpublishDate,
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 
 /** Every stage a reminder lands on — the ladder's own steps, past its first. */
-const REMINDED_STAGES: VerificationStage[] = LADDER.flatMap((stage) => {
-  const action = STAGES[stage].onDue
-  return action.kind === 'remind' ? [action.nextStage] : []
-})
+const REMINDED_STAGES: VerificationStage[] = LADDER_STEPS.map((step) => step.to)
 
 /**
  * Overdue, as a reader meets it: a listing that has had a reminder and is
@@ -34,9 +31,7 @@ const REMINDED_STAGES: VerificationStage[] = LADDER.flatMap((stage) => {
  * manager, who does not join another manager's event until it escalates
  * (`docs/rules/access.md`). Resist merging them.
  */
-export const OVERDUE_STATUS_STAGES: VerificationStage[] = REMINDED_STAGES.filter(
-  (stage) => STAGES[stage].published,
-)
+export const OVERDUE_STATUS_STAGES: VerificationStage[] = REMINDED_STAGES.filter(isPublishedStage)
 
 /**
  * The stages a query treats as overdue: escalated or worse.
@@ -45,10 +40,9 @@ export const OVERDUE_STATUS_STAGES: VerificationStage[] = REMINDED_STAGES.filter
  * question being asked, since these are the listings a region manager has been
  * told about.
  */
-export const OVERDUE_QUERY_STAGES: VerificationStage[] = LADDER.flatMap((stage) => {
-  const action = STAGES[stage].onDue
-  return action.kind === 'remind' && action.includeRegion ? [action.nextStage] : []
-})
+export const OVERDUE_QUERY_STAGES: VerificationStage[] = LADDER_STEPS.filter(
+  (step) => step.includeRegion,
+).map((step) => step.to)
 
 /** ⚠ One definition, so the Total events tile and the Programs column agree. */
 export function isProgramStage(stage: string): boolean {

@@ -245,15 +245,39 @@ export const LADDER: VerificationStage[] = VERIFICATION_STAGES.filter(
 )
 
 /**
+ * The ladder as its steps: one per reminder the job sends, with where it lands.
+ *
+ * ⚠ **The one place the `remind` narrowing is written.** Four readers want some
+ * part of a step — the stepper's dates, the move table, and the two overdue
+ * sets — and each re-destructuring `STAGES[stage].onDue` is four chances to
+ * narrow it differently.
+ */
+export const LADDER_STEPS: {
+  from: VerificationStage
+  to: VerificationStage
+  offsetDays: number
+  /** Whether this reminder also goes to the ancestor region's managers. */
+  includeRegion: boolean
+}[] = LADDER.flatMap((from) => {
+  const action = STAGES[from].onDue
+  if (action.kind !== 'remind') return []
+  return [
+    {
+      from,
+      to: action.nextStage,
+      offsetDays: action.offsetDays,
+      includeRegion: action.includeRegion,
+    },
+  ]
+})
+
+/**
  * Days an event sits at a stage before the job advances it to the next.
  * Derived from the ladder's own transitions, so the admin stepper's date
  * projection can't drift from what the job actually does.
  */
 export const STAGE_DURATION_DAYS: Record<string, number> = Object.fromEntries(
-  LADDER.map((stage) => {
-    const action = STAGES[stage].onDue
-    return [stage, action.kind === 'remind' ? action.offsetDays : 0]
-  }),
+  LADDER_STEPS.map((step) => [step.from, step.offsetDays]),
 )
 
 /**

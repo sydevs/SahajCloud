@@ -175,10 +175,27 @@ const flaggedNote = { ...brief, color: '#b45309' }
  * name several classes, and a section would have to say which one it was
  * about. The flagged line comes first, because it is the one fact that changes
  * what the manager should do before anything else.
+ *
+ * ⚠ **Plain lines, not `DetailRow` and `ProgressBar`.** Both are section-level:
+ * each draws its own table, and this sits inside a `DetailRow`'s value, under
+ * one item of a list. `EventVerificationEmail` is the full-width rendering of
+ * the same two shapes.
  */
 function EventBrief({ event }: { event: NonNullable<ResponsibilityItem['event']> }) {
-  const { details, flagged, progress } = event
+  const { contact, flagged, location, locationLabel, progress, schedule } = event
   const stillToDo = progress?.open.map((suggestion) => suggestion.label) ?? []
+  // An empty line is not a blank one: an imported listing can carry no schedule
+  // or no address at all, and printing the label alone reads as a defect.
+  const lines = [
+    schedule,
+    location && `${locationLabel}: ${location}`,
+    contact,
+    progress &&
+      `Listing checklist: ${progress.resolved} of ${progress.total} done${
+        stillToDo.length ? ` — still to do: ${stillToDo.join(', ')}` : ''
+      }`,
+  ].filter((line): line is string => Boolean(line))
+
   return (
     <>
       {flagged ? (
@@ -187,24 +204,16 @@ function EventBrief({ event }: { event: NonNullable<ResponsibilityItem['event']>
           check the details before anything else.
         </div>
       ) : null}
-      <div style={brief}>
-        {details.schedule}
-        <br />
-        {details.locationLabel}: {details.location}
-        {details.contact ? (
-          <>
-            <br />
-            {details.contact}
-          </>
-        ) : null}
-        {progress ? (
-          <>
-            <br />
-            Listing checklist: {progress.resolved} of {progress.total} done
-            {stillToDo.length ? ` — still to do: ${stillToDo.join(', ')}` : ''}
-          </>
-        ) : null}
-      </div>
+      {lines.length ? (
+        <div style={brief}>
+          {lines.map((line, index) => (
+            <Fragment key={index}>
+              {index > 0 ? <br /> : null}
+              {line}
+            </Fragment>
+          ))}
+        </div>
+      ) : null}
     </>
   )
 }

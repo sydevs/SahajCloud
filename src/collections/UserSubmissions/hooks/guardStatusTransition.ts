@@ -2,13 +2,19 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { judgeTransition, refuseTransition, resolveActor } from '@/lib/stateMachine/guard'
+import { guardTransition, refuseTransition, resolveActor } from '@/lib/stateMachine/guard'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { submissionRegionId } from '../lifecycle/mergeProposal'
 import { NO_REGION_MESSAGE, reviewMove } from '../lifecycle/review'
-import { SUBMISSION_ACTORS, SUBMISSION_MACHINE } from '../machine'
+import { SUBMISSION_MACHINE, SUBMISSION_SYSTEM_ACTORS } from '../machine'
+
+/** Everything that is not a person: the table is its whole gate. */
+const guardSystemWriter = guardTransition({
+  machine: SUBMISSION_MACHINE,
+  declarable: SUBMISSION_SYSTEM_ACTORS,
+})
 
 /**
  * beforeChange (update): refuse a status move nobody may make, and report it.
@@ -28,59 +34,34 @@ import { SUBMISSION_ACTORS, SUBMISSION_MACHINE } from '../machine'
  * `none` for a request carrying no manager, so each could write any status
  * from anywhere.
  *
- * The two cannot drift apart: `user-submissions-review-lifecycle.int.spec.ts`
- * puts every move in the table through `reviewMove`, and every move
- * `reviewMove` grants through the table.
+ * ⚠ **A write that names a system writer is that writer's, whoever's request
+ * carries it.** A system write can ride a manager's own request: the seed
+ * importer runs as an admin, and the repeat-signup fold runs inside a client's
+ * create. Judging those by what the request's user may do would refuse a move
+ * the writer is for. The other direction is closed by
+ * `SUBMISSION_SYSTEM_ACTORS` — no write may claim to be the person.
+ *
+ * The two answers cannot drift apart:
+ * `user-submissions-review-lifecycle.int.spec.ts` puts every move in the table
+ * through `reviewMove`, and every move `reviewMove` grants through the table.
  */
-export const guardStatusTransition: CollectionBeforeChangeHook = ({
-  collection,
-  context,
-  data,
-  originalDoc,
-  req,
-}) => {
+export const guardStatusTransition: CollectionBeforeChangeHook = (args) => {
+  const { context, data, originalDoc, req } = args
+
   // No original document means a create, where `status` is the column's own
   // default or a system writer's choice — there is no transition to judge.
   const previous = originalDoc as UserSubmission | undefined
   if (!previous) return data
 
-  // A collection `beforeChange` receives the incoming patch, not the merged
-  // document, so an absent key means the write left that field alone.
-  const to = ('status' in data ? data.status : undefined) as UserSubmission['status'] | undefined
-
-  const refuse = (reason: string, by: string | null): never =>
-    refuseTransition({
-      machine: SUBMISSION_MACHINE,
-      collection: collection?.slug ?? 'user-submissions',
-      from: previous.status,
-      to,
-      by,
-      reason,
-      req,
-    })
-
-  // ⚠ **A declared writer wins, whoever's request carries it.** A system write
-  // can ride a manager's own request — the seed importer runs as an admin, and
-  // the repeat-signup fold runs inside a client's create — and judging those by
-  // what the request's user may do would refuse a move the writer is for.
-  const by = resolveActor({
-    actors: SUBMISSION_ACTORS,
-    // No system writer is a person, so there is nobody to fall back to: a
-    // writer that names itself is the whole of this gate.
-    actorFromRequest: () => null,
-    req,
-    context,
-  })
-
-  if (by !== null || req.user?.collection !== 'managers') {
-    const verdict = judgeTransition({ machine: SUBMISSION_MACHINE, from: previous.status, to, by })
-    if (verdict.kind === 'illegal') refuse(verdict.reason, by)
-    return data
-  }
+  const atKeyboard =
+    req.user?.collection === 'managers' && resolveActor(SUBMISSION_SYSTEM_ACTORS, context) === null
+  if (!atKeyboard) return guardSystemWriter(args)
 
   const move = reviewMove({
     from: previous.status,
-    to,
+    // A collection `beforeChange` receives the incoming patch, not the merged
+    // document, so an absent key means the write left that field alone.
+    to: ('status' in data ? data.status : undefined) as UserSubmission['status'] | undefined,
     type: (data.type ?? previous.type) as UserSubmission['type'],
     req,
   })
@@ -88,11 +69,20 @@ export const guardStatusTransition: CollectionBeforeChangeHook = ({
   if (move.kind === 'none') return data
 
   if (move.kind === 'illegal') {
-    refuse(move.reason, 'review')
+    refuseTransition({
+      machine: SUBMISSION_MACHINE,
+      collection: args.collection?.slug ?? 'user-submissions',
+      from: previous.status,
+      to: data.status,
+      by: 'review',
+      reason: move.reason,
+      req,
+    })
   } else if (move.action === 'accept') {
     // Refused here rather than where the event is created, so it lands on the
     // field that fixes it: `region` is editable on an unresolved proposal, and
     // a reviewer correcting it and pressing Accept again is one click.
+    //
     // ⚠ **An explicit `null` is not an absent key.** The document form posts
     // every field, so a reviewer who clears Region posts `region: null` — and
     // `??` reads the stored value for that as readily as for a field the write

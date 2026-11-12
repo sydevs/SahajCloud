@@ -2,9 +2,9 @@ import type { CollectionSlug, Field, Payload, PayloadRequest, Where } from 'payl
 
 import { flattenAllFields } from 'payload'
 
-import type { EventDetails, EventListingProgress } from '@/emails/EventVerificationEmail'
+import type { EventListingProgress } from '@/emails/EventVerificationEmail'
 import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
-import { buildEventEmailDetails } from '@/lib/notifications/eventDetails'
+import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { buildEventListingProgress } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import type { Event, ProjectSlug } from '@/payload-types'
@@ -56,7 +56,12 @@ export interface ResponsibilityItem {
    * beside the first, about the same class.
    */
   event?: {
-    details: EventDetails
+    /** One line each, the same shapes the reminder email prints. */
+    schedule: string
+    locationLabel: 'Address' | 'Online'
+    location: string
+    /** Contact name · phone, when the listing carries either. */
+    contact?: string
     /** The listing checklist, exactly as the reminder email computes it. */
     progress: EventListingProgress | null
     /** Attendees had denied this class before it was adopted. */
@@ -173,6 +178,7 @@ export async function summarizeGrants({
   collection,
   current,
   id,
+  describeEvents = false,
   only,
   payload,
   req,
@@ -180,6 +186,16 @@ export async function summarizeGrants({
 }: {
   /** The served collection the id belongs to. @see MANAGERS_COLLECTION */
   collection: string
+  /**
+   * Also describe each class: what it says, how complete it is, whether the
+   * community had flagged it.
+   *
+   * ⚠ **Off by default, because the other caller renders none of it.** The
+   * preview sign-in picker summarises up to 25 accounts, one after another, to
+   * print a single line each — paying for a listing checklist per class there
+   * would be a page load's worth of work nothing displays.
+   */
+  describeEvents?: boolean
   /** The account's own current project, which an admin's empty summary keeps. */
   current?: ProjectSlug
   id: number | string
@@ -199,7 +215,7 @@ export async function summarizeGrants({
   if (collection !== MANAGERS_COLLECTION) return [{ ...empty[0]!, project: current }]
 
   const isolated = req ? localeIsolatedReq(req) : undefined
-  const managed = await readManaged(payload, id, isolated, only)
+  const managed = await readManaged(payload, id, isolated, only, describeEvents)
   // An admin holds every role, so none is worth naming — but the regions and
   // events naming them are still theirs to look after.
   const held = fullAccess ? {} : await hydrateLocalizedRoles(payload, id, isolated)
@@ -284,6 +300,7 @@ async function readManaged(
   id: number | string,
   req: PayloadRequest | undefined,
   only: PendingInvitation | undefined,
+  describeEvents: boolean,
 ): Promise<{ collection: CollectionSlug; join: string; responsibility: Responsibility }[]> {
   const found = []
 
@@ -317,21 +334,25 @@ async function readManaged(
       req,
     })
 
-    const items: ResponsibilityItem[] = []
-    for (const doc of docs) {
-      const record = doc as unknown as Record<string, unknown>
-      // A finished event keeps its page for late visitors, but it is over —
-      // nothing to look after.
-      if (record.verificationStage === 'finished') continue
-      const title = record[titleField]
-      items.push({
-        title: typeof title === 'string' && title.trim() ? title : 'Untitled',
-        url: typeof record.webUrl === 'string' ? record.webUrl : null,
-        ...(join.collection === 'events'
-          ? { event: await describeEvent(payload, doc as unknown as Event, req) }
-          : {}),
-      })
-    }
+    const describing = describeEvents && join.collection === 'events'
+    const items: ResponsibilityItem[] = (
+      await Promise.all(
+        docs.map(async (doc) => {
+          const record = doc as unknown as Record<string, unknown>
+          // A finished event keeps its page for late visitors, but it is over —
+          // nothing to look after.
+          if (record.verificationStage === 'finished') return []
+          const title = record[titleField]
+          return [
+            {
+              title: typeof title === 'string' && title.trim() ? title : 'Untitled',
+              url: typeof record.webUrl === 'string' ? record.webUrl : null,
+              ...(describing ? { event: await describeEvent(doc as unknown as Event, req) } : {}),
+            },
+          ]
+        }),
+      )
+    ).flat()
     if (items.length === 0) continue
 
     const { plural, singular } = config.labels ?? {}
@@ -352,28 +373,36 @@ async function readManaged(
 /**
  * What a new manager needs to know about a class they have just been given.
  *
- * ⚠ **The checklist comes from the same builder the reminder email uses**, so
- * what an adoption email asks for and what the first reminder asks for cannot
- * be two different lists. A report that cannot be built at all — a listing the
- * quality registry skips — is `null`, and the email leaves the section out.
+ * ⚠ **The three lines are composed here, not taken from
+ * `buildEventEmailDetails`.** That builder's only query counts recent
+ * registrations, which this email does not print — and one of its callers is
+ * the anonymous `request-magic-link` rescue path, where it would be the whole
+ * of the I/O and all of it wasted.
+ *
+ * The checklist does come from the same builder the reminder email uses, so
+ * what an adoption asks for and what the first reminder asks for cannot be two
+ * different lists. A listing the quality registry skips is `null`, and the
+ * email leaves the section out.
  *
  * `flagged` reads the stored vote tally rather than the stage: by the time this
  * runs the adoption has already moved the class to `verified`, so `denied` is
  * no longer there to read, and the denials that put it there are.
  */
 async function describeEvent(
-  payload: Payload,
   event: Event,
   /** Absent only where the caller holds no request — the checklist needs one. */
   req: PayloadRequest | undefined,
 ): Promise<ResponsibilityItem['event']> {
-  const [details, progress] = await Promise.all([
-    buildEventEmailDetails({ payload, event, req }),
-    req ? buildEventListingProgress({ event, req }).catch(() => null) : null,
-  ])
+  const online = event.eventType === 'online'
+  const contact = [event.contactName?.trim(), event.contactPhone?.trim()]
+    .filter(Boolean)
+    .join(' · ')
   return {
-    details,
-    progress,
+    schedule: scheduleOneLine(event.schedule),
+    locationLabel: online ? 'Online' : 'Address',
+    location: online ? (event.onlineUrl ?? '') : addressOneLine(event.address ?? {}),
+    ...(contact ? { contact } : {}),
+    progress: req ? await buildEventListingProgress({ event, req }).catch(() => null) : null,
     flagged: (event.systemMeta?.communityFeedback?.denials ?? 0) > 0,
   }
 }

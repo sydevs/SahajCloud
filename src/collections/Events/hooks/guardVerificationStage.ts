@@ -18,6 +18,6 @@ import { guardTransition } from '@/lib/stateMachine/guard'
  */
 export const guardVerificationStage = guardTransition({
   machine: EVENT_MACHINE,
-  actors: EVENT_ACTORS,
-  actorFromRequest: () => null,
+  // Every one of them: no writer of this column is a person.
+  declarable: EVENT_ACTORS,
 })

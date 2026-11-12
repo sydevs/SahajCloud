@@ -184,7 +184,8 @@ const SCENARIOS: Scenario[] = [
 ]
 
 async function main() {
-  const { Events, Managers, Pages, Regions } = await import('@/collections')
+  const { collections, Managers } = await import('@/collections')
+  const { managerJoins } = await import('@/plugins/login/grantSummary')
   const { managersLogin } = await import('@/collections/Managers/login')
   const { generateEmail, generateEmailSubject } = await import('@/plugins/login/mail')
   const { composeInvitations } = await import('@/plugins/login/invite')
@@ -209,36 +210,45 @@ async function main() {
     previews.push({ label: scenario.label, note: scenario.note, url: messageUrl(info) })
   }
 
-  // The four collections the summary reads config from, as Payload sanitizes
-  // them: flattened fields, and labels filled in from the slug.
-  const collections = Object.fromEntries(
-    ([Managers, Regions, Events, Pages] as CollectionConfig[]).map((collection) => {
-      const words = collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1)
-      const { plural, singular } = collection.labels ?? {}
-      return [
-        collection.slug,
-        {
-          config: {
-            ...collection,
-            flattenedFields: flattenAllFields({ fields: collection.fields }),
-            labels: {
-              plural: typeof plural === 'string' ? plural : words,
-              singular: typeof singular === 'string' ? singular : words.replace(/s$/, ''),
+  // ⚠ **Every collection the summary reads config from, derived from the joins
+  // `Managers` declares.** A hand-written list of four was one short the day
+  // `managedClients` was added, and this script threw on every run — which is
+  // invisible until somebody asks it for a preview.
+  const joined = new Set<string>([
+    Managers.slug,
+    ...managerJoins(Managers.fields).map((join) => join.collection as string),
+  ])
+  // As Payload sanitizes them: flattened fields, and labels filled in from the slug.
+  const stubbed = Object.fromEntries(
+    (collections as CollectionConfig[])
+      .filter((collection) => joined.has(collection.slug))
+      .map((collection) => {
+        const words = collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1)
+        const { plural, singular } = collection.labels ?? {}
+        return [
+          collection.slug,
+          {
+            config: {
+              ...collection,
+              flattenedFields: flattenAllFields({ fields: collection.fields }),
+              labels: {
+                plural: typeof plural === 'string' ? plural : words,
+                singular: typeof singular === 'string' ? singular : words.replace(/s$/, ''),
+              },
             },
           },
-        },
-      ]
-    }),
+        ]
+      }),
   )
 
   for (const scenario of SCENARIOS) {
     // The two reads a summary makes: the roles, and a `find` per managed collection.
     const payload = {
       secret: SECRET,
-      collections,
+      collections: stubbed,
       findByID: async () => ({ roles: scenario.roles }),
       find: async ({ collection }: { collection: keyof Managed }) => {
-        const titleField = collections[collection]!.config.admin?.useAsTitle ?? 'id'
+        const titleField = stubbed[collection]!.config.admin?.useAsTitle ?? 'id'
         return {
           docs: (scenario.managed[collection] ?? []).map((doc, index) => ({
             id: index + 1,
