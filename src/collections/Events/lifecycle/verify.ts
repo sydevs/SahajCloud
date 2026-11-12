@@ -1,6 +1,8 @@
 import type { Payload, PayloadRequest } from 'payload'
 
 import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import type { LogRow } from '@/fields'
+import { toLogRow } from '@/fields'
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
@@ -31,7 +33,8 @@ export interface VerifyFields {
    * stages legitimately return null.
    */
   nextCheckAt: string | null
-  activityLog: ReturnType<typeof buildVerificationEntry>[]
+  /** The cycle's first row — the verification that opened it. */
+  activityLog: LogRow[]
 }
 
 /** Pull the `event_verification` cadence off a (possibly unpopulated) manager. */
@@ -74,7 +77,7 @@ export function computeVerifyFields(args: {
       schedule,
       inactive,
     }),
-    activityLog: [buildVerificationEntry(method, by, now.toISOString())],
+    activityLog: [toLogRow(buildVerificationEntry(method, by, now.toISOString()))],
   }
 }
 

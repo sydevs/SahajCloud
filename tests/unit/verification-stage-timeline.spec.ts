@@ -4,7 +4,8 @@ import {
   buildStageTracker,
   formatStageDate,
 } from '@/components/admin/VerificationStageField/timeline'
-import type { NotificationLogEntry } from '@/lib/eventVerification/log'
+import type { LogRow } from '@/fields'
+import { toLogRow } from '@/fields'
 import { buildReminderEntry, buildVerificationEntry } from '@/lib/eventVerification/log'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 
@@ -12,23 +13,25 @@ const T0 = '2026-06-06T00:00:00.000Z' // verified (cycle open)
 const T1 = '2026-06-13T00:00:00.000Z' // advanced verified → reminded
 const T2 = '2026-06-20T00:00:00.000Z' // advanced reminded → escalated
 
-// Built by the real builders rather than hand-shaped: entries now carry
-// display cells alongside their machine fields, and a literal here would drift
-// from what the job actually writes.
+// Built by the real builders and stored as the real rows: an entry's machine
+// fields live in a row's `data` column, and the tracker is handed what the form
+// holds. A literal here would drift from what the job actually writes.
 const MANAGER = { id: 1, name: 'Priya' }
 
-const verification: NotificationLogEntry = buildVerificationEntry('re-save', MANAGER, T0)
+const verification: LogRow = toLogRow(buildVerificationEntry('re-save', MANAGER, T0))
 
-const reminderAt = (stage: string, at: string): NotificationLogEntry =>
-  buildReminderEntry({
-    stage: stage as VerificationStage,
-    level: 'due',
-    role: 'manager',
-    at,
-    manager: MANAGER,
-    channel: 'email',
-    destination: 'p@x.com',
-  })
+const reminderAt = (stage: string, at: string): LogRow =>
+  toLogRow(
+    buildReminderEntry({
+      stage: stage as VerificationStage,
+      level: 'due',
+      role: 'manager',
+      at,
+      manager: MANAGER,
+      channel: 'email',
+      destination: 'p@x.com',
+    }),
+  )
 
 const byKey = (steps: ReturnType<typeof buildStageTracker>['steps']) =>
   Object.fromEntries(steps.map((s) => [s.key, s]))

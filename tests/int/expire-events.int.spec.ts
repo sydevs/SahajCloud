@@ -3,12 +3,13 @@ import type { Payload } from 'payload'
 import * as Sentry from '@sentry/nextjs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import {
   type EventBookkeeping,
   updateEventBookkeeping,
 } from '@/lib/events/updateEventWithoutValidation'
-import { asNotificationLog } from '@/lib/eventVerification/log'
+import { asNotificationLog, buildVerificationEntry } from '@/lib/eventVerification/log'
 
 import { capturedFrom } from '../utils/sentryCapture'
 import {
@@ -451,6 +452,133 @@ describe('ExpireEvents job', () => {
       expect(after.verificationStage).toBe('finished')
       expect(after.deletedAt ?? null).toBeNull()
     })
+    it('keeps a verify that lands while the run is still sending its reminders', async () => {
+      // The interleave: the send is what takes seconds, and a manager pressing
+      // Verify in that window used to be overwritten by the stage and log this
+      // run had read before it started.
+      const manager = await testData.createManager(payload)
+      const event = await createDueEvent(payload, 'Verified Mid-Run', { manager: manager.id })
+      const verifiedUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockImplementation(async () => {
+        await payload.update({
+          collection: 'events',
+          id: event.id,
+          data: {
+            verificationStage: 'verified',
+            nextCheckAt: verifiedUntil,
+            // A verify resets the cycle's log to its own first entry.
+            activityLog: [
+              toLogRow(
+                buildVerificationEntry(
+                  'verify-action',
+                  { id: manager.id, name: 'A manager' },
+                  new Date().toISOString(),
+                ),
+              ),
+            ],
+          },
+          context: { skipVerifyHook: true },
+          overrideAccess: true,
+        })
+        return {} as never
+      })
+      onTestFinished(() => sendEmail.mockRestore())
+
+      const result = await runTask(payload)
+      expect(result.advanced).toBe(0)
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      expect(new Date(after.nextCheckAt as string).toISOString()).toBe(verifiedUntil)
+
+      // Both entries: the verify's, which the run must not write over, and the
+      // run's own record of the reminder it really did send.
+      const log = asNotificationLog(after.activityLog)
+      expect(log.map((entry) => entry.kind)).toEqual(['verification', 'reminder'])
+    })
+  })
+
+  describe('restoring an event from the trash', () => {
+    // A schedule that has already run out: an `inactive` event with none is
+    // revived by any save, which is a different branch of the same hook.
+    const RAN_OUT = {
+      inactive: false,
+      eventType: 'online',
+      onlineUrl: 'https://example.com/over',
+      schedule: {
+        firstDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+        firstDate_tz: 'Europe/London',
+      },
+    }
+
+    /** What the admin Restore button sends. A trashed row needs the flag. */
+    const restore = (id: number) =>
+      payload.update({
+        collection: 'events',
+        id,
+        data: { deletedAt: null },
+        trash: true,
+        overrideAccess: true,
+      })
+
+    it("runs a restored finished event's retention from the restore, not the schedule", async () => {
+      // The event was trashed because its retention ran out, and a restore
+      // leaves that elapsed deadline behind it — so the very next nightly run
+      // trashed it again.
+      const event = await testData.createEvent(payload, {
+        title: 'Restored Finished',
+        ...RAN_OUT,
+      } as never)
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        data: {
+          verificationStage: 'finished',
+          nextCheckAt: DUE,
+          deletedAt: new Date().toISOString(),
+        },
+        context: { skipVerifyHook: true },
+        overrideAccess: true,
+      })
+
+      const restored = await restore(event.id)
+      expect(restored.verificationStage).toBe('finished')
+      expect(new Date(restored.nextCheckAt as string).getTime()).toBeGreaterThan(Date.now())
+
+      await runTask(payload)
+
+      const after = await reload(payload, event.id, true)
+      expect(after.deletedAt ?? null).toBeNull()
+      expect(after.verificationStage).toBe('finished')
+    })
+
+    it('returns a restored managerless event to unverified, so nothing expires it again', async () => {
+      // A manager removed from an event already on the ladder leaves this
+      // state, which the collection's own validators refuse to write.
+      const event = await testData.createEvent(payload, {
+        title: 'Restored Expired',
+        ...RAN_OUT,
+      } as never)
+      await storeInvalidEvent(payload, event.id, {
+        manager: null,
+        verificationStage: 'expired',
+        nextCheckAt: DUE,
+        deletedAt: new Date().toISOString(),
+      })
+
+      const restored = await restore(event.id)
+      expect(restored.verificationStage).toBe('unverified')
+
+      await runTask(payload)
+
+      // Back on the ordinary ladder: a listing whose schedule has run out is
+      // finished, and carries a fresh retention window. Before this, `expired`
+      // plus the elapsed watermark sent it straight back to the trash.
+      const after = await reload(payload, event.id, true)
+      expect(after.deletedAt ?? null).toBeNull()
+      expect(after.verificationStage).toBe('finished')
+    })
   })
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -532,7 +660,7 @@ describe('ExpireEvents job', () => {
         })
 
       await expect(write('not-a-stage')).rejects.toThrow(/Verification Process/)
-      await expect(write('reminded')).resolves.toBeUndefined()
+      await expect(write('reminded')).resolves.toBe(true)
       expect((await reload(payload, event.id)).verificationStage).toBe('reminded')
     })
 

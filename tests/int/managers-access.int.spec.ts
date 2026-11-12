@@ -312,7 +312,8 @@ describe('Managers access (#821)', () => {
 
       const managed = docs.find((doc) => doc.id === event.id)
       expect(managed).toBeDefined()
-      expect(managed!.activityLog).toBeUndefined()
+      // One row per entry: a denied read answers with no rows, not no field.
+      expect(managed!.activityLog ?? []).toEqual([])
     })
   })
 
