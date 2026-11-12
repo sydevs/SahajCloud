@@ -3,8 +3,9 @@
  *
  * Split out of `get-railway-preview-url.ts` so the decision is testable
  * without network, a clock, or a direct-run guard on the CI entrypoint.
- * That script keeps the environment, the GitHub fetch, the health check
- * and the exit codes. This module only classifies and polls.
+ * That script keeps the environment, the two fetches and the exit codes.
+ * This module classifies and polls, both for the Railway commit status and
+ * for the preview's own health answer.
  *
  * The case that matters is `unpublished`: Railway reports `success` but
  * publishes no host. Discovery used to treat that as "not ready yet" and
@@ -14,6 +15,8 @@
  * succeeds without a host is a base-environment misconfiguration, not an
  * absent preview, and it is terminal on the first poll.
  */
+
+import { isRecord } from '../src/lib/utilities/isRecord'
 
 export interface CommitStatus {
   context?: string
@@ -167,7 +170,7 @@ export async function discoverPreview(deps: DiscoverDeps): Promise<PreviewOutcom
 }
 
 /** What a preview's `/api/health` answer says about which commit it serves. */
-export type ServingVerdict = 'behind' | 'serving' | 'unknown'
+export type ServingVerdict = 'behind' | 'fieldless' | 'serving' | 'unknown'
 
 /**
  * Whether the preview that answered is serving the commit CI is testing.
@@ -175,20 +178,121 @@ export type ServingVerdict = 'behind' | 'serving' | 'unknown'
  * ⚠ **Nothing else can tell.** `version` is `npm_package_version`, identical on
  * every commit, and Railway's commit status proves only that it *started* that
  * deploy — so CI used to fill and test whichever build happened to be up,
- * which on a PR pushed twice in quick succession is the one before. `commit`
- * reports `RAILWAY_GIT_COMMIT_SHA`, and `unknown` means Railway stopped
- * injecting it: that is a broken premise rather than a slow deploy, so the
- * caller must fail rather than wait the budget out and then test anyway.
+ * which on a PR pushed twice in quick succession is the one before.
+ *
+ * Neither unnamed answer is worth waiting out, and they have different causes.
+ * `commit: 'unknown'` or `''` is `RAILWAY_GIT_COMMIT_SHA` going unset, which is
+ * Railway's. **No `commit` key** is not: a 200 from the health route fills that
+ * field unconditionally, so a build omitting it predates the field and wants the
+ * base merged in. Folded together, the Railway wording sent #1122 to Railway.
  *
  * Compared by prefix, in the longer-first direction, because the two sides are
  * not guaranteed to be the same length — a short SHA from either is still an
  * answer about the same commit.
  */
 export function servingVerdict(body: unknown, expectedSha: string): ServingVerdict {
-  const served = (body as { commit?: unknown } | null)?.commit
+  // A body that is no answer at all names no cause, so it must not claim a
+  // stale build. An array is one of those: `isRecord` admits it, and without
+  // this it would read as a build that predates the field.
+  if (!isRecord(body) || Array.isArray(body)) return 'unknown'
+  if (!('commit' in body)) return 'fieldless'
+
+  const served = body.commit
   if (typeof served !== 'string' || served === '' || served === 'unknown') return 'unknown'
 
   const [longer, shorter] =
     served.length >= expectedSha.length ? [served, expectedSha] : [expectedSha, served]
   return shorter.length > 0 && longer.startsWith(shorter) ? 'serving' : 'behind'
+}
+
+/** A verdict, plus the host that answered nothing at all for the whole budget. */
+export type HealthOutcome = ServingVerdict | 'silent'
+
+/**
+ * What CI prints for a health outcome that must not read as green.
+ *
+ * The wording is what failed in #1122, not the verdict: each string has to
+ * send a reader to the one place that can fix its own outcome, and `fieldless`
+ * is the one of the four that is nobody's fault on Railway.
+ */
+export const HEALTH_ERRORS: Record<Exclude<HealthOutcome, 'serving'>, string> = {
+  unknown:
+    '::error title=Railway preview does not report its commit::`/api/health` answered with ' +
+    '`commit: unknown`, so which build is serving cannot be established. Railway injects ' +
+    "`RAILWAY_GIT_COMMIT_SHA`; without it the preview cannot be filled or tested as this change's. " +
+    'Re-running will not help.',
+  fieldless:
+    '::error title=Railway preview never named a commit::`/api/health` answered for the whole ' +
+    'budget with no `commit` field at all, so the build serving it predates that field — usually ' +
+    'a branch cut before the commit that added it. Merge the base branch into this one and push. ' +
+    'Nothing on Railway needs fixing.',
+  behind:
+    '::error title=Railway preview never caught up::The preview answered but kept serving an ' +
+    'earlier commit for the whole budget, so testing it would have reported on the previous ' +
+    "push. Check the PR environment's deploy list in Railway.",
+  silent:
+    '::error title=Railway preview never answered::The deploy published a host, but nothing ' +
+    'answered on it for the whole budget — so the preview is down rather than behind. Read ' +
+    "the PR environment's deploy logs in Railway.",
+}
+
+export interface HealthDeps {
+  /** Resolves the parsed `/api/health` body, and rejects on anything else. */
+  fetchHealth: () => Promise<unknown>
+  expectedSha: string
+  timeoutMs: number
+  pollIntervalMs: number
+  sleep: (ms: number) => Promise<void>
+  now: () => number
+  log: (message: string) => void
+}
+
+/**
+ * Poll until the preview serves `expectedSha`, or the deadline passes.
+ *
+ * ⚠ **Only `unknown` is terminal.** That build carries the field and found
+ * the variable unset, which no further poll changes. `fieldless` is waited out
+ * alongside `behind`, because the build still answering may be the previous
+ * one — failing on the first such answer would reject the very push that
+ * fixes it.
+ *
+ * ⚠ **At the deadline the last healthy verdict wins.** Which failure it was
+ * decides what the error tells the reader to look at: reported as `behind`, a
+ * preview that never answered at all sent them to Railway's deploy list for a
+ * build that was down.
+ */
+export async function pollHealth(deps: HealthDeps): Promise<HealthOutcome> {
+  const { fetchHealth, expectedSha, timeoutMs, pollIntervalMs, sleep, now, log } = deps
+  const deadline = now() + timeoutMs
+  let attempt = 0
+  let lastHealthy: ServingVerdict | null = null
+
+  while (now() < deadline) {
+    attempt++
+    try {
+      const verdict = servingVerdict(await fetchHealth(), expectedSha)
+      if (verdict === 'serving') {
+        log(`preview serving ${expectedSha} after ${attempt} attempt(s)`)
+        return 'serving'
+      }
+      if (verdict === 'unknown') return 'unknown'
+      lastHealthy = verdict
+      log(
+        verdict === 'fieldless'
+          ? `health attempt ${attempt}: healthy, but the build names no commit`
+          : `health attempt ${attempt}: healthy, still on an earlier commit`,
+      )
+    } catch (err) {
+      log(`health attempt ${attempt}: ${(err as Error).message}`)
+    }
+
+    // Clamped as `discoverPreview`'s is, and for the same reason: the sleep
+    // after the last useful poll gates nothing, and an unclamped one overruns
+    // the advertised budget by up to a full interval.
+    const remaining = deadline - now()
+    if (remaining <= 0) break
+    await sleep(Math.min(pollIntervalMs, remaining))
+  }
+
+  return lastHealthy ?? 'silent'
 }
