@@ -123,7 +123,13 @@ const FINISHED: Doc = { id: 9, title: 'Summer Retreat', verificationStage: 'fini
 const FLAGGED: Doc = {
   id: 10,
   title: 'Thursday Morning',
-  systemMeta: { communityFeedback: { confirmations: 0, denials: 4 } },
+  systemMeta: { communityFeedback: { confirmations: 0, denials: 6 } },
+}
+/** One dissenter among twenty: below the threshold, so it was never taken down. */
+const DISPUTED: Doc = {
+  id: 11,
+  title: 'Friday Evening',
+  systemMeta: { communityFeedback: { confirmations: 20, denials: 1 } },
 }
 
 describe('summarizeGrants', () => {
@@ -183,7 +189,10 @@ describe('summarizeGrants', () => {
   })
 
   it('marks a class the community had voted down, from the tally the adoption left', async () => {
-    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED], regions: [BERLIN] })
+    const { payload } = fakePayload(
+      {},
+      { events: [TUESDAY, FLAGGED, DISPUTED], regions: [BERLIN] },
+    )
 
     // ⚠ Only the invitation asks for a brief: the preview sign-in picker
     // summarises up to 25 accounts to print one line each, and would pay for a
@@ -205,6 +214,11 @@ describe('summarizeGrants', () => {
     // and the stored denials are what do.
     expect(items.find((item) => item.title === FLAGGED.title)!.event!.flagged).toBe(true)
     expect(items.find((item) => item.title === TUESDAY.title)!.event!.flagged).toBe(false)
+
+    // The email's flagged line says the class was taken off the map, so it has
+    // to ask what took it off: one denial among twenty never reached the
+    // threshold, and the listing stood throughout.
+    expect(items.find((item) => item.title === DISPUTED.title)!.event!.flagged).toBe(false)
   })
 
   it('splits what it names by project — one invitation each', async () => {

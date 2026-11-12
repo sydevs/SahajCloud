@@ -4,6 +4,7 @@ import { flattenAllFields } from 'payload'
 
 import type { EventListingProgress } from '@/emails/EventVerificationEmail'
 import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
+import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
 import { buildEventListingProgress } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -386,7 +387,9 @@ async function readManaged(
  *
  * `flagged` reads the stored vote tally rather than the stage: by the time this
  * runs the adoption has already moved the class to `verified`, so `denied` is
- * no longer there to read, and the denials that put it there are.
+ * no longer there to read, and the denials that put it there are. It re-runs
+ * the verdict that unpublished it, because a bare denial count would tell a
+ * manager a listing nobody ever took down was off the map.
  */
 async function describeEvent(
   event: Event,
@@ -403,6 +406,9 @@ async function describeEvent(
     location: online ? (event.onlineUrl ?? '') : addressOneLine(event.address ?? {}),
     ...(contact ? { contact } : {}),
     progress: req ? await buildEventListingProgress({ event, req }).catch(() => null) : null,
-    flagged: (event.systemMeta?.communityFeedback?.denials ?? 0) > 0,
+    flagged: computeCommunityVerdict({
+      confirmations: event.systemMeta?.communityFeedback?.confirmations ?? 0,
+      denials: event.systemMeta?.communityFeedback?.denials ?? 0,
+    }).denied,
   }
 }
