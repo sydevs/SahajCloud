@@ -62,8 +62,8 @@ Use `vi.resetModules()` + a dynamic `await import(...)` to swap env vars
 between cases. Inject dependencies (`fetchFn`, `logger`) as function
 arguments instead of stubbing globals, to keep tests state-clean.
 
-Examples: `tests/int/storage-utils.int.spec.ts`,
-`tests/int/cloudflare-stream-webhook.int.spec.ts`.
+Examples: `tests/unit/storage-utils.spec.ts`,
+`tests/unit/cloudflare-stream-webhook.spec.ts`.
 
 ## Running tests locally
 
