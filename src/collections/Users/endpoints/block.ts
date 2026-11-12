@@ -42,12 +42,11 @@ const BLOCKED_NOTE =
  * next block writes its own, and no refused row comes back — a proposal is
  * reopened by its own Reopen button.
  *
- * ⚠ **The writes run on a request with no user.** `reviewMove` refuses any
- * status move a manager makes on a non-proposal row — a manager has no business
- * marking a contact message spam through the form — and it reads `req.user` to
- * decide. This endpoint is the decision, already gated; a system request is how
- * every other machine writer (screening, delivery) reaches `spam`, and sharing
- * one transaction keeps the block and its refusals together.
+ * ⚠ **The writes run on a request with no user, and name `block`.** The
+ * status machine refuses a manager marking a contact message spam through the
+ * form; this endpoint is the decision, already gated, so it writes as the
+ * system writer it is — the way screening and delivery reach `spam` — and
+ * sharing one transaction keeps the block and its refusals together.
  */
 export const blockUser: Endpoint = {
   path: '/:id/block',

@@ -1,3 +1,5 @@
+import type { PayloadRequest } from 'payload'
+
 /**
  * A lifecycle declared once, as a table of the moves that exist.
  *
@@ -7,45 +9,131 @@
  * submission review checked at all. A move that no reader could find was a
  * move nobody could refuse.
  *
- * A machine states the column it governs and every `(from, to, by)` that is
- * legal. `can` is the only lookup, `transition` is the only write, and one
- * `beforeChange` guard per machine refuses everything else.
+ * A machine states the column it governs, its states, every `(from, to, by)`
+ * that is legal, and who may name themselves as a writer. `can` is the table's
+ * lookup, `transition` is the only write, and the guard `stateMachineField`
+ * mounts on the column refuses everything else (#1121).
  *
- * ⚠ **A table, a lookup and a claim — nothing more.** No actions, no
- * side-effect registry, no nested states, no timers. A machine that needs one
- * of those wants XState, not a bigger version of this (#1120).
+ * ⚠ **A table, its conditions, a lookup and a claim — nothing more.** No
+ * actions, no side-effect registry, no nested states, no timers. A move's
+ * `name` is how a collection's own `afterChange` knows which decision it is
+ * acting on; the work stays in that hook. A machine that needs more wants
+ * XState, not a bigger version of this (#1120).
  */
 
 /** A move's `from` standing for every state: the job's "any stage → finished". */
 export const ANY_STATE = '*' as const
 
-export interface Move<State extends string, Actor extends string> {
+/**
+ * Why a move was refused: a sentence for the move itself, or one aimed at
+ * another field — a precondition the person can fix there, such as the region
+ * an accept needs.
+ */
+export type Refusal = string | { field: string; message: string }
+
+/** What a move's condition sees: the document as the write would leave it. */
+export interface MoveContext<Doc> {
+  doc: Partial<Doc>
+  req: PayloadRequest
+}
+
+export interface Move<State extends string, Actor extends string, Doc = unknown> {
   /** The states this move may start from, or {@link ANY_STATE}. */
   readonly from: readonly State[] | typeof ANY_STATE
   readonly to: State
   /** Every writer that may make it. A writer absent here is refused. */
   readonly by: readonly Actor[]
+  /** The decision this move is, for the hook that acts on it. */
+  readonly name?: string
+  /**
+   * A condition on the document, judged by the guard alone.
+   *
+   * ⚠ **Synchronous and pure over the document and the request.** `can` never
+   * calls it, so a button map and the table's own tests stay enumerable
+   * without a document; and a read here would be slow and could race, which is
+   * what `transition`'s claim already answers.
+   */
+  readonly when?: (ctx: MoveContext<Doc>) => true | Refusal
+  /** What a person who is not in `by` is told, where another person may. */
+  readonly refusal?: string
 }
 
-export interface StateMachine<State extends string, Actor extends string> {
+/** Who the person behind a request is, or why they may not move this column at all. */
+export type PersonResolution<Actor extends string> = Actor | { refused: string } | null
+
+export interface StateMachine<State extends string, Actor extends string, Doc = unknown> {
   /** What the lifecycle is called, in a refusal and in its Sentry report. */
   readonly name: string
   /** The document column the state lives in. */
   readonly field: string
-  readonly moves: readonly Move<State, Actor>[]
+  /** Every state, in the order the column's options list them. */
+  readonly states: readonly State[]
+  readonly moves: readonly Move<State, Actor, Doc>[]
+  /**
+   * The actors a write may **name** on its context, which is never every actor
+   * in the table.
+   *
+   * ⚠ **Not derived from the moves**, on purpose. `req.context` is written by
+   * whatever code made the call, so a declarable person would be an authority
+   * check anything server-side could skip. Declaring is for a writer with no
+   * person behind it; a person comes from {@link StateMachine.person}.
+   */
+  readonly declarable: readonly Actor[]
+  /**
+   * Who the person behind a request is, when the write names no writer.
+   * Absent, a person's own save names nobody and is refused.
+   */
+  readonly person?: (req: PayloadRequest) => PersonResolution<Actor>
+  /** The sentence for a move no row holds, where the default would not read well. */
+  readonly refusal?: (args: { from: State; to: State }) => string
 }
 
-const starts = <State extends string, Actor extends string>(
-  move: Move<State, Actor>,
+/** Declare a machine: the identity function, there to infer its types in one place. */
+export function defineStateMachine<State extends string, Actor extends string, Doc = unknown>(
+  machine: StateMachine<State, Actor, Doc>,
+): StateMachine<State, Actor, Doc> {
+  return machine
+}
+
+/** Whether a move may start from `from`. */
+export const startsFrom = <State extends string>(
+  move: { readonly from: readonly State[] | typeof ANY_STATE },
   from: State,
 ): boolean => move.from === ANY_STATE || move.from.includes(from)
 
-/** Whether `by` may move a document from `from` to `to`. */
+/**
+ * Whether the table holds a move `by` may make from `from` to `to`.
+ *
+ * ⚠ **The table alone, never a move's `when`.** This is what a button map and
+ * a caller's pre-check read, neither of which has a document to judge; the
+ * guard judges the condition on the write itself.
+ */
 export function can<State extends string, Actor extends string>(
-  machine: StateMachine<State, Actor>,
+  machine: {
+    readonly moves: readonly {
+      readonly from: readonly State[] | typeof ANY_STATE
+      readonly to: State
+      readonly by: readonly Actor[]
+    }[]
+  },
   from: State,
   to: State,
   by: Actor,
 ): boolean {
-  return machine.moves.some((move) => move.to === to && starts(move, from) && move.by.includes(by))
+  return machine.moves.some(
+    (move) => move.to === to && startsFrom(move, from) && move.by.includes(by),
+  )
+}
+
+/** Every state the moves called `name` start from. */
+export function startsOf<State extends string, Actor extends string, Doc>(
+  machine: StateMachine<State, Actor, Doc>,
+  name: string,
+): State[] {
+  const starts = new Set<State>()
+  for (const move of machine.moves) {
+    if (move.name !== name) continue
+    for (const state of move.from === ANY_STATE ? machine.states : move.from) starts.add(state)
+  }
+  return machine.states.filter((state) => starts.has(state))
 }

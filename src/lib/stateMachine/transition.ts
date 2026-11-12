@@ -38,9 +38,9 @@ export type TransitionWrite = (args: {
  * A move absent from the table throws rather than returning `false`: a caller
  * naming one is a defect in this repository, not a race with another writer.
  */
-export async function transition<State extends string, Actor extends string>(args: {
+export async function transition<State extends string, Actor extends string, Doc>(args: {
   payload: Payload
-  machine: StateMachine<State, Actor>
+  machine: StateMachine<State, Actor, Doc>
   collection: CollectionSlug
   id: number | string
   from: State

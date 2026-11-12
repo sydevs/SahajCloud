@@ -5,7 +5,7 @@
  * deleted out from under them.
  *
  * Driven over REST, because the gate under test is the endpoint's own and the
- * status moves it makes are ones `reviewMove` refuses a manager's request.
+ * status moves it makes are ones the status machine refuses a manager's request.
  */
 import type { Payload } from 'payload'
 

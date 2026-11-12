@@ -5,8 +5,8 @@
  *
  * ⚠ **The subject is `payload.update` as a manager, not `applyReview`.** #909
  * deleted `POST /api/user-submissions/:id/review` and put the whole decision on
- * the collection's own hooks: `guardStatusTransition` judges the move,
- * `applyReviewDecision` applies it. Calling the lifecycle function directly
+ * the collection's own hooks: the `status` column's guard judges the move
+ * against `SUBMISSION_MACHINE`, and `applyReviewDecision` applies it. Calling the lifecycle function directly
  * would test neither, and both are where the refusals now live — so each case
  * posts the transition the button posts.
  *
@@ -24,17 +24,15 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { reviewMove } from '@/collections/UserSubmissions/lifecycle/review'
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import {
   OPEN_REVIEW_STATUSES,
   REOPENABLE_REVIEW_STATUSES,
   SPAM_REVIEW_STATUSES,
-  SUBMISSION_STATUSES,
 } from '@/collections/UserSubmissions/statuses'
 import type { WorkflowButtonsProps, WorkflowRule } from '@/components/admin/WorkflowButtons/stages'
 import { asLog } from '@/fields'
-import { ANY_STATE, can } from '@/lib/stateMachine/machine'
+import { judgeTransition } from '@/lib/stateMachine/guard'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager, UserSubmission } from '@/payload-types'
 
@@ -157,7 +155,7 @@ describe('User submission review lifecycle', () => {
     cleanup = env.cleanup
 
     // `atlas-region-manager` is what grants `user-submissions: update` here, and
-    // `reviewMove` reads that grant — a manager without it is not a reviewer,
+    // the machine reads that grant — a manager without it is not a reviewer,
     // whatever rows name them. The country listing below is the role, so the
     // reviewer has to be re-read after it (`authUser`).
     const listed = await testData.createManager(payload, {
@@ -413,7 +411,7 @@ describe('User submission review lifecycle', () => {
    * Which statuses carry buttons is derived from the two status sets, so it
    * cannot drift. Where each button *points* is not — `overrides.status` is
    * written at the declaration, and a Reject aimed at `spam` would build the
-   * same map and be refused by `reviewMove` at the click. So the targets are
+   * same map and be refused by the column's guard at the click. So the targets are
    * pinned against the decision the server would make for them.
    */
   describe('the review buttons', () => {
@@ -461,8 +459,8 @@ describe('User submission review lifecycle', () => {
 
     it('settles a refusal on an admin’s authority alone, on every intake', () => {
       // Keyed by status and gated by viewer rather than by intake, because
-      // `reviewMove` runs its spam branch ahead of the proposal gate — the
-      // offer has to reach a registration, which is what an admin's home lists.
+      // Settling a refusal is an admin's move on every intake — the offer has
+      // to reach a registration, which is what an admin's home lists.
       expect(Object.keys(ruleFor('admin').stages).sort()).toEqual([...SPAM_REVIEW_STATUSES].sort())
     })
 
@@ -478,20 +476,39 @@ describe('User submission review lifecycle', () => {
         ? (rule.when.equals as UserSubmission['type'])
         : ('registration' as const)
 
+    /**
+     * What the column's guard answers a button's submit, on a row carrying a
+     * region — an accept's own precondition is a field the reviewer fills, not
+     * the button's aim.
+     */
+    const judgeButton = (
+      from: UserSubmission['status'],
+      to: UserSubmission['status'],
+      type: UserSubmission['type'],
+      user: object,
+    ) =>
+      judgeTransition({
+        machine: SUBMISSION_MACHINE,
+        from,
+        to,
+        doc: { type, region: cityId },
+        req: { locale: 'en', user, context: {} } as unknown as PayloadRequest,
+      })
+
     it('aims every button at a move the server would accept', () => {
       for (const rule of declaration().rules) {
         for (const { button, from, to } of offers(rule)) {
-          const move = reviewMove({
+          const verdict = judgeButton(
             from,
             to,
-            type: typeFor(rule),
-            // An admin, so the only thing left for `reviewMove` to judge is the
-            // transition — `bypassPermissions` admits them before any role
-            // lookup. Whether a given manager holds the grant is the
-            // assigned-manager suite's subject, not this one's.
-            req: { locale: 'en', user: { collection: 'managers', type: 'admin' } } as never,
-          })
-          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+            typeFor(rule),
+            // An admin, so the only thing left to judge is the transition —
+            // `bypassPermissions` admits them before any role lookup. Whether a
+            // given manager holds the grant is the assigned-manager suite's
+            // subject, not this one's.
+            { collection: 'managers', type: 'admin' },
+          )
+          expect(verdict, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'allowed' })
         }
       }
     })
@@ -501,19 +518,17 @@ describe('User submission review lifecycle', () => {
      * the server owes its own guard, so a move only an admin may make must not
      * be offered through a rule every reviewer matches — that is a control which
      * can only answer 403 (`docs/rules/admin-ui.md`). This reviewer holds the
-     * grant and is not an admin, so the only thing left for `reviewMove` to
+     * grant and is not an admin, so the only thing left for the machine to
      * refuse is the authority the rule failed to name.
      */
     it('offers a non-admin reviewer no move an admin alone may make', () => {
       for (const rule of declaration().rules.filter((r) => r.when?.userType !== 'admin')) {
         for (const { button, from, to } of offers(rule)) {
-          const move = reviewMove({
-            from,
-            to,
-            type: typeFor(rule),
-            req: { locale: 'en', user: { ...regionManager, collection: 'managers' } } as never,
+          const verdict = judgeButton(from, to, typeFor(rule), {
+            ...regionManager,
+            collection: 'managers',
           })
-          expect(move, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'decision' })
+          expect(verdict, `${button.label}: ${from} → ${to}`).toMatchObject({ kind: 'allowed' })
         }
       }
     })
@@ -818,8 +833,8 @@ describe('User submission review lifecycle', () => {
    * collection has a `manager` field — so whoever it names may edit the row
    * with no grant at all. Reading the collection's `update` to decide who may
    * review would have turned that into authority to publish the Events row an
-   * accept writes, with `overrideAccess: true` behind it. `reviewMove` reads
-   * the grant instead.
+   * accept writes, with `overrideAccess: true` behind it. The machine's `person`
+   * reads the grant instead.
    */
   describe('a manager named on the row but holding no grant', () => {
     let assignee: Manager
@@ -944,45 +959,6 @@ describe('User submission review lifecycle', () => {
         expect((await reload(id)).subject).toBe('Edited by a manager')
       },
     )
-  })
-
-  /**
-   * ⚠ **Two tables, one answer.** `reviewMove` owns what a manager may do and
-   * why; `SUBMISSION_MACHINE` is what the buttons are built from and what the
-   * guard refuses a system writer on. Nothing but these two cases stops them
-   * drifting — a move in one and not the other is either a button the server
-   * refuses, or a refusal no surface ever offers.
-   */
-  describe('the move table and the review predicate agree', () => {
-    const asAdmin = {
-      locale: 'en',
-      user: { collection: 'managers', type: 'admin' },
-    } as unknown as PayloadRequest
-
-    /** The intakes a move is a decision on — empty means `reviewMove` refuses it. */
-    const decidedOn = (from: UserSubmission['status'], to: UserSubmission['status']) =>
-      (['proposal', 'registration'] as const).filter(
-        (type) => reviewMove({ from, to, type, req: asAdmin }).kind === 'decision',
-      )
-
-    it('holds every move reviewMove grants', () => {
-      for (const from of SUBMISSION_STATUSES) {
-        for (const to of SUBMISSION_STATUSES) {
-          if (from === to || decidedOn(from, to).length === 0) continue
-          expect(can(SUBMISSION_MACHINE, from, to, 'admin'), `${from} → ${to}`).toBe(true)
-        }
-      }
-    })
-
-    it('grants no human move reviewMove would refuse', () => {
-      for (const move of SUBMISSION_MACHINE.moves) {
-        if (!move.by.some((actor) => actor === 'admin' || actor === 'review')) continue
-        const origins = move.from === ANY_STATE ? SUBMISSION_STATUSES : move.from
-        for (const from of origins) {
-          expect(decidedOn(from, move.to), `${from} → ${move.to}`).not.toEqual([])
-        }
-      }
-    })
   })
 
   describe('sending a failed delivery again', () => {

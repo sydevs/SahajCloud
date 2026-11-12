@@ -13,11 +13,13 @@ import { z } from 'zod'
 import { logField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
+import { stateMachineField } from '@/fields/stateMachineField'
 import type { UserSubmission } from '@/payload-types'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
 import { computePreviewEvent, computeProposedChanges } from './hooks/computeReviewFields'
-import { STATUS_LABELS, SUBMISSION_STATUSES } from './statuses'
+import { SUBMISSION_MACHINE } from './machine'
+import { STATUS_LABELS } from './statuses'
 
 /**
  * What a submission *is*. Every access rule, policy branch and retention window
@@ -368,20 +370,20 @@ const submissionContextField: Field = {
   },
 }
 
-/** One four-state vocabulary for every type. `SUBMISSION_STATUSES` says what each means. */
-const statusField: Field = {
-  name: 'status',
-  type: 'select',
-  required: true,
+/**
+ * One status vocabulary for every type. `SUBMISSION_STATUSES` says what each
+ * means, and `SUBMISSION_MACHINE` who may move between them.
+ *
+ * Under System: the banner on `screeningResult` is where a reader meets it. The
+ * review buttons read it from form state, which a collapsed group keeps.
+ */
+const statusField: Field = stateMachineField(SUBMISSION_MACHINE, {
+  labels: STATUS_LABELS,
   defaultValue: 'pending',
   index: true,
-  options: SUBMISSION_STATUSES.map((value) => ({ label: STATUS_LABELS[value], value })),
   enumName: 'enum_user_submissions_status',
   access: systemFieldAccess,
-  // Under System: the banner on `screeningResult` is where a reader meets it.
-  // The review buttons read it from form state, which a collapsed group keeps.
-  admin: { readOnly: true },
-}
+})
 
 /**
  * Whether a row has an event to show: always for a registration or a proposal

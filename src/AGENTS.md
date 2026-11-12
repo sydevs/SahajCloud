@@ -188,15 +188,23 @@ No loose files at the root — every file lives in a named folder:
   Neither knows a stage, a status or a verdict — the Payload
   flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
   own. No barrel: import each module by its own path
-- `stateMachine/` — one lifecycle declared as a table of the `(from, to, by)`
-  moves that exist, its lookup, its claim, and the `beforeChange` guard that
-  refuses everything else (#1121). Two machines use it: the event verification
-  stage (`lib/eventVerification/machine.ts`) and the submission status
-  (`collections/UserSubmissions/machine.ts`), which is why the machinery is
-  here and each table is with its owner. ⚠ **A table, a lookup and a claim —
-  nothing else.** No actions, no side-effect registry, no nested states, no
-  timers; a machine that needs one of those wants XState instead of a bigger
-  version of this. No barrel: import each module by its own path
+- `stateMachine/` — one lifecycle declared once with `defineStateMachine`:
+  its states, the `(from, to, by)` moves that exist (a move may carry a pure
+  `when` condition on the document, a `name` for the decision it is, and the
+  `refusal` a person outside `by` reads), who may name themselves as a writer,
+  and how a request's person resolves. Then `can` (the table alone, for button
+  maps and pre-checks), `judgeTransition` (the table plus conditions),
+  `transition` (the claim), and the guard `stateMachineField`
+  (`src/fields/stateMachineField.ts`) mounts on the column as a field
+  `beforeChange`, so it runs after every collection hook (#1121). Two machines
+  use it: the event verification stage (`lib/eventVerification/machine.ts`) and
+  the submission status (`collections/UserSubmissions/machine.ts`), which is
+  why the machinery is here and each table is with its owner. ⚠ **A table, its
+  conditions, a lookup and a claim — nothing else.** No actions, no
+  side-effect registry, no nested states, no timers: what a move _does_ stays
+  in the owner's own hook, keyed on the move's name. A machine that needs more
+  wants XState instead of a bigger version of this. No barrel: import each
+  module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,

@@ -10,10 +10,9 @@ import type { PayloadRequest, RequestContext } from 'payload'
  * its move is in the table, rather than silently joining the ones that were
  * never checked.
  *
- * There is no fallback to `req.user`: a manager's own save names no actor and
- * resolves to `null`, which each collection answers for itself.
- * `guardStatusTransition` takes that case to `reviewMove` before the shared
- * guard runs; `guardVerificationStage` lets the refusal stand.
+ * A person is never declared here: a machine with people in its table resolves
+ * them from the request itself (`StateMachine.person`), and one without — the
+ * event stage — refuses a manager's own save outright.
  */
 const STAGE_ACTOR = 'stageActor'
 

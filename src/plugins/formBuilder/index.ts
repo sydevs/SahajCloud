@@ -11,7 +11,6 @@ import {
   syncCommunityFeedback,
 } from '@/collections/UserSubmissions/hooks/eventFeedback'
 import { gateRegistration } from '@/collections/UserSubmissions/hooks/gateRegistration'
-import { guardStatusTransition } from '@/collections/UserSubmissions/hooks/guardStatusTransition'
 import { mergeRepeatRegistration } from '@/collections/UserSubmissions/hooks/mergeRepeatRegistration'
 import { prepareUserSubmission } from '@/collections/UserSubmissions/hooks/prepareUserSubmission'
 import { queueScreening } from '@/collections/UserSubmissions/hooks/queueScreening'
@@ -202,7 +201,7 @@ const SPAM_STAGES: Record<SpamReviewStatus, WorkflowButton[]> = {
  * The two spam statuses are in `REOPENABLE_REVIEW_STATUSES` too, so they get a
  * Reopen here. An admin sees `SPAM_STAGES` on such a row instead, since that
  * rule comes first; a region manager reviewing a refused **proposal** sees this
- * Reopen, which is the move `reviewMove` grants them — the admin-only gate
+ * Reopen, which is the move the table grants them — the admin-only gate
  * covers settling a refusal, not re-opening a proposal.
  */
 const REVIEW_STAGES: WorkflowRule<UserSubmission['status']>['stages'] = {
@@ -366,7 +365,7 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
                   // intake and it outranks re-opening one: a reader looking at
                   // a refused proposal is asked whether it is spam, not whether
                   // to review it. Admin-only on both sides of the wire — only
-                  // an admin may make the move (`reviewMove`), so only an admin
+                  // an admin may make the move (`SUBMISSION_MACHINE`), so only an admin
                   // is offered it.
                   { stages: SPAM_STAGES, when: { userType: 'admin' } },
                   { stages: REVIEW_STAGES, when: { equals: 'proposal', field: 'type' } },
@@ -446,7 +445,7 @@ const formBuilder = (config: Parameters<Plugin>[0]) =>
         // arrays the wrapper above replaces — so both belong here. Their
         // `afterChange` siblings do not: listing them here would have the
         // wrapper's whole-array replacement discard them.
-        beforeChange: [gateEventFeedback, guardStatusTransition],
+        beforeChange: [gateEventFeedback],
         afterDelete: [syncFullnessAfterDelete],
       },
     },

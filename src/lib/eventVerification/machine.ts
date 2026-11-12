@@ -1,4 +1,4 @@
-import { ANY_STATE, type Move, type StateMachine } from '@/lib/stateMachine/machine'
+import { ANY_STATE, defineStateMachine, type Move } from '@/lib/stateMachine/machine'
 
 import { LADDER, LADDER_STEPS, VERIFICATION_STAGES, type VerificationStage } from './stages'
 
@@ -51,9 +51,17 @@ const RE_SAVE_FROM: VerificationStage[] = [...LADDER, 'expired', 'finished']
  * `finished` retention window both write `deletedAt`, leaving the stage where
  * it was, so neither is a move.
  */
-export const EVENT_MACHINE: StateMachine<VerificationStage, EventActor> = {
+export const EVENT_MACHINE = defineStateMachine<VerificationStage, EventActor>({
   name: 'verification stage',
   field: 'verificationStage',
+  states: VERIFICATION_STAGES,
+  // ⚠ **Every one of them, and no `person`.** `verificationStage` is
+  // `admin.readOnly`, which is the admin UI alone, so before the guard any
+  // manager holding `events: update` could `PATCH` it to any value with nothing
+  // applying what the stage implies. Every legitimate change is derived by a
+  // hook or made by an operation, and each of those names itself — a manager's
+  // own save names nobody, and is refused.
+  declarable: EVENT_ACTORS,
   moves: [
     ...LADDER_MOVES,
     // The schedule ran out. Terminal from wherever the event stood.
@@ -91,4 +99,4 @@ export const EVENT_MACHINE: StateMachine<VerificationStage, EventActor> = {
       by: ['import'] as const,
     })),
   ],
-}
+})

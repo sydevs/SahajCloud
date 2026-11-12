@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -17,7 +17,7 @@ import {
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
 import { judgeTransition } from '@/lib/stateMachine/guard'
-import { ANY_STATE, can } from '@/lib/stateMachine/machine'
+import { ANY_STATE, can, defineStateMachine } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
 import type { UserSubmission } from '@/payload-types'
 
@@ -61,24 +61,188 @@ describe('can', () => {
 })
 
 describe('judgeTransition', () => {
-  const machine = {
+  const machine = defineStateMachine<'a' | 'b' | 'c', 'job' | 'boss' | 'staff', { kind: string }>({
     name: 'test state',
     field: 'state',
-    moves: [{ from: ['a'], to: 'b', by: ['one'] }],
-  } as const
+    states: ['a', 'b', 'c'],
+    declarable: ['job'],
+    person: (req) => (req.user ? ((req.user as { role?: 'boss' | 'staff' }).role ?? null) : null),
+    moves: [
+      { from: ['a'], to: 'b', by: ['job'] },
+      {
+        name: 'promote',
+        from: ['a'],
+        to: 'c',
+        by: ['staff', 'boss'],
+        when: ({ doc }) => doc.kind === 'open' || { field: 'kind', message: 'Open it first.' },
+      },
+      { name: 'demote', from: ['c'], to: 'a', by: ['boss'], refusal: 'Only a boss can demote.' },
+    ],
+  })
+
+  const as = (role?: 'boss' | 'staff', declared?: string) =>
+    ({
+      user: role ? { role } : null,
+      context: declared ? { stageActor: declared } : {},
+    }) as unknown as PayloadRequest
+  const judge = (
+    from: 'a' | 'b' | 'c',
+    to: 'a' | 'b' | 'c' | null | undefined,
+    req: PayloadRequest,
+    kind = 'open',
+  ) => judgeTransition({ machine, from, to, doc: { kind }, req })
 
   it('judges nothing when the write left the column alone', () => {
-    expect(judgeTransition({ machine, from: 'a', to: undefined, by: 'one' })).toBeNull()
-    expect(judgeTransition({ machine, from: 'a', to: 'a', by: 'one' })).toBeNull()
+    expect(judge('a', undefined, as())).toEqual({ kind: 'unchanged' })
+    expect(judge('a', 'a', as())).toEqual({ kind: 'unchanged' })
   })
 
-  it('refuses a move that names no writer', () => {
-    expect(judgeTransition({ machine, from: 'a', to: 'b', by: null })).toContain('names no writer')
+  it('refuses a move that names no writer, and reports it', () => {
+    expect(judge('a', 'b', as())).toMatchObject({
+      kind: 'refused',
+      message: expect.stringContaining('names no writer'),
+      incident: true,
+    })
   })
 
-  it('refuses a move the table does not hold', () => {
-    expect(judgeTransition({ machine, from: 'b', to: 'a', by: 'one' })).toContain('cannot move')
-    expect(judgeTransition({ machine, from: 'a', to: 'b', by: 'one' })).toBeNull()
+  it('lets a declared system writer make its own move, whoever the request is', () => {
+    expect(judge('a', 'b', as('staff', 'job'))).toMatchObject({ kind: 'allowed', by: 'job' })
+  })
+
+  it('never lets a write claim to be a person', () => {
+    // `boss` is in the table but not declarable: the claim is ignored, and the
+    // request's own person answers.
+    expect(judge('c', 'a', as('staff', 'boss'))).toMatchObject({
+      kind: 'refused',
+      by: 'staff',
+    })
+  })
+
+  it('names the move a person made, once its condition holds', () => {
+    expect(judge('a', 'c', as('staff'))).toMatchObject({
+      kind: 'allowed',
+      move: { name: 'promote' },
+    })
+  })
+
+  it('reports a failed precondition on its own field, and not as an incident', () => {
+    expect(judge('a', 'c', as('staff'), 'closed')).toMatchObject({
+      kind: 'refused',
+      field: 'kind',
+      message: 'Open it first.',
+      incident: false,
+    })
+  })
+
+  it('tells a person which authority they lack', () => {
+    expect(judge('c', 'a', as('staff'))).toMatchObject({
+      kind: 'refused',
+      field: 'state',
+      message: 'Only a boss can demote.',
+      incident: true,
+    })
+  })
+
+  it('refuses a move the table does not hold, and an explicit null', () => {
+    expect(judge('b', 'a', as('boss'))).toMatchObject({
+      kind: 'refused',
+      message: expect.stringContaining('cannot move test state from b to a'),
+    })
+    expect(judge('a', null, as('boss'))).toMatchObject({ kind: 'refused' })
+  })
+})
+
+/**
+ * What a person may do to a submission, judged as the column's guard judges a
+ * form's post. Each row is one decision the review buttons rely on, or one
+ * refusal a forged `PATCH` meets.
+ */
+describe('SUBMISSION_MACHINE, for a person', () => {
+  type Status = UserSubmission['status']
+  type Type = UserSubmission['type']
+
+  const admin = { collection: 'managers', type: 'admin' }
+  const reviewer = {
+    collection: 'managers',
+    type: 'manager',
+    roles: { en: ['atlas-event-manager'] },
+  }
+  const noGrant = { collection: 'managers', type: 'manager', roles: { en: ['meditations-editor'] } }
+  const req = (user: object) => ({ user, locale: 'en', context: {} }) as unknown as PayloadRequest
+
+  const judge = (user: object, from: Status, to: Status, type: Type, extra = {}) =>
+    judgeTransition({
+      machine: SUBMISSION_MACHINE,
+      from,
+      to,
+      doc: { type, region: 7, ...extra },
+      req: req(user),
+    })
+  const decision = (user: object, from: Status, to: Status, type: Type) => {
+    const verdict = judge(user, from, to, type)
+    return verdict.kind === 'allowed' ? verdict.move.name : verdict.kind
+  }
+
+  it.each([
+    ['pending', 'accepted', 'proposal', 'accept'],
+    ['failed', 'accepted', 'proposal', 'accept'],
+    ['pending', 'rejected', 'proposal', 'reject'],
+    ['rejected', 'pending', 'proposal', 'reopen'],
+    ['spam', 'pending', 'proposal', 'reopen'],
+  ] as const)('lets a reviewer move a %s %s %s: %s', (from, to, type, name) => {
+    expect(decision(reviewer, from, to, type)).toBe(name)
+    expect(decision(admin, from, to, type)).toBe(name)
+  })
+
+  it.each([
+    ['spam', 'confirmed_spam', 'registration', 'confirm-spam'],
+    ['spam', 'confirmed_spam', 'proposal', 'confirm-spam'],
+    ['confirmed_spam', 'pending', 'proposal', 'reopen'],
+    ['spam', 'pending', 'contact', 'reopen'],
+    ['failed', 'pending', 'contact', 'resend'],
+  ] as const)('leaves %s → %s on a %s to an admin: %s', (from, to, type, name) => {
+    expect(decision(admin, from, to, type)).toBe(name)
+    expect(judge(reviewer, from, to, type)).toMatchObject({
+      kind: 'refused',
+      message: expect.stringMatching(/^Only an admin/),
+    })
+  })
+
+  it('refuses every review move on an intake nobody reviews', () => {
+    expect(judge(admin, 'pending', 'accepted', 'contact')).toMatchObject({
+      kind: 'refused',
+      message: 'A contact submission is not reviewable.',
+    })
+  })
+
+  it('keeps a failed proposal open for review rather than resending it', () => {
+    expect(judge(admin, 'failed', 'pending', 'proposal')).toMatchObject({ kind: 'refused' })
+  })
+
+  it('refuses reopening an accepted row, which already wrote to an event', () => {
+    expect(judge(admin, 'accepted', 'pending', 'proposal')).toMatchObject({
+      kind: 'refused',
+      message: 'A accepted submission cannot become pending.',
+    })
+  })
+
+  it('refuses a manager holding no grant, whatever the move', () => {
+    expect(judge(noGrant, 'pending', 'rejected', 'proposal')).toMatchObject({
+      kind: 'refused',
+      message: 'You do not have permission to review submissions.',
+    })
+  })
+
+  it('refuses a new-event accept with no region, on the region field', () => {
+    expect(judge(reviewer, 'pending', 'accepted', 'proposal', { region: null })).toMatchObject({
+      kind: 'refused',
+      field: 'region',
+      incident: false,
+    })
+    // An update proposal names its event, which needs no region.
+    expect(
+      judge(reviewer, 'pending', 'accepted', 'proposal', { region: null, event: 9 }),
+    ).toMatchObject({ kind: 'allowed', move: { name: 'accept' } })
   })
 })
 

@@ -198,7 +198,7 @@ export const syncCommunityFeedback: CollectionAfterChangeHook = async ({
       data: { ...tally, _status: 'draft' },
       // ⚠ The claim is forwarded, so a manager who adopted the class between
       // the read above and this write keeps it. Unclaimed, the write reaches
-      // `guardVerificationStage` with a stage no `community` move starts from,
+      // the stage column's guard with a stage no `community` move starts from,
       // and the refusal it throws rolls back the visitor's vote (#842).
       write: ({ data, expect, context }) => write(data as EventBookkeeping, context, expect),
     })
