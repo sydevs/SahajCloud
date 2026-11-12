@@ -10,8 +10,10 @@
 
 import type { Payload, TaskConfig } from 'payload'
 
+import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { ImportResultsField } from '@/components/admin/EventImport/ImportResultsField'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
@@ -29,6 +31,17 @@ const geocoder = vi.hoisted(() => ({
   outcome: null as GeocodeOutcome | null,
   /** Overrides the match level, to stand for an address Mapbox placed only at the street. */
   featureType: 'address',
+}))
+
+/**
+ * The results table is a `'use client'` module reaching `@payloadcms/ui`, whose
+ * stylesheets this node lane cannot load. Nothing here renders it: the field
+ * returns `<ImportResultsTable {...}/>`, and a React element carries its props
+ * without the component being called — so the stub is only what keeps the CSS
+ * out of the graph, and the rows asserted below are the field's own output.
+ */
+vi.mock('@/components/admin/EventImport/ImportResultsTable', () => ({
+  ImportResultsTable: () => null,
 }))
 
 vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
@@ -131,6 +144,19 @@ describe('class imports', () => {
     })
 
   const run = (importId: number) => runTaskHandler(importTask, { payload, input: { importId } })
+
+  /**
+   * The field is an async function component, so calling it returns the element
+   * it renders. `JSONFieldServerComponent` is a `ComponentType` union, which TS
+   * will not call directly.
+   */
+  const renderResults = ImportResultsField as unknown as (
+    props: Record<string, unknown>,
+  ) => Promise<null | { props: { rows: { eventId?: number }[] } }>
+
+  /** A request shaped as the admin panel's, for a server component to render under. */
+  const reqAs = (user: Awaited<ReturnType<typeof testData.authUser>>) =>
+    createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
 
   const read = (id: number) =>
     payload.findByID({ collection: 'imports', id, depth: 0 }) as Promise<Import>
@@ -655,6 +681,89 @@ describe('class imports', () => {
       expect(field.defaultValue({ req: { query: { targetRegion: String(berlin) } } })).toBe(berlin)
       expect(field.defaultValue({ req: { query: { targetRegion: 'x' } } })).toBeUndefined()
       expect(field.defaultValue({ req: { query: {} } })).toBeUndefined()
+    })
+
+    /**
+     * The results field is a server component, so it renders on every
+     * `form-state` request too — and that request carries its own `data` and
+     * names its own `id`, past nothing but `canAccessAdmin` (#1126). It reads
+     * each named class with `overrideAccess: true`, populating the manager's
+     * name and email, so the rows must come off the stored row rather than off
+     * whatever the caller posted.
+     */
+    it('builds its results from the stored row, never the posted form data', async () => {
+      // Its own class line: a repeat of the shared fixture imports as a
+      // duplicate and creates nothing, leaving the assertion below with no row.
+      // ⚠ No cell may hold a comma — `classLine` joins rather than quotes, so
+      // one shifts every later column and the row fails validation instead.
+      const created = await createImport(
+        [classLine({ title: 'Gate probe stored results', startTime: '19:45' })],
+        admin,
+      )
+      await run(created.id)
+      const stored = await read(created.id)
+      const [mine] = (await importedClasses(created.id)).docs
+
+      const foreign = await testData.createManager(payload, { name: 'Foreign Manager' })
+      const secret = await testData.createEvent(payload, {
+        title: 'A class in nobody else’s import',
+        manager: foreign.id,
+      })
+      // What a crafted `form-state` body would carry: this import's id, and a
+      // results array naming a class it never created.
+      const forged = {
+        id: created.id,
+        results: [{ row: 1, outcome: 'created', eventId: secret.id, title: 'forged' }],
+      }
+
+      const rendered = await renderResults({
+        clientField: { label: 'Results' },
+        data: forged,
+        id: created.id,
+        path: 'results',
+        req: await reqAs(await testData.authUser(payload, admin)),
+      })
+
+      expect(rendered?.props.rows.map((row) => row.eventId)).toEqual([mine.id])
+      expect(rendered?.props.rows.map((row) => row.eventId)).not.toContain(secret.id)
+      expect(stored.results).toHaveLength(1)
+    })
+
+    it('renders no results for a manager who may not open the import', async () => {
+      const created = await createImport(
+        [classLine({ title: 'Gate probe refused read', startTime: '20:15' })],
+        admin,
+      )
+      await run(created.id)
+      const named = await testData.createEvent(payload, { title: 'Named by the forged body' })
+      const unlisted = await testData.createManager(payload, { name: 'Not On This Region' })
+
+      // Carrying results, so rendering nothing is the refused read rather than
+      // an empty `data` every implementation would render as nothing.
+      const body = {
+        clientField: { label: 'Results' },
+        data: {
+          id: created.id,
+          results: [{ row: 1, outcome: 'created', eventId: named.id, title: 'forged' }],
+        },
+        id: created.id,
+        path: 'results',
+      }
+
+      expect(
+        await renderResults({
+          ...body,
+          req: await reqAs(await testData.authUser(payload, unlisted)),
+        }),
+      ).toBeNull()
+
+      // The same body as an admin renders the import's own row, so the refusal
+      // above is this manager's access and not the body.
+      const allowed = await renderResults({
+        ...body,
+        req: await reqAs(await testData.authUser(payload, admin)),
+      })
+      expect(allowed?.props.rows).toHaveLength(1)
     })
 
     it('refuses a published API client, since imports sit in no project', async () => {

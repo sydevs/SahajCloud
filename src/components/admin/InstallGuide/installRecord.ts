@@ -1,14 +1,16 @@
-import type { Payload } from 'payload'
+import type { PayloadRequest } from 'payload'
 
 import { cache } from 'react'
 
 import type { EmbedMetadata } from '@/lib/clients/embedMetadata'
 import { ownedHost } from '@/lib/clients/site'
 import type { CanonicalVerification } from '@/lib/clients/verification'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client } from '@/payload-types'
 
 import { type Milestone, milestonesForRecord } from './installModel'
+import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
 interface InstallRecord {
   client: Pick<Client, 'roles' | 'enabled' | 'site' | 'region' | 'canonical' | 'embedMetadata'>
@@ -25,12 +27,25 @@ interface InstallRecord {
  * A service's install, off its stored row, for the server components that show
  * it outside the Install tab: the edit form's banner and the Atlas tab's summary.
  *
+ * ⚠ **`readAsRequestUser` has to come first.** A `form-state` request names its
+ * own `id` past nothing but `canAccessAdmin`, so without a read under the
+ * caller's own access any manager is handed any service's address, region and
+ * install progress (#1126, `docs/rules/admin-ui.md`). Gating here rather than
+ * at each caller is what covers the next one.
+ *
  * Wrapped in React's `cache`, so one request reads the row once however many of
- * them render — and so both count the same milestones.
+ * them render — and so both count the same milestones. ⚠ The key is the
+ * caller's own `req`: copying it here would miss the memo on every call.
  */
 export const loadInstallRecord = cache(
-  async (payload: Payload, id: number): Promise<InstallRecord | null> => {
-    const client = (await payload.findByID({
+  async (req: PayloadRequest, id: number): Promise<InstallRecord | null> => {
+    const permitted = await readAsRequestUser(req, 'clients', id, { enabled: true })
+    if (!permitted) return null
+
+    // Past the gate, `overrideAccess` so the summary reads the same for every
+    // caller the row admits — including one whose roles do not reach `regions`,
+    // where the populate below would otherwise degrade to a bare id.
+    const client = (await req.payload.findByID({
       collection: 'clients',
       id,
       depth: 1,
@@ -45,6 +60,7 @@ export const loadInstallRecord = cache(
       populate: { regions: { name: true } },
       overrideAccess: true,
       disableErrors: true,
+      req: localeIsolatedReq(req),
     })) as InstallRecord['client'] | null
     if (!client) return null
 

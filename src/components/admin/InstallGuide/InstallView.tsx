@@ -132,7 +132,7 @@ export default async function InstallView(
         languageOptions={getLanguageOptions()}
         appearance={await readAppearance(props, client)}
         regionName={
-          (await loadInstallRecord(props.initPageResult.req.payload, client.id))?.regionName ?? null
+          (await loadInstallRecord(props.initPageResult.req, client.id))?.regionName ?? null
         }
         widgetUrl={serverEnv.SAHAJATLAS_URL}
       />
