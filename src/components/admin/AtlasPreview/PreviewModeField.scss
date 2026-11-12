@@ -1,0 +1,16 @@
+// The select and the reset button read as one control group: same height,
+// a tight gap, and a select only as wide as its longest option.
+.preview-controls {
+  align-items: stretch;
+  display: flex;
+  gap: calc(var(--base) / 3);
+
+  .react-select {
+    width: 210px;
+  }
+
+  .btn {
+    height: auto;
+    margin: 0;
+  }
+}

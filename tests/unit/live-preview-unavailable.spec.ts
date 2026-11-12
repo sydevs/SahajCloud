@@ -35,6 +35,7 @@ describe('livePreviewUnavailableUrl', () => {
     const declared = [...(union?.[1] ?? '').matchAll(/'([a-z-]+)'/g)].map((match) => match[1])
     const explained = read('src/app/(frontend)/live-preview-unavailable/page.tsx')
 
+    expect(declared).toContain('atlas-tab-only')
     expect(declared).toContain('no-atlas-role')
     for (const reason of declared) expect(explained).toContain(`'${reason}':`)
   })

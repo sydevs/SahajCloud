@@ -23,8 +23,9 @@ to the frame on every change, and the widget reads the three colours out of it a
 other field.
 
 - **The panel belongs to the Atlas tab**, through `previewTargetField`: `autoOpen` there, and
-  `autoClose` on Config, Usage and Diagnostics, which only an admin sees. A service without the
-  atlas role gets `no-atlas-role` on every tab, from the URL builder.
+  `autoClose` plus `unavailable: 'atlas-tab-only'` on Config, Usage and Diagnostics, which only
+  an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
+  builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
 - **The CMS computes no colours.** Any legibility correction is the widget's own, and the
   preview is where a manager sees it.
 - **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes

@@ -9,14 +9,16 @@ import { originOf } from '@/lib/utilities/url'
 
 import { ResetColors } from '../ColorField/ResetColors'
 
+import './PreviewModeField.scss'
+
 /** ⚠ Pinned to the atlas's `startClientsPreview` (sydevs/SahajAtlasWeb#392). */
 const PREVIEW_MODE_MESSAGE = 'sahaj-atlas:preview-mode'
 
 type Mode = 'dark' | 'light'
 
 const OPTIONS: { label: string; value: Mode }[] = [
-  { label: 'Preview: Light', value: 'light' },
-  { label: 'Preview: Dark', value: 'dark' },
+  { label: 'Map Preview: Light', value: 'light' },
+  { label: 'Map Preview: Dark', value: 'dark' },
 ]
 
 /**
@@ -52,19 +54,14 @@ export const PreviewModeField: UIFieldClientComponent = () => {
   }, [iframeRef, mode, url])
 
   return (
-    <div
-      className="field-type"
-      style={{ alignItems: 'center', display: 'flex', gap: 'var(--base)' }}
-    >
-      <div style={{ width: '180px' }}>
-        <ReactSelect
-          isClearable={false}
-          isSearchable={false}
-          onChange={(option) => setMode((option as { value: Mode }).value)}
-          options={OPTIONS}
-          value={OPTIONS.find((option) => option.value === mode)}
-        />
-      </div>
+    <div className="field-type preview-controls">
+      <ReactSelect
+        isClearable={false}
+        isSearchable={false}
+        onChange={(option) => setMode((option as { value: Mode }).value)}
+        options={OPTIONS}
+        value={OPTIONS.find((option) => option.value === mode)}
+      />
       <ResetColors />
     </div>
   )
