@@ -1,5 +1,7 @@
 import type { PayloadRequest, TaskConfig } from 'payload'
 
+import { extractID } from 'payload/shared'
+
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import { localeForLemonfoxLanguage } from '@/lib/lemonfox/languages'
 import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from '@/lib/lemonfox/normalize'
@@ -51,10 +53,11 @@ type Recording = {
  * rebuild (`src/migrations/AGENTS.md`) for a label. The task has served files
  * too since #1016.
  *
- * ⚠ **Every write checks the row is still the one this run was queued for.** The
- * audio can be replaced, and the transcript can be asked for again in another
- * language, while this run waits on Lemonfox. A stale run must not write cues
- * onto the newer request's row.
+ * ⚠ **Every write checks the row is still this run's own.** The audio can be
+ * replaced, and the transcript can be asked for again in another language, while
+ * this run waits on Lemonfox. Each request gets a fresh row naming its own job,
+ * so the row's `job` is what tells one request from the next — the filename
+ * cannot, since a retry of the same recording carries the same one.
  *
  * ⚠ **A failure throws, and nothing catches it.** `retries: 0`, so the throw
  * ends the run and the retained job row carries the message — which is where
@@ -83,14 +86,14 @@ export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
     { name: 'audioFilename', type: 'text', required: true },
   ],
   outputSchema: [{ name: 'status', type: 'text', required: true }],
-  handler: async ({ input, req }) => {
+  handler: async ({ input, job, req }) => {
     const { audioFilename } = input
     const source = sourceOf(input)
 
     // Neither read feeds the other, and both have to pass before the vendor
     // call.
     const [row, recording] = await Promise.all([
-      findCurrentRow(req, source, audioFilename),
+      findCurrentRow(req, source, job.id),
       findRecording(req, source),
     ])
     // The recording was replaced, which deleted this row. Nothing to write, and
@@ -126,10 +129,10 @@ export const TranscribeRecording: TaskConfig<'transcribeMeditation'> = {
     const language = askedFor ?? localeForLemonfoxLanguage(lemonfoxDetectedLanguage(body)) ?? null
 
     // ⚠ **By id, not by truthiness.** A corrected language replaces the row
-    // and keeps `audioFilename`, so a filename match here would pass while
-    // `row.id` names a deleted document — and the update below would throw
-    // instead of answering `superseded`.
-    const current = await findCurrentRow(req, source, audioFilename)
+    // and keeps this job's id nowhere, so the row read back must also be the
+    // one read above — the update below would otherwise throw on a deleted
+    // document instead of answering `superseded`.
+    const current = await findCurrentRow(req, source, job.id)
     if (current?.id !== row.id) {
       return { output: { status: 'superseded' } }
     }
@@ -173,16 +176,20 @@ async function waitForVideoDownload(url: string): Promise<void> {
 }
 
 /**
- * The recording's transcript row, while it still names `audioFilename`.
- * `overrideAccess` because this run owns the row it is filling in.
+ * The recording's transcript row, while it is still the one this run was queued
+ * for.
+ *
+ * The owner is a field comparison rather than a second query. A row naming
+ * another job belongs to a later request: `POST :id/transcribe` deletes and
+ * re-creates the row, so the id moves on even when the recording does not.
  */
 async function findCurrentRow(
   req: PayloadRequest,
   source: TranscriptSource,
-  audioFilename: string,
+  jobId: number | string,
 ): Promise<Transcript | undefined> {
   const row = await findTranscript(req, source)
-  return row?.audioFilename === audioFilename ? row : undefined
+  return row?.job && extractID(row.job) === jobId ? row : undefined
 }
 
 /**

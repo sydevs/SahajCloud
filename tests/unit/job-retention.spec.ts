@@ -11,6 +11,7 @@ import {
   STALE_JOB_MS,
 } from '@/collections/PayloadJobs/PayloadJobs'
 import { dueWindows } from '@/jobs/CleanupCollections/sweepCollection'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
 
 describe('job retention', () => {
@@ -53,17 +54,22 @@ describe('job retention', () => {
 })
 
 /**
- * The boot sweep's window is the only thing telling a dead run from a slow one:
- * nothing stamps a plain task's row between pick-up and finish, so cancelling
- * early takes a live run down and the window above then sweeps the evidence.
+ * The sweep's window is the only thing telling a dead run from a slow one,
+ * whether a boot or the hourly task runs it: nothing stamps a plain task's row
+ * between pick-up and finish, so cancelling early takes a live run down and the
+ * window above then sweeps the evidence.
  */
 describe('stale job cancellation', () => {
   /**
-   * The import's own stall gate is the longest bound anything here declares,
-   * and it was sized for a 500-row run. A job that can legitimately run longer
-   * has to raise `STALE_JOB_MS` rather than lose a run to it.
+   * The two stall gates are the longest bounds anything here declares — one
+   * sized for a 500-row class import, the other for a transcription the
+   * safety-net cron picked up late. A job that can legitimately run longer has
+   * to raise `STALE_JOB_MS` rather than lose a run to it.
    */
-  it('waits longer than the longest run a healthy job declares', () => {
-    expect(STALE_JOB_MS).toBeGreaterThan(IMPORT_STALL_MS)
+  it.each([
+    ['a class import', IMPORT_STALL_MS],
+    ['a transcription', TRANSCRIPTION_STALL_MS],
+  ])('waits longer than the longest run %s declares', (_what, stall) => {
+    expect(STALE_JOB_MS).toBeGreaterThan(stall)
   })
 })

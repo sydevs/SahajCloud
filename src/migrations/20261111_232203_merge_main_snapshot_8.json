@@ -2113,7 +2113,7 @@
           "type": "enum_transcripts_language",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "segments": {
           "name": "segments",
@@ -3315,6 +3315,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "subtitles": {
+          "name": "subtitles",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -3423,6 +3429,18 @@
           "primaryKey": true,
           "notNull": true
         },
+        "intro_audio_id": {
+          "name": "intro_audio_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "intro_subtitles": {
+          "name": "intro_subtitles",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "unit": {
           "name": "unit",
           "type": "enum_lessons_unit",
@@ -3464,6 +3482,21 @@
         }
       },
       "indexes": {
+        "lessons_intro_audio_idx": {
+          "name": "lessons_intro_audio_idx",
+          "columns": [
+            {
+              "expression": "intro_audio_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "lessons_icon_idx": {
           "name": "lessons_icon_idx",
           "columns": [
@@ -3526,6 +3559,19 @@
         }
       },
       "foreignKeys": {
+        "lessons_intro_audio_id_files_id_fk": {
+          "name": "lessons_intro_audio_id_files_id_fk",
+          "tableFrom": "lessons",
+          "tableTo": "files",
+          "columnsFrom": [
+            "intro_audio_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "lessons_icon_id_images_id_fk": {
           "name": "lessons_icon_id_images_id_fk",
           "tableFrom": "lessons",
@@ -3562,12 +3608,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "intro_audio_id": {
-          "name": "intro_audio_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "article": {
           "name": "article",
           "type": "jsonb",
@@ -3595,27 +3635,6 @@
         }
       },
       "indexes": {
-        "lessons_intro_audio_idx": {
-          "name": "lessons_intro_audio_idx",
-          "columns": [
-            {
-              "expression": "intro_audio_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "_locale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "lessons_locales_locale_parent_id_unique": {
           "name": "lessons_locales_locale_parent_id_unique",
           "columns": [
@@ -3639,19 +3658,6 @@
         }
       },
       "foreignKeys": {
-        "lessons_locales_intro_audio_id_files_id_fk": {
-          "name": "lessons_locales_intro_audio_id_files_id_fk",
-          "tableFrom": "lessons_locales",
-          "tableTo": "files",
-          "columnsFrom": [
-            "intro_audio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "lessons_locales_parent_id_fk": {
           "name": "lessons_locales_parent_id_fk",
           "tableFrom": "lessons_locales",
@@ -23506,8 +23512,7 @@
       "name": "enum_transcripts_provider",
       "schema": "public",
       "values": [
-        "lemonfox",
-        "imported"
+        "lemonfox"
       ]
     },
     "public.enum_transcripts_language": {
@@ -28549,6 +28554,7 @@
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
+        "recoverLostJobs",
         "screenSubmission",
         "sendPostEventFollowUps",
         "sendDigests",
@@ -28580,6 +28586,7 @@
         "cleanupOrphanedMedia",
         "deliverSubmission",
         "expireEvents",
+        "recoverLostJobs",
         "screenSubmission",
         "sendPostEventFollowUps",
         "sendDigests",
@@ -29072,6 +29079,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "98633ce5-c51a-4117-b27e-d7a922e81568",
+  "id": "651e10a3-e90a-4e07-b51d-117371a72ea2",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

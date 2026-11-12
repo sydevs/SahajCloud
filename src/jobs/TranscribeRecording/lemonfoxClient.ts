@@ -21,8 +21,11 @@ const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcript
  * ⚠ Not Cloudflare's 125 s proxy read timeout. That bound governs a request
  * arriving *through* our zone at the origin; this is an outbound call from the
  * container to the vendor, made by a queued job with no HTTP client waiting.
+ *
+ * ⚠ **`TRANSCRIPTION_STALL_MS` is sized off this**, so raising it moves when a
+ * working run starts reading as stalled. `job-schedules.spec.ts` holds the sum.
  */
-const REQUEST_TIMEOUT_MS = 5 * 60 * 1000
+export const REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 
 /** The configured Lemonfox key, or `undefined` when transcription is unavailable. */
 export const lemonfoxApiKey = (): string | undefined => serverEnv.LEMONFOX_API_KEY

@@ -9,7 +9,7 @@ import { isOutsideWritableLocale } from '@/plugins/access/localeScopedWrites'
  * be transcribed again.
  *
  * The Transcript tab's Transcribe-again button is the only caller
- * (`RetryTranscript.tsx`). Manager-only, gated on the same `meditations: update`
+ * (`useRetryTranscript`). Manager-only, gated on the same `meditations: update`
  * permission an editor already holds **and** on the meditation's own language,
  * and so deliberately not published in the
  * OpenAPI spec — `tests/unit/openapi-custom-endpoints.spec.ts` holds that. Only

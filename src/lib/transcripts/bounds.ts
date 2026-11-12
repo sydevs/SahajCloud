@@ -21,8 +21,17 @@ import type { Transcript } from '@/payload-types'
  * passes it to `jobStage.staleAfterMs`, and the Transcript tab measures
  * `updatedAt` against it, so the row's Edit view and the tab go stale
  * together.
+ *
+ * ⚠ **It is measured from the request, not from the pick-up.** The row's
+ * `updatedAt` is stamped when a recording is asked for, and the run can start
+ * a whole `transcription` tick later — that queue's cron is the safety net for
+ * a lost kick, so its interval is the worst-case lateness — and then spend
+ * Lemonfox's 5-minute request timeout. Below that sum a run the safety net
+ * picked up reads `stalled` while it is working, and the retry the tab then
+ * offers deletes the row under it. `job-schedules.spec.ts` derives the sum
+ * from the cron and the timeout themselves.
  */
-export const TRANSCRIPTION_STALL_MS = 15 * 60 * 1000
+export const TRANSCRIPTION_STALL_MS = 30 * 60 * 1000
 
 /**
  * How long after a transcript was asked for another request for the same
