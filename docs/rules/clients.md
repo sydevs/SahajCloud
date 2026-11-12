@@ -29,7 +29,7 @@ other field.
 - **The CMS computes no colours.** Any legibility correction is the widget's own. The widget
   reports what it rendered (`sahaj-atlas:palette-report`), and `ColorControls`, under the
   pickers, shows an info banner once any swatch moved — all three colours as visitors see them,
-  the moved ones marked, a bullet per adjustment, and one **Use adjusted colors** button for
+  each marked moved or safe with its reason, and one **Use adjusted colors** button for
   each colour the widget offers a seed for (`AtlasPreview/paletteReport.ts`). A `panel-text` correction
   moves the text step, not the swatch, so it is not shown. ⚠ A message is accepted only from
   the preview iframe's window and origin, checked as it arrives, and a report counts only while

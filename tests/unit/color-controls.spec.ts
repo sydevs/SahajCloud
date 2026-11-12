@@ -147,7 +147,7 @@ describe('ColorControls', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows all three colours once one is adjusted, marking it and listing why', async () => {
+  it('shows all three colours once one is adjusted, marking each and saying why', async () => {
     await mount()
     const frame = openPreview()
 
@@ -155,9 +155,13 @@ describe('ColorControls', () => {
 
     expect(summary()?.textContent).toContain('Colors are being adjusted for visibility')
     expect(container.querySelectorAll('.color-controls__swatch')).toHaveLength(3)
-    expect(container.querySelectorAll('.color-controls__mark')).toHaveLength(1)
-    expect([...container.querySelectorAll('li')].map((li) => li.textContent)).toEqual([
+    expect(
+      [...container.querySelectorAll('.color-controls__mark')].map((m) => m.textContent),
+    ).toEqual(['!', '✓', '✓'])
+    expect([...container.querySelectorAll('td:last-child')].map((td) => td.textContent)).toEqual([
       'Primary #979726 — darkened for contrast on white',
+      'Secondary — This color is safe to use.',
+      'Accent — This color is safe to use.',
     ])
   })
 

@@ -6,7 +6,6 @@ import { Banner, Button, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
-import { readableTextOn } from '@/lib/branding/themeColors'
 import { BRAND_COLOR_LABELS, isBrandColor, type BrandColorColumn } from '@/lib/clients/appearance'
 import { originOf } from '@/lib/utilities/url'
 
@@ -144,33 +143,37 @@ function AdjustedBanner({
   return (
     <Banner className="color-controls__banner" type="info">
       <strong>Colors are being adjusted for visibility</strong>
-      <div className="color-controls__swatches">
-        {swatches.map((item) => (
-          <span
-            aria-label={`${BRAND_COLOR_LABELS[item.column]} ${item.light}${item.adjusted ? ', adjusted' : ''}`}
-            className="color-controls__swatch"
-            key={item.column}
-            role="img"
-            style={{ backgroundColor: item.light, color: readableTextOn(item.light) }}
-          >
-            {item.adjusted ? <span className="color-controls__mark">!</span> : null}
-          </span>
-        ))}
-      </div>
-      <ul>
-        {swatches
-          .filter((item) => item.adjusted)
-          .map((item) => (
-            <li key={item.column}>
-              {BRAND_COLOR_LABELS[item.column]} {item.light}
-              {item.reasons.length > 0 ? ` — ${item.reasons.join(' and ')}` : ''}
-            </li>
+      <table className="color-controls__table">
+        <tbody>
+          {swatches.map((item) => (
+            <tr key={item.column}>
+              <td>
+                <span
+                  className="color-controls__swatch"
+                  style={{ backgroundColor: item.light }}
+                  title={item.light}
+                >
+                  <span aria-hidden className="color-controls__mark">
+                    {item.adjusted ? '!' : '✓'}
+                  </span>
+                </span>
+              </td>
+              <td>
+                <strong>{BRAND_COLOR_LABELS[item.column]}</strong>{' '}
+                {item.adjusted
+                  ? `${item.light}${item.reasons.length > 0 ? ` — ${item.reasons.join(' and ')}` : ''}`
+                  : '— This color is safe to use.'}
+              </td>
+            </tr>
           ))}
-      </ul>
+        </tbody>
+      </table>
       {onUse ? (
-        <Button buttonStyle="secondary" margin={false} onClick={onUse} size="small">
-          Use adjusted colors
-        </Button>
+        <div className="color-controls__banner-actions">
+          <Button buttonStyle="secondary" margin={false} onClick={onUse} size="small">
+            Use adjusted colors
+          </Button>
+        </div>
       ) : null}
     </Banner>
   )
