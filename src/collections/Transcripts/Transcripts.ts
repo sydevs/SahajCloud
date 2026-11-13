@@ -2,13 +2,12 @@ import type { CollectionConfig } from 'payload'
 
 import type { JobStageConfig } from '@/components/admin/JobStageView/stages'
 import { jsonField } from '@/fields/jsonField'
-import { getLocaleOptions } from '@/lib/locales'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import {
   TRANSCRIPT_PROVIDERS,
   TRANSCRIPT_STATUSES,
-  TRANSCRIPTION_STALL_MS,
   transcriptSegmentsSchema,
-} from '@/lib/meditations/transcript'
+} from '@/lib/transcripts/schema'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 import { applyGlossaryToSegments } from './hooks/applyGlossaryToSegments'
@@ -24,6 +23,10 @@ import { deriveTranscriptStatus, loadTranscriptJob, transcriptJobError } from '.
  * restores from, and would race their draft. It sits in the two projects that
  * carry `meditations` (`config/projects.ts`), so whoever may read a recording
  * may read its transcript — there is no second **read** permission to hold.
+ *
+ * **No language column.** The language is the recording's — a meditation's
+ * `locale`, a file's `spokenLanguage` — and a copy here could disagree with it
+ * (#1016). The run and the glossary pass read it off the recording.
  *
  * Nor is there a write grant here. The one write an editor can ask for is
  * `POST /api/meditations/:id/transcribe` (#984), which gates on
@@ -91,16 +94,6 @@ export const Transcripts: CollectionConfig = {
       name: 'provider',
       type: 'select',
       options: [...TRANSCRIPT_PROVIDERS],
-    },
-    {
-      // A required `select`, not free text: the glossary pass keys on this
-      // value, and a code no entry can match — or none at all — would disable
-      // it silently (#897, line 8). Every writer has one, because a
-      // meditation's own `locale` is required.
-      name: 'language',
-      type: 'select',
-      required: true,
-      options: getLocaleOptions(),
     },
     jsonField({
       // Null until the run completes, so the generated type has to carry it.

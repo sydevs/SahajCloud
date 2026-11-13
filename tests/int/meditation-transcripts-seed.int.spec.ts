@@ -189,7 +189,6 @@ describe('meditation-transcripts seed', () => {
     const row = await readRow(english.id)
     expect(row.status).toBe('completed')
     expect(row.provider).toBe('lemonfox')
-    expect(row.language).toBe('en')
     expect(row.error).toBeFalsy()
     expect(row.audioFilename).toBe(english.filename)
     // The hook's work, not the importer's: it never calls `applyGlossary`.
@@ -204,8 +203,9 @@ describe('meditation-transcripts seed', () => {
 
     expect(probe.warnings).toEqual([])
     expect(probe.errorCount).toBe(0)
+    // Corrected in French, the meditation's own locale, which the hook reads.
     const row = await readRow(french.id)
-    expect(row.language).toBe('fr')
+    expect(row.segments?.[0]?.content).toBe('Laissez la Kundalini monter.')
   })
 
   it('creates nothing on a second run, and reports no error', async () => {
@@ -265,7 +265,7 @@ describe('meditation-transcripts seed', () => {
     expect(probe.errorCount).toBe(0)
     expect(probe.warnings).toHaveLength(1)
     expect(probe.warnings[0]).toContain('transcribed as french, stored as en')
-    expect((await readRow(replaced.id)).language).toBe('en')
+    expect((await readRow(replaced.id)).status).toBe('completed')
   })
 
   it('writes nothing and reads no row in dry-run mode', async () => {

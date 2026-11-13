@@ -10,8 +10,8 @@ import {
   trashDeletionCutoff,
 } from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
 import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
-import { REQUEST_TIMEOUT_MS } from '@/jobs/TranscribeMeditation/lemonfox/transcribe'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptBounds'
+import { REQUEST_TIMEOUT_MS } from '@/jobs/TranscribeRecording/lemonfoxClient'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import {
   INVITATIONS_CRON,
   INVITATIONS_QUEUE,

@@ -1,4 +1,4 @@
-import type { CollectionBeforeDeleteHook, CollectionSlug, PayloadRequest } from 'payload'
+import type { CollectionBeforeDeleteHook, CollectionSlug, Payload, PayloadRequest } from 'payload'
 
 /**
  * A single cascade target: the child collection and the field on that child
@@ -9,6 +9,23 @@ export interface CascadeRule {
   collection: CollectionSlug
   /** Field on the child collection that references the parent */
   field: string
+}
+
+/**
+ * The hook, carrying the rules it was built with.
+ *
+ * ⚠ **Read by `CleanupOrphanedMedia`, which must not mistake a child for a
+ * user.** A cascade child's pointer at its parent is deleted *with* the
+ * parent, so it can never be the reason the parent is still in use — but the
+ * orphan sweep discovers references by walking every collection's fields, and
+ * `transcripts.source` reads exactly like a reference to the `files` row it
+ * depends on. Without this, one cue row made a recording immortal: no lesson
+ * referenced it in any locale, and the nightly sweep still counted it in use
+ * (#1016). The rules are published here rather than restated there, so a new
+ * cascade cannot arm the same leak silently.
+ */
+export type CascadeHook = CollectionBeforeDeleteHook & {
+  cascadeRules: readonly CascadeRule[]
 }
 
 /**
@@ -52,8 +69,8 @@ export interface CascadeRule {
  * }
  * ```
  */
-export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteHook {
-  return async ({ collection, id, req }) => {
+export function deleteChildren(...rules: CascadeRule[]): CascadeHook {
+  const cascade: CollectionBeforeDeleteHook = async ({ collection, id, req }) => {
     for (const rule of rules) {
       await req.payload.delete({
         collection: rule.collection,
@@ -72,6 +89,8 @@ export function deleteChildren(...rules: CascadeRule[]): CollectionBeforeDeleteH
       })
     }
   }
+
+  return Object.assign(cascade, { cascadeRules: rules })
 }
 
 /**
@@ -95,3 +114,24 @@ function polymorphicField(req: PayloadRequest, rule: CascadeRule): boolean {
   )
   return !!field && 'relationTo' in field && Array.isArray(field.relationTo)
 }
+
+/**
+ * The `<collection>.<field>` pairs `parentCollection` deletes when one of its
+ * own rows goes, read off the `deleteChildren` hooks it registers.
+ *
+ * Derived, never declared by a caller: a list restated elsewhere drifts the day
+ * a cascade is added, and the drift re-arms the storage leak above rather than
+ * breaking a build. The structural test is here, beside the property it reads,
+ * so a second consumer gets the same answer.
+ */
+export function cascadeChildPairs(payload: Payload, parentCollection: string): Set<string> {
+  const hooks =
+    payload.collections?.[parentCollection as CollectionSlug]?.config?.hooks?.beforeDelete
+  const pairs = (hooks ?? []).flatMap((hook) =>
+    isCascadeHook(hook) ? hook.cascadeRules.map((rule) => `${rule.collection}.${rule.field}`) : [],
+  )
+  return new Set(pairs)
+}
+
+const isCascadeHook = (hook: unknown): hook is CascadeHook =>
+  typeof hook === 'function' && Array.isArray((hook as Partial<CascadeHook>).cascadeRules)
