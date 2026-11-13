@@ -69,6 +69,16 @@ export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
  * />
  * ```
  */
+/** The gap between separated pills, and between a group and its clear button. */
+const GAP = 'calc(var(--base) * 0.3)'
+
+/**
+ * How wide one choice may get. The group fills its slot as a built-in input
+ * does, so without a ceiling two choices in a wide form sit half a screen
+ * apart and stop reading as one control.
+ */
+const MAX_ITEM_WIDTH = 200
+
 export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
   const { options, readOnly = false, clearable = false, 'aria-label': ariaLabel } = props
   const isMulti = props.hasMany === true
@@ -127,14 +137,20 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
   const hasValue = isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)
   const showClearButton = clearable && !readOnly && hasValue
 
+  // Grow with the slot, stop at what the choices can read at. The ceiling is on
+  // the group rather than on each choice: capping the items would leave the
+  // single-select box drawn full width with its segments ending short of it.
+  const maxGroupWidth = isMulti
+    ? `calc(${options.length} * ${MAX_ITEM_WIDTH}px + ${options.length - 1} * ${GAP})`
+    : `calc(${options.length} * ${MAX_ITEM_WIDTH}px)`
+
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 'calc(var(--base) * 0.3)',
-        width: 'fit-content',
-        maxWidth: '100%',
+        gap: GAP,
+        width: '100%',
       }}
     >
       <div
@@ -144,11 +160,11 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          width: 'fit-content',
-          maxWidth: '100%',
+          width: '100%',
+          maxWidth: maxGroupWidth,
           ...(isMulti
             ? {
-                gap: 'calc(var(--base) * 0.3)',
+                gap: GAP,
               }
             : {
                 // Payload's own text-input box, so a single choice sits level
@@ -195,6 +211,12 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 outline: 'none',
                 whiteSpace: 'nowrap',
                 opacity: isDisabled ? 0.5 : 1,
+                // An even share of whatever the group was given, never less
+                // than the label. ⚠ The floor is `min-width`: `flex-basis`
+                // cannot hold it, since a shrinking item resolves its basis
+                // and then shrinks past it.
+                flex: '1 1 0',
+                minWidth: 'min-content',
                 ...(isMulti
                   ? {
                       border: '1px solid var(--theme-elevation-200)',
@@ -206,13 +228,6 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                         index < options.length - 1
                           ? '1px solid var(--theme-elevation-150)'
                           : 'none',
-                      // 120px each, sharing the row evenly, down to the label
-                      // on a narrow screen. ⚠ The floor is `min-width`, not
-                      // `flex-basis`: a flex container sizes to its items'
-                      // content, so a 120px basis alone measured 87px.
-                      flex: '1 1 auto',
-                      width: '120px',
-                      minWidth: 'min-content',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -247,7 +262,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
             {
               display: 'flex',
               alignItems: 'center',
-              marginLeft: 'calc(var(--base) * 0.3)',
+              marginLeft: GAP,
               marginBlock: 'calc(var(--base) * -1)',
               '--base': 1, // Use this to reset the size of the button
             } as React.CSSProperties
