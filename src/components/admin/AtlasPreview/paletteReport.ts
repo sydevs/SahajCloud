@@ -18,6 +18,7 @@ export const PALETTE_REPORT_MESSAGE = 'sahaj-atlas:palette-report'
  * the swatch, so a role adjusted only by it looks exactly as entered.
  */
 const SWATCH_REASONS: Record<string, string> = {
+  saturation: 'made more colourful',
   'selected-distinct': 'shifted to stand out from Primary',
   surface: 'adjusted for contrast with the background',
 }
