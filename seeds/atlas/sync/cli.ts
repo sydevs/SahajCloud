@@ -94,8 +94,12 @@ async function fetchStep(backup?: string): Promise<void> {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     })
-    const out = `${capture.stdout}\n${capture.stderr}`
-    if (capture.status !== 0) throw new Error(`heroku pg:backups:capture failed:\n${out}`)
+    const out = [capture.stdout, capture.stderr].filter(Boolean).join('\n')
+    if (capture.status !== 0) {
+      // A CLI that never ran leaves `status` and both streams null and puts the reason in
+      // `error`, so without it a missing `heroku` reports an empty failure.
+      throw new Error(`heroku pg:backups:capture failed:\n${capture.error?.message ?? out}`)
+    }
     id = out.match(/ to (b\d+)/)?.[1]
     if (!id) throw new Error(`Could not read the backup id from:\n${out}`)
   }
