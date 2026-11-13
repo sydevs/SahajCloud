@@ -22,9 +22,8 @@ import type { BrandColors } from '@/lib/branding'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
-import type { Responsibility } from '@/plugins/login/grantSummary'
-
 import { responsibilityLabel } from '@/plugins/login/grantSummary'
+import type { Responsibility } from '@/plugins/login/grantSummary'
 
 /**
  * Non-breaking space, spelled out rather than typed literally: it is the only
