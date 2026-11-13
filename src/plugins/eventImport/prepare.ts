@@ -30,6 +30,7 @@ import { GEOCODE_CONCURRENCY } from './constants'
 import { checkRowFields } from './csv/fieldChecks'
 import { eventCreateData } from './eventData'
 import { ensureManagers, managerKeyOf, managerRoster } from './managers'
+import { importWriteContext } from './run'
 import { timezoneAt } from './timezone'
 import { fieldErrors } from './validate'
 
@@ -121,7 +122,7 @@ async function placeRow(
   const ready: Ready = { ...entry, regionId }
   const built = build(run, ready, null)
   if (!built.ok) return skip(run, row, built.errors) ?? null
-  const refused = await fieldErrors(req, built.data)
+  const refused = await fieldErrors(req, built.data, importWriteContext())
   if (refused.length) return skip(run, row, refused) ?? null
 
   const key = `${regionId}|${classKey(built.data as Partial<Event>)}`

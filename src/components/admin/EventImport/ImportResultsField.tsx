@@ -1,5 +1,6 @@
 import type { JSONFieldServerComponent } from 'payload'
 
+import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager } from '@/payload-types'
@@ -138,7 +139,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         ? liveScheduleSummary(event.schedule, event.inactive)
         : csvScheduleSummary(result.values),
       manager: managerOf(event, result),
-      unverified: status === 'published' && event?.verificationStage === 'unverified',
+      unverified: status === 'published' && isFeedbackOpen(event),
       // Placed at the street or town rather than the building: the import
       // stores no address id then, and choosing an address in the class's
       // Location tab sets one.

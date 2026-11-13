@@ -237,7 +237,10 @@ Three things worth knowing before you edit the data file:
   writes `accepted`, because `registration`'s `deliveredStatus` is `accepted`.
   Both guards read the status at **create**, so every row is authored with a
   terminal status — which skips screening — and a `pending` one is reached by a
-  second, update pass. `COLLECTION_METADATA` states a `countWhere` floor for the
+  second, update pass. ⚠ Both writes name `import` as their writer
+  (`withActor`), or the lifecycle guard refuses them: a status change naming
+  nobody is refused since #1121, and a re-run writes each row's authored status
+  back. `COLLECTION_METADATA` states a `countWhere` floor for the
   surviving row rather than trusting the count.
 - ⚠ **Every manager needs `_verified: true`.** `Managers.auth.verify` is
   configured and the JWT strategy yields no user while that flag is false, so an

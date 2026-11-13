@@ -72,7 +72,7 @@ export function newEventDefaults(
  *
  * ⚠ **No fallback when a reviewer clears it.** `routingRegion` may be a state
  * or a country, and an event must sit in a city or venue, so a cleared Region
- * refuses the Accept on that field (`guardStatusTransition`) rather than
+ * refuses the Accept on that field (the accept move in `machine.ts`) rather than
  * quietly creating the listing somewhere the reviewer just took away.
  *
  * Deliberately outside {@link newEventDefaults}. In the merge it would add a

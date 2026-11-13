@@ -41,7 +41,14 @@ type FindArgs = {
 }
 
 /** A managed document: its id, title, public page, and (for events) its stage. */
-type Doc = { id: number; title: string; url?: string; verificationStage?: string }
+type Doc = {
+  id: number
+  title: string
+  url?: string
+  verificationStage?: string
+  /** The stored vote tally, which is what says a class was adopted after a denial. */
+  systemMeta?: { communityFeedback?: { confirmations: number; denials: number } }
+}
 type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
 /**
@@ -99,6 +106,7 @@ function fakePayload(roles: unknown, managed: Managed = {}) {
           [titleField]: doc.title,
           webUrl: doc.url ?? null,
           verificationStage: doc.verificationStage,
+          systemMeta: doc.systemMeta,
         }))
       return { docs }
     },
@@ -111,6 +119,18 @@ const BERLIN: Doc = { id: 1, title: 'Berlin', url: 'https://atlas.test/berlin' }
 const TUESDAY: Doc = { id: 7, title: 'Tuesday Evening Meditation', url: 'https://atlas.test/7' }
 const DRAFT: Doc = { id: 8, title: 'Sunday Workshop' }
 const FINISHED: Doc = { id: 9, title: 'Summer Retreat', verificationStage: 'finished' }
+/** Adopted after the community voted it down — the tally is what survives the adoption. */
+const FLAGGED: Doc = {
+  id: 10,
+  title: 'Thursday Morning',
+  systemMeta: { communityFeedback: { confirmations: 0, denials: 6 } },
+}
+/** One dissenter among twenty: below the threshold, so it was never taken down. */
+const DISPUTED: Doc = {
+  id: 11,
+  title: 'Friday Evening',
+  systemMeta: { communityFeedback: { confirmations: 20, denials: 1 } },
+}
 
 describe('summarizeGrants', () => {
   const summarize = (roles: unknown, managed: Managed = {}, extra: Record<string, unknown> = {}) =>
@@ -151,6 +171,7 @@ describe('summarizeGrants', () => {
         {
           label: 'Events',
           singular: 'Event',
+          // No brief: `describeEvents` is off unless the caller renders one.
           items: [
             { title: TUESDAY.title, url: TUESDAY.url },
             { title: DRAFT.title, url: null },
@@ -165,6 +186,36 @@ describe('summarizeGrants', () => {
     expect(reads.find((read) => read.collection === 'regions')?.where?.and?.[0]).toEqual({
       managers: { in: [1] },
     })
+  })
+
+  it('marks a class the community had voted down, from the tally the adoption left', async () => {
+    const { payload } = fakePayload({}, { events: [TUESDAY, FLAGGED, DISPUTED], regions: [BERLIN] })
+
+    // ⚠ Only the invitation asks for a brief: the preview sign-in picker
+    // summarises up to 25 accounts to print one line each, and would pay for a
+    // listing checklist per class it renders nothing from.
+    const [atlas] = await summarizeGrants({
+      ...managers,
+      describeEvents: true,
+      payload,
+      type: 'manager',
+    })
+    const items = atlas!.responsibilities.find((r) => r.label === 'Events')!.items
+
+    // A region has no listing to describe.
+    expect(
+      atlas!.responsibilities.find((r) => r.label === 'Regions')!.items[0]!.event,
+    ).toBeUndefined()
+
+    // The adoption already moved it to `verified`, so the stage cannot say this
+    // and the stored denials are what do.
+    expect(items.find((item) => item.title === FLAGGED.title)!.event!.flagged).toBe(true)
+    expect(items.find((item) => item.title === TUESDAY.title)!.event!.flagged).toBe(false)
+
+    // The email's flagged line says the class was taken off the map, so it has
+    // to ask what took it off: one denial among twenty never reached the
+    // threshold, and the listing stood throughout.
+    expect(items.find((item) => item.title === DISPUTED.title)!.event!.flagged).toBe(false)
   })
 
   it('splits what it names by project — one invitation each', async () => {

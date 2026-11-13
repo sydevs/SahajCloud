@@ -2,6 +2,7 @@
 
 import type { FlattenedField, PayloadRequest, Where } from 'payload'
 
+import { TYPE_LABELS } from '@/collections/UserSubmissions/fields'
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
@@ -15,6 +16,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Event } from '@/payload-types'
 
+import { failedDeliveriesWhere } from './deliveryFailures'
 import { SPAM_SIGNUPS } from './refusals'
 import { type OverviewArgs, type OverviewScope, scopeRegionIds } from './scope'
 import {
@@ -228,29 +230,82 @@ function loadOpenProposals(req: PayloadRequest, adminUnmanaged?: number[]) {
   )
 }
 
-/** ⚠ Bounded, newest first: retention caps a spam wave's age, not its size. */
-async function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
+/**
+ * The newest rows a predicate holds, for one of the admin's two submission
+ * lists.
+ *
+ * ⚠ **Bounded, and `pagination: false`.** Nothing caps how many rows one spam
+ * wave or one provider outage leaves, and an admin's home is not where an
+ * unbounded read belongs — but nothing reads `totalDocs` either, and the
+ * paginated form pays for a `countDistinct` beside the rows to produce it.
+ */
+async function readSubmissions<T extends SubmissionSelect>(
+  req: PayloadRequest,
+  where: Where,
+  select: T,
+) {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
-    where: { and: SPAM_SIGNUPS },
+    where,
     depth: 0,
     limit: LIST_READ_LIMIT,
+    pagination: false,
     sort: '-createdAt',
     overrideAccess: true,
     req: localeIsolatedReq(req),
-    select: { createdAt: true, screeningResult: true, submissionData: true },
+    select: { createdAt: true, ...select },
   })
-  return docs.map((doc) => {
-    const verdict = doc.screeningResult?.verdict
-    return {
-      kind: 'refusal' as const,
+  return docs
+}
+
+type SubmissionSelect = Partial<Record<'screeningResult' | 'submissionData' | 'type', true>>
+
+/** The sign-ups the spam check refused, newest first. */
+function loadRefusals(req: PayloadRequest): Promise<OpenItemRow[]> {
+  return memoizeOnRequest(req, 'atlasOverview:refusals', async () =>
+    (
+      await readSubmissions(
+        req,
+        { and: SPAM_SIGNUPS },
+        { screeningResult: true, submissionData: true },
+      )
+    ).map((doc) => {
+      const verdict = doc.screeningResult?.verdict
+      return {
+        kind: 'refusal' as const,
+        id: doc.id,
+        title: readSubmissionValue(doc.submissionData, 'name')?.trim() || 'A refused sign-up',
+        reason:
+          verdict && verdict in VERDICT_LABELS ? VERDICT_LABELS[verdict] : 'refused by screening',
+        receivedAt: doc.createdAt,
+      }
+    }),
+  )
+}
+
+/**
+ * The intakes whose delivery failed, newest first (#1120 decision 2).
+ *
+ * Memoized like every other loader here: the nightly digest runs its whole
+ * loop on one request, so an un-memoized read repeats once per admin.
+ */
+function loadFailedDeliveries(req: PayloadRequest): Promise<OpenItemRow[]> {
+  return memoizeOnRequest(req, 'atlasOverview:failedDeliveries', async () =>
+    (
+      await readSubmissions(req, await failedDeliveriesWhere(req), {
+        submissionData: true,
+        type: true,
+      })
+    ).map((doc) => ({
+      kind: 'delivery-failed' as const,
       id: doc.id,
-      title: readSubmissionValue(doc.submissionData, 'name')?.trim() || 'A refused sign-up',
-      reason:
-        verdict && verdict in VERDICT_LABELS ? VERDICT_LABELS[verdict] : 'refused by screening',
+      title: readSubmissionValue(doc.submissionData, 'name')?.trim() || TYPE_LABELS[doc.type],
+      // Lower-cased for the line it lands in: "This registration was never
+      // delivered". The label itself is Title Case, for a column heading.
+      intake: TYPE_LABELS[doc.type].toLowerCase(),
       receivedAt: doc.createdAt,
-    }
-  })
+    })),
+  )
 }
 
 /**
@@ -486,11 +541,12 @@ export async function loadOpenItems(args: OverviewArgs): Promise<OpenItemsResult
   }
 
   if (scope.role === 'admin') {
-    const [refusals, services] = await Promise.all([
+    const [refusals, undelivered, services] = await Promise.all([
       loadRefusals(req),
+      loadFailedDeliveries(req),
       loadAdminServiceRows({ ...args, scope }),
     ])
-    rows.push(...refusals, ...services)
+    rows.push(...refusals, ...undelivered, ...services)
   }
 
   const items = sortOpenItems(rows.map((row) => openItem(row, now)))

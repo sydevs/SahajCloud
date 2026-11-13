@@ -10,7 +10,10 @@ import {
   updateEventBookkeeping,
 } from '@/lib/events/updateEventWithoutValidation'
 import { asNotificationLog, buildVerificationEntry } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { withActor } from '@/lib/stateMachine/actor'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { capturedFrom } from '../utils/sentryCapture'
 import {
   expectEventWriteRefused,
@@ -67,6 +70,10 @@ async function createDueEvent(
   const event = await testData.createEvent(payload, {
     title,
     verificationStage: 'verified',
+    // ⚠ **Published, because the ladder is about listed classes.** A draft gets
+    // no watermark and is left alone (#1120 decision 3) — the case below pins
+    // that, and every other case here would be vacuous without this.
+    _status: 'published',
     ...overrides,
   } as never)
   // The handler only picks up events whose nextCheckAt has passed. `skipVerifyHook`
@@ -187,12 +194,13 @@ describe('ExpireEvents job', () => {
       overrides: Record<string, unknown> = {},
     ) {
       const event = await testData.createEvent(payload, { title, ...overrides } as never)
-      return payload.update({
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id: event.id,
         data: { verificationStage: stage, nextCheckAt: DUE, _status: 'published' },
-        context: { skipVerifyHook: true },
       })
+      return reload(payload, event.id)
     }
 
     it('marks a run-out event finished and arms retention without unpublishing it', async () => {
@@ -300,12 +308,13 @@ describe('ExpireEvents job', () => {
       // Pin the stage + publish state; `nextCheckAt` is deliberately NOT set
       // here — the syncUnmanagedCheckAt hook derives it from the schedule, and
       // that is precisely what these tests exercise.
-      return payload.update({
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id: event.id,
         data: { verificationStage: stage, _status: 'published' },
-        context: { skipVerifyHook: true },
       })
+      return reload(payload, event.id)
     }
 
     const RAN_OUT_RECENTLY = {
@@ -464,6 +473,9 @@ describe('ExpireEvents job', () => {
         await payload.update({
           collection: 'events',
           id: event.id,
+          // The writer this stands in for: a manager following a verify link
+          // while the run is still sending. Naming it is what the guard reads.
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'verify'),
           data: {
             verificationStage: 'verified',
             nextCheckAt: verifiedUntil,
@@ -478,7 +490,6 @@ describe('ExpireEvents job', () => {
               ),
             ],
           },
-          context: { skipVerifyHook: true },
           overrideAccess: true,
         })
         return {} as never
@@ -530,7 +541,10 @@ describe('ExpireEvents job', () => {
         title: 'Restored Finished',
         ...RAN_OUT,
       } as never)
-      await payload.update({
+      // The state the case starts from, not a move: `setLifecycleState` writes
+      // it beneath the guard, which refuses a stage change naming no writer.
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id: event.id,
         data: {
@@ -538,8 +552,6 @@ describe('ExpireEvents job', () => {
           nextCheckAt: DUE,
           deletedAt: new Date().toISOString(),
         },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
       })
 
       const restored = await restore(event.id)
@@ -657,11 +669,49 @@ describe('ExpireEvents job', () => {
           payload,
           id: event.id,
           data: { verificationStage } as EventBookkeeping,
+          // The job is this helper's caller, and the guard reads the writer off
+          // the write's own context.
+          context: withActor(undefined, EVENT_MACHINE, 'job:expireEvents'),
         })
 
-      await expect(write('not-a-stage')).rejects.toThrow(/Verification Process/)
+      // A submitted field is still validated — the stored contact above is not.
+      await expect(
+        updateEventBookkeeping({
+          payload,
+          id: event.id,
+          data: { _status: 'not-a-status' } as unknown as EventBookkeeping,
+        }),
+      ).rejects.toThrow(/invalid/i)
+
+      // ⚠ A stage outside the table is refused ahead of that, by the lifecycle
+      // guard: a collection `beforeChange` hook runs before the field walk that
+      // validates, so the select's own message is never reached (#1121).
+      await expect(write('not-a-stage')).rejects.toThrow(/verificationStage/)
       await expect(write('reminded')).resolves.toBe(true)
       expect((await reload(payload, event.id)).verificationStage).toBe('reminded')
+    })
+
+    it('leaves a class its manager has hidden alone, and clears its watermark', async () => {
+      // A draft is nobody's to chase: the ladder asks whether a *listed* class
+      // still runs (#1120 decision 3). The watermark rule keeps such a row out
+      // of the due query from its next save on; this is the row written before
+      // that rule existed, which the run must clear rather than advance.
+      const event = await createDueEvent(payload, 'Hidden By Its Manager', {
+        _status: 'draft',
+      })
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      try {
+        await runTask(payload)
+      } finally {
+        sendEmail.mockRestore()
+      }
+
+      const after = await reload(payload, event.id)
+      expect(after.verificationStage).toBe('verified')
+      expect(sendEmail).not.toHaveBeenCalled()
+      // Cleared, or the row is examined every night for ever.
+      expect(after.nextCheckAt ?? null).toBeNull()
     })
 
     // Valid stored data on purpose: the second half is an ordinary editor save,

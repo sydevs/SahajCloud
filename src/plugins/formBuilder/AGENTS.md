@@ -51,25 +51,36 @@ Five things this repo does that the plugin options cannot:
   move a status and apply nothing.
 
 **Review is a status move, not an action endpoint** (#909). `WorkflowButtons`
-submits `{ status: 'accepted' }` through Payload's own document form;
-`guardStatusTransition` (a `beforeChange`) refuses a move no reviewer may make,
-and `applyReviewDecision` (an `afterChange`) writes the event an accept
-approves. Both read one answer, `reviewMove` in
-`UserSubmissions/lifecycle/review.ts`. `POST /api/user-submissions/:id/review`
+submits `{ status: 'accepted' }` through Payload's own document form; the
+`status` column's guard refuses a move no reviewer may make, and
+`applyReviewDecision` (an `afterChange`) writes the event an accept approves.
+Both read one answer, `SUBMISSION_MACHINE` in `UserSubmissions/machine.ts`: the
+guard is the one `stateMachineField` mounts on the column, and the decision is
+the `name` of the move the machine matched. `POST /api/user-submissions/:id/review`
 is gone, and with it the hand-rolled locale on the call.
+
+⚠ **One table answers for every writer** (#1121). A manager at the keyboard is
+the machine's `person` — `review`, or `admin` — and the review rows carry the
+conditions a person's move needs (a proposal, a region for a new event).
+Everything else — screening, delivery, the block endpoint, the repeat-signup
+fold — is a system writer that names itself on the write's own context, and a
+status change naming no writer is refused and reported. Before that each system
+writer was exempt by construction, so each could write any status from
+anywhere. The review buttons are built from the same table, so a button and the
+guard cannot name different sets.
 
 ⚠ **A reviewer is a manager holding the `user-submissions: update` grant, not
 whoever a row's `manager` field names.** The collection's own `update` admits
 the second through the document-manager fallback, which would make being
 assigned a proposal authority to publish the event accepting it writes — see
-`docs/rules/access.md`. Nothing else binds, so screening and delivery, which
-carry no manager, pass untouched.
+`docs/rules/access.md`. Screening and delivery carry no manager, so the
+machine's `person` never resolves for them — their own named rows answer.
 
 ⚠ **Every collection-wide admin slot here serves four intakes.** The review
 buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule and fall
 through to the ordinary Save otherwise — ahead of them sits one more rule, gated
 on the viewer being an admin, because settling a spam refusal is a move
-`reviewMove` grants an admin on **every** intake and nobody else on any
+`SUBMISSION_MACHINE` grants an admin on **every** intake and nobody else on any
 (`docs/rules/admin-ui.md`); `livePreview.url` sends the other
 three to the explanation page, with a reason that fits a row nobody reviews. A
 new slot owes the same branch — the field hooks behind one included, since

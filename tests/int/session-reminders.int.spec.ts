@@ -4,8 +4,10 @@ import type { Payload } from 'payload'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -117,6 +119,10 @@ describe('SendSessionReminders job', () => {
         submissionData: [{ field: 'name', value: email.split('@')[0] }],
         ...overrides,
       }),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     })
     return registration.id
   }

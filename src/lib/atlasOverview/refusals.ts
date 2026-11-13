@@ -1,9 +1,9 @@
 import type { PayloadRequest, Where } from 'payload'
 
-import * as qs from 'qs-esm'
-
 import { addDays } from '@/lib/eventVerification/periods'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+
+import { listPath } from './listPath'
 
 /** How far back a surface counts sign-ups the spam check filed. */
 const SPAM_SIGNUP_WINDOW_DAYS = 7
@@ -14,14 +14,14 @@ export const SPAM_SIGNUPS: Where[] = [
 ]
 
 /** The admin list of those sign-ups, as a path under the admin route. */
-export const SPAM_SIGNUPS_PATH: `/${string}` = `/collections/user-submissions${qs.stringify(
-  { where: { and: SPAM_SIGNUPS } },
-  { addQueryPrefix: true },
-)}`
+export const SPAM_SIGNUPS_PATH: `/${string}` = listPath('user-submissions', SPAM_SIGNUPS)
 
 /**
  * Sign-ups filed as spam in the last week, and the sentence the admin home and
- * digest both show — `null` for a quiet week.
+ * digest both show.
+ *
+ * `null` rather than a zero, as every closing line here answers: it is what
+ * lets a caller leave the line out without deciding a second time.
  */
 export async function spamSignups(args: {
   now: Date
