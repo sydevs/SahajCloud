@@ -2,7 +2,7 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Button, FieldDescription, TextInput, useField } from '@payloadcms/ui'
+import { Button, FieldDescription, TextInput, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
@@ -22,7 +22,9 @@ const EMAIL_PATH = 'email'
  * field that owns it rather than editing a copy of the value.
  */
 export const AccountEmail: UIFieldClientComponent = ({ field, path }) => {
-  const { value } = useField<string>({ path: EMAIL_PATH })
+  // Read, not own: `useField` would also hand back the setter, error and
+  // validation machinery for a field this component does not own.
+  const value = useFormFields(([fields]) => fields?.[EMAIL_PATH]?.value as string | undefined)
 
   const goToSignInField = () => {
     const input = document.getElementById(`field-${EMAIL_PATH}`)
