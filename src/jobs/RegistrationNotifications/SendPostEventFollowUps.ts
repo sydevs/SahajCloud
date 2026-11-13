@@ -5,7 +5,8 @@ import { createElement } from 'react'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { runClock } from '@/lib/jobs/runClock'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -75,7 +76,7 @@ async function sendFollowUp(
   // nothing to send; leave the ledger unstamped so future follow-up types can
   // still reach these registrations.
   const sections: FollowUpSection[] = []
-  if (event.verificationStage === 'unverified' && event._status === 'published') {
+  if (isFeedbackOpen(event)) {
     const token = await signFeedbackToken({ submissionId: registration.id }, payload.secret, now)
     sections.push({
       type: 'feedback-ask',
@@ -121,25 +122,31 @@ async function sendFollowUp(
     ...(await renderEmail(createElement(PostEventFollowUpEmail, templateProps))),
   })
 
+  // The watermark the sweep filters on, and the manager-readable record of the
+  // same send. A JSON column can't be `where`d cheaply, so both — and the log
+  // half is appended in the database, so a writer working on the same row at
+  // the same time keeps its own entries.
   await payload.update({
     collection: 'user-submissions',
     id: registration.id,
-    data: {
-      // The watermark the sweep filters on, and the manager-readable record of
-      // the same send. A JSON column can't be `where`d cheaply, so both.
-      followUpSentAt: now.toISOString(),
-      activityLog: appendLogEntry(asLog(registration.activityLog), {
-        at: now.toISOString(),
-        type: FOLLOW_UP_LOG_EVENT,
-        key: String(registration.id),
-        cells: {
-          activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
-          sentTo: { label: 'email', text: registrantEmail },
-        },
-      }),
-    },
+    data: { followUpSentAt: now.toISOString() },
     overrideAccess: true,
     context: { skipWriteGuard: true },
+    req,
+  })
+  await appendLogEntry({
+    payload,
+    collection: 'user-submissions',
+    id: registration.id,
+    entry: {
+      at: now.toISOString(),
+      type: FOLLOW_UP_LOG_EVENT,
+      key: String(registration.id),
+      cells: {
+        activity: `Post-event follow-up for “${templateProps.eventTitle}”`,
+        sentTo: { label: 'email', text: registrantEmail },
+      },
+    },
     req,
   })
   return true
@@ -148,8 +155,11 @@ async function sendFollowUp(
 /**
  * Post-event follow-up sweep: emails each registrant whose registered-for
  * occurrence has passed (within the 30-day window) exactly once — the
- * `followUpSentAt` stamp is the ledger, written only after a successful send
- * so a failed transport retries next run. Today's content is the confirm/deny
+ * `followUpSentAt` stamp is the ledger, and this sweep writes it only after a
+ * successful send so a failed transport retries next run. It is not the only
+ * writer: the Atlas import stamps a registration whose session already started
+ * (`importedFollowUpSentAt`), so a legacy class is never asked about.
+ * Today's content is the confirm/deny
  * ask for unverified listings; the email's `sections` are the extension point
  * for future follow-ups (feedback forms, event promotion).
  */

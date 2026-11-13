@@ -44,8 +44,16 @@ import { sweepTargets, type PreviewDomain, type PullRequestState } from './previ
 const WORKER_NAME = process.env.PREVIEW_WORKER_NAME || 'sahajcloud-preview-proxy'
 /** A PR reopened within the day keeps its address, and its certificate. */
 const SWEEP_GRACE_MS = 24 * 60 * 60_000
-/** How long to wait for a fresh Custom Domain's certificate, and how often to look. */
-const REACHABLE_TIMEOUT_MS = 3 * 60_000
+/**
+ * How long to wait for a fresh Custom Domain's certificate, and how often to look.
+ *
+ * ⚠ Cloudflare takes several minutes to provision a brand-new address's edge
+ * certificate, so a bound in single minutes fails the first push of every PR
+ * while the address itself is fine. The ceiling is `ci.yml`'s `timeout-minutes`:
+ * a wait that outlives the job replaces this step's named error with an opaque
+ * job timeout, which reads as infrastructure rather than as a missing Worker.
+ */
+const REACHABLE_TIMEOUT_MS = 10 * 60_000
 const REACHABLE_POLL_MS = 10_000
 
 /**

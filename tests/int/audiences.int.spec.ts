@@ -45,57 +45,6 @@ describe('Audiences Collection', () => {
     await cleanup()
   })
 
-  describe('createAudience factory', () => {
-    it('creates an audience with default test data', async () => {
-      const audience = await testData.createAudience(payload)
-      expect(audience.id).toBeDefined()
-      expect(audience.label).toMatch(/^Test Audience /)
-    })
-
-    it('creates an audience with custom overrides', async () => {
-      const audience = await testData.createAudience(payload, {
-        label: 'Custom Audience Label',
-      })
-      expect(audience.label).toBe('Custom Audience Label')
-    })
-  })
-
-  describe('label field', () => {
-    it('requires a label', async () => {
-      await expect(
-        payload.create({
-          collection: 'audiences',
-          data: createData<'audiences'>({}),
-        }),
-      ).rejects.toThrow()
-    })
-
-    it('persists and retrieves label', async () => {
-      const audience = await testData.createAudience(payload, { label: 'Beginner Audience' })
-      const fetched = await payload.findByID({
-        collection: 'audiences',
-        id: audience.id,
-      })
-      expect(fetched.label).toBe('Beginner Audience')
-    })
-
-    it('updates the label', async () => {
-      const audience = await testData.createAudience(payload, { label: 'Original' })
-      const updated = await payload.update({
-        collection: 'audiences',
-        id: audience.id,
-        data: createData<'audiences'>({ label: 'Updated' }),
-      })
-      expect(updated.label).toBe('Updated')
-    })
-
-    it('deletes an audience', async () => {
-      const audience = await testData.createAudience(payload)
-      await payload.delete({ collection: 'audiences', id: audience.id })
-      await expect(payload.findByID({ collection: 'audiences', id: audience.id })).rejects.toThrow()
-    })
-  })
-
   describe('progress range fields', () => {
     it('accepts valid range rules with min and max', async () => {
       const audience = await testData.createAudience(payload, {

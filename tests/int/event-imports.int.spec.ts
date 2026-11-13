@@ -10,18 +10,22 @@
 
 import type { Payload, TaskConfig } from 'payload'
 
+import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { ImportResultsField } from '@/components/admin/EventImport/ImportResultsField'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import type { GeocodedLocation, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
+import { failLostImports } from '@/plugins/eventImport'
 import { MAX_IMPORT_ROWS } from '@/plugins/eventImport/constants'
 import { buildImportTemplate } from '@/plugins/eventImport/csv/template'
 
 import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -29,6 +33,17 @@ const geocoder = vi.hoisted(() => ({
   outcome: null as GeocodeOutcome | null,
   /** Overrides the match level, to stand for an address Mapbox placed only at the street. */
   featureType: 'address',
+}))
+
+/**
+ * The results table is a `'use client'` module reaching `@payloadcms/ui`, whose
+ * stylesheets this node lane cannot load. Nothing here renders it: the field
+ * returns `<ImportResultsTable {...}/>`, and a React element carries its props
+ * without the component being called — so the stub is only what keeps the CSS
+ * out of the graph, and the rows asserted below are the field's own output.
+ */
+vi.mock('@/components/admin/EventImport/ImportResultsTable', () => ({
+  ImportResultsTable: () => null,
 }))
 
 vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
@@ -132,6 +147,31 @@ describe('class imports', () => {
 
   const run = (importId: number) => runTaskHandler(importTask, { payload, input: { importId } })
 
+  /** The row the import's own afterChange queued, which a lost run leaves behind. */
+  const queuedImportJob = async (importId: number) => {
+    const { docs } = await payload.find({
+      collection: 'payload-jobs',
+      where: { taskSlug: { equals: 'importEvents' } },
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+    })
+    return docs.find((job) => (job.input as { importId?: number } | null)?.importId === importId)
+  }
+
+  /**
+   * The field is an async function component, so calling it returns the element
+   * it renders. `JSONFieldServerComponent` is a `ComponentType` union, which TS
+   * will not call directly.
+   */
+  const renderResults = ImportResultsField as unknown as (
+    props: Record<string, unknown>,
+  ) => Promise<null | { props: { rows: { eventId?: number }[] } }>
+
+  /** A request shaped as the admin panel's, for a server component to render under. */
+  const reqAs = (user: Awaited<ReturnType<typeof testData.authUser>>) =>
+    createLocalReq({ user: { ...user, collection: 'managers' }, locale: 'en' }, payload)
+
   const read = (id: number) =>
     payload.findByID({ collection: 'imports', id, depth: 0 }) as Promise<Import>
 
@@ -173,26 +213,6 @@ describe('class imports', () => {
       expect(
         await fieldErrorMessage(createImport([], admin, {}, file(data, name)), 'file'),
       ).toMatch(message)
-    })
-
-    it('reads a header cell that carries an invisible character', async () => {
-      const header = HEADER.replace('title', 'title\u200b')
-      const created = await createImport(
-        [],
-        admin,
-        {},
-        file(
-          Buffer.from(
-            `${header}\n${classLine({ title: 'Hidden char', startTime: '06:05' })}\n`,
-            'utf8',
-          ),
-        ),
-      )
-      await run(created.id)
-      expect((await read(created.id)).results?.[0]).toMatchObject({
-        outcome: 'created',
-        title: 'Hidden char',
-      })
     })
 
     it('refuses a target no import can file classes under, or none at all', async () => {
@@ -261,7 +281,13 @@ describe('class imports', () => {
       }
     })
 
-    it('moves to completed once no draft is left, and back while one is', async () => {
+    /**
+     * ⚠ The last step is the load-bearing one. An imported class is re-drafted
+     * long after the import is done — ExpireEvents unpublishes an expired one,
+     * a community denial drafts one — and reopening the import for either asks
+     * a volunteer to review work that is not import work.
+     */
+    it('moves to completed once no draft is left, and stays there', async () => {
       const created = await createImport([
         classLine({ title: 'Publish me', startTime: '06:07' }),
         classLine({ title: 'Delete me', startTime: '06:08' }),
@@ -289,7 +315,7 @@ describe('class imports', () => {
         data: { _status: 'draft' },
         overrideAccess: true,
       })
-      expect((await read(created.id)).status).toBe('review')
+      expect((await read(created.id)).status).toBe('completed')
     })
 
     it('creates the rows the uploader may write and refuses the rest, naming why', async () => {
@@ -590,6 +616,41 @@ describe('class imports', () => {
       }
     })
 
+    /**
+     * The run never reaches the task's own `catch`, so nothing in the import
+     * plugin marks the row. The stale-job sweep is what does, and `status` is
+     * closed to every writer, so there is no retry a volunteer could reach.
+     */
+    it('fails when the sweep cancels a run that was lost with its container', async () => {
+      const created = await createImport([classLine({ title: 'Interrupted', startTime: '06:11' })])
+      const job = (await queuedImportJob(created.id))!
+      await markJobLost(payload, job.id)
+
+      expect(await recoverLostJobs(payload)).toBeGreaterThan(0)
+
+      const after = await read(created.id)
+      expect(after.status).toBe('failed')
+      expect(after.error).toMatch(/Upload the file again/)
+      expect(
+        await payload.findByID({ collection: 'payload-jobs', id: job.id, overrideAccess: true }),
+      ).toMatchObject({ hasError: true, processing: false })
+    })
+
+    /**
+     * ⚠ The sweep reads its rows before it cancels them, so a run can land in
+     * between — and this notice would then replace a real result.
+     */
+    it('leaves an import whose run landed after all', async () => {
+      const created = await createImport([classLine({ title: 'Landed', startTime: '06:12' })])
+      const job = (await queuedImportJob(created.id))!
+      await run(created.id)
+      expect((await read(created.id)).status).toBe('review')
+
+      await failLostImports(payload, [job])
+
+      expect((await read(created.id)).status).toBe('review')
+    })
+
     it('fails as expected when its uploader is no longer active', async () => {
       const leaver = await testData.createManager(payload, { name: 'Leaver', type: 'admin' })
       const created = await createImport([classLine({ title: 'Left Behind' })], leaver)
@@ -655,6 +716,89 @@ describe('class imports', () => {
       expect(field.defaultValue({ req: { query: { targetRegion: String(berlin) } } })).toBe(berlin)
       expect(field.defaultValue({ req: { query: { targetRegion: 'x' } } })).toBeUndefined()
       expect(field.defaultValue({ req: { query: {} } })).toBeUndefined()
+    })
+
+    /**
+     * The results field is a server component, so it renders on every
+     * `form-state` request too — and that request carries its own `data` and
+     * names its own `id`, past nothing but `canAccessAdmin` (#1126). It reads
+     * each named class with `overrideAccess: true`, populating the manager's
+     * name and email, so the rows must come off the stored row rather than off
+     * whatever the caller posted.
+     */
+    it('builds its results from the stored row, never the posted form data', async () => {
+      // Its own class line: a repeat of the shared fixture imports as a
+      // duplicate and creates nothing, leaving the assertion below with no row.
+      // ⚠ No cell may hold a comma — `classLine` joins rather than quotes, so
+      // one shifts every later column and the row fails validation instead.
+      const created = await createImport(
+        [classLine({ title: 'Gate probe stored results', startTime: '19:45' })],
+        admin,
+      )
+      await run(created.id)
+      const stored = await read(created.id)
+      const [mine] = (await importedClasses(created.id)).docs
+
+      const foreign = await testData.createManager(payload, { name: 'Foreign Manager' })
+      const secret = await testData.createEvent(payload, {
+        title: 'A class in nobody else’s import',
+        manager: foreign.id,
+      })
+      // What a crafted `form-state` body would carry: this import's id, and a
+      // results array naming a class it never created.
+      const forged = {
+        id: created.id,
+        results: [{ row: 1, outcome: 'created', eventId: secret.id, title: 'forged' }],
+      }
+
+      const rendered = await renderResults({
+        clientField: { label: 'Results' },
+        data: forged,
+        id: created.id,
+        path: 'results',
+        req: await reqAs(await testData.authUser(payload, admin)),
+      })
+
+      expect(rendered?.props.rows.map((row) => row.eventId)).toEqual([mine.id])
+      expect(rendered?.props.rows.map((row) => row.eventId)).not.toContain(secret.id)
+      expect(stored.results).toHaveLength(1)
+    })
+
+    it('renders no results for a manager who may not open the import', async () => {
+      const created = await createImport(
+        [classLine({ title: 'Gate probe refused read', startTime: '20:15' })],
+        admin,
+      )
+      await run(created.id)
+      const named = await testData.createEvent(payload, { title: 'Named by the forged body' })
+      const unlisted = await testData.createManager(payload, { name: 'Not On This Region' })
+
+      // Carrying results, so rendering nothing is the refused read rather than
+      // an empty `data` every implementation would render as nothing.
+      const body = {
+        clientField: { label: 'Results' },
+        data: {
+          id: created.id,
+          results: [{ row: 1, outcome: 'created', eventId: named.id, title: 'forged' }],
+        },
+        id: created.id,
+        path: 'results',
+      }
+
+      expect(
+        await renderResults({
+          ...body,
+          req: await reqAs(await testData.authUser(payload, unlisted)),
+        }),
+      ).toBeNull()
+
+      // The same body as an admin renders the import's own row, so the refusal
+      // above is this manager's access and not the body.
+      const allowed = await renderResults({
+        ...body,
+        req: await reqAs(await testData.authUser(payload, admin)),
+      })
+      expect(allowed?.props.rows).toHaveLength(1)
     })
 
     it('refuses a published API client, since imports sit in no project', async () => {

@@ -138,6 +138,29 @@ describe('openItem', () => {
       expect(status.lines).toEqual(['Repeatedly refused sender', 'Received 4 Nov 2026'])
     })
 
+    /** Also an admin's alone, and ranked with Overdue: nobody got their mail. */
+    it('reads an undelivered row as its own unfiltered status', () => {
+      const status = only({
+        id: 62,
+        intake: 'registration',
+        kind: 'delivery-failed',
+        receivedAt: '2026-11-04T00:00:00.000Z',
+        title: 'Nadia Haddad',
+      })
+      expect(status).toMatchObject({
+        filter: null,
+        key: 'delivery-failed',
+        label: 'Delivery failed',
+        counts: true,
+        rank: 2,
+      })
+      expect(status.lines).toEqual(['This registration was never delivered', 'Received 4 Nov 2026'])
+      expect(status.action).toEqual({
+        label: 'Send again',
+        target: { collection: 'user-submissions', id: 62 },
+      })
+    })
+
     it('asks for a manager on an unadopted listing', () => {
       const status = only(event({ hasManager: false, verificationStage: 'unverified' }))
       expect(status).toMatchObject({

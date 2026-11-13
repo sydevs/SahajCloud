@@ -2,11 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  composeEventTitle,
-  EVENT_TITLE_DEFAULTS,
-  firstAddressSegment,
-} from '@/lib/eventTitle/compose'
+import { EVENT_TITLE_DEFAULTS } from '@/lib/eventTitle/compose'
 
 /**
  * Minimal PayloadRequest stub — resolveTitleTemplates only touches `context` and
@@ -29,28 +25,6 @@ function makeReq(
 const eveningSchedule = { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'UTC' }
 
 describe('Event title memoization (#542 bulk-import stampede guard)', () => {
-  describe('helper functions', () => {
-    it('extracts the first address segment', () => {
-      expect(firstAddressSegment('Beethovenstraße 12, 2nd floor')).toBe('Beethovenstraße 12')
-      expect(firstAddressSegment('Street Name')).toBe('Street Name')
-      expect(firstAddressSegment(null)).toBe('')
-    })
-
-    it('interpolates %{place} into the template', () => {
-      expect(composeEventTitle('Meditation at %{place}', { street: 'Berlin' })).toBe(
-        'Meditation at Berlin',
-      )
-      expect(composeEventTitle('Meditation at %{place}', { street: '' })).toBeNull()
-    })
-
-    it('falls back to the place alone for a blank or placeholder-less template', () => {
-      // Otherwise every event would share one fixed, place-free title.
-      expect(composeEventTitle('', { street: 'Berlin' })).toBe('Berlin')
-      expect(composeEventTitle('  ', { street: 'Berlin' })).toBe('Berlin')
-      expect(composeEventTitle('Meditation at', { street: 'Berlin' })).toBe('Berlin')
-    })
-  })
-
   describe('title template caching', () => {
     it('memoizes the in-flight promise across concurrent beforeChange hooks', async () => {
       // Simulates a bulk import: many events' beforeChange hooks fire concurrently

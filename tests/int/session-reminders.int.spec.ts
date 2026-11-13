@@ -2,10 +2,12 @@ import type { EmailTestAdapter } from '../utils/emailTestAdapter'
 import type { FixtureOverrides } from '../utils/testData'
 import type { Payload } from 'payload'
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
@@ -117,6 +119,10 @@ describe('SendSessionReminders job', () => {
         submissionData: [{ field: 'name', value: email.split('@')[0] }],
         ...overrides,
       }),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     })
     return registration.id
   }
@@ -140,6 +146,54 @@ describe('SendSessionReminders job', () => {
     emailAdapter.clearCapturedEmails()
     await runReminders(payload)
     expect(emailsTo('series@example.com')).toHaveLength(0)
+  })
+
+  it('keeps its ledger entry when another writer rewrites the log mid-send', async () => {
+    // The ledger is what stops a second run re-sending, and every writer used
+    // to rebuild the whole column from a copy read before its own slow work.
+    // A dropped entry here is a duplicate reminder an hour later.
+    const eventId = await createEvent()
+    const submissionId = await createRegistration(eventId, 'raced@example.com')
+
+    const send = payload.sendEmail.bind(payload)
+    const spy = vi.spyOn(payload, 'sendEmail').mockImplementation(async (message) => {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submissionId,
+        data: {
+          activityLog: [
+            {
+              at: NOW.toISOString(),
+              type: 'other-writer',
+              key: 'mid-send',
+              cells: { activity: 'Written while the reminder was in flight' },
+            },
+          ],
+        },
+        overrideAccess: true,
+        context: { skipWriteGuard: true },
+      })
+      return send(message)
+    })
+    onTestFinished(() => spy.mockRestore())
+
+    await runReminders(payload)
+    expect(emailsTo('raced@example.com')).toHaveLength(1)
+    spy.mockRestore()
+
+    const row = await payload.findByID({
+      collection: 'user-submissions',
+      id: submissionId,
+      overrideAccess: true,
+    })
+    expect((row.activityLog as { type: string }[]).map((entry) => entry.type)).toEqual([
+      'other-writer',
+      'session-reminder',
+    ])
+
+    emailAdapter.clearCapturedEmails()
+    await runReminders(payload)
+    expect(emailsTo('raced@example.com')).toHaveLength(0)
   })
 
   it('reminds a startingAt registrant only for that session', async () => {

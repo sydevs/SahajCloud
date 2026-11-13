@@ -68,7 +68,7 @@ whoever needs it, or needing no one — throw `ExpectedJobFailure`
 (`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
 still reported, at `warning`. Leave an outage, such as a vendor down or a query
 failing, a plain `Error` — and a missing key or bucket URL too, in production
-(`isProductionDeployment()`), where it must alert. `TranscribeMeditation` and the `importEvents` task
+(`isProductionDeployment()`), where it must alert. `TranscribeRecording` and the `importEvents` task
 (`src/plugins/eventImport/task.ts`) show both.
 
 `CleanupCollections/` holds no collection list at all: a collection joins
@@ -172,17 +172,63 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. `lemonfox/` holds only what does **not** fetch: `normalize.ts`
-  turns the vendor's `verbose_json` into this app's cue shape, for the
-  transcription task and the transcript seed alike. The HTTP client stays in
-  `jobs/TranscribeMeditation/lemonfox/`, which has one consumer until
-  sydevs/SahajCloud#1016's subtitles endpoint becomes its second
+  booting it. `lemonfox/` holds the vendor's response half: `languages.ts`
+  (our locales to its language names and back) and `normalize.ts`, which reads
+  its undocumented `verbose_json` — words grouped into the cues a run stores,
+  and the phrases the library's existing transcripts were imported as. The
+  HTTP client itself is `src/jobs/TranscribeRecording/lemonfoxClient.ts`,
+  because the job is its one caller since every request became a queued run
+  (#1016); with one consumer, `tests/unit/lib-boundary.spec.ts` refuses it
+  here
+- `atomicWrites/` — the two writes a background worker owes a row it read
+  before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
+  into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
+  with bound parameters, on the caller's own connection, reading no entry, so
+  two writers keep each other's — into the log's own table and, where the
+  collection carries drafts, into the version table beside it, which is what a
+  `draft: true` read serves and what `updateByID` writes the next save back
+  from.
+  Neither knows a stage, a status or a verdict — the Payload
+  flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
+  own. No barrel: import each module by its own path
+- `stateMachine/` — one lifecycle declared once with `defineStateMachine`:
+  its states, where a row may open (`opensAt`, which is the column's own
+  `defaultValue` and stands for every writer, plus an `opens` row per other
+  state and the writers that may author one), the `(from, to, by)` moves that
+  exist (a move may carry a pure
+  `when` condition on the document, a `name` for the decision it is, and the
+  `refusal` a person outside `by` reads), who may name themselves as a writer,
+  and how a request's person resolves. Then `can` (the table alone, for button
+  maps and pre-checks), `judgeTransition` (the table plus conditions),
+  `judgeOpening` (a create, which has no `from` to match), `transition` (the
+  claim), and the guard `stateMachineField`
+  (`src/fields/stateMachineField.ts`) mounts on the column as a field
+  `beforeChange`, so it runs after every collection hook (#1121). Two machines
+  use it: the event verification stage (`lib/eventVerification/machine.ts`) and
+  the submission status (`collections/UserSubmissions/machine.ts`), which is
+  why the machinery is here and each table is with its owner. ⚠ **A table, its
+  conditions, its openings, a lookup and a claim — nothing else.** No actions, no
+  side-effect registry, no nested states, no timers: what a move _does_ stays
+  in the owner's own hook, keyed on the move's name. A machine that needs more
+  wants XState instead of a bigger version of this. No barrel: import each
+  module by its own path
 - `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
   the three admin homes' loaders and by the nightly digest. Its `status.ts`
   owns **every word a reader sees about an open item** — the pill, the line,
   the rank, the filter, whether it counts against progress, and the next step
   — because four surfaces show the same list. No barrel: import each module
   by its own path
+- `transcripts/` — a recording's transcript, wherever the recording lives
+  (#1016): `sync.ts` starts a run when a recording or its language is saved
+  or, for a video, when Stream has made it, `request.ts` is a re-request and
+  the bounds a paid run needs, `read.ts` the row lookup, a file's cues
+  (batched per request), which files' rows are finished, and which column each
+  kind of recording states its language in, `cues.ts` the cue vocabulary a
+  provider's words are grouped into and the two bounds that cut one,
+  `language.ts` whether a recording's language is the one being read, and
+  `media.ts` which files carry one at all. Meditations, files, lessons, the
+  job and a seed all read it; deep imports, no barrel, because `media.ts` is
+  also read in the browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,

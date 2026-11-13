@@ -13,7 +13,9 @@
  * Never derive state from a timestamp alone. Check it against
  * `verified_at` first (see `isCurrentLifecycleFlag`).
  */
-import type { ActorRef, VerificationLogEntry } from '@/lib/eventVerification/log'
+import type { LogRow } from '@/fields'
+import { toLogRow } from '@/fields'
+import type { ActorRef } from '@/lib/eventVerification/log'
 import { buildVerificationEntry } from '@/lib/eventVerification/log'
 import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
@@ -75,7 +77,7 @@ export function importDeletedAt(
 export interface ImportVerificationFields {
   verificationStage: ImportVerificationStage
   nextCheckAt?: string
-  activityLog: VerificationLogEntry[]
+  activityLog: LogRow[]
 }
 
 /**
@@ -127,7 +129,9 @@ export function buildImportVerification(args: {
   actor?: ActorRef | null
 }): ImportVerificationFields {
   const stage = mapStatusToStage(args.status)
-  const entry = buildVerificationEntry('import', args.actor ?? null, args.now.toISOString())
+  const entry = toLogRow(
+    buildVerificationEntry('import', args.actor ?? null, args.now.toISOString()),
+  )
   const { schedule, inactive } = args
 
   if (stage === 'finished') {

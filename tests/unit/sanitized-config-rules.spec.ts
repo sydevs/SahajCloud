@@ -11,6 +11,9 @@ import { describe, expect, it } from 'vitest'
 import { readJobStageConfig } from '@/components/admin/JobStageView/stages'
 import { isRecord } from '@/lib/utilities/isRecord'
 import config from '@/payload.config'
+import { depthParameter } from '@/plugins/openapi/clientReadParametersDocs'
+import { CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS } from '@/plugins/openapi/customEndpoints'
+import { filterSpec, rootEndpointPathsFrom, type OpenAPISpec } from '@/plugins/openapi/specFilter'
 
 import { entryAndDirectImports, resolveSpec, sourceOf, SRC } from '../utils/importGraph'
 
@@ -337,4 +340,165 @@ describe('the Install tab is registered on clients', { timeout: TIMEOUT }, () =>
     const path = parsePayloadComponent(view?.Component as never).path
     expect(resolveSpec(path, IMPORT_MAP), `${path} is not in the import map`).toBeTruthy()
   })
+})
+
+/**
+ * The hand-written OpenAPI document for custom endpoints, held to the sanitized config. These live
+ * here rather than in `openapi-custom-endpoints.spec.ts` so that only one spec pays the config
+ * import; the rest of the OpenAPI rules stay there with no Payload config at all.
+ */
+const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
+
+/**
+ * Payload spells a route parameter `:id`, OpenAPI `{id}`. A `.ics`-style suffix
+ * after the OpenAPI parameter has no Payload spelling, so it is dropped too.
+ */
+const normalisePath = (path: string): string => path.replace(/\{[^}]+\}(\.\w+)?|:\w+/g, '{}')
+
+/** `METHOD /api/path` for every custom endpoint the sanitized config registers. */
+const registeredEndpoints = async (): Promise<Set<string>> => {
+  const sanitized = await config
+  const api = sanitized.routes.api
+  const keys = new Set<string>()
+  const add = (prefix: string, endpoints: false | readonly { method: string; path: string }[]) => {
+    for (const endpoint of endpoints || []) {
+      keys.add(`${endpoint.method} ${normalisePath(`${api}${prefix}${endpoint.path}`)}`)
+    }
+  }
+  add('', sanitized.endpoints)
+  for (const collection of sanitized.collections) {
+    add(`/${collection.slug}`, collection.endpoints)
+  }
+  return keys
+}
+
+/** `payload-oapi` names a collection's generated schema by its PascalCased slug. */
+const generatedSchemaNames = async (): Promise<Set<string>> =>
+  new Set(
+    (await config).collections.map((collection) =>
+      collection.slug
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(''),
+    ),
+  )
+
+const collectRefs = (node: unknown, refs: Set<string> = new Set()): Set<string> => {
+  if (Array.isArray(node)) {
+    for (const item of node) collectRefs(item, refs)
+  } else if (node && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      if (key === '$ref' && typeof value === 'string') refs.add(value)
+      else collectRefs(value, refs)
+    }
+  }
+  return refs
+}
+
+/** A fresh copy, so one case's filtering cannot leak into the next. */
+const customSpec = (): OpenAPISpec =>
+  JSON.parse(
+    JSON.stringify({
+      openapi: '3.1.0',
+      info: { title: 't', version: '1' },
+      paths: { ...CUSTOM_ENDPOINT_PATHS },
+      components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+    }),
+  ) as unknown as OpenAPISpec
+
+describe('custom endpoint document structure (OpenAPI)', () => {
+  // `payload-oapi` generates nothing for a custom endpoint, so the document is
+  // hand-written. A path left behind after its endpoint is renamed or deleted
+  // sends an integrator to a 404. This holds documented ⊆ registered only; the
+  // other direction is `openapi-endpoint-coverage.spec.ts`, which cannot live
+  // here because sanitization mutates the raw collection configs it reads.
+  it(
+    'documents only endpoints the config registers',
+    async () => {
+      const registered = await registeredEndpoints()
+      const documented = Object.entries(CUSTOM_ENDPOINT_PATHS).flatMap(([path, item]) =>
+        HTTP_METHODS.filter((method) => item[method]).map(
+          (method) => `${method} ${normalisePath(path)}`,
+        ),
+      )
+      expect(documented.length).toBeGreaterThan(0)
+      expect(documented.filter((key) => !registered.has(key))).toEqual([])
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'resolves every $ref to a component that exists',
+    async () => {
+      const generated = await generatedSchemaNames()
+      const unresolved = [...collectRefs([CUSTOM_ENDPOINT_PATHS, CUSTOM_ENDPOINT_SCHEMAS])].filter(
+        (ref) => {
+          const name = /^#\/components\/schemas\/(.+)$/.exec(ref)?.[1]
+          return !name || !(name in CUSTOM_ENDPOINT_SCHEMAS || generated.has(name))
+        },
+      )
+      expect(unresolved).toEqual([])
+    },
+    TIMEOUT,
+  )
+})
+
+describe('depth parameter (OpenAPI)', () => {
+  // The documented `maximum` must track the server `maxDepth` so REST clients
+  // see the real cap.
+  it(
+    'caps depth at the server maxDepth',
+    async () => {
+      expect(depthParameter.schema.maximum).toBe((await config).maxDepth)
+      expect(depthParameter.schema.minimum).toBe(0)
+    },
+    TIMEOUT,
+  )
+})
+
+describe('root endpoints in the filtered spec (OpenAPI)', () => {
+  // Read from the config, so a documented root endpoint added later is held to
+  // the same rule without another case.
+  const documentedRootPaths = async (): Promise<string[]> =>
+    rootEndpointPathsFrom((await config).endpoints).filter((path) => path in CUSTOM_ENDPOINT_PATHS)
+
+  const operationsOf = (spec: OpenAPISpec, path: string): Record<string, unknown>[] => {
+    const item = spec.paths?.[path] as Record<string, Record<string, unknown>> | undefined
+    expect(item, `${path} is missing from the filtered spec`).toBeDefined()
+    return HTTP_METHODS.filter((method) => item![method]).map((method) => item![method]!)
+  }
+
+  it(
+    'stays visible in every project spec despite owning no collection',
+    async () => {
+      // A root endpoint names no collection, so without the root-path exemption
+      // the project tier reads it as "not in this project" and hides it everywhere.
+      const paths = await documentedRootPaths()
+      expect(paths).toContain('/api/atlas/seo')
+      expect(paths).toContain('/api/atlas/sitemap')
+      const rootEndpointPaths = paths
+      for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
+        const filtered = filterSpec(customSpec(), { project, rootEndpointPaths })
+        for (const path of paths) {
+          for (const operation of operationsOf(filtered, path)) {
+            expect(operation['x-internal'], `${path} hidden for ${project}`).toBeFalsy()
+          }
+        }
+      }
+    },
+    TIMEOUT,
+  )
+
+  it(
+    'is hidden when the caller does not declare it as a root path',
+    async () => {
+      const filtered = filterSpec(customSpec(), { project: 'sahaj-atlas' })
+      for (const path of await documentedRootPaths()) {
+        for (const operation of operationsOf(filtered, path)) {
+          expect(operation['x-internal'], `${path} published without the exemption`).toBe(true)
+        }
+      }
+    },
+    TIMEOUT,
+  )
 })

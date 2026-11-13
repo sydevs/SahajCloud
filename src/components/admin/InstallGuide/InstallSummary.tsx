@@ -18,11 +18,11 @@ import { loadInstallRecord } from './installRecord'
  * itself: `site` is `admin.disabled`, which keeps it out of the form state a
  * client component would read.
  */
-const InstallSummary: UIFieldServerComponent = async ({ data, payload }) => {
+const InstallSummary: UIFieldServerComponent = async ({ data, payload, req }) => {
   const id = (data as { id?: unknown } | undefined)?.id
   if (typeof id !== 'number') return null
 
-  const record = await loadInstallRecord(payload, id)
+  const record = await loadInstallRecord(req, id)
   if (!record) return null
   const { client, owned, regionName, milestones } = record
   const installUrl = formatAdminURL({

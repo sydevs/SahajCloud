@@ -650,42 +650,24 @@ export type SupportedTimezones =
   | 'Etc/GMT+11'
   | 'Etc/GMT+12';
 export type ScheduleUpcomingDates = string[];
-/**
- * @maxItems 500
- */
-export type ActivityLog = {
-  /**
-   * ISO 8601. The first column, and the sort key.
-   */
-  at?: string;
-  /**
-   * Stable slug — matched by jobs, never shown.
-   */
-  type?: string;
-  /**
-   * Exactly-once key, scoped to `type`.
-   */
-  key?: string;
-  /**
-   * What the columns read. Everything outside this is machine data.
-   */
-  cells?: {
-    [k: string]:
-      | string
-      | {
-          /**
-           * Muted, inline before the text.
-           */
-          label?: string;
-          text: string;
-          /**
-           * Muted line beneath the text.
-           */
-          sub?: string;
-        };
-  };
+export type ActivityLogCells = {
+  [k: string]:
+    | string
+    | {
+        /**
+         * Muted, inline before the text.
+         */
+        label?: string;
+        text: string;
+        /**
+         * Muted line beneath the text.
+         */
+        sub?: string;
+      };
+} | null;
+export type ActivityLogData = {
   [k: string]: unknown;
-}[];
+} | null;
 export type EventQualityReport =
   | {
       skipped: true;
@@ -999,6 +981,7 @@ export interface Config {
       cleanupOrphanedMedia: TaskCleanupOrphanedMedia;
       deliverSubmission: TaskDeliverSubmission;
       expireEvents: TaskExpireEvents;
+      recoverLostJobs: TaskRecoverLostJobs;
       screenSubmission: TaskScreenSubmission;
       sendPostEventFollowUps: TaskSendPostEventFollowUps;
       sendDigests: TaskSendDigests;
@@ -1958,12 +1941,33 @@ export interface Event {
     totalDocs?: number;
   };
   /**
-   * Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.
+   * Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.
    */
   manager?: (number | null) | Manager;
   verificationStage:
     'unverified' | 'denied' | 'verified' | 'reminded' | 'escalated' | 'urgent' | 'expired' | 'finished';
-  activityLog?: ActivityLog;
+  /**
+   * Current verification cycle — the verification that opened it plus each reminder sent. Reset on every verification. Keeps the most recent 50 entries.
+   */
+  activityLog?:
+    | {
+        /**
+         * ISO 8601. The sort key.
+         */
+        at?: string | null;
+        /**
+         * Matched by jobs, never shown.
+         */
+        type?: string | null;
+        /**
+         * Exactly-once key, scoped to `type`.
+         */
+        key?: string | null;
+        cells?: ActivityLogCells;
+        data?: ActivityLogData;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * How strongly attendees confirm this event is real (0–1) — your check before adopting a listing, or why a denied one stays down. Rises with confirmations, falls with denials, and stays cautious while there are few votes. Blank until the first vote.
    */
@@ -1985,6 +1989,10 @@ export interface Event {
    * Registrants are offered a mailing list: this region, one above it, or the atlas fallback service has one switched on.
    */
   offersMailingList?: boolean | null;
+  /**
+   * Subscribable calendar address. Anyone holding it can subscribe.
+   */
+  calendarFeedUrl?: string | null;
   /**
    * Open listing-quality recommendations.
    */
@@ -2279,7 +2287,28 @@ export interface UserSubmission {
    * The city or venue this event belongs to. Matched from the visitor’s location — correct it here if it came back empty or wrong.
    */
   region?: (number | null) | Region;
-  activityLog?: ActivityLog;
+  /**
+   * Everything recorded about this submission — screening, delivery, decisions. Keeps the most recent 50 entries.
+   */
+  activityLog?:
+    | {
+        /**
+         * ISO 8601. The sort key.
+         */
+        at?: string | null;
+        /**
+         * Matched by jobs, never shown.
+         */
+        type?: string | null;
+        /**
+         * Exactly-once key, scoped to `type`.
+         */
+        key?: string | null;
+        cells?: ActivityLogCells;
+        data?: ActivityLogData;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * Composed when the submission arrives.
    */
@@ -2419,29 +2448,29 @@ export interface Client {
    */
   supportEmail?: string | null;
   /**
-   * Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.
+   * Add people who sign up for news on this site to your own mailing list.
    */
   mailingList?: {
-    enabled?: boolean | null;
+    /**
+     * Leave empty if this service has no mailing list.
+     */
     provider?: ('mailchimp' | 'brevo' | 'klaviyo' | 'cleverreach') | null;
     /**
-     * In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.
+     * From your CleverReach app.
      */
     clientId?: string | null;
     /**
-     * Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.
+     * The list new subscribers are added to.
      */
     listId?: string | null;
-    /**
-     * The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.
-     */
+    apiKeyChange?: string | null;
     apiKey?: string | null;
     /**
-     * The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.
+     * People are only added after they click the link in that email.
      */
     doubleOptIn?: boolean | null;
     /**
-     * The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.
+     * The CleverReach form that sends the confirmation email. Copy its Flow ID.
      */
     doiFlowId?: string | null;
   };
@@ -3151,27 +3180,7 @@ export interface Transcript {
         value: number | File;
       };
   audioFilename?: string | null;
-  provider?: 'lemonfox' | null;
-  language:
-    | 'en'
-    | 'es'
-    | 'de'
-    | 'it'
-    | 'fr'
-    | 'ru'
-    | 'ro'
-    | 'cs'
-    | 'uk'
-    | 'el'
-    | 'hy'
-    | 'pl'
-    | 'pt-BR'
-    | 'fa'
-    | 'bg'
-    | 'tr'
-    | 'en-AU'
-    | 'hu'
-    | 'nl';
+  provider?: ('lemonfox' | 'imported') | null;
   segments?: TranscriptSegments;
   segmentCount?: number | null;
   job?: (number | null) | PayloadJob;
@@ -3188,10 +3197,37 @@ export interface Transcript {
  */
 export interface File {
   id: number;
-  createdAt: string;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  subtitles?: Subtitles;
+  /**
+   * Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file. A recording with no transcript yet is transcribed from the panel below instead.
+   */
+  spokenLanguage?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
+        | 'hu'
+        | 'nl'
+      )
+    | null;
+  createdAt?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -3263,6 +3299,7 @@ export interface PayloadJob {
           | 'cleanupOrphanedMedia'
           | 'deliverSubmission'
           | 'expireEvents'
+          | 'recoverLostJobs'
           | 'screenSubmission'
           | 'sendPostEventFollowUps'
           | 'sendDigests'
@@ -3314,6 +3351,7 @@ export interface PayloadJob {
         | 'cleanupOrphanedMedia'
         | 'deliverSubmission'
         | 'expireEvents'
+        | 'recoverLostJobs'
         | 'screenSubmission'
         | 'sendPostEventFollowUps'
         | 'sendDigests'
@@ -3365,7 +3403,6 @@ export interface Lesson {
          * Image or video for this panel.
          */
         media?: (number | null) | File;
-        subtitles?: Subtitles;
         id?: string | null;
       }[]
     | null;
@@ -3390,7 +3427,7 @@ export interface Lesson {
    */
   preMeditationLines?: string | null;
   /**
-   * Audio introduction to this lesson.
+   * Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.
    */
   introAudio?: (number | null) | File;
   introSubtitles?: Subtitles;
@@ -4489,7 +4526,6 @@ export interface TranscriptsSelect<T extends boolean = true> {
   source?: T;
   audioFilename?: T;
   provider?: T;
-  language?: T;
   segments?: T;
   segmentCount?: T;
   job?: T;
@@ -4574,7 +4610,6 @@ export interface LessonsSelect<T extends boolean = true> {
         title?: T;
         text?: T;
         media?: T;
-        subtitles?: T;
         id?: T;
       };
   meditation?: T;
@@ -4699,10 +4734,12 @@ export interface ImagesSelect<T extends boolean = true> {
  * via the `definition` "files_select".
  */
 export interface FilesSelect<T extends boolean = true> {
-  createdAt?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  subtitles?: T;
+  spokenLanguage?: T;
+  createdAt?: T;
   _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;
@@ -4894,10 +4931,10 @@ export interface ClientsSelect<T extends boolean = true> {
   mailingList?:
     | T
     | {
-        enabled?: T;
         provider?: T;
         clientId?: T;
         listId?: T;
+        apiKeyChange?: T;
         apiKey?: T;
         doubleOptIn?: T;
         doiFlowId?: T;
@@ -5159,13 +5196,23 @@ export interface EventsSelect<T extends boolean = true> {
   registrations?: T;
   manager?: T;
   verificationStage?: T;
-  activityLog?: T;
+  activityLog?:
+    | T
+    | {
+        at?: T;
+        type?: T;
+        key?: T;
+        cells?: T;
+        data?: T;
+        id?: T;
+      };
   confidenceScore?: T;
   qualityReport?: T;
   submitter?: T;
   nextCheckAt?: T;
   registrationsFull?: T;
   offersMailingList?: T;
+  calendarFeedUrl?: T;
   qualityOpenCount?: T;
   qualityCheckVersion?: T;
   systemMeta?: T;
@@ -5363,7 +5410,16 @@ export interface UserSubmissionsSelect<T extends boolean = true> {
   previewEvent?: T;
   manager?: T;
   region?: T;
-  activityLog?: T;
+  activityLog?:
+    | T
+    | {
+        at?: T;
+        type?: T;
+        key?: T;
+        cells?: T;
+        data?: T;
+        id?: T;
+      };
   subject?: T;
   type?: T;
   status?: T;
@@ -10985,6 +11041,16 @@ export interface TaskExpireEvents {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskRecoverLostJobs".
+ */
+export interface TaskRecoverLostJobs {
+  input?: unknown;
+  output: {
+    cancelled: number;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "TaskScreenSubmission".
  */
 export interface TaskScreenSubmission {
@@ -11078,7 +11144,8 @@ export interface TaskSyncLectureMetadata {
  */
 export interface TaskTranscribeMeditation {
   input: {
-    meditationId: number;
+    meditationId?: number | null;
+    fileId?: number | null;
     audioFilename: string;
   };
   output: {

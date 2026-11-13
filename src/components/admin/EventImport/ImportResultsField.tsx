@@ -1,5 +1,7 @@
 import type { JSONFieldServerComponent } from 'payload'
 
+import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
+import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Manager } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
@@ -7,6 +9,7 @@ import type { ImportResultRow } from '@/plugins/eventImport/results'
 
 import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
 import { csvScheduleSummary, liveScheduleSummary } from './scheduleSummary'
+import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
 const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
   published: ['published', 'published'],
@@ -24,14 +27,26 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
  * target region can open an import, and these are the classes it created there
  * — so "not found" here means deleted, never "you may not see it". Whether a
  * link then opens is the drawer's own access check.
+ *
+ * ⚠ **Which is true only of the stored row, so every value is read back rather
+ * than taken from the form.** A `form-state` request carries its own `data`
+ * past nothing but `canAccessAdmin`, so reading `results` from it resolved
+ * whatever event ids the caller typed, each one populating its manager's name
+ * and email (#1126, `docs/rules/admin-ui.md`). `results` is
+ * `access.update: () => false`, so no form legitimately carries another value.
  */
 export const ImportResultsField: JSONFieldServerComponent = async ({
   clientField,
-  data,
+  id,
   path,
   req,
 }) => {
-  const results = (data?.results ?? []) as ImportResultRow[]
+  const importId = Number(id)
+  const stored = Number.isInteger(importId)
+    ? await readAsRequestUser(req, 'imports', importId, { results: true, targetRegion: true })
+    : null
+  if (!stored) return null
+  const results = (stored.results ?? []) as ImportResultRow[]
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
@@ -76,7 +91,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             },
           },
           populate: { managers: { name: true, email: true } },
-          req,
+          req: localeIsolatedReq(req),
         }),
         // When each created class was first published: its earliest published version.
         req.payload.findVersions({
@@ -89,7 +104,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           pagination: false,
           overrideAccess: true,
           select: { parent: true, createdAt: true },
-          req,
+          req: localeIsolatedReq(req),
         }),
       ])
     : [{ docs: [] }, { docs: [] }]
@@ -124,7 +139,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
         ? liveScheduleSummary(event.schedule, event.inactive)
         : csvScheduleSummary(result.values),
       manager: managerOf(event, result),
-      unverified: status === 'published' && event?.verificationStage === 'unverified',
+      unverified: status === 'published' && isFeedbackOpen(event),
       // Placed at the street or town rather than the building: the import
       // stores no address id then, and choosing an address in the class's
       // Location tab sets one.
@@ -169,8 +184,8 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             )
           : null
       }
-      importId={data?.id as number | string}
-      targetId={relationId(data?.targetRegion)}
+      importId={stored.id}
+      targetId={relationId(stored.targetRegion)}
       label={clientField.label}
       path={path}
       rows={rows}

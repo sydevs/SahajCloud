@@ -201,7 +201,11 @@
     },
     "intro-audio-set": {
       "label": "Intro audio set",
-      "description": "The lesson has an intro-audio file assigned."
+      "description": "The lesson has an intro-audio file assigned for this locale."
+    },
+    "intro-subtitles-set": {
+      "label": "Intro subtitles set",
+      "description": "The intro audio for this locale has a finished transcript in this language, which is its subtitles. A recording transcribed in another language does not count — that is the mismatch the editor is warned about. Most locales have no intro audio of their own yet — the recordings were English-only until they became per-language."
     },
     "is-populated": {
       "label": "Populated",

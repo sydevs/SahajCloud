@@ -23,13 +23,12 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { Import } from '@/payload-types'
 import { hydrateLocalizedRoles } from '@/plugins/access'
 
+import { IMPORT_TASK } from './constants'
 import { failImport, finishImport } from './finish'
 import { prepareRows } from './prepare'
 import { cityIndex, loadTarget } from './regions'
-import { RUN_CONTEXT_KEY } from './run'
+import { importWriteContext } from './run'
 import { reasonsOf } from './validate'
-
-export const IMPORT_TASK = 'importEvents'
 
 export const importEventsTask: TaskConfig<'importEvents'> = {
   slug: IMPORT_TASK,
@@ -123,7 +122,7 @@ async function createRow(
       user: run.uploader,
       overrideAccess: false,
       locale: run.locale as never,
-      context: { [RUN_CONTEXT_KEY]: true },
+      context: importWriteContext(),
     })
     run.created.push({ ...row, eventId: doc.id })
   } catch (error) {

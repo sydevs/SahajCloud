@@ -1,6 +1,8 @@
 import type { TaskConfig } from 'payload'
 
-import { appendLogEntry, asLog } from '@/fields'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { transition } from '@/lib/stateMachine/transition'
 import type { UserSubmission } from '@/payload-types'
 
 import { DELIVERERS } from './deliverers'
@@ -78,30 +80,49 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
         }
       : { activity: `Delivery failed: ${outcome.detail}` }
 
-    await payload.update({
+    // The status only while the row still holds the one read at `:63`. A block
+    // (`Users/endpoints/block.ts`) or a manager's decision landing while the
+    // send ran is the newer answer, and overwriting it would put `spam` back to
+    // `accepted` or a reviewed proposal back to `pending`.
+    await transition({
+      payload,
+      machine: SUBMISSION_MACHINE,
       collection: 'user-submissions',
       id: submissionId,
-      data: {
-        status,
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'delivery',
-          // Every attempt is its own entry, so the key is the timestamp rather
-          // than a constant: an exactly-once key here would collapse three
-          // retries into one line and hide the two that failed.
-          key: now.toISOString(),
-          ok: outcome.ok,
-          ...(outcome.ok ? {} : { retryable: outcome.retryable }),
-          cells: entry,
-        }),
-      },
+      from: submission.status,
+      to: status,
+      by: 'delivery',
+      // Nothing reads the result, and the config's default depth would make a
+      // proposal's afterRead recompute both review projections for it.
+      depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },
       req,
     })
 
-    // The status this run actually wrote, so the task's own output cannot
-    // disagree with the row it just left behind.
+    // Appended whatever the status write did: the send happened, and the
+    // activity log is the only record of it.
+    await appendLogEntry({
+      payload,
+      collection: 'user-submissions',
+      id: submissionId,
+      entry: {
+        at: now.toISOString(),
+        type: 'delivery',
+        // Every attempt is its own entry, so the key is the timestamp rather
+        // than a constant: an exactly-once key here would collapse three
+        // retries into one line and hide the two that failed.
+        key: now.toISOString(),
+        ok: outcome.ok,
+        ...(outcome.ok ? {} : { retryable: outcome.retryable }),
+        cells: entry,
+      },
+      req,
+    })
+
+    // The status this run decided. Where the write above found the row already
+    // moved, the next attempt reads that newer status and returns at `:63`
+    // rather than delivering again.
     if (outcome.ok) return { output: { status } }
 
     if (!outcome.retryable) {

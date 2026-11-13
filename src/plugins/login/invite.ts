@@ -63,6 +63,8 @@ export async function composeInvitations({
   req?: PayloadRequest
 }): Promise<{ from: string; html: string; subject: string; text: string }[]> {
   const summaries = await summarizeGrants({
+    // The invitation is the one surface that prints a class's own brief.
+    describeEvents: true,
     collection: config.slug as string,
     current: config.project?.(doc) ?? undefined,
     id: doc.id,

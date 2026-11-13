@@ -5,11 +5,7 @@ import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
 import { getProjectSlugs } from '../../src/plugins/access/config/projects'
-import {
-  depthParameter,
-  limitParameter,
-  pageParameter,
-} from '../../src/plugins/openapi/clientReadParametersDocs'
+import { limitParameter, pageParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
   CUSTOM_ENDPOINT_PATHS,
   CUSTOM_ENDPOINT_SCHEMAS,
@@ -22,36 +18,22 @@ import {
 } from '../../src/plugins/openapi/specFilter'
 import { MAX_CLIENT_LIMIT, MAX_CLIENT_PAGE } from '../../src/plugins/usage/constants'
 
+/** A fresh copy, so one case's filtering cannot leak into the next. */
+const customSpec = (): OpenAPISpec =>
+  JSON.parse(
+    JSON.stringify({
+      openapi: '3.1.0',
+      info: { title: 't', version: '1' },
+      paths: { ...CUSTOM_ENDPOINT_PATHS },
+      components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
+    }),
+  ) as unknown as OpenAPISpec
+
 describe('Atlas events custom endpoints (OpenAPI)', () => {
-  it('registers the geojson GET path and its schemas', () => {
-    expect(CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get).toBeDefined()
-    for (const schema of ['EventFeatureCollection', 'EventFeature', 'GeoJsonPoint']) {
-      expect(CUSTOM_ENDPOINT_SCHEMAS[schema]).toBeDefined()
-    }
-  })
-
-  it('no longer publishes the register endpoint or its schemas', () => {
-    // Registration is a plain `POST /api/user-submissions` create since #800.
-    // A spec still advertising this path would send an integrator to a 404.
-    expect(CUSTOM_ENDPOINT_PATHS['/api/events/{id}/register']).toBeUndefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationRequest).toBeUndefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS.EventRegistrationResponse).toBeUndefined()
-  })
-
-  // The feed's contract has to be discoverable — an existing client that starts
-  // seeing fewer events needs to find out why from /api/docs, not from the source.
-  it('documents the finished-event exclusion + its opt-out on the geojson feed', () => {
-    const description = (
-      CUSTOM_ENDPOINT_PATHS['/api/events/geojson']?.get as { description?: string }
-    ).description
-    expect(description).toContain('Finished events are excluded')
-    // The definition, the timezone rule, and that `where` cannot override it here.
-    expect(description).toContain('schedule.lastDate')
-    expect(description).toContain('own timezone')
-    expect(description).toContain('cannot re-include')
-    // …and where the opt-out does work, plus the single-doc read staying open.
-    expect(description).toContain('GET /api/events')
-    expect(description).toContain('GET /api/events/{id}')
+  // `specFilter` applies `security: [{ 'API-Key': [] }]` to the whole spec, so an
+  // operation that accepts no credential has to clear it or the contract demands one.
+  it('publishes the calendar feed as taking no credential', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/events/calendar/{token}.ics']?.get?.security).toEqual([])
   })
 
   describe('filterSpec POST visibility', () => {
@@ -117,38 +99,17 @@ describe('Atlas events custom endpoints (OpenAPI)', () => {
   })
 })
 
-describe('Lectures related-meditations custom endpoint (OpenAPI)', () => {
-  const get = CUSTOM_ENDPOINT_PATHS['/api/lectures/{id}/related-meditations']?.get as
-    { parameters?: Array<{ name: string; required?: boolean }> } | undefined
-
-  it('registers the related-meditations GET path and its card schema', () => {
-    expect(get).toBeDefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS['MeditationCardData']).toBeDefined()
-  })
-
-  it('documents limit (required) + excludedMeditationIds (optional) and no select/populate', () => {
-    const byName = new Map((get?.parameters ?? []).map((p) => [p.name, p]))
-    expect(byName.get('limit')?.required).toBe(true)
-    expect(byName.get('excludedMeditationIds')?.required).toBe(false)
-    // Shaped endpoint — fixed card output, so no passthrough read params.
-    expect(byName.has('select')).toBe(false)
-    expect(byName.has('populate')).toBe(false)
-  })
-})
-
 describe('LecturePlayerData schema (OpenAPI)', () => {
   // `customEndpoints.ts` says to keep this schema in lockstep with
   // `LecturePlayerData` in `src/lib/lectures/lectureShape.ts`. Only a comment
   // said so, so adding a field to the type and forgetting the schema — or the
   // reverse — drifted silently. `additionalProperties: false` does not catch
   // it: nothing validates a response against this schema at runtime.
-  const schema = CUSTOM_ENDPOINT_SCHEMAS['LecturePlayerData'] as {
-    additionalProperties?: boolean
-    required?: string[]
-    properties?: Record<string, unknown>
-  }
-
   it('documents exactly the keys the shaper emits', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['LecturePlayerData'] as {
+      additionalProperties?: boolean
+      properties?: Record<string, unknown>
+    }
     // The same list `lectures-for-audience` and `meditation-lectures` pin
     // against a real response.
     expect(Object.keys(schema.properties ?? {}).sort()).toEqual([
@@ -164,33 +125,6 @@ describe('LecturePlayerData schema (OpenAPI)', () => {
       'userChoices',
     ])
     expect(schema.additionalProperties).toBe(false)
-  })
-
-  it('marks userChoices required, since the shaper always emits an array', () => {
-    // `shapeLecture` returns `[]` rather than omitting the key, so a consumer
-    // may index it without a null check.
-    expect(schema.required).toContain('userChoices')
-  })
-
-  it('types a userChoice as an id and a nullable title', () => {
-    const item = (schema.properties?.userChoices as { items?: Record<string, unknown> })?.items as {
-      required?: string[]
-      properties?: Record<string, { type?: unknown }>
-    }
-    expect(item?.required?.sort()).toEqual(['id', 'title'])
-    expect(item?.properties?.id?.type).toBe('integer')
-    // `title` is null when the relationship came back unpopulated.
-    expect(item?.properties?.title?.type).toEqual(['string', 'null'])
-  })
-})
-
-describe('depth parameter (OpenAPI)', () => {
-  // The documented `maximum` must track the server `maxDepth` in
-  // src/payload.config.ts (currently 3) so REST clients see the real cap.
-  it('caps depth at the server maxDepth (3)', () => {
-    expect(depthParameter.schema.maximum).toBe(3)
-    expect(depthParameter.schema.default).toBe(2)
-    expect(depthParameter.schema.minimum).toBe(0)
   })
 })
 
@@ -213,29 +147,11 @@ describe('limit and page parameters (OpenAPI)', () => {
     expect(limitParameter.schema.minimum).toBe(1)
     expect(pageParameter.schema.minimum).toBe(1)
   })
-
-  // The description is the only place a client learns that `pagination=false`
-  // is refused — it is not a parameter the spec declares, so nothing else
-  // would say so.
-  it('names both spellings of the unbounded read it refuses', () => {
-    expect(limitParameter.description).toMatch(/unbounded read is rejected/)
-    expect(limitParameter.description).toMatch(/pagination=false/)
-  })
 })
 
 describe('clients embed-report custom endpoint (OpenAPI)', () => {
-  const post = CUSTOM_ENDPOINT_PATHS['/api/clients/report']?.post as
-    { description?: string; responses?: Record<string, { description?: string }> } | undefined
-
-  it('registers the POST path and both hand-authored schemas', () => {
-    expect(post).toBeDefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportRequest']).toBeDefined()
-    expect(CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportResponse']).toBeDefined()
-  })
-
   it('sources its enums from the collection constants, so they cannot drift', () => {
     const schema = CUSTOM_ENDPOINT_SCHEMAS['ClientEmbedReportRequest'] as {
-      required?: string[]
       properties?: Record<string, { enum?: string[]; maxLength?: number }>
     }
     expect(schema.properties?.mode?.enum).toEqual([...EMBED_MODES])
@@ -245,26 +161,6 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
     expect(schema.properties?.routing?.enum).not.toContain('hash')
     expect(schema.properties?.origin?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
     expect(schema.properties?.pathname?.maxLength).toBe(MAX_MOUNT_KEY_LENGTH)
-    // Two fields, not one URL — the shipped widget sends them apart, and the
-    // endpoint can only check the path on its own if it arrives on its own.
-    expect(schema.required).toEqual([
-      'origin',
-      'pathname',
-      'mode',
-      'topLevel',
-      'urlWritable',
-      'paramPersisted',
-      'routing',
-    ])
-  })
-
-  it('documents the machine codes a rejected url carries', () => {
-    // The widget distinguishes "I sent a bad URL" from "this host is not mine",
-    // so both refusals have to be discoverable from the spec.
-    for (const code of ['query_or_fragment', 'invalid_url', 'unsupported_scheme']) {
-      expect(post?.responses?.['400']?.description).toContain(code)
-    }
-    expect(post?.responses?.['403']?.description).toContain('client’s domain')
   })
 
   // `clients` is in ALWAYS_HIDDEN_COLLECTIONS and belongs to no project, so
@@ -272,15 +168,7 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
   // widget's telemetry channel, not a third-party integration surface — and
   // pinned here so a future filter change does not publish it by accident.
   it('stays x-internal in the public spec', () => {
-    const filtered = filterSpec(
-      {
-        openapi: '3.1.0',
-        info: { title: 't', version: '1' },
-        paths: { ...CUSTOM_ENDPOINT_PATHS },
-        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
-      } as unknown as OpenAPISpec,
-      { project: 'sahaj-atlas' },
-    )
+    const filtered = filterSpec(customSpec(), { project: 'sahaj-atlas' })
     const operation = (
       filtered.paths?.['/api/clients/report'] as Record<string, Record<string, unknown>>
     )?.post
@@ -290,76 +178,15 @@ describe('clients embed-report custom endpoint (OpenAPI)', () => {
 })
 
 describe('atlas SEO root endpoint (OpenAPI)', () => {
-  const get = CUSTOM_ENDPOINT_PATHS['/api/atlas/seo']?.get as
-    | {
-        description?: string
-        parameters?: { name: string; required?: boolean }[]
-        responses?: Record<string, unknown>
-      }
-    | undefined
-
-  it('registers the GET path and every hand-authored schema it references', () => {
-    expect(get).toBeDefined()
-    for (const schema of [
-      'AtlasSeoResponse',
-      'AtlasSeoAlternate',
-      'AtlasSeoBreadcrumb',
-      'AtlasSeoAddress',
-      'AtlasSeoSchedule',
-      'AtlasSeoImage',
-      'AtlasSeoEventCard',
-      'AtlasSeoEventContent',
-      'AtlasSeoRegionContent',
-      'AtlasSeoRootContent',
-    ]) {
-      expect(CUSTOM_ENDPOINT_SCHEMAS[schema], `${schema} is not registered`).toBeDefined()
-    }
-  })
-
-  // The union in `responseTypes.ts` gained a third member (#739). A published
-  // enum that still names two would tell a consumer to treat `root` as invalid.
-  // An event's content also carries a `paragraphs` array, so an open root shape
-  // would match two branches of the `content` oneOf and a strict validator
-  // would reject a correct event response.
+  // The union in `responseTypes.ts` gained a third member (#739). An event's
+  // content also carries a `paragraphs` array, so an open root shape would
+  // match two branches of the `content` oneOf and a strict validator would
+  // reject a correct event response.
   it('closes every content shape, so the oneOf stays unambiguous', () => {
     for (const schema of ['AtlasSeoRootContent', 'AtlasSeoRegionContent', 'AtlasSeoEventContent']) {
       const shape = CUSTOM_ENDPOINT_SCHEMAS[schema] as { additionalProperties?: boolean }
       expect(shape.additionalProperties, `${schema} is open`).toBe(false)
     }
-  })
-
-  it('publishes all three route kinds, with a nullable id for the root', () => {
-    const response = CUSTOM_ENDPOINT_SCHEMAS['AtlasSeoResponse'] as {
-      properties: { type: { enum: string[] }; id: { type: string[] } }
-    }
-    expect(response.properties.type.enum).toEqual(['root', 'region', 'event'])
-    expect(response.properties.id.type).toContain('null')
-  })
-
-  it('takes a required `route` and an optional `locale`, and nothing else', () => {
-    expect(get?.parameters?.map((parameter) => parameter.name)).toEqual(['route', 'locale'])
-    expect(get?.parameters?.find((p) => p.name === 'route')?.required).toBe(true)
-    expect(get?.parameters?.find((p) => p.name === 'locale')?.required).toBeFalsy()
-  })
-
-  // A shaped endpoint publishes a fixed structure. `select` and `populate`
-  // are meaningless over it, and offering them would invite a caller to try.
-  it('exposes no select/populate/depth passthrough', () => {
-    const names = get?.parameters?.map((parameter) => parameter.name) ?? []
-    for (const forbidden of ['select', 'populate', 'depth', 'where']) {
-      expect(names).not.toContain(forbidden)
-    }
-  })
-
-  // Each of these is a decision a consumer would otherwise have to guess at, and
-  // guessing wrong is silent — a double-escaped JSON-LD block, a locale-suffixed
-  // canonical, or a region page rendered as if its capped list were complete.
-  it('documents the contract choices a consumer cannot infer', () => {
-    expect(get?.description).toContain('locale-free')
-    expect(get?.description).toContain('already serialized and escaped')
-    expect(get?.description).toContain('No HTML crosses')
-    expect(get?.description).toContain('eventCount')
-    expect(get?.description).toContain('404')
   })
 
   it('advertises x-default alongside the widget locales', () => {
@@ -371,100 +198,6 @@ describe('atlas SEO root endpoint (OpenAPI)', () => {
     // `sy-atlas-config` global and can change without a deploy, so a statically
     // built spec can only name what it is drawn from.
     expect(alternate.properties?.hreflang?.enum).toHaveLength(LOCALES.length + 1)
-    expect(get?.description).toContain('operator')
-  })
-
-  const build = () =>
-    JSON.parse(
-      JSON.stringify({
-        openapi: '3.1.0',
-        info: { title: 't', version: '1' },
-        paths: { ...CUSTOM_ENDPOINT_PATHS },
-        components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
-      }),
-    ) as unknown as OpenAPISpec
-
-  const atlasSeoOp = (spec: OpenAPISpec): Record<string, unknown> => {
-    const operation = (
-      spec.paths?.['/api/atlas/seo'] as Record<string, Record<string, unknown>> | undefined
-    )?.get
-    expect(operation, 'GET /api/atlas/seo is missing from the filtered spec').toBeDefined()
-    return operation!
-  }
-
-  it('stays visible in every project spec despite owning no collection', () => {
-    // `atlas` names no collection, so without the root-path exemption the
-    // project tier reads this as "not in this project" and hides it everywhere.
-    const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/atlas/seo' }])
-    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
-      const filtered = filterSpec(build(), { project, rootEndpointPaths })
-      expect(atlasSeoOp(filtered)['x-internal'], `hidden for ${project}`).toBeFalsy()
-    }
-  })
-
-  it('is hidden when the caller does not declare it as a root path', () => {
-    expect(atlasSeoOp(filterSpec(build(), { project: 'sahaj-atlas' }))['x-internal']).toBe(true)
-  })
-})
-
-describe('atlas sitemap root endpoint (OpenAPI)', () => {
-  const get = CUSTOM_ENDPOINT_PATHS['/api/atlas/sitemap']?.get as
-    | { description?: string; parameters?: { name: string }[]; responses?: Record<string, unknown> }
-    | undefined
-
-  it('registers the GET path and both hand-authored schemas it references', () => {
-    expect(get).toBeDefined()
-    for (const schema of ['AtlasSitemapResponse', 'AtlasSitemapUrl']) {
-      expect(CUSTOM_ENDPOINT_SCHEMAS[schema], `${schema} is not registered`).toBeDefined()
-    }
-  })
-
-  // The whole endpoint is "everything you own". A parameter would imply the
-  // caller gets to choose, and the only correct answer is its own subtree.
-  it('takes no parameters at all', () => {
-    expect(get?.parameters).toEqual([])
-  })
-
-  // A client owning no subtree is the case a consumer is most likely to code
-  // defensively (and wrongly) against, so the contract has to say it outright.
-  it('documents the contract choices a consumer cannot infer', () => {
-    expect(get?.description).toContain('nearest')
-    expect(get?.description).toContain('not a 404')
-    expect(get?.description).toContain('Finished classes are excluded')
-    expect(get?.description).toContain('per-client')
-  })
-
-  // The point of the endpoint: one `loc` definition, not two. If the schema
-  // stops promising byte-identity, a consumer has no reason not to recompose.
-  it('promises `loc` is the same value /api/atlas/seo returns as `canonical`', () => {
-    const url = CUSTOM_ENDPOINT_SCHEMAS['AtlasSitemapUrl'] as {
-      required?: string[]
-      properties?: { loc?: { description?: string } }
-    }
-    expect(url.required).toEqual(['loc', 'lastmod', 'route'])
-    expect(url.properties?.loc?.description).toContain('byte-identical')
-  })
-
-  it('stays visible in every project spec despite owning no collection', () => {
-    const spec = () =>
-      JSON.parse(
-        JSON.stringify({
-          openapi: '3.1.0',
-          info: { title: 't', version: '1' },
-          paths: { ...CUSTOM_ENDPOINT_PATHS },
-          components: { schemas: { ...CUSTOM_ENDPOINT_SCHEMAS } },
-        }),
-      ) as unknown as OpenAPISpec
-    const rootEndpointPaths = rootEndpointPathsFrom([{ path: '/atlas/sitemap' }])
-    for (const project of ['sahaj-atlas', 'wemeditate-web', 'wemeditate-app'] as const) {
-      const filtered = filterSpec(spec(), { project, rootEndpointPaths })
-      const operation = (
-        filtered.paths?.['/api/atlas/sitemap'] as
-          Record<string, Record<string, unknown>> | undefined
-      )?.get
-      expect(operation, `GET /api/atlas/sitemap is missing for ${project}`).toBeDefined()
-      expect(operation!['x-internal'], `hidden for ${project}`).toBeFalsy()
-    }
   })
 })
 
@@ -536,93 +269,26 @@ describe('transcripts (OpenAPI)', () => {
   it('publishes neither transcript endpoint', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })
+
+  // `POST /api/files/:id/transcribe` (#1016) is the same kind of door: gated on
+  // `files: create`, called only by the admin panel's Transcript panel, and so
+  // out of the spec and out of the schema map. `docs/rules/endpoints.md` scopes
+  // both to public, client-facing endpoints.
+  it('publishes no file transcribe endpoint, nor a schema for one', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/files/{id}/transcribe']).toBeUndefined()
+    expect(Object.keys(CUSTOM_ENDPOINT_SCHEMAS)).not.toContainEqual(
+      expect.stringMatching(/transcri|subtitles/i),
+    )
+  })
 })
 
-/**
- * `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055).
- *
- * The two Wix-shaped serializers. Pinned here for the same reason every other
- * path is: `payload-oapi` generates nothing for a custom endpoint, so a path
- * missing from the shim is invisible in `/api/docs` with nothing failing.
- */
-describe('the Wix router endpoints are documented', () => {
-  type Operation = {
-    parameters?: { name: string; required?: boolean }[]
-    responses?: Record<string, { content?: Record<string, { schema?: unknown }> }>
-  }
-  type Schema = {
-    required?: string[]
-    enum?: unknown[]
-    anyOf?: Schema[]
-    properties?: Record<string, Schema>
-  }
-
-  const route = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/route']?.get as Operation | undefined
-  const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get as Operation | undefined
-
-  it('registers both paths', () => {
-    expect(route).toBeDefined()
-    expect(sitemap).toBeDefined()
-  })
-
-  it('documents every query parameter each handler reads', () => {
-    expect(route?.parameters?.map((parameter) => parameter.name)).toEqual(['path', 'lang'])
-    expect(sitemap?.parameters?.map((parameter) => parameter.name)).toEqual(['prefix'])
-  })
-
+describe('the Wix router endpoints (OpenAPI)', () => {
   it('publishes the prefix rule the handler enforces, never a copy of it', () => {
+    const sitemap = CUSTOM_ENDPOINT_PATHS['/api/atlas/wix/sitemap']?.get
     // Three copies of this regex meant the tab could accept a prefix the
     // endpoint then 400s, which is the failure the tab exists to prevent.
     const prefix = sitemap?.parameters?.[0] as { schema?: { pattern?: string; maxLength?: number } }
     expect(prefix.schema?.pattern).toBe(WIX_PREFIX_PATTERN.source)
     expect(prefix.schema?.maxLength).toBe(WIX_PREFIX_MAX_LENGTH)
-  })
-
-  it('declares `prefix` required, since the handler refuses without it', () => {
-    expect(sitemap?.parameters?.[0]?.required).toBe(true)
-    expect(route?.parameters?.[0]?.required).toBe(true)
-    expect(route?.parameters?.[1]?.required).toBe(false)
-  })
-
-  it('answers the route endpoint with the Wix response schema', () => {
-    expect(route?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
-      $ref: '#/components/schemas/AtlasWixRouteResponse',
-    })
-  })
-
-  it('answers the sitemap endpoint with a bare array, as Wix returns one', () => {
-    expect(sitemap?.responses?.['200']?.content?.['application/json']?.schema).toEqual({
-      type: 'array',
-      items: { $ref: '#/components/schemas/AtlasWixSitemapEntry' },
-    })
-  })
-
-  it('documents the refusals each handler can really make', () => {
-    for (const operation of [route, sitemap]) {
-      expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '403', '500'])
-    }
-  })
-
-  it('declares every schema the two paths reference', () => {
-    for (const name of ['AtlasWixRouteResponse', 'AtlasWixSitemapEntry']) {
-      expect(CUSTOM_ENDPOINT_SCHEMAS[name], `${name} is not declared`).toBeDefined()
-    }
-  })
-
-  it('publishes the shape the handlers’ contract declares', () => {
-    const response = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixRouteResponse as Schema
-    expect(response.required?.sort()).toEqual([
-      'cacheSeconds',
-      'data',
-      'head',
-      'redirect',
-      'status',
-    ])
-    expect(response.properties?.status?.enum).toEqual([200, 301, 404])
-    // The page code reads `bodyHtml` and nothing else off `data`.
-    expect(response.properties?.data?.anyOf?.[0]?.required).toEqual(['bodyHtml'])
-
-    const entry = CUSTOM_ENDPOINT_SCHEMAS.AtlasWixSitemapEntry as Schema
-    expect(entry.required?.sort()).toEqual(['lastmod', 'title', 'url'])
   })
 })

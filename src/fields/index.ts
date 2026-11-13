@@ -47,14 +47,14 @@ export type { AvailableLocalesFieldOptions } from './availableLocalesField'
 // Schedule fields - group of datetime, timezone, and RRULE sub-fields
 // Delivery log — "did that email actually go out?", rendered for managers.
 export {
-  appendLogEntry,
   asLog,
   DEFAULT_LOG_LIMIT,
   hasLogEntry,
   hasLogEntryType,
   logField,
+  toLogRow,
 } from './logField'
-export type { LogCell, LogColumn, LogEntry, LogFieldOptions } from './logField'
+export type { LogCell, LogColumn, LogEntry, LogFieldOptions, LogRow } from './logField'
 
 export { scheduleFields } from './scheduleFields'
 export { systemMetaField } from './systemMetaField'
@@ -69,3 +69,8 @@ export { legacyMigrationFields } from './legacyFields'
 
 // Admin condition that hides a field (e.g. join fields) until the doc has an id
 export { hideUntilCreated } from './hideUntilCreated'
+
+// Secret field - a write-only, encrypted-at-rest stored credential. Its routes,
+// `secretFieldEndpoints`, are imported by deep path: they reach server-only code.
+export { secretField } from './secretField'
+export type { SecretFieldOptions, SecretVerifyArgs } from './secretField'

@@ -31,10 +31,9 @@ import { baseLanguageOrDefault, getLanguageOptions } from '@/lib/locales'
 import { isAdminManager, isManager, resolveOwnedRegionIds } from '@/plugins/access'
 import type { PurgeWindow, RetentionConfig } from '@/types/retention'
 
-import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS } from './constants'
+import { IMPORT_RETENTION_DAYS, IMPORT_STALL_MS, IMPORT_TASK } from './constants'
 import { prepareUpload } from './csv/upload'
 import { targetRegionFilterOptions, validateTargetRegion } from './targetRegion'
-import { IMPORT_TASK } from './task'
 
 /**
  * One window for every status, because what sets it is the CSV: the file holds
@@ -69,8 +68,9 @@ const classCreators: Access = ({ req }) =>
 
 /**
  * Where an import stands for the volunteer. The job sets the first settled
- * status; `refreshImportStatus` moves an import between `review` and
- * `completed` as its classes are published or deleted, wherever that happens.
+ * status, or the stale-job sweep fails one whose run was lost;
+ * `refreshImportStatus` then finishes a `review` import once the last of its
+ * classes is published or deleted, wherever that happens.
  */
 const STATUS_OPTIONS = [
   { label: 'Pending', value: 'pending' },

@@ -26,10 +26,13 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { withActor } from '@/lib/stateMachine/actor'
 import { slugifyValue } from '@/lib/utilities/slugify'
 import type { NotificationPreferences, Region } from '@/payload-types'
 import { normalizeHost } from '@/plugins/usage/originEnforcement'
@@ -50,7 +53,7 @@ import {
   mapNotificationPreferences,
 } from './helpers/managerMapper'
 import { isUnreachableInactive } from './helpers/reachability'
-import { registrationSubmissionData } from './helpers/registrations'
+import { importedFollowUpSentAt, registrationSubmissionData } from './helpers/registrations'
 import {
   type AtlasSchedule,
   isAtlasOneOff,
@@ -65,7 +68,11 @@ import {
   venueToEventAddress,
 } from './helpers/venueRouter'
 import { buildImportVerification, importDeletedAt } from './helpers/verification'
-import { EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './sync/merges'
+import {
+  ADOPTED_CLIENT_LEGACY_IDS,
+  EXCLUDED_EVENT_LEGACY_IDS,
+  MERGED_EVENT_TARGETS,
+} from './sync/merges'
 
 // --- SOURCE DATA TYPES (shape of seeds/atlas/data/*.json) ---
 
@@ -1344,7 +1351,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
       // Atlas's own listings are not new classes: which of them repeat another
       // is decided by evidence in sync/merges.ts, and pairs left unmerged on
       // purpose (two managers, one slot) must still import.
-      context: { skipVerifyHook: true, skipDuplicateClassCheck: true },
+      //
+      // ⚠ **`import` is the writer, and the stage guard refuses a write that
+      // names none** (#1121). The dump is the system of record here, so this
+      // actor may land a listing on any stage — which no other writer may.
+      context: withActor(
+        { skipVerifyHook: true, skipDuplicateClassCheck: true },
+        EVENT_MACHINE,
+        'import',
+      ),
     }
     const where = { legacyId: { equals: event.legacyId } }
 
@@ -1378,6 +1393,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const total = data.registrations.length
     const offset = this.options.pagination?.offset ?? 0
     const registrants = new Map(data.users.map((user) => [user.legacyId, user]))
+    const now = new Date()
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
@@ -1426,6 +1442,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             startingAt_tz: reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
             submissionData: registrationSubmissionData(reg, registrant),
             uuid: reg.uuid,
+            followUpSentAt: importedFollowUpSentAt(reg.startingAt, now),
             // An historical registration was confirmed when it happened.
             // `accepted` is also what suppresses both queues: screening returns
             // early for a row that is not `pending`, and delivery refuses one.
@@ -1434,7 +1451,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           // These events ended, or went external, years ago, so every row here
           // would trip the create gate. It runs on a client caller only, and a
           // Local API import carries no client user, so it never reaches it.
-          { identifier: reg.uuid, current: offset + i + 1, total },
+          //
+          // ⚠ **`import` is the writer, and the status guard refuses a create
+          // opening anywhere but `pending` without one** (#1121).
+          {
+            identifier: reg.uuid,
+            current: offset + i + 1,
+            total,
+            context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
+          },
         )
       } catch (error) {
         this.addError(`Registration ${reg.uuid} (#${reg.legacyId})`, error as Error)
@@ -1450,6 +1475,30 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < total; i++) {
       const client = data.clients[i]
+      const region = client.location
+        ? this.idMaps.regions.get(geoRefKey(client.location))
+        : undefined
+      // An adopted service keeps everything SahajCloud gave it; only the
+      // region the reset cleared goes back. It is settled ahead of the manager
+      // it reads nothing from, because a manager the prune took would
+      // otherwise skip the row and leave the region null — the one thing this
+      // branch exists to restore.
+      if (
+        ADOPTED_CLIENT_LEGACY_IDS.has(client.legacyId) &&
+        this.hasPreloaded('clients', String(client.legacyId))
+      ) {
+        try {
+          await this.upsert(
+            'clients',
+            { legacyId: { equals: client.legacyId } },
+            { region },
+            { identifier: client.label, current: i + 1, total },
+          )
+        } catch (error) {
+          this.addError(`Client "${client.label}" (#${client.legacyId})`, error as Error)
+        }
+        continue
+      }
       const managerId =
         client.managerId != null ? this.idMaps.managers.get(client.managerId) : undefined
       if (managerId == null) {
@@ -1461,9 +1510,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         })
         continue
       }
-      const region = client.location
-        ? this.idMaps.regions.get(geoRefKey(client.location))
-        : undefined
       try {
         await this.upsert(
           'clients',

@@ -62,4 +62,14 @@ describe('a reminder button’s landing page', () => {
   it('posts “Update the details” to the redeem route, which honours that claim', () => {
     expect(redeemUrl('T')).toBe(`${getServerUrl()}/api/${managersLogin.slug}${REDEEM_PATH}?token=T`)
   })
+
+  it('escapes the token the redeem URL carries', () => {
+    // A JWT needs no escaping, but the value reaches a query string and a `/`
+    // or `?` in it would silently re-address the form.
+    const token = 'a token/with?reserved=characters'
+    expect(redeemUrl(token)).toBe(
+      `${getServerUrl()}/api/${managersLogin.slug}${REDEEM_PATH}?token=${encodeURIComponent(token)}`,
+    )
+    expect(redeemUrl(token)).not.toContain('?reserved=')
+  })
 })

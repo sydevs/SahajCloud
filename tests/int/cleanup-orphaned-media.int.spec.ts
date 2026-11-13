@@ -839,6 +839,76 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, videoFile.id)).toBe(false)
     })
 
+    // `introAudio` became localized in #1016, and the job needed no change for
+    // it: `schemaUtils` reads each field's own `localized` flag while walking
+    // the schema, and the scan reads `locale: 'all'`. This asserts that rather
+    // than restating it — a recording attached in Czech alone is in use.
+    it('preserves a recording referenced only by a non-English intro audio', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
+    // ⚠ **A cascade child is not a user of its parent.** `transcripts.source`
+    // points at the `files` row the cue set belongs to, and `Files.ts` deletes
+    // that row when the file goes — so the pointer cannot be the reason the
+    // file is still in use. The reference walk saw it as one, and a recording
+    // that had ever had cues made was never trashed again: measured before the
+    // fix at `exists: true, trashed: false` with no lesson referencing it in
+    // any locale (#1016). Every MP3 is transcribed as it is saved since then,
+    // so every recording carries such a row: the upload below makes it.
+    const transcriptCount = async (fileId: number): Promise<number> =>
+      (
+        await payload.count({
+          collection: 'transcripts',
+          where: { source: { equals: { relationTo: 'files', value: fileId } } },
+          overrideAccess: true,
+        })
+      ).totalDocs
+
+    it('trashes a recording whose only reference is its own cue row', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      expect(await transcriptCount(recording.id)).toBe(1)
+
+      await runCleanupJob(payload)
+
+      expect(await fileInTrash(payload, recording.id)).toBe(true)
+    })
+
+    // The other half, and the one that makes the fix safe: the skip is the
+    // exact cascade field, so a lesson's own reference still protects the file
+    // even while a cue row names it too.
+    it('still preserves a recording a lesson references, cue row or not', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+      expect(await transcriptCount(recording.id)).toBe(1)
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
     it('preserves an image referenced only by an unpublished draft', async () => {
       // A draft save writes the versions table alone, so the main row never sees it.
       const image = await testData.createMediaImage(payload)

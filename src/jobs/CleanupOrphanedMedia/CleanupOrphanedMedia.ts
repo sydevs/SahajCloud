@@ -285,8 +285,13 @@ function getTotalOperations(result: CleanupResult): number {
   )
 }
 
-/** A media row as every paging caller here reads it. */
-type MediaDoc = { id: number; filename?: string | null; createdAt?: string; tags?: unknown }
+/**
+ * A media row as every paging caller here reads it.
+ *
+ * `createdAt` is only logged. A field with an admin `condition` generates as
+ * optional and nullable, which `files.createdAt` is.
+ */
+type MediaDoc = { id: number; filename?: string | null; createdAt?: string | null; tags?: unknown }
 
 /**
  * Delete or trash every document handed over, and report what it managed.

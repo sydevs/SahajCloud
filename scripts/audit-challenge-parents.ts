@@ -17,50 +17,17 @@
  * DATABASE_PUBLIC_URL> pnpm tsx scripts/audit-challenge-parents.ts`.
  */
 import type { AuditedClient } from './challenge-mounts'
-import type { Payload } from 'payload'
-
 import dotenv from 'dotenv'
-import { getPayload } from 'payload'
 
 import { challengeParentAllowlist } from '../src/endpoints/atlas/challenge/allowlist'
 import { originOf } from '../src/lib/utilities/url'
 import { normalizeHost } from '../src/plugins/usage/originEnforcement'
 import { refusedMounts, storedMounts } from './challenge-mounts'
-
-/**
- * The adapter properties the read-only boot turns off, asserted present before they are written.
- *
- * ⚠ **Presence is the only check worth making.** A write to a renamed key lands on a fresh
- * property and reads back as whatever it was set to, so reading one back proves nothing. `connect`
- * pushes the dev schema, or applies `prodMigrations` under `NODE_ENV=production`, so a Payload
- * rename has to fail here rather than leave this audit a writer against production.
- */
-const READ_ONLY_KEYS = ['push', 'prodMigrations', 'connect'] as const
-
-async function loadPayload(): Promise<Payload> {
-  const { default: configPromise } = await import('../src/payload.config')
-  const payload = await getPayload({
-    config: await configPromise,
-    disableDBConnect: true,
-    disableOnInit: true,
-  })
-  const db = payload.db as typeof payload.db & { prodMigrations?: unknown; push?: boolean }
-  for (const key of READ_ONLY_KEYS) {
-    if (!(key in db)) {
-      throw new Error(
-        `payload.db has no \`${key}\`: this audit can no longer prove its boot is read-only.`,
-      )
-    }
-  }
-  db.push = false
-  db.prodMigrations = undefined
-  await db.connect?.()
-  return payload
-}
+import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 async function main(): Promise<void> {
   dotenv.config({ path: ['.env.local', '.env'] })
-  const payload = await loadPayload()
+  const payload = await loadPayloadWithoutSchemaChanges()
 
   const { docs } = await payload.find({
     collection: 'clients',
@@ -95,12 +62,6 @@ async function main(): Promise<void> {
     )
   }
 }
-
-/**
- * Exit once stdout has flushed. On a pipe it flushes asynchronously, so an immediate exit can cut
- * the report, and without an exit the Payload boot's open handles keep the process alive.
- */
-const exitAfterFlush = (code: number) => process.stdout.write('', () => process.exit(code))
 
 main().then(
   () => exitAfterFlush(0),

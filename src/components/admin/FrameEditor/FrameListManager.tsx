@@ -5,11 +5,11 @@ import type { JSONFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
+import { usePlaybackTime, useSeekToTime } from '@/components/admin/helpers/livePreviewPlayback'
 import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameListManager.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { usePlaybackTime, useSeekToTime } from './hooks'
 import { baseStyles, listManagerStyles } from './styles'
 import { formatTime, getFrameDisplayLabel, parseTime, validateTimestamp } from './utils'
 

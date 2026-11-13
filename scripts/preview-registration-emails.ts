@@ -14,6 +14,9 @@
  * is read-only: the selection is query-driven, and nothing is created
  * or modified.
  *
+ * It boots with a plain `getPayload`, not `lib/payloadBoot.ts`, on purpose: it only ever runs
+ * locally, and the dev schema push is what keeps the local database current.
+ *
  * Without the flag, no database is touched. The script drives the real
  * `sendRegistrationConfirmation()` composition path through a stub
  * `payload` object. That stub only covers `findGlobal`, `sendEmail`,

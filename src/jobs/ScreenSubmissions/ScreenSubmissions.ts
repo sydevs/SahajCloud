@@ -1,10 +1,12 @@
 import type { SubmissionScreeningResult, SubmissionVerdict } from './verdicts'
 import type { PayloadRequest, TaskConfig } from 'payload'
 
-import { appendLogEntry, asLog } from '@/fields'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { checkEmailAllowed } from '@/lib/antiSpam/antiSpamGuard'
 import { hasMxRecords } from '@/lib/antiSpam/mxRecords'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { transition } from '@/lib/stateMachine/transition'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
@@ -103,26 +105,51 @@ export const ScreenSubmissions: TaskConfig<'screenSubmission'> = {
 
     const passed = verdict === 'ok'
 
-    await payload.update({
+    // A pass leaves the row `pending` — delivery is what settles it. Only a
+    // refusal is terminal here, and a refusal is a stage move, so it names
+    // itself and goes through the table (#1121).
+    const common = {
+      // Nobody reads the returned document, and at the config's default depth
+      // a proposal's afterRead recomputes both review projections for it.
+      depth: 0,
+      overrideAccess: true,
+      req,
+    }
+
+    if (passed) {
+      await payload.update({
+        collection: 'user-submissions',
+        id: submissionId,
+        data: { screeningResult: result },
+        context: { skipWriteGuard: true },
+        ...common,
+      })
+    } else {
+      await transition({
+        payload,
+        machine: SUBMISSION_MACHINE,
+        collection: 'user-submissions',
+        id: submissionId,
+        from: 'pending',
+        to: 'spam',
+        by: 'screening',
+        data: { screeningResult: result },
+        context: { skipWriteGuard: true },
+        ...common,
+      })
+    }
+
+    await appendLogEntry({
+      payload,
       collection: 'user-submissions',
       id: submissionId,
-      data: {
-        screeningResult: result,
-        // A pass leaves the row `pending` — delivery is what settles it. Only a
-        // refusal is terminal here.
-        ...(passed ? {} : { status: 'spam' as const }),
-        activityLog: appendLogEntry(asLog(submission.activityLog), {
-          at: now.toISOString(),
-          type: 'screening',
-          key: 'screening',
-          verdict,
-          cells: {
-            activity: passed ? 'Screening passed' : `Screening refused: ${verdict}`,
-          },
-        }),
+      entry: {
+        at: now.toISOString(),
+        type: 'screening',
+        key: 'screening',
+        verdict,
+        cells: { activity: passed ? 'Screening passed' : `Screening refused: ${verdict}` },
       },
-      overrideAccess: true,
-      context: { skipWriteGuard: true },
       req,
     })
 

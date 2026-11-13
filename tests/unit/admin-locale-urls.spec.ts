@@ -1,15 +1,15 @@
 /**
  * The locale on a hand-rolled admin REST call is a permission, not a query
- * option (#701). Three of the four call sites that carry the fix build a URL
- * or an SWR key from `useLocale().code`, and only a browser can observe them
- * end to end — so the string each one builds is pinned here instead.
+ * option (#701). The call sites that carry the fix build a URL or an SWR key
+ * from `useLocale().code`, and only a browser can observe them end to end — so
+ * the string each one builds is pinned here instead.
  *
  * The sibling integration specs prove the SERVER half: that `?locale=fr` is
  * accepted and its absence is refused. They cannot see whether a client sends
  * it. That is what these assertions cover.
  *
- * The fourth site, `fetchRelationshipDocs`, is pinned in
- * `relationshipDocLoader.spec.ts` against a stubbed `fetch`.
+ * `fetchRelationshipDocs` is pinned in `relationshipDocLoader.spec.ts` against
+ * a stubbed `fetch`.
  *
  * `submissionActionUrl` was one of them until #909 moved submission review onto
  * `WorkflowButtons`. Payload's own document form carries the locale in the
@@ -22,7 +22,8 @@ import { framesByNarratorKey } from '../../src/components/admin/FrameEditor/util
 import {
   transcribeUrl,
   transcriptUrl,
-} from '../../src/components/admin/MeditationTranscript/transcriptModel'
+} from '../../src/components/admin/TranscriptPanel/transcriptModel'
+import { fileUrl } from '../../src/components/admin/TranscriptPanel/transcriptModel'
 
 describe('framesByNarratorKey', () => {
   it('puts the locale in the request URL', () => {
@@ -80,6 +81,37 @@ describe('transcriptUrl', () => {
 
   it('refuses to build a URL with no meditation', () => {
     expect(transcriptUrl(undefined, 'fr')).toBeNull()
+  })
+})
+
+/**
+ * The Path Step preview's two reads and the file's transcribe (#1016): a file's
+ * transcript is read and requested through the same builders as a meditation's,
+ * so they carry the locale for the same reason.
+ */
+describe('the file transcript sites', () => {
+  it('reads and posts under the file, naming the locale', () => {
+    expect(transcriptUrl(7, 'fr', 'files')).toContain('locale=fr')
+    expect(transcriptUrl(7, 'fr', 'files')).toContain(
+      encodeURIComponent('where[source][equals][relationTo]') + '=files',
+    )
+    expect(transcribeUrl(7, 'fr', 'files')).toBe('/api/files/7/transcribe?locale=fr')
+  })
+
+  // The file's own row brings its spoken language, for the mismatch warning;
+  // a meditation's would bring the whole document, so it populates nothing.
+  it("populates a file's spoken language and nothing of a meditation", () => {
+    const files = transcriptUrl(7, 'fr', 'files')!
+    expect(files).toContain('depth=1')
+    expect(files).toContain(encodeURIComponent('populate[files][spokenLanguage]') + '=true')
+    expect(transcriptUrl(7, 'fr', 'meditations')).toContain('depth=0')
+    expect(transcriptUrl(7, 'fr', 'meditations')).not.toContain('populate')
+  })
+
+  it('reads the file itself with the locale, and refuses without one', () => {
+    expect(fileUrl(7, 'fr')).toContain('locale=fr')
+    expect(fileUrl(7, undefined)).toBeNull()
+    expect(fileUrl(null, 'fr')).toBeNull()
   })
 })
 

@@ -1,8 +1,10 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
-import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
+import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/watermark'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
+import { declareActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSchedule } from '@/types/schedule'
 
@@ -23,7 +25,14 @@ import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle
  *   (Atlas re-verified on every save): stage → `verified`, fresh `nextCheckAt`,
  *   `activityLog` reset with a `re-save` first entry. `_status` is left to
  *   the manager's save choice (publish vs draft); the explicit verify endpoints
- *   are what re-publish an unpublished event.
+ *   are what re-publish an unpublished event. **Adoption is the exception** —
+ *   see below.
+ * - **Adoption** is the managed branch reached from a pre-adoption stage, and
+ *   it publishes as well as verifies (#1120 decision 4).
+ *
+ * A save that clears `deletedAt` crosses both branches: the event keeps the
+ * stage and the elapsed watermark it was trashed on, so it is re-armed from the
+ * restore rather than left for that night's sweep to trash again (#1116).
  *
  * **The two branches treat `skipVerifyHook` differently, on purpose.** That
  * flag means "don't re-open the verification cycle" — a decision, which only
@@ -58,15 +67,22 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   }
 
   if (context?.skipVerifyHook) return data
+
+  // A restore clears `deletedAt` and leaves the stage and the past watermark
+  // that had the event trashed, so the nightly run trashes it again the same
+  // night. Both branches below re-arm from the restore instead (#1116).
+  const restored = 'deletedAt' in data && data.deletedAt == null && originalDoc?.deletedAt != null
+
   if (originalDoc?.verificationStage === 'finished' && !revivesFinishedEvent(schedule)) {
-    return data
+    return restored ? { ...data, nextCheckAt: retentionFrom(new Date()) } : data
   }
   // A managerless event on a managed stage (e.g. `finished` after never being
   // adopted) has no cadence to verify against — leave it be, unless this save
-  // revived it: then it awaits adoption again, or its finished retention date
-  // would trash a live listing.
+  // revived or restored it: then it awaits adoption again, or its stage's own
+  // deadline would trash a live listing.
   if (!managerId) {
-    if (originalDoc?.verificationStage !== 'finished') return data
+    if (originalDoc?.verificationStage !== 'finished' && !restored) return data
+    declareActor(req, EVENT_MACHINE, 'hook:save')
     return {
       ...data,
       verificationStage: 'unverified',
@@ -78,6 +94,16 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
     .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
     .catch(() => null)
 
+  // Adoption: a manager has just taken on a listing the community had either
+  // not vouched for or voted down. It lands published as well as verified
+  // (#1120 decision 4) — a manager vouching for a class is what puts it back on
+  // the map, and leaving it hidden made the adoption invisible to everyone but
+  // its new manager. A draft too incomplete to publish refuses the save with
+  // its own validation errors, which is the same answer `applyVerification`
+  // gives.
+  const adopted = isPreAdoptionStage(originalDoc?.verificationStage)
+  declareActor(req, EVENT_MACHINE, adopted ? 'adoption' : 'hook:save')
+
   return {
     ...data,
     ...computeVerifyFields({
@@ -86,8 +112,12 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
       frequency: managerCadence(manager),
       schedule,
       inactive,
+      // Adoption publishes; otherwise the manager's own save choice decides,
+      // and a draft opens no reminder cycle (#1120 decision 3).
+      status: adopted ? 'published' : ((data._status ?? originalDoc?._status) as string | null),
       now: new Date(),
     }),
+    ...(adopted ? { _status: 'published' } : {}),
   }
 }
 

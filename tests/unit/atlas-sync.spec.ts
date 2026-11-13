@@ -4,6 +4,7 @@ import { cleanContactInfo, cleanText, hasInvisibleJunk } from '../../seeds/atlas
 import { deriveExpectedCounts } from '../../seeds/atlas/sync/counts'
 import {
   applyClientDecisions,
+  ADOPTED_CLIENT_LEGACY_IDS,
   CLIENT_SPLITS,
   EXCLUDED_CLIENT_LEGACY_IDS,
   EXCLUDED_EVENT_LEGACY_IDS,
@@ -322,5 +323,14 @@ describe('the mechanical clean', () => {
     expect(hasInvisibleJunk('Reset 🧘\u200D♂️')).toBe(false)
     expect(hasInvisibleJunk('Re\u200Dset')).toBe(true)
     expect(cleanText('Re\u200Dset')).toBe('Reset')
+  })
+})
+
+describe('adopted clients', () => {
+  it('names no service the build leaves out or splits away', () => {
+    for (const id of ADOPTED_CLIENT_LEGACY_IDS) {
+      expect(EXCLUDED_CLIENT_LEGACY_IDS.has(id)).toBe(false)
+      expect(CLIENT_SPLITS.some((split) => split.legacyId === id)).toBe(false)
+    }
   })
 })

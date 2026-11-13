@@ -11,14 +11,14 @@ import { describe, expect, it } from 'vitest'
 import { RegistrationConfirmationEmail } from '@/emails/RegistrationConfirmationEmail'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
-import { EMAIL_STRING_DEFAULTS } from '@/lib/translations/emailStrings'
+import { EMAIL_STRING_DEFAULTS, interpolate } from '@/lib/translations/emailStrings'
 import { getClientEmailBrand, getEmailBrand, renderEmail } from '@/plugins/email'
 
 const ONLINE_URL = 'https://meet.example/abc-def'
 
 const baseDetails: RegistrationEmailDetails = {
   eventTitle: 'Tuesday Evening Meditation',
-  scheduleLine: 'Every week on Tuesday, 7:00 – 8:30 PM GMT+1',
+  scheduleLine: 'Tuesdays, 7:00 – 8:30 PM GMT+1',
   sessions: 8,
   location: { type: 'online', joinUrl: ONLINE_URL },
   description: 'Bring a cushion and an open mind.',
@@ -58,8 +58,12 @@ function decodeEntities(html: string): string {
     .replace(/&amp;/g, '&')
 }
 
+/** The rendered HTML alone, so a change to `renderEmail`'s return shape is a one-line fix. */
+const renderHtml = async (element: Parameters<typeof renderEmail>[0]) =>
+  (await renderEmail(element)).html
+
 async function render(props: Partial<Parameters<typeof RegistrationConfirmationEmail>[0]> = {}) {
-  const { html } = await renderEmail(
+  const html = await renderHtml(
     createElement(RegistrationConfirmationEmail, {
       name: 'Jo',
       brand: getEmailBrand('sahaj-atlas'),
@@ -87,8 +91,8 @@ describe('RegistrationConfirmationEmail — online', () => {
 
     expect(html).toContain('Jo')
     expect(html).toContain('Tuesday Evening Meditation')
-    expect(html).toContain('Every week on Tuesday')
-    expect(html).toContain('8 sessions')
+    expect(html).toContain(baseDetails.scheduleLine)
+    expect(html).toContain(interpolate(EMAIL_STRING_DEFAULTS.sessions_count_other, { count: 8 }))
   })
 
   it('renders host contact and the description', async () => {
@@ -209,7 +213,9 @@ describe('RegistrationConfirmationEmail — client branding', () => {
     expect(html).toContain('Sahaja Yoga London')
     expect(html).toContain('#123456')
     expect(html).toContain('https://example.org')
-    expect(html).toContain('Visit Sahaja Yoga London')
+    expect(html).toContain(
+      interpolate(EMAIL_STRING_DEFAULTS.footer_website, { name: 'Sahaja Yoga London' }),
+    )
   })
 
   it('names a service with no title by its site domain', () => {
@@ -246,7 +252,7 @@ describe('RegistrationConfirmationEmail — client branding', () => {
 
   it('omits the footer website link when the client has no website', async () => {
     const html = await render({ websiteUrl: null })
-    expect(html).not.toContain('Visit ')
+    expect(html).not.toContain(interpolate(EMAIL_STRING_DEFAULTS.footer_website, { name: '' }))
   })
 })
 

@@ -29,6 +29,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { handleEndpoints } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { loadInstallRecord } from '@/components/admin/InstallGuide/installRecord'
 import { SKIP_AVAILABLE_LOCALES_CHECK } from '@/fields/availableLocalesField'
 import { getRegionOwners } from '@/lib/atlas/regionOwners'
 import type { CanonicalVerification } from '@/lib/clients/verification'
@@ -689,6 +690,57 @@ describe('Clients access', () => {
 
       expect(updated.name).toBe('Outside Manager, Renamed')
       expect(updated.type).toBe('manager')
+    })
+  })
+
+  /**
+   * The Install guide's two `ui` fields render on the document route **and** on
+   * every `form-state` request, which names its own `id` (#1126).
+   * `buildFormState` checks `canAccessAdmin` and no document access, so the
+   * loader's own gated read is the whole of what stands between one service's
+   * manager and another service's stored row.
+   *
+   * ⚠ The fixture is an **atlas** service carrying a stored site, because both
+   * components return early for a service without one — a probe against a bare
+   * row would answer `null` with the hole wide open.
+   */
+  describe('the Install guide loader', () => {
+    let installClient: Client
+
+    beforeAll(async () => {
+      installClient = await testData.createClient(payload, listedManager.id, {
+        label: 'Install Guide Probe',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'install-probe.example', page: '/classes' },
+      })
+    })
+
+    it('hands a listed manager their own service', async () => {
+      const record = await loadInstallRecord(managerReq(listedManager), installClient.id)
+
+      // The disclosure itself, so the refusals below cannot pass by answering
+      // `null` to everyone.
+      expect(record?.client.site?.domain).toBe('install-probe.example')
+      expect(record?.atlas).toBe(true)
+      expect(record?.milestones.length).toBeGreaterThan(0)
+    })
+
+    it('hands an admin any service', async () => {
+      const record = await loadInstallRecord(managerReq(adminManager), installClient.id)
+
+      expect(record?.client.site?.domain).toBe('install-probe.example')
+    })
+
+    it('answers null for a manager the service does not list', async () => {
+      expect(await loadInstallRecord(managerReq(outsideManager), installClient.id)).toBeNull()
+    })
+
+    it('answers null for an API client naming another service', async () => {
+      expect(await loadInstallRecord(atlasReq(), installClient.id)).toBeNull()
+    })
+
+    it('answers null for a row that does not exist', async () => {
+      expect(await loadInstallRecord(managerReq(adminManager), 99_999_999)).toBeNull()
     })
   })
 

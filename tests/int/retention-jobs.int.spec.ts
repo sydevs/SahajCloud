@@ -2,12 +2,13 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { cancelStaleJobs, STALE_JOB_MS } from '@/collections/PayloadJobs/PayloadJobs'
+import { cancelStaleJobs } from '@/collections/PayloadJobs/PayloadJobs'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
 import { retentionConfigOf, retentionEntries } from '@/jobs/CleanupCollections/entries'
+import { RecoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
 
 import { deletedIn } from '../utils/retention'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const NOW = '2026-10-17T05:00:00.000Z'
@@ -137,36 +138,57 @@ describe('payload-jobs retention', () => {
     ])
   })
 
-  /**
-   * ⚠ A queue call in code reaches the handler with whatever it was handed, and
-   * an unknown collection would otherwise sweep nothing and report success.
-   * The message names the config's own declarations, which is the whole reason
-   * the input is not a fixed dropdown.
-   */
-  it('refuses a collection that declares no retention', async () => {
-    await expect(
-      runTaskHandler(CleanupCollections, { payload, input: { collection: 'managers' } }),
-    ).rejects.toThrow(/"managers" declares no retention — \w[\w-]*, /)
-  })
-
-  // Last: the cancelled row is `hasError`, which the counts above would see.
-  it('cancels on boot a row a dead container left processing, and leaves a live one', async () => {
-    const [stale, live] = [await seedJob({}), await seedJob({})]
-    const markProcessing = (id: number, updatedAt?: string) =>
-      payload.db.updateOne({
-        collection: 'payload-jobs',
-        id,
-        data: { processing: true, ...(updatedAt && { updatedAt }) },
-        req: undefined,
-      })
-    await markProcessing(stale.id, new Date(Date.now() - 2 * STALE_JOB_MS).toISOString())
-    await markProcessing(live.id)
-
-    await cancelStaleJobs(payload)
-
+  // Last: the cancelled rows below are `hasError`, which the counts above would see.
+  describe('a row a dead container left processing', () => {
     const read = (id: number) =>
       payload.findByID({ collection: 'payload-jobs', id, depth: 0, overrideAccess: true })
-    expect(await read(stale.id)).toMatchObject({ hasError: true, processing: false })
-    expect(await read(live.id)).toMatchObject({ hasError: false, processing: true })
+
+    it('is cancelled, and a live one is left alone', async () => {
+      const [stale, live] = [await seedJob({}), await seedJob({})]
+      await markJobLost(payload, stale.id)
+      await payload.db.updateOne({
+        collection: 'payload-jobs',
+        id: live.id,
+        data: { processing: true },
+        req: undefined,
+      })
+
+      expect((await cancelStaleJobs(payload)).map((job) => job.id)).toEqual([stale.id])
+
+      expect(await read(stale.id)).toMatchObject({ hasError: true, processing: false })
+      expect(await read(live.id)).toMatchObject({ hasError: false, processing: true })
+    })
+
+    /**
+     * ⚠ The failure the sweep's own `beforeSchedule` exists for. The default
+     * one refuses to queue a scheduled task while one of its own rows is
+     * runnable or active, and this sweep is the only thing that ever settles
+     * such a row — so a run lost mid-sweep would hold its own schedule for
+     * ever, with no error and no job row to show for it.
+     */
+    it('blocks its own schedule while running, and stops once past the window', async () => {
+      const row = await payload.jobs.queue({
+        task: RecoverLostJobs.slug,
+        input: {},
+        queue: 'nightly',
+        meta: { scheduled: true },
+      })
+
+      const scheduledNow = async () =>
+        (await payload.jobs.handleSchedules({ queue: 'nightly' })).queued.map(
+          (entry) => entry.taskConfig?.slug,
+        )
+
+      expect(await scheduledNow()).not.toContain(RecoverLostJobs.slug)
+
+      await markJobLost(payload, row.id)
+
+      expect(await scheduledNow()).toContain(RecoverLostJobs.slug)
+
+      // The window only says the row is lost; the run it let through is what
+      // settles it.
+      await runTaskHandler(RecoverLostJobs, { payload })
+      expect(await read(row.id)).toMatchObject({ hasError: true, processing: false })
+    })
   })
 })

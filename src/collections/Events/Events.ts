@@ -24,6 +24,7 @@ import {
   urlField,
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { stateMachineField } from '@/fields/stateMachineField'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
@@ -34,14 +35,12 @@ import {
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
-import {
-  DEFAULT_VERIFICATION_STAGE,
-  isPreAdoptionStage,
-  isUnmanagedStage,
-} from '@/lib/eventVerification/stages'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
+import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {
   adminOnlyCondition,
   eventContactsFieldAccess,
@@ -53,13 +52,15 @@ import {
 import { relationId } from '@/plugins/access/documentManagers'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
+import { signEventCalendarToken } from './calendarToken'
+import { calendarFeedAnswer, eventCalendarFeed } from './endpoints/calendarFeed'
 import { eventsGeoJson } from './endpoints/geojson'
 import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_TYPE_OPTIONS,
-  VERIFICATION_STAGE_OPTIONS,
+  VERIFICATION_STAGE_LABELS,
 } from './eventOptions'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
@@ -129,7 +130,7 @@ export const Events: CollectionConfig = {
   // Computing the listing-quality report costs two extra reads. Nothing that
   // hydrates an Event through a relationship (a registration row, the sidebar)
   // wants that report. Its `afterRead` also opts out of list reads. See the field.
-  defaultPopulate: { qualityReport: false, offersMailingList: false },
+  defaultPopulate: { qualityReport: false, offersMailingList: false, calendarFeedUrl: false },
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
@@ -177,6 +178,8 @@ export const Events: CollectionConfig = {
         }),
       // Phone-sized frame for the widget's bottom-sheet drawer layout.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      // Applies until an editor toggles the panel; their stored preference wins after that.
+      openByDefault: true,
     },
   },
   // Re-verify on any manager save. The explicit POST endpoint backs the notice
@@ -192,17 +195,17 @@ export const Events: CollectionConfig = {
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
-    // lands on: verify, or just re-arm the pre-adoption watermark. Both
-    // stamping hooks must run after it. `syncEventFullness` writes
-    // `registrationsFull`, and `stampEventQuality`'s skip rules read
-    // `verificationStage`.
+    // lands on: verify, or just re-arm the pre-adoption watermark, and it
+    // names the writer the stage column's own guard then judges. Both stamping
+    // hooks must run after it. `syncEventFullness` writes `registrationsFull`,
+    // and `stampEventQuality`'s skip rules read `verificationStage`.
     beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
     afterChange: [revalidateAtlasSidebarHook],
     afterDelete: [revalidateAtlasSidebarHook],
   },
-  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv],
+  endpoints: [verifyEventAction, eventsGeoJson, registrationsCsv, eventCalendarFeed],
   fields: [
     {
       // The bulk import this class came from (`src/plugins/eventImport`). The
@@ -643,29 +646,20 @@ export const Events: CollectionConfig = {
               access: { update: eventManagerFieldAccess },
               admin: {
                 description:
-                  'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+                  'Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.',
                 // The description, then the contacts table (#908). ⚠ The empty
                 // `afterInput` makes Payload re-render it after a save.
                 components: { Description: MANAGER_CONTACTS, afterInput: [] },
               },
             },
-            {
-              name: 'verificationStage',
+            stateMachineField(EVENT_MACHINE, {
               label: 'Verification Process',
-              type: 'select',
-              required: true,
-              defaultValue: DEFAULT_VERIFICATION_STAGE,
-              options: [...VERIFICATION_STAGE_OPTIONS],
-              // System-managed: the ExpireEvents job advances this, and the
-              // verify operation resets it to `verified`. `enumName` is
-              // pinned so it never collides with the drafts `_status` enum
+              labels: VERIFICATION_STAGE_LABELS,
+              // Pinned so it never collides with the drafts `_status` enum
               // (`enum_events_status`).
               enumName: 'enum_events_verification_stage',
-              admin: {
-                readOnly: true,
-                components: { Field: '@/components/admin/VerificationStageField' },
-              },
-            },
+              admin: { components: { Field: '@/components/admin/VerificationStageField' } },
+            }),
             logField({
               // Today this logs the verification cycle: the verification
               // that opened it, plus one reminder entry per send. It is
@@ -823,6 +817,41 @@ export const Events: CollectionConfig = {
               async ({ data, findMany, req }) => {
                 if (findMany || req.context?.skipVerifyHook) return null
                 return (await mailingListClientFor(req, relationId(data?.region))) != null
+              },
+            ],
+          },
+        },
+        {
+          // The subscribable calendar address for this class, so the widget's
+          // "Add to calendar" menu gets it from the single-event read it
+          // already makes rather than composing one (sydevs/SahajAtlasWeb#393).
+          //
+          // ⚠ The token is the feed's only access control, so it is minted for
+          // a single-document read alone: `findMany` and `defaultPopulate`
+          // below both withhold it, or every reader of a registration row would
+          // be handed the class's calendar address.
+          name: 'calendarFeedUrl',
+          type: 'text',
+          virtual: true,
+          custom: virtualFieldInputs('_status', 'deletedAt', 'inactive', 'schedule', 'updatedAt'),
+          admin: {
+            readOnly: true,
+            disableListColumn: true,
+            disableListFilter: true,
+            description: 'Subscribable calendar address. Anyone holding it can subscribe.',
+          },
+          hooks: {
+            afterRead: [
+              async ({ data, findMany, req }) => {
+                if (findMany || !data?.id) return null
+                // The feed's own rule, so no address is handed out for a class it
+                // refuses or answers a cancellation for.
+                if (calendarFeedAnswer(data, req.locale, new Date()) !== 'live') return null
+                const token = await signEventCalendarToken(
+                  { eventId: Number(data.id) },
+                  req.payload.secret,
+                )
+                return `${getServerUrl()}/api/events/calendar/${token}.ics`
               },
             ],
           },

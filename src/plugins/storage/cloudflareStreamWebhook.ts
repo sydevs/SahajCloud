@@ -130,7 +130,8 @@ export async function verifySignature(
 
 /**
  * Pure webhook processor. No Payload or Next.js dependency — the route handler
- * is a thin wrapper. Callers can inject `fetchFn` for tests.
+ * is a thin wrapper. Callers can inject `fetchFn` for tests, and `onReady` for
+ * the work a ready video starts beyond its downloads.
  */
 export async function handleStreamWebhook(params: {
   rawBody: string
@@ -142,6 +143,13 @@ export async function handleStreamWebhook(params: {
   fetchFn?: typeof fetch
   /** Timeout for the MP4-downloads-enable call (default 45s). Overridable in tests. */
   downloadsTimeoutMs?: number
+  /**
+   * Called once downloads are enabled for a ready video — the moment its MP4,
+   * and so its transcript, can exist (#1016). A throw is logged and never fails
+   * the webhook: Cloudflare would retry the whole delivery for a transcript,
+   * and the transcript's own panel offers the retry instead.
+   */
+  onReady?: (uid: string) => Promise<void>
 }): Promise<{ status: number; body: unknown }> {
   const {
     rawBody,
@@ -152,6 +160,7 @@ export async function handleStreamWebhook(params: {
     logger,
     fetchFn,
     downloadsTimeoutMs = 45_000,
+    onReady,
   } = params
 
   if (!secret) {
@@ -245,6 +254,15 @@ export async function handleStreamWebhook(params: {
 
     const downloadStatus = result.result?.default?.status ?? 'unknown'
     logger.info({ msg: 'MP4 downloads enabled via webhook', uid, status: downloadStatus })
+    if (onReady) {
+      await onReady(uid).catch((error: unknown) => {
+        logger.error({
+          msg: 'Stream video ready, but its follow-up work failed',
+          uid,
+          error: error instanceof Error ? error.message : String(error),
+        })
+      })
+    }
     return { status: 200, body: { ok: true, action: 'downloads-enabled', downloadStatus } }
   } catch (error) {
     if (error instanceof z.ZodError) {

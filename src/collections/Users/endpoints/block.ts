@@ -3,9 +3,10 @@ import type { Endpoint, PayloadRequest } from 'payload'
 import { commitTransaction, createLocalReq, initTransaction, killTransaction } from 'payload'
 import { z } from 'zod'
 
-import { appendLogEntry, asLog } from '@/fields'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
-import type { UserSubmission } from '@/payload-types'
+import { transition } from '@/lib/stateMachine/transition'
 
 const bodySchema = z.object({
   blocked: z.boolean(),
@@ -41,12 +42,11 @@ const BLOCKED_NOTE =
  * next block writes its own, and no refused row comes back — a proposal is
  * reopened by its own Reopen button.
  *
- * ⚠ **The writes run on a request with no user.** `reviewMove` refuses any
- * status move a manager makes on a non-proposal row — a manager has no business
- * marking a contact message spam through the form — and it reads `req.user` to
- * decide. This endpoint is the decision, already gated; a system request is how
- * every other machine writer (screening, delivery) reaches `spam`, and sharing
- * one transaction keeps the block and its refusals together.
+ * ⚠ **The writes run on a request with no user, and name `block`.** The
+ * status machine refuses a manager marking a contact message spam through the
+ * form; this endpoint is the decision, already gated, so it writes as the
+ * system writer it is — the way screening and delivery reach `spam` — and
+ * sharing one transaction keeps the block and its refusals together.
  */
 export const blockUser: Endpoint = {
   path: '/:id/block',
@@ -138,7 +138,8 @@ async function refuseOpenSubmissions(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { user: { equals: userId }, status: { equals: 'pending' } },
-    select: { activityLog: true, screeningResult: true },
+    // Ids only: the write below reads nothing off the row.
+    select: {},
     depth: 0,
     pagination: false,
     overrideAccess: true,
@@ -146,30 +147,38 @@ async function refuseOpenSubmissions(args: {
   })
 
   for (const row of docs) {
-    await req.payload.update({
+    await transition({
+      payload: req.payload,
+      machine: SUBMISSION_MACHINE,
       collection: 'user-submissions',
       id: row.id,
+      from: 'pending',
+      to: 'spam',
+      by: 'block',
       data: {
-        status: 'spam',
         screeningResult: {
           verdict: 'blocked_sender',
           notes: [BLOCKED_NOTE],
           screenedAt: now,
         },
-        activityLog: appendLogEntry(asLog(row.activityLog), {
-          at: now,
-          type: 'block',
-          key: now,
-          cells: {
-            activity: reason
-              ? `Sender blocked by ${actor}: ${reason}`
-              : `Sender blocked by ${actor}`,
-          },
-        }),
-      } satisfies Partial<UserSubmission>,
+      },
       depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },
+      req,
+    })
+    await appendLogEntry({
+      payload: req.payload,
+      collection: 'user-submissions',
+      id: row.id,
+      entry: {
+        at: now,
+        type: 'block',
+        key: now,
+        cells: {
+          activity: reason ? `Sender blocked by ${actor}: ${reason}` : `Sender blocked by ${actor}`,
+        },
+      },
       req,
     })
   }
@@ -191,7 +200,8 @@ async function logOnSubmission(args: {
   const { docs } = await req.payload.find({
     collection: 'user-submissions',
     where: { and: [{ id: { equals: submission } }, { user: { equals: userId } }] },
-    select: { activityLog: true },
+    // Ids only: this read is the ownership check, not a load.
+    select: {},
     depth: 0,
     limit: 1,
     overrideAccess: true,
@@ -200,20 +210,11 @@ async function logOnSubmission(args: {
   const row = docs[0]
   if (!row) return 0
 
-  await req.payload.update({
+  await appendLogEntry({
+    payload: req.payload,
     collection: 'user-submissions',
     id: row.id,
-    data: {
-      activityLog: appendLogEntry(asLog(row.activityLog), {
-        at: now,
-        type: 'unblock',
-        key: now,
-        cells: { activity },
-      }),
-    },
-    depth: 0,
-    overrideAccess: true,
-    context: { skipWriteGuard: true },
+    entry: { at: now, type: 'unblock', key: now, cells: { activity } },
     req,
   })
   return 1

@@ -1,16 +1,19 @@
 import type { CollectionAfterChangeHook, PayloadRequest, Where } from 'payload'
 
 import type { LogEntry } from '@/fields'
-import { appendLogEntry, asLog } from '@/fields'
+import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { isActiveRegistration } from '@/lib/registrations/active'
 import { REGISTRATION_UPDATE_LOG_TYPE } from '@/lib/registrations/activityLog'
+import { can } from '@/lib/stateMachine/machine'
+import { transition } from '@/lib/stateMachine/transition'
 import { normalizeEmail } from '@/lib/users/upsertUserByEmail'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 import { capture } from '@/plugins/sentry/capture'
 import { asTrustedReq } from '@/plugins/usage/hooks'
 
-import { STATUS_LABELS } from '../statuses'
+import { SUBMISSION_MACHINE } from '../machine'
+import { STATUS_LABELS, SUBMISSION_STATUSES } from '../statuses'
 
 /**
  * afterChange (create): a registrant signing up again for an event they are
@@ -39,8 +42,8 @@ import { STATUS_LABELS } from '../statuses'
  * versions, so the log entry below is the only record the old values leave.
  *
  * ⚠ **That record is not durable, and knowing why matters before trusting it.**
- * `appendLogEntry` keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops
- * the oldest, and each repeat signup appends one — so that many further signups
+ * An append keeps the most recent `DEFAULT_LOG_LIMIT` entries and drops the
+ * oldest, and each repeat signup appends one — so that many further signups
  * for the same address and event roll the entry carrying the original values
  * out of the column. Overwriting a *confirmed* registration therefore also
  * reports to Sentry, which no caller can roll anything out of; see
@@ -108,9 +111,15 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
     submittedVia,
   }
 
-  const updated = await req.payload.update({
+  let updated!: UserSubmission
+  await transition({
+    payload: req.payload,
+    machine: SUBMISSION_MACHINE,
     collection: 'user-submissions',
     id: existing.id,
+    from: existing.status,
+    to: 'pending',
+    by: 'repeat-signup',
     // `data` is the create's input after `prepareUserSubmission`, which `doc`
     // (shaped by the client's read access) is not.
     //
@@ -130,17 +139,38 @@ export const mergeRepeatRegistration: CollectionAfterChangeHook = async ({
       ),
       startingAt: data.startingAt ?? null,
       startingAt_tz: data.startingAt_tz,
-      status: 'pending',
       // `ScreenSubmissions` skips a row that already carries a verdict. The
       // generated type omits the column's `null` (src/collections/AGENTS.md).
       screeningResult: null as unknown as UserSubmission['screeningResult'],
-      activityLog: appendLogEntry(asLog(existing.activityLog), entry),
     },
-    depth: 0,
-    overrideAccess: true,
-    context: { skipWriteGuard: true },
+    // ⚠ **By id, because the caller reads the row back.** The claim form
+    // answers whether a write landed, not what it wrote, and this hook runs
+    // inside the create's own transaction — there is no window for another
+    // writer to race it.
+    write: async ({ data: patch, context }) => {
+      updated = (await req.payload.update({
+        collection: 'user-submissions',
+        id: existing.id,
+        data: patch as never,
+        depth: 0,
+        overrideAccess: true,
+        context: { ...context, skipWriteGuard: true },
+        req: trusted,
+      })) as UserSubmission
+      return true
+    },
+  })
+  // Appended rather than written back from `existing`: this hook runs inside
+  // the create's transaction, and the row it logs on is one other writers are
+  // also appending to.
+  await appendLogEntry({
+    payload: req.payload,
+    collection: 'user-submissions',
+    id: existing.id,
+    entry,
     req: trusted,
   })
+
   await req.payload.delete({
     collection: 'user-submissions',
     id: doc.id,
@@ -202,17 +232,22 @@ function reportOverwrittenConfirmation(
 }
 
 /**
- * The statuses a repeat signup may fold into. `spam` and `rejected` are left
- * out: each is a verdict on that row, which a fresh signup must neither hide
- * behind nor overturn.
+ * The statuses a repeat signup may fold into — read off the move table, which
+ * is what the guard refuses on, so the two cannot name different sets.
  *
- * ⚠ **`accepted` stays in, though the address is never verified** (#1093).
- * Dropping it would put a confirmed registrant's own repeat signup on a second
- * row, a second seat and a second confirmation — the defect this hook exists to
- * fix, back for the case that happens most. So an overwrite of a confirmed
- * registration is reported instead: {@link reportOverwrittenConfirmation}.
+ * `spam` and `rejected` are absent there: each is a verdict on that row, which
+ * a fresh signup must neither hide behind nor overturn.
+ *
+ * ⚠ **`accepted` is in it, though the address is never verified** (#1093).
+ * Leaving it out would put a confirmed registrant's own repeat signup on a
+ * second row, a second seat and a second confirmation — the defect this hook
+ * exists to fix, back for the case that happens most. So an overwrite of a
+ * confirmed registration is reported instead:
+ * {@link reportOverwrittenConfirmation}.
  */
-const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = ['accepted', 'pending', 'failed']
+const MERGEABLE_STATUSES: readonly UserSubmission['status'][] = SUBMISSION_STATUSES.filter(
+  (status) => can(SUBMISSION_MACHINE, status, 'pending', 'repeat-signup'),
+)
 
 /**
  * The registration a repeat signup from this sender updates.
@@ -249,7 +284,6 @@ export async function findRepeatRegistration(
     // number above which the active row stops being found.
     pagination: false,
     select: {
-      activityLog: true,
       screeningResult: true,
       startingAt: true,
       status: true,

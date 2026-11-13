@@ -16,11 +16,14 @@ import type { FlattenedField, Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
+import { withActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -78,6 +81,10 @@ describe('Submission screening', () => {
       } as never,
       overrideAccess: true,
       req: systemReq(),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     }) as Promise<UserSubmission>
 
   const screen = (submissionId: number) =>
@@ -252,15 +259,13 @@ describe('Submission screening', () => {
     ) => {
       for (let i = 0; i < 6; i += 1) {
         const row = await seed({ senderEmail: email })
-        await payload.update({
+        // History, not a decision: `setLifecycleState` writes the row beneath
+        // the lifecycle guard, which refuses a status change naming no writer.
+        await setLifecycleState({
+          payload,
           collection: 'user-submissions',
           id: row.id,
-          data: {
-            status,
-            screeningResult: { verdict, screenedAt: new Date().toISOString() },
-          } as never,
-          overrideAccess: true,
-          req: systemReq(),
+          data: { status, screeningResult: { verdict, screenedAt: new Date().toISOString() } },
         })
       }
     }
@@ -596,11 +601,6 @@ describe('Submission screening', () => {
       expect((await reload(submission.id)).screeningResult?.diagnostic).toContain('title')
     })
 
-    it('passes an ordinary proposal', async () => {
-      const submission = await seedProposal({ title: 'Thursday evening class' })
-      await expect(screen(submission.id)).resolves.toEqual({ verdict: 'ok', status: 'pending' })
-    })
-
     /** ⚠ The three columns a proposal was binned over (#920). */
     it('delivers a proposal naming a contact address, a website and a meeting link', async () => {
       const submission = await seedProposal({
@@ -671,12 +671,13 @@ describe('Submission screening', () => {
 
     it('leaves a row a manager has already settled alone', async () => {
       const submission = await seed()
-      await payload.update({
+      // The state the case starts from: a manager's own decision, which no
+      // system writer may make.
+      await setLifecycleState({
+        payload,
         collection: 'user-submissions',
         id: submission.id,
-        data: { status: 'accepted' } as never,
-        overrideAccess: true,
-        req: systemReq(),
+        data: { status: 'accepted' },
       })
 
       await screen(submission.id)

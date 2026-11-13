@@ -8,11 +8,12 @@
  * and lives in `tests/unit/transcript-status.spec.ts`.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
- * `@/jobs/TranscribeMeditation/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
+ * `@/jobs/TranscribeRecording/lemonfoxClient` — `tests/AGENTS.md`'s boundary rule — so the
  * suite can drive a completed run and **cannot** make a paid call. Two claims
  * the fixtures make about the real configuration, both verified:
  *
- * - The body shape is `{ segments: [{ text, start, end }] }` in seconds.
+ * - The body shape is `{ segments: [{ text, start, end, words }] }` in seconds,
+ *   with the word timings a run asks for (`wordTimings: true`).
  *   Checked against `src/lib/lemonfox/normalize.ts`, the
  *   one normaliser, which is the real code under these assertions.
  * - `LEMONFOX_API_KEY` is `''` in `vitest.config.mts`, so the unmocked key
@@ -24,14 +25,13 @@ import type { Payload } from 'payload'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { extractID } from 'payload/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
+import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
+import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import {
-  RETRANSCRIBE_COOLDOWN_MS,
-  TRANSCRIPTION_STALL_MS,
-} from '@/lib/meditations/transcriptBounds'
+import { RETRANSCRIBE_COOLDOWN_MS, TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import {
@@ -41,7 +41,7 @@ import {
   type RestClient,
 } from '../utils/restRequest'
 import { seedLatestVersion } from '../utils/storeInvalidEvent'
-import { runTaskHandler } from '../utils/taskRunner'
+import { markJobLost, runTaskHandler } from '../utils/taskRunner'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -52,8 +52,8 @@ const lemonfox = vi.hoisted(() => ({
 
 // Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
 // unavailable case asserts the row carries the real one.
-vi.mock('@/jobs/TranscribeMeditation/lemonfox/transcribe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/jobs/TranscribeMeditation/lemonfox/transcribe')>()),
+vi.mock('@/jobs/TranscribeRecording/lemonfoxClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/jobs/TranscribeRecording/lemonfoxClient')>()),
   ...lemonfox,
 }))
 
@@ -70,11 +70,37 @@ vi.mock('@/plugins/storage', async (importOriginal) => ({
   ...storage,
 }))
 
-/** Two phrases, in the provider's seconds. `normalizeLemonfoxResponse` converts. */
+/**
+ * Two phrases, in the provider's seconds, whose words group into exactly two
+ * cues: the second's first word would take the first past 30 characters.
+ * `normalizeLemonfoxCues` converts.
+ */
 const VENDOR_BODY = {
   segments: [
-    { id: 0, text: ' Place your attention on the top of the head.', start: 0, end: 4.25 },
-    { id: 1, text: ' Let the thoughts settle.', start: 4.25, end: 6.5 },
+    {
+      id: 0,
+      text: ' Place your attention gently.',
+      start: 0,
+      end: 4.25,
+      words: [
+        { word: 'Place', start: 0, end: 0.6 },
+        { word: 'your', start: 0.6, end: 1.0 },
+        { word: 'attention', start: 1.0, end: 1.8 },
+        { word: 'gently.', start: 1.8, end: 4.25 },
+      ],
+    },
+    {
+      id: 1,
+      text: ' Let the thoughts settle.',
+      start: 4.25,
+      end: 6.5,
+      words: [
+        { word: 'Let', start: 4.25, end: 4.6 },
+        { word: 'the', start: 4.6, end: 4.8 },
+        { word: 'thoughts', start: 4.8, end: 5.6 },
+        { word: 'settle.', start: 5.6, end: 6.5 },
+      ],
+    },
   ],
 }
 
@@ -151,6 +177,27 @@ describe('meditation transcription', () => {
     )
   }
 
+  /** The run the meditation's current transcript row is waiting on. */
+  const runOf = async (meditationId: number): Promise<number> =>
+    Number(extractID((await transcriptOf(meditationId))!.job!))
+
+  /**
+   * Run the task the way the queue does: as the job row the transcript names.
+   *
+   * ⚠ **A case that replaces the row has to capture `job` first.** The task
+   * tells its own row from a later request's by that id, so defaulting to the
+   * row that exists now would hand a lost run the retry's identity.
+   */
+  const transcribe = async (
+    meditation: Meditation,
+    { audioFilename = meditation.filename!, job }: { audioFilename?: string; job?: number } = {},
+  ) =>
+    runTaskHandler(TranscribeRecording, {
+      payload,
+      input: { meditationId: meditation.id, audioFilename },
+      job: { id: job ?? (await runOf(meditation.id)) },
+    })
+
   const versionCount = async (meditationId: number): Promise<number> =>
     (
       await payload.findVersions({
@@ -186,12 +233,11 @@ describe('meditation transcription', () => {
   }
 
   describe('a recording is transcribed by itself', () => {
-    it('creates a row naming that recording, with the meditation locale, and queues one run', async () => {
+    it('creates a row naming that recording, and queues one run', async () => {
       const meditation = await createMeditation('cs')
 
       const row = await transcriptOf(meditation.id)
       expect(row?.audioFilename).toBe(meditation.filename)
-      expect(row?.language).toBe('cs')
       expect(row?.segments ?? null).toBeNull()
       // The row carries the run it queued, which is where `status` is read
       // from. A row without one derives `failed`.
@@ -199,14 +245,34 @@ describe('meditation transcription', () => {
       expect(await queuedJobs(meditation.id)).toHaveLength(1)
     })
 
+    // The language is the meditation's own `locale`, read by the run, so a
+    // transcript made in the old one would be in a language it no longer claims.
+    it('is transcribed again when its locale changes, in the new one', async () => {
+      const meditation = await createMeditation('cs')
+      const before = await transcriptOf(meditation.id)
+
+      const moved = (await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        locale: 'de',
+        data: { locale: 'de' },
+        overrideAccess: true,
+      })) as Meditation
+
+      const row = await transcriptOf(meditation.id)
+      expect(row?.id).not.toBe(before?.id)
+      expect(await queuedJobs(meditation.id)).toHaveLength(2)
+      await transcribe(moved)
+      expect(lemonfox.requestLemonfoxTranscript).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locale: 'de' }),
+      )
+    })
+
     it('adds no meditation version, and leaves its _status alone', async () => {
       const meditation = await createMeditation()
       const before = await versionCount(meditation.id)
 
-      await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
+      await transcribe(meditation)
 
       // The task writes `transcripts`, never the meditation. A write
       // there would push out a version an editor restores from.
@@ -223,10 +289,7 @@ describe('meditation transcription', () => {
     it('completes with the normalised cues, in milliseconds', async () => {
       const meditation = await createMeditation()
 
-      const output = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
+      const output = await transcribe(meditation)
       expect(output.status).toBe('completed')
 
       const row = await transcriptOf(meditation.id)
@@ -234,11 +297,7 @@ describe('meditation transcription', () => {
       // The vendor answers seconds. The cue shape is milliseconds, so a player
       // reading a transcript and one reading subtitles agree.
       expect(row?.segments).toEqual([
-        {
-          content: 'Place your attention on the top of the head.',
-          startTimeMs: 0,
-          endTimeMs: 4250,
-        },
+        { content: 'Place your attention gently.', startTimeMs: 0, endTimeMs: 4250 },
         { content: 'Let the thoughts settle.', startTimeMs: 4250, endTimeMs: 6500 },
       ])
     })
@@ -263,14 +322,12 @@ describe('meditation transcription', () => {
     it('throws for a run whose recording was replaced mid-flight, and writes nothing', async () => {
       const meditation = await createMeditation()
       const original = meditation.filename!
+      const lostRun = await runOf(meditation.id)
       await replaceAudio(meditation.id)
 
       // The replacement deleted the row this run was for, so there is nothing
       // to write and nothing wrong: the replacement queued its own run.
-      const output = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: original },
-      })
+      const output = await transcribe(meditation, { audioFilename: original, job: lostRun })
       expect(output.status).toBe('superseded')
 
       const row = await transcriptOf(meditation.id)
@@ -286,10 +343,7 @@ describe('meditation transcription', () => {
       // does not.
       await takeAwayRecording(meditation.id)
 
-      const failure = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      }).catch((error: unknown) => error)
+      const failure = await transcribe(meditation).catch((error: unknown) => error)
       expect(failure).toBeInstanceOf(ExpectedJobFailure)
       expect(String(failure)).toMatch(/replaced while it was being transcribed/)
       expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
@@ -302,12 +356,7 @@ describe('meditation transcription', () => {
       // The throw is the record: `retries: 0`, so the retained job row carries
       // the message and the row's `status` derives `failed` from it. A recording
       // with no speech is an answer about it, so an expected failure.
-      await expect(
-        runTaskHandler(TranscribeMeditation, {
-          payload,
-          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-        }),
-      ).rejects.toBeInstanceOf(ExpectedJobFailure)
+      await expect(transcribe(meditation)).rejects.toBeInstanceOf(ExpectedJobFailure)
 
       expect((await transcriptOf(meditation.id))?.segments ?? null).toBeNull()
     })
@@ -316,12 +365,7 @@ describe('meditation transcription', () => {
       lemonfox.lemonfoxApiKey.mockReturnValue(undefined)
       const meditation = await createMeditation()
 
-      await expect(
-        runTaskHandler(TranscribeMeditation, {
-          payload,
-          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-        }),
-      ).rejects.toBeInstanceOf(ExpectedJobFailure)
+      await expect(transcribe(meditation)).rejects.toBeInstanceOf(ExpectedJobFailure)
 
       const row = await transcriptOf(meditation.id)
       expect(row?.segments ?? null).toBeNull()
@@ -348,10 +392,7 @@ describe('meditation transcription', () => {
       vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', railwayName)
       vi.stubEnv('NODE_ENV', nodeEnv)
       unconfigure()
-      const failure = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      }).catch((error: unknown) => error)
+      const failure = await transcribe(meditation).catch((error: unknown) => error)
       expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
       return failure
     }
@@ -376,10 +417,7 @@ describe('meditation transcription', () => {
   describe('a replaced recording', () => {
     it('takes the old transcript with it, and asks for a new one', async () => {
       const meditation = await createMeditation()
-      await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-      })
+      await transcribe(meditation)
       const completed = await transcriptOf(meditation.id)
       expect(completed?.segments).toHaveLength(2)
 
@@ -398,10 +436,7 @@ describe('meditation transcription', () => {
       const meditation = await createMeditation()
       const replaced = await replaceAudio(meditation.id)
 
-      const output = await runTaskHandler(TranscribeMeditation, {
-        payload,
-        input: { meditationId: meditation.id, audioFilename: replaced.filename! },
-      })
+      const output = await transcribe(meditation, { audioFilename: replaced.filename! })
       expect(output.status).toBe('completed')
       expect((await transcriptOf(meditation.id))?.segments).toHaveLength(2)
     })
@@ -421,6 +456,27 @@ describe('meditation transcription', () => {
       expect(await queuedJobs(meditation.id)).toHaveLength(1)
     })
   })
+
+  /**
+   * The row carries no status column, so a run lost with its container leaves
+   * the job row `processing` and the transcript reading the same — for ever,
+   * until something cancels it. The hourly sweep is that something.
+   */
+  describe('a run lost with its container', () => {
+    it('reads failed once the sweep cancels its job', async () => {
+      const meditation = await createMeditation()
+      await markJobLost(payload, await runOf(meditation.id))
+      expect((await transcriptOf(meditation.id))?.status).toBe('processing')
+
+      await recoverLostJobs(payload)
+
+      const row = await transcriptOf(meditation.id)
+      expect(row?.status).toBe('failed')
+      // A cancelled row carries `{ cancelled: true }` and no message, so
+      // without its own branch the tab would say `failed` and nothing else.
+      expect(row?.error).toMatch(/interrupted before it finished/)
+    })
+  })
   /**
    * `POST /api/meditations/:id/transcribe` — the Transcript tab's
    * Transcribe-again button (#984).
@@ -434,7 +490,7 @@ describe('meditation transcription', () => {
    * verified against the code under test:
    *
    * - A row reads `failed` because its retained job row carries `hasError` —
-   *   `deriveTranscriptStatus` (`src/lib/meditations/transcriptStatus.ts`) reads
+   *   `deriveTranscriptStatus` (`src/collections/Transcripts/status.ts`) reads
    *   nothing else, since the collection stores no status column.
    *   `runTaskHandler` bypasses the queue, so a rejected run leaves that flag
    *   unset and the row would read `processing`.
@@ -499,11 +555,24 @@ describe('meditation transcription', () => {
         // The recording did not change, so the new row names it and the task
         // will not read it as superseded.
         expect(row?.audioFilename).toBe(meditation.filename)
-        expect(row?.language).toBe(meditation.locale)
         expect(row?.segments ?? null).toBeNull()
         // Queued by the new row's own afterChange, not by the handler.
         expect(row?.job).toBeTruthy()
         expect(await queuedJobs(meditation.id)).toHaveLength(2)
+      })
+
+      it('leaves the run it superseded unable to write onto the new row', async () => {
+        const meditation = await retryableMeditation()
+        const lostRun = await runOf(meditation.id)
+
+        expect((await post(meditation.id)).status).toBe(200)
+        // Same recording, so the filename the lost run holds still matches the
+        // new row. Its own job id is what does not.
+        const output = await transcribe(meditation, { job: lostRun })
+
+        expect(output.status).toBe('superseded')
+        expect((await transcriptOf(meditation.id))?.segments ?? null).toBeNull()
+        expect(lemonfox.requestLemonfoxTranscript).not.toHaveBeenCalled()
       })
 
       it('creates one for a recording whose row was lost, without a delete', async () => {
@@ -560,10 +629,7 @@ describe('meditation transcription', () => {
     describe('what it refuses', () => {
       it('refuses a completed transcript with a 409, and queues nothing', async () => {
         const meditation = await createMeditation()
-        await runTaskHandler(TranscribeMeditation, {
-          payload,
-          input: { meditationId: meditation.id, audioFilename: meditation.filename! },
-        })
+        await transcribe(meditation)
         const completed = await transcriptOf(meditation.id)
         await backdate(completed!.id)
 

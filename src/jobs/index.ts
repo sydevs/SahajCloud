@@ -4,11 +4,12 @@ import { CleanupOrphanedMedia } from './CleanupOrphanedMedia/CleanupOrphanedMedi
 import { DeliverSubmissions } from './DeliverSubmissions/DeliverSubmissions'
 import { SendDigests } from './Digests/SendDigests'
 import { ExpireEvents } from './ExpireEvents/ExpireEvents'
+import { RecoverLostJobs } from './RecoverLostJobs/RecoverLostJobs'
 import { SendPostEventFollowUps } from './RegistrationNotifications/SendPostEventFollowUps'
 import { SendSessionReminders } from './RegistrationNotifications/SendSessionReminders'
 import { ScreenSubmissions } from './ScreenSubmissions/ScreenSubmissions'
 import { SyncLectureMetadata } from './SyncLectureMetadata/SyncLectureMetadata'
-import { TranscribeMeditation } from './TranscribeMeditation/TranscribeMeditation'
+import { TranscribeRecording } from './TranscribeRecording/TranscribeRecording'
 import { VerifyEmbeds } from './VerifyEmbeds/VerifyEmbeds'
 
 // Export all tasks as an array
@@ -18,12 +19,13 @@ export const tasks = [
   CleanupOrphanedMedia,
   DeliverSubmissions,
   ExpireEvents,
+  RecoverLostJobs,
   ScreenSubmissions,
   SendPostEventFollowUps,
   SendDigests,
   SendSessionReminders,
   CleanupCollections,
   SyncLectureMetadata,
-  TranscribeMeditation,
+  TranscribeRecording,
   VerifyEmbeds,
 ]
