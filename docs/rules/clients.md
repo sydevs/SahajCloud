@@ -59,7 +59,7 @@ A service is **one site**: `site.domain` (a bare host) plus `site.page` (the pri
 
 Any other page on the same domain is a secondary embed automatically: it reports, it shows on the Install tab as evidence, it owns nothing.
 
-A service's own **look** is `src/lib/clients/appearance.ts`, not `site.ts` — the three atlas colours, the logo shown to a service with none, and whether a stored colour carries a hue at all. `src/lib/branding/` is the per-project brand, a third vocabulary again.
+A service's own **look** is `src/lib/clients/appearance.ts`, not `site.ts` — the three atlas colours, the logo shown to a service with none, and whether a stored colour is the service's own (anything but the old `#000000` sentinel). `src/lib/branding/` is the per-project brand, a third vocabulary again.
 
 ⚠ **`allowedDomains` and `canonical.embed` are computed compatibility fields**, no columns behind them, read from `site` for the widget's current `/clients/me` select (the analytics domain and the `routing=path` prefix). They go once SahajAtlasWeb reads `site` directly.
 

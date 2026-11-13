@@ -12,7 +12,7 @@ import styles from './labelWithAction.module.css'
  *
  * Only the look is shared. When each action shows, and what it does, stays with
  * its label: the two answer different questions (a permission and a region
- * level; whether a colour carries a hue).
+ * level; whether any colour is the service's own).
  */
 export function LabelWithAction({
   action,
