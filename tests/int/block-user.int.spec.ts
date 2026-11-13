@@ -5,14 +5,16 @@
  * deleted out from under them.
  *
  * Driven over REST, because the gate under test is the endpoint's own and the
- * status moves it makes are ones `reviewMove` refuses a manager's request.
+ * status moves it makes are ones the status machine refuses a manager's request.
  */
 import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { asLog } from '@/fields'
 import { DeliverSubmissions } from '@/jobs/DeliverSubmissions/DeliverSubmissions'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { Manager, User, UserSubmission } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
@@ -43,6 +45,10 @@ describe('Blocking a sender', () => {
         status,
         submissionData: [{ field: 'message', value: message }],
       }),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     }) as Promise<UserSubmission>
 
   const reload = (id: number) => payload.findByID({ collection: 'user-submissions', id, depth: 0 })

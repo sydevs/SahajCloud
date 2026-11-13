@@ -1,7 +1,7 @@
 'use client'
 
 import { Banner, Button, CheckIcon, Pill, Table } from '@payloadcms/ui'
-import { CalendarDays, FilePlus, Globe, type LucideIcon, UserX } from 'lucide-react'
+import { CalendarDays, FilePlus, Globe, type LucideIcon, MailWarning, UserX } from 'lucide-react'
 import Link from 'next/link'
 
 import styles from './Dashboard.module.css'
@@ -32,6 +32,7 @@ const KIND: Record<OpenItemsRow['kind'], { icon: LucideIcon; label: string }> = 
   event: { icon: CalendarDays, label: 'Event' },
   proposal: { icon: FilePlus, label: 'Proposed event' },
   refusal: { icon: UserX, label: 'Sign-up' },
+  'delivery-failed': { icon: MailWarning, label: 'Undelivered' },
   service: { icon: Globe, label: 'Website' },
 }
 

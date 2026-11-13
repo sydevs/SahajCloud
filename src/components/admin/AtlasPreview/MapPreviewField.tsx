@@ -8,6 +8,8 @@ import React, { useEffect, useState } from 'react'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import { originOf } from '@/lib/utilities/url'
 
+import { isFromPreviewFrame } from './paletteReport'
+
 /** ⚠ Pinned to the atlas's `startClientsPreview` (sydevs/SahajAtlasWeb#392). */
 const PREVIEW_MODE_MESSAGE = 'sahaj-atlas:preview-mode'
 
@@ -52,7 +54,7 @@ export const MapPreviewField: UIFieldClientComponent = () => {
       post()
     }
     const onMessage = (event: MessageEvent) => {
-      if (heard || event.source !== frame.contentWindow) return
+      if (heard || !isFromPreviewFrame(event, frame)) return
       heard = true
       post()
     }

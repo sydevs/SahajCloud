@@ -13,9 +13,12 @@ import {
   buildReminderEntry,
   buildVerificationEntry,
 } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { Event, Manager } from '@/payload-types'
 import { readLinkToken, signLinkToken } from '@/plugins/login'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
@@ -152,6 +155,10 @@ describe('Event verification lifecycle', () => {
       collection: 'events',
       overrideAccess: true,
       data: createData<'events'>(data),
+      // ⚠ **A fixture's own writer.** Only `verified` opens to a writer that
+      // names nobody; `import` is the actor for a file that decides the stage
+      // (#1121). Setup only — a case asserting a move still has to make it.
+      context: withActor(undefined, EVENT_MACHINE, 'import'),
     })
   }
 
@@ -606,9 +613,11 @@ describe('Event verification lifecycle', () => {
       expect(html).not.toContain('Add photos')
     })
 
-    it('sends none for an unpublished event — it was never checked', async () => {
-      // Not "no problems found": an invisible listing is not graded (#609). The
-      // reminder itself still goes out, because the ladder does not care.
+    it('sends nothing at all for an unpublished event', async () => {
+      // ⚠ **The ladder now cares.** An invisible listing was once reminded
+      // about and simply not graded (#609); since #1120 decision 3 a class its
+      // manager has hidden is not chased at all, so the ungraded reminder this
+      // case used to read is unreachable from here.
       const event = await createEvent({ title: 'Hidden Listing' })
       await payload.update({
         collection: 'events',
@@ -618,12 +627,9 @@ describe('Event verification lifecycle', () => {
         overrideAccess: true,
       })
 
-      const html = await remindOnce(event.id, 'Hidden Listing')
-      // Nothing at all — not even the celebration a complete listing earns.
-      // Keyed on the progress caption rather than a heading string: a
-      // reworded heading would turn this into a vacuous pass.
-      expect(html).not.toMatch(/\d+ of \d+ complete/)
-      expect(html).not.toContain('Add a description')
+      const before = mailTo('event-manager@example.com').length
+      await runJob(payload)
+      expect(mailTo('event-manager@example.com')).toHaveLength(before)
     })
 
     it('still sends exactly one reminder per recipient when the job runs twice', async () => {
@@ -636,12 +642,13 @@ describe('Event verification lifecycle', () => {
 
       // Rewind to the stage just sent for, and make it due again — the log
       // entry alone has to stop the second send.
-      await payload.update({
+      // A fixture, not a move: the guard refuses a stage change naming no
+      // writer, and no writer rewinds a ladder.
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id: event.id,
         data: { verificationStage: 'verified', nextCheckAt: daysAgo(1) },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
       })
 
       const second = await runJob(payload)
@@ -719,13 +726,16 @@ describe('Event verification lifecycle', () => {
 
     // Simulate a crash mid-fan-out at the escalated stage: the event manager
     // was already logged, but the region manager was not.
+    // ⚠ **Two writes, because an array column is one of them.** A raw row write
+    // cannot seed `activityLog` — Payload generates each row's own id — so the
+    // log goes through the ordinary update, which moves no stage, and the stage
+    // is pinned beneath the guard afterwards.
     await payload.update({
       collection: 'events',
       id: event.id,
       overrideAccess: true,
       context: { skipVerifyHook: true },
       data: {
-        verificationStage: 'escalated',
         nextCheckAt: daysAgo(1),
         // Built with the real builders, not hand-written. The entries this
         // used to spell out by hand omitted `type` and `cells`, which nothing
@@ -745,6 +755,12 @@ describe('Event verification lifecycle', () => {
           }),
         ].map(toLogRow),
       },
+    })
+    await setLifecycleState({
+      payload,
+      collection: 'events',
+      id: event.id,
+      data: { verificationStage: 'escalated' },
     })
 
     const result = await runJob(payload)
@@ -887,6 +903,52 @@ describe('Event verification lifecycle', () => {
     })
   })
 
+  /**
+   * Where a row may open, which the table declares beside its moves. Before
+   * this, a create set the column to anything it liked and only later moves
+   * were judged — so a class could be created straight into a terminal stage
+   * no writer may ever move it to.
+   */
+  describe('where a class may open', () => {
+    const openAt = (stage: Event['verificationStage'], context?: Record<string, unknown>) =>
+      payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        context,
+        data: createData<'events'>({
+          title: `Opened ${stage} ${Date.now()}`,
+          languages: ['en'],
+          eventType: 'online',
+          onlineUrl: 'https://example.com/meet',
+          registrationMode: 'sahaj-atlas',
+          manager: eventManager.id,
+          region: defaultRegion.id,
+          // Dormant, so no schedule is needed; an inactive class owes contacts.
+          inactive: true,
+          contactName: 'Opening Contact',
+          contactPhone: '+1-555-0101',
+          verificationStage: stage,
+        }),
+      })
+
+    it('refuses a terminal stage to a create that names no writer', async () => {
+      await expect(openAt('expired', { skipVerifyHook: true })).rejects.toThrow(/verificationStage/)
+    })
+
+    it('lets a file that decides the stage open a class there', async () => {
+      const opened = await openAt(
+        'expired',
+        withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'import'),
+      )
+      expect(opened.verificationStage).toBe('expired')
+    })
+
+    it('opens at the stage the column declares for a writer that names nobody', async () => {
+      const opened = await openAt('verified', { skipVerifyHook: true })
+      expect(opened.verificationStage).toBe('verified')
+    })
+  })
+
   describe('pre-adoption stages (unverified / denied)', () => {
     it('a grooming save leaves a managerless unverified event untouched', async () => {
       const event = await createEvent({
@@ -931,7 +993,7 @@ describe('Event verification lifecycle', () => {
       expect(log[0]).toMatchObject({ kind: 'verification', method: 're-save' })
     })
 
-    it('adoption also rescues a denied event (stage flips; publish stays a manual step)', async () => {
+    it('adoption rescues a denied event and puts it back on the map', async () => {
       const event = await createEvent({
         manager: null,
         verificationStage: 'denied',
@@ -947,8 +1009,10 @@ describe('Event verification lifecycle', () => {
 
       const after = await getEvent(payload, event.id)
       expect(after.verificationStage).toBe('verified')
-      // verifyOnSave never forces _status — republish is the manager's call.
-      expect(after._status).toBe('draft')
+      // ⚠ **Published too** (#1120 decision 4). A manager vouching for a class
+      // is what puts it back on the map, and leaving it hidden made the
+      // adoption invisible to everyone but its new manager.
+      expect(after._status).toBe('published')
     })
 
     it('refuses to hold a managed stage without a manager', async () => {
@@ -961,12 +1025,16 @@ describe('Event verification lifecycle', () => {
       // fail validation: verified always implies managed. (Payload surfaces
       // the per-field message in `error.data`. The thrown message names the
       // field.)
+      //
+      // ⚠ **The write names its writer**, or the lifecycle guard refuses it
+      // first and this case would pass without validation running at all — an
+      // adoption is exactly the move being made here, minus the manager.
       await expect(
         payload.update({
           collection: 'events',
           id: event.id,
           overrideAccess: true,
-          context: { skipVerifyHook: true },
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'adoption'),
           data: { verificationStage: 'verified' },
         }),
       ).rejects.toThrow(/Verification > Manager/i)

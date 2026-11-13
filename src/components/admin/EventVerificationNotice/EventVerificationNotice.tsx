@@ -28,23 +28,30 @@ interface NoticeConfig {
 }
 
 /**
- * Which stages surface a banner. `verified` (and unsaved docs) show nothing.
+ * What each stage says, declared once for every stage.
+ *
+ * ⚠ **An exhaustive `Record`, with `null` for the stages that say nothing.** A
+ * `Partial` leaves a stage added later silently banner-less, which is the same
+ * failure `bucketForEvent`'s `default:` had (#624, #1121). `verified` and an
+ * unsaved document are the two silences.
+ *
  * Every ladder banner tells the manager to **republish** — saving the event
  * runs the verify-on-save hook, which re-opens the verification cycle (and
  * publishing an unpublished/expired event also restores its public listing).
  * The pre-adoption pair (`unverified` / `denied`) instead tells them to
- * **assign a manager** — saves without one deliberately change nothing.
+ * **assign a manager**, which adopts the listing and publishes it.
  */
-const NOTICES: Partial<Record<VerificationStage, NoticeConfig>> = {
+const NOTICES: Record<VerificationStage, NoticeConfig | null> = {
+  verified: null,
   unverified: {
     severity: 'warning',
     message: ({ votes }) =>
-      `This listing is unverified — it was submitted or imported and has no manager yet${votes}. Assign a manager and save to adopt it into the verification cycle.`,
+      `This listing is unverified — it was submitted or imported and has no manager yet${votes}. Assign a manager and save to adopt it: that verifies it and publishes it.`,
   },
   denied: {
     severity: 'error',
     message: ({ votes }) =>
-      `This event was unpublished after attendee feedback${votes}. Assign a manager to adopt it, correct the details, and republish to restore the listing.`,
+      `This event was unpublished after attendee feedback${votes}. Assign a manager to adopt it — that verifies the listing and puts it back on the map.`,
   },
   reminded: {
     severity: 'warning',

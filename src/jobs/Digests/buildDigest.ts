@@ -13,6 +13,7 @@ import type {
   ItemTableRow,
   StatusPillStyle,
 } from '@/emails/DigestEmail'
+import { failedDeliveries, failedDeliveriesPath } from '@/lib/atlasOverview/deliveryFailures'
 import { changeLabel } from '@/lib/atlasOverview/filters'
 import { loadOpenItems } from '@/lib/atlasOverview/openItems'
 import { SPAM_SIGNUPS_PATH, spamSignups } from '@/lib/atlasOverview/refusals'
@@ -148,14 +149,28 @@ function arrivedSince(item: OpenItem, since: Date): boolean {
   return at !== undefined && at !== null && new Date(at) > since
 }
 
-/** Sign-ups filed as spam in the last week — an admin's closing line. */
-async function spamNote(
+/**
+ * An admin's closing lines: sign-ups filed as spam in the last week, and
+ * deliveries that never went out.
+ *
+ * Each is a count with a link rather than a row per item — neither is work for
+ * the person reading, and both are counted over rows the open-items list above
+ * already carries one by one.
+ */
+async function closingNotesFor(
   req: PayloadRequest,
   now: Date,
-): Promise<null | { href: string; text: string }> {
-  const spam = await spamSignups({ now, overrideAccess: true, req })
-  if (!spam) return null
-  return { href: adminUrl(SPAM_SIGNUPS_PATH), text: spam.text }
+): Promise<{ href: string; text: string }[]> {
+  const [spam, undelivered] = await Promise.all([
+    spamSignups({ now, overrideAccess: true, req }),
+    failedDeliveries({ overrideAccess: true, req }),
+  ])
+  const notes: { href: string; text: string }[] = []
+  if (spam) notes.push({ href: adminUrl(SPAM_SIGNUPS_PATH), text: spam.text })
+  if (undelivered) {
+    notes.push({ href: adminUrl(await failedDeliveriesPath(req)), text: undelivered.text })
+  }
+  return notes
 }
 
 /**
@@ -231,7 +246,7 @@ export async function buildDigest(args: {
   }
 
   let openItems: DigestEmailProps['openItems']
-  let closingNote: DigestEmailProps['closingNote'] = null
+  let closingNotes: DigestEmailProps['closingNotes'] = null
   const wholeList = due('open_items')
   const newProposals = due('new_proposals')
   const newRefusals = due('refused_signups')
@@ -260,7 +275,7 @@ export async function buildDigest(args: {
       if (wholeList) advance.push('open_items')
       if (newProposals) advance.push('new_proposals')
       if (newRefusals) advance.push('refused_signups')
-      if (role === 'admin' && openItems) closingNote = await spamNote(req, runStart)
+      if (role === 'admin' && openItems) closingNotes = await closingNotesFor(req, runStart)
     })
   }
 
@@ -288,7 +303,7 @@ export async function buildDigest(args: {
   return {
     advance,
     email: {
-      closingNote,
+      closingNotes,
       dashboardUrl: adminUrl('/'),
       date: formatLongDate(runStart.toISOString()),
       heading: ROLE_LABELS[role],

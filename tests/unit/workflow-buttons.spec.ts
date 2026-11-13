@@ -411,7 +411,7 @@ describe('WorkflowButtons', () => {
 
   /**
    * ⚠ **A rule offering a privileged move names the viewer, or the offer is a
-   * button that can only answer 403.** `reviewMove` lets an admin alone settle
+   * button that can only answer 403.** `SUBMISSION_MACHINE` lets an admin alone settle
    * a spam refusal, and `managerSubmissionScope` does admit a region manager to
    * a refused contact row addressed to them — so an ungated spam rule would
    * show that manager two buttons the server refuses.
@@ -439,7 +439,7 @@ describe('WorkflowButtons', () => {
   /**
    * An earlier rule narrows rather than claims: the admin rule names `spam`,
    * but a non-admin falls through to the review rule's own entry for it rather
-   * than to the fallback — which is the move `reviewMove` grants a reviewer on
+   * than to the fallback — which is the move `SUBMISSION_MACHINE` grants a reviewer on
    * a proposal.
    */
   it('falls through to the next rule when the first does not apply', () => {

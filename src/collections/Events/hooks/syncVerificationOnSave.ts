@@ -1,8 +1,10 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/watermark'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
+import { declareActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { EventSchedule } from '@/types/schedule'
 
@@ -23,7 +25,10 @@ import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle
  *   (Atlas re-verified on every save): stage → `verified`, fresh `nextCheckAt`,
  *   `activityLog` reset with a `re-save` first entry. `_status` is left to
  *   the manager's save choice (publish vs draft); the explicit verify endpoints
- *   are what re-publish an unpublished event.
+ *   are what re-publish an unpublished event. **Adoption is the exception** —
+ *   see below.
+ * - **Adoption** is the managed branch reached from a pre-adoption stage, and
+ *   it publishes as well as verifies (#1120 decision 4).
  *
  * A save that clears `deletedAt` crosses both branches: the event keeps the
  * stage and the elapsed watermark it was trashed on, so it is re-armed from the
@@ -77,6 +82,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   // deadline would trash a live listing.
   if (!managerId) {
     if (originalDoc?.verificationStage !== 'finished' && !restored) return data
+    declareActor(req, EVENT_MACHINE, 'hook:save')
     return {
       ...data,
       verificationStage: 'unverified',
@@ -88,6 +94,16 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
     .findByID({ collection: 'managers', id: managerId, depth: 0, overrideAccess: true, req })
     .catch(() => null)
 
+  // Adoption: a manager has just taken on a listing the community had either
+  // not vouched for or voted down. It lands published as well as verified
+  // (#1120 decision 4) — a manager vouching for a class is what puts it back on
+  // the map, and leaving it hidden made the adoption invisible to everyone but
+  // its new manager. A draft too incomplete to publish refuses the save with
+  // its own validation errors, which is the same answer `applyVerification`
+  // gives.
+  const adopted = isPreAdoptionStage(originalDoc?.verificationStage)
+  declareActor(req, EVENT_MACHINE, adopted ? 'adoption' : 'hook:save')
+
   return {
     ...data,
     ...computeVerifyFields({
@@ -96,8 +112,12 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
       frequency: managerCadence(manager),
       schedule,
       inactive,
+      // Adoption publishes; otherwise the manager's own save choice decides,
+      // and a draft opens no reminder cycle (#1120 decision 3).
+      status: adopted ? 'published' : ((data._status ?? originalDoc?._status) as string | null),
       now: new Date(),
     }),
+    ...(adopted ? { _status: 'published' } : {}),
   }
 }
 

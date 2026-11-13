@@ -8,8 +8,21 @@
  */
 
 import { ATLAS_DEFAULT_COLORS, isBrandColor, type BrandColorColumn } from '@/lib/clients/appearance'
+import { originOf } from '@/lib/utilities/url'
 
 export const PALETTE_REPORT_MESSAGE = 'sahaj-atlas:palette-report'
+
+/**
+ * Whether a message came from the atlas in the preview frame: its window, on its
+ * current origin. A frame that has navigated elsewhere is not the atlas.
+ */
+export const isFromPreviewFrame = (
+  event: MessageEvent,
+  frame: HTMLIFrameElement | null | undefined,
+) =>
+  !!frame?.contentWindow &&
+  event.source === frame.contentWindow &&
+  event.origin === originOf(frame.src)
 
 /**
  * The checks that move the colour a visitor sees, and why, in a few words.

@@ -222,6 +222,9 @@ describe('client Origin/Referer enforcement', () => {
           type: 'registration',
           event: eventId,
           senderEmail: email,
+          // Required of every client-sent registration, and not what this
+          // suite is about.
+          startingAt: new Date(Date.now() + 86_400_000).toISOString(),
         }),
         req,
       })

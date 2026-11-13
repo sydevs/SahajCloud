@@ -6,9 +6,13 @@ import { Banner, Button, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 import { BRAND_COLOR_LABELS, type BrandColorColumn } from '@/lib/clients/appearance'
-import { originOf } from '@/lib/utilities/url'
 
-import { PALETTE_REPORT_MESSAGE, readSwatch, type Swatch } from './paletteReport'
+import {
+  isFromPreviewFrame,
+  PALETTE_REPORT_MESSAGE,
+  readSwatch,
+  type Swatch,
+} from './paletteReport'
 
 import './AtlasPreview.scss'
 
@@ -101,10 +105,7 @@ function useLatestPaletteReport(): unknown {
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      const frame = iframeRef?.current
-
-      if (!frame?.contentWindow || event.source !== frame.contentWindow) return
-      if (event.origin !== originOf(frame.src)) return
+      if (!isFromPreviewFrame(event, iframeRef?.current)) return
       if ((event.data as { type?: unknown } | null)?.type !== PALETTE_REPORT_MESSAGE) return
 
       setReport(event.data)

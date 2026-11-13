@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, TaskConfig, Where } from 'payload'
+import type { Payload, PayloadRequest, RequestContext, TaskConfig, Where } from 'payload'
 
 import { revalidateAtlasSidebar } from '@/lib/atlasSidebar/cache'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
@@ -8,9 +8,10 @@ import {
   buildReminderEntry,
   hasReminderForStage,
 } from '@/lib/eventVerification/log'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { addDays } from '@/lib/eventVerification/periods'
 import { stageAction, transitionUnpublishes, unpublishDate } from '@/lib/eventVerification/stages'
-import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
+import { remindersSilenced, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import {
   buildEventEmailDetails,
   buildEventListingProgress,
@@ -22,6 +23,8 @@ import {
   type ReminderPayload,
 } from '@/lib/notifications'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { TransitionWrite } from '@/lib/stateMachine/transition'
+import { transition } from '@/lib/stateMachine/transition'
 import type { Event } from '@/payload-types'
 import { capture } from '@/plugins/sentry/capture'
 
@@ -33,17 +36,37 @@ import { reminderButtonUrl } from './verifyUrl'
  * a derived-bookkeeping write must not re-validate stored data — and the
  * hazards it carries live on `updateEventBookkeeping` (#842).
  */
+/**
+ * This job's own allowance, narrower than the shared helper's ceiling. The type
+ * is what keeps a fourth field out of a write that skips validation, so it
+ * stays here rather than widening to every bookkeeping writer's fields.
+ */
+type BookkeepingData = Partial<Pick<Event, '_status' | 'nextCheckAt' | 'verificationStage'>>
+
 async function updateBookkeeping(args: {
   payload: Payload
   req: PayloadRequest
   id: number
-  // This job's own allowance, narrower than the shared helper's ceiling. The
-  // type is what keeps a fourth field out of a write that skips validation, so
-  // it stays here rather than widening to every bookkeeping writer's fields.
-  data: Partial<Pick<Event, 'verificationStage' | 'nextCheckAt' | '_status'>>
+  data: BookkeepingData
   expect?: Where
+  context?: RequestContext
 }): Promise<boolean> {
   return updateEventBookkeeping(args)
+}
+
+/**
+ * How a stage move lands here: as derived bookkeeping, not as a document save.
+ *
+ * A stage write must not re-validate the stored event, or a manager's
+ * unrelated data problem would pin a listing on its stage forever (#842) —
+ * which is why `transition` takes the write rather than making it.
+ */
+function bookkeepingWrite(payload: Payload, req: PayloadRequest, id: number): TransitionWrite {
+  return ({ data, expect, context }) =>
+    // The cast is where `transition`'s open patch meets this job's own narrow
+    // allowance, which is what keeps a fourth field out of a write that skips
+    // validation.
+    updateBookkeeping({ payload, req, id, data: data as BookkeepingData, expect, context })
 }
 
 interface ExpireResult {
@@ -76,18 +99,22 @@ interface ExpireResult {
  * retention window elapses (see the `finished` entry in `STAGES`).
  */
 async function finishEvent(payload: Payload, req: PayloadRequest, event: Event): Promise<void> {
-  await updateBookkeeping({
+  await transition({
     payload,
-    req,
+    machine: EVENT_MACHINE,
+    collection: 'events',
     id: event.id,
+    from: event.verificationStage,
+    to: 'finished',
+    by: 'job:expireEvents',
     data: {
-      verificationStage: 'finished',
       nextCheckAt: resolveNextCheckAt({
         stage: 'finished',
         schedule: event.schedule,
         inactive: event.inactive,
       }),
     },
+    write: bookkeepingWrite(payload, req, event.id),
   })
 }
 
@@ -144,6 +171,30 @@ async function processEvent(args: {
   }
 
   const action = stageAction(stage)
+
+  // A class its manager has hidden is nobody's to chase (#1120 decision 3). The
+  // watermark rule already leaves such a row out of the due query from its next
+  // save on; this answers the rows written before that rule existed, by writing
+  // the watermark the rule now gives them.
+  //
+  // shortcut: a backfill in the run rather than a migration, because the rows
+  // clear themselves one run each; delete it once no row predates #1121.
+  if (remindersSilenced({ stage, status: event._status })) {
+    await updateBookkeeping({
+      payload,
+      req,
+      id: event.id,
+      data: {
+        nextCheckAt: resolveNextCheckAt({
+          stage,
+          schedule: event.schedule,
+          inactive: event.inactive,
+          status: event._status,
+        }),
+      },
+    })
+    return
+  }
 
   // Terminal: the expired grace period elapsed, or a finished event outlived
   // its retention window. No email either way. The doc is then excluded from
@@ -213,6 +264,7 @@ async function processEvent(args: {
     stageDeadline: addDays(now, action.offsetDays),
     schedule: event.schedule,
     inactive: event.inactive,
+    status: unpublishes ? 'draft' : event._status,
   })
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())
   const verifiedAt = known.find((entry) => entry.kind === 'verification')?.at
@@ -293,19 +345,20 @@ async function processEvent(args: {
   // their own, and writing this stage over that reverts the verification — on
   // the `urgent` step, by unpublishing a listing somebody has just vouched for.
   if (allDelivered) {
-    const advanced = await updateBookkeeping({
+    const advanced = await transition({
       payload,
-      req,
+      machine: EVENT_MACHINE,
+      collection: 'events',
       id: event.id,
+      from: stage,
+      to: action.nextStage,
+      by: 'job:expireEvents',
       data: {
-        verificationStage: action.nextStage,
         nextCheckAt: nextCheckAtIso,
         ...(unpublishes ? { _status: 'draft' } : {}),
       },
-      expect: {
-        verificationStage: { equals: stage },
-        nextCheckAt: { equals: event.nextCheckAt },
-      },
+      expect: { nextCheckAt: { equals: event.nextCheckAt } },
+      write: bookkeepingWrite(payload, req, event.id),
     })
     if (advanced) result.advanced++
   }

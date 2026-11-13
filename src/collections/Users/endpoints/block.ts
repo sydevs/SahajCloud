@@ -3,9 +3,10 @@ import type { Endpoint, PayloadRequest } from 'payload'
 import { commitTransaction, createLocalReq, initTransaction, killTransaction } from 'payload'
 import { z } from 'zod'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
-import type { UserSubmission } from '@/payload-types'
+import { transition } from '@/lib/stateMachine/transition'
 
 const bodySchema = z.object({
   blocked: z.boolean(),
@@ -41,12 +42,11 @@ const BLOCKED_NOTE =
  * next block writes its own, and no refused row comes back — a proposal is
  * reopened by its own Reopen button.
  *
- * ⚠ **The writes run on a request with no user.** `reviewMove` refuses any
- * status move a manager makes on a non-proposal row — a manager has no business
- * marking a contact message spam through the form — and it reads `req.user` to
- * decide. This endpoint is the decision, already gated; a system request is how
- * every other machine writer (screening, delivery) reaches `spam`, and sharing
- * one transaction keeps the block and its refusals together.
+ * ⚠ **The writes run on a request with no user, and name `block`.** The
+ * status machine refuses a manager marking a contact message spam through the
+ * form; this endpoint is the decision, already gated, so it writes as the
+ * system writer it is — the way screening and delivery reach `spam` — and
+ * sharing one transaction keeps the block and its refusals together.
  */
 export const blockUser: Endpoint = {
   path: '/:id/block',
@@ -147,17 +147,21 @@ async function refuseOpenSubmissions(args: {
   })
 
   for (const row of docs) {
-    await req.payload.update({
+    await transition({
+      payload: req.payload,
+      machine: SUBMISSION_MACHINE,
       collection: 'user-submissions',
       id: row.id,
+      from: 'pending',
+      to: 'spam',
+      by: 'block',
       data: {
-        status: 'spam',
         screeningResult: {
           verdict: 'blocked_sender',
           notes: [BLOCKED_NOTE],
           screenedAt: now,
         },
-      } satisfies Partial<UserSubmission>,
+      },
       depth: 0,
       overrideAccess: true,
       context: { skipWriteGuard: true },

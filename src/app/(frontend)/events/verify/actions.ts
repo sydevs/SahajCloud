@@ -3,7 +3,7 @@
 import type { PageAction } from '../../_components/PublicPage'
 import type { VerifyOutcome } from '../../_components/VerificationCard'
 
-import { getPayload } from 'payload'
+import { APIError, getPayload } from 'payload'
 
 import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -87,6 +87,21 @@ export async function verifyEventAction(
           'This event cannot be verified until its details are complete:',
           ...describeValidationErrors(fieldErrors),
         ].join('\n'),
+        actions: [
+          { label: 'Edit this event', href: redeemUrl(link), variant: 'primary', method: 'post' },
+          ...backSecondary,
+        ],
+      }
+    }
+    // A refusal the manager can act on, rather than an incident: a finished
+    // class is re-listed by extending its schedule, which the edit button
+    // reaches. `isPublic` is Payload's own answer to whether a message may be
+    // shown, so nothing else is echoed.
+    if (error instanceof APIError && error.isPublic) {
+      return {
+        tone: 'warning',
+        title: 'Nothing to verify',
+        message: error.message,
         actions: [
           { label: 'Edit this event', href: redeemUrl(link), variant: 'primary', method: 'post' },
           ...backSecondary,
