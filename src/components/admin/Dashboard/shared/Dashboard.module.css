@@ -61,9 +61,6 @@
 a.tileLink:hover {
   background: var(--theme-elevation-100);
 }
-.tileLabel {
-  color: var(--theme-elevation-650);
-}
 .tileValue {
   font-size: 1.5rem;
   font-weight: 600;
@@ -77,12 +74,16 @@ a.tileLink:hover {
   min-height: 1lh;
   color: var(--theme-elevation-650);
 }
-.better {
+/* A figure that reads as news. The weight alone is neither good nor bad. */
+.figure,
+.better,
+.worse {
   font-weight: 600;
+}
+.better {
   color: var(--theme-success-750);
 }
 .worse {
-  font-weight: 600;
   color: var(--theme-error-650);
 }
 
@@ -194,15 +195,6 @@ a.tileLink:hover {
 .warningPill:global(.error-pill) {
   background: var(--theme-warning-150);
   color: var(--theme-warning-800);
-}
-.healthy {
-  font-weight: 600;
-}
-.healthyGood {
-  color: var(--theme-success-750);
-}
-.healthyPoor {
-  color: var(--theme-error-650);
 }
 .overview :global(td:not(.cell-name)),
 .overview :global(th:not(#heading-name)) {

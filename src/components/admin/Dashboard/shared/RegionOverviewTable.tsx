@@ -30,8 +30,8 @@ function registrationsLabel({ change, last30 }: RegionOverviewRow['signups']): R
 /** Bold, and green from 80% or red under 50%, as the design marks them. */
 function healthyLabel(healthy: RegionOverviewRow['healthy']): ReactNode {
   if (healthy === null) return '—'
-  const tone = healthy >= 80 ? styles.healthyGood : healthy < 50 ? styles.healthyPoor : ''
-  return <span className={`${styles.healthy} ${tone}`}>{healthy}%</span>
+  const tone = healthy >= 80 ? styles.better : healthy < 50 ? styles.worse : styles.figure
+  return <span className={tone}>{healthy}%</span>
 }
 
 const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
