@@ -78,12 +78,15 @@ export const AdjustedColors: UIFieldClientComponent = () => {
           <div className="atlas-preview__banner-actions">
             <Button
               buttonStyle="secondary"
-              // A kept answer describes colours the fields no longer hold.
-              disabled={!current}
               margin={false}
-              onClick={() =>
-                suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
-              }
+              // ⚠ Never disabled while a report is pending: toggling it flickered on every
+              // pick. A kept answer describes colours the fields no longer hold, so a press
+              // in that window applies nothing rather than a stale suggestion.
+              onClick={() => {
+                if (current) {
+                  suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
+                }
+              }}
               size="small"
             >
               Use adjusted colors

@@ -211,7 +211,10 @@ describe('AdjustedColors', () => {
     await mount(AdjustedColors)
 
     expect(banner()).not.toBeNull()
-    expect(button('Use adjusted colors')?.disabled).toBe(true)
+    // Never disabled, which flickered; a press in that window applies nothing.
+    expect(button('Use adjusted colors')?.disabled).toBe(false)
+    act(() => button('Use adjusted colors')!.click())
+    expect(stub.fields.color1.setValue).not.toHaveBeenCalled()
   })
 
   it('shows nothing while nothing is adjusted', async () => {

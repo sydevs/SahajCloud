@@ -19,6 +19,8 @@ export const PALETTE_REPORT_MESSAGE = 'sahaj-atlas:palette-report'
  */
 const SWATCH_REASONS: Record<string, string> = {
   saturation: 'made more colourful',
+  'near-black': 'moved away from near-black',
+  'near-white': 'moved away from near-white',
   'selected-distinct': 'shifted to stand out from Primary',
   surface: 'adjusted for contrast with the background',
 }

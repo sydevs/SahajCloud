@@ -33,7 +33,7 @@ other field.
   marked moved or safe, why, and one **Use adjusted colors** button for each colour the widget
   offers a seed for (`AtlasPreview/paletteReport.ts`). Each swatch is marked by its own mode
   (`lightAdjustedBy` / `darkAdjustedBy`). Between a colour change and the report on it, the
-  last answer stays up with its button disabled, so the banner does not flicker. The **Map Preview** toggle and the registration email
+  last answer stays up, its button still enabled but inert, so nothing flickers. The **Map Preview** toggle and the registration email
   sample sit in the same group. A `panel-text` correction
   moves the text step, not the swatch, so it is not shown. ⚠ A message is accepted only from
   the preview iframe's window and origin, checked as it arrives, and a report counts only while
