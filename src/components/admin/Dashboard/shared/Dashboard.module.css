@@ -7,7 +7,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--base);
+  /* Across only: stacked, the subtitle's own margin is this gap. */
+  column-gap: var(--base);
 }
 .header h1 {
   margin: 0 0 calc(var(--base) / 3);
@@ -229,10 +230,9 @@ a.tileLink:hover {
   .header {
     align-items: flex-start;
     flex-direction: column;
-    /* The subtitle's own margin spaces this direction; the actions owe the
-       gap under them, or "Public Map" sits on the Statistics heading. */
-    gap: 0;
   }
+  /* Stacked, nothing is beside the actions to space the heading below them,
+     so "Public Map" sat on the Statistics heading. */
   .actions {
     margin-bottom: var(--base);
   }
@@ -285,16 +285,14 @@ a.tileLink:hover {
   .list :global(tr) {
     padding: calc(var(--base) * 0.4) 0;
   }
-  .list :global(td) {
+  .list :global(td),
+  .list :global(.cell-item) {
     min-width: 0;
     max-width: none;
     padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
   }
   .list :global(td:empty) {
     display: none;
-  }
-  .list :global(.cell-item) {
-    min-width: 0;
   }
   .list :global(.cell-status) {
     white-space: normal;
@@ -309,11 +307,10 @@ a.tileLink:hover {
   .list :global(.cell-action .btn) {
     width: 100%;
   }
-  /* Stacked, the frame's row rule draws between every cell instead. */
-  .list :global(.table:not(.table--appearance-condensed) tbody tr + tr td) {
+  /* Stacked, the frame's row rule would draw between every cell. Exempting
+     all but the first leaves it drawing the separator it was written for —
+     `border-collapse: separate` here, so the border cannot move to the row. */
+  .list :global(.table:not(.table--appearance-condensed) tbody tr + tr td:not(:first-child)) {
     border-top: 0;
-  }
-  .list :global(tbody tr + tr) {
-    border-top: 1px solid var(--theme-elevation-100);
   }
 }

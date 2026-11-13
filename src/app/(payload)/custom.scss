@@ -116,20 +116,20 @@ label.field-label {
    so it covered it. Park it on its own hidden spacer, one gap further in. */
 @media (max-width: 768px) {
   .app-header__localizer.localizer {
-    right: calc(var(--gutter-h) + 25px + var(--base) / 2);
-  }
-
-  [dir='rtl'] .app-header__localizer.localizer {
+    /* Payload sets the physical side in both directions, so unset it and let
+       one logical offset answer for both. */
     right: unset;
-    left: calc(var(--gutter-h) + 25px + var(--base) / 2);
+    inset-inline-end: calc(var(--gutter-h) + 25px + var(--base) / 2);
   }
 
   /* A breadcrumb trail truncates each crumb but never the row, and nothing
      above it clips, so a deep trail pushed the account picture off the screen
-     and took the whole page sideways with it. */
+     and took the whole page sideways with it. Scrolling, not hiding: Payload
+     styles this wrapper for a scrollable trail — a hidden scrollbar, and a
+     fade gradient on `.step-nav` that only means anything over one. */
   .app-header__step-nav-wrapper {
     min-width: 0;
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 }
 

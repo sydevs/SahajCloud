@@ -42,6 +42,7 @@ describe('Manager contacts (#908)', () => {
   let eventManager: AuthManager
   let outsider: AuthManager
   let regionId: number
+  let cityId: number
   let event: Event
 
   const request = (user: AuthManager): Promise<PayloadRequest> =>
@@ -104,6 +105,7 @@ describe('Manager contacts (#908)', () => {
         managers: [city.id],
       }),
     })
+    cityId = cityRow.id
     await payload.create({
       collection: 'regions',
       data: createData<'regions'>({
@@ -290,6 +292,22 @@ describe('Manager contacts (#908)', () => {
 
     it('names nobody to a manager who runs no event', async () => {
       expect(await contactsFor(outsider)).toEqual([])
+    })
+
+    it('never asks a manager to email themselves', async () => {
+      // The city's own manager, running a class in it: everyone above them is
+      // someone to ask, and they are not.
+      await testData.createEvent(payload, {
+        title: 'City Manager’s own class',
+        region: cityId,
+        manager: cityManager.id,
+      })
+      const contacts = await contactsFor(cityManager)
+      expect(contacts.map((contact) => contact.name)).toEqual([
+        'Region Manager',
+        'Co Manager',
+        'Country Manager',
+      ])
     })
 
     it('reaches past the gate that governs the contacts table', async () => {

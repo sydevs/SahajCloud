@@ -85,11 +85,14 @@ export function OpenItemsList({
 
   return (
     <div className={styles.list}>
-      {/* All clear is about the counted rows: up-to-date events still list
-          under it, so the banner says so rather than contradicting them. */}
+      {/* All clear is about the counted rows, and a recommendation counts
+          against nothing — so one listed under the banner needs saying, or the
+          two read as contradicting each other. */}
       {open === 0 && (
         <Banner type="success">
-          {counts.all > 0 ? `${emptyBanner} The suggestions below are optional.` : emptyBanner}
+          {counts.recommendations > 0
+            ? `${emptyBanner} The suggestions below are optional.`
+            : emptyBanner}
         </Banner>
       )}
       {counts.all > 0 && (

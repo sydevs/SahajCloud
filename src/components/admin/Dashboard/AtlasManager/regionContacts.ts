@@ -1,41 +1,15 @@
 import type { PayloadRequest } from 'payload'
 
+import { getRegionTree } from '@/lib/atlas/regionTree'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import { breadcrumbAncestorIds, relationId } from '@/plugins/access/documentManagers'
+import { relationId } from '@/lib/utilities/relationId'
 
-/** A `type`, not an `interface`: Payload's `Table` takes `Record<string, unknown>` rows. */
-export type RegionContact = {
+export interface RegionContact {
   id: number
   name: string
   email: string
   /** The region they look after — the nearest one above the caller's events. */
   region: string
-}
-
-/**
- * The region ids above `regionIds`, nearest first: each region, then its
- * breadcrumb trail reversed, merged on the shortest distance any event gives.
- */
-async function regionsAbove(req: PayloadRequest, regionIds: number[]): Promise<number[]> {
-  const { docs } = await req.payload.find({
-    collection: 'regions',
-    where: { id: { in: regionIds } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { breadcrumbs: true },
-    req: localeIsolatedReq(req),
-  })
-
-  const distance = new Map<number, number>()
-  for (const doc of docs) {
-    const chain = [doc.id, ...breadcrumbAncestorIds(doc, doc.id).reverse()]
-    chain.forEach((id, step) => {
-      const nearest = distance.get(id)
-      if (nearest === undefined || step < nearest) distance.set(id, step)
-    })
-  }
-  return [...distance].sort(([, a], [, b]) => a - b).map(([id]) => id)
 }
 
 /**
@@ -63,32 +37,45 @@ export async function loadRegionContacts(
     select: { region: true },
     req: localeIsolatedReq(req),
   })
-  const regionIds = [
-    ...new Set(events.docs.map((event) => relationId(event.region)).filter((id) => id !== null)),
-  ]
-  if (!regionIds.length) return []
+  const regionIds = new Set(
+    events.docs.map((event) => relationId(event.region)).filter((id) => id !== null),
+  )
+  if (!regionIds.size) return []
 
-  const chain = await regionsAbove(req, regionIds)
+  // `chainById` runs root → self, so reversed it is a region and then every
+  // region above it. The tree is this app's one derivation of that hierarchy,
+  // and the page has already paid for it (`loadOpenItems`).
+  const tree = await getRegionTree(req)
+  const distance = new Map<number, number>()
+  for (const id of regionIds) {
+    const above = [...(tree.chainById.get(id) ?? [id])].reverse()
+    above.forEach((link, step) => distance.set(link, Math.min(step, distance.get(link) ?? step)))
+  }
+  const chain = [...distance].sort(([, a], [, b]) => a - b).map(([id]) => id)
+
+  // ⚠ Not `getRegionManagers`, which reads every region in the atlas. This
+  // wants the handful standing above one manager's own events.
   const { docs: regions } = await req.payload.find({
     collection: 'regions',
     where: { id: { in: chain } },
     depth: 0,
     pagination: false,
     overrideAccess: true,
-    select: { name: true, managers: true },
+    select: { managers: true },
     req: localeIsolatedReq(req),
   })
-  const byId = new Map(regions.map((region) => [region.id, region]))
+  const listedOn = new Map(regions.map((region) => [region.id, region.managers]))
 
   // A manager listed on several of these regions is reached about the nearest.
   const nearestRegion = new Map<number, string>()
   for (const id of chain) {
-    const region = byId.get(id)
-    if (!region?.name) continue
-    for (const listed of region.managers ?? []) {
+    const region = tree.nameById.get(id)
+    if (!region) continue
+    for (const listed of listedOn.get(id) ?? []) {
       const contactId = relationId(listed)
-      if (contactId !== null && !nearestRegion.has(contactId)) {
-        nearestRegion.set(contactId, region.name)
+      // Nobody is asked to email themselves, as `findManagerForRegion` has it.
+      if (contactId !== null && contactId !== managerId && !nearestRegion.has(contactId)) {
+        nearestRegion.set(contactId, region)
       }
     }
   }

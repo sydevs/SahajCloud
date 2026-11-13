@@ -2,6 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { CalendarIcon } from '@payloadcms/ui'
 
+import { AskToAddButton } from './AskToAddButton'
 import { getAtlasManagerData } from './data'
 import { CenteredNotice } from '../../CenteredNotice'
 import styles from '../shared/Dashboard.module.css'
@@ -49,8 +50,13 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
   return (
     <section aria-label="Your events" className={styles.home}>
       <HomeHeader
-        canCreate={canCreate}
-        contacts={regionContacts}
+        action={
+          canCreate ? (
+            <AddProgramButton>Add new event</AddProgramButton>
+          ) : regionContacts.length > 0 ? (
+            <AskToAddButton contacts={regionContacts} />
+          ) : null
+        }
         subtitle="Manage your events and keep their public details up to date."
         title="Your events"
       />

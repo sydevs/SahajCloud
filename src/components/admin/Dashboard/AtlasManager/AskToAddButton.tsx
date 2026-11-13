@@ -1,11 +1,11 @@
 'use client'
 
-import type { RegionContact } from '../AtlasManager/regionContacts'
+import type { RegionContact } from './regionContacts'
 
 import { Button, Drawer, Table, useDrawerSlug, useModal } from '@payloadcms/ui'
 
-import styles from './Dashboard.module.css'
 import { tableColumn } from '../../helpers/tableColumn'
+import styles from '../shared/Dashboard.module.css'
 
 /**
  * "Add new event" for a manager who may not create one. It opens the people to
@@ -32,7 +32,7 @@ export function AskToAddButton({ contacts }: { contacts: RegionContact[] }) {
         </p>
         <Table
           appearance="condensed"
-          data={contacts}
+          data={contacts.map(({ id }) => ({ id }))}
           columns={[
             // The region sits under the name rather than in a column of its
             // own: a third column puts the email off a phone's screen.
