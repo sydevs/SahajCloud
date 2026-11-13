@@ -61,11 +61,6 @@ imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
 `jobs.tasks`.
 
-**A flag-gated job gets its own one-line `featureFlag.ts`** (`ExpireEvents/`), never one shared module: `vi.mock` is keyed by path and
-`index.ts` loads every job, so one shared module would make each job's int spec
-restate every other job's flag. Reading `serverEnv` in the task body leaves no
-seam at all — mocking `@/lib/env` breaks the bootstrapped instance.
-
 **A task's failure reaches Sentry once, on its final attempt**
 (`src/plugins/sentry/jobCapture.ts`), at `error`. When the task cannot do its
 work for a reason that is an answer rather than an incident — already shown to
