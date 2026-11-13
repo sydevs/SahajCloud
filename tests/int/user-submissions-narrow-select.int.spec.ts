@@ -72,6 +72,9 @@ describe('a client create whose `select` hides the fields a hook keys on', () =>
         type: 'registration',
         event: args.event,
         senderEmail: args.email,
+        // Required of every client-sent registration, and not what this suite
+        // is about — the `select` below is.
+        startingAt: new Date(Date.now() + 86_400_000).toISOString(),
         submissionData: [
           { field: 'name', value: 'Ann' },
           ...(args.subscribe ? [{ field: 'subscribe', value: 'yes' }] : []),

@@ -19,6 +19,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { Client, Event, Manager, UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -63,6 +64,9 @@ describe('registration gate on the unified create (#797)', () => {
       data: {
         type: 'registration',
         senderEmail: `registrant-${randomUUID().slice(0, 8)}@example.com`,
+        // The session the visitor picked, which the widget always sends and the
+        // gate now requires — a case about its absence passes `null`.
+        startingAt: FUTURE_ONE_OFF.firstDate,
         ...data,
       } as never,
       overrideAccess: false,
@@ -179,6 +183,19 @@ describe('registration gate on the unified create (#797)', () => {
     await expect(register({ event: draft.id })).rejects.toMatchObject({ status: 404 })
   })
 
+  it('refuses a registration that names no session', async () => {
+    const event = await createEvent()
+
+    // Without it the row never matches `SendPostEventFollowUps`'s own query, so
+    // the registrant attends and is never asked how it went (#1120 decision 5).
+    await expect(register({ event: event.id, startingAt: null })).rejects.toMatchObject({
+      status: 400,
+    })
+    await expect(
+      register({ event: event.id, startingAt: FUTURE_ONE_OFF.firstDate }),
+    ).resolves.toMatchObject({ type: 'registration' })
+  })
+
   it('accepts a registration carrying no event', async () => {
     // `event` is deliberately not required on a registration row — one may be
     // recorded before its occurrence is resolved. Nothing to gate.
@@ -201,11 +218,13 @@ describe('registration gate on the unified create (#797)', () => {
       data: { code: 'event_full' },
     })
 
-    await payload.update({
+    // The state the case starts from, not the move under test — screening's own
+    // refusal is `screen-submissions.int.spec.ts`'s subject.
+    await setLifecycleState({
+      payload,
       collection: 'user-submissions',
       id: seat.id,
       data: { status: 'spam' },
-      overrideAccess: true,
     })
 
     await expect(register({ event: event.id })).resolves.toMatchObject({ type: 'registration' })

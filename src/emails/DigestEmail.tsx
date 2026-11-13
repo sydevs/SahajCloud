@@ -72,8 +72,8 @@ export interface DigestEmailProps {
   statistics?: DigestTileBlock[]
   /** Open items, when any are due. */
   openItems?: { rows: ItemTableRow[] }
-  /** An admin's closing line: sign-ups filed as spam. */
-  closingNote?: null | { href: string; text: string }
+  /** An admin's closing lines: sign-ups filed as spam, deliveries that failed. */
+  closingNotes?: null | { href: string; text: string }[]
   /** New registrations, grouped by event (the program role only). */
   registrations?: DigestRegistrationGroup[]
   recipientName?: null | string
@@ -250,7 +250,7 @@ function RegistrationTable({
  * email.
  */
 export function DigestEmail({
-  closingNote,
+  closingNotes,
   dashboardUrl,
   date,
   heading,
@@ -297,14 +297,14 @@ export function DigestEmail({
         <>
           <SectionHeading>Need your attention</SectionHeading>
           <ItemTable accent={accent} rows={openItems.rows} />
-          {closingNote ? (
-            <Text style={styles.hint}>
-              {closingNote.text}{' '}
-              <Link href={closingNote.href} style={{ color: accent }}>
+          {(closingNotes ?? []).map((note) => (
+            <Text key={note.href} style={styles.hint}>
+              {note.text}{' '}
+              <Link href={note.href} style={{ color: accent }}>
                 View
               </Link>
             </Text>
-          ) : null}
+          ))}
         </>
       ) : null}
 

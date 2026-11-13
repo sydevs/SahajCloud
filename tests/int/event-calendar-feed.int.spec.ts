@@ -14,7 +14,9 @@ import { sql } from '@payloadcms/db-postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { signEventCalendarToken } from '@/collections/Events/calendarToken'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
+import { withActor } from '@/lib/stateMachine/actor'
 
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
@@ -490,6 +492,8 @@ describe('event calendar feed', () => {
           submissionData: [{ field: 'name', value: 'Feed Reader' }],
         } as never,
         overrideAccess: true,
+        // Authored delivered, which only a file's own writer may do (#1121).
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
 
       const hydrated = await payload.findByID({

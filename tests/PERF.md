@@ -134,6 +134,10 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | sixty-sixth, #1127 resolving a fourth `main` conflict (2026-11-12)        | 269 / 3594    | 57.12 s (inside the gate)                    | 57.1 s     |
 | sixty-seventh, #1127 resolving a fifth `main` conflict (2026-11-12)       | 270 / 3641    | 55.67 s (inside the gate)                    | 55.7 s     |
 | sixty-eighth, #1129 resolving a fourth `main` conflict (2026-11-12)       | 273 / 3662    | 60.27 s (inside the gate)                    | 60.3 s     |
+| sixty-ninth, #1121 adding the lifecycle table's spec (2026-11-12)         | 267 / 3592    | 54.43 s                                      | 54.4 s     |
+| seventieth, #1121 resolving a `main` conflict (2026-11-12)                | 269 / 3608    | 60.47 s (inside the gate)                    | 60.5 s     |
+| seventy-first, #1121 addressing the critic's review (2026-11-12)          | 269 / 3610    | 54.36 s (inside the gate)                    | 54.4 s     |
+| seventy-second, #1121 resolving a second `main` conflict (2026-11-13)     | 271 / 3685    | 54.86 s (inside the gate)                    | 54.9 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files

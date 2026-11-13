@@ -36,8 +36,24 @@ process.env.SAHAJCLOUD_URL ||= 'https://cloud.sydevelopers.com'
 const SECRET = 'preview-only-secret'
 const ATLAS = 'https://sahajatlas.com'
 
-/** A managed document as the stub returns it: a title, and its public page if it has one. */
-type Doc = { title: string; url?: string }
+/**
+ * A managed document as the stub returns it: a title, its public page if it has
+ * one, and — for a class — the stored fields the invitation's own brief reads.
+ */
+type Doc = {
+  title: string
+  url?: string
+  /** What `describeEvent` composes its three lines from. */
+  listing?: {
+    eventType?: 'offline' | 'online'
+    address?: { city?: string; country?: string; street?: string }
+    contactName?: string
+    contactPhone?: string
+    schedule?: Record<string, unknown>
+    /** Attendee denials, which is what marks a class adopted after a flag. */
+    denials?: number
+  }
+}
 
 type Managed = Partial<Record<'events' | 'pages' | 'regions', Doc[]>>
 
@@ -68,6 +84,25 @@ const event = (title: string, published = true): Doc => ({
   ...(published && { url: `${ATLAS}/berlin/${title.toLowerCase().replaceAll(' ', '-')}` }),
 })
 
+/** A real-looking class, so a brief has something to say. */
+const listedEvent = (title: string, denials = 0): Doc => ({
+  ...event(title),
+  listing: {
+    eventType: 'offline',
+    address: { street: '14 Kastanienallee', city: 'Berlin', country: 'Germany' },
+    contactName: 'Lena Fischer',
+    contactPhone: '+49 30 1234 5678',
+    schedule: {
+      firstDate: '2027-01-05T18:30:00.000Z',
+      firstDate_tz: 'Europe/Berlin',
+      recurrenceType: 'WEEKLY',
+      interval: 1,
+      weekdays: ['tuesday'],
+    },
+    denials,
+  },
+})
+
 const SCENARIOS: Scenario[] = [
   {
     label: 'atlas · first assignment',
@@ -81,6 +116,18 @@ const SCENARIOS: Scenario[] = [
     managed: {
       regions: [{ title: 'Berlin', url: `${ATLAS}/germany/berlin` }],
       events: [event('Tuesday Evening Meditation'), event('Sunday Morning Introduction', false)],
+    },
+    queued: true,
+  },
+  {
+    label: 'atlas · adoption, a class the community flagged',
+    note: 'the brief under each class: when and where it meets, what the listing still needs, and why it was taken down',
+    name: 'Mira Keller',
+    type: 'manager',
+    assignedBy: 'Anna Schmidt',
+    roles: {},
+    managed: {
+      events: [listedEvent('Thursday Morning Meditation', 4), listedEvent('Saturday Beginners')],
     },
     queued: true,
   },
@@ -184,7 +231,8 @@ const SCENARIOS: Scenario[] = [
 ]
 
 async function main() {
-  const { Events, Managers, Pages, Regions } = await import('@/collections')
+  const { collections, Managers } = await import('@/collections')
+  const { managerJoins } = await import('@/plugins/login/grantSummary')
   const { managersLogin } = await import('@/collections/Managers/login')
   const { generateEmail, generateEmailSubject } = await import('@/plugins/login/mail')
   const { composeInvitations } = await import('@/plugins/login/invite')
@@ -209,41 +257,54 @@ async function main() {
     previews.push({ label: scenario.label, note: scenario.note, url: messageUrl(info) })
   }
 
-  // The four collections the summary reads config from, as Payload sanitizes
-  // them: flattened fields, and labels filled in from the slug.
-  const collections = Object.fromEntries(
-    ([Managers, Regions, Events, Pages] as CollectionConfig[]).map((collection) => {
-      const words = collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1)
-      const { plural, singular } = collection.labels ?? {}
-      return [
-        collection.slug,
-        {
-          config: {
-            ...collection,
-            flattenedFields: flattenAllFields({ fields: collection.fields }),
-            labels: {
-              plural: typeof plural === 'string' ? plural : words,
-              singular: typeof singular === 'string' ? singular : words.replace(/s$/, ''),
+  // ⚠ **Every collection the summary reads config from, derived from the joins
+  // `Managers` declares.** A hand-written list of four was one short the day
+  // `managedClients` was added, and this script threw on every run — which is
+  // invisible until somebody asks it for a preview.
+  const joined = new Set<string>([
+    Managers.slug,
+    ...managerJoins(Managers.fields).map((join) => join.collection as string),
+  ])
+  // As Payload sanitizes them: flattened fields, and labels filled in from the slug.
+  const stubbed = Object.fromEntries(
+    (collections as CollectionConfig[])
+      .filter((collection) => joined.has(collection.slug))
+      .map((collection) => {
+        const words = collection.slug.charAt(0).toUpperCase() + collection.slug.slice(1)
+        const { plural, singular } = collection.labels ?? {}
+        return [
+          collection.slug,
+          {
+            config: {
+              ...collection,
+              flattenedFields: flattenAllFields({ fields: collection.fields }),
+              labels: {
+                plural: typeof plural === 'string' ? plural : words,
+                singular: typeof singular === 'string' ? singular : words.replace(/s$/, ''),
+              },
             },
           },
-        },
-      ]
-    }),
+        ]
+      }),
   )
 
   for (const scenario of SCENARIOS) {
     // The two reads a summary makes: the roles, and a `find` per managed collection.
     const payload = {
       secret: SECRET,
-      collections,
+      collections: stubbed,
       findByID: async () => ({ roles: scenario.roles }),
       find: async ({ collection }: { collection: keyof Managed }) => {
-        const titleField = collections[collection]!.config.admin?.useAsTitle ?? 'id'
+        const titleField = stubbed[collection]!.config.admin?.useAsTitle ?? 'id'
         return {
           docs: (scenario.managed[collection] ?? []).map((doc, index) => ({
             id: index + 1,
             [titleField]: doc.title,
             webUrl: doc.url ?? null,
+            ...doc.listing,
+            ...(doc.listing?.denials
+              ? { systemMeta: { communityFeedback: { denials: doc.listing.denials } } }
+              : {}),
           })),
         }
       },

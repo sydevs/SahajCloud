@@ -39,7 +39,8 @@ export interface WorkflowButton {
  * A button is an offer and the server owes its own guard, so an offer the guard
  * will refuse is the one shape to avoid — a control that can only answer 403
  * (`docs/rules/access.md`). `user-submissions` settles a spam refusal on an
- * admin's authority alone, so its rule says so here as well as in `reviewMove`.
+ * admin's authority alone, so its rule says so here as well as in
+ * `SUBMISSION_MACHINE`.
  *
  * `field`/`equals` match by value (`!==`), so an object or an array would be a
  * test nothing can satisfy.
