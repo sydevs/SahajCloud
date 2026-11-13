@@ -53,7 +53,7 @@ import {
   mapNotificationPreferences,
 } from './helpers/managerMapper'
 import { isUnreachableInactive } from './helpers/reachability'
-import { registrationSubmissionData } from './helpers/registrations'
+import { importedFollowUpSentAt, registrationSubmissionData } from './helpers/registrations'
 import {
   type AtlasSchedule,
   isAtlasOneOff,
@@ -68,7 +68,11 @@ import {
   venueToEventAddress,
 } from './helpers/venueRouter'
 import { buildImportVerification, importDeletedAt } from './helpers/verification'
-import { EXCLUDED_EVENT_LEGACY_IDS, MERGED_EVENT_TARGETS } from './sync/merges'
+import {
+  ADOPTED_CLIENT_LEGACY_IDS,
+  EXCLUDED_EVENT_LEGACY_IDS,
+  MERGED_EVENT_TARGETS,
+} from './sync/merges'
 
 // --- SOURCE DATA TYPES (shape of seeds/atlas/data/*.json) ---
 
@@ -1389,6 +1393,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const total = data.registrations.length
     const offset = this.options.pagination?.offset ?? 0
     const registrants = new Map(data.users.map((user) => [user.legacyId, user]))
+    const now = new Date()
 
     for (let i = 0; i < batch.length; i++) {
       const reg = batch[i]
@@ -1437,6 +1442,7 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
             startingAt_tz: reg.timeZone ? supportedTimezone(reg.timeZone) : undefined,
             submissionData: registrationSubmissionData(reg, registrant),
             uuid: reg.uuid,
+            followUpSentAt: importedFollowUpSentAt(reg.startingAt, now),
             // An historical registration was confirmed when it happened.
             // `accepted` is also what suppresses both queues: screening returns
             // early for a row that is not `pending`, and delivery refuses one.
@@ -1469,6 +1475,30 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < total; i++) {
       const client = data.clients[i]
+      const region = client.location
+        ? this.idMaps.regions.get(geoRefKey(client.location))
+        : undefined
+      // An adopted service keeps everything SahajCloud gave it; only the
+      // region the reset cleared goes back. It is settled ahead of the manager
+      // it reads nothing from, because a manager the prune took would
+      // otherwise skip the row and leave the region null — the one thing this
+      // branch exists to restore.
+      if (
+        ADOPTED_CLIENT_LEGACY_IDS.has(client.legacyId) &&
+        this.hasPreloaded('clients', String(client.legacyId))
+      ) {
+        try {
+          await this.upsert(
+            'clients',
+            { legacyId: { equals: client.legacyId } },
+            { region },
+            { identifier: client.label, current: i + 1, total },
+          )
+        } catch (error) {
+          this.addError(`Client "${client.label}" (#${client.legacyId})`, error as Error)
+        }
+        continue
+      }
       const managerId =
         client.managerId != null ? this.idMaps.managers.get(client.managerId) : undefined
       if (managerId == null) {
@@ -1480,9 +1510,6 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         })
         continue
       }
-      const region = client.location
-        ? this.idMaps.regions.get(geoRefKey(client.location))
-        : undefined
       try {
         await this.upsert(
           'clients',

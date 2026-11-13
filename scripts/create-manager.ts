@@ -19,9 +19,13 @@
  *   pnpm tsx scripts/create-manager.ts <email> [name]
  *
  * Env vars required: DATABASE_URL, PAYLOAD_SECRET (as for any Payload CLI run).
+ *
+ * The boot changes no schema, so run it once the app has booted against the database and built
+ * its tables — on a new environment, after the first deploy.
  */
 import dotenv from 'dotenv'
-import { getPayload } from 'payload'
+
+import { loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 async function main(): Promise<void> {
   const [email, name] = process.argv.slice(2)
@@ -31,8 +35,7 @@ async function main(): Promise<void> {
   }
 
   dotenv.config({ path: ['.env.local', '.env'] })
-  const { default: configPromise } = await import('../src/payload.config')
-  const payload = await getPayload({ config: await configPromise })
+  const payload = await loadPayloadWithoutSchemaChanges()
 
   const existing = await payload.find({
     collection: 'managers',

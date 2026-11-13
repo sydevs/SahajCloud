@@ -88,7 +88,10 @@ export const SendDigests: TaskConfig<'sendDigests'> = {
     { name: 'sectionsFailed', type: 'number', required: true },
     { name: 'failed', type: 'number', required: true },
   ],
-  schedule: [{ cron: '0 7 * * *', queue: 'nightly' }],
+  // shortcut: unscheduled so no imported Atlas manager gets a digest before the
+  // migration email; restore `[{ cron: '0 7 * * *', queue: 'nightly' }]` about a
+  // week after the Atlas cutover.
+  schedule: [],
   handler: async ({ req }) => {
     const payload = req.payload
     const runStart = runClock(req)
