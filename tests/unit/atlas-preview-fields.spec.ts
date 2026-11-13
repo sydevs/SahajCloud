@@ -281,4 +281,17 @@ describe('MapPreviewField', () => {
     expect(sent).toHaveBeenCalledTimes(1)
     expect(sent).toHaveBeenCalledWith({ mode: 'light', type: 'sahaj-atlas:preview-mode' }, ATLAS)
   })
+
+  it('takes no window but the preview frame, on its own origin, as proof it listens', async () => {
+    const frame = openPreview()
+    const sent = vi.spyOn(frame.contentWindow!, 'postMessage')
+
+    await mount(MapPreviewField)
+    sent.mockClear()
+
+    await post(report({}), window)
+    await post(report({}), frame.contentWindow, 'https://elsewhere.example')
+
+    expect(sent).not.toHaveBeenCalled()
+  })
 })
