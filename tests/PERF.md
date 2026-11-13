@@ -138,6 +138,7 @@ maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 | seventieth, #1121 resolving a `main` conflict (2026-11-12)                | 269 / 3608    | 60.47 s (inside the gate)                    | 60.5 s     |
 | seventy-first, #1121 addressing the critic's review (2026-11-12)          | 269 / 3610    | 54.36 s (inside the gate)                    | 54.4 s     |
 | seventy-second, #1121 resolving a second `main` conflict (2026-11-13)     | 271 / 3685    | 54.86 s (inside the gate)                    | 54.9 s     |
+| seventy-third, #1129 addressing the critic's third pass (2026-11-13)      | 274 / 3723    | 51.84 s (inside the gate)                    | 51.8 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
