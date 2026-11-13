@@ -18,7 +18,7 @@ export interface RegionContact {
  *
  * Reading them is one step past `mayReadManagerContacts`, which shows a class
  * manager no region manager's details (#908). Anton priced that on 12 Nov 2026
- * for this drawer alone, so the gate is the caller's own `manager` listings —
+ * for this surface alone, so the gate is the caller's own `manager` listings —
  * nothing here takes a region or a manager from the request.
  *
  * ⚠ The manager rows are read with `overrideAccess` past the field locks, so
@@ -84,7 +84,7 @@ export async function loadRegionContacts(
   const { docs: contacts } = await req.payload.find({
     collection: 'managers',
     // An inactive manager is refused every operation (`bypassPermissions.ts`),
-    // so they cannot add the event this drawer asks for. The `flatMap` below
+    // so they cannot add the event this modal asks for. The `flatMap` below
     // drops whoever the read leaves out.
     where: { id: { in: [...nearestRegion.keys()] }, type: { not_equals: 'inactive' } },
     depth: 0,
