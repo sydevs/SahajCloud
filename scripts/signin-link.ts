@@ -27,9 +27,9 @@
  * host the link addresses.
  */
 import dotenv from 'dotenv'
-import { getPayload } from 'payload'
 
 import { managersLogin } from '../src/collections/Managers/login'
+import { loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 async function main(): Promise<void> {
   const [email] = process.argv.slice(2)
@@ -39,8 +39,9 @@ async function main(): Promise<void> {
   }
 
   dotenv.config({ path: ['.env.local', '.env'] })
-  const { default: configPromise } = await import('../src/payload.config')
-  const payload = await getPayload({ config: await configPromise })
+  // Never a plain `getPayload`: under `NODE_ENV=production` it applies every pending migration,
+  // so break-glass run from a feature branch would migrate production on the way to a link.
+  const payload = await loadPayloadWithoutSchemaChanges()
   // After `dotenv`, like the config: it reaches `serverEnv`, which reads the
   // environment once, on import.
   const { mintSignInLink } = await import('../src/plugins/login/magicLinks')

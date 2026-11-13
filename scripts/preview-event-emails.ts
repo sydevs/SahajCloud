@@ -14,6 +14,9 @@
  * prompt interactively, for example right after a schema change, sync
  * it first: restart the dev server and answer the prompts, or apply
  * the pending migration. Without the flag, no database is touched.
+ *
+ * It boots with a plain `getPayload`, not `lib/payloadBoot.ts`, on purpose: it only ever runs
+ * locally, and the dev schema push is what keeps the local database current.
  */
 
 import type {
