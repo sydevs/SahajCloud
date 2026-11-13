@@ -35,4 +35,13 @@ describe('the Regions Events tab', () => {
   it('hides before the first save, when nothing can point at the node yet', () => {
     expect(condition({ level: 'city' }, {}, {} as never)).toBe(false)
   })
+
+  // The tab's heading carries the "Import classes" link, so above a city that
+  // link is not rendered at all. The edit menu is what a country and a region
+  // keep it by, and `targetRegion` accepts both.
+  it('leaves Import classes in the edit menu, which every level renders', () => {
+    expect(Regions.admin?.components?.edit?.editMenuItems).toContain(
+      '@/components/admin/EventImport/ImportClassesMenuItem',
+    )
+  })
 })

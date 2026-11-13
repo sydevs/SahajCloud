@@ -121,6 +121,12 @@ export const Regions: CollectionConfig = {
     // subqueries and the public-URL virtuals per page. With this on, that
     // batch selects `name` alone.
     enableListViewSelectAPI: true,
+    components: {
+      // The Events tab's heading carries the same link, and that tab is hidden
+      // above a city — so this is the only "Import classes" a country or a
+      // region has, and `targetRegion` accepts both.
+      edit: { editMenuItems: ['@/components/admin/EventImport/ImportClassesMenuItem'] },
+    },
     // Live Preview loads the Atlas widget's /preview route (same contract as
     // Events — see Events.ts for the CORS and draft-unlock notes). Regions
     // have no drafts. The preview shows published data, plus unsaved form
