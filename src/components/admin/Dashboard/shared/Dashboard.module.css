@@ -224,9 +224,96 @@ a.tileLink:hover {
   margin: calc(var(--base) * 0.5) 0 0;
   color: var(--theme-elevation-650);
 }
+/* A phone: one column of blocks, each item's next step on the screen. */
 @media (max-width: 700px) {
   .header {
     align-items: flex-start;
     flex-direction: column;
+    /* The subtitle's own margin spaces this direction; the actions owe the
+       gap under them, or "Public Map" sits on the Statistics heading. */
+    gap: 0;
+  }
+  .actions {
+    margin-bottom: var(--base);
+  }
+
+  /* Two to a row, smaller, so the list starts on the first screen. Moving the
+     tiles below it with `order` would leave them first to the keyboard. */
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tiles li:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+  }
+  .tileLink {
+    padding: calc(var(--base) * 0.5) calc(var(--base) * 0.6);
+  }
+  .tileValue {
+    font-size: 1.25rem;
+  }
+
+  /* The meter cannot wrap, so the row has no width for it: it drops under the
+     tabs, which keep the underline their active marker sits on. */
+  .sections {
+    display: block;
+    border-bottom: 0;
+  }
+  .tabList {
+    border-bottom: 1px solid var(--theme-elevation-100);
+  }
+  .meter {
+    height: auto;
+    margin-inline-start: 0;
+    padding: calc(var(--base) / 2) 0 0;
+  }
+  .meter meter {
+    flex: 1;
+    width: auto;
+  }
+
+  /* Each open item stacks into one block: side by side, the table hid the
+     Next step column in its own sideways scroll. */
+  .list :global(table),
+  .list :global(tbody),
+  .list :global(tr),
+  .list :global(td) {
+    display: block;
+  }
+  .list :global(thead) {
+    display: none;
+  }
+  .list :global(tr) {
+    padding: calc(var(--base) * 0.4) 0;
+  }
+  .list :global(td) {
+    min-width: 0;
+    max-width: none;
+    padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
+  }
+  .list :global(td:empty) {
+    display: none;
+  }
+  .list :global(.cell-item) {
+    min-width: 0;
+  }
+  .list :global(.cell-status) {
+    white-space: normal;
+  }
+  /* The wide rule above compiles to one `:is()` carrying `#heading-action`'s
+     weight, so this repeats its grouping to win by order instead. */
+  .list :global(.cell-action),
+  .list :global(#heading-action) {
+    width: auto;
+    text-align: start;
+  }
+  .list :global(.cell-action .btn) {
+    width: 100%;
+  }
+  /* Stacked, the frame's row rule draws between every cell instead. */
+  .list :global(.table:not(.table--appearance-condensed) tbody tr + tr td) {
+    border-top: 0;
+  }
+  .list :global(tbody tr + tr) {
+    border-top: 1px solid var(--theme-elevation-100);
   }
 }

@@ -85,8 +85,13 @@ export function OpenItemsList({
 
   return (
     <div className={styles.list}>
-      {/* All clear is about the counted rows: up-to-date events still list under it. */}
-      {open === 0 && <Banner type="success">{emptyBanner}</Banner>}
+      {/* All clear is about the counted rows: up-to-date events still list
+          under it, so the banner says so rather than contradicting them. */}
+      {open === 0 && (
+        <Banner type="success">
+          {counts.all > 0 ? `${emptyBanner} The suggestions below are optional.` : emptyBanner}
+        </Banner>
+      )}
       {counts.all > 0 && (
         <>
           {visible.length > 1 && (
