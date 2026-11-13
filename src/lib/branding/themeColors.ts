@@ -6,7 +6,7 @@
  *
  * Consumers:
  * - src/plugins/openapi/scalarPlugin.ts - Derives Scalar API docs theme
- * - src/components/branding/ProjectTheme.tsx - Uses for PayloadCMS admin elevation scales
+ * - src/components/branding/ProjectTheme.tsx - Paints PROJECT_THEMES onto the admin panel
  */
 
 import type { ProjectSlug } from '@/payload-types'
@@ -53,7 +53,7 @@ export const PROJECT_BRAND_COLORS: Record<ProjectSlug, BrandColors> = {
  * Convert hex color to HSL components
  * @throws Error if hex color format is invalid
  */
-function hexToHsl(hex: string): { h: number; s: number; l: number } {
+export function hexToHsl(hex: string): { h: number; s: number; l: number } {
   // Remove # prefix if present
   const cleanHex = hex.replace('#', '')
 
@@ -187,6 +187,229 @@ export function shade(hex: string, ratio: number): string {
   const newL = l * (1 - ratio)
   return hslToHex(h, s, newL)
 }
+
+// --- Admin Elevation Scales ---
+
+/**
+ * Payload's elevation scale, in order
+ * (`node_modules/@payloadcms/ui/dist/scss/colors.scss`).
+ *
+ * ⚠ **A theme sets every one of these or none of them.** A step left unset
+ * keeps Payload's own grey, so muted text renders grey between two tinted
+ * neighbours.
+ */
+export const ELEVATION_STEPS = [
+  0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950,
+  1000,
+] as const
+
+/** `--theme-elevation-<step>` → hex, one entry per `ELEVATION_STEPS`. */
+export type ElevationScale = Record<string, string>
+
+export interface ThemeColors {
+  light: ElevationScale
+  dark: ElevationScale
+}
+
+/**
+ * The share of the project hue's chroma a text step keeps. Payload's own text
+ * steps are grey; at full chroma the Atlas's read as vivid blue, which in light
+ * mode makes a read-only value look selected.
+ */
+export const TEXT_CHROMA = 0.3
+
+/** The share a dark surface keeps. Surfaces are where a project's colour shows. */
+const SURFACE_CHROMA = 0.55
+
+/** The first step rendered as text rather than as a surface, per mode. */
+const LIGHT_TEXT_FROM = 350
+const DARK_TEXT_FROM = 400
+
+/** WCAG AA for body text. Every dark text step clears it on steps 0 and 50. */
+const TEXT_CONTRAST = 4.5
+
+/** Lightness per dark surface step, 0 through 350. */
+const DARK_SURFACE_LIGHTNESS = [3.9, 9.5, 13, 16.5, 20.5, 24.5, 29, 33.5]
+
+function channel(hex: string, offset: number): number {
+  return parseInt(hex.replace('#', '').substring(offset, offset + 2), 16)
+}
+
+/** WCAG relative luminance, 0 for black and 1 for white. */
+export function relativeLuminance(hex: string): number {
+  const linear = (value: number) => {
+    const v = value / 255
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  }
+  return (
+    0.2126 * linear(channel(hex, 0)) +
+    0.7152 * linear(channel(hex, 2)) +
+    0.0722 * linear(channel(hex, 4))
+  )
+}
+
+/** WCAG contrast between two colours, 1 to 21. */
+export function contrastRatio(a: string, b: string): number {
+  const [low, high] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => x - y)
+  return (high! + 0.05) / (low! + 0.05)
+}
+
+/**
+ * The same colour with its chroma cut to `keep`, at the luminance it had.
+ *
+ * Cutting chroma alone moves the luminance, so re-solving the lightness is what
+ * leaves the step's contrast against every other step exactly as it was.
+ */
+function withChroma(hex: string, keep: number): string {
+  const { h, s } = hexToHsl(hex)
+  if (s === 0) return hex
+  const target = relativeLuminance(hex)
+  const chroma = s * keep
+  let low = 0
+  let high = 100
+  for (let i = 0; i < 24; i++) {
+    const mid = (low + high) / 2
+    if (relativeLuminance(hslToHex(h, chroma, mid)) < target) low = mid
+    else high = mid
+  }
+  return hslToHex(h, chroma, (low + high) / 2)
+}
+
+/** The lightest of two colours, mixed evenly — in RGB, so a black endpoint adds no hue. */
+function mixRgb(a: string, b: string): string {
+  const half = (offset: number) => {
+    const value = Math.round((channel(a, offset) + channel(b, offset)) / 2)
+    return value.toString(16).padStart(2, '0')
+  }
+  return `#${half(0)}${half(2)}${half(4)}`
+}
+
+/**
+ * The dimmest lightness at `hue`/`chroma` that still clears `ratio` against
+ * `against`. Solved on the rounded hex, so the answer is the contrast a browser
+ * paints rather than the one the maths predicts.
+ */
+function lightnessForContrast(hue: number, chroma: number, against: string, ratio: number): number {
+  let low = 0
+  let high = 100
+  for (let i = 0; i < 24; i++) {
+    const mid = (low + high) / 2
+    if (contrastRatio(hslToHex(hue, chroma, mid), against) < ratio) low = mid
+    else high = mid
+  }
+  return high
+}
+
+function scaleFrom(colors: string[]): ElevationScale {
+  return Object.fromEntries(
+    ELEVATION_STEPS.map((step, index) => [`--theme-elevation-${step}`, colors[index]!]),
+  )
+}
+
+/**
+ * A project's light scale: its hand-tuned steps, the seven it never set filled
+ * in between them, and its text steps cut to `TEXT_CHROMA` at the luminance
+ * they had — so the light palette's contrast is what it always was.
+ */
+function buildLightScale(anchors: Record<number, string>): ElevationScale {
+  const filled = ELEVATION_STEPS.map((step, index) => {
+    const anchor = anchors[step]
+    if (anchor) return anchor
+    return mixRgb(anchors[ELEVATION_STEPS[index - 1]!]!, anchors[ELEVATION_STEPS[index + 1]!]!)
+  })
+  return scaleFrom(
+    filled.map((hex, index) =>
+      ELEVATION_STEPS[index]! >= LIGHT_TEXT_FROM ? withChroma(hex, TEXT_CHROMA) : hex,
+    ),
+  )
+}
+
+/**
+ * A project's dark scale, from its brand hue: the surface steps at the
+ * lightnesses the hand-tuned scales used, then the text steps spread from the
+ * dimmest one that clears `TEXT_CONTRAST` on step 50 up to white.
+ *
+ * The old scales ramped too slowly to reach that floor at all — the Atlas's
+ * muted text read at 2.6:1 on the surface behind it.
+ */
+function buildDarkScale(brand: BrandColors): ElevationScale {
+  const { h, s } = hexToHsl(brand.primary)
+  const surfaces = DARK_SURFACE_LIGHTNESS.map((l) => hslToHex(h, s * SURFACE_CHROMA, l))
+  const textChroma = s * TEXT_CHROMA
+  const floor = lightnessForContrast(h, textChroma, surfaces[1]!, TEXT_CONTRAST)
+  const textSteps = ELEVATION_STEPS.filter((step) => step >= DARK_TEXT_FROM)
+  const text = textSteps.map((_, index) =>
+    hslToHex(h, textChroma, floor + ((100 - floor) * index) / (textSteps.length - 1)),
+  )
+  return scaleFrom([...surfaces, ...text])
+}
+
+/**
+ * The 14 steps each project's light palette was hand-tuned at. The rest of its
+ * light scale, and the whole of its dark one, derive from these and the brand
+ * colour above.
+ */
+const LIGHT_ANCHORS: Record<ProjectSlug, Record<number, string>> = {
+  'wemeditate-web': {
+    0: '#ffffff',
+    50: '#fef5f3',
+    100: '#fce4df',
+    150: '#fad2c9',
+    200: '#f8c0b3',
+    250: '#f4a796',
+    300: '#e08e79',
+    400: '#c54d2e',
+    500: '#b44528',
+    600: '#8b3420',
+    700: '#5f2318',
+    800: '#4a1b12',
+    900: '#2d100b',
+    1000: '#000000',
+  },
+  'wemeditate-app': {
+    0: '#ffffff',
+    50: '#ebf4f3',
+    100: '#c5e0dc',
+    150: '#a3cec9',
+    200: '#83bcb4',
+    250: '#72b3a9',
+    300: '#61aaa0',
+    400: '#4c8d84',
+    500: '#3d726b',
+    600: '#2e5652',
+    700: '#1f3a38',
+    800: '#172826',
+    900: '#0f1a19',
+    1000: '#000000',
+  },
+  'sahaj-atlas': {
+    0: '#ffffff',
+    50: '#eff3fb',
+    100: '#d6e3f5',
+    150: '#b8d0ee',
+    200: '#95bae6',
+    250: '#6fa3dd',
+    300: '#4a8cd4',
+    400: '#2d6db8',
+    500: '#245896',
+    600: '#1c4374',
+    700: '#142e52',
+    800: '#0f2440',
+    900: '#0a1829',
+    1000: '#000000',
+  },
+}
+
+/** Every project's admin elevation scale, both modes, all 21 steps. */
+export const PROJECT_THEMES: Record<ProjectSlug, ThemeColors> = Object.fromEntries(
+  (Object.keys(LIGHT_ANCHORS) as ProjectSlug[]).map((project) => [
+    project,
+    {
+      light: buildLightScale(LIGHT_ANCHORS[project]),
+      dark: buildDarkScale(PROJECT_BRAND_COLORS[project]),
+    },
+  ]),
+) as Record<ProjectSlug, ThemeColors>
 
 // --- Scalar Theme Derivation ---
 
