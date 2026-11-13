@@ -25,12 +25,14 @@
  * Every non-clean resolution carries a `warning` for the caller to log.
  */
 
+import type { MapboxContextLayer, MapboxFeature } from './feature'
+
 import pRetry from 'p-retry'
 
 import { isRecord } from '@/lib/utilities/isRecord'
 import type { Region } from '@/payload-types'
 
-import type { MapboxContextLayer, MapboxFeature } from './feature'
+import { MANUAL_PREFIX } from './manualLocation'
 
 /**
  * Geocoding v6, which every lookup in this file runs against.
@@ -45,8 +47,13 @@ import type { MapboxContextLayer, MapboxFeature } from './feature'
  */
 const GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
 
-/** Sentinel `mapboxId` for a hand-entered location — matches `AddressSearchField`. */
-export const MANUAL_LOCATION = 'manual'
+/**
+ * Sentinel `mapboxId` for a hand-entered location. The resolver answers the
+ * bare prefix; the caller makes it unique with `makeManualMapboxId` where the
+ * column is `unique`. `manualLocation.ts` owns the string, so the two spellings
+ * it recognises cannot disagree with the one written here.
+ */
+export const MANUAL_LOCATION = MANUAL_PREFIX
 
 /** Default radius (m) for a venue/region with no legacy radius. */
 const DEFAULT_VENUE_RADIUS_METERS = 500
