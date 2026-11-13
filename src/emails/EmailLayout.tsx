@@ -19,7 +19,6 @@ import {
 } from 'react-email'
 
 import type { BrandColors } from '@/lib/branding'
-import { readableTextOn } from '@/lib/branding'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
@@ -49,6 +48,62 @@ export const brandGradient = (colors: BrandColors): string =>
  */
 export const brandTextColor = (colors: BrandColors): string =>
   readableTextOn(colors.primary, colors.light)
+
+/**
+ * Black or white for text on a brand gradient, read from the stop that paints.
+ *
+ * `painted` is the first stop and the only one guaranteed to be there: Outlook's
+ * Word engine drops `background-image` and leaves the `background-color` under
+ * it, so that stop is the whole surface for those readers. `rest` is the
+ * gradient's remaining stops, which every other client renders.
+ *
+ * Both colours legible over every stop → `painted` decides, since it is the one
+ * surface certain to exist. Otherwise the worst stop decides, so a pale second
+ * stop still takes black off a dark primary that would rather have white — the
+ * answer a reader of the gradient needs, and one no solid fill would give.
+ *
+ * ⚠ **The brand colour itself never moves.** A service's colours are what they
+ * chose; only the text on them changes, so an unreadable choice costs legibility
+ * nowhere else.
+ */
+function readableTextOn(painted: string, ...rest: string[]): '#000000' | '#ffffff' {
+  const stops = [painted, ...rest]
+  const over = (text: string, colors: string[]) =>
+    Math.min(...colors.map((color) => contrastRatio(text, color)))
+
+  // WCAG AA for large text, the floor shared by both sinks: a 24px heading reads
+  // at it, and a bold button label is the lower bound of what does.
+  const legible = (text: string) => over(text, stops) >= 3
+  const decisive = legible('#000000') && legible('#ffffff') ? [painted] : stops
+
+  return over('#000000', decisive) >= over('#ffffff', decisive) ? '#000000' : '#ffffff'
+}
+
+/** WCAG 2.x contrast ratio between two `#RRGGBB` colours. */
+function contrastRatio(a: string, b: string): number {
+  const [light, dark] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+
+  return (light + 0.05) / (dark + 0.05)
+}
+
+/**
+ * WCAG relative luminance — sRGB channels linearised, then weighted.
+ *
+ * ⚠ **`#RGB` is expanded first.** `colorField`'s validator accepts the short form,
+ * so a service really can store `#ff0`; read six digits off it and every channel
+ * is `NaN`, which reads as "white is fine" — the exact defect this is here for.
+ */
+function relativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '')
+  const digits = clean.length === 3 ? [...clean].map((digit) => digit + digit).join('') : clean
+  const channel = (offset: number) => {
+    const value = parseInt(digits.substring(offset, offset + 2), 16) / 255
+
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  }
+
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}
 
 /**
  * Neutral, non-brand structural styles shared across templates. Brand colors

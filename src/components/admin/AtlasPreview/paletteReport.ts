@@ -33,6 +33,11 @@ const ROLE_OF_COLUMN: Record<BrandColorColumn, string> = {
 }
 
 export interface Swatch {
+  /**
+   * Whether the report was computed from the colour the field holds now. One that
+   * is not still describes what is on screen until the next report lands.
+   */
+  current: boolean
   /** Whether the widget moved this colour's swatch in either mode, and in each. */
   adjusted: boolean
   darkAdjusted: boolean
@@ -50,15 +55,14 @@ const isHex = (value: unknown): value is string =>
 
 /**
  * What visitors see for one colour, out of a palette report, or `null` when the
- * report cannot say: another message, or a report about a colour other than
- * `current`.
+ * report cannot say: another message, or no entry for this colour.
  *
  * An unset colour is the Atlas default, which the widget reports nothing about,
  * so it is shown as that default and never as adjusted.
  *
- * ⚠ **Matched against the field's current value.** A report describes the
- * colour it was computed from, so one that arrives late, or outlives a closed
- * preview, must not label a colour it never saw.
+ * ⚠ **`current` compares the report with the field's value.** A report describes
+ * the colour it was computed from, so its suggestion must not be applied to a
+ * colour it never saw.
  */
 export function readSwatch(
   data: unknown,
@@ -74,6 +78,7 @@ export function readSwatch(
 
     return {
       adjusted: false,
+      current: true,
       dark: fallback,
       darkAdjusted: false,
       lightAdjusted: false,
@@ -98,7 +103,6 @@ export function readSwatch(
     return null
   }
   if (!isHex(report.light) || !isHex(report.dark) || typeof report.entered !== 'string') return null
-  if (report.entered.toLowerCase() !== current.toLowerCase()) return null
 
   const light = swatchChecks(report.lightAdjustedBy)
   const dark = swatchChecks(report.darkAdjustedBy)
@@ -107,6 +111,7 @@ export function readSwatch(
 
   return {
     adjusted,
+    current: report.entered.toLowerCase() === current.toLowerCase(),
     dark: report.dark.toUpperCase(),
     darkAdjusted: dark.length > 0,
     lightAdjusted: light.length > 0,

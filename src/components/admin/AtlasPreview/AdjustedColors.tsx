@@ -2,13 +2,13 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Banner, Button, useField } from '@payloadcms/ui'
+import { Banner, Button, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 import { BRAND_COLOR_LABELS, type BrandColorColumn } from '@/lib/clients/appearance'
+import { originOf } from '@/lib/utilities/url'
 
-import { readSwatch, type Swatch } from './paletteReport'
-import { usePreviewMessage } from './usePreviewMessage'
+import { PALETTE_REPORT_MESSAGE, readSwatch, type Swatch } from './paletteReport'
 
 import './AtlasPreview.scss'
 
@@ -20,7 +20,7 @@ const COLUMNS = Object.keys(BRAND_COLOR_LABELS) as BrandColorColumn[]
  * and one action that takes every suggestion.
  */
 export const AdjustedColors: UIFieldClientComponent = () => {
-  const report = usePreviewMessage()
+  const report = useLatestPaletteReport()
   const fields = {
     color1: useField<null | string>({ path: 'color1' }),
     color2: useField<null | string>({ path: 'color2' }),
@@ -32,23 +32,12 @@ export const AdjustedColors: UIFieldClientComponent = () => {
 
     return swatch ? { column, ...swatch } : null
   })
-  // All three or none: a colour the report has not caught up with yet would
-  // leave a gap that reads as a colour visitors do not see.
-  const current = read.every((swatch) => swatch !== null) ? read : null
-  const answer = current && current.some((swatch) => swatch.adjusted) ? current : null
+  // All three or none: a missing row would read as a colour visitors do not see.
+  // ⚠ Between a pick and the atlas's report on it, the last report stays up:
+  // hiding the banner for that round trip made it flicker on every pick.
+  const swatches = read.every((swatch) => swatch !== null) ? read : null
 
-  // ⚠ Between a colour change and the atlas's report on it, the last answer stays
-  // up. Hiding the banner for that round trip made it flicker on every pick.
-  const [kept, setKept] = useState<typeof answer>(null)
-  const key = current ? JSON.stringify(answer) : null
-
-  useEffect(() => {
-    if (key !== null) setKept(key === 'null' ? null : (JSON.parse(key) as typeof answer))
-  }, [key])
-
-  const swatches = current ? answer : kept
-
-  if (!swatches) return null
+  if (!swatches?.some((swatch) => swatch.adjusted)) return null
 
   const suggestions = swatches.filter((swatch) => swatch.suggested)
 
@@ -80,10 +69,10 @@ export const AdjustedColors: UIFieldClientComponent = () => {
               buttonStyle="secondary"
               margin={false}
               // ⚠ Never disabled while a report is pending: toggling it flickered on every
-              // pick. A kept answer describes colours the fields no longer hold, so a press
-              // in that window applies nothing rather than a stale suggestion.
+              // pick. A press in that window applies nothing rather than a suggestion
+              // for a colour the field no longer holds.
               onClick={() => {
-                if (current) {
+                if (swatches.every((item) => item.current)) {
                   suggestions.forEach((item) => fields[item.column].setValue(item.suggested))
                 }
               }}
@@ -96,6 +85,37 @@ export const AdjustedColors: UIFieldClientComponent = () => {
       </Banner>
     </div>
   )
+}
+
+/**
+ * The preview's latest palette report, or `null` before one arrives.
+ *
+ * ⚠ **The sender is checked as each message arrives**, against the preview
+ * iframe as it is then, so a panel that opens after this field, reloads or is
+ * repointed needs no re-subscribe. Any other message the atlas sends leaves the
+ * report in place.
+ */
+function useLatestPaletteReport(): unknown {
+  const { iframeRef } = useLivePreviewContext()
+  const [report, setReport] = useState<unknown>(null)
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const frame = iframeRef?.current
+
+      if (!frame?.contentWindow || event.source !== frame.contentWindow) return
+      if (event.origin !== originOf(frame.src)) return
+      if ((event.data as { type?: unknown } | null)?.type !== PALETTE_REPORT_MESSAGE) return
+
+      setReport(event.data)
+    }
+
+    window.addEventListener('message', onMessage)
+
+    return () => window.removeEventListener('message', onMessage)
+  }, [iframeRef])
+
+  return report
 }
 
 const reasonText = ({ reasons }: Swatch) =>

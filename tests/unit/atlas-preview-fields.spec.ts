@@ -69,6 +69,7 @@ describe('readSwatch', () => {
   it('reads both modes, the reason and the suggestion', () => {
     expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#FFFF00')).toEqual({
       adjusted: true,
+      current: true,
       dark: '#FEFDFB',
       darkAdjusted: false,
       lightAdjusted: true,
@@ -81,6 +82,7 @@ describe('readSwatch', () => {
   it('reads a swatch the widget left alone — panel text is not the swatch', () => {
     expect(readSwatch(report({ contrast: ACCENT }), 'color3', '#ff9900')).toEqual({
       adjusted: false,
+      current: true,
       dark: '#FFAA33',
       darkAdjusted: false,
       lightAdjusted: false,
@@ -106,8 +108,11 @@ describe('readSwatch', () => {
     expect(readSwatch(null, 'color1', '#ffff00')).toBeNull()
   })
 
-  it('ignores a report about a colour the field no longer holds', () => {
-    expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#123456')).toBeNull()
+  it('marks a report about a colour the field no longer holds', () => {
+    expect(readSwatch(report({ primary: PRIMARY }), 'color1', '#123456')).toMatchObject({
+      current: false,
+      light: '#979726',
+    })
   })
 
   it('still counts a check it has no words for', () => {
@@ -215,6 +220,16 @@ describe('AdjustedColors', () => {
     expect(button('Use adjusted colors')?.disabled).toBe(false)
     act(() => button('Use adjusted colors')!.click())
     expect(stub.fields.color1.setValue).not.toHaveBeenCalled()
+  })
+
+  it("keeps the report through the atlas's other messages", async () => {
+    await mount(AdjustedColors)
+    const frame = openPreview()
+
+    await post(report({ contrast: ACCENT, primary: PRIMARY }), frame.contentWindow)
+    await post({ ready: true, type: 'payload-live-preview' }, frame.contentWindow)
+
+    expect(banner()).not.toBeNull()
   })
 
   it('shows nothing while nothing is adjusted', async () => {

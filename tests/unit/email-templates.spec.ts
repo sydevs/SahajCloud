@@ -645,6 +645,31 @@ describe('text on a brand gradient', () => {
     )
   })
 
+  it('lets a pale light stop take white off a dark primary', () => {
+    // White reads on `#1E6C71` alone, and vanishes at 1.02 on `#ffffe0`; black
+    // reads over the whole gradient at 3.44.
+    expect(brandTextColor({ dark: '#0d3b3e', light: '#ffffe0', primary: '#1E6C71' })).toBe(
+      '#000000',
+    )
+  })
+
+  it('expands a short hex before reading it', () => {
+    // ⚠ `colorField`'s validator accepts `#ff0`. Read as six digits it is NaN,
+    // which answers white — the defect this rule exists to prevent.
+    expect(brandTextColor({ dark: '#997a00', light: '#ffffe0', primary: '#ff0' })).toBe('#000000')
+  })
+
+  it('picks black on every project brand', () => {
+    // White clears no stop of any of them, so only a service palette reaches white.
+    for (const [primary, light] of [
+      ['#F07855', '#FF9477'],
+      ['#61aaa0', '#72b3a9'],
+      ['#4a8cd4', '#6fa3dd'],
+    ]) {
+      expect(brandTextColor({ dark: primary, light, primary })).toBe('#000000')
+    }
+  })
+
   it('takes the colour that reads where Outlook drops the gradient', () => {
     // ⚠ Both sites set `primary` as `backgroundColor` beneath the gradient's
     // `backgroundImage`, and Outlook desktop paints only the first. So a

@@ -5,7 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { Collapsible, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
-import './EmailPreviewField.scss'
+import './AtlasPreview.scss'
 
 /** How long typing must pause before the sample is re-rendered. */
 const SETTLE_MS = 500
@@ -80,21 +80,13 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
           // carries a service's logo and title, and a preview has no reason to run
           // anything or reach anywhere.
           <iframe
+            className="email-preview-field__frame"
             sandbox=""
             srcDoc={html}
-            style={{
-              background: '#ffffff',
-              border: 0,
-              display: 'block',
-              height: '640px',
-              width: '100%',
-            }}
             title="Preview registration email"
           />
         ) : (
-          <p className="field-description" style={{ padding: 'var(--base)' }}>
-            Rendering a sample…
-          </p>
+          <p className="field-description email-preview-field__pending">Rendering a sample…</p>
         )}
       </Collapsible>
     </div>
