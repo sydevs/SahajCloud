@@ -1,8 +1,9 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
-import { colorField, legacyMigrationFields } from '@/fields'
+import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { secretFieldEndpoints } from '@/fields/secretField/endpoints'
 import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
@@ -32,12 +33,17 @@ import {
 } from '@/plugins/access'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
+import { atlasWrites, isAtlasClient } from './access'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
 import { validateCanonicalOwnership } from './hooks/validateCanonicalOwnership'
 import { validateClientData } from './hooks/validateClientData'
-import { validateMailingList } from './hooks/validateMailingList'
+import {
+  CREDENTIAL_KEYS,
+  validateMailingList,
+  verifyMailingListKey,
+} from './hooks/validateMailingList'
 
 /**
  * The bare-host rule the admin field used to enforce with
@@ -256,23 +262,15 @@ const usageCounter = (name: string, type: 'number' | 'date', description: string
     ? { name, type, defaultValue: 0, admin: { readOnly: true, description } }
     : { name, type, admin: { readOnly: true, description } }
 
-/** The Atlas-only settings, shown to a service holding the Atlas role. */
-const isAtlasClient = (data: { roles?: unknown }): boolean =>
-  Array.isArray(data?.roles) && data.roles.includes('sahaj-atlas-client')
-
-/** The Atlas tab's lock: an admin, or the row's own atlas role (`roles` is admin-locked). */
-const atlasWrites: FieldAccess = ({ req, doc, data }) =>
-  isAdminManager(req.user) || isAtlasClient(doc ?? data ?? {})
-
 /** Each conditional tab's write rule, keyed on the condition that hides it (`lockTabs`). */
 const TAB_WRITE_RULES = new Map<Condition, FieldAccess>([
   [adminTabs, adminOnlyFieldAccess],
   [isAtlasClient, atlasWrites],
 ])
 
-/** The mailing-list group's master switch. */
-const mailingListEnabled = (data: { mailingList?: { enabled?: boolean | null } | null }): boolean =>
-  Boolean(data?.mailingList?.enabled)
+/** A list exists once a provider is chosen; clearing the provider switches it off. */
+const hasMailingList = (data: { mailingList?: { provider?: string | null } | null }): boolean =>
+  Boolean(data?.mailingList?.provider)
 
 /**
  * Which of the provider-specific fields each provider shows.
@@ -294,41 +292,38 @@ const PROVIDER_FIELDS: Record<
   cleverreach: { clientId: true, doubleOptIn: true, doiFlowId: true },
 }
 
-/** Whether the chosen provider shows one of those fields, with the group on. */
+/** Whether the chosen provider shows one of those fields. */
 const providerShows = (
-  data: { mailingList?: { enabled?: boolean | null; provider?: string | null } | null },
+  data: { mailingList?: { provider?: string | null } | null },
   field: keyof (typeof PROVIDER_FIELDS)[MailingListProvider],
 ): boolean => {
   const provider = data?.mailingList?.provider
-  return (
-    mailingListEnabled(data) &&
-    Boolean(provider && PROVIDER_FIELDS[provider as MailingListProvider]?.[field])
-  )
+  return Boolean(provider && PROVIDER_FIELDS[provider as MailingListProvider]?.[field])
 }
 
 /**
- * What opt-in actually does, per provider — the description under the provider
- * select, switched by the chosen value (`SelectDescription`).
+ * How to set each provider up, under the provider select (`SelectDescription`):
+ * where its List ID and key live, and what it does about confirmation emails.
  *
- * **Only Mailchimp and CleverReach have a per-call lever** (`PROVIDER_FIELDS`),
- * so only those two get the `doubleOptIn` checkbox. A checkbox rendered for all
- * four would be a promise the CMS cannot keep on the other two: an operator who
- * ticked it for Brevo would believe a confirmation email was going out when none
- * was. These notes are what stands in its place, and they are read-only because
- * the behaviour they describe is not ours to change.
+ * **Only Mailchimp and CleverReach have a per-call opt-in lever**
+ * (`PROVIDER_FIELDS`), so only those two get the confirmation checkbox. For the
+ * other two this text is what stands in its place — a checkbox the CMS cannot
+ * honour would be a promise it breaks.
  */
-const OPT_IN_NOTES: Record<MailingListProvider, string> = {
+const PROVIDER_SETUP: Record<MailingListProvider, string> = {
   mailchimp:
-    'You choose below whether each person is emailed a confirmation link before being added.',
+    'In Mailchimp, find the Audience ID under Audience → Settings, and create an API key under Profile → Extras → API keys.',
   brevo:
-    'Each person is added straight away. Brevo cannot send a confirmation email first through this connection.',
-  klaviyo: 'Whether a confirmation email is sent is set on the list in Klaviyo, not here.',
+    'In Brevo, find the list’s ID under Contacts → Lists, and create an API key under SMTP & API. Brevo adds people straight away, with no confirmation email.',
+  klaviyo:
+    'In Klaviyo, find the List ID in the list’s settings, and create a private API key under Settings → API keys. Confirmation emails are set on the list in Klaviyo.',
   cleverreach:
-    'You choose below whether each person is emailed a confirmation link before being added. CleverReach sends that email through the flow you name.',
+    'In CleverReach, open Account → Extras → REST API and create an app. Copy its Client ID here and use its Client Secret as the API key. The List ID is your group’s ID.',
 }
 
 /**
- * Where a client's mailing-list provider is configured.
+ * Where a client's mailing-list provider is configured. Choosing a provider is
+ * what turns the list on.
  *
  * **Shown on the Atlas tab, so only to a service with the atlas role.** Delivery
  * reads a stored list whatever the roles, so a service without the role keeps
@@ -340,8 +335,8 @@ const OPT_IN_NOTES: Record<MailingListProvider, string> = {
  * reaches — without the lock a service would read back its own provider secret.
  * `admin.condition` covers only the UI.
  *
- * `required` plus a false `admin.condition` is the whole "required only when
- * enabled" rule: Payload skips `required` while the condition is false.
+ * `required` plus a false `admin.condition` is the whole "required once a
+ * provider is chosen" rule: Payload skips `required` while the condition is false.
  */
 const mailingListGroup: Field = {
   name: 'mailingList',
@@ -353,43 +348,42 @@ const mailingListGroup: Field = {
     update: managersOnlyFieldAccess,
   },
   admin: {
-    description:
-      'Where people who sign up for a newsletter on this site are sent. Nothing is sent anywhere until you switch this on.',
+    description: 'Add people who sign up for news on this site to your own mailing list.',
   },
   fields: [
     {
-      name: 'enabled',
-      type: 'checkbox',
-      defaultValue: false,
-      label: 'This service has a mailing list',
-    },
-    {
-      name: 'provider',
-      type: 'select',
-      required: true,
-      options: MAILING_LIST_PROVIDERS.map((value) => ({
-        label: MAILING_LIST_PROVIDER_LABELS[value],
-        value,
-      })),
-      enumName: 'enum_clients_mailing_list_provider',
-      admin: {
-        condition: (data) => mailingListEnabled(data),
-        // The opt-in note for the chosen provider, in place of a checkbox
-        // two of the four cannot honour. See `OPT_IN_NOTES`.
-        custom: { descriptions: OPT_IN_NOTES },
-        components: { Description: '@/components/admin/SelectDescription' },
-      },
-    },
-    {
-      name: 'clientId',
-      type: 'text',
-      label: 'Client ID',
-      required: true,
-      admin: {
-        condition: (data) => providerShows(data, 'clientId'),
-        description:
-          'In CleverReach, open Account → Extras → REST API and pick your app. Copy its Client ID here, and its Client Secret into API Key below.',
-      },
+      type: 'row',
+      fields: [
+        {
+          name: 'provider',
+          type: 'select',
+          label: 'Mailing List Provider',
+          options: MAILING_LIST_PROVIDERS.map((value) => ({
+            label: MAILING_LIST_PROVIDER_LABELS[value],
+            value,
+          })),
+          enumName: 'enum_clients_mailing_list_provider',
+          admin: {
+            // Half the row beside CleverReach's Client ID; the whole row when that is hidden.
+            width: '50%',
+            style: { flexGrow: 1 },
+            description: 'Leave empty if this service has no mailing list.',
+            custom: { descriptions: PROVIDER_SETUP },
+            components: { Description: '@/components/admin/SelectDescription' },
+          },
+        },
+        {
+          name: 'clientId',
+          type: 'text',
+          label: 'Client ID',
+          required: true,
+          admin: {
+            width: '50%',
+            condition: (data) => providerShows(data, 'clientId'),
+            description: 'From your CleverReach app.',
+          },
+        },
+      ],
     },
     {
       name: 'listId',
@@ -397,34 +391,27 @@ const mailingListGroup: Field = {
       label: 'List ID',
       required: true,
       admin: {
-        condition: (data) => mailingListEnabled(data),
-        // One sentence naming all four, rather than a per-provider hint:
-        // `admin.description`'s function form is handed `{ i18n, t }` and
-        // never the document, so it cannot see which provider is chosen.
-        description:
-          'Mailchimp’s Audience ID, Brevo’s numeric list id, Klaviyo’s List ID, or CleverReach’s group ID.',
+        condition: (data) => hasMailingList(data),
+        description: 'The list new subscribers are added to.',
       },
     },
-    {
+    ...secretField({
       name: 'apiKey',
-      type: 'text',
       label: 'API Key',
-      required: true,
-      admin: {
-        condition: (data) => mailingListEnabled(data),
-        description:
-          'The secret from your mailing-list account — for CleverReach, your app’s Client Secret. We check it when you save it, and it is never sent to your website.',
-      },
-    },
+      writeAccess: managersOnlyFieldAccess,
+      verify: verifyMailingListKey,
+      dependsOn: CREDENTIAL_KEYS.filter((key) => key !== 'apiKey'),
+      setDescription: 'We check this key with your mailing list provider first.',
+      admin: { condition: (data) => hasMailingList(data) },
+    }),
     {
       name: 'doubleOptIn',
       type: 'checkbox',
       defaultValue: true,
-      label: 'Send a confirmation email before subscribing',
+      label: 'Email a confirmation link first',
       admin: {
         condition: (data) => providerShows(data, 'doubleOptIn'),
-        description:
-          'The person is not subscribed until they click the link in that email. Mailchimp calls that state “pending”, CleverReach calls it inactive.',
+        description: 'People are only added after they click the link in that email.',
       },
     },
     {
@@ -435,8 +422,7 @@ const mailingListGroup: Field = {
       admin: {
         condition: (data) =>
           providerShows(data, 'doiFlowId') && data?.mailingList?.doubleOptIn !== false,
-        description:
-          'The CleverReach flow that sends the confirmation email. In CleverReach, create a double opt-in form, then copy the Flow ID it shows you.',
+        description: 'The CleverReach form that sends the confirmation email. Copy its Flow ID.',
       },
     },
   ],
@@ -936,7 +922,7 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand],
+  endpoints: [clientEmbedReport, verifyEmbedOnDemand, ...secretFieldEndpoints('clients')],
   hooks: {
     beforeChange: [
       validateClientData,

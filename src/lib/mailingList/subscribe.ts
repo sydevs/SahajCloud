@@ -7,14 +7,14 @@ import { PROVIDER_TIMEOUT_MS } from './types'
  * Whether a client's list is usable at all — the one definition, so the
  * delivery job and the save-time validator agree on what "configured" means.
  *
- * Each credential it reads is `required` on the field while `enabled` is on, so
+ * Each credential it reads is `required` on the field once a provider is chosen, so
  * this is belt-and-braces for a row written before the group existed, or one an
  * `overrideAccess` writer assembled by hand.
  */
 export function isMailingListConfigured(
   config: MailingListConfig | null | undefined,
 ): config is MailingListConfig & { provider: string; listId: string; apiKey: string } {
-  return Boolean(config?.enabled && config.provider && config.listId && config.apiKey)
+  return Boolean(config?.provider && config.listId && config.apiKey)
 }
 
 /**
