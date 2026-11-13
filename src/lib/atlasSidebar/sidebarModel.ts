@@ -68,6 +68,29 @@ export interface SidebarEventItem {
 }
 
 /**
+ * Which bucket each stage falls in, declared once for every stage.
+ *
+ * ⚠ **An exhaustive `Record`, never a `switch` with a `default:`.** That
+ * `default:` silently labelled both pre-adoption stages "verified" until #624
+ * added explicit cases, and would have done it again for any stage added
+ * since (#1121).
+ */
+const BUCKET_BY_STAGE: Record<VerificationStage, EventBucket> = {
+  verified: 'verified',
+  urgent: 'urgent',
+  reminded: 'needsVerification',
+  escalated: 'needsVerification',
+  // `unverified` sits with the other verification-pending events: both are
+  // listings a manager needs to act on before the system acts for them.
+  unverified: 'needsVerification',
+  expired: 'expired',
+  // `denied` shares the bucket with `expired`: both are system-unpublished
+  // states a manager can rescue by adopting/republishing.
+  denied: 'expired',
+  finished: 'finished',
+}
+
+/**
  * Map an event to its display bucket. Trash wins over stage — a trashed event
  * is `expired` in practice, but belongs in the Trashed bucket — so `deletedAt`
  * is checked first.
@@ -77,26 +100,7 @@ export function bucketForEvent(event: {
   deletedAt?: string | null
 }): EventBucket {
   if (event.deletedAt) return 'trashed'
-  switch (event.verificationStage) {
-    case 'urgent':
-      return 'urgent'
-    case 'reminded':
-    case 'escalated':
-    // `unverified` sits with the other verification-pending events: both are
-    // listings a manager needs to act on before the system acts for them.
-    case 'unverified':
-      return 'needsVerification'
-    case 'expired':
-    // `denied` shares the bucket with `expired`: both are system-unpublished
-    // states a manager can rescue by adopting/republishing.
-    case 'denied':
-      return 'expired'
-    case 'finished':
-      return 'finished'
-    case 'verified':
-    default:
-      return 'verified'
-  }
+  return BUCKET_BY_STAGE[event.verificationStage]
 }
 
 /** Untitled events still need a stable, clickable label. */

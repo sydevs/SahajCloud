@@ -13,7 +13,7 @@
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import type { EventSchedule } from '@/types/schedule'
 
-import { isPreAdoptionStage, type VerificationStage } from './stages'
+import { isPreAdoptionStage, stageAction, type VerificationStage } from './stages'
 
 /**
  * How long a `finished` event's page keeps resolving before the retention
@@ -41,6 +41,22 @@ export function retentionFrom(from: Date): string {
   return addMonths(from, FINISHED_RETENTION_MONTHS).toISOString()
 }
 
+/**
+ * Whether the reminder ladder is silent on this class: a draft on a stage that
+ * sends reminders.
+ *
+ * ⚠ **One predicate, because the job reads it too.** The watermark rule below
+ * keeps such a row out of the due query from its next save on, and
+ * `ExpireEvents` applies the same answer to a row written before the rule
+ * existed — two spellings would be free to disagree on exactly those rows.
+ */
+export function remindersSilenced(args: {
+  stage: VerificationStage
+  status?: string | null
+}): boolean {
+  return args.status === 'draft' && stageAction(args.stage).kind === 'remind'
+}
+
 export interface NextCheckAtInput {
   /** The stage the event is landing on. */
   stage: VerificationStage
@@ -53,6 +69,8 @@ export interface NextCheckAtInput {
   /** The event's schedule (merged, if this is a partial write). */
   schedule?: Partial<EventSchedule> | null
   inactive?: boolean | null
+  /** The event's publish state, which decides whether reminders run at all. */
+  status?: string | null
   /** Injected clock — the `finished` retention fallback needs a reference point. */
   now?: Date
 }
@@ -69,14 +87,21 @@ export interface NextCheckAtInput {
  * alternative, querying `schedule.lastDate < now`, matches every event that
  * ever ended, forever.)
  *
- * The three rules:
+ * The four rules:
  *
  * - **Pre-adoption** (`unverified` / `denied`) — no manager, so no cadence;
  *   the only thing that can happen is the schedule running out.
+ * - **`finished`** — the retention deadline, after which it's trashed.
+ * - **A draft on a reminder stage** — nothing. A manager who hides a class is
+ *   not letting it rot: the reminder ladder exists to ask whether a *listed*
+ *   class is still running, and chasing someone about a class nobody can see
+ *   is noise that ends in unpublishing what is already unpublished (#1120
+ *   decision 3). Republishing re-verifies through the save hook, which restarts
+ *   the cycle. `expired` is not a reminder stage and keeps its trash
+ *   countdown — being unpublished is that stage's own doing.
  * - **Ladder stages** — the earlier of the stage's own deadline and the
  *   schedule's end, so an event is finished the day after its last occurrence
  *   rather than waiting up to a cadence for its next reminder.
- * - **`finished`** — the retention deadline, after which it's trashed.
  *
  * ## When this returns `null`, and why that's the whole point
  *
@@ -96,10 +121,11 @@ export interface NextCheckAtInput {
  *   straight to the stage, dormant or open-ended recurrence included. Without
  *   this fallback those rows would keep a null watermark and never be trashed).
  *
- * So the contract narrows to exactly one case: **null ⟺ a pre-adoption stage
- * with no schedule end** (dormant, or an open-ended recurrence). Those events
- * genuinely have nothing scheduled — adoption is an editor action, not a date.
- * `tests/unit/next-check-at.spec.ts` pins that as an invariant over every stage.
+ * So the contract narrows to two cases: **a pre-adoption stage with no schedule
+ * end** (dormant, or an open-ended recurrence), and **a draft on a reminder
+ * stage**. Both genuinely have nothing scheduled — adoption and republishing
+ * are editor actions, not dates. `tests/unit/next-check-at.spec.ts` pins that
+ * as an invariant over every stage.
  *
  * The schedule end is *computed* via `lastOccurrenceEnd` rather than read off
  * the stored `schedule.lastDate` column, for the reason `shouldFinish`
@@ -107,7 +133,7 @@ export interface NextCheckAtInput {
  * writes that column, and an un-backfilled NULL would read as "never ends".
  */
 export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
-  const { stage, stageDeadline, schedule, inactive, now = new Date() } = input
+  const { stage, stageDeadline, schedule, inactive, status, now = new Date() } = input
 
   // Dormant events have no schedule to run out — nothing schedule-driven can
   // happen to them, so only a stage deadline can bring them back.
@@ -118,6 +144,11 @@ export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
   // Retention runs from the schedule's end where there is one, else from the
   // moment it finished — so a finished event always has a date to be trashed on.
   if (stage === 'finished') return retentionFrom(scheduleEnd ?? now)
+
+  // A hidden class is nobody's to chase. Only the reminder ladder is silenced:
+  // `expired` is unpublished by the ladder itself, and its trash countdown is
+  // what finally clears it.
+  if (remindersSilenced({ stage, status })) return null
 
   const deadlines = [stageDeadline, scheduleEnd].filter((date): date is Date => date != null)
   if (deadlines.length === 0) return null

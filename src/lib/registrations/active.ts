@@ -1,5 +1,6 @@
 import type { Where } from 'payload'
 
+import { SUBMISSION_STATUSES } from '@/collections/UserSubmissions/statuses'
 import type { UserSubmission } from '@/payload-types'
 
 /**
@@ -35,12 +36,20 @@ export function isActiveRegistration(submission: {
   )
 }
 
-const INACTIVE_STATUSES: readonly UserSubmission['status'][] = [
-  'rejected',
-  'spam',
-  'confirmed_spam',
-  'failed',
-]
+/**
+ * The two statuses a seat is still held on: confirmed, and not yet settled.
+ *
+ * ⚠ **Stated as the small set, and the other four derived from it.** Listing
+ * the inactive ones instead leaves a status added later counting as an active
+ * seat — against the event's limit, in the reminder queue — which is the
+ * failure direction nobody would notice. `tests/unit/registration-active.spec.ts`
+ * pins the pair.
+ */
+const ACTIVE_STATUSES: readonly UserSubmission['status'][] = ['accepted', 'pending']
+
+const INACTIVE_STATUSES: readonly UserSubmission['status'][] = SUBMISSION_STATUSES.filter(
+  (status) => !ACTIVE_STATUSES.includes(status),
+)
 
 /**
  * The same rule as SQL, for a query that must select on it.

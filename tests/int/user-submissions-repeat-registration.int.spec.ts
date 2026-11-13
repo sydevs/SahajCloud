@@ -15,6 +15,7 @@ import { asLog } from '@/fields'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Client, Event, Manager, UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -76,7 +77,9 @@ describe('a repeat registration updates the existing one', () => {
         type: 'registration',
         event: args.event,
         senderEmail: args.email,
-        startingAt: args.startingAt,
+        // The session the visitor picked, which the gate requires of every
+        // client-sent registration (#1120 decision 5).
+        startingAt: args.startingAt ?? SESSION_A,
         submissionData: [
           { field: 'name', value: args.name },
           ...(args.subscribe ? [{ field: 'subscribe', value: 'yes' }] : []),
@@ -86,13 +89,9 @@ describe('a repeat registration updates the existing one', () => {
       req: clientReq(args.as),
     }) as Promise<UserSubmission>
 
+  /** The status a case starts from — a fixture, never a move. */
   const setStatus = (id: number, status: UserSubmission['status']) =>
-    payload.update({
-      collection: 'user-submissions',
-      id,
-      data: { status },
-      overrideAccess: true,
-    })
+    setLifecycleState({ payload, collection: 'user-submissions', id, data: { status } })
 
   const rowsOf = async (type: UserSubmission['type'], eventId: number) =>
     (
@@ -348,6 +347,7 @@ describe('a repeat registration updates the existing one', () => {
         type: 'registration',
         event: event.id,
         senderEmail: address,
+        startingAt: SESSION_A,
         submissionData: [{ field: 'name', value: 'Ann Smith' }],
       },
     })

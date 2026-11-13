@@ -10,18 +10,39 @@
 
 import type { OpenItemFilter, OpenItemPill } from './filters'
 
-import { unpublishDate, type VerificationStage } from '@/lib/eventVerification/stages'
+import {
+  isPublishedStage,
+  LADDER_STEPS,
+  unpublishDate,
+  type VerificationStage,
+} from '@/lib/eventVerification/stages'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
+
+/** Every stage a reminder lands on — the ladder's own steps, past its first. */
+const REMINDED_STAGES: VerificationStage[] = LADDER_STEPS.map((step) => step.to)
+
+/**
+ * Overdue, as a reader meets it: a listing that has had a reminder and is
+ * still on the map.
+ *
+ * ⚠ **Deliberately wider than {@link OVERDUE_QUERY_STAGES}**, and the two are
+ * derived from the ladder rather than listed, so neither can drift from what
+ * the job does. A `reminded` listing still counts as healthy for a region
+ * manager, who does not join another manager's event until it escalates
+ * (`docs/rules/access.md`). Resist merging them.
+ */
+export const OVERDUE_STATUS_STAGES: VerificationStage[] = REMINDED_STAGES.filter(isPublishedStage)
 
 /**
  * The stages a query treats as overdue: escalated or worse.
  *
- * ⚠ **Deliberately narrower than the Overdue status**, which also carries
- * `reminded`: a reminded listing still counts as healthy, and a region manager
- * does not join another manager's event until it escalates
- * (`docs/rules/access.md`). Resist merging them.
+ * Every stage a reminder that *included the region* lands on — which is the
+ * question being asked, since these are the listings a region manager has been
+ * told about.
  */
-export const OVERDUE_QUERY_STAGES = ['escalated', 'urgent', 'expired'] as const
+export const OVERDUE_QUERY_STAGES: VerificationStage[] = LADDER_STEPS.filter(
+  (step) => step.includeRegion,
+).map((step) => step.to)
 
 /** ⚠ One definition, so the Total events tile and the Programs column agree. */
 export function isProgramStage(stage: string): boolean {
@@ -90,6 +111,14 @@ export type OpenItemRow =
   | { kind: 'proposal'; id: number; title: string; receivedAt: string }
   | { kind: 'refusal'; id: number; title: string; reason: string; receivedAt: string }
   | {
+      kind: 'delivery-failed'
+      id: number
+      title: string
+      /** What the row is — "sign-up", "message" — so the line says what is stuck. */
+      intake: string
+      receivedAt: string
+    }
+  | {
       kind: 'service'
       id: number
       title: string
@@ -151,6 +180,16 @@ const STATUS_TABLE = {
     label: 'Flagged as spam',
     pill: 'success',
     rank: 1,
+    filter: null,
+    counts: true,
+  },
+  // In no filter, like the refusals beside it: only an admin's list holds these.
+  // Ranked with Overdue — a confirmation that never arrived is as public a
+  // failure as a listing falling off the map.
+  'delivery-failed': {
+    label: 'Delivery failed',
+    pill: 'error',
+    rank: 2,
     filter: null,
     counts: true,
   },
@@ -236,7 +275,7 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
 
   const statuses: OpenItemStatus[] = []
 
-  if (stage === 'urgent' || stage === 'reminded' || stage === 'escalated') {
+  if (OVERDUE_STATUS_STAGES.includes(stage)) {
     // ⚠ From the stage's own check, not from now: the ladder's offsets start when it comes due.
     const due = unpublishDate(
       stage,
@@ -395,6 +434,7 @@ const PROMPTS: Partial<Record<OpenItemStatusKey, ActionPrompt>> = {
     link: 'Review the sign-up',
     after: ' and confirm it as spam or release it.',
   },
+  'delivery-failed': { link: 'Open the row', after: ' and send it again.' },
   'no-manager': { link: 'Assign a manager', after: ' so someone keeps this listing up to date.' },
   recommendations: { link: 'Improve the listing', after: ' so it is easier to find.' },
   draft: { link: 'Finish the draft', after: ' and publish it.' },
@@ -417,6 +457,15 @@ function rowStatuses(row: OpenItemRow, now: Date): OpenItemStatus[] {
   const received = `Received ${shortDate(row.receivedAt)}`
   if (row.kind === 'proposal') {
     return [status('class-proposed', { lines: [received], action, deadline: row.receivedAt })]
+  }
+  if (row.kind === 'delivery-failed') {
+    return [
+      status('delivery-failed', {
+        lines: [`This ${row.intake} was never delivered`, received],
+        action: { label: 'Send again', target: rowTarget(row) },
+        deadline: row.receivedAt,
+      }),
+    ]
   }
   return [
     status('confirmed-spam-pending', {

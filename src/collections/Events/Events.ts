@@ -24,6 +24,7 @@ import {
   urlField,
 } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { stateMachineField } from '@/fields/stateMachineField'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
@@ -34,11 +35,8 @@ import {
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
-import {
-  DEFAULT_VERIFICATION_STAGE,
-  isPreAdoptionStage,
-  isUnmanagedStage,
-} from '@/lib/eventVerification/stages'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -62,7 +60,7 @@ import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
   EVENT_TYPE_OPTIONS,
-  VERIFICATION_STAGE_OPTIONS,
+  VERIFICATION_STAGE_LABELS,
 } from './eventOptions'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
@@ -195,10 +193,10 @@ export const Events: CollectionConfig = {
     // runs, drafts included — see refuseDuplicateClass.
     beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
-    // lands on: verify, or just re-arm the pre-adoption watermark. Both
-    // stamping hooks must run after it. `syncEventFullness` writes
-    // `registrationsFull`, and `stampEventQuality`'s skip rules read
-    // `verificationStage`.
+    // lands on: verify, or just re-arm the pre-adoption watermark, and it
+    // names the writer the stage column's own guard then judges. Both stamping
+    // hooks must run after it. `syncEventFullness` writes `registrationsFull`,
+    // and `stampEventQuality`'s skip rules read `verificationStage`.
     beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
@@ -646,29 +644,20 @@ export const Events: CollectionConfig = {
               access: { update: eventManagerFieldAccess },
               admin: {
                 description:
-                  'Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.',
+                  'Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.',
                 // The description, then the contacts table (#908). ⚠ The empty
                 // `afterInput` makes Payload re-render it after a save.
                 components: { Description: MANAGER_CONTACTS, afterInput: [] },
               },
             },
-            {
-              name: 'verificationStage',
+            stateMachineField(EVENT_MACHINE, {
               label: 'Verification Process',
-              type: 'select',
-              required: true,
-              defaultValue: DEFAULT_VERIFICATION_STAGE,
-              options: [...VERIFICATION_STAGE_OPTIONS],
-              // System-managed: the ExpireEvents job advances this, and the
-              // verify operation resets it to `verified`. `enumName` is
-              // pinned so it never collides with the drafts `_status` enum
+              labels: VERIFICATION_STAGE_LABELS,
+              // Pinned so it never collides with the drafts `_status` enum
               // (`enum_events_status`).
               enumName: 'enum_events_verification_stage',
-              admin: {
-                readOnly: true,
-                components: { Field: '@/components/admin/VerificationStageField' },
-              },
-            },
+              admin: { components: { Field: '@/components/admin/VerificationStageField' } },
+            }),
             logField({
               // Today this logs the verification cycle: the verification
               // that opened it, plus one reminder entry per send. It is

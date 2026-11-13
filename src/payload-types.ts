@@ -1941,7 +1941,7 @@ export interface Event {
     totalDocs?: number;
   };
   /**
-   * Manager responsible for verifying this event. Assigning one to an unverified event adopts it into the verification cycle.
+   * Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.
    */
   manager?: (number | null) | Manager;
   verificationStage:

@@ -193,6 +193,24 @@ It seeds the main row **and** the `latest: true` version row, because
 `updateByID` loads the document it is about to change from that version —
 seed only the main row and the case passes for the wrong reason.
 
+A fourth: `setLifecycleState({ payload, collection, id, data })`
+(`tests/utils/lifecycleFixtures.ts`) puts a document at a lifecycle state
+beneath the hooks. Each lifecycle's guard refuses a state change that names no
+writer (#1121), and most states a case needs to **start** from are nobody's to
+write twice — a reviewer's own decision, or a ladder step the job reaches over
+weeks. ⚠ **Setup only.** A case asserting that a writer may make a move has to
+make the move, through that writer's own path, or it asserts nothing about the
+guard; where the writer is what the case stands in for, name it with
+`withActor` (`@/lib/stateMachine/actor`) on the write's own `context` instead.
+⚠ **A `create` cannot use it, and needs `withActor` instead.** Only a machine's
+`opensAt` — `verified` for a class, `pending` for a submission — opens to a
+create that names nobody, so a fixture authoring any other state names
+`import`, the actor for a file that decides. `testData.createEvent` already
+does; a spec's own create helper declares it once, where its own creates do.
+⚠ It cannot seed an array column — Payload generates each row's own id — so a
+case needing both splits into an ordinary update for the array and this for the
+state.
+
 ### Driving the REST API from the integration lane
 
 `createRestClient(env)` (`tests/utils/restRequest.ts`) issues authenticated

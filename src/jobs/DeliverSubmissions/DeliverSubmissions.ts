@@ -1,7 +1,8 @@
 import type { TaskConfig } from 'payload'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
-import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
+import { transition } from '@/lib/stateMachine/transition'
 import type { UserSubmission } from '@/payload-types'
 
 import { DELIVERERS } from './deliverers'
@@ -83,12 +84,14 @@ export const DeliverSubmissions: TaskConfig<'deliverSubmission'> = {
     // (`Users/endpoints/block.ts`) or a manager's decision landing while the
     // send ran is the newer answer, and overwriting it would put `spam` back to
     // `accepted` or a reviewed proposal back to `pending`.
-    await updateIfUnchanged({
+    await transition({
       payload,
+      machine: SUBMISSION_MACHINE,
       collection: 'user-submissions',
       id: submissionId,
-      expect: { status: { equals: submission.status } },
-      data: { status },
+      from: submission.status,
+      to: status,
+      by: 'delivery',
       // Nothing reads the result, and the config's default depth would make a
       // proposal's afterRead recompute both review projections for it.
       depth: 0,

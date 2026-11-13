@@ -416,15 +416,21 @@ function digestScenarios(
       },
     },
     {
-      label: 'digest · admin · refused sign-ups + closing line',
+      label: 'digest · admin · refused sign-ups + closing lines',
       manager: digestManager('Rosa Delgado'),
-      note: 'the one email that counts the sign-ups filed as spam',
+      note: 'the one email that counts the sign-ups filed as spam and the sends that failed',
       props: {
         ...SHELL,
-        closingNote: {
-          href: `https://cloud.sydevelopers.com/admin${SPAM_SIGNUPS_PATH}`,
-          text: '27 sign-ups filed as spam in the last 7 days',
-        },
+        closingNotes: [
+          {
+            href: `https://cloud.sydevelopers.com/admin${SPAM_SIGNUPS_PATH}`,
+            text: '27 sign-ups filed as spam in the last 7 days',
+          },
+          {
+            href: 'https://cloud.sydevelopers.com/admin/collections/user-submissions',
+            text: '3 messages could not be delivered and can be sent again',
+          },
+        ],
         heading: 'Sahaj Atlas',
         openItems: { rows: [unmanaged, proposed, refused] },
         recipientName: 'Rosa Delgado',

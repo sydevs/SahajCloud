@@ -6,6 +6,7 @@ import { readSubmissionValue } from '@/collections/UserSubmissions/submissionDat
 import type { FollowUpSection } from '@/emails/PostEventFollowUpEmail'
 import { PostEventFollowUpEmail } from '@/emails/PostEventFollowUpEmail'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { runClock } from '@/lib/jobs/runClock'
 import type { LocaleCode } from '@/lib/locales'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
@@ -75,7 +76,7 @@ async function sendFollowUp(
   // nothing to send; leave the ledger unstamped so future follow-up types can
   // still reach these registrations.
   const sections: FollowUpSection[] = []
-  if (event.verificationStage === 'unverified' && event._status === 'published') {
+  if (isFeedbackOpen(event)) {
     const token = await signFeedbackToken({ submissionId: registration.id }, payload.secret, now)
     sections.push({
       type: 'feedback-ask',
