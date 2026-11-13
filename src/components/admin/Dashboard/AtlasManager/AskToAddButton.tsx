@@ -34,14 +34,7 @@ export function AskToAddButton({ contacts }: { contacts: RegionContact[] }) {
                 manage the events in your area:
               </p>
             </div>
-            <ManagerContactsTable
-              rows={contacts.map(({ email, id, name, region }) => ({
-                email,
-                id,
-                name,
-                subtitle: region,
-              }))}
-            />
+            <ManagerContactsTable rows={contacts} />
             <div className="confirmation-modal__controls">
               <Button buttonStyle="secondary" onClick={() => closeModal(MODAL_SLUG)} size="large">
                 Close
