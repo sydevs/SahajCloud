@@ -124,11 +124,12 @@ export const CLIENT_SPLITS: readonly {
  * from them. A re-sync re-links their region, which `atlas-reset` nulls, and
  * changes nothing else: the label, managers, contact, roles, language and colour
  * edited in SahajCloud stay, where every other Atlas service takes Atlas's side.
+ *
+ * #1 is Sahaja Yoga Canada (www.sahajayoga.ca), whose managers were added in
+ * SahajCloud. #12 is syuk.org (www.syuk.org), relabelled in SahajCloud and
+ * already serving the new widget.
  */
-export const ADOPTED_CLIENT_LEGACY_IDS = new Map<number, string>([
-  [1, 'Sahaja Yoga Canada (www.sahajayoga.ca) — managers added in SahajCloud'],
-  [12, 'syuk.org (www.syuk.org) — relabelled in SahajCloud, serving the new widget'],
-])
+export const ADOPTED_CLIENT_LEGACY_IDS = new Set<number>([1, 12])
 
 /**
  * Apply both client decisions: drop the excluded services, and give each split

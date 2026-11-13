@@ -328,7 +328,7 @@ describe('the mechanical clean', () => {
 
 describe('adopted clients', () => {
   it('names no service the build leaves out or splits away', () => {
-    for (const id of ADOPTED_CLIENT_LEGACY_IDS.keys()) {
+    for (const id of ADOPTED_CLIENT_LEGACY_IDS) {
       expect(EXCLUDED_CLIENT_LEGACY_IDS.has(id)).toBe(false)
       expect(CLIENT_SPLITS.some((split) => split.legacyId === id)).toBe(false)
     }
