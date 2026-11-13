@@ -16,7 +16,9 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { CleanupCollections } from '@/jobs/CleanupCollections/CleanupCollections'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 import { CONTACT_ACCEPTED_DAYS, MACHINE_SPAM_DAYS, PROPOSAL_DAYS } from '@/plugins/formBuilder'
 
@@ -60,6 +62,10 @@ describe('Submission retention sweep', () => {
       } as never,
       overrideAccess: true,
       req: systemReq(),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     })) as UserSubmission
 
     // `status` and `screeningResult` are system-written, so they are set after

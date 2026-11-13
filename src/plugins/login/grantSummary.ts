@@ -2,9 +2,13 @@ import type { CollectionSlug, Field, Payload, PayloadRequest, Where } from 'payl
 
 import { flattenAllFields } from 'payload'
 
+import type { EventListingProgress } from '@/emails/EventVerificationEmail'
+import { computeCommunityVerdict } from '@/lib/eventVerification/communityFeedback'
 import { DEFAULT_LOCALE, getLocaleLabel } from '@/lib/locales'
+import { addressOneLine, scheduleOneLine } from '@/lib/notifications/eventDetails'
+import { buildEventListingProgress } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import type { ProjectSlug } from '@/payload-types'
+import type { Event, ProjectSlug } from '@/payload-types'
 import {
   getJoinProject,
   getProjectCollections,
@@ -41,6 +45,29 @@ export interface ResponsibilityItem {
   title: string
   /** Its public page, or `null` while it has none — an unpublished event. */
   url: null | string
+  /**
+   * For a class: what its listing says, how complete it is, and whether the
+   * community had voted it down before a manager took it on.
+   *
+   * ⚠ **One email, not two.** Adopting a listing used to send an invitation
+   * naming the class and nothing else, leaving the new manager to open the
+   * admin to find out what they had taken on — and leaving a listing the
+   * community had flagged indistinguishable from any other (#1120 decision 4).
+   * A second email would be the obvious fix and the wrong one: it arrives
+   * beside the first, about the same class.
+   */
+  event?: {
+    /** One line each, the same shapes the reminder email prints. */
+    schedule: string
+    locationLabel: 'Address' | 'Online'
+    location: string
+    /** Contact name · phone, when the listing carries either. */
+    contact?: string
+    /** The listing checklist, exactly as the reminder email computes it. */
+    progress: EventListingProgress | null
+    /** Attendees had denied this class before it was adopted. */
+    flagged: boolean
+  }
 }
 
 /** One kind of document the account is named on as a manager. */
@@ -152,6 +179,7 @@ export async function summarizeGrants({
   collection,
   current,
   id,
+  describeEvents = false,
   only,
   payload,
   req,
@@ -159,6 +187,16 @@ export async function summarizeGrants({
 }: {
   /** The served collection the id belongs to. @see MANAGERS_COLLECTION */
   collection: string
+  /**
+   * Also describe each class: what it says, how complete it is, whether the
+   * community had flagged it.
+   *
+   * ⚠ **Off by default, because the other caller renders none of it.** The
+   * preview sign-in picker summarises up to 25 accounts, one after another, to
+   * print a single line each — paying for a listing checklist per class there
+   * would be a page load's worth of work nothing displays.
+   */
+  describeEvents?: boolean
   /** The account's own current project, which an admin's empty summary keeps. */
   current?: ProjectSlug
   id: number | string
@@ -178,7 +216,7 @@ export async function summarizeGrants({
   if (collection !== MANAGERS_COLLECTION) return [{ ...empty[0]!, project: current }]
 
   const isolated = req ? localeIsolatedReq(req) : undefined
-  const managed = await readManaged(payload, id, isolated, only)
+  const managed = await readManaged(payload, id, isolated, only, describeEvents)
   // An admin holds every role, so none is worth naming — but the regions and
   // events naming them are still theirs to look after.
   const held = fullAccess ? {} : await hydrateLocalizedRoles(payload, id, isolated)
@@ -263,6 +301,7 @@ async function readManaged(
   id: number | string,
   req: PayloadRequest | undefined,
   only: PendingInvitation | undefined,
+  describeEvents: boolean,
 ): Promise<{ collection: CollectionSlug; join: string; responsibility: Responsibility }[]> {
   const found = []
 
@@ -296,19 +335,25 @@ async function readManaged(
       req,
     })
 
-    const items = docs.flatMap((doc) => {
-      const record = doc as unknown as Record<string, unknown>
-      // A finished event keeps its page for late visitors, but it is over —
-      // nothing to look after.
-      if (record.verificationStage === 'finished') return []
-      const title = record[titleField]
-      return [
-        {
-          title: typeof title === 'string' && title.trim() ? title : 'Untitled',
-          url: typeof record.webUrl === 'string' ? record.webUrl : null,
-        },
-      ]
-    })
+    const describing = describeEvents && join.collection === 'events'
+    const items: ResponsibilityItem[] = (
+      await Promise.all(
+        docs.map(async (doc) => {
+          const record = doc as unknown as Record<string, unknown>
+          // A finished event keeps its page for late visitors, but it is over —
+          // nothing to look after.
+          if (record.verificationStage === 'finished') return []
+          const title = record[titleField]
+          return [
+            {
+              title: typeof title === 'string' && title.trim() ? title : 'Untitled',
+              url: typeof record.webUrl === 'string' ? record.webUrl : null,
+              ...(describing ? { event: await describeEvent(doc as unknown as Event, req) } : {}),
+            },
+          ]
+        }),
+      )
+    ).flat()
     if (items.length === 0) continue
 
     const { plural, singular } = config.labels ?? {}
@@ -324,4 +369,46 @@ async function readManaged(
   }
 
   return found
+}
+
+/**
+ * What a new manager needs to know about a class they have just been given.
+ *
+ * ⚠ **The three lines are composed here, not taken from
+ * `buildEventEmailDetails`.** That builder's only query counts recent
+ * registrations, which this email does not print — and one of its callers is
+ * the anonymous `request-magic-link` rescue path, where it would be the whole
+ * of the I/O and all of it wasted.
+ *
+ * The checklist does come from the same builder the reminder email uses, so
+ * what an adoption asks for and what the first reminder asks for cannot be two
+ * different lists. A listing the quality registry skips is `null`, and the
+ * email leaves the section out.
+ *
+ * `flagged` reads the stored vote tally rather than the stage: by the time this
+ * runs the adoption has already moved the class to `verified`, so `denied` is
+ * no longer there to read, and the denials that put it there are. It re-runs
+ * the verdict that unpublished it, because a bare denial count would tell a
+ * manager a listing nobody ever took down was off the map.
+ */
+async function describeEvent(
+  event: Event,
+  /** Absent only where the caller holds no request — the checklist needs one. */
+  req: PayloadRequest | undefined,
+): Promise<ResponsibilityItem['event']> {
+  const online = event.eventType === 'online'
+  const contact = [event.contactName?.trim(), event.contactPhone?.trim()]
+    .filter(Boolean)
+    .join(' · ')
+  return {
+    schedule: scheduleOneLine(event.schedule),
+    locationLabel: online ? 'Online' : 'Address',
+    location: online ? (event.onlineUrl ?? '') : addressOneLine(event.address ?? {}),
+    ...(contact ? { contact } : {}),
+    progress: req ? await buildEventListingProgress({ event, req }).catch(() => null) : null,
+    flagged: computeCommunityVerdict({
+      confirmations: event.systemMeta?.communityFeedback?.confirmations ?? 0,
+      denials: event.systemMeta?.communityFeedback?.denials ?? 0,
+    }).denied,
+  }
 }

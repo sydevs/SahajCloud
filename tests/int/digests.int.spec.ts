@@ -4,10 +4,13 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendDigests } from '@/jobs/Digests/SendDigests'
 import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { runTaskHandler } from '../utils/taskRunner'
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
@@ -131,6 +134,10 @@ describe('SendDigests job', () => {
         ...overrides,
       }),
       overrideAccess: true,
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     })
   }
 
@@ -197,11 +204,13 @@ describe('SendDigests job', () => {
         overrideAccess: true,
       })
       const own = await createEvent(both.id, 'Both own program')
-      await payload.update({
+      // The stage the case starts from, not a move: the ladder reaches `urgent`
+      // over weeks, and the guard refuses a stage change naming no writer.
+      await setLifecycleState({
+        payload,
         collection: 'events',
-        context: { skipVerifyHook: true },
-        data: { verificationStage: 'urgent' },
         id: own,
+        data: { verificationStage: 'urgent' },
       })
       // Another manager's listing in the region, escalated enough to reach them.
       const other = await testData.createManager(payload, { roles: [], type: 'manager' })
@@ -220,11 +229,11 @@ describe('SendDigests job', () => {
         }),
         overrideAccess: true,
       })
-      await payload.update({
+      await setLifecycleState({
+        payload,
         collection: 'events',
-        context: { skipVerifyHook: true },
-        data: { verificationStage: 'escalated' },
         id: theirs.id,
+        data: { verificationStage: 'escalated' },
       })
 
       emailAdapter.clearCapturedEmails()
@@ -359,6 +368,8 @@ describe('SendDigests job', () => {
         } as never,
         overrideAccess: true,
         req: systemReq(),
+        // A refusal the screening job would have written, authored instead.
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
 
       emailAdapter.clearCapturedEmails()
@@ -371,6 +382,49 @@ describe('SendDigests job', () => {
         /\d+ sign-ups? filed as spam in the last 7 days View http/,
       )
       expect((await watermarksOf(adminId)).admin?.refused_signups).toBeTruthy()
+    })
+
+    it('closes an admin digest with the sends that failed', async () => {
+      await createManager(
+        'undelivered-admin@example.com',
+        {
+          new_proposals: { frequency: 'Never', method: '' },
+          open_items: { frequency: 'Daily' },
+          refused_signups: { frequency: 'Never', method: '' },
+          statistics: { frequency: 'Never', method: '' },
+        },
+        'admin',
+      )
+      const row = await payload.create({
+        collection: 'user-submissions',
+        data: {
+          senderEmail: 'undelivered@example.com',
+          submissionData: [{ field: 'name', value: 'Undelivered Registrant' }],
+          type: 'registration',
+        } as never,
+        overrideAccess: true,
+        req: systemReq(),
+      })
+      // `failed` is the decision going fine and the send not, which no writer
+      // reaches from here — the delivery job does, after a send that threw.
+      await setLifecycleState({
+        payload,
+        collection: 'user-submissions',
+        id: row.id,
+        data: { status: 'failed' },
+      })
+
+      emailAdapter.clearCapturedEmails()
+      await runDigests(payload)
+
+      const sent = emailsTo('undelivered-admin@example.com')
+      expect(sent).toHaveLength(1)
+      // The row itself, and ⚠ the closing count beside it — a count with a
+      // link, because the list above already carries each row.
+      expect(String(sent[0]!.html)).toContain('Undelivered Registrant')
+      expect(String(sent[0]!.text)).toMatch(
+        /\d+ messages? could not be delivered and can be sent again View http/,
+      )
     })
   })
 

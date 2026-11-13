@@ -3,6 +3,8 @@ import type { Payload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildAtlasSidebarData } from '@/lib/atlasSidebar/getAtlasSidebarData'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { withActor } from '@/lib/stateMachine/actor'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -58,8 +60,10 @@ describe('Atlas sidebar data builder', () => {
       payload.create({
         collection: 'events',
         draft: true,
-        // skip the verify hook so the explicit verificationStage sticks.
-        context: { skipVerifyHook: true },
+        // Skip the verify hook so the explicit stage sticks, and name the
+        // writer: only `verified` opens to a create naming nobody, and `import`
+        // is the actor for a file that decides the stage (#1121).
+        context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'import'),
         data: {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',

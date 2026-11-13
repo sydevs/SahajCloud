@@ -104,5 +104,26 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
     throw new APIError(rejection.message, rejection.status, { code: rejection.code }, true)
   }
 
+  // ⚠ **A registration with no session is one nobody can follow up.**
+  // `SendPostEventFollowUps` selects on `startingAt`, so a row without one is
+  // invisible to it for ever — the registrant attends and is never asked how it
+  // went. The widget has always sent the session the visitor picked
+  // (sydevs/SahajAtlasWeb `src/types/registration.ts`), so requiring it closes
+  // the gap rather than narrowing the contract (#1120 decision 5). A repeat
+  // sign-up keeps whatever date it posts.
+  //
+  // ⚠ **Last, after every refusal that names a code.** An unknown, ended or
+  // full event is the more useful answer, and a visitor who meets one of those
+  // never reaches the question of which session they meant. A row naming no
+  // event at all returned above, and rightly: there is no session to name, and
+  // no follow-up it could have missed.
+  //
+  // No `code`: the error-code union is a file three repos sync, and a widget
+  // that cannot produce this refusal has nothing to map. The envelope is the
+  // same — `errors[].message`, 4xx.
+  if (data.startingAt == null || data.startingAt === '') {
+    throw new APIError('A registration must say which session it is for.', 400, undefined, true)
+  }
+
   return data
 }

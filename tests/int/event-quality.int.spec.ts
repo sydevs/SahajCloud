@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { QUALITY_CHECK_VERSION } from '@/lib/eventQuality'
 import type { Event, EventQualityReport } from '@/payload-types'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -39,13 +40,15 @@ describe('Event listing quality', () => {
    * survives — `skipVerifyHook` is the same escape hatch the ExpireEvents job
    * uses to advance a stage.
    */
-  const setStage = async (id: number, data: Record<string, unknown>): Promise<Event> =>
-    payload.update({
-      collection: 'events',
-      id,
-      data: data as never,
-      context: { skipVerifyHook: true },
-    })
+  /**
+   * The state a case starts from. Written beneath the hooks: no writer moves a
+   * class from `verified` to `expired`, and the lifecycle guard refuses a stage
+   * change naming none (#1121).
+   */
+  const setStage = async (id: number, data: Record<string, unknown>): Promise<Event> => {
+    await setLifecycleState({ payload, collection: 'events', id, data })
+    return payload.findByID({ collection: 'events', id, overrideAccess: true }) as Promise<Event>
+  }
 
   beforeAll(async () => {
     const env = await createTestEnvironment()

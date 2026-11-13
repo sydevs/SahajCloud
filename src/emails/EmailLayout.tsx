@@ -23,7 +23,7 @@ import type { RegistrationEmailDetails } from '@/lib/notifications/registrationD
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
 import { responsibilityLabel } from '@/plugins/login/grantSummary'
-import type { Responsibility } from '@/plugins/login/grantSummary'
+import type { Responsibility, ResponsibilityItem } from '@/plugins/login/grantSummary'
 
 /**
  * Non-breaking space, spelled out rather than typed literally: it is the only
@@ -110,6 +110,7 @@ export function ResponsibilityRows({
                   <span style={notYetPublic}> (Not yet public)</span>
                 </>
               )}
+              {item.event ? <EventBrief event={item.event} /> : null}
             </Fragment>
           ))}
         </DetailRow>
@@ -122,6 +123,62 @@ const notYetPublic: CSSProperties = {
   fontSize: '12px',
   color: '#6b7280',
   fontStyle: 'italic',
+}
+
+const brief: CSSProperties = { fontSize: '12px', color: '#4b5563', lineHeight: '18px' }
+
+const flaggedNote: CSSProperties = { ...brief, color: '#b45309' }
+
+/**
+ * What a class the manager has just been given looks like today: when and
+ * where it meets, what the listing is still missing, and — for one the
+ * community had voted down — why it was off the map.
+ *
+ * ⚠ **Shown under the class, not as a section of its own.** An invitation can
+ * name several classes, and a section would have to say which one it was
+ * about. The flagged line comes first, because it is the one fact that changes
+ * what the manager should do before anything else.
+ *
+ * ⚠ **Plain lines, not `DetailRow` and `ProgressBar`.** Both are section-level:
+ * each draws its own table, and this sits inside a `DetailRow`'s value, under
+ * one item of a list. `EventVerificationEmail` is the full-width rendering of
+ * the same two shapes.
+ */
+function EventBrief({ event }: { event: NonNullable<ResponsibilityItem['event']> }) {
+  const { contact, flagged, location, locationLabel, progress, schedule } = event
+  const stillToDo = progress?.open.map((suggestion) => suggestion.label) ?? []
+  // An empty line is not a blank one: an imported listing can carry no schedule
+  // or no address at all, and printing the label alone reads as a defect.
+  const lines = [
+    schedule,
+    location && `${locationLabel}: ${location}`,
+    contact,
+    progress &&
+      `Listing checklist: ${progress.resolved} of ${progress.total} done${
+        stillToDo.length ? ` — still to do: ${stillToDo.join(', ')}` : ''
+      }`,
+  ].filter((line): line is string => Boolean(line))
+
+  return (
+    <>
+      {flagged ? (
+        <div style={flaggedNote}>
+          Attendees reported they could not find this class, so it was taken off the map. Please
+          check the details before anything else.
+        </div>
+      ) : null}
+      {lines.length ? (
+        <div style={brief}>
+          {lines.map((line, index) => (
+            <Fragment key={index}>
+              {index > 0 ? <br /> : null}
+              {line}
+            </Fragment>
+          ))}
+        </div>
+      ) : null}
+    </>
+  )
 }
 
 /** A label-above-value itinerary line. */

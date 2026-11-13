@@ -4,7 +4,9 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import type { LocaleCode } from '@/lib/locales'
+import { withActor } from '@/lib/stateMachine/actor'
 import type {
   AppCard,
   Narrator,
@@ -1197,6 +1199,11 @@ export const testData = {
     return (await payload.create({
       collection: 'events',
       data: eventData,
+      // ⚠ **A fixture's own writer.** `EVENT_MACHINE` opens a class at
+      // `verified`; every other stage needs a writer that may author one, and
+      // `import` is the actor for a file that decides (#1121). This is setup:
+      // a case asserting a writer may make a *move* still has to make it.
+      context: withActor(undefined, EVENT_MACHINE, 'import'),
     })) as Event
   },
 }

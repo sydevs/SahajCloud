@@ -1,161 +1,14 @@
 import type { PayloadRequest } from 'payload'
 
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { withActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
-import { holdsCollectionPermission } from '@/plugins/access'
-import { isAdminManager } from '@/plugins/access/adminOnly'
 
-import {
-  OPEN_REVIEW_STATUSES,
-  REOPENABLE_REVIEW_STATUSES,
-  isSpamStatus,
-  STATUS_LABELS,
-} from '../statuses'
+import { NO_REGION_MESSAGE, type ReviewAction } from '../machine'
 import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
-
-export type ReviewAction = 'accept' | 'confirm-spam' | 'reject' | 'reopen'
-
-/**
- * What one write means for review: nothing to judge, a move no reviewer may
- * make, or a decision to apply.
- */
-export type ReviewMove =
-  | { kind: 'decision'; action: ReviewAction }
-  | { kind: 'illegal'; reason: string }
-  | { kind: 'none' }
-
-/**
- * Why a new-event accept cannot proceed. One wording, raised as a field error
- * on `region` by the guard and as the narrowing in {@link applyReview} — a
- * reviewer fixes it in the field the message names.
- */
-export const NO_REGION_MESSAGE =
-  'This submission has no resolved city/venue yet — set the Region field (or wait for screening) before accepting.'
-
-const isOpen = (status: UserSubmission['status']) =>
-  (OPEN_REVIEW_STATUSES as readonly string[]).includes(status)
-
-const isReopenable = (status: UserSubmission['status']) =>
-  (REOPENABLE_REVIEW_STATUSES as readonly string[]).includes(status)
-
-/**
- * Settling a spam refusal — the move that is an admin's rather than a
- * reviewer's.
- *
- * ⚠ **Only the part the reviewer path cannot already answer.** Reopening a
- * refused *reviewable* row has always been a reviewer's call and stays one,
- * below: narrowing it to admins would take a reviewer's own false-positive
- * recovery away. What is new here is confirming a refusal, and reopening one on
- * an intake nobody reviews — a registration, which is what an admin's home
- * lists.
- *
- * ⚠ **It takes `reviewable`, never the intake.** Which intakes a reviewer
- * reviews is one fact, and `reviewMove` reads it below to refuse an unreviewable
- * row outright — spelled here as well, with the opposite polarity, the two would
- * silently disagree the day a second intake becomes reviewable, routing that
- * intake's reopen to admins alone with nothing failing.
- */
-function spamActionFor(
-  from: UserSubmission['status'],
-  to: UserSubmission['status'],
-  reviewable: boolean,
-): ReviewAction | null {
-  if (!isSpamStatus(from)) return null
-  if (to === 'confirmed_spam' && from === 'spam') return 'confirm-spam'
-  // ⚠ Withdrawing an admin's confirmed strike is an admin's call, on any intake.
-  if (to === 'pending' && (from === 'confirmed_spam' || !reviewable)) return 'reopen'
-  return null
-}
-
-/** Which decision a status move is, or `null` for one no reviewer may make. */
-function actionFor(
-  from: UserSubmission['status'],
-  to: UserSubmission['status'],
-): ReviewAction | null {
-  if (isOpen(from) && to === 'accepted') return 'accept'
-  if (isOpen(from) && to === 'rejected') return 'reject'
-  if (isReopenable(from) && to === 'pending') return 'reopen'
-  return null
-}
-
-/**
- * The whole review predicate, in one place: who may decide, on which rows, and
- * which moves count.
- *
- * ⚠ **Both hooks read this one answer.** `guardStatusTransition` refuses an
- * `illegal` move and `applyReviewDecision` applies a `decision`, so the move
- * the form is allowed to post and the work that then runs cannot disagree.
- * Spelled out at each hook, the two could drift on who counts as a reviewer or
- * on which rows are reviewable, with only the transition half shared.
- *
- * ⚠ **A reviewer is a manager holding the `update` grant, not merely a manager
- * named on the row.** The collection's own `update` is wider than its roles:
- * when the role grants deny, `createAccessConfig` falls back to document-level
- * manager access, so whoever a submission's `manager` field names may edit that
- * row with no grant at all (`accessConfigs.ts`). Reading the collection's
- * `update` here would make being assigned a proposal authority to publish the
- * Events row accepting it writes — which `POST :id/review` refused, gating on
- * the grant alone. `holdsCollectionPermission` is that same gate, minus the 403
- * an endpoint returns and a hook cannot.
- *
- * Nothing else binds, which is why no system writer had to change: screening's
- * `pending` → `spam` and delivery's moves run on a job `req` carrying no
- * manager, and a client cannot write the field at all. A per-writer opt-out
- * flag would fail in the dangerous direction — a future internal writer that
- * forgot one would have its write refused, or worse have an event created for a
- * decision no human made.
- */
-export function reviewMove(args: {
-  from: UserSubmission['status'] | undefined
-  /** Absent means the write never named a status, so nothing moved. */
-  to: UserSubmission['status'] | undefined
-  type: UserSubmission['type']
-  req: PayloadRequest
-}): ReviewMove {
-  const { from, to, type, req } = args
-
-  if (req.user?.collection !== 'managers') return { kind: 'none' }
-  // The form posts the whole document, so every ordinary save re-posts the
-  // stored status. A move to the value already held is not a move.
-  if (from === undefined || to === undefined || to === from) return { kind: 'none' }
-
-  if (!holdsCollectionPermission({ req, collection: 'user-submissions', operation: 'update' })) {
-    return { kind: 'illegal', reason: 'You do not have permission to review submissions.' }
-  }
-
-  // One table holds four intakes sharing one status vocabulary, and only one of
-  // them has a review path: without that, a contact row could be walked through
-  // the review states and reach the accept path with no `proposed` to apply.
-  // Read once, because the spam branch below needs the same answer.
-  const reviewable = type === 'proposal'
-
-  // Settling a spam refusal comes before the reviewability gate, because it is
-  // the one decision no reviewer makes. Admins only: the strike it confirms, and
-  // the seat a released registration takes back, are map-wide consequences.
-  const spamAction = spamActionFor(from, to, reviewable)
-  if (spamAction) {
-    if (!isAdminManager(req.user)) {
-      return { kind: 'illegal', reason: 'Only an admin can settle a spam refusal.' }
-    }
-    return { kind: 'decision', action: spamAction }
-  }
-
-  if (!reviewable) {
-    return { kind: 'illegal', reason: `A ${type} submission is not reviewable.` }
-  }
-
-  const action = actionFor(from, to)
-  if (!action) {
-    return {
-      kind: 'illegal',
-      reason: `A ${STATUS_LABELS[from].toLowerCase()} submission cannot become ${STATUS_LABELS[to].toLowerCase()}.`,
-    }
-  }
-
-  return { kind: 'decision', action }
-}
 
 /**
  * Record a decision, and for an accept write the event it approves.
@@ -166,7 +19,8 @@ export function reviewMove(args: {
  *
  * A spam decision is a status move whose effect is which rows
  * `INACTIVE_STATUSES`, the spam-strike count and the admin's open items select;
- * releasing a sign-up or message also queues the delivery screening withheld.
+ * releasing a sign-up or message also queues the delivery screening withheld,
+ * which is the same work a resend queues after a send that failed.
  *
  * Accept:
  * - update proposal (`event` set) → the proposed patch is applied with a
@@ -210,10 +64,12 @@ export async function applyReview(args: {
         depth: 0,
         overrideAccess: true,
         // This write forwards the reviewing manager's `req`, so the review hook
-        // would see it too. It moves no status, so `reviewMove` already answers
-        // `none` — the flag is the belt, because a recursion here would create
-        // an event per turn.
-        context: { skipSubmissionReview: true, skipWriteGuard: true },
+        // would see it too. It moves no status, so the machine already answers
+        // `unchanged` — the flag is the belt, because a recursion here would
+        // create an event per turn. ⚠ It names the row rather than saying
+        // "skip": the flag lands on the caller's own request and stays there, so
+        // a bare `true` silenced every later row of a bulk accept.
+        context: { skipSubmissionReview: submission.id, skipWriteGuard: true },
         req,
       })
     }
@@ -231,15 +87,18 @@ export async function applyReview(args: {
     return
   }
 
-  if (action === 'reopen') {
-    if (submission.type === 'proposal') {
-      // A screening false positive, or a rejection a manager wants back.
-      await decide('Reopened for review')
-      return
-    }
+  if (action === 'reopen' && submission.type === 'proposal') {
+    // A screening false positive, or a rejection a manager wants back.
+    await decide('Reopened for review')
+    return
+  }
+
+  if (action === 'reopen' || action === 'resend') {
     // ⚠ A released sign-up or message was never delivered: screening queues
-    // delivery only on a pass, so releasing it must queue what that pass would have.
-    await decide('Released as not spam')
+    // delivery only on a pass, so releasing it must queue what that pass would
+    // have. A resend is the same act for the other reason — the send itself
+    // failed — and both leave the row `pending` for the delivery job to settle.
+    await decide(action === 'resend' ? 'Queued for delivery again' : 'Released as not spam')
     await payload.jobs.queue({
       task: 'deliverSubmission',
       input: { submissionId: submission.id },
@@ -282,7 +141,7 @@ export async function applyReview(args: {
   }
 
   const regionId = submissionRegionId(submission)
-  // `guardStatusTransition` refuses the move to `accepted` without one, so this
+  // The accept move's own condition refuses a write without one, so this
   // narrows rather than refusing a second time.
   if (regionId == null) throw new Error(NO_REGION_MESSAGE)
 
@@ -313,7 +172,11 @@ export async function applyReview(args: {
     // this save must take the same path as assigning a manager in the admin,
     // or the event would be stamped `verified` with no `nextCheckAt` and never
     // come up for re-verification again.
-    context: { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
+    context: withActor(
+      { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
+      EVENT_MACHINE,
+      'proposal',
+    ),
     req,
   })
 

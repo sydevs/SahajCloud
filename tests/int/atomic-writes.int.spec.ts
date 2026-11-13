@@ -16,7 +16,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { DEFAULT_LOG_LIMIT, asLog, type LogEntry, toLogRow } from '@/fields'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { withActor } from '@/lib/stateMachine/actor'
 
+import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -175,7 +178,9 @@ describe('atomic writes', () => {
         expect: { verificationStage: { equals: 'verified' } },
         data: { verificationStage: 'reminded' },
         overrideAccess: true,
-        context: { skipVerifyHook: true },
+        // The caller this stands in for is the nightly advance, and the
+        // lifecycle guard reads the writer off the write's own context.
+        context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
       })
 
       expect(written).toBe(true)
@@ -184,12 +189,13 @@ describe('atomic writes', () => {
 
     it('writes nothing once the row has moved', async () => {
       const id = await newEvent()
-      await payload.update({
+      // The other writer's result, as a fixture: no single move takes an event
+      // from `verified` to `escalated`, which is the point of the race.
+      await setLifecycleState({
+        payload,
         collection: 'events',
         id,
         data: { verificationStage: 'escalated' },
-        context: { skipVerifyHook: true },
-        overrideAccess: true,
       })
 
       const written = await updateIfUnchanged({
@@ -200,7 +206,9 @@ describe('atomic writes', () => {
         expect: { verificationStage: { equals: 'verified' } },
         data: { verificationStage: 'reminded' },
         overrideAccess: true,
-        context: { skipVerifyHook: true },
+        // The caller this stands in for is the nightly advance, and the
+        // lifecycle guard reads the writer off the write's own context.
+        context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
       })
 
       expect(written).toBe(false)
@@ -226,7 +234,7 @@ describe('atomic writes', () => {
           expect: { nextCheckAt: { equals: null } },
           data: { verificationStage: 'reminded' },
           overrideAccess: true,
-          context: { skipVerifyHook: true },
+          context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
         }),
       ).toBe(true)
       expect(await stageOf(id)).toBe('reminded')

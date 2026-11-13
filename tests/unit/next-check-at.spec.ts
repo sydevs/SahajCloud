@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isPreAdoptionStage, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
+import { isPreAdoptionStage, STAGES, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
 import { FINISHED_RETENTION_MONTHS, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import type { EventSchedule } from '@/types/schedule'
 
@@ -180,5 +180,37 @@ describe('the nullability contract', () => {
       })
       expect(armed, `${stage} with a schedule end`).not.toBeNull()
     }
+  })
+
+  it('arms nothing on a reminder stage while the class is a draft', () => {
+    for (const stage of VERIFICATION_STAGES) {
+      const hidden = resolveNextCheckAt({
+        stage,
+        stageDeadline: deadlineFor(stage),
+        schedule: endingSchedule,
+        status: 'draft',
+        now,
+      })
+      // A manager who hides a class is not letting it rot: the ladder exists to
+      // ask whether a *listed* class still runs (#1120 decision 3).
+      if (STAGES[stage].onDue.kind === 'remind') {
+        expect(hidden, `${stage} is a reminder stage — a hidden class is not chased`).toBeNull()
+      } else {
+        expect(hidden, `${stage} keeps its own clock`).not.toBeNull()
+      }
+    }
+  })
+
+  it('keeps the expired grace period on a draft, because the ladder hid it', () => {
+    // `expired` is unpublished by the ladder itself, so silencing it here would
+    // leave an unpublished listing in the table for ever.
+    expect(
+      resolveNextCheckAt({
+        stage: 'expired',
+        stageDeadline: deadlineFor('expired'),
+        status: 'draft',
+        now,
+      }),
+    ).not.toBeNull()
   })
 })

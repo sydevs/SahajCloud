@@ -55,6 +55,9 @@ async function persistSampleEvent(): Promise<SampleData> {
   const { buildReminderEntry, buildVerificationEntry } = await import('@/lib/eventVerification/log')
   const { buildEventEmailDetails, listingProgressFromReport } = await import('@/lib/notifications')
   const { buildEventQualityReport } = await import('@/lib/eventQuality')
+  const { EVENT_MACHINE } = await import('@/lib/eventVerification/machine')
+  const { SUBMISSION_MACHINE } = await import('@/collections/UserSubmissions/machine')
+  const { withActor } = await import('@/lib/stateMachine/actor')
 
   const payload = await getPayload({ config })
   const stamp = Date.now()
@@ -205,7 +208,8 @@ async function persistSampleEvent(): Promise<SampleData> {
     collection: 'events',
     id: event.id,
     overrideAccess: true,
-    context: { skipVerifyHook: true },
+    // The ladder's own writer, since this stands in for weeks of the job's runs.
+    context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'job:expireEvents'),
     data: {
       verificationStage: 'escalated',
       nextCheckAt: iso(13),
@@ -256,6 +260,8 @@ async function persistSampleEvent(): Promise<SampleData> {
           status: 'accepted',
           uuid: `sample-reg-${stamp}-${i}`,
         },
+        // A historical sign-up, authored settled: the fixture decides.
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
     }
   } catch {
