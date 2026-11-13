@@ -134,7 +134,10 @@ export const Events: CollectionConfig = {
   admin: {
     group: 'Classes',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'verificationStage', '_status'],
+    // `region` and `manager` are what the list is scanned for: which city a
+    // class is in, and whether anyone runs it. Without them, finding either
+    // means opening every row.
+    defaultColumns: ['title', 'region', 'manager', 'verificationStage', '_status'],
     components: {
       views: {
         edit: {

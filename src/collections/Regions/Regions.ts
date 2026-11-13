@@ -65,6 +65,14 @@ const childLevelVisible = (childLevel: string) => {
 }
 
 /**
+ * Condition for the Events tab. An event attaches to a city or a venue —
+ * `events.region`'s `filterOptions` admits no other level — so anywhere above
+ * those two the tab could only ever read "No Events found".
+ */
+const eventsTabVisible = (data: Record<string, unknown>): boolean =>
+  hideUntilCreated(data) && ['city', 'venue'].includes(data?.level as string)
+
+/**
  * One tab per child level. Each holds a single `join` on the denormalized
  * `breadcrumbs` ancestor path, not `parent`, so it lists every descendant at
  * that level, not just direct children. It is filtered to the level, and
@@ -325,6 +333,7 @@ export const Regions: CollectionConfig = {
         },
         {
           label: 'Events',
+          admin: { condition: eventsTabVisible },
           fields: [
             {
               name: 'events',
@@ -332,7 +341,6 @@ export const Regions: CollectionConfig = {
               collection: 'events',
               on: 'region',
               admin: {
-                condition: hideUntilCreated,
                 components: { Label: '@/components/admin/EventImport/ImportClassesLabel' },
               },
             },
