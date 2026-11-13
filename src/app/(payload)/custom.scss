@@ -189,8 +189,13 @@ a:focus-visible {
   background-color: var(--theme-border-color);
 }
 
-/* Tabs opening a page carry Payload's 40px, which adds to the page's padding. */
-.render-fields > .tabs-field:first-child {
+/* Tabs opening a page carry Payload's 40px, which adds to the page's padding.
+   A `HiddenField` renders an `<input type="hidden">` that occupies nothing, so
+   tabs behind one still open the page — Events' `importBatch` is one.
+   shortcut: a visible field before that hidden input also loses the margin,
+   upgrade to `:has()` if one ever sits there. */
+.render-fields > .tabs-field:first-child,
+.render-fields > input[type='hidden'] + .tabs-field {
   margin-top: 0;
 }
 

@@ -144,6 +144,10 @@ Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`
 
 Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
+⚠ **A project theme sets all 21 elevation steps, never a subset.** The scales live in `src/lib/branding/themeColors.ts`, derived from the brand colours beside them: a step a theme leaves unset keeps Payload's own grey, so muted text renders grey between two tinted neighbours. A text step carries 30% of the project hue's chroma, because at full chroma a read-only value reads as selected rather than muted. `tests/unit/project-theme-contrast.spec.ts` holds what a hex cannot show — every step set, and a dark text step readable on the surface behind it.
+
+⚠ **Payload's stylesheet sits in a cascade layer and `custom.scss` does not, so a rule there outranks anything Payload declares, whatever the specificity.** That is what puts the focus ring back over Payload's own `a:focus { outline: none }`. It also means a rule there that broadens one of Payload's — colouring every tab label, say — silently outranks Payload's narrower one for the error state, which then has to be restated beside it.
+
 ## Server vs client components
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.

@@ -141,6 +141,10 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
           <table
             style={{
               width: '100%',
+              // ⚠ Fixed, or the `col` widths below are a suggestion the browser
+              // drops: an auto table gives each choice column its content width
+              // and the dropdown inside it lands at 50px, label truncated.
+              tableLayout: 'fixed',
               borderCollapse: 'collapse',
               border: '1px solid var(--theme-elevation-150)',
               fontSize: '13px',
@@ -156,9 +160,7 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
             </colgroup>
             <thead>
               <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
-                <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '100%' }}>
-                  Notification
-                </th>
+                <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Notification</th>
                 <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Method</th>
                 <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left' }}>Frequency</th>
               </tr>

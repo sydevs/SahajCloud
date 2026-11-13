@@ -200,10 +200,13 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                         index < options.length - 1
                           ? '1px solid var(--theme-elevation-150)'
                           : 'none',
-                      // 120px each, sharing the row evenly. A flex item never
-                      // shrinks below its own content, so a long label keeps
-                      // its segment wide and a narrow screen shrinks the rest.
-                      flex: '1 1 120px',
+                      // 120px each, sharing the row evenly, down to the label
+                      // on a narrow screen. ⚠ The floor is `min-width`, not
+                      // `flex-basis`: a flex container sizes to its items'
+                      // content, so a 120px basis alone measured 87px.
+                      flex: '1 1 auto',
+                      width: '120px',
+                      minWidth: 'min-content',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
