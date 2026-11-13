@@ -31,9 +31,11 @@ const MANAGER_ONLY = [
   'get /api/events/{}/registrations/csv', // the Registrations tab's download button
   'post /api/events/{}/verify', // the verification reminder's one-click action
   'post /api/clients/{}/verify-embed', // the Install tab's on-demand re-check
+  'post /api/clients/{}/email-preview', // the Atlas tab's sample registrant email
   'get /api/clients/{}/secrets/{}', // a stored secret's last 4 characters, for the field's mask
   'post /api/clients/{}/secrets/{}', // the set-secret modal, which stages a key for the next Save
   'post /api/managers/set-project', // the admin project selector
+  'post /api/files/{}/transcribe', // Transcribe again, on a file or a Path Step showing it
   'post /api/meditations/{}/transcribe', // the admin transcribe action
   'post /api/users/{}/block', // the admin block action
 ] as const

@@ -19,7 +19,7 @@ import {
   __resetPlaybackTimeStoreForTests,
   getCachedPlaybackTime,
   subscribePlaybackTime,
-} from '@/components/admin/FrameEditor/playbackTimeStore'
+} from '@/components/admin/helpers/playbackTimeStore'
 
 const PREVIEW_ORIGIN = 'https://preview.example'
 

@@ -21,6 +21,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 import { type Subtitles, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 import { seedEnv } from '../env'
@@ -416,9 +417,6 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
       // meditation is a polymorphic relationship (meditations | videos)
       lessonData.meditation = { relationTo: 'meditations', value: meditationId }
     }
-    if (introSubtitles) {
-      lessonData.introSubtitles = introSubtitles
-    }
     if (article) {
       lessonData.article = article
     }
@@ -437,7 +435,7 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
     // Handle file attachments only if lesson was created or updated (not skipped)
     if (result.action !== 'skipped') {
-      await this.attachLessonFiles(lessonId, story, content)
+      await this.attachLessonFiles(lessonId, story, content, introSubtitles)
     }
 
     // Return whether this was a skip (for rate limiting optimization)
@@ -522,17 +520,26 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
+  /**
+   * The intro recording's subtitles are its file's transcript (#1016), so the
+   * parsed Storyblok cues travel with the upload as an imported transcript
+   * rather than onto the lesson — and the upload then pays for no run.
+   */
   private async attachLessonFiles(
     lessonId: number | string,
     story: StoryblokStory,
     content: Record<string, any>,
+    introSubtitles: Subtitles | undefined,
   ): Promise<void> {
     // Note: Icon is now created in importLesson() before the lesson is created
 
     // Create and attach intro audio (uploads to Files collection)
     if (content.Audio_intro?.[0]?.Audio_track?.filename) {
       try {
-        const audioId = await this.createFileAttachment(content.Audio_intro[0].Audio_track.filename)
+        const audioId = await this.createFileAttachment(
+          content.Audio_intro[0].Audio_track.filename,
+          introSubtitles?.length ? { language: 'en', segments: introSubtitles } : undefined,
+        )
         if (audioId) {
           await this.payload.update({
             collection: 'lessons',
@@ -647,8 +654,15 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
    * Creates a file attachment for audio, video, and image files.
    * Uploads to the Files collection.
    * Returns null if URL is missing, file type unsupported, or upload fails.
+   *
+   * `transcript` is cues that already exist for the recording, in a known
+   * language: the upload stores them as its transcript and pays for no run
+   * (`syncTranscriptOnSave`).
    */
-  private async createFileAttachment(url: string): Promise<string | null> {
+  private async createFileAttachment(
+    url: string,
+    transcript?: { language: 'en'; segments: TranscriptSegment[] },
+  ): Promise<string | null> {
     if (!url) {
       this.addWarning('URL is required for creating file attachment - skipping')
       return null
@@ -688,7 +702,8 @@ export class StoryblokImporter extends BaseImporter<BaseImportOptions> {
 
       const attachment = await this.payload.create({
         collection: 'files',
-        data: {},
+        data: transcript ? { spokenLanguage: transcript.language } : {},
+        ...(transcript ? { context: { importedSegments: transcript.segments } } : {}),
         file: {
           data: fileBuffer,
           name: filename,

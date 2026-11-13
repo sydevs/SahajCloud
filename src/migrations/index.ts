@@ -128,7 +128,10 @@ import * as migration_20261111_182500_encrypt_mailing_list_key from './20261111_
 import * as migration_20261111_182607_recover_lost_jobs_task from './20261111_182607_recover_lost_jobs_task';
 import * as migration_20261111_215539_activity_log_rows from './20261111_215539_activity_log_rows';
 import * as migration_20261111_232203_merge_main_snapshot_8 from './20261111_232203_merge_main_snapshot_8';
+import * as migration_20261112_184359_file_transcripts_replace_intro_subtitles from './20261112_184359_file_transcripts_replace_intro_subtitles';
 import * as migration_20261112_211802_drop_mailing_list_enabled from './20261112_211802_drop_mailing_list_enabled';
+import * as migration_20261112_213652_files_spoken_language from './20261112_213652_files_spoken_language';
+import * as migration_20261112_234150_merge_main_snapshot_9 from './20261112_234150_merge_main_snapshot_9';
 
 export const migrations = [
   {
@@ -782,8 +785,23 @@ export const migrations = [
     name: '20261111_232203_merge_main_snapshot_8',
   },
   {
+    up: migration_20261112_184359_file_transcripts_replace_intro_subtitles.up,
+    down: migration_20261112_184359_file_transcripts_replace_intro_subtitles.down,
+    name: '20261112_184359_file_transcripts_replace_intro_subtitles',
+  },
+  {
     up: migration_20261112_211802_drop_mailing_list_enabled.up,
     down: migration_20261112_211802_drop_mailing_list_enabled.down,
-    name: '20261112_211802_drop_mailing_list_enabled'
+    name: '20261112_211802_drop_mailing_list_enabled',
+  },
+  {
+    up: migration_20261112_213652_files_spoken_language.up,
+    down: migration_20261112_213652_files_spoken_language.down,
+    name: '20261112_213652_files_spoken_language',
+  },
+  {
+    up: migration_20261112_234150_merge_main_snapshot_9.up,
+    down: migration_20261112_234150_merge_main_snapshot_9.down,
+    name: '20261112_234150_merge_main_snapshot_9'
   },
 ];

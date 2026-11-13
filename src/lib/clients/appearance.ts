@@ -17,41 +17,42 @@
  *
  * ⚠ Mirrors `DEFAULT_SEEDS` in SahajAtlasWeb's `src/config/theme/palette.ts`,
  * where `color3` themes the `contrast` role. Change both together.
+ *
+ * ⚠ `color1` is unchanged by sydevs/SahajAtlasWeb#389 and its generated ladder
+ * still moved: no teal passes the panel-text check at any saturation worth
+ * calling teal, so the widget corrects the step rather than the seed. Only
+ * `color2` and `color3` are retunable, and both were retuned there.
  */
 export const ATLAS_DEFAULT_COLORS = {
   color1: '#1E6C71',
-  color2: '#A1C3D7',
-  color3: '#E08E79',
+  color2: '#5e98ba',
+  color3: '#d8735a',
 } as const
+
+export type BrandColorColumn = keyof typeof ATLAS_DEFAULT_COLORS
+
+/** What a manager calls each colour — the Atlas tab's pickers and the Install tab's tiles. */
+export const BRAND_COLOR_LABELS: Record<BrandColorColumn, string> = {
+  color1: 'Primary',
+  color2: 'Secondary',
+  color3: 'Accent',
+}
 
 /** The logo a service without one of its own is shown with. */
 export const DEFAULT_SERVICE_LOGO = '/images/wemeditate-web.svg'
 
 /**
- * Whether a colour carries a hue, as the Atlas widget reads one.
+ * Whether a stored colour is the service's own, as the Atlas widget reads one.
  *
- * ⚠ Mirrors `isBrandSeed` and `MIN_BRAND_SATURATION` in SahajAtlasWeb's
- * `src/config/theme/palette.ts`: the widget treats black, white and grey as
- * unset, so an achromatic value here is shown as the default, because that is
- * what visitors see.
+ * ⚠ Mirrors `isBrandSeed` in SahajAtlasWeb's `src/config/theme/palette.ts`: any
+ * valid colour but `#000000`, the "unconfigured" value client records once
+ * defaulted to. A grey, a white or a near-white is somebody's choice — reading
+ * every achromatic value as unset snapped a manager's pick to the default.
  */
 export function isBrandColor(hex: string | null | undefined): hex is string {
   const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex ?? '')
-  if (!match) return false
-  const digits =
-    match[1].length === 3
-      ? match[1]
-          .split('')
-          .map((digit) => digit + digit)
-          .join('')
-      : match[1]
-  const [r, g, b] = [0, 2, 4].map((at) => parseInt(digits.slice(at, at + 2), 16) / 255)
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  if (max === min) return false
-  const lightness = (max + min) / 2
-  const saturation = (max - min) / (1 - Math.abs(2 * lightness - 1))
-  return saturation * 100 >= 5
+
+  return Boolean(match) && !/^0+$/.test(match![1])
 }
 
 /** The colour the atlas actually paints with for one column: the service's, or the default. */

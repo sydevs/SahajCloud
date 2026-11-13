@@ -68,7 +68,7 @@ whoever needs it, or needing no one — throw `ExpectedJobFailure`
 (`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
 still reported, at `warning`. Leave an outage, such as a vendor down or a query
 failing, a plain `Error` — and a missing key or bucket URL too, in production
-(`isProductionDeployment()`), where it must alert. `TranscribeMeditation` and the `importEvents` task
+(`isProductionDeployment()`), where it must alert. `TranscribeRecording` and the `importEvents` task
 (`src/plugins/eventImport/task.ts`) show both.
 
 `CleanupCollections/` holds no collection list at all: a collection joins
@@ -172,11 +172,14 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. `lemonfox/` holds only what does **not** fetch: `normalize.ts`
-  turns the vendor's `verbose_json` into this app's cue shape, for the
-  transcription task and the transcript seed alike. The HTTP client stays in
-  `jobs/TranscribeMeditation/lemonfox/`, which has one consumer until
-  sydevs/SahajCloud#1016's subtitles endpoint becomes its second
+  booting it. `lemonfox/` holds the vendor's response half: `languages.ts`
+  (our locales to its language names and back) and `normalize.ts`, which reads
+  its undocumented `verbose_json` — words grouped into the cues a run stores,
+  and the phrases the library's existing transcripts were imported as. The
+  HTTP client itself is `src/jobs/TranscribeRecording/lemonfoxClient.ts`,
+  because the job is its one caller since every request became a queued run
+  (#1016); with one consumer, `tests/unit/lib-boundary.spec.ts` refuses it
+  here
 - `atomicWrites/` — the two writes a background worker owes a row it read
   before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
   into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
@@ -215,6 +218,17 @@ No loose files at the root — every file lives in a named folder:
   the rank, the filter, whether it counts against progress, and the next step
   — because four surfaces show the same list. No barrel: import each module
   by its own path
+- `transcripts/` — a recording's transcript, wherever the recording lives
+  (#1016): `sync.ts` starts a run when a recording or its language is saved
+  or, for a video, when Stream has made it, `request.ts` is a re-request and
+  the bounds a paid run needs, `read.ts` the row lookup, a file's cues
+  (batched per request), which files' rows are finished, and which column each
+  kind of recording states its language in, `cues.ts` the cue vocabulary a
+  provider's words are grouped into and the two bounds that cut one,
+  `language.ts` whether a recording's language is the one being read, and
+  `media.ts` which files carry one at all. Meditations, files, lessons, the
+  job and a seed all read it; deep imports, no barrel, because `media.ts` is
+  also read in the browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,

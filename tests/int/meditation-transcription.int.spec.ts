@@ -8,11 +8,12 @@
  * and lives in `tests/unit/transcript-status.spec.ts`.
  *
  * **Fixture pre-mortem.** The vendor is mocked at
- * `@/jobs/TranscribeMeditation/lemonfox/transcribe` — `tests/AGENTS.md`'s boundary rule — so the
+ * `@/jobs/TranscribeRecording/lemonfoxClient` — `tests/AGENTS.md`'s boundary rule — so the
  * suite can drive a completed run and **cannot** make a paid call. Two claims
  * the fixtures make about the real configuration, both verified:
  *
- * - The body shape is `{ segments: [{ text, start, end }] }` in seconds.
+ * - The body shape is `{ segments: [{ text, start, end, words }] }` in seconds,
+ *   with the word timings a run asks for (`wordTimings: true`).
  *   Checked against `src/lib/lemonfox/normalize.ts`, the
  *   one normaliser, which is the real code under these assertions.
  * - `LEMONFOX_API_KEY` is `''` in `vitest.config.mts`, so the unmocked key
@@ -28,12 +29,9 @@ import { extractID } from 'payload/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { recoverLostJobs } from '@/jobs/RecoverLostJobs/RecoverLostJobs'
-import { TranscribeMeditation } from '@/jobs/TranscribeMeditation/TranscribeMeditation'
+import { TranscribeRecording } from '@/jobs/TranscribeRecording/TranscribeRecording'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import {
-  RETRANSCRIBE_COOLDOWN_MS,
-  TRANSCRIPTION_STALL_MS,
-} from '@/lib/meditations/transcriptBounds'
+import { RETRANSCRIBE_COOLDOWN_MS, TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Meditation, Transcript } from '@/payload-types'
 
 import {
@@ -54,8 +52,8 @@ const lemonfox = vi.hoisted(() => ({
 
 // Partial: `TRANSCRIPTION_UNAVAILABLE_ERROR` lives here too, and the
 // unavailable case asserts the row carries the real one.
-vi.mock('@/jobs/TranscribeMeditation/lemonfox/transcribe', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/jobs/TranscribeMeditation/lemonfox/transcribe')>()),
+vi.mock('@/jobs/TranscribeRecording/lemonfoxClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/jobs/TranscribeRecording/lemonfoxClient')>()),
   ...lemonfox,
 }))
 
@@ -72,11 +70,37 @@ vi.mock('@/plugins/storage', async (importOriginal) => ({
   ...storage,
 }))
 
-/** Two phrases, in the provider's seconds. `normalizeLemonfoxResponse` converts. */
+/**
+ * Two phrases, in the provider's seconds, whose words group into exactly two
+ * cues: the second's first word would take the first past 30 characters.
+ * `normalizeLemonfoxCues` converts.
+ */
 const VENDOR_BODY = {
   segments: [
-    { id: 0, text: ' Place your attention on the top of the head.', start: 0, end: 4.25 },
-    { id: 1, text: ' Let the thoughts settle.', start: 4.25, end: 6.5 },
+    {
+      id: 0,
+      text: ' Place your attention gently.',
+      start: 0,
+      end: 4.25,
+      words: [
+        { word: 'Place', start: 0, end: 0.6 },
+        { word: 'your', start: 0.6, end: 1.0 },
+        { word: 'attention', start: 1.0, end: 1.8 },
+        { word: 'gently.', start: 1.8, end: 4.25 },
+      ],
+    },
+    {
+      id: 1,
+      text: ' Let the thoughts settle.',
+      start: 4.25,
+      end: 6.5,
+      words: [
+        { word: 'Let', start: 4.25, end: 4.6 },
+        { word: 'the', start: 4.6, end: 4.8 },
+        { word: 'thoughts', start: 4.8, end: 5.6 },
+        { word: 'settle.', start: 5.6, end: 6.5 },
+      ],
+    },
   ],
 }
 
@@ -168,7 +192,7 @@ describe('meditation transcription', () => {
     meditation: Meditation,
     { audioFilename = meditation.filename!, job }: { audioFilename?: string; job?: number } = {},
   ) =>
-    runTaskHandler(TranscribeMeditation, {
+    runTaskHandler(TranscribeRecording, {
       payload,
       input: { meditationId: meditation.id, audioFilename },
       job: { id: job ?? (await runOf(meditation.id)) },
@@ -209,17 +233,39 @@ describe('meditation transcription', () => {
   }
 
   describe('a recording is transcribed by itself', () => {
-    it('creates a row naming that recording, with the meditation locale, and queues one run', async () => {
+    it('creates a row naming that recording, and queues one run', async () => {
       const meditation = await createMeditation('cs')
 
       const row = await transcriptOf(meditation.id)
       expect(row?.audioFilename).toBe(meditation.filename)
-      expect(row?.language).toBe('cs')
       expect(row?.segments ?? null).toBeNull()
       // The row carries the run it queued, which is where `status` is read
       // from. A row without one derives `failed`.
       expect(row?.job).toBeTruthy()
       expect(await queuedJobs(meditation.id)).toHaveLength(1)
+    })
+
+    // The language is the meditation's own `locale`, read by the run, so a
+    // transcript made in the old one would be in a language it no longer claims.
+    it('is transcribed again when its locale changes, in the new one', async () => {
+      const meditation = await createMeditation('cs')
+      const before = await transcriptOf(meditation.id)
+
+      const moved = (await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        locale: 'de',
+        data: { locale: 'de' },
+        overrideAccess: true,
+      })) as Meditation
+
+      const row = await transcriptOf(meditation.id)
+      expect(row?.id).not.toBe(before?.id)
+      expect(await queuedJobs(meditation.id)).toHaveLength(2)
+      await transcribe(moved)
+      expect(lemonfox.requestLemonfoxTranscript).toHaveBeenLastCalledWith(
+        expect.objectContaining({ locale: 'de' }),
+      )
     })
 
     it('adds no meditation version, and leaves its _status alone', async () => {
@@ -251,11 +297,7 @@ describe('meditation transcription', () => {
       // The vendor answers seconds. The cue shape is milliseconds, so a player
       // reading a transcript and one reading subtitles agree.
       expect(row?.segments).toEqual([
-        {
-          content: 'Place your attention on the top of the head.',
-          startTimeMs: 0,
-          endTimeMs: 4250,
-        },
+        { content: 'Place your attention gently.', startTimeMs: 0, endTimeMs: 4250 },
         { content: 'Let the thoughts settle.', startTimeMs: 4250, endTimeMs: 6500 },
       ])
     })
@@ -448,7 +490,7 @@ describe('meditation transcription', () => {
    * verified against the code under test:
    *
    * - A row reads `failed` because its retained job row carries `hasError` —
-   *   `deriveTranscriptStatus` (`src/lib/meditations/transcriptStatus.ts`) reads
+   *   `deriveTranscriptStatus` (`src/collections/Transcripts/status.ts`) reads
    *   nothing else, since the collection stores no status column.
    *   `runTaskHandler` bypasses the queue, so a rejected run leaves that flag
    *   unset and the row would read `processing`.
@@ -513,7 +555,6 @@ describe('meditation transcription', () => {
         // The recording did not change, so the new row names it and the task
         // will not read it as superseded.
         expect(row?.audioFilename).toBe(meditation.filename)
-        expect(row?.language).toBe(meditation.locale)
         expect(row?.segments ?? null).toBeNull()
         // Queued by the new row's own afterChange, not by the handler.
         expect(row?.job).toBeTruthy()

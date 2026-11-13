@@ -1,10 +1,12 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
+import { buildRegionWebPath } from '@/collections/Regions/webPath'
 import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
+import { previewTargetField } from '@/fields/previewTargetField'
 import { secretFieldEndpoints } from '@/fields/secretField/endpoints'
-import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
+import { ATLAS_DEFAULT_COLORS, BRAND_COLOR_LABELS } from '@/lib/clients/appearance'
 import type { RoutingMode } from '@/lib/clients/canonical'
 import {
   CANONICAL_DOMAIN_PATTERN,
@@ -21,9 +23,12 @@ import {
   VERIFICATION_FAILURE_REASONS,
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
+import { serverEnv } from '@/lib/env'
+import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDER_LABELS, MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
+import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import {
   adminOnlyFieldAccess,
@@ -31,9 +36,11 @@ import {
   isAdminManager,
   managersOnlyFieldAccess,
 } from '@/plugins/access'
+import { USER_EMAIL_FROM } from '@/plugins/email/senders'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { atlasWrites, isAtlasClient } from './access'
+import { clientEmailPreview } from './endpoints/emailPreview'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
 import { ensureClientId } from './hooks/ensureClientId'
@@ -445,6 +452,30 @@ export const Clients: CollectionConfig = {
     group: 'System',
     useAsTitle: 'label',
     defaultColumns: ['label', 'domain', 'enabled'],
+    /**
+     * The service's own atlas, so a manager sees their colours and logo on the
+     * real map while they choose them (#1110).
+     *
+     * ⚠ **Through `livePreviewUrl`, never a bare URL** — a falsy one persists
+     * "closed" as that editor's preference for the whole collection
+     * (`src/lib/livePreview/unavailable.ts`).
+     *
+     * ⚠ **A region change re-resolves this and reloads the panel.** Accepted:
+     * only an admin sets `region`, and only on the Config tab.
+     */
+    livePreview: {
+      breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      url: async ({ data, locale, req }) =>
+        livePreviewUrl({
+          base: serverEnv.SAHAJATLAS_URL,
+          params: { locale: locale.code, scope: 'clients' },
+          // Worldwide, or a region with no path of its own, is the atlas root.
+          path: isAtlasClient(data ?? {})
+            ? ((await buildRegionWebPath({ data: { id: relationId(data?.region) }, req })) ?? '')
+            : null,
+          reason: 'no-atlas-role',
+        }),
+    },
     components: {
       views: {
         edit: {
@@ -518,6 +549,10 @@ export const Clients: CollectionConfig = {
           label: 'Config',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'config__preview_target',
+            ),
             {
               name: 'label',
               type: 'text',
@@ -614,6 +649,7 @@ export const Clients: CollectionConfig = {
           label: 'Atlas',
           admin: { condition: isAtlasClient },
           fields: [
+            previewTargetField({ autoOpen: true }, 'atlas__preview_target'),
             {
               name: 'installSummary',
               type: 'ui',
@@ -634,49 +670,77 @@ export const Clients: CollectionConfig = {
               },
             },
             {
-              name: 'logo',
-              type: 'upload',
-              relationTo: 'images',
-              admin: {
-                description:
-                  'Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.',
-              },
-            },
-            {
-              type: 'row',
-              fields: [
-                colorField({
-                  name: 'color1',
-                  label: 'Primary Color',
-                  fallback: ATLAS_DEFAULT_COLORS.color1,
-                }),
-                colorField({
-                  name: 'color2',
-                  label: 'Secondary Color',
-                  fallback: ATLAS_DEFAULT_COLORS.color2,
-                }),
-                colorField({
-                  name: 'color3',
-                  label: 'Tertiary Color',
-                  fallback: ATLAS_DEFAULT_COLORS.color3,
-                }),
-              ],
-            },
-            {
-              // One button for all three, shown while any is the service's own.
-              name: 'resetColors',
-              type: 'ui',
-              admin: {
-                components: { Field: '@/components/admin/ColorField/ResetColors' },
-              },
-            },
-            {
               name: 'supportEmail',
               type: 'email',
               admin: {
                 description:
-                  'Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.',
+                  'This sets the Reply-To on registration emails, so replies reach you instead of us.',
+                // What a reply reaches with this left empty: the message's own sender.
+                placeholder: USER_EMAIL_FROM,
               },
+            },
+            {
+              name: 'logo',
+              type: 'upload',
+              relationTo: 'images',
+              admin: {
+                description: 'Logo shown in registrant emails.',
+              },
+            },
+            {
+              // Unnamed, so it groups the pickers on screen and stores nothing of its own:
+              // the colours stay top-level `color1`–`color3`.
+              type: 'group',
+              label: 'Branding Colors',
+              admin: {
+                components: { Label: '@/components/admin/AtlasPreview/BrandingColorsLabel' },
+              },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    colorField({
+                      name: 'color1',
+                      label: BRAND_COLOR_LABELS.color1,
+                      fallback: ATLAS_DEFAULT_COLORS.color1,
+                    }),
+                    colorField({
+                      name: 'color2',
+                      label: BRAND_COLOR_LABELS.color2,
+                      fallback: ATLAS_DEFAULT_COLORS.color2,
+                    }),
+                    colorField({
+                      name: 'color3',
+                      label: BRAND_COLOR_LABELS.color3,
+                      fallback: ATLAS_DEFAULT_COLORS.color3,
+                    }),
+                  ],
+                },
+                {
+                  // What the preview reports it rendered. Stores nothing.
+                  name: 'adjustedColors',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/AdjustedColors' },
+                  },
+                },
+                {
+                  // The preview's light or dark look. Stores nothing.
+                  name: 'mapPreview',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/MapPreviewField' },
+                  },
+                },
+                {
+                  // The one thing a visitor receives that this branding reaches.
+                  name: 'emailPreview',
+                  type: 'ui',
+                  admin: {
+                    components: { Field: '@/components/admin/AtlasPreview/EmailPreviewField' },
+                  },
+                },
+              ],
             },
             mailingListGroup,
           ],
@@ -688,6 +752,10 @@ export const Clients: CollectionConfig = {
           description: 'API usage statistics',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'usage__preview_target',
+            ),
             jsonField({
               // Virtual: written by the hook below, never stored. The schema generates
               // `ClientAbuseScore`. See `src/collections/AGENTS.md`.
@@ -727,6 +795,10 @@ export const Clients: CollectionConfig = {
           label: 'Diagnostics',
           admin: { condition: adminTabs },
           fields: [
+            previewTargetField(
+              { autoClose: true, unavailable: 'atlas-tab-only' },
+              'diagnostics__preview_target',
+            ),
             {
               name: 'canonical',
               type: 'group',
@@ -922,7 +994,12 @@ export const Clients: CollectionConfig = {
     },
     ...legacyMigrationFields(),
   ],
-  endpoints: [clientEmbedReport, verifyEmbedOnDemand, ...secretFieldEndpoints('clients')],
+  endpoints: [
+    clientEmailPreview,
+    clientEmbedReport,
+    verifyEmbedOnDemand,
+    ...secretFieldEndpoints('clients'),
+  ],
   hooks: {
     beforeChange: [
       validateClientData,
