@@ -180,7 +180,13 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               onKeyDown={(e) => handleKeyDown(e, option.value, index)}
               style={{
                 padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
-                background: isSelected ? 'var(--theme-success-600)' : 'transparent',
+                // Payload's own chosen-control pair, which `.btn--style-primary`
+                // and `.pill--style-dark` both paint with. A project theme sets
+                // the elevation scale and not `--theme-success-*`, so the fill
+                // follows the brand here and stayed Payload's blue before;
+                // `project-theme-contrast.spec.ts` pins this pair's contrast in
+                // both modes.
+                background: isSelected ? 'var(--theme-elevation-800)' : 'transparent',
                 color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
                 fontSize: 'calc(var(--base-body-size) * 1px)',
                 fontWeight: isSelected ? 600 : 400,
