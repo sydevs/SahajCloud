@@ -12,7 +12,7 @@ import { email, text } from 'payload/shared'
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
   REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import {
   addressFields,
   hideUntilCreated,

@@ -2,7 +2,7 @@ import type { DeliveryContext, DeliveryOutcome } from './types'
 
 import { submissionRoutingRegionId } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
-import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import { notificationFrequency } from '@/lib/notifications/preferences'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { findManagerForRegion } from '@/lib/notifications/recipients'
 import { sendSubmissionReview } from '@/lib/notifications/sendSubmissionReview'

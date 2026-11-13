@@ -6,7 +6,7 @@ import {
   notificationFrequency,
   notificationTypesFor,
   type SummaryFrequency,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import type {
   DigestEmailProps,
   DigestTileBlock,

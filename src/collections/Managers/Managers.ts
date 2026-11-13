@@ -7,7 +7,7 @@ import {
   CONTACT_PLATFORMS,
   buildDefaultNotificationPreferences,
   validateNotificationPreferences,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'

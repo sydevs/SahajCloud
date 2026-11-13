@@ -2,7 +2,7 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
-import { notificationFrequency } from '@/components/admin/NotificationPreferences/config'
+import { notificationFrequency } from '@/lib/notifications/preferences'
 import type { LogRow } from '@/fields'
 import { toLogRow } from '@/fields'
 import type { ActorRef, VerificationMethod } from '@/lib/eventVerification/log'

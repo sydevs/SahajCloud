@@ -5,7 +5,7 @@ import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } fro
 import {
   NEVER_FREQUENCY,
   notificationFrequency,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { relationId } from '@/lib/utilities/relationId'

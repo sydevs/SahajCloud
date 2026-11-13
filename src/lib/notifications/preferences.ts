@@ -1,10 +1,13 @@
 /**
- * Configuration + pure helpers for the NotificationPreferences field.
+ * What a manager can be notified about, how often, and by what route.
  *
- * The field component renders one row per `NOTIFICATION_TYPES` entry and adapts
- * entirely from this config, so adding/removing a type needs no component
- * change. The helpers are pure (no React, no Payload) so they can be reused by
- * the field's `defaultValue`/`validate` and unit-tested directly.
+ * The `NotificationPreferences` field renders one row per `NOTIFICATION_TYPES`
+ * entry and adapts entirely from here, so adding or removing a type needs no
+ * component change. The digest run, the proposal delivery, the invitation mail
+ * and `Managers.contactDetails` read the same vocabulary, which is why it is
+ * here rather than in the field's folder (`src/CLAUDE.md` rule 4). The helpers
+ * are pure — no React, no Payload — so the field's `defaultValue`/`validate`
+ * reuse them and a unit spec calls them directly.
  *
  * ⚠ **Keep this module free of runtime imports.** `NotificationPreferencesField`
  * is a `'use client'` component and value-imports from here, so anything added

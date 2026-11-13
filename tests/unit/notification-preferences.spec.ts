@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type {
   NotificationKey,
   NotificationType,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import {
   buildDefaultNotificationPreferences,
   CONTACT_PLATFORMS,
@@ -14,7 +14,7 @@ import {
   notificationTypesFor,
   REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
   validateNotificationPreferences,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 
 describe('notification preferences config', () => {
   describe('the rows', () => {

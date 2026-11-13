@@ -1,6 +1,6 @@
 'use client'
 
-import type { NotificationKey } from './config'
+import type { NotificationKey } from '@/lib/notifications/preferences'
 import type { FieldClientComponent, FormState, JSONFieldClient } from 'payload'
 
 import {
@@ -24,7 +24,7 @@ import {
   notificationFrequency,
   notificationMethodLabel,
   notificationTypesFor,
-} from './config'
+} from '@/lib/notifications/preferences'
 
 /**
  * NotificationPreferences Field
