@@ -15,9 +15,14 @@ interface RegionContext {
   name?: string
 }
 
-/** Subset of a Mapbox Geocoding v6 feature that the picker reads. */
+/**
+ * Subset of a Mapbox Geocoding v6 feature that the picker reads. The mount
+ * passes the library's own `GeocodingFeature` here, so this has to stay a
+ * supertype of it — which is why the position is GeoJSON's `number[]` rather
+ * than a tighter pair.
+ */
 export interface MapboxGeocodingFeature {
-  geometry?: { coordinates?: [number, number] }
+  geometry?: { coordinates?: number[] }
   properties?: {
     mapbox_id?: string
     name?: string

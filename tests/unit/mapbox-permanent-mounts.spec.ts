@@ -1,11 +1,11 @@
 /**
  * Every admin Mapbox search asks for a permanent answer (#893).
  *
- * ⚠ **Nothing type-checks that option.** `@mapbox/search-js-web` owns the props
- * and is not a direct dependency, so the mount's type is a hand-written
- * interface behind a `next/dynamic` cast — a renamed option, or a dropped line,
- * compiles and ships. The picker is where a manager's stored `Regions.mapboxId`
- * comes from in normal operation, so this reads the source instead.
+ * ⚠ **The type cannot reach either case below.** `permanent` is optional on
+ * the library's own props, so a mount that drops the line still compiles, and
+ * no type says which component was mounted. The picker is where a manager's
+ * stored `Regions.mapboxId` comes from in normal operation, so this reads the
+ * source instead.
  */
 import { readdirSync, readFileSync } from 'fs'
 import { join } from 'path'

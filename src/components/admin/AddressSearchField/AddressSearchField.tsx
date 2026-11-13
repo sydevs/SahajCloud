@@ -19,28 +19,23 @@ import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocatio
 
 import { readPickedPlace, type MapboxGeocodingFeature } from './pickedPlace'
 
-interface MapboxTheme {
-  variables?: Record<string, string>
-}
-
-interface MapboxGeocoderProps {
-  accessToken: string
-  /** ⚠ One feature, not a `{ features }` envelope — see `handleRetrieve`. */
-  onRetrieve?: (feature: MapboxGeocodingFeature) => void
-  value?: string
-  onChange?: (value: string) => void
-  placeholder?: string
-  options?: { language?: string; types?: string; country?: string; permanent?: boolean }
-  theme?: MapboxTheme
-}
+/**
+ * The mount's props, from the library itself, so `permanent` is type-checked
+ * (#893). A `typeof import(...)` in a type position is erased, so this costs no
+ * eager import of a module that touches `window`.
+ */
+type GeocoderProps = React.ComponentProps<typeof import('@mapbox/search-js-react').Geocoder>
 
 /**
  * `@mapbox/search-js-react` registers a custom element on import (it touches
  * `window`/`customElements`), so load it client-side only via `next/dynamic`.
+ *
+ * ⚠ The cast is `next/dynamic`'s alone: it infers no props from a
+ * `ForwardRefExoticComponent`. Never widen it past `GeocoderProps`.
  */
 const Geocoder = dynamic(async () => (await import('@mapbox/search-js-react')).Geocoder, {
   ssr: false,
-}) as unknown as React.ComponentType<MapboxGeocoderProps>
+}) as unknown as React.ComponentType<GeocoderProps>
 
 /** Replace the last segment of a dotted path (e.g. `address.mapboxId` → `address.street`). */
 function toSiblingPath(path: string, siblingName: string): string {
@@ -66,8 +61,8 @@ function resolveColor(cssVar: string, fallback: string): string {
 }
 
 /** Mapbox theme built from Payload's resolved colors, refreshed on light/dark toggle. */
-function usePayloadSearchTheme(): MapboxTheme | undefined {
-  const [theme, setTheme] = useState<MapboxTheme | undefined>(undefined)
+function usePayloadSearchTheme(): GeocoderProps['theme'] {
+  const [theme, setTheme] = useState<GeocoderProps['theme']>(undefined)
   useEffect(() => {
     const read = () =>
       setTheme({
@@ -177,6 +172,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
     dispatchFields({ type: 'UPDATE', path: targetPath, value: siblingValue })
   }
 
+  // ⚠ One feature, not the `{ features }` envelope Search Box answered with.
   const handleRetrieve = (feature: MapboxGeocodingFeature) => {
     if (!feature) return
     const picked = readPickedPlace(feature)
