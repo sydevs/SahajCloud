@@ -71,15 +71,18 @@
 }
 
 /* ============================================================================
-   5. SELECT FIELDS (every field that renders a bare ReactSelect)
+   5. SELECT FIELDS (the fields that render a bare ReactSelect)
    ============================================================================ */
 
 /* A single-value ReactSelect renders bare `.react-select` — Payload only wraps
    it in the full-width `.react-select-container` on its sortable path — so it
-   sizes to its own value instead of filling its slot. One rule for every field
-   that renders one: AddressSearchField, StringSelectField, the notification
-   preferences table, and whatever comes next. */
-.field-type .react-select {
+   sizes to its own value instead of filling its slot. Named per field rather
+   than `.field-type .react-select`: this sheet is unlayered, so a rule reading
+   as a default here outranks Payload's own on every select in the admin,
+   `RolesField` and each built-in select among them. */
+.field-type.address-search .react-select,
+.field-type.string-select .react-select,
+.field-type.notification-preferences .react-select {
   width: 100%;
 }
 
