@@ -16,8 +16,10 @@ import type { FlattenedField, Payload, PayloadRequest } from 'payload'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { proposableEventFields } from '@/collections/UserSubmissions/hooks/validateProposal'
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { screenProposalContent } from '@/jobs/ScreenSubmissions/contentScreening'
 import { activeRegistrationWhere } from '@/lib/registrations/active'
+import { withActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event, Form, Manager, UserSubmission } from '@/payload-types'
 
@@ -79,6 +81,10 @@ describe('Submission screening', () => {
       } as never,
       overrideAccess: true,
       req: systemReq(),
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     }) as Promise<UserSubmission>
 
   const screen = (submissionId: number) =>

@@ -3,11 +3,13 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { getAtlasAdminData } from '@/components/admin/Dashboard/AtlasAdmin/data'
 import { getAtlasManagerData } from '@/components/admin/Dashboard/AtlasManager/data'
 import { getAtlasRegionData } from '@/components/admin/Dashboard/AtlasRegion/data'
 import type { DashboardQuery } from '@/components/admin/Dashboard/shared/model'
 import { countEventsByRegion, RecordAtlasSnapshot } from '@/jobs/AtlasSnapshot/RecordAtlasSnapshot'
+import { withActor } from '@/lib/stateMachine/actor'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { storeInvalidEvent } from '../utils/storeInvalidEvent'
@@ -143,7 +145,7 @@ describe('Atlas overview', () => {
       data: { verificationStage: 'escalated' },
     })
 
-    // Unadopted, in the subtree.
+    // Unadopted, in the subtree. `createEvent` names the fixture's writer.
     await testData.createEvent(payload, {
       manager: null,
       region: managedCity.id,
@@ -471,6 +473,9 @@ describe('Atlas overview', () => {
         } as never,
         overrideAccess: true,
         req: systemReq(),
+        // A refusal the screening job would have written, authored instead:
+        // only `pending` opens to a write that names no writer (#1121).
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
       expect(titles((await load()).items.rows.docs)).toContain('Nadia Haddad')
       const { spamSignups } = await load()

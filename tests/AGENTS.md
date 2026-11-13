@@ -202,6 +202,11 @@ weeks. ⚠ **Setup only.** A case asserting that a writer may make a move has to
 make the move, through that writer's own path, or it asserts nothing about the
 guard; where the writer is what the case stands in for, name it with
 `withActor` (`@/lib/stateMachine/actor`) on the write's own `context` instead.
+⚠ **A `create` cannot use it, and needs `withActor` instead.** Only a machine's
+`opensAt` — `verified` for a class, `pending` for a submission — opens to a
+create that names nobody, so a fixture authoring any other state names
+`import`, the actor for a file that decides. `testData.createEvent` already
+does; a spec's own create helper declares it once, where its own creates do.
 ⚠ It cannot seed an array column — Payload generates each row's own id — so a
 case needing both splits into an ordinary update for the array and this for the
 state.

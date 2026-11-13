@@ -155,6 +155,10 @@ describe('Event verification lifecycle', () => {
       collection: 'events',
       overrideAccess: true,
       data: createData<'events'>(data),
+      // ⚠ **A fixture's own writer.** Only `verified` opens to a writer that
+      // names nobody; `import` is the actor for a file that decides the stage
+      // (#1121). Setup only — a case asserting a move still has to make it.
+      context: withActor(undefined, EVENT_MACHINE, 'import'),
     })
   }
 
@@ -896,6 +900,52 @@ describe('Event verification lifecycle', () => {
       })
       const fresh = await getEvent(payload, event.id)
       expect(fresh.systemMeta).toMatchObject({ communityFeedback: { confirmations: 9 } })
+    })
+  })
+
+  /**
+   * Where a row may open, which the table declares beside its moves. Before
+   * this, a create set the column to anything it liked and only later moves
+   * were judged — so a class could be created straight into a terminal stage
+   * no writer may ever move it to.
+   */
+  describe('where a class may open', () => {
+    const openAt = (stage: Event['verificationStage'], context?: Record<string, unknown>) =>
+      payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        context,
+        data: createData<'events'>({
+          title: `Opened ${stage} ${Date.now()}`,
+          languages: ['en'],
+          eventType: 'online',
+          onlineUrl: 'https://example.com/meet',
+          registrationMode: 'sahaj-atlas',
+          manager: eventManager.id,
+          region: defaultRegion.id,
+          // Dormant, so no schedule is needed; an inactive class owes contacts.
+          inactive: true,
+          contactName: 'Opening Contact',
+          contactPhone: '+1-555-0101',
+          verificationStage: stage,
+        }),
+      })
+
+    it('refuses a terminal stage to a create that names no writer', async () => {
+      await expect(openAt('expired', { skipVerifyHook: true })).rejects.toThrow(/verificationStage/)
+    })
+
+    it('lets a file that decides the stage open a class there', async () => {
+      const opened = await openAt(
+        'expired',
+        withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'import'),
+      )
+      expect(opened.verificationStage).toBe('expired')
+    })
+
+    it('opens at the stage the column declares for a writer that names nobody', async () => {
+      const opened = await openAt('verified', { skipVerifyHook: true })
+      expect(opened.verificationStage).toBe('verified')
     })
   })
 

@@ -5,7 +5,14 @@ import { ValidationError } from 'payload'
 import { capture } from '@/plugins/sentry/capture'
 
 import { declaredActor } from './actor'
-import { type Move, type Refusal, startsFrom, type StateMachine } from './machine'
+import {
+  type Move,
+  type MoveContext,
+  type Opening,
+  type Refusal,
+  startsFrom,
+  type StateMachine,
+} from './machine'
 
 /** Who is making a write, as one machine sees it. */
 export type Writer<Actor extends string> =
@@ -46,22 +53,74 @@ export function resolveWriter<State extends string, Actor extends string, Doc>(
   return { kind: 'person', actor: person }
 }
 
+export interface Refused<Actor extends string> {
+  kind: 'refused'
+  by: Actor | null
+  /** The field the refusal is reported on. */
+  field: string
+  message: string
+  /**
+   * Whether anybody should hear of it. A precondition aimed at another
+   * field is a person's ordinary mistake; everything else is a writer the
+   * table was not told about, or a request reaching a move no surface offers.
+   */
+  incident: boolean
+}
+
 export type Verdict<State extends string, Actor extends string, Doc> =
   | { kind: 'unchanged' }
   | { kind: 'allowed'; move: Move<State, Actor, Doc>; by: Actor }
-  | {
-      kind: 'refused'
-      by: Actor | null
-      /** The field the refusal is reported on. */
-      field: string
-      message: string
-      /**
-       * Whether anybody should hear of it. A precondition aimed at another
-       * field is a person's ordinary mistake; everything else is a writer the
-       * table was not told about, or a request reaching a move no surface offers.
-       */
-      incident: boolean
-    }
+  | Refused<Actor>
+
+/** Whether a create may stand, judged by {@link judgeOpening}. */
+export type OpeningVerdict<Actor extends string> = { kind: 'opened' } | Refused<Actor>
+
+const refused = <Actor extends string>(
+  machine: Pick<StateMachine<string, string, never>, 'field'>,
+  by: Actor | null,
+  refusal: Refusal,
+): Refused<Actor> =>
+  typeof refusal === 'string'
+    ? { kind: 'refused', by, field: machine.field, message: refusal, incident: true }
+    : { kind: 'refused', by, field: refusal.field, message: refusal.message, incident: false }
+
+/** A table row a writer is judged against: a move, or an opening. */
+type Row<Actor extends string, Doc> = Pick<Opening<never, Actor, Doc>, 'by' | 'refusal' | 'when'>
+
+/**
+ * Which of the rows already matching a write's own shape the writer lands on.
+ *
+ * ⚠ **The refusal a person reads prefers the row they could not reach.** Where
+ * a row exists for this document but for another person, its `refusal`
+ * explains the authority they lack ("Only an admin can …") — a failed
+ * condition on a row of their own would describe one they cannot use anyway.
+ *
+ * Shared by the move and the opening judgement so the two cannot answer a
+ * writer differently.
+ */
+function pick<Actor extends string, Doc, R extends Row<Actor, Doc>>(
+  rows: readonly R[],
+  writer: Extract<Writer<Actor>, { kind: 'person' | 'system' }>,
+  ctx: MoveContext<Doc>,
+): { kind: 'matched'; row: R } | { kind: 'refused'; refusal: Refusal } | { kind: 'unmatched' } {
+  const by = writer.actor
+  let failed: Refusal | undefined
+  for (const row of rows) {
+    if (!row.by.includes(by)) continue
+    const answer = row.when ? row.when(ctx) : true
+    if (answer === true) return { kind: 'matched', row }
+    failed ??= answer
+  }
+
+  if (writer.kind === 'person') {
+    const theirs = rows.find(
+      (row) => !row.by.includes(by) && row.refusal && (!row.when || row.when(ctx) === true),
+    )
+    if (theirs?.refusal) return { kind: 'refused', refusal: theirs.refusal }
+  }
+  if (failed !== undefined) return { kind: 'refused', refusal: failed }
+  return { kind: 'unmatched' }
+}
 
 /**
  * Judge one write against the machine: nothing moved, the move it makes, or
@@ -76,11 +135,7 @@ export type Verdict<State extends string, Actor extends string, Doc> =
  * target: the column is `required`, so nothing legitimate posts one, and a
  * refusal that names the writer beats the validator's later complaint.
  *
- * ⚠ **The refusal a person reads prefers the move they could not make.** Where
- * a move to the same state exists for this document but for another person,
- * its `refusal` explains the authority they lack ("Only an admin can …") — a
- * failed condition on a move of their own would describe a row they cannot
- * reach anyway.
+ * A create has no `from`, so it is judged by {@link judgeOpening} instead.
  */
 export function judgeTransition<State extends string, Actor extends string, Doc>(args: {
   machine: StateMachine<State, Actor, Doc>
@@ -95,46 +150,74 @@ export function judgeTransition<State extends string, Actor extends string, Doc>
   if (from == null || to === undefined || to === from) return { kind: 'unchanged' }
 
   const writer = resolveWriter(machine, req, args.context ?? req.context)
-  const refuse = (by: Actor | null, refusal: Refusal): Verdict<State, Actor, Doc> =>
-    typeof refusal === 'string'
-      ? { kind: 'refused', by, field: machine.field, message: refusal, incident: true }
-      : { kind: 'refused', by, field: refusal.field, message: refusal.message, incident: false }
-
   if (writer.kind === 'none') {
-    return refuse(
+    return refused<Actor>(
+      machine,
       null,
       `This change to ${machine.name} names no writer, so nothing can authorise it.`,
     )
   }
-  if (writer.kind === 'refused') return refuse(null, writer.reason)
+  if (writer.kind === 'refused') return refused<Actor>(machine, null, writer.reason)
 
   const by = writer.actor
-  const ctx = { doc, req }
-  const holds = (move: Move<State, Actor, Doc>) => !move.when || move.when(ctx) === true
   // `null` is in no move, so an explicit `null` finds no route.
   const routes = machine.moves.filter((move) => move.to === to && startsFrom(move, from))
+  const picked = pick(routes, writer, { doc, req })
+  if (picked.kind === 'matched') return { kind: 'allowed', move: picked.row, by }
+  if (picked.kind === 'refused') return refused(machine, by, picked.refusal)
 
-  let failed: Refusal | undefined
-  for (const move of routes) {
-    if (!move.by.includes(by)) continue
-    const answer = move.when ? move.when(ctx) : true
-    if (answer === true) return { kind: 'allowed', move, by }
-    failed ??= answer
-  }
-
-  if (writer.kind === 'person') {
-    const theirs = routes.find((move) => !move.by.includes(by) && move.refusal && holds(move))
-    if (theirs?.refusal) return refuse(by, theirs.refusal)
-  }
-  if (failed !== undefined) return refuse(by, failed)
-
-  return refuse(
+  return refused(
+    machine,
     by,
     to === null
       ? `${by} cannot move ${machine.name} from ${from} to nothing.`
       : (machine.refusal?.({ from, to }) ??
           `${by} cannot move ${machine.name} from ${from} to ${to}.`),
   )
+}
+
+/**
+ * Judge a create against the machine: where the row opens, or why that is
+ * refused.
+ *
+ * `machine.opensAt` stands for every writer — it is what the column does on
+ * its own. Every other state needs an `opens` row, which is what makes the
+ * table the whole declaration of a lifecycle rather than its moves alone: a
+ * row could otherwise be created at a state no writer may ever move it to.
+ *
+ * ⚠ **A missing or unlisted value is left to the column.** It is `required`
+ * and its options are the machine's states, so Payload's own validator
+ * answers both — refusing here would report a person's validation mistake as a
+ * writer the table was not told about.
+ */
+export function judgeOpening<State extends string, Actor extends string, Doc>(args: {
+  machine: StateMachine<State, Actor, Doc>
+  at: State | null | undefined
+  /** The row as the create would write it: what an opening's condition reads. */
+  doc: Partial<Doc>
+  req: PayloadRequest
+  context?: RequestContext
+}): OpeningVerdict<Actor> {
+  const { machine, at, doc, req } = args
+  if (at == null || !machine.states.includes(at)) return { kind: 'opened' }
+  if (at === machine.opensAt) return { kind: 'opened' }
+
+  const writer = resolveWriter(machine, req, args.context ?? req.context)
+  if (writer.kind === 'none') {
+    return refused<Actor>(
+      machine,
+      null,
+      `Opening ${machine.name} at ${at} names no writer, so nothing can authorise it.`,
+    )
+  }
+  if (writer.kind === 'refused') return refused<Actor>(machine, null, writer.reason)
+
+  const openings = (machine.opens ?? []).filter((opening) => opening.at === at)
+  const picked = pick(openings, writer, { doc, req })
+  if (picked.kind === 'matched') return { kind: 'opened' }
+  if (picked.kind === 'refused') return refused(machine, writer.actor, picked.refusal)
+
+  return refused(machine, writer.actor, `${writer.actor} cannot open ${machine.name} at ${at}.`)
 }
 
 /**
@@ -147,16 +230,17 @@ export function judgeTransition<State extends string, Actor extends string, Doc>
 export function refuseTransition(args: {
   machine: StateMachine<string, string, never>
   collection: string
+  operation: 'create' | 'update'
   from: unknown
   to: unknown
-  verdict: Extract<Verdict<string, string, never>, { kind: 'refused' }>
+  verdict: Refused<string>
   req: PayloadRequest
 }): never {
-  const { machine, collection, from, to, verdict, req } = args
+  const { machine, collection, operation, from, to, verdict, req } = args
 
   if (verdict.incident) {
     capture({
-      message: `Refused a ${machine.name} change that is not in the table`,
+      message: `Refused a ${machine.name} ${operation === 'create' ? 'opening' : 'change'} that is not in the table`,
       level: 'warning',
       tags: { collection, lifecycle: machine.name, actor: verdict.by ?? 'none' },
       extra: { from, to, reason: verdict.message },
@@ -168,8 +252,9 @@ export function refuseTransition(args: {
 }
 
 /**
- * The guard `stateMachineField` mounts on the column: a state change not in
- * the table is refused, reported, and never written.
+ * The guard `stateMachineField` mounts on the column: a state change — or a
+ * create opening at a state — not in the table is refused, reported, and never
+ * written.
  *
  * ⚠ **A field hook, so it runs after every collection `beforeChange`.** Payload
  * runs the collection's hooks before the field traversal
@@ -181,9 +266,30 @@ export function guardTransition<State extends string, Actor extends string, Doc>
   machine: StateMachine<State, Actor, Doc>,
 ): FieldHook {
   return ({ collection, context, data, operation, originalDoc, previousValue, req, value }) => {
-    // A create has no move to judge: the column holds its default or a
-    // writer's opening value.
-    if (operation !== 'update' || !originalDoc) return value
+    const refuse = (verdict: Refused<Actor>, from: unknown): never =>
+      refuseTransition({
+        machine: machine as unknown as StateMachine<string, string, never>,
+        collection: collection?.slug ?? machine.field,
+        operation: operation === 'create' ? 'create' : 'update',
+        from,
+        to: value,
+        verdict: verdict as Refused<string>,
+        req,
+      })
+
+    if (operation === 'create') {
+      // The patch *is* the row on a create, and Payload has already filled the
+      // column's default by the time a `beforeChange` hook runs.
+      const opening = judgeOpening({
+        machine,
+        at: value as State | null | undefined,
+        doc: data as Partial<Doc>,
+        req,
+        context,
+      })
+      return opening.kind === 'refused' ? refuse(opening, undefined) : value
+    }
+    if (!originalDoc) return value
 
     const verdict = judgeTransition({
       machine,
@@ -193,15 +299,6 @@ export function guardTransition<State extends string, Actor extends string, Doc>
       req,
       context,
     })
-    if (verdict.kind !== 'refused') return value
-
-    refuseTransition({
-      machine: machine as unknown as StateMachine<string, string, never>,
-      collection: collection?.slug ?? machine.field,
-      from: previousValue,
-      to: value,
-      verdict: verdict as Extract<Verdict<string, string, never>, { kind: 'refused' }>,
-      req,
-    })
+    return verdict.kind === 'refused' ? refuse(verdict, previousValue) : value
   }
 }

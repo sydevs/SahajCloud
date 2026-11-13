@@ -9,10 +9,11 @@ import type { PayloadRequest } from 'payload'
  * submission review checked at all. A move that no reader could find was a
  * move nobody could refuse.
  *
- * A machine states the column it governs, its states, every `(from, to, by)`
- * that is legal, and who may name themselves as a writer. `can` is the table's
- * lookup, `transition` is the only write, and the guard `stateMachineField`
- * mounts on the column refuses everything else (#1121).
+ * A machine states the column it governs, its states, where a row may open,
+ * every `(from, to, by)` that is legal, and who may name themselves as a
+ * writer. `can` is the table's lookup, `transition` is the only write, and the
+ * guard `stateMachineField` mounts on the column refuses everything else
+ * (#1121).
  *
  * ⚠ **A table, its conditions, a lookup and a claim — nothing more.** No
  * actions, no side-effect registry, no nested states, no timers. A move's
@@ -65,6 +66,25 @@ export interface Move<State extends string, Actor extends string, Doc = unknown>
   readonly refusal?: string
 }
 
+/**
+ * A state a row may be **created** at, beyond {@link StateMachine.opensAt},
+ * and who may open one there.
+ *
+ * A create is not a move: there is no `from`, and the claim has nothing to
+ * narrow. It still belongs in the table, or where a lifecycle begins would be
+ * the column's own `defaultValue` while every later step was declared here —
+ * and nothing would refuse a new row opening at a terminal state.
+ */
+export interface Opening<State extends string, Actor extends string, Doc = unknown> {
+  readonly at: State
+  /** Every writer that may open a row here. A writer absent here is refused. */
+  readonly by: readonly Actor[]
+  /** A condition on the row as created, judged by the guard alone. */
+  readonly when?: (ctx: MoveContext<Doc>) => true | Refusal
+  /** What a person who is not in `by` is told, where another person may. */
+  readonly refusal?: string
+}
+
 /** Who the person behind a request is, or why they may not move this column at all. */
 export type PersonResolution<Actor extends string> = Actor | { refused: string } | null
 
@@ -75,6 +95,17 @@ export interface StateMachine<State extends string, Actor extends string, Doc = 
   readonly field: string
   /** Every state, in the order the column's options list them. */
   readonly states: readonly State[]
+  /**
+   * Where a row opens when no writer names another state — the column's
+   * `defaultValue`, which `stateMachineField` takes from here.
+   *
+   * ⚠ **Open to every writer**, because it is what the column does on its own:
+   * the admin's create form, a public form's intake and a fixture all land
+   * here naming nobody.
+   */
+  readonly opensAt: State
+  /** Every other state a row may be created at. */
+  readonly opens?: readonly Opening<State, Actor, Doc>[]
   readonly moves: readonly Move<State, Actor, Doc>[]
   /**
    * The actors a write may **name** on its context, which is never every actor

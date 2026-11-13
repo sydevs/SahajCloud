@@ -9,7 +9,7 @@ import {
   type SubmissionActor,
 } from '@/collections/UserSubmissions/machine'
 import { SUBMISSION_STATUSES } from '@/collections/UserSubmissions/statuses'
-import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { type EventActor, EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import {
   LADDER,
   STAGES,
@@ -17,7 +17,7 @@ import {
   type VerificationStage,
 } from '@/lib/eventVerification/stages'
 import { declaredActor, withActor } from '@/lib/stateMachine/actor'
-import { judgeTransition } from '@/lib/stateMachine/guard'
+import { judgeOpening, judgeTransition } from '@/lib/stateMachine/guard'
 import { ANY_STATE, can, defineStateMachine } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
 import type { UserSubmission } from '@/payload-types'
@@ -37,6 +37,16 @@ const reachable = <S extends string, A extends string>(
   from: S,
   by: A,
 ): S[] => states.filter((to) => can(machine, from, to, by))
+
+/** Every state `by` may create a row at — `opensAt` aside, which is every writer's. */
+const openable = <S extends string, A extends string>(
+  machine: { readonly opens?: readonly { readonly at: S; readonly by: readonly A[] }[] },
+  states: readonly S[],
+  by: A,
+): S[] =>
+  states.filter((at) =>
+    (machine.opens ?? []).some((opening) => opening.at === at && opening.by.includes(by)),
+  )
 
 describe('can', () => {
   const machine = {
@@ -67,6 +77,16 @@ describe('judgeTransition', () => {
     field: 'state',
     states: ['a', 'b', 'c'],
     declarable: ['job'],
+    opensAt: 'a',
+    opens: [
+      { at: 'b', by: ['job'] },
+      {
+        at: 'c',
+        by: ['boss'],
+        refusal: 'Only a boss can open at c.',
+        when: ({ doc }) => doc.kind === 'open' || { field: 'kind', message: 'Open it first.' },
+      },
+    ],
     person: (req) => (req.user ? ((req.user as { role?: 'boss' | 'staff' }).role ?? null) : null),
     moves: [
       { from: ['a'], to: 'b', by: ['job'] },
@@ -150,6 +170,58 @@ describe('judgeTransition', () => {
       message: expect.stringContaining('cannot move test state from b to a'),
     })
     expect(judge('a', null, as('boss'))).toMatchObject({ kind: 'refused' })
+  })
+
+  /**
+   * A create, which has no `from` and so no move to match. Without these the
+   * table declares every later step of a lifecycle and not where one begins.
+   */
+  describe('judgeOpening', () => {
+    const open = (at: 'a' | 'b' | 'c' | null | undefined, req: PayloadRequest, kind = 'open') =>
+      judgeOpening({ machine, at, doc: { kind }, req })
+
+    it('opens at the declared default for a writer that names nobody', () => {
+      expect(open('a', as())).toEqual({ kind: 'opened' })
+    })
+
+    it('refuses any other state to a write that names no writer', () => {
+      expect(open('b', as())).toMatchObject({
+        kind: 'refused',
+        message: expect.stringContaining('names no writer'),
+        incident: true,
+      })
+    })
+
+    it('opens where a writer has a row of its own, and nowhere else', () => {
+      expect(open('b', as('staff', 'job'))).toEqual({ kind: 'opened' })
+      expect(open('c', as(undefined, 'job'))).toMatchObject({
+        kind: 'refused',
+        message: expect.stringContaining('job cannot open test state at c'),
+      })
+    })
+
+    it('tells a person which authority an opening they lack needs', () => {
+      expect(open('c', as('boss'))).toEqual({ kind: 'opened' })
+      expect(open('c', as('staff'))).toMatchObject({
+        kind: 'refused',
+        message: 'Only a boss can open at c.',
+      })
+    })
+
+    it("reports an opening's failed precondition on its own field", () => {
+      expect(open('c', as('boss'), 'closed')).toMatchObject({
+        kind: 'refused',
+        field: 'kind',
+        message: 'Open it first.',
+        incident: false,
+      })
+    })
+
+    it('leaves a missing or unlisted value to the column itself', () => {
+      // `required` and the select validator answer both, and name the field.
+      expect(open(null, as())).toEqual({ kind: 'opened' })
+      expect(open('z' as 'a', as())).toEqual({ kind: 'opened' })
+    })
   })
 })
 
@@ -288,6 +360,20 @@ describe('EVENT_MACHINE', () => {
     expect(denies('verified')).toEqual([])
   })
 
+  /**
+   * The two writers that create a class. `proposal` makes no move at all —
+   * `newEventDefaults` is the whole of what it writes — so an opening is the
+   * only row it has.
+   */
+  it('opens an unadopted listing to a proposal, and every stage to an import', () => {
+    const opensFor = (by: EventActor) => openable(EVENT_MACHINE, VERIFICATION_STAGES, by)
+    expect(EVENT_MACHINE.opensAt).toBe('verified')
+    expect(opensFor('proposal')).toEqual(['unverified'])
+    expect(opensFor('import')).toEqual([...VERIFICATION_STAGES])
+    // A ladder step is reached over weeks, never created at.
+    expect(opensFor('job:expireEvents')).toEqual([])
+  })
+
   // `import` is declarable in both tables, and one request writes both
   // collections, so a shared context key would hand a submission's importer
   // every event-stage move on the same request.
@@ -320,6 +406,12 @@ describe('SUBMISSION_MACHINE', () => {
     expect(from('accepted', 'screening')).toEqual([])
     expect(from('pending', 'block')).toEqual(['spam'])
     expect(from('failed', 'delivery')).toEqual(['accepted', 'failed', 'pending'])
+    // Every intake opens pending; only a seed's own file may author a verdict.
+    const opensFor = (by: SubmissionActor) => openable(SUBMISSION_MACHINE, SUBMISSION_STATUSES, by)
+    expect(SUBMISSION_MACHINE.opensAt).toBe('pending')
+    expect(opensFor('import')).toEqual([...SUBMISSION_STATUSES])
+    expect(opensFor('review')).toEqual([])
+    expect(opensFor('delivery')).toEqual([])
     // A verdict on a row is not something a second sign-up may fold away.
     expect(from('spam', 'repeat-signup')).toEqual([])
     expect(from('rejected', 'repeat-signup')).toEqual([])

@@ -1,6 +1,12 @@
 import { ANY_STATE, defineStateMachine, type Move } from '@/lib/stateMachine/machine'
 
-import { LADDER, LADDER_STEPS, VERIFICATION_STAGES, type VerificationStage } from './stages'
+import {
+  DEFAULT_VERIFICATION_STAGE,
+  LADDER,
+  LADDER_STEPS,
+  VERIFICATION_STAGES,
+  type VerificationStage,
+} from './stages'
 
 /**
  * Every writer that may move an event's verification stage.
@@ -10,8 +16,9 @@ import { LADDER, LADDER_STEPS, VERIFICATION_STAGES, type VerificationStage } fro
  * alone, so before the guard any manager holding `events: update` could set it
  * to any value and nothing applied what it implied.
  *
- * `import` is the Atlas seed importer, which mirrors an external system of
- * record: it may land a row on any stage, because the dump decides.
+ * `import` mirrors an external system of record — the legacy Atlas's own rows,
+ * or a volunteer's bulk upload: it may land a row on any stage, because the
+ * file decides. `proposal` only ever creates one: an accepted submission.
  */
 export const EVENT_ACTORS = [
   'adoption',
@@ -19,6 +26,7 @@ export const EVENT_ACTORS = [
   'hook:save',
   'import',
   'job:expireEvents',
+  'proposal',
   'verify',
 ] as const
 
@@ -62,6 +70,17 @@ export const EVENT_MACHINE = defineStateMachine<VerificationStage, EventActor>({
   // hook or made by an operation, and each of those names itself — a manager's
   // own save names nobody, and is refused.
   declarable: EVENT_ACTORS,
+  // A class goes on the map verified: the admin's own create form, and an
+  // accepted proposal that named a manager, both land here.
+  opensAt: DEFAULT_VERIFICATION_STAGE,
+  opens: [
+    // A listing nobody has taken on yet — an accepted proposal with no manager
+    // named. It waits for adoption rather than claiming to be verified.
+    { at: 'unverified', by: ['proposal'] },
+
+    // The file decides, so an import may open a listing anywhere.
+    ...VERIFICATION_STAGES.map((stage) => ({ at: stage, by: ['import'] as const })),
+  ],
   moves: [
     ...LADDER_MOVES,
     // The schedule ran out. Terminal from wherever the event stood.

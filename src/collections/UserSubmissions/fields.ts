@@ -379,7 +379,6 @@ const submissionContextField: Field = {
  */
 const statusField: Field = stateMachineField(SUBMISSION_MACHINE, {
   labels: STATUS_LABELS,
-  defaultValue: 'pending',
   index: true,
   enumName: 'enum_user_submissions_status',
   access: systemFieldAccess,

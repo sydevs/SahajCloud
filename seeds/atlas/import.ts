@@ -26,6 +26,7 @@ import type { Payload } from 'payload'
 
 import * as path from 'path'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
@@ -1444,7 +1445,15 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           // These events ended, or went external, years ago, so every row here
           // would trip the create gate. It runs on a client caller only, and a
           // Local API import carries no client user, so it never reaches it.
-          { identifier: reg.uuid, current: offset + i + 1, total },
+          //
+          // ⚠ **`import` is the writer, and the status guard refuses a create
+          // opening anywhere but `pending` without one** (#1121).
+          {
+            identifier: reg.uuid,
+            current: offset + i + 1,
+            total,
+            context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
+          },
         )
       } catch (error) {
         this.addError(`Registration ${reg.uuid} (#${reg.legacyId})`, error as Error)

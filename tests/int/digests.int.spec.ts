@@ -4,8 +4,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendDigests } from '@/jobs/Digests/SendDigests'
 import { EMPTY_VERIFICATION } from '@/lib/clients/verification'
+import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
@@ -132,6 +134,10 @@ describe('SendDigests job', () => {
         ...overrides,
       }),
       overrideAccess: true,
+      // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+      // names nobody, so a row authored in a settled state names `import` —
+      // the actor for a file that decides (#1121). Setup, never a move.
+      context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
     })
   }
 
@@ -362,6 +368,8 @@ describe('SendDigests job', () => {
         } as never,
         overrideAccess: true,
         req: systemReq(),
+        // A refusal the screening job would have written, authored instead.
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
 
       emailAdapter.clearCapturedEmails()

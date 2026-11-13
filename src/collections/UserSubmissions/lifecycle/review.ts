@@ -1,7 +1,9 @@
 import type { PayloadRequest } from 'payload'
 
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
+import { withActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
@@ -170,7 +172,11 @@ export async function applyReview(args: {
     // this save must take the same path as assigning a manager in the admin,
     // or the event would be stamped `verified` with no `nextCheckAt` and never
     // come up for re-verification again.
-    context: { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
+    context: withActor(
+      { skipVerifyHook: assignedManagerId == null, skipWriteGuard: true },
+      EVENT_MACHINE,
+      'proposal',
+    ),
     req,
   })
 

@@ -3,12 +3,15 @@ import type { Payload } from 'payload'
 import { createLocalReq } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import {
   acceptedRegistrationsCsv,
   countAcceptedRegistrations,
   loadEventRegistrations,
 } from '@/components/admin/EventRegistrations/data'
 import type { RegistrationQuery } from '@/components/admin/EventRegistrations/data'
+import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
+import { withActor } from '@/lib/stateMachine/actor'
 
 import { createRestClientAs } from '../utils/restRequest'
 import { createData, testData } from '../utils/testData'
@@ -72,7 +75,8 @@ describe('Event registrations', () => {
     const event = await payload.create({
       collection: 'events',
       draft: true,
-      context: { skipVerifyHook: true },
+      // A ladder stage the job reaches over weeks: authored, as a file would.
+      context: withActor({ skipVerifyHook: true }, EVENT_MACHINE, 'import'),
       data: {
         title: 'Owned draft',
         region: city.id,
@@ -122,6 +126,10 @@ describe('Event registrations', () => {
           ],
           ...overrides,
         }),
+        // ⚠ **A fixture's own writer.** Only `pending` opens to a write that
+        // names nobody, so a row authored in a settled state names `import` —
+        // the actor for a file that decides (#1121). Setup, never a move.
+        context: withActor(undefined, SUBMISSION_MACHINE, 'import'),
       })
 
     const openTab = async (user: AuthManager, query: Partial<RegistrationQuery> = {}) =>

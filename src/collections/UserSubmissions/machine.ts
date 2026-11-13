@@ -179,6 +179,14 @@ export const SUBMISSION_MACHINE = defineStateMachine<Status, SubmissionActor, Us
   },
   refusal: ({ from, to }) =>
     `A ${STATUS_LABELS[from].toLowerCase()} submission cannot become ${STATUS_LABELS[to].toLowerCase()}.`,
+  // Every intake opens here: a public form's write, a registration's repeat
+  // opt-in, and whatever an admin creates by hand.
+  opensAt: 'pending',
+  opens: [
+    // The fixture decides, as it does for an event's stage — an historical
+    // registration was confirmed when it happened.
+    ...SUBMISSION_STATUSES.map((status) => ({ at: status, by: ['import'] as const })),
+  ],
   moves: [
     ...REVIEW_MOVES,
 

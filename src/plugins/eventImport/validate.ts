@@ -15,7 +15,7 @@
  * part of the pass, on a copy, so nothing they write reaches the class.
  */
 
-import type { JsonObject, PayloadRequest, ValidationFieldError } from 'payload'
+import type { JsonObject, PayloadRequest, RequestContext, ValidationFieldError } from 'payload'
 
 import { beforeChangeTraverseFields } from 'payload'
 
@@ -36,13 +36,18 @@ function columnOf(path: string): string {
 }
 
 /** Why Payload would refuse this class, one sentence per field, or none. */
-export async function fieldErrors(req: PayloadRequest, data: JsonObject): Promise<string[]> {
+export async function fieldErrors(
+  req: PayloadRequest,
+  data: JsonObject,
+  /** The context the create will carry — the stage guard is one of these hooks. */
+  context: RequestContext,
+): Promise<string[]> {
   const collection = req.payload.collections.events.config
   const copy = structuredClone(data)
   const errors: ValidationFieldError[] = []
   await beforeChangeTraverseFields({
     collection,
-    context: {},
+    context,
     data: copy,
     doc: {},
     docWithLocales: {},

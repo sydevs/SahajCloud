@@ -9,8 +9,6 @@ export interface StateMachineFieldOptions<State extends string> extends Pick<
 > {
   /** What each state is called in the admin. */
   labels: Record<State, string>
-  /** Where a new document starts. */
-  defaultValue: State
   /**
    * ⚠ **Pinned, never derived.** The Postgres enum is named by it, so a
    * derived name that changed would be a migration renaming the type under
@@ -39,13 +37,15 @@ export function stateMachineField<State extends string, Actor extends string, Do
   machine: StateMachine<State, Actor, Doc>,
   options: StateMachineFieldOptions<State>,
 ): SelectField {
-  const { labels, defaultValue, enumName, admin, ...rest } = options
+  const { labels, enumName, admin, ...rest } = options
   return {
     ...rest,
     name: machine.field,
     type: 'select',
     required: true,
-    defaultValue,
+    // Where a row opens is the machine's, not this field's: a create is judged
+    // against the same table as every later move.
+    defaultValue: machine.opensAt,
     enumName,
     options: machine.states.map((value) => ({ label: labels[value], value })),
     admin: { ...admin, readOnly: true },

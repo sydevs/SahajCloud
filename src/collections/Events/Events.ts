@@ -36,11 +36,7 @@ import {
 } from '@/lib/eventQuality'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
-import {
-  DEFAULT_VERIFICATION_STAGE,
-  isPreAdoptionStage,
-  isUnmanagedStage,
-} from '@/lib/eventVerification/stages'
+import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
@@ -657,7 +653,6 @@ export const Events: CollectionConfig = {
             stateMachineField(EVENT_MACHINE, {
               label: 'Verification Process',
               labels: VERIFICATION_STAGE_LABELS,
-              defaultValue: DEFAULT_VERIFICATION_STAGE,
               // Pinned so it never collides with the drafts `_status` enum
               // (`enum_events_status`).
               enumName: 'enum_events_verification_stage',

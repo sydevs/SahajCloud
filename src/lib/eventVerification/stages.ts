@@ -51,6 +51,7 @@ export const VERIFICATION_STAGES = [
 
 export type VerificationStage = (typeof VERIFICATION_STAGES)[number]
 
+/** Where a new listing opens — `EVENT_MACHINE.opensAt`, and so the column's default. */
 export const DEFAULT_VERIFICATION_STAGE: VerificationStage = 'verified'
 
 /**
