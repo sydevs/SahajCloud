@@ -138,6 +138,14 @@ Five rules, each of which cost something to learn:
 
 The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
 
+**`unavailable` is the one target that may change the origin.** It names a
+`LivePreviewUnavailableReason` — the same codes a `livePreview.url` passes to
+`livePreviewUnavailableUrl` — rather than a URL, so it carries no origin and no credential and
+resolves against the admin's own. Everything else still goes through `composeTargetUrl`, which
+refuses a cross-origin path. ⚠ A collection whose `livePreview.url` reads `data` (`clients`)
+re-resolves it on every save, so `PreviewTarget` re-applies its target whenever the resolved URL
+changes under it.
+
 Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path. `user-submissions` declares a conditioned pair: `autoOpen` for a proposal and `autoClose` for every other intake, because Payload keeps one open/closed preference per collection and a panel left open on a proposal would otherwise greet the next contact message.
 
 ## Styling — PayloadCMS CSS variables

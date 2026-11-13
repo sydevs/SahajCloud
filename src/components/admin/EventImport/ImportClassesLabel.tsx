@@ -2,10 +2,10 @@
 
 import type { JoinFieldLabelClientComponent } from 'payload'
 
-import { Button, FieldLabel, useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
+import { FieldLabel, useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
-import './styles.css'
+import { LabelWithAction } from '@/components/admin/helpers/labelWithAction'
 
 /**
  * The Regions "Events" table's heading, with an "Import classes" link beside it
@@ -21,18 +21,12 @@ export const ImportClassesLabel: JoinFieldLabelClientComponent = ({ field, path 
   if (!id || level === 'venue' || !permissions?.collections?.imports?.create) return label
 
   return (
-    <span className="event-import__region-label">
+    <LabelWithAction
+      action="Import classes"
+      to={`/admin/collections/imports/create?targetRegion=${id}`}
+    >
       {label}
-      <Button
-        buttonStyle="pill"
-        el="link"
-        margin={false}
-        size="small"
-        to={`/admin/collections/imports/create?targetRegion=${id}`}
-      >
-        Import classes
-      </Button>
-    </span>
+    </LabelWithAction>
   )
 }
 

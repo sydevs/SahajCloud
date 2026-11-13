@@ -1,0 +1,76 @@
+.atlas-preview {
+  &__banner {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--base) / 2);
+    margin-bottom: 0;
+  }
+
+  // Payload's Banner sets no spacing for an action; this separates it from the rows.
+  &__banner-actions {
+    margin-top: calc(var(--base) / 4);
+  }
+
+  // Chromeless: each colour's light and dark swatch beside its line, and nothing else.
+  &__table {
+    border-collapse: collapse;
+
+    td {
+      padding: calc(var(--base) / 8) calc(var(--base) / 4) calc(var(--base) / 8) 0;
+      vertical-align: middle;
+    }
+
+    td:nth-child(2) {
+      padding-right: calc(var(--base) / 2);
+    }
+  }
+
+  &__swatch {
+    align-items: center;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: var(--style-radius-s);
+    display: flex;
+    height: calc(var(--base) * 1.2);
+    justify-content: center;
+    width: calc(var(--base) * 1.2);
+  }
+
+  // Faded white on the light-map colour, faded black on the dark-map one, which
+  // is light by construction.
+  &__mark {
+    font-size: calc(var(--base) * 0.75);
+    font-weight: 700;
+    line-height: 1;
+
+    &--light {
+      color: rgb(255 255 255 / 80%);
+      text-shadow: 0 0 2px rgb(0 0 0 / 45%);
+    }
+
+    &--dark {
+      color: rgb(0 0 0 / 55%);
+    }
+  }
+}
+
+// The rendered email is the whole content: no inset, no frame of its own.
+.email-preview-field {
+  .collapsible__content {
+    overflow: hidden;
+    padding: 0;
+  }
+
+  // An email's own canvas, whatever the admin theme.
+  &__frame {
+    background: #ffffff;
+    border: 0;
+    display: block;
+    height: 640px;
+    width: 100%;
+  }
+
+  &__pending {
+    padding: var(--base);
+  }
+}

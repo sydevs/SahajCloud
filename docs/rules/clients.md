@@ -14,6 +14,41 @@ What a `clients` document holds beyond its key: where its atlas lives (`site`), 
 - **The Config tab is admin-only, writes included.** `label`, `enabled`, `notes`, `roles` (labelled Access), `managers`, `primaryContact` and `region` carry an admin-only write lock as well as the tab's condition: a listed manager holds `update` on the row through document-level access, and a hidden field stops no PATCH. `lockTabs` stamps that lock on every field of every conditioned tab, matching the tab's condition against `TAB_WRITE_RULES` by **function reference** — so a tab whose condition is written inline matches nothing, and refuses to build rather than shipping with no lock and no validation.
 - ⚠ **`clients` sits in no project, so no role reads it implicitly, and `apiKey` is locked on top of that** (#822). One key read every other service's decrypted key until both landed. The reads a client still gets are of its own row — `GET /api/clients/me` and `POST /api/clients/refresh-token` — and the field lock plus `stripLockedFieldsOnSelfRead` are what keep the key out of those answers. See `docs/rules/access.md`.
 
+## The Atlas tab previews the service's own atlas (#1110)
+
+`admin.livePreview` on `clients` opens the standalone atlas on the service's own region, at
+`?scope=clients`, so a manager sees their colours and logo on the real map while they choose
+them. Moving a picker repaints it before anything is saved — Payload posts the edit form's state
+to the frame on every change, and the widget reads the three colours out of it and ignores every
+other field.
+
+- **The panel belongs to the Atlas tab**, through `previewTargetField`: `autoOpen` there, and
+  `autoClose` plus `unavailable: 'atlas-tab-only'` on Config, Usage and Diagnostics, which only
+  an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
+  builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
+- **The CMS computes no colours.** Any legibility correction is the widget's own. The widget
+  reports what it rendered (`sahaj-atlas:palette-report`). The pickers sit in an unnamed
+  **Branding Colors** group (Reset beside its title, through `helpers/labelWithAction`), and its
+  `AdjustedColors` banner appears once any swatch moved: each colour's light and dark swatch,
+  marked moved or safe, why, and one **Use adjusted colors** button for each colour the widget
+  offers a seed for (`AtlasPreview/paletteReport.ts`). Each swatch is marked by its own mode
+  (`lightAdjustedBy` / `darkAdjustedBy`). Between a colour change and the report on it, the
+  last answer stays up, its button still enabled but inert, so nothing flickers. The **Map Preview** toggle and the registration email
+  sample sit in the same group. A `panel-text` correction
+  moves the text step, not the swatch, so it is not shown. ⚠ A message is accepted only from
+  the preview iframe's window and origin, checked as it arrives, and a report counts only while
+  its `entered` colour is still the field's value. The light/dark mode is re-sent on the atlas's
+  first message after each load, since it listens only once its token verifies, after `load`.
+- **A `clients` scoped session sends `draft=true`**, so the preview can show unpublished classes
+  in the region. Accepted for a manager-only view. Payload also posts admin-only fields when an
+  admin previews; that is our own origin, and the atlas reads colours alone.
+- **The preview registration email**, under the colours, renders through the real
+  template at `POST /api/clients/:id/email-preview`, from unsaved form values, so the one message
+  a service's branding reaches is visible beside the fields that decide it. Email text is black or
+  white by `brandTextColor` (`src/emails/EmailLayout.tsx`): **`color1` decides** wherever both read across the gradient, because
+  Outlook drops the `background-image` and paints that stop alone — and the worse stop decides
+  where one of them is illegible there. The brand colours themselves are never changed.
+
 ## Where the atlas lives — `site` (one domain, one page)
 
 A service is **one site**: `site.domain` (a bare host) plus `site.page` (the primary page's path), with `site.track` and `site.embedHeight` remembering the Install tab's choices. All four are the Install tab's, and `admin.disabled` keeps them out of the edit form's state, so saving the form can never write an older copy back. `src/lib/clients/site.ts` is the vocabulary every reader shares:
@@ -24,7 +59,7 @@ A service is **one site**: `site.domain` (a bare host) plus `site.page` (the pri
 
 Any other page on the same domain is a secondary embed automatically: it reports, it shows on the Install tab as evidence, it owns nothing.
 
-A service's own **look** is `src/lib/clients/appearance.ts`, not `site.ts` — the three atlas colours, the logo shown to a service with none, and whether a stored colour carries a hue at all. `src/lib/branding/` is the per-project brand, a third vocabulary again.
+A service's own **look** is `src/lib/clients/appearance.ts`, not `site.ts` — the three atlas colours, the logo shown to a service with none, and whether a stored colour is the service's own (anything but the old `#000000` sentinel). `src/lib/branding/` is the per-project brand, a third vocabulary again.
 
 ⚠ **`allowedDomains` and `canonical.embed` are computed compatibility fields**, no columns behind them, read from `site` for the widget's current `/clients/me` select (the analytics domain and the `routing=path` prefix). They go once SahajAtlasWeb reads `site` directly.
 

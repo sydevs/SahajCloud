@@ -22,6 +22,7 @@ import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import {
   ATLAS_DEFAULT_COLORS,
+  BRAND_COLOR_LABELS,
   DEFAULT_SERVICE_LOGO,
   effectiveColor,
   isBrandColor,
@@ -122,12 +123,6 @@ export interface Appearance {
   mailingList: string | null
 }
 
-const COLOR_LABELS: Record<keyof typeof ATLAS_DEFAULT_COLORS, string> = {
-  color1: 'Primary',
-  color2: 'Secondary',
-  color3: 'Tertiary',
-}
-
 /**
  * Four small tiles — the logo and the three brand colours — each showing the
  * default when the service has none of its own, and a two-row table of where
@@ -148,21 +143,23 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
             <span className={styles.tileNote}>{appearance.logoUrl ? 'Yours' : 'Default'}</span>
           </figcaption>
         </figure>
-        {(Object.keys(COLOR_LABELS) as Array<keyof typeof ATLAS_DEFAULT_COLORS>).map((column) => {
-          const value = appearance.colors[column]
-          const color = effectiveColor(column, value)
-          return (
-            <figure className={styles.tile} key={column}>
-              <span className={styles.tileColor} style={{ background: color }} />
-              <figcaption>
-                {COLOR_LABELS[column]}
-                <span className={styles.tileNote}>
-                  {color.toUpperCase()} {isBrandColor(value) ? '' : '· Default'}
-                </span>
-              </figcaption>
-            </figure>
-          )
-        })}
+        {(Object.keys(BRAND_COLOR_LABELS) as Array<keyof typeof ATLAS_DEFAULT_COLORS>).map(
+          (column) => {
+            const value = appearance.colors[column]
+            const color = effectiveColor(column, value)
+            return (
+              <figure className={styles.tile} key={column}>
+                <span className={styles.tileColor} style={{ background: color }} />
+                <figcaption>
+                  {BRAND_COLOR_LABELS[column]}
+                  <span className={styles.tileNote}>
+                    {color.toUpperCase()} {isBrandColor(value) ? '' : '· Default'}
+                  </span>
+                </figcaption>
+              </figure>
+            )
+          },
+        )}
       </div>
       <div className={styles.appearanceTable}>
         <Table

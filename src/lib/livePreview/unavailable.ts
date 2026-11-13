@@ -5,7 +5,15 @@
  * Adding one here without adding it there falls back to a generic message
  * rather than breaking, which is the right way round for a panel.
  */
-export type LivePreviewUnavailableReason = 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+export type LivePreviewUnavailableReason =
+  'atlas-tab-only' | 'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+
+const UNAVAILABLE_PATH = '/live-preview-unavailable'
+
+/** Whether a resolved panel URL is already an explanation, absolute or not. */
+export function isLivePreviewUnavailableUrl(url: string): boolean {
+  return URL.parse(url, 'http://relative.invalid')?.pathname === UNAVAILABLE_PATH
+}
 
 /**
  * The URL to point the Live Preview panel at when there is no page to show.
@@ -27,5 +35,5 @@ export function livePreviewUnavailableUrl(reason: LivePreviewUnavailableReason):
   // badly with the other half — a preview environment has no signing key, so
   // EVERY panel resolves here, and the page that exists to avoid a blank panel
   // would have produced one on every PR.
-  return `/live-preview-unavailable?reason=${reason}`
+  return `${UNAVAILABLE_PATH}?reason=${reason}`
 }
