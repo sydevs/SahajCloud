@@ -23,19 +23,18 @@ describe('selectRecipients', () => {
       ...args,
     })
 
-  it('mails Atlas managers named on a live event or a region, and every Atlas admin', () => {
+  it('mails Atlas managers named on a live event, a region or a service, and no admin', () => {
     const recipients = select({
       managers: [manager(1), manager(2), manager(3, { type: 'admin' }), manager(4)],
-      liveEventManagers: [1, 1, null],
+      liveEventManagers: [1, 1, 3, null],
       regionManagers: [[2], [2, 1]],
       serviceManagers: [[4]],
     })
 
     expect(recipients.map((r) => [r.id, r.holds])).toEqual([
-      [1, { admin: false, events: 2, regions: 1, services: 0 }],
-      [2, { admin: false, events: 0, regions: 2, services: 0 }],
-      [3, { admin: true, events: 0, regions: 0, services: 0 }],
-      [4, { admin: false, events: 0, regions: 0, services: 1 }],
+      [1, { events: 2, regions: 1, services: 0 }],
+      [2, { events: 0, regions: 2, services: 0 }],
+      [4, { events: 0, regions: 0, services: 1 }],
     ])
   })
 
@@ -57,13 +56,13 @@ describe('selectRecipients', () => {
 })
 
 describe('cmsHighlights', () => {
-  const holds = { admin: false, events: 0, regions: 0, services: 0 }
-  const mentions = (lines: string[], text: string) => lines.some((line) => line.includes(text))
+  const holds = { regions: 0, services: 0 }
+  const mentions = (lines: { text: string }[], text: string) =>
+    lines.some((line) => line.text.includes(text))
 
-  it('speaks of the area only to a region manager or an admin', () => {
-    expect(mentions(cmsHighlights({ ...holds, events: 2 }), 'in your area')).toBe(false)
+  it('speaks of the area only to a region manager', () => {
+    expect(mentions(cmsHighlights(holds), 'in your area')).toBe(false)
     expect(mentions(cmsHighlights({ ...holds, regions: 1 }), 'in your area')).toBe(true)
-    expect(mentions(cmsHighlights({ ...holds, admin: true }), 'in your area')).toBe(true)
   })
 
   it('offers map customisation only to someone who looks after a website', () => {

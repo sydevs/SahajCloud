@@ -53,7 +53,7 @@ const SAMPLE: MigrationRecipient = {
   id: 0,
   email: 'manager@example.com',
   name: 'Sample Manager',
-  holds: { admin: false, events: 2, regions: 1, services: 1 },
+  holds: { events: 2, regions: 1, services: 1 },
 }
 
 /** What a sample recipient looks after, for a render against a database with no Atlas managers. */
@@ -155,7 +155,7 @@ async function compose(payload: Payload, recipient: MigrationRecipient, subjectP
             collection: MANAGERS_COLLECTION,
             id: recipient.id,
             payload,
-            type: recipient.holds.admin ? 'admin' : 'manager',
+            type: 'manager',
           })
         ).find((part) => part.project === 'sahaj-atlas')
   return {
@@ -165,7 +165,6 @@ async function compose(payload: Payload, recipient: MigrationRecipient, subjectP
       createElement(AtlasMigrationEmail, {
         brand,
         email: recipient.email,
-        fullAccess: recipient.holds.admin,
         highlights: cmsHighlights(recipient.holds),
         mapUrl: MAP_URL,
         name: recipient.name,
@@ -183,17 +182,15 @@ async function main(): Promise<void> {
   const payload = await loadPayloadWithoutSchemaChanges()
   const recipients = await findRecipients(payload, sent)
 
-  const admins = recipients.filter((r) => r.holds.admin).length
-  const regionManagers = recipients.filter((r) => !r.holds.admin && r.holds.regions > 0).length
+  const regionManagers = recipients.filter((r) => r.holds.regions > 0).length
   console.log(
-    `${recipients.length} recipient(s) not yet sent: ${admins} admin(s), ` +
-      `${regionManagers} region manager(s), ${recipients.length - admins - regionManagers} ` +
-      `class-only manager(s). ${sent.size} already in ${ledgerFile}.`,
+    `${recipients.length} recipient(s) not yet sent: ${regionManagers} region manager(s), ` +
+      `${recipients.length - regionManagers} other manager(s). ${sent.size} already in ${ledgerFile}.`,
   )
   if (flag('--list')) {
     for (const r of recipients)
       console.log(
-        `  managers/${r.id}  ${r.email}  admin=${r.holds.admin} events=${r.holds.events} regions=${r.holds.regions}`,
+        `  managers/${r.id}  ${r.email}  events=${r.holds.events} regions=${r.holds.regions}`,
       )
   }
 

@@ -63,11 +63,18 @@
         font-size: 1.1rem;
         margin-bottom: 0.25rem;
       }
-      ul {
-        padding-left: 1.25rem;
+      ul.highlights {
+        list-style: none;
+        padding: 0;
       }
-      li {
-        margin-bottom: 0.35rem;
+      ul.highlights li {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 0.6rem;
+      }
+      ul.highlights span {
+        font-size: 1.2rem;
+        line-height: 1.6;
       }
       a {
         color: var(--accent);
@@ -85,19 +92,40 @@
   </head>
   <body>
     <main>
-      <h1>Sahaj Atlas is moving to a new home</h1>
+      <h1>🚚 Sahaj Atlas is moving to a new home</h1>
       <p>
-        We are moving every class to the new Sahaj Atlas. While we do, classes can't be edited. It
-        takes a few hours, and we will email you as soon as it is ready.
+        We are moving every class to the new Sahaj Atlas. While we do,
+        <strong>classes can't be edited.</strong> It takes a few hours, and we will email you as
+        soon as it is ready.
       </p>
-      <p>Nothing is lost: everything you have entered is coming with you.</p>
+      <p><strong>Nothing is lost:</strong> everything you have entered is coming with you.</p>
       <h2>What's new on the map</h2>
-      <ul>
-        <li>Full search filters: language, time of day, day of the week, location and more.</li>
-        <li>A calendar view, and calendar reminders for people who register.</li>
-        <li>A fresh, polished new look.</li>
-        <li>Easier to use on phones.</li>
-        <li>Many more small improvements and bug fixes!</li>
+      <ul class="highlights">
+        <li>
+          <span>🔍</span>
+          <div>
+            <strong>Search filters</strong> by language, time of day, day of the week, location and
+            more.
+          </div>
+        </li>
+        <li>
+          <span>📅</span>
+          <div>
+            <strong>A calendar view</strong> and calendar reminders for people who register.
+          </div>
+        </li>
+        <li>
+          <span>🌸</span>
+          <div><strong>A fresh new look</strong> that is clean and polished.</div>
+        </li>
+        <li>
+          <span>📱</span>
+          <div><strong>Easier on phones</strong> wherever people find your classes.</div>
+        </li>
+        <li>
+          <span>🛠️</span>
+          <div><strong>And much more:</strong> many small improvements and bug fixes!</div>
+        </li>
       </ul>
       <p><a class="button" href="https://sahajatlas.com">See the new map</a></p>
       <p class="small">

@@ -1,4 +1,4 @@
-import { Text } from 'react-email'
+import { Column, Row, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
 import type { Responsibility } from '@/plugins/login/grantSummary'
@@ -12,8 +12,6 @@ export interface AtlasMigrationEmailProps {
   name: string
   /** The address this email goes to, which is the one they sign in with. */
   email: string
-  /** An admin looks after everything, so no list applies. */
-  fullAccess: boolean
   /** Everything they look after, as an invitation naming all of it would list it. */
   responsibilities: Responsibility[]
   /** The new admin's sign-in page. */
@@ -21,37 +19,69 @@ export interface AtlasMigrationEmailProps {
   /** The new public map. */
   mapUrl: string
   /** What is new for this manager (`cmsHighlights`). */
-  highlights: string[]
+  highlights: Highlight[]
+}
+
+/** One line of what is new: an emoji (email clients render no SVG), a bold lead, the rest. */
+export interface Highlight {
+  icon: string
+  title: string
+  text: string
 }
 
 export const ATLAS_MIGRATION_SUBJECT = 'Welcome to the new Sahaj Atlas'
 
 /** What changed on the public map, for everyone. */
-export const MAP_HIGHLIGHTS = [
-  'Full search filters: language, time of day, day of the week, location and more.',
-  'A calendar view, and calendar reminders for people who register.',
-  'A fresh, polished new look.',
-  'Easier to use on phones.',
-  'Many more small improvements and bug fixes!',
+export const MAP_HIGHLIGHTS: Highlight[] = [
+  {
+    icon: '🔍',
+    title: 'Search filters',
+    text: 'by language, time of day, day of the week, location and more.',
+  },
+  {
+    icon: '📅',
+    title: 'A calendar view',
+    text: 'and calendar reminders for people who register.',
+  },
+  { icon: '🌸', title: 'A fresh new look', text: 'that is clean and polished.' },
+  { icon: '📱', title: 'Easier on phones', text: 'wherever people find your classes.' },
+  { icon: '🛠️', title: 'And much more:', text: 'many small improvements and bug fixes!' },
 ]
 
 /** What changed for this manager, by what they look after. */
-export function cmsHighlights(holds: {
-  admin: boolean
-  events: number
-  regions: number
-  services: number
-}): string[] {
-  const area = holds.admin || holds.regions > 0
+export function cmsHighlights(holds: { regions: number; services: number }): Highlight[] {
   return [
-    'Better class controls. You can now set holiday breaks!',
-    'Suggestions for improving your class listings, such as images and descriptions.',
-    'A hopefully easier interface. Let us know if anything could be better!',
-    area
-      ? 'A simpler dashboard, and summary emails about the classes in your area.'
-      : 'A simpler dashboard, and summary emails about your classes.',
-    ...(holds.admin || holds.services > 0
-      ? ['You can customise how the map looks on your website.']
+    {
+      icon: '🌴',
+      title: 'Holiday breaks.',
+      text: 'Better class controls, so you can pause a class over the holidays.',
+    },
+    {
+      icon: '💡',
+      title: 'Tips for your listings.',
+      text: 'Suggestions for improving your classes, such as images and descriptions.',
+    },
+    {
+      icon: '✨',
+      title: 'Easier to use.',
+      text: 'A simpler interface. Let us know if anything could be better!',
+    },
+    {
+      icon: '📊',
+      title: 'A simpler dashboard,',
+      text:
+        holds.regions > 0
+          ? 'and summary emails about the classes in your area.'
+          : 'and summary emails about your classes.',
+    },
+    ...(holds.services > 0
+      ? [
+          {
+            icon: '🎨',
+            title: 'Your website’s map.',
+            text: 'Customise how the map looks on your website.',
+          },
+        ]
       : []),
   ]
 }
@@ -66,7 +96,6 @@ export function AtlasMigrationEmail({
   brand,
   name,
   email,
-  fullAccess,
   responsibilities,
   signInUrl,
   mapUrl,
@@ -82,22 +111,18 @@ export function AtlasMigrationEmail({
         Hello <strong>{name}</strong>,
       </Text>
       <Text style={styles.paragraph}>
-        Sahaj Atlas has a new home for looking after your classes. Everything you manage has already
-        been moved across for you.
+        Sahaj Atlas has a new home for looking after your classes.{' '}
+        <strong>Everything you manage has already been moved across for you.</strong>
       </Text>
 
-      <SectionHeading>{fullAccess ? 'Your access' : 'What you look after'}</SectionHeading>
-      {fullAccess ? (
-        <Text style={styles.paragraph}>Administrator — you can see and change everything.</Text>
-      ) : (
-        <ResponsibilityRows brand={brand} responsibilities={responsibilities} />
-      )}
+      <SectionHeading>What you look after</SectionHeading>
+      <ResponsibilityRows brand={brand} responsibilities={responsibilities} />
 
       <SectionHeading>What&apos;s new for you</SectionHeading>
-      <Bullets lines={highlights} />
+      <HighlightList items={highlights} />
 
       <SectionHeading>What&apos;s new on the map</SectionHeading>
-      <Bullets lines={MAP_HIGHLIGHTS} />
+      <HighlightList items={MAP_HIGHLIGHTS} />
 
       <Text style={styles.paragraph}>
         To sign in, enter <strong>{email}</strong> and we will email you a link.
@@ -113,17 +138,21 @@ export function AtlasMigrationEmail({
   )
 }
 
-function Bullets({ lines }: { lines: string[] }) {
+/** A table, not a list: Outlook indents and spaces a `<ul>` its own way. */
+function HighlightList({ items }: { items: Highlight[] }) {
   return (
-    <ul style={list}>
-      {lines.map((line) => (
-        <li key={line} style={listItem}>
-          {line}
-        </li>
+    <Section style={{ margin: '0 0 16px' }}>
+      {items.map((item) => (
+        <Row key={item.title}>
+          <Column style={iconCell}>{item.icon}</Column>
+          <Column style={textCell}>
+            <strong>{item.title}</strong> {item.text}
+          </Column>
+        </Row>
       ))}
-    </ul>
+    </Section>
   )
 }
 
-const list = { margin: '0 0 16px', paddingLeft: '20px' }
-const listItem = { fontSize: '16px', margin: '0 0 8px' }
+const iconCell = { width: '32px', fontSize: '18px', verticalAlign: 'top', padding: '4px 0' }
+const textCell = { fontSize: '16px', lineHeight: '24px', verticalAlign: 'top', padding: '4px 0' }
