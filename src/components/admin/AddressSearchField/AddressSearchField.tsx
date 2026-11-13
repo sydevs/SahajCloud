@@ -15,24 +15,9 @@ import {
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
-import { getRegionOptions } from '@/lib/geography'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
-/** Subset of a Mapbox Geocoding v6 feature that we read. */
-interface MapboxGeocodingFeature {
-  geometry?: { coordinates?: [number, number] }
-  properties?: {
-    mapbox_id?: string
-    name?: string
-    context?: {
-      address?: { name?: string }
-      place?: { name?: string }
-      region?: { region_code?: string; region_code_full?: string; name?: string }
-      postcode?: { name?: string }
-      country?: { country_code?: string; name?: string }
-    }
-  }
-}
+import { readPickedPlace, type MapboxGeocodingFeature } from './pickedPlace'
 
 interface MapboxTheme {
   variables?: Record<string, string>
@@ -62,31 +47,6 @@ function toSiblingPath(path: string, siblingName: string): string {
   const parts = path.split('.')
   parts[parts.length - 1] = siblingName
   return parts.join('.')
-}
-
-/**
- * Resolve the address subdivision to a code our region dropdown understands.
- * Mapbox usually returns a bare ISO 3166-2 code (`region_code`, e.g. `CA`), but
- * not for every result — so fall back to the country-prefixed
- * `region_code_full` (`US-CA` → `CA`), then to matching the region name against
- * our country-region-data options. This populates `region` whenever Mapbox
- * gives us anything to match on.
- */
-function resolveRegionCode(
-  region: { region_code?: string; region_code_full?: string; name?: string } | undefined,
-  countryCode: string | undefined,
-): string | undefined {
-  if (!region) return undefined
-  if (region.region_code) return region.region_code
-  if (region.region_code_full?.includes('-')) return region.region_code_full.split('-').pop()
-  if (region.name && countryCode) {
-    const name = region.name.toLowerCase()
-    const match = getRegionOptions(countryCode).find(
-      (option) => option.label.toLowerCase() === name,
-    )
-    if (match) return match.value
-  }
-  return undefined
 }
 
 /**
@@ -223,26 +183,17 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
 
   const handleRetrieve = (feature: MapboxGeocodingFeature) => {
     if (!feature) return
+    const picked = readPickedPlace(feature)
     if (config.populateAddress) {
-      const context = feature.properties?.context
-      setSibling('street', context?.address?.name ?? feature.properties?.name)
-      setSibling('city', context?.place?.name)
-      setSibling('region', resolveRegionCode(context?.region, context?.country?.country_code))
-      setSibling('country', context?.country?.country_code)
-      setSibling('postCode', context?.postcode?.name)
-      const coordinates = feature.geometry?.coordinates
-      if (coordinates) {
-        setSibling('longitude', coordinates[0])
-        setSibling('latitude', coordinates[1])
-      }
+      for (const [name, value] of Object.entries(picked.address)) setSibling(name, value)
     }
     // Regions: adopt the selected place's name (only if not already filled).
     if (config.populateName) {
-      setSibling('name', feature.properties?.name)
+      setSibling('name', picked.name)
     }
     // Set our own value last: this triggers the form's condition recompute, which
     // reveals dependent fields (the address siblings, or the manual-coordinates row).
-    setValue(feature.properties?.mapbox_id ?? makeManualMapboxId())
+    setValue(picked.mapboxId ?? makeManualMapboxId())
   }
 
   const fieldClasses = [

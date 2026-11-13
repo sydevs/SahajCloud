@@ -59,7 +59,7 @@ const MAX_ATTEMPTS = 3
 const ATTEMPT_TIMEOUT_MS = 8_000
 const BASE_BACKOFF_MS = 500
 
-/** Local shorthand — this file names the level four times. */
+/** Local shorthand — this file names the level in several places. */
 type RegionLevel = Region['level']
 
 /** A level v6 holds a layer for. `venue` does not — see `geocodeVenue`. */

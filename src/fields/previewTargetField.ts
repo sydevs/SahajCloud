@@ -5,7 +5,7 @@ import type { UIField } from 'payload'
  *
  * **This is data, never a function.** `admin.custom` is serialized into the
  * client field config, so a callback cannot cross (see
- * `AddressSearchField.tsx:196`). Everything here is JSON.
+ * `AddressSearchField.tsx:155`). Everything here is JSON.
  *
  * **It carries no origin and no credential.** The declaration ships to the
  * browser, and the live-preview signing key is server-only
