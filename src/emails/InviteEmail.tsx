@@ -1,12 +1,17 @@
-import { Fragment } from 'react'
 import { Link, Text } from 'react-email'
 
 import type { ProjectSlug } from '@/payload-types'
-import { getEmailBrand, type EmailBrand } from '@/plugins/email'
-import { responsibilityLabel } from '@/plugins/login/grantSummary'
+import { getEmailBrand } from '@/plugins/email'
 import type { LocaleGrant, Responsibility } from '@/plugins/login/grantSummary'
 
-import { BrandButton, DetailRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
+import {
+  BrandButton,
+  DetailRow,
+  EmailLayout,
+  ResponsibilityRows,
+  SectionHeading,
+  styles,
+} from './EmailLayout'
 
 interface InviteEmailProps {
   /** Recipient display name (falls back to email upstream). */
@@ -140,45 +145,6 @@ export function InviteEmail({
     </EmailLayout>
   )
 }
-
-/**
- * One row per kind of document a manager looks after, each item linked to its
- * public page or marked not yet public. The invitation and the Atlas migration
- * email list responsibilities the same way.
- */
-export function ResponsibilityRows({
-  brand,
-  responsibilities,
-}: {
-  brand: EmailBrand
-  responsibilities: Responsibility[]
-}) {
-  return (
-    <>
-      {responsibilities.map((responsibility) => (
-        <DetailRow key={responsibility.label} label={responsibilityLabel(responsibility)}>
-          {responsibility.items.map((item, index) => (
-            <Fragment key={index}>
-              {index > 0 ? <br /> : null}
-              {item.url ? (
-                <Link href={item.url} style={{ color: brand.colors.primary }}>
-                  {item.title}
-                </Link>
-              ) : (
-                <>
-                  {item.title}
-                  <span style={notYetPublic}> (Not yet public)</span>
-                </>
-              )}
-            </Fragment>
-          ))}
-        </DetailRow>
-      ))}
-    </>
-  )
-}
-
-const notYetPublic = { fontSize: '12px', color: '#6b7280', fontStyle: 'italic' as const }
 
 /**
  * The invitation's heading, which is also its subject: what to look after.

@@ -22,6 +22,9 @@ import type { BrandColors } from '@/lib/branding'
 import type { RegistrationEmailDetails } from '@/lib/notifications/registrationDetails'
 import type { EmailStrings } from '@/lib/translations/emailStrings'
 import type { EmailBrand } from '@/plugins/email'
+import type { Responsibility } from '@/plugins/login/grantSummary'
+
+import { responsibilityLabel } from '@/plugins/login/grantSummary'
 
 /**
  * Non-breaking space, spelled out rather than typed literally: it is the only
@@ -77,6 +80,49 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
       <Column style={valueColumn}>{children}</Column>
     </Row>
   )
+}
+
+/**
+ * One row per kind of document a manager looks after, each item linked to its
+ * public page or marked not yet public. The invitation and the Atlas migration
+ * email list responsibilities the same way.
+ */
+export function ResponsibilityRows({
+  brand,
+  responsibilities,
+}: {
+  brand: EmailBrand
+  responsibilities: Responsibility[]
+}) {
+  return (
+    <>
+      {responsibilities.map((responsibility) => (
+        <DetailRow key={responsibility.label} label={responsibilityLabel(responsibility)}>
+          {responsibility.items.map((item, index) => (
+            <Fragment key={index}>
+              {index > 0 ? <br /> : null}
+              {item.url ? (
+                <Link href={item.url} style={{ color: brand.colors.primary }}>
+                  {item.title}
+                </Link>
+              ) : (
+                <>
+                  {item.title}
+                  <span style={notYetPublic}> (Not yet public)</span>
+                </>
+              )}
+            </Fragment>
+          ))}
+        </DetailRow>
+      ))}
+    </>
+  )
+}
+
+const notYetPublic: CSSProperties = {
+  fontSize: '12px',
+  color: '#6b7280',
+  fontStyle: 'italic',
 }
 
 /** A label-above-value itinerary line. */

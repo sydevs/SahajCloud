@@ -3,8 +3,13 @@ import { Column, Link, Row, Section, Text } from 'react-email'
 import type { EmailBrand } from '@/plugins/email'
 import type { Responsibility } from '@/plugins/login/grantSummary'
 
-import { BrandButtonRow, EmailLayout, SectionHeading, styles } from './EmailLayout'
-import { ResponsibilityRows } from './InviteEmail'
+import {
+  BrandButtonRow,
+  EmailLayout,
+  ResponsibilityRows,
+  SectionHeading,
+  styles,
+} from './EmailLayout'
 
 export interface AtlasMigrationEmailProps {
   brand: EmailBrand
