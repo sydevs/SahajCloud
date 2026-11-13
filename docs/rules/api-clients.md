@@ -91,6 +91,8 @@ A **registration** carrying `subscribe` in its `submissionData` spawns a linked 
 
 A new-event **proposal** is placed from its Mapbox feature ids: the address's own `proposed.address.mapboxId`, and `location` — the `placeId`, `regionId` and `countryId` layers above it. An online class has no address, so its city goes in `location.placeId`. Intake matches them against `regions.mapboxId` and places the row in the matched venue or city, so its review email reaches that region's manager (#1021). The ids are the only location input a client writes — `region` and `routingRegion` are system fields — and a value outside `[A-Za-z0-9_=-]` is refused.
 
+⚠ **Those ids are Geocoding v6's** (#893). An id picked through Search Box matches nothing, and a **venue** carries the id of its address, because v6 holds no POI layer — so a proposal naming a POI falls through to its city, which is the hook's own fallback.
+
 ## A global read is a client read (#710)
 
 `GET /api/globals/<slug>` now carries everything a collection read does: the four `beforeOperation` gates, edge-cache headers, and purge-on-write. Before #710 the usage plugin mapped `config.collections` only, so a global read was unmetered, outside origin enforcement, and exempt from the `select` gate — while every atlas widget boot on every host page and every WeMeditateWeb request reads its config and its translations from one.
