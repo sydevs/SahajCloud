@@ -1,6 +1,5 @@
 'use client'
 
-import type { NotificationKey } from '@/lib/notifications/preferences'
 import type { FieldClientComponent, FormState, JSONFieldClient } from 'payload'
 
 import {
@@ -16,8 +15,7 @@ import {
 import React, { useMemo } from 'react'
 
 import { managerRoles } from '@/lib/notifications/managerRoles'
-import type { NotificationPreferences } from '@/payload-types'
-
+import type { NotificationKey } from '@/lib/notifications/preferences'
 import {
   DEFAULT_NOTIFICATION_METHOD,
   NEVER_FREQUENCY,
@@ -25,6 +23,7 @@ import {
   notificationMethodLabel,
   notificationTypesFor,
 } from '@/lib/notifications/preferences'
+import type { NotificationPreferences } from '@/payload-types'
 
 /**
  * NotificationPreferences Field

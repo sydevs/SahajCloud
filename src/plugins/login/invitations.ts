@@ -2,12 +2,9 @@ import type { PendingInvitation } from './grantSummary'
 import type { LoginCollectionConfig, LoginDocument } from './types'
 import type { CollectionAfterChangeHook, Field, PayloadRequest, TaskConfig } from 'payload'
 
-import {
-  NEVER_FREQUENCY,
-  notificationFrequency,
-} from '@/lib/notifications/preferences'
 import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
+import { NEVER_FREQUENCY, notificationFrequency } from '@/lib/notifications/preferences'
 import { relationId } from '@/lib/utilities/relationId'
 import { selfOrAdminFieldAccess } from '@/plugins/access'
 import { capture } from '@/plugins/sentry/capture'

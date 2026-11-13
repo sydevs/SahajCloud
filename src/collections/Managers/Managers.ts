@@ -3,14 +3,14 @@ import type { CollectionConfig } from 'payload'
 import { json as jsonFieldValidation } from 'payload/shared'
 import { z } from 'zod'
 
+import { hideUntilCreated, legacyMigrationFields } from '@/fields'
+import { jsonField } from '@/fields/jsonField'
+import { getLanguageOptions } from '@/lib/locales'
 import {
   CONTACT_PLATFORMS,
   buildDefaultNotificationPreferences,
   validateNotificationPreferences,
 } from '@/lib/notifications/preferences'
-import { hideUntilCreated, legacyMigrationFields } from '@/fields'
-import { jsonField } from '@/fields/jsonField'
-import { getLanguageOptions } from '@/lib/locales'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
 import { lockManagerFieldReads } from './access'

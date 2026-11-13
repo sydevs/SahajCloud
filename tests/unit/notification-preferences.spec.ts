@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type {
-  NotificationKey,
-  NotificationType,
-} from '@/lib/notifications/preferences'
+import type { NotificationKey, NotificationType } from '@/lib/notifications/preferences'
 import {
   buildDefaultNotificationPreferences,
   CONTACT_PLATFORMS,
