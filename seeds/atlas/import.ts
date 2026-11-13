@@ -1456,22 +1456,14 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
 
     for (let i = 0; i < total; i++) {
       const client = data.clients[i]
-      const managerId =
-        client.managerId != null ? this.idMaps.managers.get(client.managerId) : undefined
-      if (managerId == null) {
-        await this.skip(`client "${client.label}": manager #${client.managerId} unresolved`, {
-          collection: 'clients',
-          identifier: client.label,
-          current: i + 1,
-          total,
-        })
-        continue
-      }
       const region = client.location
         ? this.idMaps.regions.get(geoRefKey(client.location))
         : undefined
       // An adopted service keeps everything SahajCloud gave it; only the
-      // region the reset cleared goes back.
+      // region the reset cleared goes back. It is settled ahead of the manager
+      // it reads nothing from, because a manager the prune took would
+      // otherwise skip the row and leave the region null — the one thing this
+      // branch exists to restore.
       if (
         ADOPTED_CLIENT_LEGACY_IDS.has(client.legacyId) &&
         this.hasPreloaded('clients', String(client.legacyId))
@@ -1486,6 +1478,17 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
         } catch (error) {
           this.addError(`Client "${client.label}" (#${client.legacyId})`, error as Error)
         }
+        continue
+      }
+      const managerId =
+        client.managerId != null ? this.idMaps.managers.get(client.managerId) : undefined
+      if (managerId == null) {
+        await this.skip(`client "${client.label}": manager #${client.managerId} unresolved`, {
+          collection: 'clients',
+          identifier: client.label,
+          current: i + 1,
+          total,
+        })
         continue
       }
       try {
