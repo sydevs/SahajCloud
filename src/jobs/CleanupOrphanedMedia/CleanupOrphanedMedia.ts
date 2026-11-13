@@ -248,7 +248,7 @@ function getTotalOperations(result: CleanupResult): number {
  * @param config.dryRun - Count and log the operation without performing it
  */
 interface ProcessItemsConfig<
-  T extends { id: number; filename?: string | null; createdAt?: string },
+  T extends { id: number; filename?: string | null; createdAt?: string | null },
 > {
   req: PayloadRequest
   collection: 'files' | 'images'
@@ -260,9 +260,11 @@ interface ProcessItemsConfig<
   dryRun?: boolean
 }
 
-async function processItems<T extends { id: number; filename?: string | null; createdAt?: string }>(
-  config: ProcessItemsConfig<T>,
-): Promise<void> {
+// `createdAt` is only logged. A field with an admin `condition` generates as
+// optional and nullable, which `files.createdAt` is.
+async function processItems<
+  T extends { id: number; filename?: string | null; createdAt?: string | null },
+>(config: ProcessItemsConfig<T>): Promise<void> {
   const { req, collection, docs, operation, result, resultKey, maxItemsToProcess, dryRun } = config
   const itemType = collection === 'files' ? 'file' : 'image'
   const idKey = collection === 'files' ? 'fileId' : 'imageId'
@@ -434,7 +436,7 @@ async function trashOrphanedMedia(
 
   // Paginate through files until we collect maxItemsToProcess orphans
   const maxFilesToProcess = Math.floor(maxOperations / 2)
-  const orphanFiles: Array<{ id: number; filename?: string | null; createdAt?: string }> = []
+  const orphanFiles: Array<{ id: number; filename?: string | null; createdAt?: string | null }> = []
   let filePageNum = 1
   let hasMoreFiles = true
 

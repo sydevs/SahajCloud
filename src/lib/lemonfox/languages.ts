@@ -1,6 +1,6 @@
 import ISO6391 from 'iso-639-1'
 
-import { baseLanguage, type LocaleCode } from '@/lib/locales'
+import { baseLanguage, LOCALES, type LocaleCode } from '@/lib/locales'
 
 /**
  * The Lemonfox name of a meditation's locale: `en` → `english`, `pt-BR` →
@@ -15,6 +15,22 @@ import { baseLanguage, type LocaleCode } from '@/lib/locales'
 export function lemonfoxLanguage(locale: LocaleCode): string | undefined {
   const name = ISO6391.getName(baseLanguage(locale)).toLowerCase()
   return LEMONFOX_LANGUAGES.has(name) ? name : undefined
+}
+
+/**
+ * The locale for a language Lemonfox reports hearing — `english` → `en`,
+ * `portuguese` → `pt-BR` — or `undefined` when no locale this app offers speaks
+ * it.
+ *
+ * The first locale of that base language wins, so `english` is `en` and never
+ * `en-AU`: Whisper hears a language, not a region, and the region only narrows
+ * the glossary pass, which `en` already covers for `en-AU` (`glossary.json`).
+ */
+export function localeForLemonfoxLanguage(name: string | undefined): LocaleCode | undefined {
+  if (!name) return undefined
+  const code = ISO6391.getCode(name)
+  if (!code) return undefined
+  return LOCALES.find((locale) => baseLanguage(locale.code) === code)?.code
 }
 
 /**

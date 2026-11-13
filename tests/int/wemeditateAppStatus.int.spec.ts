@@ -16,7 +16,7 @@ import {
 } from '@/globals/WeMeditateAppStatus/WeMeditateAppStatus'
 import { runSection, type SectionSpec } from '@/lib/status'
 import type { ReadinessReport } from '@/payload-types'
-import type { AppCard, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
+import type { AppCard, File, Lesson, Manager, Page, UserChoice, WmAppStatus } from '@/payload-types'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -117,6 +117,26 @@ describe('WeMeditateAppStatus Global', () => {
   // gate on its own — see the note in `wm-app-config.int.spec.ts`.
   let requiredAppConfig: Record<string, unknown>
 
+  /**
+   * An intro recording whose transcript has finished, which is what
+   * `intro-subtitles-set` reads since a step's subtitles are its file's
+   * (#1016), spoken in `language`. The upload made the row; this fills it in,
+   * as a run would.
+   */
+  const transcribedRecording = async (
+    content: string,
+    language: NonNullable<File['spokenLanguage']> = 'en',
+  ) => {
+    const file = await testData.createFile(payload, { spokenLanguage: language }, 'audio-42s.mp3')
+    await payload.update({
+      collection: 'transcripts',
+      where: { source: { equals: { relationTo: 'files', value: file.id } } },
+      data: { segments: [{ content, startTimeMs: 0, endTimeMs: 1200 }] },
+      overrideAccess: true,
+    })
+    return file
+  }
+
   beforeAll(async () => {
     const env = await createTestEnvironment()
     payload = env.payload
@@ -196,7 +216,7 @@ describe('WeMeditateAppStatus Global', () => {
         type: 'lesson',
         _status: 'published',
       })
-      const introAudio = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      const introAudio = await transcribedRecording('Close your eyes')
 
       fullLesson = await testData.createLesson(payload, {
         title: 'Fully populated lesson',
@@ -240,6 +260,7 @@ describe('WeMeditateAppStatus Global', () => {
           'lesson-title-set',
           'panels-set',
           'intro-audio-set',
+          'intro-subtitles-set',
           'meditation-set',
           'article-localized',
           'article-has-lecture-link',
@@ -251,14 +272,36 @@ describe('WeMeditateAppStatus Global', () => {
       expect(partial).toBeDefined()
       const partialFailing = partial!.checks.filter((c) => !c.passed).map((c) => c.key)
       // createLesson auto-supplies a default meditation + icon, so those checks pass.
-      // The partial lesson omits introAudio + article, so those three checks fail.
+      // The partial lesson omits the recording, the cues and the article, so
+      // those four checks fail.
       expect(partialFailing).toEqual(
         expect.arrayContaining([
           'intro-audio-set',
+          'intro-subtitles-set',
           'article-localized',
           'article-has-lecture-link',
         ]),
       )
+    })
+
+    // Readiness is where an operator decides a locale is done, and the editor's
+    // own panel warns about this recording — so a finished transcript in another
+    // language cannot read green here.
+    it('fails intro-subtitles-set when the recording is in another language', async () => {
+      const czechIntro = await transcribedRecording('Zavřete oči', 'cs')
+      const lesson = await testData.createLesson(payload, {
+        title: 'Step with a Czech recording',
+        unit: 'Unit 1',
+        step: 8,
+        introAudio: czechIntro.id,
+      } as Partial<Lesson>)
+
+      const report = await run(lessonsSection, payload)
+      const unit1 = report.groups.find((g) => g.key === 'unit-1')
+      if (unit1?.type !== 'documents') throw new Error('unit-1 is not a documents group')
+      const doc = unit1.documents.find((d) => d.id === lesson.id)
+      expect(doc?.checks.find((c) => c.key === 'intro-audio-set')?.passed).toBe(true)
+      expect(doc?.checks.find((c) => c.key === 'intro-subtitles-set')?.passed).toBe(false)
     })
 
     it('reports a step whose title is blank', async () => {
@@ -614,6 +657,7 @@ describe('WeMeditateAppStatus Global', () => {
         type: 'lesson',
         _status: 'published',
       })
+      const englishIntroAudio = await transcribedRecording('English line')
       englishOnlyLesson = await testData.createLesson(payload, {
         title: 'English-only lesson',
         unit: 'Unit 3',
@@ -621,6 +665,9 @@ describe('WeMeditateAppStatus Global', () => {
         meditation: { relationTo: 'meditations', value: lessonMeditation.id },
         article: articleWithLectureLink(lectureForArticle.id),
         panels: [{ title: 'p1' }],
+        // Localized in #1016, so it answers per locale here — and the
+        // subtitles follow it, being its file's.
+        introAudio: englishIntroAudio.id,
       } as Partial<Lesson>)
 
       const choiceMeditation = await testData.createMeditation(payload, undefined, {
@@ -662,16 +709,23 @@ describe('WeMeditateAppStatus Global', () => {
       expect(en.checks['meditation-set']).toBe(true)
       expect(en.checks['article-localized']).toBe(true)
       expect(en.checks['article-has-lecture-link']).toBe(true)
+      expect(en.checks['intro-audio-set']).toBe(true)
+      expect(en.checks['intro-subtitles-set']).toBe(true)
 
-      // The lesson carries no French title, panels, meditation or article, so
-      // every check reading one reports red — they would all pass off the
-      // English fallback.
+      // The lesson carries no French title, panels, meditation, article,
+      // recording or cues, so every check reading one reports red — they would
+      // all pass off the English fallback.
       const fr = await read('fr')
       expect(fr.checks['lesson-title-set']).toBe(false)
       expect(fr.checks['panels-set']).toBe(false)
       expect(fr.checks['meditation-set']).toBe(false)
       expect(fr.checks['article-localized']).toBe(false)
       expect(fr.checks['article-has-lecture-link']).toBe(false)
+      // ⚠ Both of these were locale-blind before #1016, so both lines are the
+      // whole of what "they answer per locale now" means. `prepare` already
+      // read `fallbackLocale: false`, so neither needed a change there.
+      expect(fr.checks['intro-audio-set']).toBe(false)
+      expect(fr.checks['intro-subtitles-set']).toBe(false)
       // `icon` is not localized, so that one is locale-blind.
       expect(fr.checks['icon-set']).toBe(true)
       // `lessons.title` is localized too (#977), so the row keeps the fallback

@@ -3180,27 +3180,7 @@ export interface Transcript {
         value: number | File;
       };
   audioFilename?: string | null;
-  provider?: 'lemonfox' | null;
-  language:
-    | 'en'
-    | 'es'
-    | 'de'
-    | 'it'
-    | 'fr'
-    | 'ru'
-    | 'ro'
-    | 'cs'
-    | 'uk'
-    | 'el'
-    | 'hy'
-    | 'pl'
-    | 'pt-BR'
-    | 'fa'
-    | 'bg'
-    | 'tr'
-    | 'en-AU'
-    | 'hu'
-    | 'nl';
+  provider?: ('lemonfox' | 'imported') | null;
   segments?: TranscriptSegments;
   segmentCount?: number | null;
   job?: (number | null) | PayloadJob;
@@ -3217,10 +3197,37 @@ export interface Transcript {
  */
 export interface File {
   id: number;
-  createdAt: string;
   hlsUrl?: string | null;
   mp4Url?: string | null;
   previewUrl?: string | null;
+  subtitles?: Subtitles;
+  /**
+   * Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file. A recording with no transcript yet is transcribed from the panel below instead.
+   */
+  spokenLanguage?:
+    | (
+        | 'en'
+        | 'es'
+        | 'de'
+        | 'it'
+        | 'fr'
+        | 'ru'
+        | 'ro'
+        | 'cs'
+        | 'uk'
+        | 'el'
+        | 'hy'
+        | 'pl'
+        | 'pt-BR'
+        | 'fa'
+        | 'bg'
+        | 'tr'
+        | 'en-AU'
+        | 'hu'
+        | 'nl'
+      )
+    | null;
+  createdAt?: string | null;
   _objectKey?: string | null;
   updatedAt: string;
   deletedAt?: string | null;
@@ -3396,7 +3403,6 @@ export interface Lesson {
          * Image or video for this panel.
          */
         media?: (number | null) | File;
-        subtitles?: Subtitles;
         id?: string | null;
       }[]
     | null;
@@ -3421,7 +3427,7 @@ export interface Lesson {
    */
   preMeditationLines?: string | null;
   /**
-   * Audio introduction to this lesson.
+   * Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.
    */
   introAudio?: (number | null) | File;
   introSubtitles?: Subtitles;
@@ -4520,7 +4526,6 @@ export interface TranscriptsSelect<T extends boolean = true> {
   source?: T;
   audioFilename?: T;
   provider?: T;
-  language?: T;
   segments?: T;
   segmentCount?: T;
   job?: T;
@@ -4605,7 +4610,6 @@ export interface LessonsSelect<T extends boolean = true> {
         title?: T;
         text?: T;
         media?: T;
-        subtitles?: T;
         id?: T;
       };
   meditation?: T;
@@ -4730,10 +4734,12 @@ export interface ImagesSelect<T extends boolean = true> {
  * via the `definition` "files_select".
  */
 export interface FilesSelect<T extends boolean = true> {
-  createdAt?: T;
   hlsUrl?: T;
   mp4Url?: T;
   previewUrl?: T;
+  subtitles?: T;
+  spokenLanguage?: T;
+  createdAt?: T;
   _objectKey?: T;
   updatedAt?: T;
   deletedAt?: T;
@@ -11134,7 +11140,8 @@ export interface TaskSyncLectureMetadata {
  */
 export interface TaskTranscribeMeditation {
   input: {
-    meditationId: number;
+    meditationId?: number | null;
+    fileId?: number | null;
     audioFilename: string;
   };
   output: {

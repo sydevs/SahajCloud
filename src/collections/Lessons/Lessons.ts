@@ -5,7 +5,10 @@ import { jsonField } from '@/fields/jsonField'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { QuoteBlock } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
+import { readFileSubtitles } from '@/lib/transcripts/read'
+import { relationId } from '@/lib/utilities/relationId'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 export const Lessons: CollectionConfig = {
   slug: 'lessons',
@@ -72,17 +75,20 @@ export const Lessons: CollectionConfig = {
                     description: 'Image or video for this panel.',
                   },
                 },
-                jsonField({
-                  name: 'subtitles',
-                  label: 'Subtitles',
-                  schemaTitle: 'Subtitles',
-                  schema: subtitlesSchema,
+                {
+                  // A panel video's subtitles are its file's transcript
+                  // (#1016), shown under the field and never stored on the step.
+                  name: 'mediaTranscript',
+                  type: 'ui',
                   admin: {
-                    condition: (_, siblingData) => !!siblingData?.media,
-                    description:
-                      'Subtitles for video media: [{ startTimeMs, endTimeMs, durationMs?, content }].',
+                    components: {
+                      Field: {
+                        path: '@/components/admin/TranscriptPanel#FileTranscriptField',
+                        clientProps: { fileField: 'media' },
+                      },
+                    },
                   },
-                }),
+                },
               ],
             },
           ],
@@ -127,18 +133,60 @@ export const Lessons: CollectionConfig = {
               type: 'upload',
               relationTo: 'files',
               label: 'Intro Audio',
+              // Not `required`, for the reason `title` is not: see above.
+              localized: true,
+              // Narrows the picker, and Payload's own `relationship` validator
+              // enforces it on save through `validateFilterOptions` — which a
+              // custom `validate` here would silently disarm
+              // (`src/collections/AGENTS.md`). The transcription keeps its own
+              // mime check: the field's upload tab can create a non-audio row
+              // before this is validated.
+              filterOptions: { mimeType: { equals: 'audio/mpeg' } },
               admin: {
-                description: 'Audio introduction to this lesson.',
+                description:
+                  'Audio introduction to this lesson, narrated in the language you are editing. MP3 only. It is transcribed automatically, and the transcript is its subtitles.',
+                // A panel video is shown to every language as it is, so only
+                // this field warns of a recording in another language.
+                components: {
+                  beforeInput: ['@/components/admin/TranscriptPanel#RecordingLanguageWarning'],
+                },
+              },
+            },
+            {
+              // The recording's subtitles are its file's transcript (#1016):
+              // shown under the field, corrected on the file, and never stored
+              // on the step.
+              name: 'introTranscript',
+              type: 'ui',
+              admin: {
+                components: {
+                  Field: {
+                    path: '@/components/admin/TranscriptPanel#FileTranscriptField',
+                    clientProps: { fileField: 'introAudio' },
+                  },
+                },
               },
             },
             jsonField({
+              // shortcut: a read-only copy of the intro file's transcript, for
+              // app releases that read this column; remove once every supported
+              // release reads `introAudio.subtitles` (#1133).
               name: 'introSubtitles',
-              label: 'Intro Subtitles',
               schemaTitle: 'Subtitles',
               schema: subtitlesSchema,
-              admin: {
-                description:
-                  'Subtitles for intro audio: [{ startTimeMs, endTimeMs, durationMs?, content }].',
+              virtual: true,
+              custom: virtualFieldInputs('introAudio'),
+              admin: { hidden: true, readOnly: true },
+              hooks: {
+                afterRead: [
+                  // A bare id at any depth (`src/collections/AGENTS.md`), and a
+                  // `{ [locale]: id }` map under `locale=all`, which has no one
+                  // language to answer for.
+                  ({ req, siblingData }) => {
+                    const fileId = relationId(siblingData?.introAudio)
+                    return fileId ? readFileSubtitles(req, fileId) : null
+                  },
+                ],
               },
             }),
           ],

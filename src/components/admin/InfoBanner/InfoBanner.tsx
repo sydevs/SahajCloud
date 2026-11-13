@@ -2,7 +2,7 @@
 
 import type { UIFieldClientProps } from 'payload'
 
-import { Banner, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
+import { Banner, Button, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
 import { GraduationCap } from 'lucide-react'
 import React from 'react'
 
@@ -35,6 +35,14 @@ interface InfoBannerConfig {
   type?: InfoBannerType | 'info'
 }
 
+/**
+ * A banner's one action, drawn the same way everywhere: a small secondary
+ * button, after the description. `href` makes it a link styled as that button,
+ * which a server component can pass; `onClick` needs a client one.
+ */
+export type InfoBannerAction =
+  { label: string; href: string } | { label: string; onClick: () => void; disabled?: boolean }
+
 export interface InfoBannerProps {
   type?: InfoBannerType
   /** Replaces the type's own icon; `null` shows none. */
@@ -42,8 +50,7 @@ export interface InfoBannerProps {
   title?: React.ReactNode
   /** The description, one or two short sentences. */
   children?: React.ReactNode
-  /** A link or button after the description. */
-  action?: React.ReactNode
+  action?: InfoBannerAction
   /** Set when registered as a `ui` field, which configures the banner through `admin.custom`. */
   field?: UIFieldClientProps['field']
 }
@@ -84,10 +91,35 @@ export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactEle
         <div>
           {title ? <div style={{ fontWeight: 600 }}>{title}</div> : null}
           {children ? <div>{children}</div> : null}
-          {action ? <div style={{ marginTop: 'calc(var(--base) * 0.25)' }}>{action}</div> : null}
+          {action ? (
+            <div style={{ marginTop: 'calc(var(--base) * 0.5)' }}>
+              <ActionButton action={action} />
+            </div>
+          ) : null}
         </div>
       </div>
     </Banner>
+  )
+}
+
+function ActionButton({ action }: { action: InfoBannerAction }) {
+  if ('href' in action) {
+    return (
+      <Button buttonStyle="secondary" el="link" margin={false} size="small" url={action.href}>
+        {action.label}
+      </Button>
+    )
+  }
+  return (
+    <Button
+      buttonStyle="secondary"
+      disabled={action.disabled}
+      margin={false}
+      onClick={action.onClick}
+      size="small"
+    >
+      {action.label}
+    </Button>
   )
 }
 

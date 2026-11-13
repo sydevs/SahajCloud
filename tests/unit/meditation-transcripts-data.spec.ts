@@ -21,7 +21,7 @@ import { describe, expect, it } from 'vitest'
 
 import { applyGlossary } from '@/collections/Transcripts/glossary'
 import { getLocaleLabel, LOCALES, type LocaleCode } from '@/lib/locales'
-import { transcriptSegmentsSchema } from '@/lib/meditations/transcript'
+import { transcriptSegmentsSchema } from '@/lib/transcripts/schema'
 
 import { MEDITATION_TRANSCRIPTS_DATA_FILE, SCRIPT_DATA_FILES } from '../../seeds/lib/dataFiles'
 
