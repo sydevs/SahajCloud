@@ -143,3 +143,74 @@ label.field-label {
     background: var(--theme-elevation-50);
   }
 }
+
+/* ============================================================================
+   7. FOCUS, TABS AND SECTIONS
+   ============================================================================ */
+
+/* Payload's `a:focus { outline: none }` outranks its own `:focus-visible`
+   rule, so a keyboard user sees no ring on any link — tiles, tabs, menu rows. */
+a:focus-visible {
+  outline: var(--accessibility-outline);
+  outline-offset: var(--accessibility-outline-offset);
+}
+
+/* An inactive tab label is at half opacity, which reads below AA in every
+   theme. Carry the muting in a colour that is readable instead. */
+.tabs-field__tab-button,
+.tabs-field__tab-button:hover {
+  opacity: 1;
+}
+
+.tabs-field__tab-button {
+  color: var(--theme-elevation-600);
+}
+
+.tabs-field__tab-button--active {
+  color: var(--theme-text);
+}
+
+/* Restated unlayered: the rule above would otherwise outrank Payload's own. */
+.tabs-field__tab-button--has-error {
+  color: var(--theme-error-500);
+}
+
+/* Payload renders the open document tab as a disabled button, so hovering the
+   tab you are already on answers "not allowed". Its count pill also takes a
+   tinted step, which under a project theme reads as the brand colour rather
+   than as part of the page. */
+.doc-tab--active,
+.doc-tab--active .btn {
+  cursor: default;
+}
+
+.doc-tab--active .pill-version-count,
+.doc-tab--active:hover .pill-version-count {
+  background-color: var(--theme-border-color);
+}
+
+/* Tabs opening a page carry Payload's 40px, which adds to the page's padding. */
+.render-fields > .tabs-field:first-child {
+  margin-top: 0;
+}
+
+/* Sign-in by link leaves Payload's password and API-key blocks with nothing in
+   them, and `.auth-fields`' own gap then reads as a control that failed to
+   render. */
+.auth-fields__controls:empty,
+.auth-fields__api-key:empty {
+  display: none;
+}
+
+.auth-fields > .field-type:last-child {
+  margin-bottom: 0;
+}
+
+/* A group draws the dividers that frame a section. With no heading between
+   them they frame nothing, and the fields inside read as a section of their
+   own — an event's address. `header` is the heading itself: the wrapper is
+   also rendered for an error pill alone. */
+.group-field:not(:has(> .group-field__wrap > .group-field__header > header)) {
+  border-top: 0;
+  border-bottom: 0;
+}

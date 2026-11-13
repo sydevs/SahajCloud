@@ -134,6 +134,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
         alignItems: 'center',
         gap: 'calc(var(--base) * 0.3)',
         width: 'fit-content',
+        maxWidth: '100%',
       }}
     >
       <div
@@ -144,15 +145,20 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
           display: 'flex',
           alignItems: 'center',
           width: 'fit-content',
+          maxWidth: '100%',
           ...(isMulti
             ? {
                 gap: 'calc(var(--base) * 0.3)',
               }
             : {
-                border: '1px solid var(--theme-elevation-200)',
+                // Payload's own text-input box, so a single choice sits level
+                // with the inputs and selects beside it.
+                height: '40px',
+                border: '1px solid var(--theme-elevation-150)',
                 borderRadius: 'var(--style-radius-s)',
+                boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
                 overflow: 'hidden',
-                backgroundColor: 'var(--theme-elevation-0)',
+                backgroundColor: 'var(--theme-input-bg)',
               }),
         }}
       >
@@ -174,7 +180,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               onKeyDown={(e) => handleKeyDown(e, option.value, index)}
               style={{
                 padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
-                background: isSelected ? 'var(--theme-success-500)' : 'transparent',
+                background: isSelected ? 'var(--theme-success-600)' : 'transparent',
                 color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
                 fontSize: 'calc(var(--base-body-size) * 1px)',
                 fontWeight: isSelected ? 600 : 400,
@@ -192,9 +198,16 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                       border: 'none',
                       borderRight:
                         index < options.length - 1
-                          ? '1px solid var(--theme-elevation-200)'
+                          ? '1px solid var(--theme-elevation-150)'
                           : 'none',
-                      minWidth: '120px',
+                      // 120px each, sharing the row evenly. A flex item never
+                      // shrinks below its own content, so a long label keeps
+                      // its segment wide and a narrow screen shrinks the rest.
+                      flex: '1 1 120px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%',
                     }),
               }}
               onMouseEnter={(e) => {
