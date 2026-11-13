@@ -32,7 +32,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
+import { __resetPlaybackTimeStoreForTests } from '@/components/admin/helpers/playbackTimeStore'
 import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/transcripts/bounds'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Transcript } from '@/payload-types'

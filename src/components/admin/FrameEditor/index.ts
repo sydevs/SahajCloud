@@ -13,7 +13,7 @@ export {
   isVideoFrame,
 } from './utils'
 
-export { usePlaybackTime, useSeekToTime, useAvailableFrames } from './hooks'
+export { useAvailableFrames } from './hooks'
 
 export { baseStyles, listManagerStyles, inserterStyles } from './styles'
 

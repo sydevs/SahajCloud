@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { usePlaybackTime, useSeekToTime } from '@/components/admin/FrameEditor'
+import { usePlaybackTime, useSeekToTime } from '@/components/admin/helpers/livePreviewPlayback'
 
 import { exactSecond, seekSecond } from './transcriptModel'
 
