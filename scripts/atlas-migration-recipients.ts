@@ -16,12 +16,12 @@ export interface MigrationRecipient {
   id: number
   email: string
   name: string
-  holds: { admin: boolean; events: number; regions: number }
+  holds: { admin: boolean; events: number; regions: number; services: number }
 }
 
 /**
  * Atlas managers who are admins, or are named on at least one live event (not
- * finished, not trashed) or region, minus anyone the ledger already holds.
+ * finished, not trashed), region or service, minus anyone the ledger already holds.
  *
  * Only managers the import created (`legacyId` set): a SahajCloud-only account
  * never used the old CMS, so "it has moved" is not news to it. An inactive
@@ -33,10 +33,13 @@ export function selectRecipients(args: {
   liveEventManagers: (null | number | undefined)[]
   /** One entry per region, naming its managers. */
   regionManagers: (null | number | undefined)[][]
+  /** One entry per service (a site embedding the map), naming its managers. */
+  serviceManagers?: (null | number | undefined)[][]
   alreadySent: ReadonlySet<string>
 }): MigrationRecipient[] {
   const events = tally(args.liveEventManagers)
   const regions = tally(args.regionManagers.flat())
+  const services = tally((args.serviceManagers ?? []).flat())
 
   return args.managers
     .filter((manager) => manager.legacyId != null && manager.type !== 'inactive')
@@ -48,9 +51,12 @@ export function selectRecipients(args: {
         admin: manager.type === 'admin',
         events: events.get(manager.id) ?? 0,
         regions: regions.get(manager.id) ?? 0,
+        services: services.get(manager.id) ?? 0,
       },
     }))
-    .filter(({ holds }) => holds.admin || holds.events > 0 || holds.regions > 0)
+    .filter(
+      ({ holds }) => holds.admin || holds.events > 0 || holds.regions > 0 || holds.services > 0,
+    )
     .filter(({ email }) => !args.alreadySent.has(email))
     .sort((a, b) => a.id - b.id)
 }

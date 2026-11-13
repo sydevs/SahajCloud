@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { cmsHighlights } from '@/emails/AtlasMigrationEmail'
+
 import { selectRecipients } from '../../scripts/atlas-migration-recipients'
 
 const manager = (id: number, extra: Record<string, unknown> = {}) => ({
@@ -26,12 +28,14 @@ describe('selectRecipients', () => {
       managers: [manager(1), manager(2), manager(3, { type: 'admin' }), manager(4)],
       liveEventManagers: [1, 1, null],
       regionManagers: [[2], [2, 1]],
+      serviceManagers: [[4]],
     })
 
     expect(recipients.map((r) => [r.id, r.holds])).toEqual([
-      [1, { admin: false, events: 2, regions: 1 }],
-      [2, { admin: false, events: 0, regions: 2 }],
-      [3, { admin: true, events: 0, regions: 0 }],
+      [1, { admin: false, events: 2, regions: 1, services: 0 }],
+      [2, { admin: false, events: 0, regions: 2, services: 0 }],
+      [3, { admin: true, events: 0, regions: 0, services: 0 }],
+      [4, { admin: false, events: 0, regions: 0, services: 1 }],
     ])
   })
 
@@ -49,5 +53,21 @@ describe('selectRecipients', () => {
     const [recipient] = select({ managers: [manager(5)], liveEventManagers: [5] })
 
     expect(recipient?.email).toBe('m5@example.com')
+  })
+})
+
+describe('cmsHighlights', () => {
+  const holds = { admin: false, events: 0, regions: 0, services: 0 }
+  const mentions = (lines: string[], text: string) => lines.some((line) => line.includes(text))
+
+  it('speaks of the area only to a region manager or an admin', () => {
+    expect(mentions(cmsHighlights({ ...holds, events: 2 }), 'in your area')).toBe(false)
+    expect(mentions(cmsHighlights({ ...holds, regions: 1 }), 'in your area')).toBe(true)
+    expect(mentions(cmsHighlights({ ...holds, admin: true }), 'in your area')).toBe(true)
+  })
+
+  it('offers map customisation only to someone who looks after a website', () => {
+    expect(mentions(cmsHighlights({ ...holds, regions: 1 }), 'your website')).toBe(false)
+    expect(mentions(cmsHighlights({ ...holds, services: 1 }), 'your website')).toBe(true)
   })
 })

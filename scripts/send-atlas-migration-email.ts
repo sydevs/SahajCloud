@@ -33,7 +33,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import path from 'path'
 import { createElement } from 'react'
 
-import { ATLAS_MIGRATION_SUBJECT, AtlasMigrationEmail } from '../src/emails/AtlasMigrationEmail'
+import {
+  ATLAS_MIGRATION_SUBJECT,
+  AtlasMigrationEmail,
+  cmsHighlights,
+} from '../src/emails/AtlasMigrationEmail'
 import { getEmailBrand, MANAGER_EMAIL_FROM, renderEmail } from '../src/plugins/email'
 import { MANAGERS_COLLECTION, summarizeGrants } from '../src/plugins/login/grantSummary'
 import { selectRecipients } from './atlas-migration-recipients'
@@ -49,7 +53,7 @@ const SAMPLE: MigrationRecipient = {
   id: 0,
   email: 'manager@example.com',
   name: 'Sample Manager',
-  holds: { admin: false, events: 2, regions: 1 },
+  holds: { admin: false, events: 2, regions: 1, services: 1 },
 }
 
 /** What a sample recipient looks after, for a render against a database with no Atlas managers. */
@@ -92,7 +96,7 @@ function writeLedger(file: string, sent: Set<string>): void {
 }
 
 async function findRecipients(payload: Payload, alreadySent: Set<string>) {
-  const [managers, events, regions] = await Promise.all([
+  const [managers, events, regions, services] = await Promise.all([
     payload.find({
       collection: 'managers',
       depth: 0,
@@ -116,6 +120,14 @@ async function findRecipients(payload: Payload, alreadySent: Set<string>) {
       pagination: false,
       select: { managers: true },
     }),
+    payload.find({
+      collection: 'clients',
+      depth: 0,
+      overrideAccess: true,
+      pagination: false,
+      select: { managers: true },
+      where: { enabled: { equals: true } },
+    }),
   ])
   const id = (value: unknown) =>
     typeof value === 'number' ? value : (value as { id?: number } | null)?.id
@@ -124,6 +136,7 @@ async function findRecipients(payload: Payload, alreadySent: Set<string>) {
     managers: managers.docs,
     liveEventManagers: events.docs.map((event) => id(event.manager)),
     regionManagers: regions.docs.map((region) => (region.managers ?? []).map(id)),
+    serviceManagers: services.docs.map((service) => (service.managers ?? []).map(id)),
     alreadySent,
   })
 }
@@ -153,6 +166,7 @@ async function compose(payload: Payload, recipient: MigrationRecipient, subjectP
         brand,
         email: recipient.email,
         fullAccess: recipient.holds.admin,
+        highlights: cmsHighlights(recipient.holds),
         mapUrl: MAP_URL,
         name: recipient.name,
         responsibilities: summary?.responsibilities ?? [],

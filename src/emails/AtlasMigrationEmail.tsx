@@ -20,17 +20,41 @@ export interface AtlasMigrationEmailProps {
   signInUrl: string
   /** The new public map. */
   mapUrl: string
+  /** What is new for this manager (`cmsHighlights`). */
+  highlights: string[]
 }
 
 export const ATLAS_MIGRATION_SUBJECT = 'Welcome to the new Sahaj Atlas'
 
-const WHATS_NEW = [
-  'Sign in with just your email address. There is no password to remember.',
-  'Your home page shows what needs your attention.',
-  'See who has registered for each of your classes.',
-  'Every few months we ask you to confirm your classes are still running. It takes one click.',
-  'The new map suggests classes near each visitor, shows online classes in their own time zone, and speaks 10 languages.',
+/** What changed on the public map, for everyone. */
+export const MAP_HIGHLIGHTS = [
+  'Full search filters: language, time of day, day of the week, location and more.',
+  'A calendar view, and calendar reminders for people who register.',
+  'A fresh, polished new look.',
+  'Easier to use on phones.',
+  'Many more small improvements and bug fixes!',
 ]
+
+/** What changed for this manager, by what they look after. */
+export function cmsHighlights(holds: {
+  admin: boolean
+  events: number
+  regions: number
+  services: number
+}): string[] {
+  const area = holds.admin || holds.regions > 0
+  return [
+    'Better class controls. You can now set holiday breaks!',
+    'Suggestions for improving your class listings, such as images and descriptions.',
+    'A hopefully easier interface. Let us know if anything could be better!',
+    area
+      ? 'A simpler dashboard, and summary emails about the classes in your area.'
+      : 'A simpler dashboard, and summary emails about your classes.',
+    ...(holds.admin || holds.services > 0
+      ? ['You can customise how the map looks on your website.']
+      : []),
+  ]
+}
 
 /**
  * The one-off welcome sent to every active Atlas manager once the final sync
@@ -46,6 +70,7 @@ export function AtlasMigrationEmail({
   responsibilities,
   signInUrl,
   mapUrl,
+  highlights,
 }: AtlasMigrationEmailProps) {
   return (
     <EmailLayout
@@ -68,14 +93,11 @@ export function AtlasMigrationEmail({
         <ResponsibilityRows brand={brand} responsibilities={responsibilities} />
       )}
 
-      <SectionHeading>What&apos;s new</SectionHeading>
-      <ul style={list}>
-        {WHATS_NEW.map((line) => (
-          <li key={line} style={listItem}>
-            {line}
-          </li>
-        ))}
-      </ul>
+      <SectionHeading>What&apos;s new for you</SectionHeading>
+      <Bullets lines={highlights} />
+
+      <SectionHeading>What&apos;s new on the map</SectionHeading>
+      <Bullets lines={MAP_HIGHLIGHTS} />
 
       <Text style={styles.paragraph}>
         To sign in, enter <strong>{email}</strong> and we will email you a link.
@@ -88,6 +110,18 @@ export function AtlasMigrationEmail({
         ]}
       />
     </EmailLayout>
+  )
+}
+
+function Bullets({ lines }: { lines: string[] }) {
+  return (
+    <ul style={list}>
+      {lines.map((line) => (
+        <li key={line} style={listItem}>
+          {line}
+        </li>
+      ))}
+    </ul>
   )
 }
 
