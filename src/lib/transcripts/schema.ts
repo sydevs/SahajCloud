@@ -1,6 +1,6 @@
 /**
- * The timestamped transcript of a meditation's recording, as stored on
- * `transcripts`.
+ * The timestamped transcript of a recording — a meditation's or a file's — as
+ * stored on `transcripts`.
  */
 import { z } from 'zod'
 
@@ -33,16 +33,14 @@ export const TRANSCRIPT_STATUSES = ['processing', 'completed', 'failed'] as cons
 export type TranscriptStatus = (typeof TRANSCRIPT_STATUSES)[number]
 
 /**
- * One provider, and no placeholder. A transcript that cannot be produced is a
- * row with `status: 'failed'` and an `error` — never invented text wearing a
- * provider's name (#897, success line 13).
+ * Who wrote the cues, and no placeholder. A transcript that cannot be produced
+ * is a row with `status: 'failed'` and an `error` — never invented text wearing
+ * a provider's name (#897, success line 13).
+ *
+ * `imported` is the 28 hand-made Path Step intro cue sets, carried over from
+ * the lesson column they lived in before transcripts belonged to the file
+ * (#1016). Nothing writes it at run time.
  */
-export const TRANSCRIPT_PROVIDERS = ['lemonfox'] as const
+export const TRANSCRIPT_PROVIDERS = ['lemonfox', 'imported'] as const
 
 export type TranscriptProvider = (typeof TRANSCRIPT_PROVIDERS)[number]
-
-/**
- * Re-exported, not declared here: a `'use client'` consumer must reach the
- * bound without this module's zod schemas. `./transcriptBounds` says why.
- */
-export { TRANSCRIPTION_STALL_MS } from './transcriptBounds'

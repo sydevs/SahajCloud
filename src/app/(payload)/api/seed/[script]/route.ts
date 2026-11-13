@@ -414,6 +414,11 @@ async function getImporter(
         await import('../../../../../../seeds/meditation-transcripts/import')
       return new MeditationTranscriptsImporter(options)
     }
+    case 'file-transcripts': {
+      const { FileTranscriptsImporter } =
+        await import('../../../../../../seeds/file-transcripts/import')
+      return new FileTranscriptsImporter(options)
+    }
     case 'storyblok': {
       const token = process.env.STORYBLOK_ACCESS_TOKEN
       if (!token) {

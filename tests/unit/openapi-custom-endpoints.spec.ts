@@ -269,6 +269,17 @@ describe('transcripts (OpenAPI)', () => {
   it('publishes neither transcript endpoint', () => {
     expect(CUSTOM_ENDPOINT_PATHS['/api/meditations/{id}/transcribe']).toBeUndefined()
   })
+
+  // `POST /api/files/:id/transcribe` (#1016) is the same kind of door: gated on
+  // `files: create`, called only by the admin panel's Transcript panel, and so
+  // out of the spec and out of the schema map. `docs/rules/endpoints.md` scopes
+  // both to public, client-facing endpoints.
+  it('publishes no file transcribe endpoint, nor a schema for one', () => {
+    expect(CUSTOM_ENDPOINT_PATHS['/api/files/{id}/transcribe']).toBeUndefined()
+    expect(Object.keys(CUSTOM_ENDPOINT_SCHEMAS)).not.toContainEqual(
+      expect.stringMatching(/transcri|subtitles/i),
+    )
+  })
 })
 
 describe('the Wix router endpoints (OpenAPI)', () => {

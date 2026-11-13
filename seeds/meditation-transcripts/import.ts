@@ -17,7 +17,7 @@
 import * as path from 'path'
 
 import { getLocaleLabel, type LocaleCode } from '@/lib/locales'
-import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/meditations/transcript'
+import { transcriptSegmentsSchema, type TranscriptSegment } from '@/lib/transcripts/schema'
 import { stripPreviewPrefix } from '@/plugins/storage/previewIsolation'
 
 import { BaseImporter, type BaseImportOptions, loadJsonData, type RunVerification } from '../lib'
@@ -217,12 +217,9 @@ export class MeditationTranscriptsImporter extends BaseImporter<BaseImportOption
         // These already exist, so the row carries cues from the start and
         // `queueTranscription` asks for nothing. `status` derives `completed`
         // from them, and there is no job row to read an error off.
+        // The language is the meditation's own `locale`, which the
+        // collection's `applyGlossaryToSegments` hook reads off it.
         provider: 'lemonfox',
-        // The meditation's own locale, not the file's language name: the column
-        // is a select over the configured locales, and the glossary keys on it.
-        // Sent on every write, including an update, so the collection's
-        // `applyGlossaryToSegments` hook has its key.
-        language: meditation.locale,
         audioFilename: entry.audioFilename,
         segments: entry.segments,
       },

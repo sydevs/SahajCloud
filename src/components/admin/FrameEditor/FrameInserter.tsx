@@ -5,13 +5,14 @@ import type { UIFieldClientComponent } from 'payload'
 import { Pill, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
+import { usePlaybackTime } from '@/components/admin/helpers/livePreviewPlayback'
 import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import type { Frame } from '@/payload-types'
 import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameInserter.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { useAvailableFrames, usePlaybackTime } from './hooks'
+import { useAvailableFrames } from './hooks'
 import { baseStyles, inserterStyles } from './styles'
 import {
   formatTime,

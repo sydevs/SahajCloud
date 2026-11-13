@@ -1,10 +1,10 @@
 import type { DocumentViewClientProps, DocumentViewServerProps } from 'payload'
 
-import { Banner, DefaultEditView, Gutter, Spinner } from '@payloadcms/ui'
+import { DefaultEditView, Gutter } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 
-import { CheckAgain } from './CheckAgain'
 import { type JobStageWait, jobStageWait, readJobStageConfig } from './stages'
+import { WaitingNotice } from './WaitingNotice'
 
 /**
  * Every client prop, required. Each `DocumentSlots` member is optional, so a
@@ -58,7 +58,7 @@ function countSentence({ progress, total }: JobStageWait): string {
  * A server component, because Payload hands a view the locale and user objects
  * (`docs/rules/admin-ui.md` § Server vs client components), and because the
  * stored stage at page load is the whole input — there is no poll, and so no
- * second request. Re-reading it is `CheckAgain`'s, the one client component
+ * second request. Re-reading it is `WaitingNotice`'s, the one client component
  * here.
  */
 export default function JobStageView(props: DocumentViewServerProps) {
@@ -72,11 +72,10 @@ export default function JobStageView(props: DocumentViewServerProps) {
     if (wait) {
       return (
         <Gutter>
-          <Banner icon={<Spinner loadingText={null} size="sm" />} type="info">
+          <WaitingNotice>
             {toWords(wait.stage)} — this is being prepared automatically, and opens for editing when
             that finishes.{countSentence(wait)}
-          </Banner>
-          <CheckAgain />
+          </WaitingNotice>
         </Gutter>
       )
     }

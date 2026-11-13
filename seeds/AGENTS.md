@@ -71,7 +71,8 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 
 Requires an admin session (a Manager with `admin: true`). The response is
 Server-Sent Events (SSE) with progress updates. Scripts: `tags`,
-`wemeditate`, `meditations`, `storyblok`, `atlas`, `atlas-reset`.
+`wemeditate`, `meditations`, `storyblok`, `atlas`, `atlas-reset`,
+`file-transcripts`.
 
 ## Pagination support
 
@@ -101,6 +102,7 @@ change with every refresh:
 | meditations            | frames           | 60    | Yes        | None                    |
 | meditations            | meditations      | 73    | Yes        | narrators, frames, tags |
 | meditation-transcripts | transcripts      | 126   | No         | meditations             |
+| file-transcripts       | transcripts      | data  | No         | files                   |
 | storyblok              | lessons          | 17    | Yes        | None                    |
 | storyblok              | lectures         | 0     | No         | None                    |
 | atlas                  | managers         | data  | No         | None                    |
@@ -137,6 +139,7 @@ automatically — printing per-batch progress as it goes.
 | tags                   | `pnpm seed tags`                   | None                                               | user-choices, music-tags                                    |
 | atlas                  | `pnpm seed atlas`                  | `pnpm atlas:sync build` (local data, below)        | managers, regions, users, events, user-submissions, clients |
 | atlas-reset            | `pnpm seed atlas-reset`            | ⚠ Destructive — run only by name, before a re-sync | events, regions, users, user-submissions (emptied)          |
+| file-transcripts       | `pnpm seed file-transcripts`       | ⚠ Paid runs — run only by name                     | transcripts (one queued run per untranscribed file)         |
 | translations           | `pnpm seed translations`           | None                                               | the three translations globals (see below)                  |
 | preview-fixture        | `pnpm seed preview-fixture`        | A Railway preview, reached at its fixed address    | managers, regions, forms, events, users, user-submissions   |
 
@@ -299,8 +302,23 @@ pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed meditation-transc
 ```
 
 The glossary is applied by the collection's `applyGlossaryToSegments` hook, not
-here. `language` is the meditation's own `locale`, sent on every write so the
-hook has its key.
+here, in the meditation's own `locale`, which the hook reads off the meditation:
+a transcript stores no language of its own (#1016).
+
+### `file-transcripts` — the one-off for files uploaded before #1016
+
+An audio or video file is transcribed as it is saved since #1016, so this asks
+for a transcript of every one that has none — about 40 short vibe-check
+prompts and a handful of panel videos in production when it shipped. Each is
+created the way an upload creates one, so its run is queued and started on the
+target's own server with the target's own vendor key. **Every row it creates is
+a paid Lemonfox run**, which is why it is in no seed order and runs only by
+name. A re-run finds nothing left to do; `--dry-run` counts and stops:
+
+```bash
+pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed file-transcripts --dry-run
+pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed file-transcripts
+```
 
 ## Common flags
 

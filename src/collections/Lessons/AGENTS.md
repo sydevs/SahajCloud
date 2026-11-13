@@ -34,3 +34,59 @@ meditation or the article included.
 `CleanupOrphanedMedia` reads `locale: 'all'` for exactly this reason: a
 file referenced only by a French panel would otherwise read as an orphan
 and be trashed. See `src/jobs/CleanupOrphanedMedia/AGENTS.md`.
+
+## `introAudio` is per locale, and its subtitles are its file's (#1016)
+
+One recording was shared across all 19 languages, so a step narrated in English
+subtitled every language. `introAudio` is localized, and not `required`, for the
+`title` reason above. Its migration carries a hand-written backfill into the
+`en` row, because the generated delta drops the base column without reading it.
+
+**The subtitles are not stored on the step.** A recording's transcript belongs
+to the recording — its `files` row — so every step and language using a file
+shares one transcript, and swapping the file swaps the subtitles; they cannot
+follow a recording that is no longer attached. The same holds for a panel
+video's subtitles, which is why `panels[].subtitles` is gone too.
+
+- **Made on upload.** An MP3 is transcribed when it is saved, a video when
+  Cloudflare Stream reports it ready (`src/lib/transcripts/`,
+  `TranscribeRecording`). The language is the file's own `spokenLanguage`:
+  stated on upload, or detected by the first run and written there. Changing
+  it transcribes the file again, and the re-run serves every step using it —
+  except for a video that has no transcript yet, whose first run is Stream's
+  webhook's and which is transcribed from the Transcript panel instead.
+  Only an admin can change it after upload — editors hold `files: create`
+  alone.
+- **Shown, never edited, here.** A `ui` field follows each upload —
+  `introTranscript` after `introAudio`, `mediaTranscript` after
+  `panels[].media` — rendering `FileTranscriptField`, the file's own
+  Transcript panel, for the file its `fileField` names: the player and the
+  transcript, folded closed in a Payload `Collapsible` once there are lines to
+  read, because a step carries one per panel video as well. `introAudio` also
+  registers `RecordingLanguageWarning` as `beforeInput`, a banner above the
+  file when it states another language than the one being edited, which tells
+  an editor to choose another recording or ask an admin. A retry here serves
+  every step using the file. Spellings are
+  corrected for every transcript by the glossary
+  (`src/collections/Transcripts/glossary.json`).
+- **Read by the app through the file**: `introAudio.subtitles` and
+  `panels[].media.subtitles`, a virtual field on `files`, because a join on a
+  populated upload answers bare ids at any depth.
+- ⚠ **`introSubtitles` survives only as a read-only virtual copy** of
+  `introAudio.subtitles`, for app releases that still read it. It is a
+  `shortcut:` tracked by #1133; delete it once none does.
+
+The 28 hand-made English cue sets became their files' transcripts in the
+migration, marked `imported`, so nothing was paid to redo them.
+
+**`introAudio` carries `filterOptions: { mimeType: { equals: 'audio/mpeg' } }`,
+and must never carry a custom `validate`.** `validateFilterOptions` lives inside
+Payload's own `relationship` validator, installed only where the field supplies
+none, so a validator here would narrow the picker and enforce nothing
+(`src/collections/AGENTS.md`).
+
+**Launch Readiness turns mostly red here, by design.** Judged on a locale's own
+value, `intro-audio-set` and `intro-subtitles-set` (a finished transcript on that
+locale's intro file) are red in 18 of 19 locales
+for every step from day one. That is the existing gap made visible, not a
+regression.
