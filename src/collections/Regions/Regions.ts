@@ -116,6 +116,11 @@ export const Regions: CollectionConfig = {
     useAsTitle: 'name',
     defaultColumns: ['name', 'level'],
     groupBy: true,
+    // A relationship cell on another list — the Events list's City / Venue
+    // column — batch-fetches this collection whole, which costs four join
+    // subqueries and the public-URL virtuals per page. With this on, that
+    // batch selects `name` alone.
+    enableListViewSelectAPI: true,
     // Live Preview loads the Atlas widget's /preview route (same contract as
     // Events — see Events.ts for the CORS and draft-unlock notes). Regions
     // have no drafts. The preview shows published data, plus unsaved form
