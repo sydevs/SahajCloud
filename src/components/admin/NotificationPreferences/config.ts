@@ -20,6 +20,28 @@ import type { NotificationPreferences } from '@/payload-types'
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
 
+/**
+ * The messaging platforms a manager can be reached on, and how each is named.
+ *
+ * `Managers.contactDetails.platform` offers these and the preferences table
+ * names a chosen one with them, so a platform added here is named at both.
+ */
+export const CONTACT_PLATFORMS = [
+  { label: 'WhatsApp', value: 'whatsapp' },
+  { label: 'Telegram', value: 'telegram' },
+  { label: 'WeChat', value: 'wechat' },
+] as const
+
+/**
+ * What a delivery method is called. A stored method no longer offered — a
+ * platform the manager has removed, or one this vocabulary has retired — keeps
+ * its own value, since the row still sends there.
+ */
+export function notificationMethodLabel(method: string): string {
+  if (method === DEFAULT_NOTIFICATION_METHOD) return 'Email'
+  return CONTACT_PLATFORMS.find((platform) => platform.value === method)?.label ?? method
+}
+
 interface NotificationTypeShape<Key extends string = string> {
   key: Key
   title: string

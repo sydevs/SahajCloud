@@ -7,6 +7,8 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  ReactSelect,
+  type ReactSelectOption,
   useAllFormFields,
   useDocumentInfo,
   useField,
@@ -20,6 +22,7 @@ import {
   DEFAULT_NOTIFICATION_METHOD,
   NEVER_FREQUENCY,
   notificationFrequency,
+  notificationMethodLabel,
   notificationTypesFor,
 } from './config'
 
@@ -67,14 +70,14 @@ const cellStyle: React.CSSProperties = {
   verticalAlign: 'middle',
 }
 
-const selectStyle: React.CSSProperties = {
-  padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.4)',
-  fontSize: '13px',
-  color: 'var(--theme-elevation-800)',
-  backgroundColor: 'var(--theme-input-bg)',
-  border: '1px solid var(--theme-elevation-150)',
-  borderRadius: 'var(--style-radius-s)',
-}
+/** Method and Frequency line up in columns of their own, whatever they hold. */
+const CHOICE_COLUMN_WIDTH = '180px'
+
+const asOptions = (values: readonly string[], label: (value: string) => string) =>
+  values.map((value) => ({ label: label(value), value })) as ReactSelectOption[]
+
+const selected = (options: ReactSelectOption[], value: string) =>
+  options.find((option) => option.value === value)
 
 export const NotificationPreferencesField: FieldClientComponent = ({ field, readOnly }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -113,7 +116,13 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
     setValue({ ...prefs, [key]: updated })
   }
 
-  const fieldClasses = ['field-type', 'json', showError && 'error', readOnly && 'read-only']
+  const fieldClasses = [
+    'field-type',
+    'json',
+    'notification-preferences',
+    showError && 'error',
+    readOnly && 'read-only',
+  ]
     .filter(Boolean)
     .join(' ')
 
@@ -137,10 +146,16 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
               fontSize: '13px',
             }}
           >
+            {/* The Notification column absorbs spare width; the two choices
+              keep a column each, so a row's dropdowns line up with the one
+              above whatever either holds. */}
+            <colgroup>
+              <col />
+              <col style={{ width: CHOICE_COLUMN_WIDTH }} />
+              <col style={{ width: CHOICE_COLUMN_WIDTH }} />
+            </colgroup>
             <thead>
               <tr style={{ backgroundColor: 'var(--theme-elevation-50)' }}>
-                {/* The Notification column absorbs spare width so Method +
-                  Frequency shrink to just their dropdown content. */}
                 <th style={{ ...cellStyle, fontWeight: 600, textAlign: 'left', width: '100%' }}>
                   Notification
                 </th>
@@ -155,10 +170,13 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                 const methodMissing = !isNever && !pref.method
                 // Keep a method that's no longer in contactDetails selectable so
                 // it isn't silently dropped from the dropdown.
-                const rowMethodOptions =
+                const rowMethodOptions = asOptions(
                   pref.method && !methodOptions.includes(pref.method)
                     ? [...methodOptions, pref.method]
-                    : methodOptions
+                    : methodOptions,
+                  notificationMethodLabel,
+                )
+                const frequencyOptions = asOptions(type.frequencyOptions, (value) => value)
 
                 // Fade only the Notification + Method cells when muted ("Never")
                 // — the Frequency cell stays full-opacity so it never reads as
@@ -177,41 +195,37 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                       {isNever ? (
                         <span style={{ color: 'var(--theme-elevation-400)' }}>—</span>
                       ) : (
-                        <select
+                        <ReactSelect
                           aria-label={`${type.title} method`}
-                          value={pref.method}
                           disabled={readOnly}
-                          onChange={(e) => updateRow(type.key, { method: e.target.value })}
-                          style={{
-                            ...selectStyle,
-                            ...(methodMissing ? { borderColor: 'var(--theme-error-500)' } : {}),
-                          }}
-                        >
-                          <option value="">— Select —</option>
-                          {rowMethodOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
+                          isClearable={false}
+                          onChange={(option) =>
+                            updateRow(type.key, {
+                              method: String((option as ReactSelectOption | null)?.value ?? ''),
+                            })
+                          }
+                          options={rowMethodOptions}
+                          placeholder="Select"
+                          showError={methodMissing}
+                          value={selected(rowMethodOptions, pref.method)}
+                        />
                       )}
                     </td>
                     <td style={cellStyle}>
-                      <select
+                      {/* No empty option: every row resolves to a pace, its own
+                        default where the manager never saved one. */}
+                      <ReactSelect
                         aria-label={`${type.title} frequency`}
-                        value={pref.frequency}
                         disabled={readOnly}
-                        onChange={(e) => updateRow(type.key, { frequency: e.target.value })}
-                        style={selectStyle}
-                      >
-                        {/* No empty option: every row resolves to a pace, its
-                          own default where the manager never saved one. */}
-                        {type.frequencyOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                        isClearable={false}
+                        onChange={(option) =>
+                          updateRow(type.key, {
+                            frequency: String((option as ReactSelectOption | null)?.value ?? ''),
+                          })
+                        }
+                        options={frequencyOptions}
+                        value={selected(frequencyOptions, pref.frequency)}
+                      />
                     </td>
                   </tr>
                 )

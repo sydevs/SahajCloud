@@ -214,3 +214,24 @@ a:focus-visible {
   border-top: 0;
   border-bottom: 0;
 }
+
+/* ============================================================================
+   8. NOTIFICATION PREFERENCES (NotificationPreferencesField)
+   ============================================================================ */
+
+/* A single-value ReactSelect renders bare `.react-select`, so it sizes to its
+   own value. Each one fills the column it sits in instead. */
+.field-type.notification-preferences .react-select {
+  width: 100%;
+}
+
+/* ============================================================================
+   9. ACCOUNT EMAIL (AccountEmail — the Contact tab's first field)
+   ============================================================================ */
+
+.account-email__value {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--base) / 2);
+  min-height: 40px;
+}

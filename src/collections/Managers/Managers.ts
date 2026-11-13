@@ -4,6 +4,7 @@ import { json as jsonFieldValidation } from 'payload/shared'
 import { z } from 'zod'
 
 import {
+  CONTACT_PLATFORMS,
   buildDefaultNotificationPreferences,
   validateNotificationPreferences,
 } from '@/components/admin/NotificationPreferences/config'
@@ -187,6 +188,14 @@ export const Managers: CollectionConfig = {
           label: MANAGER_NOTIFICATIONS_TAB,
           fields: [
             {
+              // The address every notification goes to, which the tab listed
+              // the messaging handles beside and not itself. Read-only here:
+              // `email` is a top-level auth field and cannot move into a tab.
+              name: 'accountEmail',
+              type: 'ui',
+              admin: { components: { Field: '@/components/admin/AccountEmail' } },
+            },
+            {
               name: 'language',
               type: 'select',
               options: getLanguageOptions(),
@@ -205,11 +214,9 @@ export const Managers: CollectionConfig = {
                       name: 'platform',
                       type: 'select',
                       required: true,
-                      options: [
-                        { label: 'WhatsApp', value: 'whatsapp' },
-                        { label: 'Telegram', value: 'telegram' },
-                        { label: 'WeChat', value: 'wechat' },
-                      ],
+                      // The preferences table names a chosen platform from the
+                      // same list, so neither can offer one the other cannot say.
+                      options: [...CONTACT_PLATFORMS],
                     },
                     {
                       name: 'identifier',

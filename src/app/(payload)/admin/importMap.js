@@ -40,6 +40,7 @@ import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/component
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
 import { default as default_8dd17cb8528b516d825f8fb6a794fe97 } from '@/components/admin/RolesField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
+import { default as default_f79ca6e00097944fb6c5c3a66a904311 } from '@/components/admin/AccountEmail'
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
 import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/components/admin/InstallGuide/InstallBanner'
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
@@ -144,6 +145,7 @@ export const importMap = {
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
   "@/components/admin/RolesField#default": default_8dd17cb8528b516d825f8fb6a794fe97,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
+  "@/components/admin/AccountEmail#default": default_f79ca6e00097944fb6c5c3a66a904311,
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
   "@/components/admin/InstallGuide/InstallBanner#default": default_d498427cbe3f9e971622125cc691d73d,
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
