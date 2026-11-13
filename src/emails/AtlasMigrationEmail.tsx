@@ -145,16 +145,30 @@ export function AtlasMigrationEmail({
       <Text style={styles.paragraph}>
         We have finally finished a major update to the Sahaj Atlas, and created a new interface for
         both yogis and seekers to manage and find public programs worldwide. All data has already
-        been transferred. Please{' '}
-        <Link href="mailto:contact@sydevelopers.com" style={{ color: brand.colors.primary }}>
-          contact us
-        </Link>{' '}
-        if you need help. From now on you can edit programs at{' '}
-        <Link href="https://cloud.sydevelopers.com" style={{ color: brand.colors.primary }}>
-          cloud.sydevelopers.com
-        </Link>
-        .
+        been transferred.
       </Text>
+      <Section style={{ margin: '0 0 16px' }}>
+        <Row>
+          <Column style={bulletCell}>•</Column>
+          <Column style={textCell}>
+            Please{' '}
+            <Link href="mailto:contact@sydevelopers.com" style={{ color: brand.colors.primary }}>
+              contact us
+            </Link>{' '}
+            if you need help.
+          </Column>
+        </Row>
+        <Row>
+          <Column style={bulletCell}>•</Column>
+          <Column style={textCell}>
+            From now on you can edit programs at{' '}
+            <Link href="https://cloud.sydevelopers.com" style={{ color: brand.colors.primary }}>
+              cloud.sydevelopers.com
+            </Link>
+            .
+          </Column>
+        </Row>
+      </Section>
 
       <SectionHeading>What you look after</SectionHeading>
       <ResponsibilityRows brand={brand} responsibilities={responsibilities} />
@@ -195,5 +209,6 @@ function HighlightList({ items }: { items: Highlight[] }) {
   )
 }
 
+const bulletCell = { width: '20px', fontSize: '16px', verticalAlign: 'top', padding: '2px 0' }
 const iconCell = { width: '32px', fontSize: '18px', verticalAlign: 'top', padding: '4px 0' }
 const textCell = { fontSize: '16px', lineHeight: '24px', verticalAlign: 'top', padding: '4px 0' }
