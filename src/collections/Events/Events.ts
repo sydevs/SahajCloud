@@ -179,6 +179,8 @@ export const Events: CollectionConfig = {
         }),
       // Phone-sized frame for the widget's bottom-sheet drawer layout.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
+      // Applies until an editor toggles the panel; their stored preference wins after that.
+      openByDefault: true,
     },
   },
   // Re-verify on any manager save. The explicit POST endpoint backs the notice
