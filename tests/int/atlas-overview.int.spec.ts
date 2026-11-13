@@ -231,6 +231,21 @@ describe('Atlas overview', () => {
       )
       expect(titles(recommendations.items.rows.docs)).toEqual(['Assigned program'])
     })
+
+    /** They may not create an event, so the home offers who to ask instead (#1140). */
+    it('is offered the managers above their events, in place of creating one', async () => {
+      const data = await getAtlasManagerData(await reqAs(programManager), QUERY)
+      expect(data.canCreate).toBe(false)
+      expect(data.regionContacts.map((contact) => [contact.name, contact.region])).toEqual([
+        ['Listed Manager', 'Overview Country'],
+      ])
+    })
+
+    it('is offered nobody once they may create an event themselves', async () => {
+      const data = await getAtlasManagerData(await reqAs(admin), QUERY)
+      expect(data.canCreate).toBe(true)
+      expect(data.regionContacts).toEqual([])
+    })
   })
 
   /** ⚠ A join carries at most its own `limit` (default 10), so every owned set comes from a query. */

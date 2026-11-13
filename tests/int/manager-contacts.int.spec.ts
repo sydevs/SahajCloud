@@ -6,7 +6,8 @@
  * the details back to the people who have to follow up, both behind
  * `mayReadManagerContacts`: the contacts table under `Regions.managers` and
  * `Events.manager`, and an event's activity log, whose reminder entries record
- * where each one went.
+ * where each one went. A third, the drawer behind a class manager's "Add new
+ * event", is deliberately wider than that gate (#1140).
  *
  * The tree: a country above a region above a city, with the event in the city.
  * Each level has its own manager, the region two, and an unrelated region holds
@@ -17,6 +18,7 @@ import type { Payload, PayloadRequest } from 'payload'
 import { createLocalReq, docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { loadRegionContacts } from '@/components/admin/Dashboard/AtlasManager/regionContacts'
 import { loadManagerContacts, STALE_SIGN_IN_MONTHS } from '@/components/admin/ManagerContacts/data'
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Event } from '@/payload-types'
@@ -263,6 +265,41 @@ describe('Manager contacts (#908)', () => {
     it('answers the create screen, and an unknown row, with nothing', async () => {
       expect(await tableFor(admin, 'regions', 'create')).toBeNull()
       expect(await tableFor(admin, 'events', 987654)).toBeNull()
+    })
+  })
+
+  describe('who a class manager asks to add an event (#1140)', () => {
+    const contactsFor = async (user: AuthManager) =>
+      loadRegionContacts(await request(user), user.id)
+
+    it('names every manager above their events, nearest region first', async () => {
+      const contacts = await contactsFor(eventManager)
+      expect(contacts.map((contact) => [contact.name, contact.region])).toEqual([
+        ['City Manager', 'Contacts City'],
+        ['Region Manager', 'Contacts Region'],
+        ['Co Manager', 'Contacts Region'],
+        ['Country Manager', 'Contacts Country'],
+      ])
+    })
+
+    it('carries the name, the region and a mailto-ready email, nothing else', async () => {
+      const [first] = await contactsFor(eventManager)
+      expect(Object.keys(first!).sort()).toEqual(['email', 'id', 'name', 'region'])
+      expect(first!.email).toBe('city-manager@example.com')
+    })
+
+    it('names nobody to a manager who runs no event', async () => {
+      expect(await contactsFor(outsider)).toEqual([])
+    })
+
+    it('reaches past the gate that governs the contacts table', async () => {
+      // The decision this ticket carries (Anton, 12 Nov 2026): the drawer shows
+      // a class manager what `mayReadManagerContacts` refuses them.
+      const table = await loadManagerContacts(await request(eventManager), 'regions', regionId)
+      expect(table).toBeNull()
+      expect((await contactsFor(eventManager)).map((contact) => contact.name)).toContain(
+        'Region Manager',
+      )
     })
   })
 
