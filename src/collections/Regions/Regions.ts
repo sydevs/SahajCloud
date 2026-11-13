@@ -6,8 +6,10 @@ import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } f
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
+import { EVENT_REGION_LEVELS } from '@/lib/events/regionLevels'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
+import type { Region } from '@/payload-types'
 import { ownedRegionFilterOptions, regionManagersFieldAccess } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
@@ -65,12 +67,12 @@ const childLevelVisible = (childLevel: string) => {
 }
 
 /**
- * Condition for the Events tab. An event attaches to a city or a venue —
- * `events.region`'s `filterOptions` admits no other level — so anywhere above
- * those two the tab could only ever read "No Events found".
+ * Condition for the Events tab. The join is direct (`on: 'region'`), not
+ * recursive like the child-level tabs below, so a node above the levels an
+ * event may attach to lists nothing at all.
  */
 const eventsTabVisible = (data: Record<string, unknown>): boolean =>
-  hideUntilCreated(data) && ['city', 'venue'].includes(data?.level as string)
+  hideUntilCreated(data) && EVENT_REGION_LEVELS.includes(data?.level as Region['level'])
 
 /**
  * One tab per child level. Each holds a single `join` on the denormalized

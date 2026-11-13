@@ -218,7 +218,9 @@ No loose files at the root — every file lives in a named folder:
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `eventTitle/` (the auto-title
+  `pageTags/`, `cascadeDeletion/`, `events/` (`regionLevels.ts` — the region
+  levels an event may attach to, so `events.region`'s picker and the Regions
+  Events tab cannot narrow differently), `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check

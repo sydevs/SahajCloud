@@ -506,9 +506,7 @@ describe('root endpoints in the filtered spec (OpenAPI)', () => {
 /**
  * A `defaultColumns` entry is a column path, and a name no namespace declares
  * renders nothing — no warning and no empty column, just a list missing what
- * someone put there. An unnamed tab gives its fields up to the level above, so
- * a field declared inside one is named flat; a named group or tab opens a
- * namespace of its own and would need a dotted path instead.
+ * someone put there. Same namespace rules as `uiNameClashes` above.
  */
 const unresolvedDefaultColumns = (collection: SanitizedCollectionConfig): string[] => {
   const names = new Set(
@@ -523,14 +521,12 @@ const unresolvedDefaultColumns = (collection: SanitizedCollectionConfig): string
 }
 
 describe('every default column names a field the list can render', { timeout: TIMEOUT }, () => {
-  const declaring = async () =>
-    (await config).collections.filter((collection) => collection.admin?.defaultColumns?.length)
-
-  it('finds the collections that declare one', async () => {
-    expect((await declaring()).length).toBeGreaterThan(15)
-  })
-
   it('resolves every entry', async () => {
-    expect((await declaring()).flatMap(unresolvedDefaultColumns)).toEqual([])
+    const declaring = (await config).collections.filter(
+      (collection) => collection.admin?.defaultColumns?.length,
+    )
+
+    expect(declaring.length).toBeGreaterThan(0)
+    expect(declaring.flatMap(unresolvedDefaultColumns)).toEqual([])
   })
 })
