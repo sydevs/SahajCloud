@@ -30,8 +30,8 @@ export function AskToAddButton({ contacts }: { contacts: RegionContact[] }) {
             <div className="confirmation-modal__content">
               <h1>Add new event</h1>
               <p>
-                Your events are added by the managers who look after your regions. Ask one of them —
-                the nearest is first.
+                Events can only be created by regional managers. Contact one of these yogis who
+                manage the events in your area:
               </p>
             </div>
             <ManagerContactsTable
