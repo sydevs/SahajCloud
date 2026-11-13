@@ -155,8 +155,11 @@ async function sendFollowUp(
 /**
  * Post-event follow-up sweep: emails each registrant whose registered-for
  * occurrence has passed (within the 30-day window) exactly once — the
- * `followUpSentAt` stamp is the ledger, written only after a successful send
- * so a failed transport retries next run. Today's content is the confirm/deny
+ * `followUpSentAt` stamp is the ledger, and this sweep writes it only after a
+ * successful send so a failed transport retries next run. It is not the only
+ * writer: the Atlas import stamps a registration whose session already started
+ * (`importedFollowUpSentAt`), so a legacy class is never asked about.
+ * Today's content is the confirm/deny
  * ask for unverified listings; the email's `sections` are the extension point
  * for future follow-ups (feedback forms, event promotion).
  */
