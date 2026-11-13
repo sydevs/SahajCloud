@@ -6,7 +6,8 @@
  * meditation's follows the live preview (`meditation-transcript-tab.spec.ts`).
  * What this pins is the part between the two: which element plays, what a
  * click on a phrase does to it, and how the element's playhead moves the mark;
- * and when a Path Step warns that the file is spoken in another language.
+ * when a Path Step warns that the file is spoken in another language; and which
+ * file shows a Spoken language select at all.
  *
  * **Mocked at the Payload boundary only** — `@payloadcms/ui` and `swr`, with
  * the behaviours `meditation-transcript-tab.spec.ts` reads off the real thing.
@@ -20,6 +21,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TranscribedFile } from '@/components/admin/TranscriptPanel'
+import { formIsRecording } from '@/lib/transcripts/media'
 import type { Transcript } from '@/payload-types'
 
 const stub = vi.hoisted(() => ({
@@ -34,8 +36,6 @@ const stub = vi.hoisted(() => ({
   /** Which collection the edited document is in, and when it was last saved. */
   collectionSlug: 'files' as string,
   lastUpdateTime: 1,
-  /** What the create form's upload holds: the `File` an editor chose. */
-  upload: undefined as unknown,
   mutate: vi.fn(),
 }))
 
@@ -63,7 +63,6 @@ vi.mock('@payloadcms/ui', () => ({
   ErrorIcon: () => null,
   FieldLabel: ({ label }: { label?: string }) => createElement('label', null, label),
   InfoIcon: () => null,
-  SelectField: ({ path }: { path?: string }) => createElement('div', { 'data-select-field': path }),
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   SuccessIcon: () => null,
@@ -77,10 +76,9 @@ vi.mock('@payloadcms/ui', () => ({
   }),
   useField: () => ({ value: stub.fieldValue }),
   useFieldPath: () => 'introAudio',
-  // The form's fields by path: the upload field beside the transcript, and the
-  // create form's own upload.
+  /** The form's fields by path: the upload field beside the transcript. */
   useFormFields: (select: (context: [Record<string, { value: unknown }>]) => unknown) =>
-    select([{ file: { value: stub.upload }, introAudio: { value: stub.fieldValue } }]),
+    select([{ introAudio: { value: stub.fieldValue } }]),
   useLocale: () => ({ code: stub.locale }),
   WarningIcon: () => null,
 }))
@@ -154,7 +152,6 @@ describe('a file’s Transcript panel', () => {
     stub.doc = AUDIO
     stub.collectionSlug = 'files'
     stub.lastUpdateTime = 1
-    stub.upload = undefined
     stub.mutate.mockClear()
     play = vi.fn(() => Promise.resolve())
     container = document.createElement('div')
@@ -359,39 +356,23 @@ describe('a file’s Transcript panel', () => {
     })
   })
 
-  describe('the Spoken language field', () => {
-    const mountLanguage = async () => {
-      const { SpokenLanguageField } = await import('@/components/admin/TranscriptPanel')
-      mount(SpokenLanguageField, { path: 'spokenLanguage' })
-    }
-    const shown = () => container.querySelector('[data-select-field]') !== null
+  // `admin.condition`'s own input, which is form state reduced to values: the
+  // stored `mimeType` on a saved file, and the staged `file` on the create
+  // form, where nothing is stored yet.
+  describe('the Spoken language field’s condition', () => {
     const chosen = (name: string, type: string) => new File([''], name, { type })
 
     // Where the type is read from — the stored one, or the chosen file's — not
     // which types count. The title takes the first two values, so the object
     // comes last.
     it.each([
-      ['a saved audio file', true, AUDIO],
-      ['a saved image', false, { ...AUDIO, mimeType: 'image/png' }],
-    ])('on %s: shown %s', async (_label, expected, doc) => {
-      stub.doc = doc
-      await mountLanguage()
-
-      expect(shown()).toBe(expected)
-    })
-
-    // The create form has no stored type yet, so the file the editor chose
-    // decides — which no server-side `admin.condition` could see.
-    it.each([
-      ['no file chosen yet', false, undefined],
-      ['an MP3 chosen', true, chosen('intro.mp3', 'audio/mpeg')],
-      ['an image chosen', false, chosen('cover.jpg', 'image/jpeg')],
-    ])('on the create form, with %s: shown %s', async (_label, expected, upload) => {
-      stub.doc = undefined
-      stub.upload = upload
-      await mountLanguage()
-
-      expect(shown()).toBe(expected)
+      ['a saved audio file', true, { mimeType: 'audio/mpeg' }],
+      ['a saved image', false, { mimeType: 'image/png' }],
+      ['no file chosen yet', false, {}],
+      ['an MP3 chosen', true, { file: chosen('intro.mp3', 'audio/mpeg') }],
+      ['an image chosen', false, { file: chosen('cover.jpg', 'image/jpeg') }],
+    ])('on %s: shown %s', (_label, expected, data) => {
+      expect(formIsRecording(data)).toBe(expected)
     })
   })
 

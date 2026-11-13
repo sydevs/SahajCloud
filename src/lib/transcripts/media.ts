@@ -22,3 +22,17 @@ export function transcribableMedia(mimeType: unknown): TranscribableMedia | null
   if (mimeType.startsWith('video/')) return 'video'
   return null
 }
+
+/**
+ * Whether an upload form is editing a recording — the question
+ * `admin.condition` asks on a `files` document.
+ *
+ * ⚠ **A file's `mimeType` is stored only once it is saved**, so on the create
+ * form the answer is the `File` the browser staged at form state's `file` path
+ * (Payload's `<Upload>` writes it there). `buildFormState` carries that value
+ * to the server, where a condition runs, so nothing else has to.
+ */
+export function formIsRecording(data: Record<string, unknown> | undefined): boolean {
+  const staged = (data?.file as { type?: unknown } | undefined)?.type
+  return transcribableMedia(staged ?? data?.mimeType) !== null
+}

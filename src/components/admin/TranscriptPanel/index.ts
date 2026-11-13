@@ -2,5 +2,3 @@ export { FileTranscript, FileTranscriptField, type TranscribedFile } from './Fil
 export { MeditationTranscriptField } from './MeditationTranscriptField'
 export { default } from './MeditationTranscriptField'
 export { RecordingLanguageWarning } from './RecordingLanguageWarning'
-export { SpokenLanguageField } from './SpokenLanguageField'
-export { TranscriptPanel } from './TranscriptPanel'

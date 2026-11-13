@@ -4,7 +4,7 @@ import { hideUntilCreated } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { deleteChildren } from '@/lib/cascadeDeletion'
 import { getLocaleOptions } from '@/lib/locales'
-import { transcribableMedia } from '@/lib/transcripts/media'
+import { formIsRecording, transcribableMedia } from '@/lib/transcripts/media'
 import { readFileSubtitles } from '@/lib/transcripts/read'
 import { syncTranscriptOnSave } from '@/lib/transcripts/sync'
 import { subtitlesSchema } from '@/lib/utilities/subtitles'
@@ -98,8 +98,8 @@ export const Files: CollectionConfig = {
       options: getLocaleOptions(),
       admin: {
         // Shown for an audio or video file alone, the one chosen on the create
-        // form included — which no `condition` can see (the component says why).
-        components: { Field: '@/components/admin/TranscriptPanel#SpokenLanguageField' },
+        // form included — which is why `formIsRecording` reads the staged file.
+        condition: formIsRecording,
         description:
           'Leave it empty to detect it from the recording. Saving a change transcribes the recording again, for every page that uses this file. A recording with no transcript yet is transcribed from the panel below instead.',
       },

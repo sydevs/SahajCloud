@@ -38,7 +38,6 @@ import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/component
 import { FileTranscriptField as FileTranscriptField_e05896606e83681ced05ad0143aa8348 } from '@/components/admin/TranscriptPanel'
 import { RecordingLanguageWarning as RecordingLanguageWarning_e05896606e83681ced05ad0143aa8348 } from '@/components/admin/TranscriptPanel'
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
-import { SpokenLanguageField as SpokenLanguageField_e05896606e83681ced05ad0143aa8348 } from '@/components/admin/TranscriptPanel'
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
 import { default as default_8dd17cb8528b516d825f8fb6a794fe97 } from '@/components/admin/RolesField'
@@ -145,7 +144,6 @@ export const importMap = {
   "@/components/admin/TranscriptPanel#FileTranscriptField": FileTranscriptField_e05896606e83681ced05ad0143aa8348,
   "@/components/admin/TranscriptPanel#RecordingLanguageWarning": RecordingLanguageWarning_e05896606e83681ced05ad0143aa8348,
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
-  "@/components/admin/TranscriptPanel#SpokenLanguageField": SpokenLanguageField_e05896606e83681ced05ad0143aa8348,
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
   "@/components/admin/RolesField#default": default_8dd17cb8528b516d825f8fb6a794fe97,
