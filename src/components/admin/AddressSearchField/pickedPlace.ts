@@ -7,34 +7,7 @@
  */
 
 import { getRegionOptions } from '@/lib/geography'
-
-/** A `region` context layer, which carries its code under either of two keys. */
-interface RegionContext {
-  region_code?: string
-  region_code_full?: string
-  name?: string
-}
-
-/**
- * Subset of a Mapbox Geocoding v6 feature that the picker reads. The mount
- * passes the library's own `GeocodingFeature` here, so this has to stay a
- * supertype of it — which is why the position is GeoJSON's `number[]` rather
- * than a tighter pair.
- */
-export interface MapboxGeocodingFeature {
-  geometry?: { coordinates?: number[] }
-  properties?: {
-    mapbox_id?: string
-    name?: string
-    context?: {
-      address?: { name?: string }
-      place?: { name?: string }
-      region?: RegionContext
-      postcode?: { name?: string }
-      country?: { country_code?: string; name?: string }
-    }
-  }
-}
+import type { MapboxContextLayer, MapboxFeature } from '@/lib/mapbox/feature'
 
 /** The sibling address fields a picked feature fills, by field name. */
 interface PickedAddress {
@@ -64,7 +37,7 @@ export interface PickedPlace {
  * gives us anything to match on.
  */
 function resolveRegionCode(
-  region: RegionContext | undefined,
+  region: MapboxContextLayer | undefined,
   countryCode: string | undefined,
 ): string | undefined {
   if (!region) return undefined
@@ -85,11 +58,11 @@ function resolveRegionCode(
  *
  * ⚠ **The street is the `address` context layer, not a property of its own.**
  * Search Box answered with `properties.address`; v6 has no such key, and a
- * feature coarser than a door has no address layer either — so the feature's
- * own `name` is what stands in, which for a street or a town is that street or
- * town.
+ * feature coarser than an `address` has no address layer either — so the
+ * feature's own `name` is what stands in, which for a street or a town is that
+ * street or town.
  */
-export function readPickedPlace(feature: MapboxGeocodingFeature): PickedPlace {
+export function readPickedPlace(feature: MapboxFeature): PickedPlace {
   const properties = feature.properties
   const context = properties?.context
   const coordinates = feature.geometry?.coordinates

@@ -15,9 +15,10 @@ import {
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
+import type { MapboxFeature } from '@/lib/mapbox/feature'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
-import { readPickedPlace, type MapboxGeocodingFeature } from './pickedPlace'
+import { readPickedPlace } from './pickedPlace'
 
 /**
  * The mount's props, from the library itself, so `permanent` is type-checked
@@ -142,8 +143,8 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   // Scope the Mapbox `types` filter to a sibling field's value when configured
   // (Regions narrow the search by `level`); read it reactively via useField so
   // the search re-scopes live as that field changes. Falls back to a static
-  // `searchTypes`, then to a door and its street — nothing coarser, since
-  // `populateAddress` reads the picked feature into the sibling `street`.
+  // `searchTypes`, then to a street number and its street — nothing coarser,
+  // since `populateAddress` reads the picked feature into the sibling `street`.
   // (Functions can't be passed through `admin.custom` — it's serialized to the
   // client — so the mapping is data.)
   const scopePath = config.searchTypesField ? toSiblingPath(path, config.searchTypesField) : path
@@ -174,7 +175,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   }
 
   // ⚠ One feature, not the `{ features }` envelope Search Box answered with.
-  const handleRetrieve = (feature: MapboxGeocodingFeature) => {
+  const handleRetrieve = (feature: MapboxFeature) => {
     if (!feature) return
     const picked = readPickedPlace(feature)
     if (config.populateAddress) {

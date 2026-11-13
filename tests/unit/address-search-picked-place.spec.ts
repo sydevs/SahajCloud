@@ -7,13 +7,11 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import {
-  readPickedPlace,
-  type MapboxGeocodingFeature,
-} from '@/components/admin/AddressSearchField/pickedPlace'
+import { readPickedPlace } from '@/components/admin/AddressSearchField/pickedPlace'
+import type { MapboxFeature } from '@/lib/mapbox/feature'
 
 /** A v6 address feature, as `/search/geocode/v6/forward` returns one. */
-const door: MapboxGeocodingFeature = {
+const address: MapboxFeature = {
   geometry: { coordinates: [-123.1207, 49.2827] },
   properties: {
     mapbox_id: 'dXJuOm1ieGFkcjo0Mg',
@@ -29,8 +27,8 @@ const door: MapboxGeocodingFeature = {
 }
 
 describe('readPickedPlace', () => {
-  it('fills every address sibling from a picked door', () => {
-    expect(readPickedPlace(door)).toEqual({
+  it('fills every address sibling from a picked street number', () => {
+    expect(readPickedPlace(address)).toEqual({
       address: {
         street: '350 West Georgia Street',
         city: 'Vancouver',
@@ -49,14 +47,14 @@ describe('readPickedPlace', () => {
     // Search Box answered with `properties.address`; v6 has no such key, so a
     // reader still looking for one would fall through to the feature's name.
     const feature = {
-      ...door,
-      properties: { ...door.properties, name: 'Vancouver Public Library' },
+      ...address,
+      properties: { ...address.properties, name: 'Vancouver Public Library' },
     }
     expect(readPickedPlace(feature).address.street).toBe('350 West Georgia Street')
   })
 
-  it('stands the feature name in for a match coarser than a door', () => {
-    const street: MapboxGeocodingFeature = {
+  it('stands the feature name in for a match coarser than an address', () => {
+    const street: MapboxFeature = {
       geometry: { coordinates: [-123.1, 49.28] },
       properties: {
         mapbox_id: 'mbx-street',
@@ -82,7 +80,7 @@ describe('readPickedPlace', () => {
   })
 
   describe('the region code, which Mapbox spells three ways', () => {
-    const withRegion = (region: Record<string, string>): MapboxGeocodingFeature => ({
+    const withRegion = (region: Record<string, string>): MapboxFeature => ({
       properties: { context: { region, country: { country_code: 'CA' } } },
     })
 

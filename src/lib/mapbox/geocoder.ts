@@ -30,6 +30,8 @@ import pRetry from 'p-retry'
 import { isRecord } from '@/lib/utilities/isRecord'
 import type { Region } from '@/payload-types'
 
+import type { MapboxContextLayer, MapboxFeature } from './feature'
+
 /**
  * Geocoding v6, which every lookup in this file runs against.
  *
@@ -90,36 +92,6 @@ export interface GeocodeRegionArgs {
 }
 
 /**
- * ⚠ **A context layer's id arrives under one of two keys.**
- * `@mapbox/search-js-core` spells it `id` in its Search Box types
- * (`dist/searchbox/types.d.ts`, `ContextEntry`) and `mapbox_id` in its
- * Geocoding ones. Reading both is the only way to be right either way, and
- * `contextLayerId` is where that choice lives.
- */
-interface ForwardContextEntry {
-  id?: string
-  mapbox_id?: string
-  name?: string
-}
-
-interface ForwardFeature {
-  properties?: {
-    mapbox_id?: string
-    name?: string
-    feature_type?: string
-    /** v6 only: how each part of a structured query matched. */
-    context?: {
-      country?: ForwardContextEntry
-      region?: ForwardContextEntry
-      place?: ForwardContextEntry
-      locality?: ForwardContextEntry
-      address?: ForwardContextEntry
-    }
-  }
-  geometry?: { coordinates?: [number, number] }
-}
-
-/**
  * What one `/forward` lookup came to, after its retries.
  *
  * ⚠ **"Mapbox answered" and "we could not ask" are a different fact about the
@@ -133,7 +105,7 @@ interface ForwardFeature {
  * answer to null because its caller is a seed run a maintainer re-runs anyway.
  */
 type ForwardAnswer =
-  | { kind: 'answered'; feature: ForwardFeature | null }
+  | { kind: 'answered'; feature: MapboxFeature | null }
   | { kind: 'refused'; httpStatus: number }
   | { kind: 'unauthorized'; httpStatus: number }
   | { kind: 'unavailable' }
@@ -184,7 +156,7 @@ async function attemptForward(url: string): Promise<ForwardAnswer | null> {
   // Mapbox never got to answer.
   const data: unknown = await res.json().catch(() => null)
   if (!isRecord(data) || !Array.isArray(data.features)) return null
-  return { kind: 'answered', feature: (data.features[0] as ForwardFeature | undefined) ?? null }
+  return { kind: 'answered', feature: (data.features[0] as MapboxFeature | undefined) ?? null }
 }
 
 interface ForwardQuery {
@@ -235,7 +207,7 @@ function forwardUrl(query: ForwardQuery, token: string): string {
 }
 
 /** Run a `/forward` query; null when no token / query / match. */
-async function forwardFeature(query: ForwardQuery): Promise<ForwardFeature | null> {
+async function forwardFeature(query: ForwardQuery): Promise<MapboxFeature | null> {
   const token = accessToken()
   if (!token || !query.q?.trim()) return null
   const answer = await fetchForwardFeature(forwardUrl(query, token))
@@ -363,7 +335,7 @@ export interface GeocodedLocation {
 }
 
 /** Whichever key this Mapbox response spelled a context layer's id with. */
-function contextLayerId(entry: ForwardContextEntry | undefined): string | null {
+function contextLayerId(entry: MapboxContextLayer | undefined): string | null {
   return entry?.mapbox_id ?? entry?.id ?? null
 }
 
