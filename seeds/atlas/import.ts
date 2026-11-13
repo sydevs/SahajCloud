@@ -63,6 +63,7 @@ import {
 import {
   type AtlasVenue,
   multiUseVenueIds,
+  venueAddress,
   venueDisplayName,
   venueParentAreaId,
   venueToEventAddress,
@@ -945,17 +946,16 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           latitude: venue.latitude,
           longitude: venue.longitude,
           countryCode: venue.countryCode,
-          address: {
-            street: venue.street,
-            postCode: venue.postCode,
-            city: venue.city,
-            countryCode: venue.countryCode,
-          },
+          address: venueAddress(venue),
         })
         if (warning)
           this.addWarning(
             `Shared venue "${venueDisplayName(venue)}" (venue #${venueId}): ${warning}`,
           )
+        // The events pass asks this very query again for each offline event
+        // here, and a permanent geocode is billed per request — so hand it the
+        // answer. A miss caches the sentinel that pass would have written.
+        this.venueMapbox.set(venueId, location.manual ? MANUAL_LOCATION : location.mapboxId)
 
         const result = await this.upsert<{ id: number }>(
           'regions',
@@ -1669,12 +1669,8 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const cached = this.venueMapbox.get(venue.legacyId)
     if (cached) return cached
     const id =
-      (await geocodeVenue({
-        street: venue.street,
-        postCode: venue.postCode,
-        city: venue.city,
-        countryCode: venue.countryCode,
-      })) ?? MANUAL_LOCATION
+      (await geocodeVenue({ ...venueAddress(venue), countryCode: venue.countryCode })) ??
+      MANUAL_LOCATION
     this.venueMapbox.set(venue.legacyId, id)
     return id
   }

@@ -123,10 +123,6 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
 export const AddressSearchField: TextFieldClientComponent = ({ field, path, readOnly }) => {
   const { label, localized, required, admin } = field
   const description = admin?.description
-  // `searchTypes`: Mapbox `types` filter (default address/street/place).
-  // `populateAddress`: fill sibling address fields on retrieve (default off —
-  // Regions use this in id-only mode, where there are no address siblings).
-  // `populateName`: fill the sibling `name` field from the result (Regions).
   const config = (admin?.custom ?? {}) as {
     searchTypes?: string
     populateAddress?: boolean

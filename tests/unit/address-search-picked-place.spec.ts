@@ -1,11 +1,9 @@
 /**
  * What the admin location picker writes when a manager picks a result (#893).
  *
- * The picker moved from Search Box to Geocoding v6, which answers a different
- * shape — a different envelope, and a street that is a context layer rather
- * than a property. Nothing else in the suite reads a v6 feature the way a
- * picked result is read, so a wrong key here would show up only as an address
- * form that silently stops filling itself in.
+ * Nothing else in the suite reads a v6 feature the way a picked result is read,
+ * so a wrong key here would show up only as an address form that silently stops
+ * filling itself in.
  */
 import { describe, expect, it } from 'vitest'
 

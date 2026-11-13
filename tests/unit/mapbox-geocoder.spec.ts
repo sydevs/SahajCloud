@@ -36,9 +36,26 @@ async function settled<T>(promise: Promise<T>): Promise<T> {
   return promise
 }
 
-const feature = (mapboxId?: string, coordinates?: [number, number]) => ({
-  features: [{ properties: mapboxId ? { mapbox_id: mapboxId } : {}, geometry: { coordinates } }],
+const feature = (mapboxId?: string, coordinates?: [number, number], featureType?: string) => ({
+  features: [
+    {
+      properties: {
+        ...(mapboxId ? { mapbox_id: mapboxId } : {}),
+        ...(featureType ? { feature_type: featureType } : {}),
+      },
+      geometry: { coordinates },
+    },
+  ],
 })
+
+/** The URL of the last request the stub answered. */
+const lastUrl = (spy: ReturnType<typeof stubFetch>) => new URL(String(spy.mock.calls.at(-1)?.[0]))
+
+/** Every stored lookup owes the same endpoint and the same flag (#893). */
+function expectPermanentV6(url: URL) {
+  expect(url.pathname).toBe('/search/geocode/v6/forward')
+  expect(url.searchParams.get('permanent')).toBe('true')
+}
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', 'test-token')
@@ -58,26 +75,16 @@ describe('geocodeRegion', () => {
   })
 
   /**
-   * ⚠ **The endpoint is the assertion, not the parameter.** Every id this
-   * answers is written to `Regions.mapboxId`, and Search Box — where this
-   * lookup used to run — publishes no `permanent` parameter at all, so a spec
-   * that pinned the parameter alone would be green against an API that ignores
-   * it (#893).
+   * ⚠ **The endpoint is the assertion, not the parameter.** Search Box ignores
+   * `permanent`, so a spec pinning the flag alone would be green against the
+   * API that cannot honour it (#893).
    */
   it('asks Geocoding v6, as permanent, because the answer is stored', async () => {
-    let seenUrl = ''
-    stubFetch((url) => {
-      seenUrl = url
-      return { body: feature('mbx-canada') }
-    })
+    const fetchSpy = stubFetch(() => ({ body: feature('mbx-canada') }))
     await geocodeRegion({ name: 'Canada', level: 'country' })
-    const url = new URL(seenUrl)
-    expect(url.pathname).toBe('/search/geocode/v6/forward')
-    expect(Object.fromEntries(url.searchParams)).toMatchObject({
-      q: 'Canada',
-      types: 'country',
-      permanent: 'true',
-    })
+    const url = lastUrl(fetchSpy)
+    expectPermanentV6(url)
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ q: 'Canada', types: 'country' })
   })
 
   it('returns null with no token (and never calls fetch)', async () => {
@@ -140,12 +147,11 @@ describe('resolveRegionLocation', () => {
   })
 
   it('approximates a coordless miss from an untyped centroid search', async () => {
-    let seenUrl = ''
-    stubFetch((url) => {
-      if (!url.includes(encodeURIComponent(FALLBACK_TYPES))) return { body: { features: [] } }
-      seenUrl = url
-      return { body: feature('ignored', [10, 20]) }
-    })
+    const fetchSpy = stubFetch((url) =>
+      url.includes(encodeURIComponent(FALLBACK_TYPES))
+        ? { body: feature('ignored', [10, 20]) }
+        : { body: { features: [] } },
+    )
     const { location, warning } = await resolveRegionLocation({
       name: 'Obscure Region',
       level: 'region',
@@ -157,10 +163,7 @@ describe('resolveRegionLocation', () => {
       latitude: 20,
     })
     expect(warning).toContain('approximated')
-    // This centroid is stored too, so it owes the same endpoint and flag.
-    const url = new URL(seenUrl)
-    expect(url.pathname).toBe('/search/geocode/v6/forward')
-    expect(url.searchParams.get('permanent')).toBe('true')
+    expectPermanentV6(lastUrl(fetchSpy)) // the centroid is stored too
   })
 
   it('returns manual with null coords when nothing resolves', async () => {
@@ -184,41 +187,25 @@ describe('a venue, which Geocoding v6 holds no POI layer for', () => {
     latitude: 51.36,
     longitude: 1.42,
     countryCode: 'GB',
-    address: {
-      street: '2 Osborne Road',
-      postCode: 'CT10 2BL',
-      city: 'Broadstairs',
-      countryCode: 'GB',
-    },
+    address: { street: '2 Osborne Road', postCode: 'CT10 2BL', city: 'Broadstairs' },
   }
 
   /** A v6 answer at one feature type, with a point. */
-  const at = (featureType: string, mapboxId: string) => ({
-    features: [
-      {
-        properties: { mapbox_id: mapboxId, feature_type: featureType, context: {} },
-        geometry: { coordinates: [1.42, 51.36] },
-      },
-    ],
-  })
+  const at = (featureType: string, mapboxId: string) =>
+    feature(mapboxId, [1.42, 51.36], featureType)
 
   it('is placed by its postal address, as a permanent v6 lookup', async () => {
-    let seenUrl = ''
-    stubFetch((url) => {
-      seenUrl = url
-      return { body: at('address', 'mbx-door') }
-    })
+    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-door') }))
     const { location, warning } = await resolveRegionLocation(venue)
     expect(location).toEqual({ mapboxId: 'mbx-door', manual: false })
     expect(warning).toBeNull()
-    const url = new URL(seenUrl)
-    expect(url.pathname).toBe('/search/geocode/v6/forward')
+    const url = lastUrl(fetchSpy)
+    expectPermanentV6(url)
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
       address_line1: '2 Osborne Road',
       postcode: 'CT10 2BL',
       place: 'Broadstairs',
       country: 'gb',
-      permanent: 'true',
     })
     // The building's own name is never the query — v6 holds no feature for it.
     expect(url.searchParams.has('q')).toBe(false)

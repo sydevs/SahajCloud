@@ -106,7 +106,6 @@ interface ForwardFeature {
   properties?: {
     mapbox_id?: string
     name?: string
-    address?: string
     feature_type?: string
     /** v6 only: how each part of a structured query matched. */
     context?: {
@@ -200,58 +199,56 @@ function accessToken(): string | null {
   return process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || null
 }
 
-/** The `/forward` query string for a non-blank query. */
-function forwardParams(query: ForwardQuery, token: string): URLSearchParams {
+/**
+ * What every lookup in this file sends, whatever shape its query takes.
+ *
+ * ⚠ **`permanent` belongs here and nowhere else.** Both builders below target
+ * the same endpoint, so a lookup assembled without this one is a lookup whose
+ * answer may not be stored — and every answer here is (#893).
+ */
+function baseParams(
+  types: string,
+  countryCode: string | null | undefined,
+  token: string,
+): URLSearchParams {
   const params = new URLSearchParams({
-    q: query.q,
-    types: query.types,
+    types,
     limit: '1',
     language: 'en',
-    // ⚠ **Every id and centroid this answers is written to `Regions`**, and
-    // Mapbox's terms allow storing a geocode only when it was asked for as
-    // permanent.
     permanent: 'true',
     access_token: token,
   })
+  // Restrict to the country so same-named places elsewhere don't win.
+  if (countryCode) params.set('country', countryCode.toLowerCase())
+  return params
+}
+
+/** The `/forward` URL for a free-text query. */
+function forwardUrl(query: ForwardQuery, token: string): string {
+  const params = baseParams(query.types, query.countryCode, token)
+  params.set('q', query.q)
   // Bias toward the coordinates when the caller has them.
   if (query.latitude != null && query.longitude != null) {
     params.set('proximity', `${query.longitude},${query.latitude}`)
   }
-  // Restrict to the country so same-named places elsewhere don't win.
-  if (query.countryCode) params.set('country', query.countryCode.toLowerCase())
-  return params
+  return `${GEOCODE_URL}?${params.toString()}`
 }
 
-/** One name-and-types `/forward` query. */
-interface ForwardArgs {
-  name: string
-  types: string
-  countryCode?: string | null
-  latitude?: number | null
-  longitude?: number | null
-}
-
-/** Run a `/forward` query; null when no token / name / match. */
-async function forwardFeature(args: ForwardArgs): Promise<ForwardFeature | null> {
+/** Run a `/forward` query; null when no token / query / match. */
+async function forwardFeature(query: ForwardQuery): Promise<ForwardFeature | null> {
   const token = accessToken()
-  if (!token || !args.name?.trim()) return null
-  const params = forwardParams(
-    {
-      q: args.name,
-      types: args.types,
-      countryCode: args.countryCode,
-      latitude: args.latitude,
-      longitude: args.longitude,
-    },
-    token,
-  )
-  const answer = await fetchForwardFeature(`${GEOCODE_URL}?${params.toString()}`)
+  if (!token || !query.q?.trim()) return null
+  const answer = await fetchForwardFeature(forwardUrl(query, token))
   return answer.kind === 'answered' ? answer.feature : null
 }
 
 /** Forward-geocode a region node to a `mapbox_id`, or null on a miss. */
 export async function geocodeRegion(args: GeocodeRegionArgs): Promise<string | null> {
-  const feature = await forwardFeature({ ...args, types: TYPES_BY_LEVEL[args.level] })
+  const feature = await forwardFeature({
+    ...args,
+    q: args.name,
+    types: TYPES_BY_LEVEL[args.level],
+  })
   return feature?.properties?.mapbox_id ?? null
 }
 
@@ -282,7 +279,7 @@ export interface ResolveRegionLocationArgs {
   /** Legacy radius (areas carry one; venues/regions/countries don't). */
   radius?: number | null
   /** A `venue`'s postal address, which is the only way v6 places one. */
-  address?: GeocodeVenueArgs
+  address?: Omit<GeocodeVenueArgs, 'countryCode'>
 }
 
 /**
@@ -296,7 +293,7 @@ export async function resolveRegionLocation(
   // 1. Typed forward geocode → real, round-trippable id.
   const id =
     args.level === 'venue'
-      ? await geocodeVenue({ countryCode: args.countryCode, ...args.address })
+      ? await geocodeVenue({ ...args.address, countryCode: args.countryCode })
       : await geocodeRegion({ ...args, level: args.level })
   if (id) return { location: { mapboxId: id, manual: false }, warning: null }
 
@@ -318,7 +315,7 @@ export async function resolveRegionLocation(
   }
 
   // 3. Miss + no coords (countries/regions) → looser search for a centroid.
-  const feature = await forwardFeature({ ...args, types: FALLBACK_TYPES })
+  const feature = await forwardFeature({ ...args, q: args.name, types: FALLBACK_TYPES })
   const coords = feature?.geometry?.coordinates
   if (coords) {
     return {
@@ -401,17 +398,7 @@ const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
 
 /** The v6 structured query for one lookup. */
 function lookupUrl(args: GeocodeLocationArgs, token: string): string {
-  const params = new URLSearchParams({
-    types: LOOKUP_TYPES[args.kind],
-    country: args.countryCode.toLowerCase(),
-    limit: '1',
-    language: 'en',
-    // ⚠ **The import stores what this answers** — a class's point and its
-    // address id, a region's feature id — and Mapbox's terms allow storing a
-    // geocode only when it was asked for as permanent.
-    permanent: 'true',
-    access_token: token,
-  })
+  const params = baseParams(LOOKUP_TYPES[args.kind], args.countryCode, token)
   const fields: [string, null | string | undefined][] = [
     ['address_line1', args.kind === 'address' ? args.address : null],
     ['postcode', args.kind === 'address' ? args.postcode : null],
@@ -484,6 +471,18 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
   }
 }
 
+/**
+ * The id of a door, or null for anything coarser.
+ *
+ * ⚠ **A feature id names what Mapbox matched, not what was asked for.** A
+ * lookup that reaches only the street or the town answers with that street's
+ * or town's id, and storing it would put the place at the end of the road.
+ * Every caller that writes an address's id reads it through here.
+ */
+export function doorMapboxId(location: GeocodedLocation): string | null {
+  return location.featureType === 'address' ? location.mapboxId : null
+}
+
 /** A venue's postal address — the only thing v6 can place a venue by. */
 export interface GeocodeVenueArgs {
   /** The street and number. */
@@ -498,10 +497,8 @@ export interface GeocodeVenueArgs {
  * A venue's own `mapbox_id`, from the structured address lookup.
  *
  * ⚠ **v6 carries no POI layer, so a building's name finds nothing** — the query
- * is the venue's postal address, and only a door (`feature_type` `address`)
- * names the venue rather than the street or the town it stands on. Anything
- * coarser is a miss, so the caller keeps its own coordinates rather than
- * storing a point Mapbox put at the end of the road.
+ * is the venue's postal address. A coarser answer is a miss, so the caller
+ * keeps its own coordinates instead.
  */
 export async function geocodeVenue(args: GeocodeVenueArgs): Promise<string | null> {
   const city = args.city?.trim()
@@ -515,6 +512,5 @@ export async function geocodeVenue(args: GeocodeVenueArgs): Promise<string | nul
     city,
     countryCode,
   })
-  if (outcome.status !== 'found') return null
-  return outcome.location.featureType === 'address' ? outcome.location.mapboxId : null
+  return outcome.status === 'found' ? doorMapboxId(outcome.location) : null
 }

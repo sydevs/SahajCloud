@@ -11,7 +11,7 @@ import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
-import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
+import { doorMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
 import type { Event, SupportedTimezones } from '@/payload-types'
 
@@ -70,8 +70,7 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
 
 function addressFor(values: RawImportRow, location: GeocodedLocation): Record<string, unknown> {
   return {
-    // The feature id names a door; a street or town match is a point only.
-    mapboxId: location.featureType === 'address' ? location.mapboxId : null,
+    mapboxId: doorMapboxId(location),
     venueName: values.venueName || null,
     street: values.address || null,
     room: values.room || null,

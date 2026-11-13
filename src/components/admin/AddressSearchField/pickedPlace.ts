@@ -3,12 +3,17 @@
  *
  * Kept out of the field component because every export of a `'use client'`
  * module reaches a server module as a client reference, so nothing declared
- * there can be read by a spec — and the response mapping is exactly the part
- * that moves when Mapbox's shape does. It moved once already, when the stored
- * path left Search Box for v6 (#893).
+ * there can be read by a spec (#893).
  */
 
 import { getRegionOptions } from '@/lib/geography'
+
+/** A `region` context layer, which carries its code under either of two keys. */
+interface RegionContext {
+  region_code?: string
+  region_code_full?: string
+  name?: string
+}
 
 /** Subset of a Mapbox Geocoding v6 feature that the picker reads. */
 export interface MapboxGeocodingFeature {
@@ -19,7 +24,7 @@ export interface MapboxGeocodingFeature {
     context?: {
       address?: { name?: string }
       place?: { name?: string }
-      region?: { region_code?: string; region_code_full?: string; name?: string }
+      region?: RegionContext
       postcode?: { name?: string }
       country?: { country_code?: string; name?: string }
     }
@@ -27,7 +32,7 @@ export interface MapboxGeocodingFeature {
 }
 
 /** The sibling address fields a picked feature fills, by field name. */
-export interface PickedAddress {
+interface PickedAddress {
   street?: string
   city?: string
   region?: string
@@ -53,8 +58,8 @@ export interface PickedPlace {
  * our country-region-data options. This populates `region` whenever Mapbox
  * gives us anything to match on.
  */
-export function resolveRegionCode(
-  region: { region_code?: string; region_code_full?: string; name?: string } | undefined,
+function resolveRegionCode(
+  region: RegionContext | undefined,
   countryCode: string | undefined,
 ): string | undefined {
   if (!region) return undefined
