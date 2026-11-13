@@ -83,7 +83,11 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               label: 'Address',
               admin: {
                 components: { Field: ADDRESS_SEARCH_FIELD },
-                custom: { searchTypes: 'address,poi', populateAddress: true, allowManual: true },
+                custom: {
+                  searchTypes: 'address,street,place',
+                  populateAddress: true,
+                  allowManual: true,
+                },
               },
             },
           ]

@@ -29,7 +29,7 @@ import * as path from 'path'
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { normalizeCanonicalDomain } from '@/lib/clients/canonical'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
-import { resolveRegionLocation, geocodeRegion, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
+import { resolveRegionLocation, geocodeVenue, MANUAL_LOCATION } from '@/lib/mapbox/geocoder'
 import { makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { withActor } from '@/lib/stateMachine/actor'
@@ -945,6 +945,12 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
           latitude: venue.latitude,
           longitude: venue.longitude,
           countryCode: venue.countryCode,
+          address: {
+            street: venue.street,
+            postCode: venue.postCode,
+            city: venue.city,
+            countryCode: venue.countryCode,
+          },
         })
         if (warning)
           this.addWarning(
@@ -1663,11 +1669,10 @@ export class AtlasImporter extends BaseImporter<BaseImportOptions> {
     const cached = this.venueMapbox.get(venue.legacyId)
     if (cached) return cached
     const id =
-      (await geocodeRegion({
-        name: venue.name?.trim() || venue.street?.trim() || '',
-        level: 'venue',
-        latitude: venue.latitude,
-        longitude: venue.longitude,
+      (await geocodeVenue({
+        street: venue.street,
+        postCode: venue.postCode,
+        city: venue.city,
         countryCode: venue.countryCode,
       })) ?? MANUAL_LOCATION
     this.venueMapbox.set(venue.legacyId, id)

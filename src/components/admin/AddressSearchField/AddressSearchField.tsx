@@ -18,14 +18,12 @@ import React, { useEffect, useState } from 'react'
 import { getRegionOptions } from '@/lib/geography'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
-/** Subset of a Mapbox Search Box retrieve feature that we read. */
-interface MapboxRetrieveFeature {
+/** Subset of a Mapbox Geocoding v6 feature that we read. */
+interface MapboxGeocodingFeature {
   geometry?: { coordinates?: [number, number] }
   properties?: {
     mapbox_id?: string
     name?: string
-    address?: string
-    full_address?: string
     context?: {
       address?: { name?: string }
       place?: { name?: string }
@@ -36,21 +34,18 @@ interface MapboxRetrieveFeature {
   }
 }
 
-interface MapboxRetrieveResponse {
-  features?: MapboxRetrieveFeature[]
-}
-
 interface MapboxTheme {
   variables?: Record<string, string>
 }
 
-interface MapboxSearchBoxProps {
+interface MapboxGeocoderProps {
   accessToken: string
-  onRetrieve?: (res: MapboxRetrieveResponse) => void
+  /** ⚠ One feature, not a `{ features }` envelope — see `handleRetrieve`. */
+  onRetrieve?: (feature: MapboxGeocodingFeature) => void
   value?: string
   onChange?: (value: string) => void
   placeholder?: string
-  options?: { language?: string; types?: string; country?: string }
+  options?: { language?: string; types?: string; country?: string; permanent?: boolean }
   theme?: MapboxTheme
 }
 
@@ -58,9 +53,9 @@ interface MapboxSearchBoxProps {
  * `@mapbox/search-js-react` registers a custom element on import (it touches
  * `window`/`customElements`), so load it client-side only via `next/dynamic`.
  */
-const SearchBox = dynamic(async () => (await import('@mapbox/search-js-react')).SearchBox, {
+const Geocoder = dynamic(async () => (await import('@mapbox/search-js-react')).Geocoder, {
   ssr: false,
-}) as unknown as React.ComponentType<MapboxSearchBoxProps>
+}) as unknown as React.ComponentType<MapboxGeocoderProps>
 
 /** Replace the last segment of a dotted path (e.g. `address.mapboxId` → `address.street`). */
 function toSiblingPath(path: string, siblingName: string): string {
@@ -139,11 +134,14 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
 }
 
 /**
- * Mapbox Search Box field component, bound to a `mapboxId` text field — used by
- * the Event address (`addressFields`) and the Regions location. Selecting a
- * result stores the Mapbox feature id (this field's value). Two `admin.custom`
- * options tune it:
- *  - `searchTypes` — the Mapbox `types` filter (default `address,poi`).
+ * Mapbox Geocoding v6 field component, bound to a `mapboxId` text field — used
+ * by the Event address (`addressFields`) and the Regions location. Selecting a
+ * result stores the Mapbox feature id (this field's value).
+ *
+ * ⚠ **The search is asked for as permanent, because its answer is stored.**
+ * Search Box, which this replaced, takes no such parameter at all, so nothing
+ * it returns may be kept (#893). Two `admin.custom` options tune it:
+ *  - `searchTypes` — the Mapbox `types` filter (default `address,street,place`).
  *  - `searchTypesField` + `searchTypesByValue` — scope `types` to a sibling
  *    field's value (Regions narrow the search by `level`); read reactively, with
  *    `searchTypes` as the fallback.
@@ -165,7 +163,7 @@ function usePayloadSearchTheme(): MapboxTheme | undefined {
 export const AddressSearchField: TextFieldClientComponent = ({ field, path, readOnly }) => {
   const { label, localized, required, admin } = field
   const description = admin?.description
-  // `searchTypes`: Mapbox Search Box `types` filter (default address+POI).
+  // `searchTypes`: Mapbox `types` filter (default address/street/place).
   // `populateAddress`: fill sibling address fields on retrieve (default off —
   // Regions use this in id-only mode, where there are no address siblings).
   // `populateName`: fill the sibling `name` field from the result (Regions).
@@ -193,14 +191,15 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   // Scope the Mapbox `types` filter to a sibling field's value when configured
   // (Regions narrow the search by `level`); read it reactively via useField so
   // the search re-scopes live as that field changes. Falls back to a static
-  // `searchTypes`, then to address+POI. (Functions can't be passed through
-  // `admin.custom` — it's serialized to the client — so the mapping is data.)
+  // `searchTypes`, then to a door, its street, and the town around it.
+  // (Functions can't be passed through `admin.custom` — it's serialized to the
+  // client — so the mapping is data.)
   const scopePath = config.searchTypesField ? toSiblingPath(path, config.searchTypesField) : path
   const { value: scopeValue } = useField<string>({ path: scopePath })
   const searchTypes =
     (config.searchTypesField ? config.searchTypesByValue?.[scopeValue ?? ''] : undefined) ??
     config.searchTypes ??
-    'address,poi'
+    'address,street,place'
 
   // Whether "Enter manually" is offered, resolved the same data-driven way as
   // `searchTypes`: a per-scope override (e.g. Regions disallow it at `country`
@@ -222,15 +221,11 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
     dispatchFields({ type: 'UPDATE', path: targetPath, value: siblingValue })
   }
 
-  const handleRetrieve = (res: MapboxRetrieveResponse) => {
-    const feature = res?.features?.[0]
+  const handleRetrieve = (feature: MapboxGeocodingFeature) => {
     if (!feature) return
     if (config.populateAddress) {
       const context = feature.properties?.context
-      setSibling(
-        'street',
-        feature.properties?.address ?? context?.address?.name ?? feature.properties?.name,
-      )
+      setSibling('street', context?.address?.name ?? feature.properties?.name)
       setSibling('city', context?.place?.name)
       setSibling('region', resolveRegionCode(context?.region, context?.country?.country_code))
       setSibling('country', context?.country?.country_code)
@@ -305,14 +300,14 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
             paints with concrete colors rather than Mapbox's default dark text. */}
         {token && theme && !readOnly ? (
           <div style={value ? { display: 'none' } : undefined}>
-            <SearchBox
+            <Geocoder
               key={`${theme.variables?.colorText}:${searchTypes}`}
               accessToken={token}
               onRetrieve={handleRetrieve}
               value={query}
               onChange={setQuery}
               placeholder={config.placeholder ?? 'Search for your address…'}
-              options={{ types: searchTypes, language: 'en' }}
+              options={{ types: searchTypes, language: 'en', permanent: true }}
               theme={theme}
             />
           </div>
