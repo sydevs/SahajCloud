@@ -192,14 +192,6 @@ export const Managers: CollectionConfig = {
           label: MANAGER_NOTIFICATIONS_TAB,
           fields: [
             {
-              // The address every notification goes to, which the tab listed
-              // the messaging handles beside and not itself. Read-only here:
-              // `email` is a top-level auth field and cannot move into a tab.
-              name: 'accountEmail',
-              type: 'ui',
-              admin: { components: { Field: '@/components/admin/AccountEmail' } },
-            },
-            {
               name: 'language',
               type: 'select',
               options: getLanguageOptions(),
@@ -209,7 +201,10 @@ export const Managers: CollectionConfig = {
               name: 'contactDetails',
               type: 'array',
               labels: { singular: 'Contact Method', plural: 'Contact Methods' },
-              admin: { description: 'Messaging handles used to deliver notifications.' },
+              admin: {
+                description:
+                  'Messaging handles used to deliver notifications. Email goes to the sign-in address above the tabs.',
+              },
               fields: [
                 {
                   type: 'row',
