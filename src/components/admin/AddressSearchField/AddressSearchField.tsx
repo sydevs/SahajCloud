@@ -96,7 +96,7 @@ function usePayloadSearchTheme(): GeocoderProps['theme'] {
  * ⚠ **The search is asked for as permanent, because its answer is stored.**
  * Search Box, which this replaced, takes no such parameter at all, so nothing
  * it returns may be kept (#893). Two `admin.custom` options tune it:
- *  - `searchTypes` — the Mapbox `types` filter (default `address,street,place`).
+ *  - `searchTypes` — the Mapbox `types` filter (default `address,street`).
  *  - `searchTypesField` + `searchTypesByValue` — scope `types` to a sibling
  *    field's value (Regions narrow the search by `level`); read reactively, with
  *    `searchTypes` as the fallback.
@@ -142,7 +142,8 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   // Scope the Mapbox `types` filter to a sibling field's value when configured
   // (Regions narrow the search by `level`); read it reactively via useField so
   // the search re-scopes live as that field changes. Falls back to a static
-  // `searchTypes`, then to a door, its street, and the town around it.
+  // `searchTypes`, then to a door and its street — nothing coarser, since
+  // `populateAddress` reads the picked feature into the sibling `street`.
   // (Functions can't be passed through `admin.custom` — it's serialized to the
   // client — so the mapping is data.)
   const scopePath = config.searchTypesField ? toSiblingPath(path, config.searchTypesField) : path
@@ -150,7 +151,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   const searchTypes =
     (config.searchTypesField ? config.searchTypesByValue?.[scopeValue ?? ''] : undefined) ??
     config.searchTypes ??
-    'address,street,place'
+    'address,street'
 
   // Whether "Enter manually" is offered, resolved the same data-driven way as
   // `searchTypes`: a per-scope override (e.g. Regions disallow it at `country`
