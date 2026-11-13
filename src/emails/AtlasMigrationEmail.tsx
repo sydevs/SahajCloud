@@ -1,5 +1,6 @@
 import { Column, Link, Row, Section, Text } from 'react-email'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import type { EmailBrand } from '@/plugins/email'
 import type { Responsibility } from '@/plugins/login/grantSummary'
 
@@ -138,6 +139,9 @@ export function AtlasMigrationEmail({
   mapUrl,
   highlights,
 }: AtlasMigrationEmailProps) {
+  // One spelling of the admin host: a second in the prose would name one host
+  // and link another the day either moves.
+  const admin = URL.parse(signInUrl)
   return (
     <EmailLayout
       brand={brand}
@@ -157,7 +161,7 @@ export function AtlasMigrationEmail({
           <Column style={bulletCell}>•</Column>
           <Column style={textCell}>
             Please{' '}
-            <Link href="mailto:contact@sydevelopers.com" style={{ color: brand.colors.primary }}>
+            <Link href={`mailto:${CONTACT_EMAIL}`} style={{ color: brand.colors.primary }}>
               contact us
             </Link>{' '}
             if you need help.
@@ -167,8 +171,8 @@ export function AtlasMigrationEmail({
           <Column style={bulletCell}>•</Column>
           <Column style={textCell}>
             From now on you can edit programs at{' '}
-            <Link href="https://cloud.sydevelopers.com" style={{ color: brand.colors.primary }}>
-              cloud.sydevelopers.com
+            <Link href={admin?.origin ?? signInUrl} style={{ color: brand.colors.primary }}>
+              {admin?.host ?? signInUrl}
             </Link>
             .
           </Column>
