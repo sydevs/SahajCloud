@@ -73,11 +73,8 @@ const cellStyle: React.CSSProperties = {
 /** Method and Frequency line up in columns of their own, whatever they hold. */
 const CHOICE_COLUMN_WIDTH = '180px'
 
-const asOptions = (values: readonly string[], label: (value: string) => string) =>
+const asOptions = (values: readonly string[], label: (value: string) => string = (v) => v) =>
   values.map((value) => ({ label: label(value), value })) as ReactSelectOption[]
-
-const selected = (options: ReactSelectOption[], value: string) =>
-  options.find((option) => option.value === value)
 
 export const NotificationPreferencesField: FieldClientComponent = ({ field, readOnly }) => {
   const { name, label, admin } = field as JSONFieldClient
@@ -98,13 +95,42 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
     [savedDocumentData],
   )
 
-  const prefs = value ?? {}
+  const prefs = useMemo(() => value ?? {}, [value])
+
   // The resolved pace, not the stored one: a row showing its default must save
   // that default when the manager changes only the method beside it.
   const resolved = (key: NotificationKey) => ({
     frequency: notificationFrequency(prefs, key),
     method: prefs[key]?.method ?? DEFAULT_NOTIFICATION_METHOD,
   })
+
+  // ⚠ ReactSelect memoizes on `options` by identity, and this component
+  // re-renders on every keystroke anywhere in the form (`useAllFormFields`), so
+  // each row's arrays are built once per change to what they come from.
+  const rows = useMemo(
+    () =>
+      visibleTypes.map((type) => {
+        const frequency = notificationFrequency(prefs, type.key)
+        const method = prefs[type.key]?.method ?? DEFAULT_NOTIFICATION_METHOD
+        // Keep a method that's no longer in contactDetails selectable so it
+        // isn't silently dropped from the dropdown.
+        const methods = asOptions(
+          method && !methodOptions.includes(method) ? [...methodOptions, method] : methodOptions,
+          notificationMethodLabel,
+        )
+        const frequencies = asOptions(type.frequencyOptions)
+        return {
+          frequencies,
+          frequency,
+          method,
+          methods,
+          selectedFrequency: frequencies.find((option) => option.value === frequency),
+          selectedMethod: methods.find((option) => option.value === method),
+          type,
+        }
+      }),
+    [methodOptions, prefs, visibleTypes],
+  )
 
   const updateRow = (
     key: NotificationKey,
@@ -166,19 +192,10 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
               </tr>
             </thead>
             <tbody>
-              {visibleTypes.map((type) => {
-                const pref = resolved(type.key)
-                const isNever = pref.frequency === NEVER_FREQUENCY
-                const methodMissing = !isNever && !pref.method
-                // Keep a method that's no longer in contactDetails selectable so
-                // it isn't silently dropped from the dropdown.
-                const rowMethodOptions = asOptions(
-                  pref.method && !methodOptions.includes(pref.method)
-                    ? [...methodOptions, pref.method]
-                    : methodOptions,
-                  notificationMethodLabel,
-                )
-                const frequencyOptions = asOptions(type.frequencyOptions, (value) => value)
+              {rows.map((row) => {
+                const { frequencies, methods, selectedFrequency, selectedMethod, type } = row
+                const isNever = row.frequency === NEVER_FREQUENCY
+                const methodMissing = !isNever && !row.method
 
                 // Fade only the Notification + Method cells when muted ("Never")
                 // — the Frequency cell stays full-opacity so it never reads as
@@ -206,10 +223,10 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                               method: String((option as ReactSelectOption | null)?.value ?? ''),
                             })
                           }
-                          options={rowMethodOptions}
+                          options={methods}
                           placeholder="Select"
                           showError={methodMissing}
-                          value={selected(rowMethodOptions, pref.method)}
+                          value={selectedMethod}
                         />
                       )}
                     </td>
@@ -225,8 +242,8 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
                             frequency: String((option as ReactSelectOption | null)?.value ?? ''),
                           })
                         }
-                        options={frequencyOptions}
-                        value={selected(frequencyOptions, pref.frequency)}
+                        options={frequencies}
+                        value={selectedFrequency}
                       />
                     </td>
                   </tr>

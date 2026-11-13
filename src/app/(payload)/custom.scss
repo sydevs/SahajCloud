@@ -70,21 +70,16 @@
   color: var(--theme-text);
 }
 
-/* The selected value renders as a single clearable pill inside a ReactSelect
-   control (chevron + clear-all removed). Force it full width so the control
-   matches the search box it replaces. */
-.field-type.address-search .react-select {
-  width: 100%;
-}
-
 /* ============================================================================
-   5. STRING SELECT FIELD (StringSelectField — country/region dropdowns)
+   5. SELECT FIELDS (every field that renders a bare ReactSelect)
    ============================================================================ */
 
-/* A single-value ReactSelect renders bare `.react-select` (Payload only wraps
-   it in the full-width `.react-select-container` on its sortable path), so it
-   doesn't fill its slot like built-in inputs. Force it full width. */
-.field-type.string-select .react-select {
+/* A single-value ReactSelect renders bare `.react-select` — Payload only wraps
+   it in the full-width `.react-select-container` on its sortable path — so it
+   sizes to its own value instead of filling its slot. One rule for every field
+   that renders one: AddressSearchField, StringSelectField, the notification
+   preferences table, and whatever comes next. */
+.field-type .react-select {
   width: 100%;
 }
 
@@ -218,25 +213,4 @@ a:focus-visible {
 .group-field:not(:has(> .group-field__wrap > .group-field__header > header)) {
   border-top: 0;
   border-bottom: 0;
-}
-
-/* ============================================================================
-   8. NOTIFICATION PREFERENCES (NotificationPreferencesField)
-   ============================================================================ */
-
-/* A single-value ReactSelect renders bare `.react-select`, so it sizes to its
-   own value. Each one fills the column it sits in instead. */
-.field-type.notification-preferences .react-select {
-  width: 100%;
-}
-
-/* ============================================================================
-   9. ACCOUNT EMAIL (AccountEmail — the Contact tab's first field)
-   ============================================================================ */
-
-.account-email__value {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--base) / 2);
-  min-height: 40px;
 }

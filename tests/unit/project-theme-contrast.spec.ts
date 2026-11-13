@@ -12,32 +12,29 @@ import {
   PROJECT_BRAND_COLORS,
   PROJECT_THEMES,
   TEXT_CHROMA,
+  TEXT_FROM,
   contrastRatio,
+  elevationVar,
   hexToHsl,
   relativeLuminance,
-} from '@/lib/branding'
+} from '@/lib/branding/themeColors'
 import type { ProjectSlug } from '@/payload-types'
 
 const PROJECTS = Object.keys(PROJECT_THEMES) as ProjectSlug[]
 const MODES = ['light', 'dark'] as const
 
-/** The first step rendered as text rather than as a surface, per mode. */
-const TEXT_FROM = { dark: 400, light: 350 } as const
-
 /** WCAG AA for body text. */
 const AA = 4.5
 
 const step = (project: ProjectSlug, mode: (typeof MODES)[number], value: number) =>
-  PROJECT_THEMES[project][mode][`--theme-elevation-${value}`]!
+  PROJECT_THEMES[project][mode][elevationVar(value)]!
 
 describe('project elevation scales', () => {
   it('sets every one of Payload’s steps, in both modes', () => {
     for (const project of PROJECTS) {
       for (const mode of MODES) {
         const scale = PROJECT_THEMES[project][mode]
-        expect(Object.keys(scale).sort()).toEqual(
-          ELEVATION_STEPS.map((value) => `--theme-elevation-${value}`).sort(),
-        )
+        expect(Object.keys(scale).sort()).toEqual(ELEVATION_STEPS.map(elevationVar).sort())
         for (const hex of Object.values(scale)) expect(hex).toMatch(/^#[0-9a-f]{6}$/)
       }
     }

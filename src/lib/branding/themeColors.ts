@@ -50,10 +50,11 @@ export const PROJECT_BRAND_COLORS: Record<ProjectSlug, BrandColors> = {
 // --- Color Utility Functions ---
 
 /**
- * Convert hex color to HSL components
+ * The three 0–255 channels of a hex colour.
+ *
  * @throws Error if hex color format is invalid
  */
-export function hexToHsl(hex: string): { h: number; s: number; l: number } {
+export function hexToRgb(hex: string): [number, number, number] {
   // Remove # prefix if present
   const cleanHex = hex.replace('#', '')
 
@@ -62,10 +63,22 @@ export function hexToHsl(hex: string): { h: number; s: number; l: number } {
     throw new Error(`Invalid hex color format: "${hex}". Expected format: #RRGGBB or RRGGBB`)
   }
 
-  // Parse RGB values
-  const r = parseInt(cleanHex.substring(0, 2), 16) / 255
-  const g = parseInt(cleanHex.substring(2, 4), 16) / 255
-  const b = parseInt(cleanHex.substring(4, 6), 16) / 255
+  return [
+    parseInt(cleanHex.substring(0, 2), 16),
+    parseInt(cleanHex.substring(2, 4), 16),
+    parseInt(cleanHex.substring(4, 6), 16),
+  ]
+}
+
+/**
+ * Convert hex color to HSL components
+ * @throws Error if hex color format is invalid
+ */
+export function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const [red, green, blue] = hexToRgb(hex)
+  const r = red / 255
+  const g = green / 255
+  const b = blue / 255
 
   const max = Math.max(r, g, b)
   const min = Math.min(r, g, b)
@@ -203,7 +216,12 @@ export const ELEVATION_STEPS = [
   1000,
 ] as const
 
-/** `--theme-elevation-<step>` → hex, one entry per `ELEVATION_STEPS`. */
+/** The CSS custom property Payload reads one step from. */
+export function elevationVar(step: number): string {
+  return `--theme-elevation-${step}`
+}
+
+/** `elevationVar(step)` → hex, one entry per `ELEVATION_STEPS`. */
 export type ElevationScale = Record<string, string>
 
 export interface ThemeColors {
@@ -222,8 +240,7 @@ export const TEXT_CHROMA = 0.3
 const SURFACE_CHROMA = 0.55
 
 /** The first step rendered as text rather than as a surface, per mode. */
-const LIGHT_TEXT_FROM = 350
-const DARK_TEXT_FROM = 400
+export const TEXT_FROM = { dark: 400, light: 350 } as const
 
 /** WCAG AA for body text. Every dark text step clears it on steps 0 and 50. */
 const TEXT_CONTRAST = 4.5
@@ -231,27 +248,38 @@ const TEXT_CONTRAST = 4.5
 /** Lightness per dark surface step, 0 through 350. */
 const DARK_SURFACE_LIGHTNESS = [3.9, 9.5, 13, 16.5, 20.5, 24.5, 29, 33.5]
 
-function channel(hex: string, offset: number): number {
-  return parseInt(hex.replace('#', '').substring(offset, offset + 2), 16)
-}
-
 /** WCAG relative luminance, 0 for black and 1 for white. */
 export function relativeLuminance(hex: string): number {
   const linear = (value: number) => {
     const v = value / 255
     return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
   }
-  return (
-    0.2126 * linear(channel(hex, 0)) +
-    0.7152 * linear(channel(hex, 2)) +
-    0.0722 * linear(channel(hex, 4))
-  )
+  const [r, g, b] = hexToRgb(hex)
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
 }
 
 /** WCAG contrast between two colours, 1 to 21. */
 export function contrastRatio(a: string, b: string): number {
   const [low, high] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => x - y)
   return (high! + 0.05) / (low! + 0.05)
+}
+
+/**
+ * The dimmest lightness at `hue`/`chroma` that `enough` accepts.
+ *
+ * `enough` must be monotone in lightness, and is asked about the **rounded**
+ * hex, so the answer is the colour a browser paints rather than the one the
+ * maths predicts.
+ */
+function dimmestLightness(hue: number, chroma: number, enough: (hex: string) => boolean): number {
+  let low = 0
+  let high = 100
+  for (let i = 0; i < 24; i++) {
+    const mid = (low + high) / 2
+    if (enough(hslToHex(hue, chroma, mid))) high = mid
+    else low = mid
+  }
+  return high
 }
 
 /**
@@ -265,44 +293,27 @@ function withChroma(hex: string, keep: number): string {
   if (s === 0) return hex
   const target = relativeLuminance(hex)
   const chroma = s * keep
-  let low = 0
-  let high = 100
-  for (let i = 0; i < 24; i++) {
-    const mid = (low + high) / 2
-    if (relativeLuminance(hslToHex(h, chroma, mid)) < target) low = mid
-    else high = mid
-  }
-  return hslToHex(h, chroma, (low + high) / 2)
+  return hslToHex(
+    h,
+    chroma,
+    dimmestLightness(h, chroma, (c) => relativeLuminance(c) >= target),
+  )
 }
 
 /** The lightest of two colours, mixed evenly — in RGB, so a black endpoint adds no hue. */
 function mixRgb(a: string, b: string): string {
-  const half = (offset: number) => {
-    const value = Math.round((channel(a, offset) + channel(b, offset)) / 2)
-    return value.toString(16).padStart(2, '0')
-  }
-  return `#${half(0)}${half(2)}${half(4)}`
-}
-
-/**
- * The dimmest lightness at `hue`/`chroma` that still clears `ratio` against
- * `against`. Solved on the rounded hex, so the answer is the contrast a browser
- * paints rather than the one the maths predicts.
- */
-function lightnessForContrast(hue: number, chroma: number, against: string, ratio: number): number {
-  let low = 0
-  let high = 100
-  for (let i = 0; i < 24; i++) {
-    const mid = (low + high) / 2
-    if (contrastRatio(hslToHex(hue, chroma, mid), against) < ratio) low = mid
-    else high = mid
-  }
-  return high
+  const [ar, ag, ab] = hexToRgb(a)
+  const [br, bg, bb] = hexToRgb(b)
+  const half = (x: number, y: number) =>
+    Math.round((x + y) / 2)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${half(ar, br)}${half(ag, bg)}${half(ab, bb)}`
 }
 
 function scaleFrom(colors: string[]): ElevationScale {
   return Object.fromEntries(
-    ELEVATION_STEPS.map((step, index) => [`--theme-elevation-${step}`, colors[index]!]),
+    ELEVATION_STEPS.map((step, index) => [elevationVar(step), colors[index]!]),
   )
 }
 
@@ -319,7 +330,7 @@ function buildLightScale(anchors: Record<number, string>): ElevationScale {
   })
   return scaleFrom(
     filled.map((hex, index) =>
-      ELEVATION_STEPS[index]! >= LIGHT_TEXT_FROM ? withChroma(hex, TEXT_CHROMA) : hex,
+      ELEVATION_STEPS[index]! >= TEXT_FROM.light ? withChroma(hex, TEXT_CHROMA) : hex,
     ),
   )
 }
@@ -336,8 +347,12 @@ function buildDarkScale(brand: BrandColors): ElevationScale {
   const { h, s } = hexToHsl(brand.primary)
   const surfaces = DARK_SURFACE_LIGHTNESS.map((l) => hslToHex(h, s * SURFACE_CHROMA, l))
   const textChroma = s * TEXT_CHROMA
-  const floor = lightnessForContrast(h, textChroma, surfaces[1]!, TEXT_CONTRAST)
-  const textSteps = ELEVATION_STEPS.filter((step) => step >= DARK_TEXT_FROM)
+  const floor = dimmestLightness(
+    h,
+    textChroma,
+    (hex) => contrastRatio(hex, surfaces[1]!) >= TEXT_CONTRAST,
+  )
+  const textSteps = ELEVATION_STEPS.filter((step) => step >= TEXT_FROM.dark)
   const text = textSteps.map((_, index) =>
     hslToHex(h, textChroma, floor + ((100 - floor) * index) / (textSteps.length - 1)),
   )

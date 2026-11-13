@@ -3,9 +3,7 @@
 import { useEffect } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { ELEVATION_STEPS, PROJECT_THEMES } from '@/lib/branding'
-
-const ELEVATION_VARS = ELEVATION_STEPS.map((step) => `--theme-elevation-${step}`)
+import { ELEVATION_STEPS, PROJECT_THEMES, elevationVar } from '@/lib/branding'
 
 /**
  * Paints the current project's elevation scale onto the document, and follows
@@ -16,15 +14,15 @@ const ProjectTheme = () => {
 
   useEffect(() => {
     const root = document.documentElement
-    const theme = currentProject ? PROJECT_THEMES[currentProject] : null
 
-    if (!theme || !currentProject) {
+    if (!currentProject) {
       root.removeAttribute('data-project-theme')
-      ELEVATION_VARS.forEach((varName) => root.style.removeProperty(varName))
+      ELEVATION_STEPS.forEach((step) => root.style.removeProperty(elevationVar(step)))
       return
     }
 
     root.setAttribute('data-project-theme', currentProject)
+    const theme = PROJECT_THEMES[currentProject]
 
     const paint = () => {
       const colors = root.getAttribute('data-theme') === 'dark' ? theme.dark : theme.light

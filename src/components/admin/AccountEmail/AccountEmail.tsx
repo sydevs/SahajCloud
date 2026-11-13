@@ -2,8 +2,10 @@
 
 import type { UIFieldClientComponent } from 'payload'
 
-import { Button, FieldDescription, FieldLabel, useField } from '@payloadcms/ui'
+import { Button, FieldDescription, TextInput, useField } from '@payloadcms/ui'
 import React from 'react'
+
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 /**
  * Where Payload keeps the sign-in address. It is a top-level auth field, so it
@@ -19,7 +21,7 @@ const EMAIL_PATH = 'email'
  * it say, and the tab listed those and not this. Change takes the editor to the
  * field that owns it rather than editing a copy of the value.
  */
-export const AccountEmail: UIFieldClientComponent = ({ path }) => {
+export const AccountEmail: UIFieldClientComponent = ({ field, path }) => {
   const { value } = useField<string>({ path: EMAIL_PATH })
 
   const goToSignInField = () => {
@@ -30,21 +32,24 @@ export const AccountEmail: UIFieldClientComponent = ({ path }) => {
   }
 
   return (
-    <div className="field-type account-email" id={`field-${path}`}>
-      <FieldLabel label="Email" path={path} />
-      <div className="field-type__wrap">
-        <div className="account-email__value">
-          <span>{value || '—'}</span>
-          <Button buttonStyle="secondary" margin={false} onClick={goToSignInField} size="small">
-            Change
-          </Button>
-        </div>
+    <TextInput
+      AfterInput={
+        <Button buttonStyle="secondary" margin={false} onClick={goToSignInField} size="small">
+          Change
+        </Button>
+      }
+      Description={
         <FieldDescription
           description="Every notification goes here. The handles below are for the methods that are not email."
           path={path}
         />
-      </div>
-    </div>
+      }
+      label="Email"
+      path={path}
+      readOnly
+      style={mergeFieldStyles(field.admin)}
+      value={value ?? ''}
+    />
   )
 }
 
