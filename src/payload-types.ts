@@ -2437,16 +2437,16 @@ export interface Client {
    */
   title?: string | null;
   /**
-   * Logo shown in registrant emails. Resolved to a PNG at send time — email clients render SVG poorly or not at all.
+   * This sets the Reply-To on registration emails, so replies reach you instead of us.
+   */
+  supportEmail?: string | null;
+  /**
+   * Logo shown in registrant emails.
    */
   logo?: (number | null) | Image;
   color1?: string | null;
   color2?: string | null;
   color3?: string | null;
-  /**
-   * Reply-To on registrant emails, so replies reach this service rather than us. While this service owns its region, the emails also link to its site.
-   */
-  supportEmail?: string | null;
   /**
    * Add people who sign up for news on this site to your own mailing list.
    */
@@ -4923,11 +4923,11 @@ export interface ClientsSelect<T extends boolean = true> {
   primaryContact?: T;
   region?: T;
   title?: T;
+  supportEmail?: T;
   logo?: T;
   color1?: T;
   color2?: T;
   color3?: T;
-  supportEmail?: T;
   mailingList?:
     | T
     | {
@@ -11004,6 +11004,10 @@ export interface TaskCleanupOrphanedMedia {
     trashedFiles: number;
     trashedImages: number;
     skippedImages: number;
+    /**
+     * Expired trash kept because something still references it, among the rows Phase A read while filling its delete budget. Not a backlog total.
+     */
+    skippedReferenced: number;
     errors: number;
     dryRun: boolean;
   };
