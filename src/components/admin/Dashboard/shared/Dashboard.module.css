@@ -202,7 +202,7 @@ a.tileLink:hover {
   min-width: 0;
   white-space: nowrap;
 }
-.stacked {
+.lines {
   display: flex;
   flex-direction: column;
 }
@@ -263,28 +263,10 @@ a.tileLink:hover {
     width: auto;
   }
 
-  /* Each open item stacks into one block: side by side, the table hid the
-     Next step column in its own sideways scroll. */
-  .list :global(table),
-  .list :global(tbody),
-  .list :global(tr),
-  .list :global(td) {
-    display: block;
-  }
-  .list :global(thead) {
-    display: none;
-  }
-  .list :global(tr) {
-    padding: calc(var(--base) * 0.4) 0;
-  }
-  .list :global(td),
+  /* `StackedTable` gives every row a block of its own. What is left here is
+     the widths and nowraps this table asked for while it was a table. */
   .list :global(.cell-item) {
     min-width: 0;
-    max-width: none;
-    padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
-  }
-  .list :global(td:empty) {
-    display: none;
   }
   .list :global(.cell-status) {
     white-space: normal;
@@ -296,13 +278,12 @@ a.tileLink:hover {
     width: auto;
     text-align: start;
   }
-  .list :global(.cell-action .btn) {
-    width: 100%;
+  .overview :global(.cell-name),
+  .overview :global(#heading-name),
+  .overview :global(.cell-edit) {
+    width: auto;
   }
-  /* Stacked, the frame's row rule would draw between every cell. Exempting
-     all but the first leaves it drawing the separator it was written for —
-     `border-collapse: separate` here, so the border cannot move to the row. */
-  .list :global(.table:not(.table--appearance-condensed) tbody tr + tr td:not(:first-child)) {
-    border-top: 0;
+  .overview :global(td:not(.cell-name)) {
+    white-space: normal;
   }
 }

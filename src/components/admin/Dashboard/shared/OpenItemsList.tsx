@@ -1,6 +1,6 @@
 'use client'
 
-import { Banner, Button, CheckIcon, Pill, Table } from '@payloadcms/ui'
+import { Banner, Button, CheckIcon, Pill } from '@payloadcms/ui'
 import { CalendarDays, FilePlus, Globe, type LucideIcon, MailWarning, UserX } from 'lucide-react'
 import Link from 'next/link'
 
@@ -14,7 +14,7 @@ import {
   type OpenItemTab,
 } from './model'
 import { FilterTabs, QueryPager } from '../../helpers/listControls'
-import { tableColumn } from '../../helpers/tableColumn'
+import { StackedTable } from '../../helpers/stackedTable'
 
 const LIST_ID = 'atlas-open-items'
 
@@ -110,12 +110,11 @@ export function OpenItemsList({
             />
           )}
           <div id={LIST_ID}>
-            <Table
+            <StackedTable
               columns={[
-                tableColumn(
-                  'item',
-                  'Item',
-                  docs.map((row) => (
+                {
+                  accessor: 'item',
+                  cells: docs.map((row) => (
                     <div className={styles.itemInfo} key={row.id}>
                       <IconTip {...KIND[row.kind]} />
                       <div>
@@ -128,11 +127,11 @@ export function OpenItemsList({
                       </div>
                     </div>
                   )),
-                ),
-                tableColumn(
-                  'status',
-                  'Status',
-                  docs.map((row) => (
+                  heading: 'Item',
+                },
+                {
+                  accessor: 'status',
+                  cells: docs.map((row) => (
                     <div className={styles.statuses} key={row.id}>
                       <div className={styles.pills}>
                         {row.statuses.map((status) => (
@@ -148,11 +147,11 @@ export function OpenItemsList({
                       )}
                     </div>
                   )),
-                ),
-                tableColumn(
-                  'action',
-                  'Next step',
-                  docs.map((row, index) =>
+                  heading: 'Status',
+                },
+                {
+                  accessor: 'action',
+                  cells: docs.map((row, index) =>
                     row.action ? (
                       <Button
                         aria-label={`${row.action.label}: ${row.title}`}
@@ -168,12 +167,10 @@ export function OpenItemsList({
                       </Button>
                     ) : null,
                   ),
-                ),
+                  heading: 'Next step',
+                },
               ]}
-              // `Table` reads nothing off a row but `id`, so it gets the ids alone:
-              // widening `OpenItemsRow` with an index signature would turn every
-              // misspelled read into `unknown` instead of an error.
-              data={docs.map(({ id }) => ({ id }))}
+              rows={docs}
             />
             <QueryPager docs={rows} limits={PAGE_LIMITS} />
           </div>

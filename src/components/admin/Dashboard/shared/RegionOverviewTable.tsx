@@ -3,7 +3,7 @@
 import type { PaginatedDocs } from 'payload'
 import type { ReactNode } from 'react'
 
-import { Button, ErrorPill, Table, useTranslation } from '@payloadcms/ui'
+import { Button, ErrorPill, useTranslation } from '@payloadcms/ui'
 import { Building2, Globe, type LucideIcon, Map as MapIcon, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
@@ -16,11 +16,11 @@ import { IconTip } from './IconTip'
 import { PAGE_LIMITS } from './model'
 import { CenteredNotice } from '../../CenteredNotice'
 import { QueryPager } from '../../helpers/listControls'
-import { tableColumn } from '../../helpers/tableColumn'
+import { type StackedColumn, StackedTable } from '../../helpers/stackedTable'
 
 function registrationsLabel({ change, last30 }: RegionOverviewRow['signups']): ReactNode {
   return (
-    <div className={styles.stacked}>
+    <div className={styles.lines}>
       <span>{last30}</span>
       <span className={styles.muted}>{changeLabel(change)}</span>
     </div>
@@ -44,7 +44,7 @@ const LEVEL_ICON: Record<RegionOverviewRow['level'], LucideIcon> = {
 function managersLabel({ count, names }: RegionOverviewRow['managers']): ReactNode {
   if (count === 0) return '—'
   return (
-    <div className={styles.stacked}>
+    <div className={styles.lines}>
       {names.map((name, index) => (
         <span key={index}>{name}</span>
       ))}
@@ -86,11 +86,11 @@ export function RegionOverviewTable({
     accessor: string,
     heading: ReactNode,
     cell: (row: RegionOverviewRow) => ReactNode,
-  ) => tableColumn(accessor, heading, docs.map(cell))
+  ): StackedColumn => ({ accessor, cells: docs.map(cell), heading })
 
   return (
     <div className={`${styles.list} ${styles.overview}`}>
-      <Table
+      <StackedTable
         columns={[
           column('name', label, (row) => (
             <div className={styles.itemInfo}>
@@ -133,7 +133,7 @@ export function RegionOverviewTable({
             </Button>
           )),
         ]}
-        data={docs.map(({ id }) => ({ id }))}
+        rows={docs}
       />
       <QueryPager docs={rows} limits={PAGE_LIMITS} />
     </div>
