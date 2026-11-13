@@ -2,40 +2,54 @@
 
 import type { RegionContact } from './regionContacts'
 
-import { Button, Drawer, useDrawerSlug, useModal } from '@payloadcms/ui'
+import { Button, Modal, useModal } from '@payloadcms/ui'
 
 import { ManagerContactsTable } from '../../ManagerContacts/ManagerContactsTable'
-import styles from '../shared/Dashboard.module.css'
+
+const MODAL_SLUG = 'atlas-ask-to-add'
 
 /**
  * "Add new event" for a manager who may not create one. It opens the people to
  * ask rather than a create screen the server would refuse.
+ *
+ * A modal rather than a drawer: the list is a handful of names, and this is a
+ * notice about who to reach, not a surface to work in. `confirmation-modal` is
+ * Payload's own layout for that, as `SecretField` uses it.
  */
 export function AskToAddButton({ contacts }: { contacts: RegionContact[] }) {
-  const drawerSlug = useDrawerSlug('atlas-ask-to-add')
-  const { openModal } = useModal()
+  const { closeModal, isModalOpen, openModal } = useModal()
 
   return (
     <>
-      <Button icon="plus" iconPosition="left" margin={false} onClick={() => openModal(drawerSlug)}>
+      <Button icon="plus" iconPosition="left" margin={false} onClick={() => openModal(MODAL_SLUG)}>
         Add new event
       </Button>
-      {/* Mounted unconditionally, or it opens already open and never slides —
-          `Drawer` seeds `animateIn` from the modal state at mount. */}
-      <Drawer slug={drawerSlug} title="Add new event">
-        <p className={styles.subtitle}>
-          Your events are added by the managers who look after your regions. Ask one of them — the
-          nearest is first.
-        </p>
-        <ManagerContactsTable
-          rows={contacts.map(({ email, id, name, region }) => ({
-            email,
-            id,
-            name,
-            subtitle: region,
-          }))}
-        />
-      </Drawer>
+      <Modal className="confirmation-modal" slug={MODAL_SLUG}>
+        {isModalOpen(MODAL_SLUG) ? (
+          <div className="confirmation-modal__wrapper">
+            <div className="confirmation-modal__content">
+              <h1>Add new event</h1>
+              <p>
+                Your events are added by the managers who look after your regions. Ask one of them —
+                the nearest is first.
+              </p>
+            </div>
+            <ManagerContactsTable
+              rows={contacts.map(({ email, id, name, region }) => ({
+                email,
+                id,
+                name,
+                subtitle: region,
+              }))}
+            />
+            <div className="confirmation-modal__controls">
+              <Button buttonStyle="secondary" onClick={() => closeModal(MODAL_SLUG)} size="large">
+                Close
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </>
   )
 }
