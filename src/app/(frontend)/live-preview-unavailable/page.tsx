@@ -26,6 +26,14 @@ import React from 'react'
 
 /** Explanations, keyed by the `reason` the URL builder passed. */
 const REASONS: Record<string, { title: string; body: string }> = {
+  'atlas-tab-only': {
+    title: 'The preview belongs to the Atlas tab',
+    body: 'This panel shows the atlas as visitors see it, so the colours and logo on the Atlas tab can be checked while they are chosen. There is nothing on this tab for it to show.',
+  },
+  'no-atlas-role': {
+    title: 'This service has no atlas',
+    body: 'Live preview opens this service’s own atlas, and this service does not have one. An administrator can give it the Sahaj Atlas role under Access.',
+  },
   'no-key': {
     title: 'Live preview is not configured',
     body: 'This environment cannot issue preview links. An administrator needs to configure live-preview signing before the panel will work here.',

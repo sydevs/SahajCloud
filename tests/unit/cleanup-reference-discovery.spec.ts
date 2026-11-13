@@ -3,7 +3,7 @@
  * reads. Both halves decide whether a file in use reads as an orphan, and
  * CleanupOrphanedMedia trashes orphans (#977).
  */
-import type { Field, Payload } from 'payload'
+import type { Block, Field, Payload } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
@@ -82,6 +82,49 @@ describe('discoverReferencesForCollection', () => {
     expect(walk(fields)).toEqual([
       expect.objectContaining({ fieldPath: 'default.media', localizedAt: [] }),
     ])
+  })
+})
+
+describe('discoverReferencesForCollection, Lexical blocks', () => {
+  /** A richText field whose editor accepts `blocks`, shaped as Payload sanitizes it. */
+  function richTextOver(blocks: Block[]): Field {
+    return {
+      name: 'content',
+      type: 'richText',
+      editor: {
+        editorConfig: {
+          resolvedFeatureMap: new Map<string, unknown>([
+            ['blocks', { sanitizedServerFeatureProps: { blocks } }],
+          ]),
+        },
+      },
+    } as unknown as Field
+  }
+
+  it('records the path of each block field pointing at the target, and no other', () => {
+    const blocks = [
+      { slug: 'textbox', fields: [{ name: 'image', type: 'upload', relationTo: 'images' }] },
+      { slug: 'layout', fields: [{ name: 'items', type: 'array', fields: [media] }] },
+    ] as Block[]
+
+    const references = walk([richTextOver(blocks)])
+
+    expect(references).toHaveLength(1)
+    expect(references[0].lexicalFields).toEqual(
+      new Map([['layout', [reference('items.*.media', [])]]]),
+    )
+  })
+
+  it('leaves a block reference unmarked, so the path is what reads it', () => {
+    const blocks = [{ slug: 'layout', fields: [media] }] as Block[]
+
+    const [blockRef] = walk([richTextOver(blocks)])[0].lexicalFields!.get('layout')!
+
+    expect(blockRef.isLexicalBlock).toBe(false)
+  })
+
+  it('records an empty map for an editor that accepts no blocks', () => {
+    expect(walk([richTextOver([])])[0].lexicalFields).toEqual(new Map())
   })
 })
 

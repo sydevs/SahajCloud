@@ -31,7 +31,7 @@ const InstallBanner: UIFieldServerComponent = async ({ data, payload, req }) => 
   })
   return (
     <InfoBanner
-      action={<a href={installUrl}>Open the Install tab</a>}
+      action={{ href: installUrl, label: 'Open the Install tab' }}
       title="The atlas is not fully installed yet"
       type="warning"
     >

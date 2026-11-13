@@ -38,6 +38,76 @@ export const brandGradient = (colors: BrandColors): string =>
   `linear-gradient(135deg, ${colors.primary} 0%, ${colors.light} 100%)`
 
 /**
+ * The text colour the header title and a filled button take on that gradient.
+ *
+ * ⚠ **`primary` is passed first because it is the only stop that always
+ * paints.** Both sites set it as `backgroundColor` under the gradient's
+ * `backgroundImage`, and Outlook desktop drops the image — so a text colour
+ * chosen by the light stop alone is chosen by a surface those readers never
+ * see. `readableTextOn` lets `primary` decide wherever both colours stay
+ * legible across the gradient, and falls back to the worse stop where they do
+ * not. A service's colours are never changed for this — only the text on them.
+ */
+export const brandTextColor = (colors: BrandColors): string =>
+  readableTextOn(colors.primary, colors.light)
+
+/**
+ * Black or white for text on a brand gradient, read from the stop that paints.
+ *
+ * `painted` is the first stop and the only one guaranteed to be there: Outlook's
+ * Word engine drops `background-image` and leaves the `background-color` under
+ * it, so that stop is the whole surface for those readers. `rest` is the
+ * gradient's remaining stops, which every other client renders.
+ *
+ * Both colours legible over every stop → `painted` decides, since it is the one
+ * surface certain to exist. Otherwise the worst stop decides, so a pale second
+ * stop still takes black off a dark primary that would rather have white — the
+ * answer a reader of the gradient needs, and one no solid fill would give.
+ *
+ * ⚠ **The brand colour itself never moves.** A service's colours are what they
+ * chose; only the text on them changes, so an unreadable choice costs legibility
+ * nowhere else.
+ */
+function readableTextOn(painted: string, ...rest: string[]): '#000000' | '#ffffff' {
+  const stops = [painted, ...rest]
+  const over = (text: string, colors: string[]) =>
+    Math.min(...colors.map((color) => contrastRatio(text, color)))
+
+  // WCAG AA for large text, the floor shared by both sinks: a 24px heading reads
+  // at it, and a bold button label is the lower bound of what does.
+  const legible = (text: string) => over(text, stops) >= 3
+  const decisive = legible('#000000') && legible('#ffffff') ? [painted] : stops
+
+  return over('#000000', decisive) >= over('#ffffff', decisive) ? '#000000' : '#ffffff'
+}
+
+/** WCAG 2.x contrast ratio between two `#RRGGBB` colours. */
+function contrastRatio(a: string, b: string): number {
+  const [light, dark] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+
+  return (light + 0.05) / (dark + 0.05)
+}
+
+/**
+ * WCAG relative luminance — sRGB channels linearised, then weighted.
+ *
+ * ⚠ **`#RGB` is expanded first.** `colorField`'s validator accepts the short form,
+ * so a service really can store `#ff0`; read six digits off it and every channel
+ * is `NaN`, which reads as "white is fine" — the exact defect this is here for.
+ */
+function relativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '')
+  const digits = clean.length === 3 ? [...clean].map((digit) => digit + digit).join('') : clean
+  const channel = (offset: number) => {
+    const value = parseInt(digits.substring(offset, offset + 2), 16) / 255
+
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  }
+
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}
+
+/**
  * Neutral, non-brand structural styles shared across templates. Brand colors
  * never appear here — they are resolved per-send from `EmailBrand`.
  */
@@ -296,7 +366,7 @@ function brandButtonVariantStyle(brand: EmailBrand, variant: BrandButtonVariant)
         border: `1px solid ${brand.colors.primary}`,
       }
     : {
-        color: '#ffffff',
+        color: brandTextColor(brand.colors),
         backgroundColor: brand.colors.primary,
         backgroundImage: brandGradient(brand.colors),
       }
@@ -457,7 +527,9 @@ export function EmailLayout({ brand, heading, previewText, children, footer }: E
                 style={icon}
               />
             ) : null}
-            <Heading style={headerTitle}>{brand.productName}</Heading>
+            <Heading style={{ ...headerTitle, color: brandTextColor(brand.colors) }}>
+              {brand.productName}
+            </Heading>
           </Section>
           <Section style={card}>
             {heading ? (
@@ -479,12 +551,16 @@ export function EmailLayout({ brand, heading, previewText, children, footer }: E
   )
 }
 
+// ⚠ Inline only, never a media query: react-email moves a Section's padding
+// onto an inner `<td>` a class cannot reach in every client. The side padding is
+// what a phone loses three times over, so it is kept narrow everywhere — the
+// 600px container already centres itself on a wide screen.
 const main: CSSProperties = {
   backgroundColor: '#ffffff',
   fontFamily: 'Arial, sans-serif',
   color: '#333333',
   lineHeight: '1.6',
-  padding: '20px',
+  padding: '20px 0',
 }
 
 const container: CSSProperties = {
@@ -493,7 +569,7 @@ const container: CSSProperties = {
 }
 
 const header: CSSProperties = {
-  padding: '30px',
+  padding: '28px 20px',
   textAlign: 'center',
   borderRadius: '8px 8px 0 0',
 }
@@ -508,14 +584,13 @@ const icon: CSSProperties = {
 }
 
 const headerTitle: CSSProperties = {
-  color: '#ffffff',
   margin: 0,
   fontSize: '24px',
 }
 
 const card: CSSProperties = {
   backgroundColor: '#f9f9f9',
-  padding: '30px',
+  padding: '28px 20px',
   borderRadius: '0 0 8px 8px',
 }
 
@@ -542,7 +617,6 @@ const buttonInRow: CSSProperties = {
 }
 
 const button: CSSProperties = {
-  color: '#ffffff',
   padding: '14px 30px',
   borderRadius: '5px',
   fontWeight: 'bold',
@@ -577,7 +651,7 @@ const stackedValue: CSSProperties = { fontSize: '16px', margin: 0 }
 const detailBlock: CSSProperties = {
   backgroundColor: '#ffffff',
   borderRadius: '6px',
-  padding: '4px 20px',
+  padding: '4px 16px',
   margin: '0 0 24px',
 }
 // Neutral rather than the brand accent, which the links and the CTA carry.

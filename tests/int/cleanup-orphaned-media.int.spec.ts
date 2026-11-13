@@ -48,6 +48,7 @@ interface CleanupResult {
   trashedFiles: number
   trashedImages: number
   skippedImages: number
+  skippedReferenced: number
   errors: number
   dryRun: boolean
 }
@@ -778,13 +779,11 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
   /**
-   * ⚠ These cases go last on purpose. Each fixture here creates a `files` row,
-   * and `scanCollectionForLexicalReferences` collects upload ids from Lexical
-   * content without regard to the collection they belong to — so an image id
-   * counts as a referenced file id. Inserting a case earlier shifts the file
-   * ids of every case after it, and one then lands on an image id and is
-   * spared as "referenced". That aliasing is a defect in the job, not in the
-   * spec; appending keeps it from deciding whether the suite passes.
+   * These cases used to have to go last. Each fixture here creates a `files`
+   * row, and a Lexical upload id counted for both collections, so an image id
+   * read as a referenced file id and the file ids a case happened to land on
+   * decided whether the suite passed. The scan now matches the collection a
+   * node names (#1118), so the order is free.
    */
   describe('Phase A: Trash Retention', () => {
     /**
@@ -840,6 +839,76 @@ describe('CleanupOrphanedMedia Job', () => {
       expect(await fileInTrash(payload, videoFile.id)).toBe(false)
     })
 
+    // `introAudio` became localized in #1016, and the job needed no change for
+    // it: `schemaUtils` reads each field's own `localized` flag while walking
+    // the schema, and the scan reads `locale: 'all'`. This asserts that rather
+    // than restating it — a recording attached in Czech alone is in use.
+    it('preserves a recording referenced only by a non-English intro audio', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
+    // ⚠ **A cascade child is not a user of its parent.** `transcripts.source`
+    // points at the `files` row the cue set belongs to, and `Files.ts` deletes
+    // that row when the file goes — so the pointer cannot be the reason the
+    // file is still in use. The reference walk saw it as one, and a recording
+    // that had ever had cues made was never trashed again: measured before the
+    // fix at `exists: true, trashed: false` with no lesson referencing it in
+    // any locale (#1016). Every MP3 is transcribed as it is saved since then,
+    // so every recording carries such a row: the upload below makes it.
+    const transcriptCount = async (fileId: number): Promise<number> =>
+      (
+        await payload.count({
+          collection: 'transcripts',
+          where: { source: { equals: { relationTo: 'files', value: fileId } } },
+          overrideAccess: true,
+        })
+      ).totalDocs
+
+    it('trashes a recording whose only reference is its own cue row', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      expect(await transcriptCount(recording.id)).toBe(1)
+
+      await runCleanupJob(payload)
+
+      expect(await fileInTrash(payload, recording.id)).toBe(true)
+    })
+
+    // The other half, and the one that makes the fix safe: the skip is the
+    // exact cascade field, so a lesson's own reference still protects the file
+    // even while a cue row names it too.
+    it('still preserves a recording a lesson references, cue row or not', async () => {
+      const recording = await testData.createFile(payload, {}, 'audio-42s.mp3')
+      await backdateCreatedAt(payload, 'files', recording.id)
+      const lesson = await testData.createLesson(payload)
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'cs',
+        data: { introAudio: recording.id },
+      })
+      expect(await transcriptCount(recording.id)).toBe(1)
+
+      await runCleanupJob(payload)
+
+      expect(await fileExists(payload, recording.id)).toBe(true)
+      expect(await fileInTrash(payload, recording.id)).toBe(false)
+    })
+
     it('preserves an image referenced only by an unpublished draft', async () => {
       // A draft save writes the versions table alone, so the main row never sees it.
       const image = await testData.createMediaImage(payload)
@@ -855,6 +924,92 @@ describe('CleanupOrphanedMedia Job', () => {
       await runCleanupJob(payload)
 
       expect(await imageExists(payload, image.id)).toBe(true)
+    })
+  })
+
+  describe('Phase A: Referenced trash', () => {
+    // Last in the file, after the throughput cases, for the reason the
+    // localized ones above are: these runs raise `maxOperations` so the whole
+    // expired backlog fits one Phase A page, which would otherwise decide
+    // whether a fixture is even looked at. That spends the budget those cases
+    // measure.
+    const RUN = { maxOperations: 50 }
+
+    it('spares a trashed image a published page still references', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createPage(payload, { content: createLexicalWithTextBoxBlock(image.id) })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('spares a trashed file referenced only by a non-English panel', async () => {
+      const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
+      const lesson = await testData.createLesson(payload, { panels: [{ title: 'English' }] })
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { panels: [{ media: videoFile.id }] },
+      })
+      await trashLongAgo(payload, 'files', videoFile.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, videoFile.id)).toBe(true)
+    })
+
+    it('spares a trashed image referenced only under a named tab', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createAppCard(payload, { default: { image: image.id } })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('still deletes expired trash nothing references', async () => {
+      const file = await testData.createFile(payload)
+      await trashLongAgo(payload, 'files', file.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, file.id)).toBe(false)
+    })
+
+    it('reports the same skipped count under dryRun as a live run', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createPage(payload, { content: createLexicalWithTextBoxBlock(image.id) })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const dry = await runCleanupJob(payload, { ...RUN, dryRun: true })
+      const live = await runCleanupJob(payload, RUN)
+
+      expect(dry.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(dry.skippedReferenced).toBe(live.skippedReferenced)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('scans references once a run, not once a phase', async () => {
+      // The scan walks every collection twice over, so a second one is the
+      // most expensive thing this job can do by accident.
+      const info = vi.spyOn(payload.logger, 'info')
+      try {
+        await runCleanupJob(payload, RUN)
+        const scans = info.mock.calls.filter(
+          ([entry]) => (entry as { msg?: string } | undefined)?.msg === 'Reference scan completed',
+        )
+        expect(scans).toHaveLength(1)
+      } finally {
+        info.mockRestore()
+      }
     })
   })
 })

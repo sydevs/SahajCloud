@@ -1,6 +1,8 @@
 import * as qs from 'qs-esm'
 
-import type { TranscriptSegment } from '@/lib/meditations/transcript'
+import type { RecordingCollection } from '@/lib/transcripts/media'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
+import type { Transcript } from '@/payload-types'
 
 /** A pause this long between phrases starts a new paragraph. */
 const PARAGRAPH_GAP_MS = 3000
@@ -20,8 +22,13 @@ export type TranscriptParagraph = {
 }
 
 /**
- * The collection query the tab reads, or `null` without a document id or a
+ * The collection query the panel reads, or `null` without a recording id or a
  * locale.
+ *
+ * A file's row brings the file's `spokenLanguage` with it (`spokenLanguageOf`),
+ * so the language a run detects reaches the screen on the poll that brings its
+ * cues. Nothing else of the recording is populated: a meditation's is its whole
+ * document.
  *
  * A manager's roles are per locale, so the request must name the active admin
  * locale — one naming none resolves to the default locale and 403s a manager
@@ -31,36 +38,65 @@ export type TranscriptParagraph = {
  * refuses to build a URL instead, and the caller reports it.
  */
 export const transcriptUrl = (
-  meditationId: number | string | undefined,
+  recordingId: number | string | undefined,
   locale: string | undefined,
+  relationTo: RecordingCollection = 'meditations',
 ): string | null =>
-  meditationId && locale
+  recordingId && locale
     ? `/api/transcripts${qs.stringify(
         {
-          depth: 0,
+          ...(relationTo === 'files'
+            ? { depth: 1, populate: { files: { spokenLanguage: true } } }
+            : { depth: 0 }),
           limit: 1,
           locale,
           // `qs` serialises the nested object, and `sanitizeQueryValue` reads
           // it back through the same guard the Local API uses.
-          where: { source: { equals: { relationTo: 'meditations', value: meditationId } } },
+          where: { source: { equals: { relationTo, value: recordingId } } },
+        },
+        { addQueryPrefix: true },
+      )}`
+    : null
+
+/** The language a file states, off a row `transcriptUrl` read. */
+export function spokenLanguageOf(row: Transcript | undefined): string | null {
+  const source = row?.source
+  return source?.relationTo === 'files' && typeof source.value === 'object'
+    ? (source.value.spokenLanguage ?? null)
+    : null
+}
+
+/**
+ * The read of a file an upload field holds, or `null` without a file id or a
+ * locale (`transcriptUrl` says why). A list read with an `id` filter rather
+ * than a document read, so a file the editor cannot read answers an empty list
+ * instead of an error.
+ */
+export const fileUrl = (fileId: number | null, locale: string | undefined): string | null =>
+  fileId && locale
+    ? `/api/files${qs.stringify(
+        {
+          depth: 0,
+          limit: 1,
+          locale,
+          select: { filename: true, mimeType: true, mp4Url: true, url: true },
+          where: { id: { equals: fileId } },
         },
         { addQueryPrefix: true },
       )}`
     : null
 
 /**
- * Where the Transcribe-again button posts, or `null` without a document id or a
+ * Where the Transcribe button posts, or `null` without a recording id or a
  * locale — `transcriptUrl`'s own docblock carries why both are required.
  */
 export const transcribeUrl = (
-  meditationId: number | string | undefined,
+  recordingId: number | string | undefined,
   locale: string | undefined,
+  relationTo: RecordingCollection = 'meditations',
 ): string | null =>
-  meditationId && locale
-    ? `/api/meditations/${meditationId}/transcribe${qs.stringify(
-        { locale },
-        { addQueryPrefix: true },
-      )}`
+  recordingId && locale
+    ? `/api/${relationTo}/${recordingId}/transcribe${qs.stringify({ locale }, { addQueryPrefix: true })}`
     : null
 
 /**
@@ -107,20 +143,37 @@ export function groupTranscript(segments: TranscriptSegment[]): TranscriptParagr
   return paragraphs
 }
 
-/** The whole second a phrase or paragraph plays from, which is what a seek asks for. */
+/**
+ * The second a phrase plays from on the live preview, which takes and reports
+ * whole seconds only.
+ */
 export const seekSecond = (timeMs: number): number => Math.floor(timeMs / 1000)
+
+/** The second a phrase plays from on a media element, which seeks to the millisecond. */
+export const exactSecond = (timeMs: number): number => timeMs / 1000
+
+/**
+ * How far before a phrase's start the playhead may read and still be inside
+ * it: a media element seeked to a phrase can report a hair less than the time
+ * it was given. Below one second, so whole-second playheads compare unchanged.
+ */
+const SEEK_TOLERANCE_SECONDS = 0.05
 
 /**
  * The phrase being spoken at `playheadSeconds`, or `-1` in a pause.
  *
- * A phrase counts from the whole second it starts in, because a click seeks
- * there and the preview reports only whole seconds — so it must light up at
- * once rather than a fraction of a second later.
+ * A phrase counts from the second a click on it seeks to (`startOf`), so it
+ * lights up at once rather than a moment later — on the live preview that is
+ * the whole second it starts in.
  */
-export function activeSegmentIndex(segments: TranscriptSegment[], playheadSeconds: number): number {
+export function activeSegmentIndex(
+  segments: TranscriptSegment[],
+  playheadSeconds: number,
+  startOf: (timeMs: number) => number = seekSecond,
+): number {
   for (let index = segments.length - 1; index >= 0; index -= 1) {
     const segment = segments[index]
-    if (seekSecond(segment.startTimeMs) <= playheadSeconds) {
+    if (startOf(segment.startTimeMs) <= playheadSeconds + SEEK_TOLERANCE_SECONDS) {
       return playheadSeconds < segment.endTimeMs / 1000 + HIGHLIGHT_GRACE_SECONDS ? index : -1
     }
   }

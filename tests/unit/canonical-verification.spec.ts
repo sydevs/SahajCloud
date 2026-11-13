@@ -266,12 +266,14 @@ describe('supportsClassAddresses', () => {
 })
 
 describe('isBrandColor and effectiveColor', () => {
-  it('reads black, white and grey as unset, as the widget does', () => {
-    for (const value of ['#000000', '#FFFFFF', '#808080', '#000', null, undefined, '', 'teal']) {
+  it('reads only the unconfigured black as unset, as the widget does', () => {
+    for (const value of ['#000000', '#000', null, undefined, '', 'teal']) {
       expect(isBrandColor(value)).toBe(false)
     }
-    expect(isBrandColor('#7B4EA8')).toBe(true)
-    expect(isBrandColor('#f60')).toBe(true)
+    // A grey or a white is somebody's choice, and the widget paints it.
+    for (const value of ['#7B4EA8', '#f60', '#FFFFFF', '#808080', '#fffdfa']) {
+      expect(isBrandColor(value)).toBe(true)
+    }
   })
 
   it('paints the default for an unset column and the service’s own otherwise', () => {

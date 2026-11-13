@@ -190,15 +190,6 @@
   justify-self: stretch;
 }
 
-/* A text-link button inside a banner: Payload's 'none' style keeps the banner's font. */
-.inlineAction {
-  margin: 0;
-  padding: 0;
-  font-weight: 600;
-  text-decoration: underline;
-  color: inherit;
-}
-
 .inlineChoice {
   display: grid;
   gap: calc(var(--base) * 0.25);
