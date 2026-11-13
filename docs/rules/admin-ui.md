@@ -160,6 +160,8 @@ Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
 ⚠ **So `custom.scss` may name only what Payload's own stylesheet names.** Unlayered also means a selector that stops matching stops silently — the rule never applies and the page still renders — so a renamed class or a dropped variable surfaces a release later, on the one screen the rule was for. `tests/unit/admin-custom-css.spec.ts` pins every class and variable the sheet spells against the CSS both Payload packages ship, and four `:root` overrides had already outlived their variables. A class Payload renders but never styles cannot be pinned, so the group-divider rule matches the wrapper's position instead of its name.
 
+⚠ **And a variable Payload declares per breakpoint has to be overridden per breakpoint.** One flat `:root` value cancels every narrowing below it, which is a desktop gutter on a phone — so the sheet restates `--gutter-h` inside Payload's own small break, and that spec pins the query's width and the value to Payload's `$breakpoint-s-width` and `base()`.
+
 ## Server vs client components
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.

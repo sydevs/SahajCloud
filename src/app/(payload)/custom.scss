@@ -18,6 +18,18 @@
   --base-body-size: 14px;
 }
 
+/* Payload narrows `--gutter-h` at two widths, and this sheet is unlayered, so
+   one flat value cancels both. Only the narrower one is a loss: 24px is already
+   tighter than the 60px Payload gives a desktop and the 40px it gives a tablet,
+   and wider than the 16px it gives a phone — which on a 390px screen is 4% of
+   the width handed back. `admin-custom-css.spec.ts` pins the query and the
+   value to Payload's own, so a change to either reds the unit lane. */
+@media (max-width: 768px) {
+  :root {
+    --gutter-h: 16px;
+  }
+}
+
 /* ============================================================================
    2. CLICK TARGET IMPROVEMENTS
    ============================================================================ */

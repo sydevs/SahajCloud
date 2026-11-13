@@ -23,6 +23,8 @@ const ROOT = resolve(__dirname, '../..')
 const SHEET = join(ROOT, 'src/app/(payload)/custom.scss')
 const COMPONENTS = join(ROOT, 'src/components')
 const PAYLOAD_SCSS = join(ROOT, 'node_modules/@payloadcms/ui/dist/scss')
+const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
+const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
 
 /** Classes this repo's own components render. Everything else is Payload's. */
 const OUR_CLASSES = [
@@ -93,6 +95,36 @@ describe('custom.scss', () => {
   it('reads and overrides only variables Payload still declares', () => {
     const unknown = variables.filter((name) => !styles.includes(`${name}:`))
     expect(unknown).toEqual([])
+  })
+
+  /**
+   * The sheet flattens `--gutter-h`, which Payload declares at three widths, so
+   * it restates the narrowest one. Both halves come from Payload's own source:
+   * a breakpoint it moves, or a gutter it retunes, must red this rather than
+   * leave a phone on a desktop gutter.
+   */
+  it('restates Payload’s narrow gutter at Payload’s own breakpoint', () => {
+    const vars = readFileSync(PAYLOAD_VARS, 'utf8')
+    const app = readFileSync(PAYLOAD_APP, 'utf8')
+
+    const breakpoint = /\$breakpoint-s-width:\s*(\d+)px/.exec(vars)?.[1]
+    const baseline = /\$baseline-px:\s*(\d+)px/.exec(vars)?.[1]
+    const multiplier = /@include small-break \{[\s\S]*?--gutter-h:\s*#\{base\(([\d.]+)\)\}/.exec(
+      app,
+    )?.[1]
+
+    // A parse that stopped matching would pass every assertion below.
+    expect({ baseline, breakpoint, multiplier }).toEqual({
+      baseline: '20',
+      breakpoint: '768',
+      multiplier: '0.8',
+    })
+
+    const gutter = Number(baseline) * Number(multiplier)
+    expect(sheet).toContain(`@media (max-width: ${breakpoint}px)`)
+    expect(sheet.slice(sheet.indexOf(`@media (max-width: ${breakpoint}px)`))).toContain(
+      `--gutter-h: ${gutter}px`,
+    )
   })
 
   it('claims as its own only classes this repo renders, and still uses each', () => {
