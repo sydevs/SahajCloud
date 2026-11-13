@@ -91,7 +91,7 @@ export function OpenItemsList({
       {open === 0 && (
         <Banner type="success">
           {counts.recommendations > 0
-            ? `${emptyBanner} The suggestions below are optional.`
+            ? `${emptyBanner} Below are optional recommendations to improve your event listings.`
             : emptyBanner}
         </Banner>
       )}
