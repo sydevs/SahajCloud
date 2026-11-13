@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { cmsHighlights } from '@/emails/AtlasMigrationEmail'
 
-import { selectRecipients } from '../../scripts/atlas-migration-recipients'
+import { selectInstallRecipients, selectRecipients } from '../../scripts/atlas-migration-recipients'
 
 const manager = (id: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -52,6 +52,61 @@ describe('selectRecipients', () => {
     const [recipient] = select({ managers: [manager(5)], liveEventManagers: [5] })
 
     expect(recipient?.email).toBe('m5@example.com')
+  })
+})
+
+describe('selectInstallRecipients', () => {
+  const service = (id: number, extra: Record<string, unknown> = {}) => ({
+    id,
+    label: `Service ${id}`,
+    legacyId: id,
+    enabled: true,
+    roles: ['sahaj-atlas-client'],
+    site: { domain: `site${id}.example`, track: null },
+    managers: [1],
+    ...extra,
+  })
+  const select = (args: Partial<Parameters<typeof selectInstallRecipients>[0]>) =>
+    selectInstallRecipients({
+      managers: [manager(1), manager(2), manager(3, { type: 'admin' })],
+      services: [],
+      adopted: new Set(),
+      alreadySent: new Set(),
+      ...args,
+    })
+
+  it('mails each manager of an imported service still on the old map, once per service', () => {
+    const recipients = select({ services: [service(10, { managers: [1, { id: 2 }, 3] })] })
+
+    expect(recipients.map((r) => [r.managerId, r.service, r.key])).toEqual([
+      [1, { id: 10, label: 'Service 10', domain: 'site10.example' }, 'm1@example.com clients/10'],
+      [2, { id: 10, label: 'Service 10', domain: 'site10.example' }, 'm2@example.com clients/10'],
+    ])
+  })
+
+  it('skips a service with nothing to install, or whose install is already in hand', () => {
+    const recipients = select({
+      services: [
+        service(11, { legacyId: null }),
+        service(12, { enabled: false }),
+        service(13, { roles: ['wemeditate-web-client'] }),
+        service(14, { site: { domain: null } }),
+        service(15, { site: { domain: 'site15.example', track: 'wix' } }),
+        service(16),
+      ],
+      adopted: new Set([16]),
+    })
+
+    expect(recipients).toEqual([])
+  })
+
+  it('skips a pair the ledger already holds', () => {
+    const recipients = select({
+      services: [service(20), service(21)],
+      alreadySent: new Set(['m1@example.com clients/20']),
+    })
+
+    expect(recipients.map((r) => r.service.id)).toEqual([21])
   })
 })
 

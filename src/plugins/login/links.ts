@@ -56,11 +56,12 @@ export async function inviteLinkUrl(
  * @param to - The admin path to land on. Refused unless under `/admin/`.
  * @param label - What the link opens, for the confirmation page.
  * @param tab - A tab to open that page on, by label. @see seedTabPreference
+ * @param ttlMs - How long it works, when not `LINK_TOKEN_TTL_MS`.
  */
 export async function pageLinkUrl(
   config: LoginCollectionConfig,
   userId: number | string,
-  { label, tab, to }: { label: string; tab?: string; to: string },
+  { label, tab, to, ttlMs }: { label: string; tab?: string; to: string; ttlMs?: number },
   secret: string,
   now: Date = new Date(),
 ): Promise<string> {
@@ -68,6 +69,7 @@ export async function pageLinkUrl(
     { ...claimsFor(config, userId, now), label, to, ...(tab && { tab }) },
     secret,
     now,
+    ttlMs,
   )
   return pageUrl(config, token)
 }
