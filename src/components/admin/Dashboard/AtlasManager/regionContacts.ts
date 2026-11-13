@@ -83,7 +83,10 @@ export async function loadRegionContacts(
 
   const { docs: contacts } = await req.payload.find({
     collection: 'managers',
-    where: { id: { in: [...nearestRegion.keys()] } },
+    // An inactive manager is refused every operation (`bypassPermissions.ts`),
+    // so they cannot add the event this drawer asks for. The `flatMap` below
+    // drops whoever the read leaves out.
+    where: { id: { in: [...nearestRegion.keys()] }, type: { not_equals: 'inactive' } },
     depth: 0,
     pagination: false,
     overrideAccess: true,

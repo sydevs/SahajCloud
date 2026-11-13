@@ -11,7 +11,8 @@
  *
  * The tree: a country above a region above a city, with the event in the city.
  * Each level has its own manager, the region two, and an unrelated region holds
- * the outsider.
+ * the outsider. The city lists a deactivated manager beside its own, who may
+ * add nothing and so is nobody to ask.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -60,12 +61,19 @@ describe('Manager contacts (#908)', () => {
         roles: [],
         currentProject: 'sahaj-atlas',
       })
-    const [adminRow, country, region, co, city, assignee, outside] = await Promise.all([
+    const [adminRow, country, region, co, city, dormant, assignee, outside] = await Promise.all([
       testData.createManager(payload, { type: 'admin' }),
       manager('Country Manager'),
       manager('Region Manager'),
       manager('Co Manager'),
       manager('City Manager'),
+      testData.createManager(payload, {
+        name: 'Dormant Manager',
+        email: 'dormant-manager@example.com',
+        roles: [],
+        currentProject: 'sahaj-atlas',
+        type: 'inactive',
+      }),
       testData.createManager(payload, {
         name: 'Event Assignee',
         email: REMINDER_DESTINATION,
@@ -102,7 +110,7 @@ describe('Manager contacts (#908)', () => {
         level: 'city',
         parent: regionRow.id,
         mapboxId: 'city.contacts',
-        managers: [city.id],
+        managers: [city.id, dormant.id],
       }),
     })
     cityId = cityRow.id
@@ -282,6 +290,13 @@ describe('Manager contacts (#908)', () => {
         ['Co Manager', 'Contacts Region'],
         ['Country Manager', 'Contacts Country'],
       ])
+    })
+
+    it('never names a deactivated manager, who may add nothing', async () => {
+      // Listed on the nearest region of all, so only the `type` filter keeps
+      // them out of the drawer.
+      const contacts = await contactsFor(eventManager)
+      expect(contacts.map((contact) => contact.name)).not.toContain('Dormant Manager')
     })
 
     it('carries the name, the region and a mailto-ready email, nothing else', async () => {
