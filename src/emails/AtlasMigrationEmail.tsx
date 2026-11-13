@@ -1,4 +1,4 @@
-import { Column, Row, Section, Text } from 'react-email'
+import { Column, Link, Row, Section, Text } from 'react-email'
 
 import type { EmailBrand } from '@/plugins/email'
 import type { Responsibility } from '@/plugins/login/grantSummary'
@@ -39,11 +39,6 @@ export const MAP_HIGHLIGHTS: Highlight[] = [
     text: 'by language, time of day, day of the week, location and more.',
   },
   {
-    icon: '📍',
-    title: 'Classes nearby.',
-    text: 'Visitors are offered the classes closest to them.',
-  },
-  {
     icon: '📅',
     title: 'A calendar view,',
     text: 'and people who register can add the class to their calendar and get a reminder.',
@@ -67,6 +62,11 @@ export function cmsHighlights(holds: {
   const region = holds.regions > 0
   return [
     {
+      icon: '👀',
+      title: 'Live preview.',
+      text: 'See exactly how a class will look on the map while you edit it.',
+    },
+    {
       icon: '🌴',
       title: 'Holiday breaks.',
       text: 'Better class controls, so you can pause a class over the holidays.',
@@ -80,11 +80,6 @@ export function cmsHighlights(holds: {
           },
         ]
       : []),
-    {
-      icon: '👀',
-      title: 'Live preview.',
-      text: 'See exactly how a class will look on the map while you edit it.',
-    },
     {
       icon: '💡',
       title: 'Tips for your listings.',
@@ -148,8 +143,17 @@ export function AtlasMigrationEmail({
         Hello <strong>{name}</strong>,
       </Text>
       <Text style={styles.paragraph}>
-        Sahaj Atlas has a new home for looking after your classes.{' '}
-        <strong>Everything you manage has already been moved across for you.</strong>
+        We have finally finished a major update to the Sahaj Atlas, and created a new interface for
+        both yogis and seekers to manage and find public programs worldwide. All data has already
+        been transferred. Please{' '}
+        <Link href="mailto:contact@sydevelopers.com" style={{ color: brand.colors.primary }}>
+          contact us
+        </Link>{' '}
+        if you need help. From now on you can edit programs at{' '}
+        <Link href="https://cloud.sydevelopers.com" style={{ color: brand.colors.primary }}>
+          cloud.sydevelopers.com
+        </Link>
+        .
       </Text>
 
       <SectionHeading>What you look after</SectionHeading>
