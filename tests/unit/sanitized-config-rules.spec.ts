@@ -502,3 +502,46 @@ describe('root endpoints in the filtered spec (OpenAPI)', () => {
     TIMEOUT,
   )
 })
+
+/**
+ * A `defaultColumns` entry is a column path, and one the list view cannot render
+ * gives no warning and no empty column, just a list missing what someone put
+ * there. `buildColumnState` is what renders, so this mirrors it rather than
+ * `uiNameClashes`' namespace rules: it hoists, so a named group's and a named
+ * tab's subfields are legitimate dotted entries, it matches on `accessor ?? name`,
+ * and it drops a group carrying no custom `Cell` — whose own name resolves and
+ * still renders nothing.
+ */
+const unresolvedDefaultColumns = (collection: SanitizedCollectionConfig): string[] => {
+  const names = new Set(
+    flattenTopLevelFields(collection.fields, {
+      keepPresentationalFields: true,
+      moveSubFieldsToTop: true,
+    }).flatMap((field) => {
+      const accessor = field.accessor ?? ('name' in field ? field.name : undefined)
+      if (!accessor) return []
+      const hasCustomCell =
+        'admin' in field &&
+        field.admin &&
+        'components' in field.admin &&
+        Boolean(field.admin.components?.Cell)
+      if (field.type === 'group' && !hasCustomCell) return []
+      return [accessor]
+    }),
+  )
+
+  return (collection.admin?.defaultColumns ?? [])
+    .filter((column) => !names.has(column))
+    .map((column) => `${collection.slug} > ${column}`)
+}
+
+describe('every default column names a field the list can render', { timeout: TIMEOUT }, () => {
+  it('resolves every entry', async () => {
+    const declaring = (await config).collections.filter(
+      (collection) => collection.admin?.defaultColumns?.length,
+    )
+
+    expect(declaring.length).toBeGreaterThan(0)
+    expect(declaring.flatMap(unresolvedDefaultColumns)).toEqual([])
+  })
+})

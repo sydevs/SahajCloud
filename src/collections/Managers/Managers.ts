@@ -46,6 +46,10 @@ export const Managers: CollectionConfig = {
     group: 'System',
     useAsTitle: 'name',
     defaultColumns: ['name', 'email', 'type', '_verified'],
+    // The Events list's Manager column batch-fetches this collection whole,
+    // four join subqueries per page. With this on, that batch selects `name`
+    // alone.
+    enableListViewSelectAPI: true,
   },
   // NOTE: `roles` below is `localized`, and this collection is an auth collection.
   // accessPlugin detects that pair and attaches the auth strategy and the three
