@@ -1,10 +1,7 @@
-import type { CollectionBeforeChangeHook, PayloadRequest } from 'payload'
+import type { CollectionBeforeChangeHook } from 'payload'
 
-import { extractID } from 'payload/shared'
-
-import type { LocaleCode } from '@/lib/locales'
+import { recordingLanguage } from '@/lib/transcripts/read'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
-import type { Transcript } from '@/payload-types'
 
 import { applyGlossary } from '../glossary'
 
@@ -39,45 +36,4 @@ export const applyGlossaryToSegments: CollectionBeforeChangeHook = async ({
   })
 
   return corrected ? { ...data, segments } : data
-}
-
-/**
- * The language a transcript's recording states: a meditation's `locale`, a
- * file's `spokenLanguage` (#1016).
- *
- * Read with `req`, because the run writes a detected language to the file just
- * before the cues, in the same request. The meditation is read as its draft,
- * which is the recording the run transcribed.
- */
-async function recordingLanguage(
-  req: PayloadRequest,
-  source: Transcript['source'] | undefined,
-): Promise<LocaleCode | null> {
-  if (!source?.value) return null
-  const id = extractID(source.value)
-  if (source.relationTo === 'meditations') {
-    const meditation = await req.payload.findByID({
-      collection: 'meditations',
-      id,
-      depth: 0,
-      draft: true,
-      disableErrors: true,
-      overrideAccess: true,
-      select: { locale: true },
-      trash: true,
-      req,
-    })
-    return meditation?.locale ?? null
-  }
-  const file = await req.payload.findByID({
-    collection: 'files',
-    id,
-    depth: 0,
-    disableErrors: true,
-    overrideAccess: true,
-    select: { spokenLanguage: true },
-    trash: true,
-    req,
-  })
-  return file?.spokenLanguage ?? null
 }

@@ -3,6 +3,7 @@ import type { Payload, PayloadRequest, Where } from 'payload'
 
 import { extractID } from 'payload/shared'
 
+import type { LocaleCode } from '@/lib/locales'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Subtitles } from '@/lib/utilities/subtitles'
 import type { Transcript } from '@/payload-types'
@@ -167,4 +168,45 @@ async function loadSubtitles(
     cues.set(Number(extractID(value)), segments)
   }
   return cues
+}
+
+/**
+ * Where a recording states the language it is spoken in: a meditation's own
+ * `locale`, a file's `spokenLanguage` (#1016).
+ *
+ * One table, because the save hook and the glossary pass both need the answer,
+ * and a second spelling is a second chance to read the wrong column.
+ */
+export const RECORDING_LANGUAGE_FIELD = {
+  files: 'spokenLanguage',
+  meditations: 'locale',
+} as const satisfies Record<RecordingCollection, string>
+
+/**
+ * The language the recording behind a transcript states, or `null` where it
+ * states none.
+ *
+ * Read with `req`, because the run writes a detected language to the file just
+ * before the cues, in the same request. `draft: true` reads a meditation as its
+ * draft — the recording the run transcribed — and Payload ignores it on a
+ * collection with no drafts, so neither kind needs a branch of its own.
+ */
+export async function recordingLanguage(
+  req: PayloadRequest,
+  source: Transcript['source'] | undefined,
+): Promise<LocaleCode | null> {
+  if (!source?.value) return null
+  const field = RECORDING_LANGUAGE_FIELD[source.relationTo]
+  const recording = await req.payload.findByID({
+    collection: source.relationTo,
+    id: extractID(source.value),
+    depth: 0,
+    draft: true,
+    disableErrors: true,
+    overrideAccess: true,
+    select: { [field]: true },
+    trash: true,
+    req,
+  })
+  return ((recording as Record<string, unknown> | null)?.[field] as LocaleCode | null) ?? null
 }

@@ -5,7 +5,12 @@ import { createLocalReq } from 'payload'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 import { type RecordingCollection, transcribableMedia } from './media'
-import { findTranscript, type TranscriptSource, whereSource } from './read'
+import {
+  findTranscript,
+  RECORDING_LANGUAGE_FIELD,
+  type TranscriptSource,
+  whereSource,
+} from './read'
 
 /**
  * The `req.context` key a run sets when it writes the language it detected
@@ -71,8 +76,8 @@ export async function replaceTranscript(
  * language the recording says it is in (#897's 2026-10-12 Decision —
  * transcribed "by itself when a recording is added").
  *
- * `languageField` is where the recording states that language: a meditation's
- * `locale`, a file's `spokenLanguage` (#1016). The run reads it from there.
+ * Which column states that language is `RECORDING_LANGUAGE_FIELD`'s, so this
+ * hook and the glossary pass cannot read different ones.
  *
  * **A video's first run does not start here.** It is a Cloudflare Stream
  * upload whose MP4 — the only form the vendor can fetch — exists only after
@@ -94,11 +99,9 @@ export async function replaceTranscript(
  * where Payload hard-codes an empty `context`.
  */
 export const syncTranscriptOnSave =
-  (
-    relationTo: RecordingCollection,
-    languageField: 'locale' | 'spokenLanguage',
-  ): CollectionAfterChangeHook =>
+  (relationTo: RecordingCollection): CollectionAfterChangeHook =>
   async ({ context, doc, previousDoc, req }) => {
+    const languageField = RECORDING_LANGUAGE_FIELD[relationTo]
     const media = transcribableMedia(doc.mimeType)
     const audioFilename = doc.filename
     if (!media || !audioFilename) return doc

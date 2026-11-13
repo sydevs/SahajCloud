@@ -122,7 +122,7 @@ export const Meditations: CollectionConfig = {
       extractAudioDuration,
       cacheMeditationNodeWeights,
     ],
-    afterChange: [syncTranscriptOnSave('meditations', 'locale')],
+    afterChange: [syncTranscriptOnSave('meditations')],
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   defaultPopulate: {

@@ -31,7 +31,7 @@ export const Files: CollectionConfig = {
   endpoints: [fileTranscribe],
   hooks: {
     beforeChange: [restrictUploadToAdmin({ label: 'file' })],
-    afterChange: [syncTranscriptOnSave('files', 'spokenLanguage')],
+    afterChange: [syncTranscriptOnSave('files')],
     beforeDelete: [deleteChildren({ collection: 'transcripts', field: 'source' })],
   },
   admin: {
