@@ -482,7 +482,7 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
           </InfoBanner>
           {apiKey === null ? (
             <InfoBanner
-              action={<a href={editUrl}>Generate one on the Edit tab</a>}
+              action={{ href: editUrl, label: 'Generate one on the Edit tab' }}
               title="No API key yet"
               type="error"
             >
@@ -794,22 +794,12 @@ const EMBED_HEIGHT_LABELS: Record<EmbedHeight, { label: string; description: str
   },
 }
 
-/** A step's or a track's notice, with a text-link button where it offers another track. */
+/** A step's or a track's notice, with a button where it offers another track. */
 function NoticeBanner({ notice, onSwitch }: { notice: Notice; onSwitch: (to: TrackId) => void }) {
   const { action } = notice
   return (
     <InfoBanner
-      action={
-        action ? (
-          <Button
-            buttonStyle="none"
-            className={styles.inlineAction}
-            onClick={() => onSwitch(action.to)}
-          >
-            {action.label}
-          </Button>
-        ) : undefined
-      }
+      action={action ? { label: action.label, onClick: () => onSwitch(action.to) } : undefined}
       title={notice.title}
       type={notice.tone ?? 'default'}
     >

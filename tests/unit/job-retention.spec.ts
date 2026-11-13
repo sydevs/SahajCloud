@@ -11,7 +11,7 @@ import {
   STALE_JOB_MS,
 } from '@/collections/PayloadJobs/PayloadJobs'
 import { dueWindows } from '@/jobs/CleanupCollections/sweepCollection'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcriptBounds'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import { IMPORT_STALL_MS } from '@/plugins/eventImport/constants'
 
 describe('job retention', () => {

@@ -1,0 +1,144 @@
+<!doctype html>
+<!--
+  The page atlas.sydevelopers.com/cms* redirects to while the final Atlas data
+  sync runs (the Cloudflare rule on the sydevelopers.com zone). Once the import
+  is verified, that rule points at /admin instead.
+  shortcut: a one-off for the Atlas cutover, delete it once the rule no longer points here.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Sahaj Atlas is moving</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f5f2;
+        --card: #ffffff;
+        --text: #2b2b2b;
+        --muted: #666666;
+        --accent: #b4235a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #161616;
+          --card: #222222;
+          --text: #eeeeee;
+          --muted: #aaaaaa;
+          --accent: #f07aa3;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 34rem;
+        margin: 1rem;
+        padding: 2rem 2.25rem;
+        background: var(--card);
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 1.5rem;
+      }
+      p.small {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+      }
+      ul.highlights {
+        list-style: none;
+        padding: 0;
+      }
+      ul.highlights li {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 0.6rem;
+      }
+      ul.highlights span {
+        font-size: 1.2rem;
+        line-height: 1.6;
+      }
+      a {
+        color: var(--accent);
+      }
+      a.button {
+        display: inline-block;
+        padding: 0.65rem 1.25rem;
+        border-radius: 999px;
+        background: var(--accent);
+        color: var(--card);
+        font-weight: 600;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>🚚 Sahaj Atlas is moving to a new home</h1>
+      <p>
+        We are moving every class to the new Sahaj Atlas. While we do,
+        <strong>classes can't be edited.</strong> It takes a few hours, and we will email you as
+        soon as it is ready.
+      </p>
+      <p><strong>Nothing is lost:</strong> everything you have entered is coming with you.</p>
+      <h2>What's new on the map</h2>
+      <ul class="highlights">
+        <li>
+          <span>🔍</span>
+          <div>
+            <strong>Search filters</strong> by language, time of day, day of the week, location and
+            more.
+          </div>
+        </li>
+        <li>
+          <span>📅</span>
+          <div>
+            <strong>A calendar view,</strong> and people who register can add the class to their
+            calendar and get a reminder.
+          </div>
+        </li>
+        <li>
+          <span>🔗</span>
+          <div>
+            <strong>Easy sharing.</strong> Visitors can share a class with friends in one tap.
+          </div>
+        </li>
+        <li>
+          <span>🌸</span>
+          <div><strong>A fresh new look</strong> that is clean and polished.</div>
+        </li>
+        <li>
+          <span>📱</span>
+          <div><strong>Easier on phones</strong> wherever people find your classes.</div>
+        </li>
+        <li>
+          <span>🛠️</span>
+          <div><strong>And much more:</strong> many small improvements and bug fixes!</div>
+        </li>
+      </ul>
+      <p><a class="button" href="https://sahajatlas.com">See the new map</a></p>
+      <p class="small">
+        Questions? Write to
+        <a href="mailto:contact@sydevelopers.com">contact@sydevelopers.com</a>.
+      </p>
+    </main>
+  </body>
+</html>

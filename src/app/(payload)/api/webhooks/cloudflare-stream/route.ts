@@ -14,19 +14,26 @@
  * `src/plugins/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
  * just a Next.js route handler wrapper.
  *
+ * A ready video that is a `files` row also starts its transcript (#1016) —
+ * the one step here that needs Payload, so it is booted only for that step.
+ *
  * @see https://developers.cloudflare.com/stream/manage-video-library/using-webhooks/
  */
 import type { NextRequest } from 'next/server'
 
 import { NextResponse } from 'next/server'
+import { getPayload } from 'payload'
 
 import { serverEnv } from '@/lib/env'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
+import { transcribeStreamVideo } from '@/lib/transcripts/sync'
 import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 
+import config from '@payload-config'
+
 // The webhook handler is pure and doesn't touch Payload, so we skip getPayload()
-// and use the worker-safe logger directly. This keeps cold-start latency low on
+// until a ready video needs it, and use the worker-safe logger directly. This keeps cold-start latency low on
 // Cloudflare Workers, where Cloudflare Stream retries on non-2xx.
 // createWorkerSafeLogger is typed as Config['logger'] (a union including option
 // shapes and undefined); at runtime it returns a Pino-compatible instance with
@@ -52,6 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     accountId: serverEnv.CLOUDFLARE_ACCOUNT_ID,
     apiKey: serverEnv.CLOUDFLARE_API_KEY,
     logger,
+    onReady: async (uid) => transcribeStreamVideo(await getPayload({ config }), uid),
   })
 
   return NextResponse.json(result.body, { status: result.status })

@@ -7,7 +7,7 @@ import {
   TRANSCRIPTION_STALL_MS,
   type TranscriptPhase,
   transcriptPhase,
-} from '@/lib/meditations/transcriptBounds'
+} from '@/lib/transcripts/bounds'
 import type { Transcript } from '@/payload-types'
 
 /**

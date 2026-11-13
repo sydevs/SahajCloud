@@ -32,9 +32,9 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { __resetPlaybackTimeStoreForTests } from '@/components/admin/FrameEditor/playbackTimeStore'
-import { TRANSCRIPTION_STALL_MS } from '@/lib/meditations/transcript'
-import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/meditations/transcriptBounds'
+import { __resetPlaybackTimeStoreForTests } from '@/components/admin/helpers/playbackTimeStore'
+import { RETRANSCRIBE_COOLDOWN_MS } from '@/lib/transcripts/bounds'
+import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import type { Transcript } from '@/payload-types'
 
 const PREVIEW_ORIGIN = 'https://preview.example'
@@ -79,6 +79,12 @@ vi.mock('@payloadcms/ui', () => ({
     onClick?: () => void
   }) =>
     createElement('button', { 'data-retry': 'true', disabled, onClick, type: 'button' }, children),
+  // `InfoBanner`'s status icons. They render nothing here: what is asserted
+  // is the notice's text beside them.
+  ErrorIcon: () => null,
+  InfoIcon: () => null,
+  SuccessIcon: () => null,
+  WarningIcon: () => null,
   Spinner: ({ loadingText }: { loadingText?: string | null }) =>
     createElement('div', { 'data-spinner': 'true' }, loadingText),
   toast: { error: stub.toastError, success: stub.toastSuccess },
@@ -115,7 +121,6 @@ const row = (overrides: Partial<Transcript> = {}): Transcript => ({
   source: { relationTo: 'meditations', value: 7 },
   audioFilename: 'calm.mp3',
   provider: 'lemonfox',
-  language: 'en',
   segments: null,
   status: 'completed',
   error: null,
@@ -134,7 +139,7 @@ const SEGMENTS = [
 const fetchMock = vi.fn()
 
 describe('the Transcript tab', () => {
-  let MeditationTranscript: UIFieldClientComponent
+  let MeditationTranscriptField: UIFieldClientComponent
   let container: HTMLDivElement
   let root: Root
 
@@ -157,9 +162,9 @@ describe('the Transcript tab', () => {
     stub.swrCalls = []
     stub.iframe = iframeRef
 
-    MeditationTranscript = (
-      await import('@/components/admin/MeditationTranscript/MeditationTranscript')
-    ).MeditationTranscript
+    MeditationTranscriptField = (
+      await import('@/components/admin/TranscriptPanel/MeditationTranscriptField')
+    ).MeditationTranscriptField
 
     container = document.createElement('div')
     document.body.appendChild(container)
@@ -175,7 +180,7 @@ describe('the Transcript tab', () => {
 
   const render = () => {
     act(() => {
-      root.render(createElement(MeditationTranscript as never))
+      root.render(createElement(MeditationTranscriptField as never))
     })
   }
 
@@ -268,7 +273,7 @@ describe('the Transcript tab', () => {
       stub.swr = { data: { docs: [] }, error: undefined }
       render()
 
-      expect(text()).toContain('No transcript yet.')
+      expect(text()).toContain('No transcript yet')
       // The recording is Payload's own Upload control above the tabs, and
       // `restrictUploadToAdmin` refuses replacing it to a `meditations-editor`.
       // So the notice names no tab and asks the reader for nothing.
@@ -291,7 +296,9 @@ describe('the Transcript tab', () => {
     it('shows the failure and the run’s own message', () => {
       renderRow({ status: 'failed', error: 'Lemonfox refused the recording.' })
 
-      expect(text()).toContain('Transcription failed.')
+      expect(text()).toContain('Transcription failed')
+      // A title, not a sentence: no full stop.
+      expect(text()).not.toContain('Transcription failed.')
       expect(text()).toContain('Lemonfox refused the recording.')
     })
 
@@ -306,7 +313,7 @@ describe('the Transcript tab', () => {
 
         act(() => void vi.advanceTimersByTime(TRANSCRIPTION_STALL_MS + 1000))
 
-        expect(text()).toContain('Transcription stopped responding.')
+        expect(text()).toContain('Transcription stopped responding')
         expect(text()).not.toContain('Transcription in progress')
         // One bound, one spelling: the copy never names a duration.
         expect(text()).not.toMatch(/\d+\s*(minute|second|hour)/i)
@@ -407,7 +414,7 @@ describe('the Transcript tab', () => {
       const stale = ago(TRANSCRIPTION_STALL_MS + 1000)
       renderRow({ status: 'processing', createdAt: stale, updatedAt: stale })
 
-      expect(text()).toContain('Transcription stopped responding.')
+      expect(text()).toContain('Transcription stopped responding')
       expect(retryButton()).not.toBeNull()
     })
 
@@ -428,7 +435,7 @@ describe('the Transcript tab', () => {
       stub.swr = { data: { docs: [] }, error: undefined }
       render()
 
-      expect(text()).toContain('No transcript yet.')
+      expect(text()).toContain('No transcript yet')
       expect(retryButton()).not.toBeNull()
     })
 

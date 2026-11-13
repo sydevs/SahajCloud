@@ -20,24 +20,31 @@ pnpm seed storyblok --clear-cache # Re-download assets
 
 ## Field mappings
 
-| Storyblok Source                   | Payload Target           | Notes                              |
-| ---------------------------------- | ------------------------ | ---------------------------------- |
-| `story.name`                       | `lessons.title`          | Escape sequences convert to spaces |
-| `story.slug` (e.g., "step-1")      | `lessons.step`           | Regex extracts the step number     |
-| `Step_info[0].Unit_number`         | `lessons.unit`           | Maps to "Unit 1", "Unit 2", etc.   |
-| `Intro_quote`                      | `panels[0].quote`        | CoverStoryBlock (first panel)      |
-| `Intro_stories[]`                  | `panels[]`               | TextStoryBlock or VideoStoryBlock  |
-| `Audio_intro[0].Audio_track`       | `lessons.introAudio`     | FileAttachment (R2 audio)          |
-| `Audio_intro[0].Subtitles`         | `lessons.introSubtitles` | JSON-parsed subtitles              |
-| `Step_info[0].Step_Image`          | `lessons.icon`           | FileAttachment (R2 image)          |
-| `Meditation_reference[0]`          | `lessons.meditation`     | Lookup by "Step N" title           |
-| `Delving_deeper_article[0].Blocks` | `lessons.article`        | Lexical rich text conversion       |
+| Storyblok Source                   | Payload Target              | Notes                              |
+| ---------------------------------- | --------------------------- | ---------------------------------- |
+| `story.name`                       | `lessons.title`             | Escape sequences convert to spaces |
+| `story.slug` (e.g., "step-1")      | `lessons.step`              | Regex extracts the step number     |
+| `Step_info[0].Unit_number`         | `lessons.unit`              | Maps to "Unit 1", "Unit 2", etc.   |
+| `Intro_quote`                      | `panels[0].quote`           | CoverStoryBlock (first panel)      |
+| `Intro_stories[]`                  | `panels[]`                  | TextStoryBlock or VideoStoryBlock  |
+| `Audio_intro[0].Audio_track`       | `lessons.introAudio`        | FileAttachment (R2 audio)          |
+| `Audio_intro[0].Subtitles`         | the intro file's transcript | `imported`, English (below)        |
+| `Step_info[0].Step_Image`          | `lessons.icon`              | FileAttachment (R2 image)          |
+| `Meditation_reference[0]`          | `lessons.meditation`        | Lookup by "Step N" title           |
+| `Delving_deeper_article[0].Blocks` | `lessons.article`           | Lexical rich text conversion       |
 
 ## Panel structure
 
-`lessons.title` and `lessons.panels` are localized (#977), and this importer
-names no locale, so everything it writes lands in English. A Storyblok story in
-another language would need `locale` passed through, which no caller does today.
+`lessons.title`, `lessons.panels` (#977) and `lessons.introAudio` (#1016) are
+all localized, and this importer writes English for all of them: the lesson upsert names `locale: 'en'`, and
+`attachLessonFiles` names no locale, which resolves to the default locale —
+English — and so agrees with it. A Storyblok story in another language would
+need `locale` passed through both, which no caller does today.
+
+**The intro subtitles become the intro file's transcript** (#1016), not a lesson
+field. `attachLessonFiles` uploads the recording with
+`spokenLanguage: 'en'` and `context.importedSegments`, so `syncTranscriptOnSave` stores the parsed cues as
+an `imported` English transcript and queues no paid run.
 
 The Storyblok `Intro_stories` array maps to the Payload `panels` array:
 

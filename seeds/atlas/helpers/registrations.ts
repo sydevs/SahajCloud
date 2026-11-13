@@ -30,3 +30,22 @@ export function registrationSubmissionData(
   }
   return pairs
 }
+
+/**
+ * The `followUpSentAt` an imported registration carries: the import time once
+ * its session has started, else `null`.
+ *
+ * `SendPostEventFollowUps` mails every registration whose session fell in the
+ * last 30 days and carries no stamp, so without one a re-sync would ask a
+ * registrant about a class they took under the legacy Atlas, which never asked,
+ * and ask again everyone an earlier import's run already had. A session still
+ * ahead stays unstamped and gets its follow-up like any other.
+ */
+export function importedFollowUpSentAt(
+  startingAt: string | null | undefined,
+  now: Date,
+): string | null {
+  if (!startingAt) return null
+  const at = Date.parse(startingAt)
+  return Number.isFinite(at) && at <= now.getTime() ? now.toISOString() : null
+}

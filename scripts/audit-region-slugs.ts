@@ -28,9 +28,9 @@
 import type { Payload } from 'payload'
 
 import dotenv from 'dotenv'
-import { getPayload } from 'payload'
 
 import { relationId } from '../src/lib/utilities/relationId'
+import { loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 interface RegionRow {
   id: number
@@ -42,8 +42,7 @@ interface RegionRow {
 
 async function loadPayload(): Promise<Payload> {
   dotenv.config({ path: ['.env.local', '.env'] })
-  const { default: configPromise } = await import('../src/payload.config')
-  return getPayload({ config: await configPromise })
+  return loadPayloadWithoutSchemaChanges()
 }
 
 async function main(): Promise<void> {

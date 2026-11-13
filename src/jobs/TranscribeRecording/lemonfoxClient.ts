@@ -1,15 +1,15 @@
 /**
  * The Lemonfox speech-to-text connection: the HTTP call and the key behind it.
  *
- * Here rather than inside the transcription job, because two parties need it —
- * the job that calls the vendor, and the writer that must know whether
- * transcription is available before it promises one.
+ * Inside the job, because the job is the one caller since transcripts belong to
+ * recordings (#1016) — every request, a meditation's or a file's, is a queued
+ * run. The response readers stay in `@/lib/lemonfox`, which the library seed
+ * shares.
  */
 import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { serverEnv } from '@/lib/env'
+import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
 import type { LocaleCode } from '@/lib/locales'
-
-import { lemonfoxLanguage } from './languages'
 
 const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcriptions'
 
@@ -51,6 +51,8 @@ export async function requestLemonfoxTranscript({
   apiKey,
   audioUrl,
   locale,
+  wordTimings = false,
+  timeoutMs = REQUEST_TIMEOUT_MS,
   fetchFn = fetch,
 }: {
   apiKey: string
@@ -60,6 +62,15 @@ export async function requestLemonfoxTranscript({
    * both built here, so no caller repeats either.
    */
   locale?: LocaleCode
+  /**
+   * Ask for per-word timings as well as per-segment ones — what a run groups
+   * into cues. Opt-in at this seam because they are most of the body.
+   */
+  wordTimings?: boolean
+  /**
+   * How long to wait for the vendor. The default suits a queued job.
+   */
+  timeoutMs?: number
   fetchFn?: typeof fetch
 }): Promise<unknown> {
   const form = new FormData()
@@ -69,15 +80,15 @@ export async function requestLemonfoxTranscript({
   // Our own spellings, so the vendor writes them rather than an IAST variant (#1084).
   const prompt = locale ? glossaryPrompt(locale) : undefined
   if (prompt) form.append('prompt', prompt)
-  // The only format carrying timings. No `timestamp_granularities[]`: nothing
-  // stores word timings, and asking for them is 85% of the body for nobody.
+  // The only format carrying timings.
   form.append('response_format', 'verbose_json')
+  if (wordTimings) form.append('timestamp_granularities[]', 'word')
 
   const response = await fetchFn(LEMONFOX_TRANSCRIPTIONS_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}` },
     body: form,
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   if (!response.ok) {

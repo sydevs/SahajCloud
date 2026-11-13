@@ -34,8 +34,15 @@ export async function payloadListFetcher<T>(url: string): Promise<PayloadList<T>
   return body as PayloadList<T>
 }
 
-/** The first message off Payload's error envelope, where it sent one. */
-function refusalMessage(body: unknown): string | undefined {
+/**
+ * The first message off Payload's error envelope, where it sent one.
+ *
+ * Exported because the envelope is the server's, not this fetcher's: an admin
+ * control that POSTs rather than reading a list wants the same sentence, and
+ * every caller that re-typed `{ errors?: { message?: string }[] }` by hand was
+ * a third spelling of it.
+ */
+export function refusalMessage(body: unknown): string | undefined {
   if (!isRecord(body) || !Array.isArray(body.errors)) return undefined
   const first: unknown = body.errors[0]
 

@@ -64,81 +64,95 @@ Every session but the sixth measured it on the same container spec — 4 cores
 (Intel Xeon @ 2.80 GHz), 15 GB, a cloud routine container. The sixth is a
 maintainer's laptop, for scale: Apple M3 Pro, 11 cores, 18 GB, so 10 workers.
 
-| Session                                                                   | Files / tests | Vitest duration, consecutive runs            | Median     |
-| ------------------------------------------------------------------------- | ------------- | -------------------------------------------- | ---------- |
-| first                                                                     | 198 / 2575    | 60.29 · 58.75 · 59.23 s                      | 59.2 s     |
-| second, after merging `main`                                              | 203 / 2643    | 82.19 · 77.93 · 73.21 s                      | **77.9 s** |
-| third, after merging `main` again                                         | 204 / 2653    | 47.16 · 46.38 · 47.82 s                      | 47.2 s     |
-| fourth, after merging `main` again                                        | 205 / 2656    | 54.00 · 50.45 s (both inside the gate)       | 52.2 s     |
-| fifth, after merging `main` again                                         | 218 / 2795    | 49.13 s (inside the gate)                    | 49.1 s     |
-| sixth, M3 Pro laptop (#993)                                               | 206 / 2676    | 18.45 · 19.15 · 18.86 s                      | 18.9 s     |
-| seventh, #1012 after merging `main` (2026-10-21)                          | 218 / 2801    | 55.01 s                                      | 55.0 s     |
-| eighth, #1012 after merging `main` (2026-10-21)                           | 222 / 2849    | 55.26 s                                      | 55.3 s     |
-| ninth, #1012 after merging `main` (2026-10-21)                            | 224 / 2886    | 50.05 s (inside the gate)                    | 50.1 s     |
-| tenth, #999 after merging `main` (2026-10-21)                             | 219 / 2807    | 55.70 s                                      | 55.7 s     |
-| eleventh, #999 after merging `main` (2026-10-21)                          | 223 / 2855    | 52.93 s                                      | 52.9 s     |
-| twelfth, #999 after merging `main` (2026-10-21)                           | 225 / 2892    | 51.87 s                                      | 51.9 s     |
-| thirteenth, #999 and #1012 merged (2026-10-21)                            | 225 / 2898    | 56.70 s (inside the gate)                    | 56.7 s     |
-| fourteenth, #1013 on its own branch (2026-10-21)                          | 223 / 2852    | 58.08 s                                      | 58.1 s     |
-| fifteenth, #1013 on its own branch (2026-10-21)                           | 223 / 2851    | 54.78 s                                      | 54.8 s     |
-| sixteenth, #1013 after merging `main` (2026-10-21)                        | 225 / 2894    | 54.22 s (inside the gate)                    | 54.2 s     |
-| seventeenth, #1013 on its own branch (2026-10-23)                         | 225 / 2895    | 50.24 s (inside the gate)                    | 50.2 s     |
-| eighteenth, #1014 after merging `main` (2026-10-23)                       | 226 / 2898    | 50.52 s                                      | 50.5 s     |
-| nineteenth, #1014 after merging `main` (2026-10-23)                       | 226 / 2897    | 48.41 s (inside the gate)                    | 48.4 s     |
-| twentieth, #999 after merging `main` (2026-10-25)                         | 225 / 2902    | 53.56 s (inside the gate)                    | 53.6 s     |
-| twenty-first, #999 after merging `main` (2026-10-25)                      | 227 / 2917    | 53.54 s (inside the gate)                    | 53.5 s     |
-| twenty-second, #1013 after merging `main` (2026-10-25)                    | 227 / 2911    | 51.65 s (inside the gate)                    | 51.7 s     |
-| twenty-third, #1034 on a feature branch (2026-10-25)                      | 227 / 2909    | 55.66 s (inside the gate)                    | 55.7 s     |
-| twenty-fourth, #999 after merging `main` (2026-10-26)                     | 228 / 2924    | 74.58 · 64.62 s (the second inside the gate) | 69.6 s     |
-| twenty-fifth, #999 addressing a review (2026-10-26)                       | 228 / 2929    | 56.58 · 56.99 s (both inside the gate)       | 56.8 s     |
-| twenty-sixth, #1013 after merging `main` (2026-10-26)                     | 228 / 2918    | 60.66 s (inside the gate)                    | 60.7 s     |
-| twenty-seventh, #999 after merging `main` (2026-10-26)                    | 229 / 2938    | 59.58 s                                      | 59.6 s     |
-| twenty-eighth, #999 addressing a review (2026-10-27)                      | 229 / 2935    | 38.62 s (inside the gate)                    | 38.6 s     |
-| twenty-ninth, M4 Max laptop, 14 cores (2026-10-23)                        | 225 / 2890    | 16.38 s (inside the gate)                    | 16.4 s     |
-| thirtieth, #1029 after merging `main` (2026-10-27)                        | 233 / 2955    | 42.54 s                                      | 42.5 s     |
-| thirty-first, #1039 on its own branch (2026-10-28)                        | 233 / 2962    | 66.21 s (inside the gate)                    | 66.2 s     |
-| thirty-second, #1055 on its own branch (2026-11-01)                       | 241 / 3138    | 63.73 s (inside the gate)                    | 63.7 s     |
-| thirty-third, #1074 after merging `main` (2026-11-03)                     | 236 / 3051    | 52.22 s                                      | 52.2 s     |
-| thirty-fourth, #1074, M3 Pro laptop (2026-11-04)                          | 237 / 3061    | 17.80 s (inside the gate)                    | 17.8 s     |
-| thirty-fifth, #1074 addressing a review (2026-11-04)                      | 238 / 3065    | 55.44 s                                      | 55.4 s     |
-| thirty-sixth, #1055 after merging `main` (2026-11-05)                     | 248 / 3268    | 40.64 s                                      | 40.6 s     |
-| thirty-seventh, #1055 addressing a review (2026-11-06)                    | 248 / 3331    | 43.50 s (inside the gate)                    | 43.5 s     |
-| thirty-eighth, #1055 simplifying the Install tab (2026-11-06)             | 248 / 3324    | 40.17 s                                      | 40.2 s     |
-| thirty-ninth, #1055 addressing a review (2026-11-07)                      | 248 / 3324    | 35.24 s (inside the gate)                    | 35.2 s     |
-| fortieth, #1082 after merging `main` (2026-11-10)                         | 255 / 3433    | 51.46 s                                      | 51.5 s     |
-| forty-first, #1082 resolving a `main` conflict (2026-11-10)               | 258 / 3469    | 51.42 s                                      | 51.4 s     |
-| forty-second, #1082 resolving a second `main` conflict (2026-11-10)       | 258 / 3472    | 41.79 s (inside the gate)                    | 41.8 s     |
-| forty-third, #1082 addressing the critic's review (2026-11-10)            | 259 / 3477    | 55.75 s                                      | 55.8 s     |
-| forty-fourth, #1082 fixing CI after merging `main` (2026-11-10)           | 260 / 3503    | 53.41 s                                      | 53.4 s     |
-| forty-fifth, #1082 addressing the critic's second pass (2026-11-11)       | 260 / 3501    | 51.45 s (inside the gate)                    | 51.5 s     |
-| forty-sixth, #1082 resolving a third `main` conflict (2026-11-11)         | 261 / 3510    | 48.95 s                                      | 49.0 s     |
-| forty-seventh, #1082 resolving a fourth `main` conflict (2026-11-11)      | 262 / 3530    | 45.79 s (inside the gate)                    | 45.8 s     |
-| forty-eighth, #1082 resolving a fifth `main` conflict (2026-11-11)        | 263 / 3540    | 56.64 s (inside the gate)                    | 56.6 s     |
-| forty-ninth, #1082 resolving a sixth `main` conflict (2026-11-11)         | 264 / 3547    | 46.18 s (inside the gate)                    | 46.2 s     |
-| fiftieth, #1116 after merging `main` (2026-11-11)                         | 265 / 3548    | 48.94 s (inside the gate)                    | 48.9 s     |
-| fifty-first, #1112 resolving a `main` conflict (2026-11-11)               | 265 / 3552    | 53.77 s                                      | 53.8 s     |
-| fifty-second, #1116 resolving a `main` conflict (2026-11-11)              | 266 / 3555    | 51.44 s (inside the gate)                    | 51.4 s     |
-| fifty-third, #1129 resolving a `main` conflict (2026-11-11)               | 265 / 3560    | 53.44 s                                      | 53.4 s     |
-| fifty-fourth, #1129 resolving a second `main` conflict (2026-11-11)       | 266 / 3565    | 45.04 s (inside the gate)                    | 45.0 s     |
-| fifty-fifth, #1129 resolving a third `main` conflict (2026-11-11)         | 267 / 3570    | 47.00 s                                      | 47.0 s     |
-| fifty-sixth, #1131 adding the calendar feed (2026-11-11)                  | 266 / 3565    | 56.91 s                                      | 56.9 s     |
-| fifty-seventh, #1127 resolving a `main` conflict (2026-11-11)             | 265 / 3554    | 57.94 s (inside the gate)                    | 57.9 s     |
-| fifty-eighth, #1127 resolving a second `main` conflict (2026-11-11)       | 266 / 3559    | 53.63 s (inside the gate)                    | 53.6 s     |
-| fifty-ninth, #1127 resolving a third `main` conflict (2026-11-11)         | 267 / 3562    | 53.36 s                                      | 53.4 s     |
-| sixtieth, #1131 resolving a `main` conflict (2026-11-12)                  | 267 / 3569    | 59.68 s (inside the gate)                    | 59.7 s     |
-| sixty-first, #1131 spelling the feed's eligibility rule once (2026-11-12) | 268 / 3571    | 52.01 s (inside the gate)                    | 52.0 s     |
-| sixty-second, #1131 dropping the calendar menu's sub-labels (2026-11-12)  | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
-| sixty-third, #1131 fixing CI after merging `main` (2026-11-12)            | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
-| sixty-fourth, #1129 addressing the critic's second pass (2026-11-12)      | 270 / 3600    | 51.34 s (inside the gate)                    | 51.3 s     |
-| sixty-fifth, #1129 fixing CI (2026-11-12)                                 | 271 / 3608    | 50.12 s (inside the gate)                    | 50.1 s     |
-| sixty-sixth, #1127 resolving a fourth `main` conflict (2026-11-12)        | 269 / 3594    | 57.12 s (inside the gate)                    | 57.1 s     |
-| sixty-seventh, #1127 resolving a fifth `main` conflict (2026-11-12)       | 270 / 3641    | 55.67 s (inside the gate)                    | 55.7 s     |
-| sixty-eighth, #1129 resolving a fourth `main` conflict (2026-11-12)       | 273 / 3662    | 60.27 s (inside the gate)                    | 60.3 s     |
-| sixty-ninth, #1121 adding the lifecycle table's spec (2026-11-12)         | 267 / 3592    | 54.43 s                                      | 54.4 s     |
-| seventieth, #1121 resolving a `main` conflict (2026-11-12)                | 269 / 3608    | 60.47 s (inside the gate)                    | 60.5 s     |
-| seventy-first, #1121 addressing the critic's review (2026-11-12)          | 269 / 3610    | 54.36 s (inside the gate)                    | 54.4 s     |
-| seventy-second, #1121 resolving a second `main` conflict (2026-11-13)     | 271 / 3685    | 54.86 s (inside the gate)                    | 54.9 s     |
-| seventy-third, #1129 addressing the critic's third pass (2026-11-13)      | 274 / 3723    | 51.84 s (inside the gate)                    | 51.8 s     |
+| Session                                                                                                             | Files / tests | Vitest duration, consecutive runs            | Median     |
+| ------------------------------------------------------------------------------------------------------------------- | ------------- | -------------------------------------------- | ---------- |
+| first                                                                                                               | 198 / 2575    | 60.29 · 58.75 · 59.23 s                      | 59.2 s     |
+| second, after merging `main`                                                                                        | 203 / 2643    | 82.19 · 77.93 · 73.21 s                      | **77.9 s** |
+| third, after merging `main` again                                                                                   | 204 / 2653    | 47.16 · 46.38 · 47.82 s                      | 47.2 s     |
+| fourth, after merging `main` again                                                                                  | 205 / 2656    | 54.00 · 50.45 s (both inside the gate)       | 52.2 s     |
+| fifth, after merging `main` again                                                                                   | 218 / 2795    | 49.13 s (inside the gate)                    | 49.1 s     |
+| sixth, M3 Pro laptop (#993)                                                                                         | 206 / 2676    | 18.45 · 19.15 · 18.86 s                      | 18.9 s     |
+| seventh, #1012 after merging `main` (2026-10-21)                                                                    | 218 / 2801    | 55.01 s                                      | 55.0 s     |
+| eighth, #1012 after merging `main` (2026-10-21)                                                                     | 222 / 2849    | 55.26 s                                      | 55.3 s     |
+| ninth, #1012 after merging `main` (2026-10-21)                                                                      | 224 / 2886    | 50.05 s (inside the gate)                    | 50.1 s     |
+| tenth, #999 after merging `main` (2026-10-21)                                                                       | 219 / 2807    | 55.70 s                                      | 55.7 s     |
+| eleventh, #999 after merging `main` (2026-10-21)                                                                    | 223 / 2855    | 52.93 s                                      | 52.9 s     |
+| twelfth, #999 after merging `main` (2026-10-21)                                                                     | 225 / 2892    | 51.87 s                                      | 51.9 s     |
+| thirteenth, #999 and #1012 merged (2026-10-21)                                                                      | 225 / 2898    | 56.70 s (inside the gate)                    | 56.7 s     |
+| fourteenth, #1013 on its own branch (2026-10-21)                                                                    | 223 / 2852    | 58.08 s                                      | 58.1 s     |
+| fifteenth, #1013 on its own branch (2026-10-21)                                                                     | 223 / 2851    | 54.78 s                                      | 54.8 s     |
+| sixteenth, #1013 after merging `main` (2026-10-21)                                                                  | 225 / 2894    | 54.22 s (inside the gate)                    | 54.2 s     |
+| seventeenth, #1013 on its own branch (2026-10-23)                                                                   | 225 / 2895    | 50.24 s (inside the gate)                    | 50.2 s     |
+| eighteenth, #1014 after merging `main` (2026-10-23)                                                                 | 226 / 2898    | 50.52 s                                      | 50.5 s     |
+| nineteenth, #1014 after merging `main` (2026-10-23)                                                                 | 226 / 2897    | 48.41 s (inside the gate)                    | 48.4 s     |
+| twentieth, #999 after merging `main` (2026-10-25)                                                                   | 225 / 2902    | 53.56 s (inside the gate)                    | 53.6 s     |
+| twenty-first, #999 after merging `main` (2026-10-25)                                                                | 227 / 2917    | 53.54 s (inside the gate)                    | 53.5 s     |
+| twenty-second, #1013 after merging `main` (2026-10-25)                                                              | 227 / 2911    | 51.65 s (inside the gate)                    | 51.7 s     |
+| twenty-third, #1034 on a feature branch (2026-10-25)                                                                | 227 / 2909    | 55.66 s (inside the gate)                    | 55.7 s     |
+| twenty-fourth, #999 after merging `main` (2026-10-26)                                                               | 228 / 2924    | 74.58 · 64.62 s (the second inside the gate) | 69.6 s     |
+| twenty-fifth, #999 addressing a review (2026-10-26)                                                                 | 228 / 2929    | 56.58 · 56.99 s (both inside the gate)       | 56.8 s     |
+| twenty-sixth, #1013 after merging `main` (2026-10-26)                                                               | 228 / 2918    | 60.66 s (inside the gate)                    | 60.7 s     |
+| twenty-seventh, #999 after merging `main` (2026-10-26)                                                              | 229 / 2938    | 59.58 s                                      | 59.6 s     |
+| twenty-eighth, #999 addressing a review (2026-10-27)                                                                | 229 / 2935    | 38.62 s (inside the gate)                    | 38.6 s     |
+| twenty-ninth, M4 Max laptop, 14 cores (2026-10-23)                                                                  | 225 / 2890    | 16.38 s (inside the gate)                    | 16.4 s     |
+| thirtieth, #1029 after merging `main` (2026-10-27)                                                                  | 233 / 2955    | 42.54 s                                      | 42.5 s     |
+| thirty-first, #1039 on its own branch (2026-10-28)                                                                  | 233 / 2962    | 66.21 s (inside the gate)                    | 66.2 s     |
+| thirty-second, #1055 on its own branch (2026-11-01)                                                                 | 241 / 3138    | 63.73 s (inside the gate)                    | 63.7 s     |
+| thirty-third, #1074 after merging `main` (2026-11-03)                                                               | 236 / 3051    | 52.22 s                                      | 52.2 s     |
+| thirty-fourth, #1074, M3 Pro laptop (2026-11-04)                                                                    | 237 / 3061    | 17.80 s (inside the gate)                    | 17.8 s     |
+| thirty-fifth, #1074 addressing a review (2026-11-04)                                                                | 238 / 3065    | 55.44 s                                      | 55.4 s     |
+| thirty-sixth, #1055 after merging `main` (2026-11-05)                                                               | 248 / 3268    | 40.64 s                                      | 40.6 s     |
+| thirty-seventh, #1055 addressing a review (2026-11-06)                                                              | 248 / 3331    | 43.50 s (inside the gate)                    | 43.5 s     |
+| thirty-eighth, #1055 simplifying the Install tab (2026-11-06)                                                       | 248 / 3324    | 40.17 s                                      | 40.2 s     |
+| thirty-ninth, #1055 addressing a review (2026-11-07)                                                                | 248 / 3324    | 35.24 s (inside the gate)                    | 35.2 s     |
+| fortieth, #1082 after merging `main` (2026-11-10)                                                                   | 255 / 3433    | 51.46 s                                      | 51.5 s     |
+| forty-first, #1082 resolving a `main` conflict (2026-11-10)                                                         | 258 / 3469    | 51.42 s                                      | 51.4 s     |
+| forty-second, #1082 resolving a second `main` conflict (2026-11-10)                                                 | 258 / 3472    | 41.79 s (inside the gate)                    | 41.8 s     |
+| forty-third, #1082 addressing the critic's review (2026-11-10)                                                      | 259 / 3477    | 55.75 s                                      | 55.8 s     |
+| forty-fourth, #1082 fixing CI after merging `main` (2026-11-10)                                                     | 260 / 3503    | 53.41 s                                      | 53.4 s     |
+| forty-fifth, #1082 addressing the critic's second pass (2026-11-11)                                                 | 260 / 3501    | 51.45 s (inside the gate)                    | 51.5 s     |
+| forty-sixth, #1082 resolving a third `main` conflict (2026-11-11)                                                   | 261 / 3510    | 48.95 s                                      | 49.0 s     |
+| forty-seventh, #1082 resolving a fourth `main` conflict (2026-11-11)                                                | 262 / 3530    | 45.79 s (inside the gate)                    | 45.8 s     |
+| forty-eighth, #1082 resolving a fifth `main` conflict (2026-11-11)                                                  | 263 / 3540    | 56.64 s (inside the gate)                    | 56.6 s     |
+| forty-ninth, #1082 resolving a sixth `main` conflict (2026-11-11)                                                   | 264 / 3547    | 46.18 s (inside the gate)                    | 46.2 s     |
+| fiftieth, #1104 after merging `main` (2026-11-11)                                                                   | 258 / 3531    | 55.57 s                                      | 55.6 s     |
+| fifty-first, #1104 after merging `main` again (2026-11-11)                                                          | 259 / 3538    | 43.34 · 45.38 s (both inside the gate)       | 44.4 s     |
+| fifty-second, #1104 resolving a `main` conflict (2026-11-11)                                                        | 265 / 3591    | 45.01 · 44.38 s (the second inside the gate) | 44.7 s     |
+| fifty-third, #1116 after merging `main` (2026-11-11)                                                                | 265 / 3548    | 48.94 s (inside the gate)                    | 48.9 s     |
+| fifty-fourth, #1112 resolving a `main` conflict (2026-11-11)                                                        | 265 / 3552    | 53.77 s                                      | 53.8 s     |
+| fifty-fifth, #1104 resolving a second `main` conflict (2026-11-11)                                                  | 266 / 3596    | 56.49 s                                      | 56.5 s     |
+| fifty-sixth, #1116 resolving a `main` conflict (2026-11-11)                                                         | 266 / 3555    | 51.44 s (inside the gate)                    | 51.4 s     |
+| fifty-seventh, #1104 resolving a third `main` conflict (2026-11-11)                                                 | 267 / 3599    | 55.43 s (inside the gate)                    | 55.4 s     |
+| fifty-eighth, #1104 onto file transcripts, macOS (2026-11-11)                                                       | 266 / 3588    | 22.30 s                                      | 22.3 s     |
+| fifty-ninth, #1129 resolving a `main` conflict (2026-11-11)                                                         | 265 / 3560    | 53.44 s                                      | 53.4 s     |
+| sixtieth, #1129 resolving a second `main` conflict (2026-11-11)                                                     | 266 / 3565    | 45.04 s (inside the gate)                    | 45.0 s     |
+| sixty-first, #1129 resolving a third `main` conflict (2026-11-11)                                                   | 267 / 3570    | 47.00 s                                      | 47.0 s     |
+| sixty-second, #1131 adding the calendar feed (2026-11-11)                                                           | 266 / 3565    | 56.91 s                                      | 56.9 s     |
+| sixty-third, #1127 resolving a `main` conflict (2026-11-11)                                                         | 265 / 3554    | 57.94 s (inside the gate)                    | 57.9 s     |
+| sixty-fourth, #1127 resolving a second `main` conflict (2026-11-11)                                                 | 266 / 3559    | 53.63 s (inside the gate)                    | 53.6 s     |
+| sixty-fifth, #1127 resolving a third `main` conflict (2026-11-11)                                                   | 267 / 3562    | 53.36 s                                      | 53.4 s     |
+| sixty-sixth, #1104 addressing a review (2026-11-12)                                                                 | 267 / 3594    | 60.73 s (inside the gate)                    | 60.7 s     |
+| sixty-seventh, #1104 a player framed with a file's transcript, after merging the review's fixes, macOS (2026-11-12) | 268 / 3628    | 19.12 s (inside the gate)                    | 19.1 s     |
+| sixty-eighth, #1104 addressing a second review (2026-11-12)                                                         | 271 / 3677    | 53.22 s (inside the gate)                    | 53.2 s     |
+| sixty-ninth, #1131 resolving a `main` conflict (2026-11-12)                                                         | 267 / 3569    | 59.68 s (inside the gate)                    | 59.7 s     |
+| seventieth, #1131 spelling the feed's eligibility rule once (2026-11-12)                                            | 268 / 3571    | 52.01 s (inside the gate)                    | 52.0 s     |
+| seventy-first, #1131 dropping the calendar menu's sub-labels (2026-11-12)                                           | 268 / 3584    | 52.91 s (inside the gate)                    | 52.9 s     |
+| seventy-second, #1131 fixing CI after merging `main` (2026-11-12)                                                   | 268 / 3587    | 47.13 s (inside the gate)                    | 47.1 s     |
+| seventy-third, #1129 addressing the critic's second pass (2026-11-12)                                               | 270 / 3600    | 51.34 s (inside the gate)                    | 51.3 s     |
+| seventy-fourth, #1129 fixing CI (2026-11-12)                                                                        | 271 / 3608    | 50.12 s (inside the gate)                    | 50.1 s     |
+| seventy-fifth, #1127 resolving a fourth `main` conflict (2026-11-12)                                                | 269 / 3594    | 57.12 s (inside the gate)                    | 57.1 s     |
+| seventy-sixth, #1127 resolving a fifth `main` conflict (2026-11-12)                                                 | 270 / 3641    | 55.67 s (inside the gate)                    | 55.7 s     |
+| seventy-seventh, #1104 resolving a fourth `main` conflict (2026-11-12)                                              | 271 / 3677    | 59.40 s (inside the gate)                    | 59.4 s     |
+| seventy-eighth, #1104 resolving a fifth `main` conflict (2026-11-12)                                                | 272 / 3712    | 52.28 s (inside the gate)                    | 52.3 s     |
+| seventy-ninth, #1104 resolving a sixth `main` conflict (2026-11-12)                                                 | 273 / 3733    | 63.08 s (inside the gate)                    | 63.1 s     |
+| eightieth, #1129 resolving a fourth `main` conflict (2026-11-12)                                                    | 273 / 3662    | 60.27 s (inside the gate)                    | 60.3 s     |
+| eighty-first, #1121 adding the lifecycle table's spec (2026-11-12)                                                  | 267 / 3592    | 54.43 s                                      | 54.4 s     |
+| eighty-second, #1121 resolving a `main` conflict (2026-11-12)                                                       | 269 / 3608    | 60.47 s (inside the gate)                    | 60.5 s     |
+| eighty-third, #1121 addressing the critic's review (2026-11-12)                                                     | 269 / 3610    | 54.36 s (inside the gate)                    | 54.4 s     |
+| eighty-fourth, #1121 resolving a second `main` conflict (2026-11-13)                                                | 271 / 3685    | 54.86 s (inside the gate)                    | 54.9 s     |
+| eighty-fifth, #1104 resolving a seventh `main` conflict (2026-11-13)                                                | 274 / 3784    | 56.90 s (inside the gate)                    | 56.9 s     |
+| eighty-sixth, #1129 addressing the critic's third pass (2026-11-13)                                                 | 274 / 3723    | 51.84 s (inside the gate)                    | 51.8 s     |
+| eighty-seventh, #1129 resolving a fifth `main` conflict (2026-11-13)                                                | 277 / 3825    | 74.39 s (inside the gate)                    | 74.4 s     |
 
 ⚠ **Those three medians span 47 to 78 s — 66% — and six spec files do not
 explain it.** Identical container spec, all on 2026-10-20, 3% more files
