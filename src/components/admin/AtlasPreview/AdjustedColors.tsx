@@ -3,7 +3,7 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { Banner, Button, useField } from '@payloadcms/ui'
-import React, { useEffect, useState } from 'react'
+import React, { useRef } from 'react'
 
 import { BRAND_COLOR_LABELS, type BrandColorColumn } from '@/lib/clients/appearance'
 
@@ -39,14 +39,11 @@ export const AdjustedColors: UIFieldClientComponent = () => {
 
   // ⚠ Between a colour change and the atlas's report on it, the last answer stays
   // up. Hiding the banner for that round trip made it flicker on every pick.
-  const [kept, setKept] = useState<typeof answer>(null)
-  const key = current ? JSON.stringify(answer) : null
+  const kept = useRef<typeof answer>(null)
 
-  useEffect(() => {
-    if (key !== null) setKept(key === 'null' ? null : (JSON.parse(key) as typeof answer))
-  }, [key])
+  if (current) kept.current = answer
 
-  const swatches = current ? answer : kept
+  const swatches = current ? answer : kept.current
 
   if (!swatches) return null
 
