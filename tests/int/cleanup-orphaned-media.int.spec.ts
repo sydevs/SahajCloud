@@ -48,6 +48,7 @@ interface CleanupResult {
   trashedFiles: number
   trashedImages: number
   skippedImages: number
+  skippedReferenced: number
   errors: number
   dryRun: boolean
 }
@@ -778,13 +779,11 @@ describe('CleanupOrphanedMedia Job', () => {
     })
   })
   /**
-   * ⚠ These cases go last on purpose. Each fixture here creates a `files` row,
-   * and `scanCollectionForLexicalReferences` collects upload ids from Lexical
-   * content without regard to the collection they belong to — so an image id
-   * counts as a referenced file id. Inserting a case earlier shifts the file
-   * ids of every case after it, and one then lands on an image id and is
-   * spared as "referenced". That aliasing is a defect in the job, not in the
-   * spec; appending keeps it from deciding whether the suite passes.
+   * These cases used to have to go last. Each fixture here creates a `files`
+   * row, and a Lexical upload id counted for both collections, so an image id
+   * read as a referenced file id and the file ids a case happened to land on
+   * decided whether the suite passed. The scan now matches the collection a
+   * node names (#1118), so the order is free.
    */
   describe('Phase A: Trash Retention', () => {
     /**
@@ -925,6 +924,92 @@ describe('CleanupOrphanedMedia Job', () => {
       await runCleanupJob(payload)
 
       expect(await imageExists(payload, image.id)).toBe(true)
+    })
+  })
+
+  describe('Phase A: Referenced trash', () => {
+    // Last in the file, after the throughput cases, for the reason the
+    // localized ones above are: these runs raise `maxOperations` so the whole
+    // expired backlog fits one Phase A page, which would otherwise decide
+    // whether a fixture is even looked at. That spends the budget those cases
+    // measure.
+    const RUN = { maxOperations: 50 }
+
+    it('spares a trashed image a published page still references', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createPage(payload, { content: createLexicalWithTextBoxBlock(image.id) })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('spares a trashed file referenced only by a non-English panel', async () => {
+      const videoFile = await testData.createFile(payload, {}, 'video-30s.mp4')
+      const lesson = await testData.createLesson(payload, { panels: [{ title: 'English' }] })
+      await payload.update({
+        collection: 'lessons',
+        id: lesson.id,
+        locale: 'fr',
+        data: { panels: [{ media: videoFile.id }] },
+      })
+      await trashLongAgo(payload, 'files', videoFile.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, videoFile.id)).toBe(true)
+    })
+
+    it('spares a trashed image referenced only under a named tab', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createAppCard(payload, { default: { image: image.id } })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('still deletes expired trash nothing references', async () => {
+      const file = await testData.createFile(payload)
+      await trashLongAgo(payload, 'files', file.id)
+
+      const result = await runCleanupJob(payload, RUN)
+
+      expect(result.permanentlyDeletedFiles).toBeGreaterThanOrEqual(1)
+      expect(await fileInTrash(payload, file.id)).toBe(false)
+    })
+
+    it('reports the same skipped count under dryRun as a live run', async () => {
+      const image = await testData.createMediaImage(payload)
+      await testData.createPage(payload, { content: createLexicalWithTextBoxBlock(image.id) })
+      await trashLongAgo(payload, 'images', image.id)
+
+      const dry = await runCleanupJob(payload, { ...RUN, dryRun: true })
+      const live = await runCleanupJob(payload, RUN)
+
+      expect(dry.skippedReferenced).toBeGreaterThanOrEqual(1)
+      expect(dry.skippedReferenced).toBe(live.skippedReferenced)
+      expect(await imageInTrash(payload, image.id)).toBe(true)
+    })
+
+    it('scans references once a run, not once a phase', async () => {
+      // The scan walks every collection twice over, so a second one is the
+      // most expensive thing this job can do by accident.
+      const info = vi.spyOn(payload.logger, 'info')
+      try {
+        await runCleanupJob(payload, RUN)
+        const scans = info.mock.calls.filter(
+          ([entry]) => (entry as { msg?: string } | undefined)?.msg === 'Reference scan completed',
+        )
+        expect(scans).toHaveLength(1)
+      } finally {
+        info.mockRestore()
+      }
     })
   })
 })

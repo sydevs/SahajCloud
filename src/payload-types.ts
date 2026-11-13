@@ -11004,6 +11004,10 @@ export interface TaskCleanupOrphanedMedia {
     trashedFiles: number;
     trashedImages: number;
     skippedImages: number;
+    /**
+     * Expired trash kept because something still references it, among the rows Phase A read while filling its delete budget. Not a backlog total.
+     */
+    skippedReferenced: number;
     errors: number;
     dryRun: boolean;
   };
