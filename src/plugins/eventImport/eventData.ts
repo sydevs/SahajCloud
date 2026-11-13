@@ -11,7 +11,7 @@ import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
-import { doorMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
+import { addressFeatureMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
 import type { Event, SupportedTimezones } from '@/payload-types'
 
@@ -70,7 +70,7 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
 
 function addressFor(values: RawImportRow, location: GeocodedLocation): Record<string, unknown> {
   return {
-    mapboxId: doorMapboxId(location),
+    mapboxId: addressFeatureMapboxId(location),
     venueName: values.venueName || null,
     street: values.address || null,
     room: values.room || null,

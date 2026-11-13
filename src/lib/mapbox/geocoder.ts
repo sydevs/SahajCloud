@@ -360,8 +360,8 @@ export interface GeocodeLocationArgs {
 
 /**
  * The layers each lookup may answer with. An address lookup still reaches a
- * street or a town when the door is unknown, which the caller reads as an
- * approximate answer rather than a miss.
+ * street or a town when the street number is unknown, which the caller reads
+ * as an approximate answer rather than a miss.
  */
 const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
   address: 'address,street,postcode,place,locality',
@@ -444,14 +444,15 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
 }
 
 /**
- * The id of a door, or null for anything coarser.
+ * The id Mapbox matched, but only where it matched an `address` feature — a
+ * single street number — and null for every coarser `feature_type`.
  *
  * ⚠ **A feature id names what Mapbox matched, not what was asked for.** A
  * lookup that reaches only the street or the town answers with that street's
  * or town's id, and storing it would put the place at the end of the road.
  * Every caller that writes an address's id reads it through here.
  */
-export function doorMapboxId(location: GeocodedLocation): string | null {
+export function addressFeatureMapboxId(location: GeocodedLocation): string | null {
   return location.featureType === 'address' ? location.mapboxId : null
 }
 
@@ -484,5 +485,5 @@ export async function geocodeVenue(args: GeocodeVenueArgs): Promise<string | nul
     city,
     countryCode,
   })
-  return outcome.status === 'found' ? doorMapboxId(outcome.location) : null
+  return outcome.status === 'found' ? addressFeatureMapboxId(outcome.location) : null
 }

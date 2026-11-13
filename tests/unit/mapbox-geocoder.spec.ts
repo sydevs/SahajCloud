@@ -195,9 +195,9 @@ describe('a venue, which Geocoding v6 holds no POI layer for', () => {
     feature(mapboxId, [1.42, 51.36], featureType)
 
   it('is placed by its postal address, as a permanent v6 lookup', async () => {
-    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-door') }))
+    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-address') }))
     const { location, warning } = await resolveRegionLocation(venue)
-    expect(location).toEqual({ mapboxId: 'mbx-door', manual: false })
+    expect(location).toEqual({ mapboxId: 'mbx-address', manual: false })
     expect(warning).toBeNull()
     const url = lastUrl(fetchSpy)
     expectPermanentV6(url)
@@ -211,7 +211,7 @@ describe('a venue, which Geocoding v6 holds no POI layer for', () => {
     expect(url.searchParams.has('q')).toBe(false)
   })
 
-  it('keeps its legacy coordinates when the match is coarser than a door', async () => {
+  it('keeps its legacy coordinates when the match is coarser than an address', async () => {
     stubFetch(() => ({ body: at('street', 'mbx-street') }))
     const { location, warning } = await resolveRegionLocation(venue)
     expect(location).toMatchObject({
@@ -225,7 +225,7 @@ describe('a venue, which Geocoding v6 holds no POI layer for', () => {
   })
 
   it('never reaches Mapbox with no street to place it by', async () => {
-    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-door') }))
+    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-address') }))
     const { location } = await resolveRegionLocation({
       ...venue,
       address: { ...venue.address, street: null },

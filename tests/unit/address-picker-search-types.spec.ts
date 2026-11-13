@@ -5,8 +5,9 @@
  * `readPickedPlace` has no street of its own to read above the `address`
  * context layer, so it falls back to the feature's own name — a town picked
  * from a `place` result lands in `street`. The admin picker is also the only
- * other writer of `Events.address.mapboxId`, which the CSV importer fills for a
- * door alone, so a coarse layer here is one column holding two identities.
+ * other writer of `Events.address.mapboxId`, which the CSV importer fills for
+ * an `address` match alone, so a coarse layer here is one column holding two
+ * identities.
  */
 import type { GroupField } from 'payload'
 
