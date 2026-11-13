@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { describe, expect, it } from 'vitest'
 
 import { livePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
@@ -19,6 +21,23 @@ describe('livePreviewUnavailableUrl', () => {
   it('names the reason, so the page can explain the specific problem', () => {
     expect(livePreviewUnavailableUrl('no-region')).toContain('reason=no-region')
     expect(livePreviewUnavailableUrl('no-key')).toContain('reason=no-key')
+  })
+
+  it('has a written explanation for every reason, not the generic fallback', () => {
+    // The page falls back to a generic message for an unknown reason, which is
+    // the right way round for a panel and would hide a reason nobody wrote an
+    // entry for. `LivePreviewUnavailableReason` is a type, so only reading both
+    // sources can compare them.
+    const read = (path: string) => readFileSync(path, 'utf8')
+    const union = read('src/lib/livePreview/unavailable.ts').match(
+      /export type LivePreviewUnavailableReason =([^]*?)\n\n/,
+    )
+    const declared = [...(union?.[1] ?? '').matchAll(/'([a-z-]+)'/g)].map((match) => match[1])
+    const explained = read('src/app/(frontend)/live-preview-unavailable/page.tsx')
+
+    expect(declared).toContain('atlas-tab-only')
+    expect(declared).toContain('no-atlas-role')
+    for (const reason of declared) expect(explained).toContain(`'${reason}':`)
   })
 
   it('resolves to this service against any admin origin', () => {

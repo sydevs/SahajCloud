@@ -15,6 +15,7 @@ import {
   createLexicalWithGalleryBlock,
   createLexicalWithLayoutBlock,
   createLexicalWithTextBoxBlock,
+  createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -256,19 +257,55 @@ describe('Schema Introspection Utilities', () => {
   // --- extractIdsFromLexicalContent ---
 
   describe('extractIdsFromLexicalContent', () => {
+    /** A reference to one field inside a block, as the schema walk records it. */
+    function blockField(fieldPath: string, hasMany: boolean = false): FieldReference {
+      return {
+        collection: 'pages',
+        fieldPath,
+        fieldType: 'upload',
+        hasMany,
+        relationTo: 'images',
+        isLexicalBlock: false,
+        localizedAt: [],
+      }
+    }
+
+    /** The marker reference the schema walk records for a richText field. */
+    function lexicalRef(
+      lexicalFields: Record<string, FieldReference[]>,
+      relationTo: string = 'images',
+    ): FieldReference {
+      return {
+        collection: 'pages',
+        fieldPath: 'content',
+        fieldType: 'upload',
+        hasMany: true,
+        relationTo,
+        isLexicalBlock: true,
+        localizedAt: [],
+        lexicalFields: new Map(Object.entries(lexicalFields)),
+      }
+    }
+
     it('extracts image ID from TextBoxBlock using generic traversal', () => {
       const content = createLexicalWithTextBoxBlock(100)
 
-      // The new approach uses generic traversal - no blockRefs needed
-      const ids = extractIdsFromLexicalContent(content)
+      const ids = extractIdsFromLexicalContent(
+        content,
+        lexicalRef({ textbox: [blockField('image')] }),
+        'images',
+      )
       expect(ids.has(100)).toBe(true)
     })
 
     it('extracts image IDs from LayoutBlock items using generic traversal', () => {
       const content = createLexicalWithLayoutBlock([201, 202, 203])
 
-      // Generic traversal finds all ID-like values in block fields
-      const ids = extractIdsFromLexicalContent(content)
+      const ids = extractIdsFromLexicalContent(
+        content,
+        lexicalRef({ layout: [blockField('items.*.image')] }),
+        'images',
+      )
       expect(ids.has(201)).toBe(true)
       expect(ids.has(202)).toBe(true)
       expect(ids.has(203)).toBe(true)
@@ -277,18 +314,46 @@ describe('Schema Introspection Utilities', () => {
     it('extracts image IDs from GalleryBlock using generic traversal', () => {
       const content = createLexicalWithGalleryBlock([301, 302, 303])
 
-      // Generic traversal handles arrays of IDs
-      const ids = extractIdsFromLexicalContent(content)
+      const ids = extractIdsFromLexicalContent(
+        content,
+        lexicalRef({ 'image-gallery': [blockField('items', true)] }),
+        'images',
+      )
       expect(ids.has(301)).toBe(true)
       expect(ids.has(302)).toBe(true)
       expect(ids.has(303)).toBe(true)
     })
 
+    it('leaves a block field that points at another collection alone', () => {
+      // A block stores a bare id, so only the schema says which collection it
+      // names. Counting every id for both made one collection's live document
+      // hold the other's trash back (#1118).
+      const content = createLexicalWithTextBoxBlock(100)
+
+      const ids = extractIdsFromLexicalContent(content, lexicalRef({}, 'files'), 'files')
+      expect(ids.size).toBe(0)
+    })
+
+    it('reads an embedded upload node that names this collection', () => {
+      const content = createLexicalWithUploadNode(404)
+
+      const ids = extractIdsFromLexicalContent(content, lexicalRef({}), 'images')
+      expect(ids.has(404)).toBe(true)
+    })
+
+    it('leaves an embedded upload node naming another collection alone', () => {
+      const content = createLexicalWithUploadNode(404)
+
+      const ids = extractIdsFromLexicalContent(content, lexicalRef({}, 'files'), 'files')
+      expect(ids.size).toBe(0)
+    })
+
     it('handles empty content gracefully', () => {
-      const ids = extractIdsFromLexicalContent(null)
+      const ref = lexicalRef({ textbox: [blockField('image')] })
+      const ids = extractIdsFromLexicalContent(null, ref, 'images')
       expect(ids.size).toBe(0)
 
-      const ids2 = extractIdsFromLexicalContent({})
+      const ids2 = extractIdsFromLexicalContent({}, ref, 'images')
       expect(ids2.size).toBe(0)
     })
 
@@ -309,7 +374,11 @@ describe('Schema Introspection Utilities', () => {
           ],
         },
       }
-      const ids = extractIdsFromLexicalContent(content)
+      const ids = extractIdsFromLexicalContent(
+        content,
+        lexicalRef({ gallery: [blockField('items', true)] }),
+        'images',
+      )
       expect(ids.size).toBe(0)
     })
 
@@ -334,7 +403,11 @@ describe('Schema Introspection Utilities', () => {
           ],
         },
       }
-      const ids = extractIdsFromLexicalContent(content)
+      const ids = extractIdsFromLexicalContent(
+        content,
+        lexicalRef({ textbox: [blockField('image')], gallery: [blockField('items', true)] }),
+        'images',
+      )
       expect(ids.has(11)).toBe(true)
       expect(ids.has(22)).toBe(true)
       expect(ids.has(33)).toBe(true)

@@ -46,7 +46,10 @@ import { default as default_f79ca6e00097944fb6c5c3a66a904311 } from '@/component
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
 import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/components/admin/InstallGuide/InstallBanner'
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
-import { default as default_11724ca90c0e3bae2f937752e8aadbff } from '@/components/admin/ColorField/ResetColors'
+import { default as default_fe6b8e8df9811fdf0af5e78483956a33 } from '@/components/admin/AtlasPreview/AdjustedColors'
+import { default as default_ba43c0b4ef44620ea1a4f498747959e8 } from '@/components/admin/AtlasPreview/MapPreviewField'
+import { default as default_bfddde23a5acec01e52744b5de11ce22 } from '@/components/admin/AtlasPreview/EmailPreviewField'
+import { default as default_9a29105b391a89da2928a947fda83733 } from '@/components/admin/AtlasPreview/BrandingColorsLabel'
 import { default as default_15a790addfeffe484dd465108998359a } from '@/components/admin/SecretField'
 import { default as default_acdce971efa051c30eee554c2f9f8336 } from '@/components/admin/AbuseScore/AbuseScoreCell'
 import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/components/admin/AbuseScore/AbuseScoreField'
@@ -153,7 +156,10 @@ export const importMap = {
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
   "@/components/admin/InstallGuide/InstallBanner#default": default_d498427cbe3f9e971622125cc691d73d,
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
-  "@/components/admin/ColorField/ResetColors#default": default_11724ca90c0e3bae2f937752e8aadbff,
+  "@/components/admin/AtlasPreview/AdjustedColors#default": default_fe6b8e8df9811fdf0af5e78483956a33,
+  "@/components/admin/AtlasPreview/MapPreviewField#default": default_ba43c0b4ef44620ea1a4f498747959e8,
+  "@/components/admin/AtlasPreview/EmailPreviewField#default": default_bfddde23a5acec01e52744b5de11ce22,
+  "@/components/admin/AtlasPreview/BrandingColorsLabel#default": default_9a29105b391a89da2928a947fda83733,
   "@/components/admin/SecretField#default": default_15a790addfeffe484dd465108998359a,
   "@/components/admin/AbuseScore/AbuseScoreCell#default": default_acdce971efa051c30eee554c2f9f8336,
   "@/components/admin/AbuseScore/AbuseScoreField#default": default_d600b4f81bb40d92e487891c4971de20,

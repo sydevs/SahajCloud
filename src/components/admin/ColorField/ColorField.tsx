@@ -5,6 +5,7 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isBrandColor } from '@/lib/clients/appearance'
 
 /**
@@ -27,13 +28,7 @@ import { isBrandColor } from '@/lib/clients/appearance'
  * ```
  */
 export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
-  const {
-    name,
-    label,
-    localized,
-    required,
-    admin: { description, className, style, custom } = {},
-  } = field
+  const { name, label, localized, required, admin: { description, className, custom } = {} } = field
   const fallback = (custom as { colorFallback?: string } | undefined)?.colorFallback
 
   const { value, setValue, showError } = useField<string>()
@@ -62,8 +57,11 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
   const shown = unset && fallback ? fallback : value || '#000000'
 
   return (
-    <div className={fieldClasses} id={fieldId} style={style}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+    <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(field.admin)}>
+      <div style={{ alignItems: 'baseline', display: 'flex', gap: 'calc(var(--base) / 3)' }}>
+        <FieldLabel label={label} localized={localized} path={name} required={required} />
+        {unset ? <span style={{ color: 'var(--theme-elevation-500)' }}>Default</span> : null}
+      </div>
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
@@ -85,15 +83,6 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         />
       </div>
 
-      {fallback ? (
-        <div className="field-description" style={{ display: 'flex', gap: 'var(--base)' }}>
-          {unset ? (
-            <span>Atlas default ({fallback.toUpperCase()})</span>
-          ) : (
-            <span>Custom ({value?.toUpperCase()})</span>
-          )}
-        </div>
-      ) : null}
       <FieldDescription description={description} path={name} />
     </div>
   )

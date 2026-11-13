@@ -16,10 +16,12 @@
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { brandTextColor } from '@/emails/EmailLayout'
 import { EventImportSummaryEmail } from '@/emails/EventImportSummaryEmail'
 import { buildReplyBody, EventRegistrationEmail } from '@/emails/EventRegistrationEmail'
 import { InviteEmail, inviteHeading } from '@/emails/InviteEmail'
 import { buildUserMessageDetails, UserMessageEmail } from '@/emails/UserMessageEmail'
+import { ATLAS_DEFAULT_COLORS } from '@/lib/clients/appearance'
 import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 /** The rendered HTML alone, so a change to `renderEmail`'s return shape is a one-line fix. */
@@ -621,5 +623,73 @@ describe('EventImportSummaryEmail', () => {
 
     expect(html).toContain('Your class import needs attention')
     expect(html).not.toContain('Duplicates skipped')
+  })
+})
+
+/**
+ * A service picks its own two gradient stops, and the header title and filled
+ * buttons sit on them. Until #1110 both were white outright, so a pale brand
+ * shipped white-on-pale to every registrant it mailed.
+ *
+ * ⚠ **The brand colours themselves are never changed** — only the text on them.
+ */
+describe('text on a brand gradient', () => {
+  it('reads the worse of the two stops', () => {
+    // A service's own pale yellow: white clears neither stop.
+    expect(brandTextColor({ dark: '#997a00', light: '#ffffe0', primary: '#ffff00' })).toBe(
+      '#000000',
+    )
+    // Dark at both ends, which is where white survives.
+    expect(brandTextColor({ dark: '#0d3b3e', light: '#2f7f84', primary: '#1E6C71' })).toBe(
+      '#ffffff',
+    )
+  })
+
+  it('lets a pale light stop take white off a dark primary', () => {
+    // White reads on `#1E6C71` alone, and vanishes at 1.02 on `#ffffe0`; black
+    // reads over the whole gradient at 3.44.
+    expect(brandTextColor({ dark: '#0d3b3e', light: '#ffffe0', primary: '#1E6C71' })).toBe(
+      '#000000',
+    )
+  })
+
+  it('expands a short hex before reading it', () => {
+    // ⚠ `colorField`'s validator accepts `#ff0`. Read as six digits it is NaN,
+    // which answers white — the defect this rule exists to prevent.
+    expect(brandTextColor({ dark: '#997a00', light: '#ffffe0', primary: '#ff0' })).toBe('#000000')
+  })
+
+  it('picks black on every project brand', () => {
+    // White clears no stop of any of them, so only a service palette reaches white.
+    for (const [primary, light] of [
+      ['#F07855', '#FF9477'],
+      ['#61aaa0', '#72b3a9'],
+      ['#4a8cd4', '#6fa3dd'],
+    ]) {
+      expect(brandTextColor({ dark: primary, light, primary })).toBe('#000000')
+    }
+  })
+
+  it('takes the colour that reads where Outlook drops the gradient', () => {
+    // ⚠ Both sites set `primary` as `backgroundColor` beneath the gradient's
+    // `backgroundImage`, and Outlook desktop paints only the first. So a
+    // service on the atlas defaults must get the colour that reads on
+    // `#1E6C71` alone, not the one the unpainted light stop would pick.
+    expect(
+      brandTextColor({
+        dark: '#0d3b3e',
+        light: ATLAS_DEFAULT_COLORS.color2,
+        primary: ATLAS_DEFAULT_COLORS.color1,
+      }),
+    ).toBe('#ffffff')
+  })
+
+  it('is what the header title and the filled button are painted with', async () => {
+    const brand = getEmailBrand('sahaj-atlas')
+    const { html } = await renderEmail(createElement(InviteEmail, inviteProps))
+
+    // Wired, not merely available: both sites take the rule's answer for this
+    // project's own gradient, so neither can drift back to a constant.
+    expect(html.match(/color:#(000000|ffffff)/g)).toContain(`color:${brandTextColor(brand.colors)}`)
   })
 })
