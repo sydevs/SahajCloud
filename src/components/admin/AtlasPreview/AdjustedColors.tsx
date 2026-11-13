@@ -3,7 +3,7 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { Banner, Button, useField } from '@payloadcms/ui'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { BRAND_COLOR_LABELS, type BrandColorColumn } from '@/lib/clients/appearance'
 
@@ -27,16 +27,28 @@ export const AdjustedColors: UIFieldClientComponent = () => {
     color3: useField<null | string>({ path: 'color3' }),
   }
 
-  const swatches = COLUMNS.map((column) => {
+  const read = COLUMNS.map((column) => {
     const swatch = readSwatch(report, column, fields[column].value)
 
     return swatch ? { column, ...swatch } : null
   })
-
   // All three or none: a colour the report has not caught up with yet would
   // leave a gap that reads as a colour visitors do not see.
-  if (!swatches.every((swatch) => swatch !== null)) return null
-  if (!swatches.some((swatch) => swatch.adjusted)) return null
+  const current = read.every((swatch) => swatch !== null) ? read : null
+  const answer = current && current.some((swatch) => swatch.adjusted) ? current : null
+
+  // ⚠ Between a colour change and the atlas's report on it, the last answer stays
+  // up. Hiding the banner for that round trip made it flicker on every pick.
+  const [kept, setKept] = useState<typeof answer>(null)
+  const key = current ? JSON.stringify(answer) : null
+
+  useEffect(() => {
+    if (key !== null) setKept(key === 'null' ? null : (JSON.parse(key) as typeof answer))
+  }, [key])
+
+  const swatches = current ? answer : kept
+
+  if (!swatches) return null
 
   const suggestions = swatches.filter((swatch) => swatch.suggested)
 
@@ -66,6 +78,8 @@ export const AdjustedColors: UIFieldClientComponent = () => {
           <div className="atlas-preview__banner-actions">
             <Button
               buttonStyle="secondary"
+              // A kept answer describes colours the fields no longer hold.
+              disabled={!current}
               margin={false}
               onClick={() =>
                 suggestions.forEach((item) => fields[item.column].setValue(item.suggested))

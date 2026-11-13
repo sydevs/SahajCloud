@@ -26,8 +26,15 @@ const stub = vi.hoisted(() => ({
 vi.mock('@payloadcms/ui', () => ({
   Banner: ({ children, className }: { children: React.ReactNode; className?: string }) =>
     createElement('div', { className }, children),
-  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
-    createElement('button', { onClick, type: 'button' }, children),
+  Button: ({
+    children,
+    disabled,
+    onClick,
+  }: {
+    children: React.ReactNode
+    disabled?: boolean
+    onClick: () => void
+  }) => createElement('button', { disabled, onClick, type: 'button' }, children),
   FieldLabel: ({ label }: { label: string }) => createElement('label', null, label),
   useField: ({ path }: { path: string }) => stub.fields[path],
   useLivePreviewContext: () => ({ iframeRef: stub.iframeRef, url: 'x' }),
@@ -183,13 +190,28 @@ describe('AdjustedColors', () => {
   it('joins several reasons with semicolons', async () => {
     await mount(AdjustedColors)
     const frame = openPreview()
-    const primary = { ...PRIMARY, lightAdjustedBy: ['near-white', 'surface'] }
+    const primary = { ...PRIMARY, lightAdjustedBy: ['selected-distinct', 'surface'] }
 
     await post(report({ contrast: ACCENT, primary }), frame.contentWindow)
 
     expect(container.querySelector('td:last-child')?.textContent).toBe(
-      'Primary — moved away from near-white; adjusted for contrast with the background.',
+      'Primary — shifted to stand out from Primary; adjusted for contrast with the background.',
     )
+  })
+
+  it('keeps the last answer up while the next report is on its way', async () => {
+    await mount(AdjustedColors)
+    const frame = openPreview()
+
+    await post(report({ contrast: ACCENT, primary: PRIMARY }), frame.contentWindow)
+
+    // A pick the atlas has not reported on yet: hiding the banner for that round
+    // trip is what made it flicker.
+    stub.fields.color1.value = '#123456'
+    await mount(AdjustedColors)
+
+    expect(banner()).not.toBeNull()
+    expect(button('Use adjusted colors')?.disabled).toBe(true)
   })
 
   it('shows nothing while nothing is adjusted', async () => {
