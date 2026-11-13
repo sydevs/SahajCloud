@@ -142,8 +142,12 @@ async function findRecipients(payload: Payload, alreadySent: Set<string>) {
 }
 
 /**
- * The email for one recipient. What it lists is what an invitation naming everything they hold
- * would list (`summarizeGrants`), so the two cannot describe one manager differently.
+ * The email for one recipient. The rows it lists are an invitation's own (`summarizeGrants`), so
+ * the two cannot list one manager differently.
+ *
+ * The "what's new" lines are keyed on `recipient.holds` instead, which counts only live events —
+ * so a manager with one live class and five finished ones is pitched as a class manager above a
+ * list of six. Deliberate: the pitch is about what they still run, the list about what they hold.
  */
 async function compose(payload: Payload, recipient: MigrationRecipient, subjectPrefix = '') {
   const brand = getEmailBrand('sahaj-atlas')
