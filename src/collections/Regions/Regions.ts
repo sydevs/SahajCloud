@@ -272,17 +272,21 @@ export const Regions: CollectionConfig = {
                 components: { Field: '@/components/admin/AddressSearchField' },
                 custom: {
                   // Scope the search to what each level resolves to: a
-                  // country, a region or state, a city, or a venue (POI or
-                  // address). AddressSearchField reads this live off the
-                  // `level` field.
+                  // country, a region or state, a city, or a venue — which
+                  // Geocoding v6 holds no POI layer for, so it is picked by
+                  // its address. AddressSearchField reads this live off the
+                  // `level` field. The importer's twin is `TYPES_BY_LEVEL`
+                  // (`src/lib/mapbox/geocoder.ts`) for the first three; it
+                  // carries no venue row at all, placing one by its postal
+                  // address through `geocodeVenue` instead.
                   searchTypesField: 'level',
                   searchTypesByValue: {
                     country: 'country',
                     region: 'region',
                     city: 'place,locality',
-                    venue: 'poi,address',
+                    venue: 'address,street',
                   },
-                  searchTypes: 'country,region,place,poi', // fallback if level unset
+                  searchTypes: 'country,region,place,address', // fallback if level unset
                   populateName: true,
                   allowManual: true,
                   // A country must be geocoded (no hand-entered coordinates).

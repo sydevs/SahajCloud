@@ -83,7 +83,16 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
               label: 'Address',
               admin: {
                 components: { Field: ADDRESS_SEARCH_FIELD },
-                custom: { searchTypes: 'address,poi', populateAddress: true, allowManual: true },
+                custom: {
+                  // Nothing coarser than a street: `populateAddress` writes the
+                  // picked feature into the sibling `street`, and the CSV
+                  // importer stores this same column only for an `address`
+                  // match (`addressFeatureMapboxId`,
+                  // `src/plugins/eventImport/eventData.ts`).
+                  searchTypes: 'address,street',
+                  populateAddress: true,
+                  allowManual: true,
+                },
               },
             },
           ]

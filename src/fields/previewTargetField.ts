@@ -6,8 +6,9 @@ import type { LivePreviewUnavailableReason } from '@/lib/livePreview/unavailable
  * Where the Live Preview panel should point while one tab is open.
  *
  * **This is data, never a function.** `admin.custom` is serialized into the
- * client field config, so a callback cannot cross (see
- * `AddressSearchField.tsx:196`). Everything here is JSON.
+ * client field config, so a callback cannot cross (see `AddressSearchField`'s
+ * `searchTypesByValue` read, which is a map for that reason). Everything here
+ * is JSON.
  *
  * **It carries no origin and no credential.** The declaration ships to the
  * browser, and the live-preview signing key is server-only

@@ -39,7 +39,7 @@ export const ClientEnvSchema = z.object({
 
   /**
    * Public Mapbox access token, used by the address-autocomplete field
-   * (`AddressSearchField`) to call the Mapbox Search Box API from the browser.
+   * (`AddressSearchField`) to call the Mapbox Geocoding API from the browser.
    * When unset, the address field degrades to plain manual entry.
    */
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().optional(),
