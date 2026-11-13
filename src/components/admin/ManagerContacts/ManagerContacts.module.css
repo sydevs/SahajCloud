@@ -11,3 +11,7 @@
 .never {
   color: var(--theme-elevation-500);
 }
+.subtitle {
+  display: block;
+  color: var(--theme-elevation-650);
+}
