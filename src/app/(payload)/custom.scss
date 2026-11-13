@@ -16,7 +16,6 @@
   --gutter-h: 24px;
   --base: 24px;
   --base-body-size: 14px;
-  --base-line-height: 1.6;
 }
 
 /* ============================================================================
@@ -35,9 +34,6 @@
 
 :root {
   --nav-trans-time: 200ms;
-  --box-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --box-shadow-m: 0 2px 12px rgba(0, 0, 0, 0.06);
-  --box-shadow-s: 0 1px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ============================================================================
@@ -147,10 +143,12 @@ label.field-label {
    ============================================================================ */
 
 /* Payload's `a:focus { outline: none }` outranks its own `:focus-visible`
-   rule, so a keyboard user sees no ring on any link — tiles, tabs, menu rows. */
+   rule, so a keyboard user sees no ring on any link — tiles, tabs, menu rows.
+   Each read carries a fallback: a variable Payload drops takes the whole
+   declaration with it, and a page with no ring looks like a page with one. */
 a:focus-visible {
-  outline: var(--accessibility-outline);
-  outline-offset: var(--accessibility-outline-offset);
+  outline: var(--accessibility-outline, 2px solid var(--theme-text));
+  outline-offset: var(--accessibility-outline-offset, 2px);
 }
 
 /* An inactive tab label is at half opacity, which reads below AA in every
@@ -212,8 +210,9 @@ a:focus-visible {
 /* A group draws the dividers that frame a section. With no heading between
    them they frame nothing, and the fields inside read as a section of their
    own — an event's address. `header` is the heading itself: the wrapper is
-   also rendered for an error pill alone. */
-.group-field:not(:has(> .group-field__wrap > .group-field__header > header)) {
+   also rendered for an error pill alone, and is matched by position because
+   Payload gives it a class its own stylesheet never names. */
+.group-field:not(:has(> * > .group-field__header > header)) {
   border-top: 0;
   border-bottom: 0;
 }

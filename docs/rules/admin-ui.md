@@ -158,6 +158,8 @@ Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
 ⚠ **Payload's stylesheet sits in a cascade layer and `custom.scss` does not, so a rule there outranks anything Payload declares, whatever the specificity.** That is what puts the focus ring back over Payload's own `a:focus { outline: none }`. It also means a rule there that broadens one of Payload's — colouring every tab label, say — silently outranks Payload's narrower one for the error state, which then has to be restated beside it.
 
+⚠ **So `custom.scss` may name only what Payload's own stylesheet names.** Unlayered also means a selector that stops matching stops silently — the rule never applies and the page still renders — so a renamed class or a dropped variable surfaces a release later, on the one screen the rule was for. `tests/unit/admin-custom-css.spec.ts` pins every class and variable the sheet spells against the CSS both Payload packages ship, and four `:root` overrides had already outlived their variables. A class Payload renders but never styles cannot be pinned, so the group-divider rule matches the wrapper's position instead of its name.
+
 ## Server vs client components
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.
