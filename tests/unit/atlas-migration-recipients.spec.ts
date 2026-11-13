@@ -56,7 +56,7 @@ describe('selectRecipients', () => {
 })
 
 describe('cmsHighlights', () => {
-  const holds = { regions: 0, services: 0 }
+  const holds = { events: 1, regions: 0, services: 0 }
   const mentions = (lines: { text: string }[], text: string) =>
     lines.some((line) => line.text.includes(text))
 
@@ -68,5 +68,10 @@ describe('cmsHighlights', () => {
   it('offers map customisation only to someone who looks after a website', () => {
     expect(mentions(cmsHighlights({ ...holds, regions: 1 }), 'your website')).toBe(false)
     expect(mentions(cmsHighlights({ ...holds, services: 1 }), 'your website')).toBe(true)
+  })
+
+  it('offers the registrations list only to someone who runs a class', () => {
+    expect(mentions(cmsHighlights(holds), 'signed up')).toBe(true)
+    expect(mentions(cmsHighlights({ ...holds, events: 0, regions: 1 }), 'signed up')).toBe(false)
   })
 })
