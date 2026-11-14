@@ -37,8 +37,15 @@ function sourceFiles(dir: string = SRC): string[] {
 /** The one module that may render Payload's own `Table`. */
 const WRAPPER = 'components/admin/helpers/stackedTable.tsx'
 
-/** The whole import statement, so its specifiers can be read apart. */
-const PAYLOAD_UI_IMPORT = /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\/ui'/g
+/**
+ * The whole import statement, so its specifiers can be read apart.
+ *
+ * The subpath is part of the match because `@payloadcms/ui/elements/Table`
+ * resolves to the same component as the bare specifier, and this repo already
+ * imports that way — `@payloadcms/ui/elements/Pill`, `/icons/Plus`, `/rsc`.
+ */
+const PAYLOAD_UI_IMPORT =
+  /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\/ui(?:\/[^']+)?'/g
 
 /**
  * Files importing `Table` as a value.
