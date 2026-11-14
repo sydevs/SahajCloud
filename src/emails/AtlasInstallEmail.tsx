@@ -15,6 +15,8 @@ export interface AtlasInstallEmailProps {
   domain: string
   /** Signs them in on the service's Install tab, for `validFor`. */
   installUrl: string
+  /** The same tab with no credential, behind the ordinary sign-in, for after `validFor`. */
+  installTabUrl: string
   /** How long `installUrl` works, as a reader says it: "7 days". */
   validFor: string
   /** The admin's sign-in page, for after the link has expired. */
@@ -23,7 +25,8 @@ export interface AtlasInstallEmailProps {
   mapUrl: string
 }
 
-export const atlasInstallSubject = (domain: string) => `Put the new Sahaj Atlas on ${domain}`
+export const atlasInstallSubject = (domain: string) =>
+  `Upgrade ${domain.replace(/^www\./, '')} to Sahaj Atlas v3`
 
 const NEEDS = [
   {
@@ -63,6 +66,7 @@ export function AtlasInstallEmail({
   email,
   domain,
   installUrl,
+  installTabUrl,
   validFor,
   signInUrl,
   mapUrl,
@@ -71,17 +75,21 @@ export function AtlasInstallEmail({
   return (
     <EmailLayout
       brand={brand}
-      heading="Time to update your website’s map"
+      heading="Sahaj Atlas has upgraded to a new version!"
       previewText={`The map on ${domain} is still the old one. Here is how to switch it.`}
     >
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
       <Text style={styles.paragraph}>
-        All Sahaj Atlas classes are now looked after in the new system. The map on{' '}
-        <strong>{domain}</strong> is still the old one, so it{' '}
-        <strong>no longer shows the latest classes</strong>. Switching it to the new map is quick,
-        and you can do it yourself.
+        We&apos;ve recently completed a major overhaul of the Sahaj Atlas. The map on{' '}
+        <strong>{domain}</strong> is still pointing to the old version and classes won&apos;t be
+        updated there anymore. This is a one time change. Switching it to the new map is quick, and
+        you can do it yourself.
+      </Text>
+      <Text style={styles.paragraph}>
+        Please help us by switching early so that we can shut down the old service which is costing
+        us quite a bit of money. Thank you for your help and patience with this update.
       </Text>
 
       <SectionHeading>What you need</SectionHeading>
@@ -126,7 +134,11 @@ export function AtlasInstallEmail({
         <Link href={signInUrl} style={link}>
           {URL.parse(signInUrl)?.host ?? signInUrl}
         </Link>{' '}
-        with <strong>{email}</strong> and open your service’s Install tab.
+        with <strong>{email}</strong> and open{' '}
+        <Link href={installTabUrl} style={link}>
+          your service’s Install tab
+        </Link>
+        .
       </Text>
       <BrandButtonRow
         brand={brand}

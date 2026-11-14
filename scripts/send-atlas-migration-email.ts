@@ -4,7 +4,7 @@
  *
  * - `--email welcome` (the default): "Welcome to the new Sahaj Atlas", to every active Atlas
  *   manager (`selectRecipients`).
- * - `--email install`: "Put the new Sahaj Atlas on <domain>", to each manager of a service whose
+ * - `--email install`: "Upgrade <domain> to Sahaj Atlas v3", to each manager of a service whose
  *   site still runs the legacy widget (`selectInstallRecipients`), with a button that signs them in
  *   on that service's Install tab for a week.
  *
@@ -290,8 +290,9 @@ async function installCampaign(
     compose: async (recipient, { preview }) => {
       const brand = getEmailBrand('sahaj-atlas')
       const to = adminDocPath('clients', recipient.service.id, 'install')
+      const installTabUrl = `${origin}${to}`
       const installUrl = preview
-        ? `${origin}${to}`
+        ? installTabUrl
         : await pageLinkUrl(
             managersLogin,
             recipient.managerId,
@@ -310,6 +311,7 @@ async function installCampaign(
             brand,
             domain: recipient.service.domain,
             email: recipient.email,
+            installTabUrl,
             installUrl,
             mapUrl: MAP_URL,
             name: recipient.name,
