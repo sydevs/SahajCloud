@@ -59,16 +59,21 @@ const CONFIRM_MODAL = 'event-import-confirm'
 
 const classes = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
 
-/** A first line with quieter lines beneath it. */
-const stacked = (lines: readonly React.ReactNode[]) =>
-  lines.length > 1 ? (
+/**
+ * A first line with quieter lines beneath it.
+ *
+ * Named for the lines, not for stacking: this table is a `StackedTable`, where
+ * stacking is what the whole row does under 700px (#1151).
+ */
+const lines = (parts: readonly React.ReactNode[]) =>
+  parts.length > 1 ? (
     <span className="event-import__details">
-      {lines.map((line, index) => (
-        <span key={index}>{line}</span>
+      {parts.map((part, index) => (
+        <span key={index}>{part}</span>
       ))}
     </span>
   ) : (
-    lines[0]
+    parts[0]
   )
 
 /**
@@ -188,13 +193,13 @@ export const ImportResultsTable: React.FC<{
   const statusOf = (row: ResultRow): React.ReactNode => {
     switch (row.status) {
       case 'published':
-        return stacked([
+        return lines([
           `Published${when(row.at)}`,
           ...(row.unverified ? ['Listed as unverified because the class has no manager'] : []),
           ...(row.approximate ? [APPROXIMATE] : []),
         ])
       case 'draft':
-        return stacked([
+        return lines([
           `Created${when(row.at)}`,
           ...(row.approximate ? [`${APPROXIMATE} before publishing`] : []),
         ])
@@ -290,7 +295,7 @@ export const ImportResultsTable: React.FC<{
           },
           {
             accessor: 'details',
-            cells: rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
+            cells: rows.map(({ city, schedule }) => lines([city || '—', schedule])),
             heading: 'Details',
           },
           {
