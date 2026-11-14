@@ -22,9 +22,9 @@ const SRC = resolve(__dirname, '../../src')
  *
  * Naming that module puts this spec in the hook's selection for every edit of
  * it, and `select-unit-specs.spec.ts` caps how wide any one edit's selection
- * may get — which this would push past. The walk costs about 48 ms, and the
- * shared `sourceOf` memo buys nothing here: the unit project isolates each
- * spec file, so nothing else has read these files already.
+ * may get — which this would push past. Its `sourceOf` memo buys nothing here
+ * either: the unit project isolates each spec file, so nothing else in this
+ * process has read these files already.
  */
 function sourceFiles(dir: string = SRC): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
