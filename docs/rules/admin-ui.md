@@ -154,6 +154,16 @@ Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`
 
 Full reference: `node_modules/@payloadcms/ui/dist/scss/app.scss`
 
+⚠ **A project theme sets all 21 elevation steps, never a subset.** The scales live in `src/lib/branding/themeColors.ts`, derived from the brand colours beside them: a step a theme leaves unset keeps Payload's own grey, so muted text renders grey between two tinted neighbours. A text step carries 30% of the project hue's chroma, because at full chroma a read-only value reads as selected rather than muted. `tests/unit/project-theme-contrast.spec.ts` holds what a hex cannot show — every step set, and a dark text step readable on the surface behind it.
+
+⚠ **`--theme-success-*` is a green here, and a chosen control is painted from `--project-accent`.** Payload ships a blue under the name `success`, so a verified pill and a filled bar read as a second brand colour — and as the Atlas's own. `ProjectTheme` repaints that scale from one green hue under every project, keeping each of Payload's steps at the luminance it had, so no consumer's contrast moves. The accent is the project's own `dark` brand variant, with `--project-accent-text` as the label over it: Payload's chosen-control pair is the elevation scale's dark end, which under a project theme is a near-black chip. Both are read with a fallback — a project-less admin paints neither.
+
+⚠ **Payload's stylesheet sits in a cascade layer and `custom.scss` does not, so a rule there outranks anything Payload declares, whatever the specificity.** That is what puts the focus ring back over Payload's own `a:focus { outline: none }`. It also means a rule there that broadens one of Payload's — colouring every tab label, say — silently outranks Payload's narrower one for the error state, which then has to be restated beside it.
+
+⚠ **So `custom.scss` may name only what Payload's own stylesheet names.** Unlayered also means a selector that stops matching stops silently — the rule never applies and the page still renders — so a renamed class or a dropped variable surfaces a release later, on the one screen the rule was for. `tests/unit/admin-custom-css.spec.ts` pins every class and variable the sheet spells against the CSS both Payload packages ship, and four `:root` overrides had already outlived their variables. A class Payload renders but never styles cannot be pinned, so the group-divider rule matches the wrapper's position instead of its name.
+
+⚠ **And a variable Payload declares per breakpoint has to be overridden per breakpoint.** One flat `:root` value cancels every narrowing below it, which is a desktop gutter on a phone — so the sheet restates `--gutter-h` inside Payload's own small break, and that spec pins the query's width and the value to Payload's `$breakpoint-s-width` and `base()`.
+
 ## Server vs client components
 
 Payload passes user data and locale objects with methods to view components, so **custom views must be server components** — a client view throws `Functions cannot be passed directly to Client Components` the moment Payload hands it a locale object.

@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import type {
-  NotificationKey,
-  NotificationType,
-} from '@/components/admin/NotificationPreferences/config'
+import type { NotificationKey, NotificationType } from '@/lib/notifications/preferences'
 import {
   buildDefaultNotificationPreferences,
+  CONTACT_PLATFORMS,
+  DEFAULT_NOTIFICATION_METHOD,
   NOTIFICATION_TYPES,
   notificationFrequency,
+  notificationMethodLabel,
   notificationTypesFor,
   REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
   validateNotificationPreferences,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 
 describe('notification preferences config', () => {
   describe('the rows', () => {
@@ -148,6 +148,19 @@ describe('notification preferences config', () => {
       expect(result).toContain('Invitations')
       expect(result).toContain('New registrations')
       expect(result).not.toContain('Statistics')
+    })
+  })
+
+  describe('notificationMethodLabel', () => {
+    it('names email and every platform a manager can list', () => {
+      expect(notificationMethodLabel(DEFAULT_NOTIFICATION_METHOD)).toBe('Email')
+      for (const platform of CONTACT_PLATFORMS) {
+        expect(notificationMethodLabel(platform.value)).toBe(platform.label)
+      }
+    })
+
+    it('keeps a stored method this vocabulary no longer offers', () => {
+      expect(notificationMethodLabel('signal')).toBe('signal')
     })
   })
 })

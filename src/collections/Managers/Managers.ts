@@ -3,13 +3,14 @@ import type { CollectionConfig } from 'payload'
 import { json as jsonFieldValidation } from 'payload/shared'
 import { z } from 'zod'
 
-import {
-  buildDefaultNotificationPreferences,
-  validateNotificationPreferences,
-} from '@/components/admin/NotificationPreferences/config'
 import { hideUntilCreated, legacyMigrationFields } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { getLanguageOptions } from '@/lib/locales'
+import {
+  CONTACT_PLATFORMS,
+  buildDefaultNotificationPreferences,
+  validateNotificationPreferences,
+} from '@/lib/notifications/preferences'
 import { adminOnlyFieldAccess, getRoleOptions, getProjectOptions } from '@/plugins/access'
 
 import { lockManagerFieldReads } from './access'
@@ -200,7 +201,10 @@ export const Managers: CollectionConfig = {
               name: 'contactDetails',
               type: 'array',
               labels: { singular: 'Contact Method', plural: 'Contact Methods' },
-              admin: { description: 'Messaging handles used to deliver notifications.' },
+              admin: {
+                description:
+                  'Messaging handles used to deliver notifications. Email goes to the sign-in address above the tabs.',
+              },
               fields: [
                 {
                   type: 'row',
@@ -209,11 +213,9 @@ export const Managers: CollectionConfig = {
                       name: 'platform',
                       type: 'select',
                       required: true,
-                      options: [
-                        { label: 'WhatsApp', value: 'whatsapp' },
-                        { label: 'Telegram', value: 'telegram' },
-                        { label: 'WeChat', value: 'wechat' },
-                      ],
+                      // The preferences table names a chosen platform from the
+                      // same list, so neither can offer one the other cannot say.
+                      options: [...CONTACT_PLATFORMS],
                     },
                     {
                       name: 'identifier',

@@ -16,7 +16,18 @@
   --gutter-h: 24px;
   --base: 24px;
   --base-body-size: 14px;
-  --base-line-height: 1.6;
+}
+
+/* Payload narrows `--gutter-h` at two widths, and this sheet is unlayered, so
+   one flat value cancels both. Only the narrower one is a loss: 24px is already
+   tighter than the 60px Payload gives a desktop and the 40px it gives a tablet,
+   and wider than the 16px it gives a phone — which on a 390px screen is 4% of
+   the width handed back. `admin-custom-css.spec.ts` pins the query and the
+   value to Payload's own, so a change to either reds the unit lane. */
+@media (max-width: 768px) {
+  :root {
+    --gutter-h: 16px;
+  }
 }
 
 /* ============================================================================
@@ -35,9 +46,6 @@
 
 :root {
   --nav-trans-time: 200ms;
-  --box-shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --box-shadow-m: 0 2px 12px rgba(0, 0, 0, 0.06);
-  --box-shadow-s: 0 1px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ============================================================================
@@ -70,21 +78,19 @@
   color: var(--theme-text);
 }
 
-/* The selected value renders as a single clearable pill inside a ReactSelect
-   control (chevron + clear-all removed). Force it full width so the control
-   matches the search box it replaces. */
-.field-type.address-search .react-select {
-  width: 100%;
-}
-
 /* ============================================================================
-   5. STRING SELECT FIELD (StringSelectField — country/region dropdowns)
+   5. SELECT FIELDS (the fields that render a bare ReactSelect)
    ============================================================================ */
 
-/* A single-value ReactSelect renders bare `.react-select` (Payload only wraps
-   it in the full-width `.react-select-container` on its sortable path), so it
-   doesn't fill its slot like built-in inputs. Force it full width. */
-.field-type.string-select .react-select {
+/* A single-value ReactSelect renders bare `.react-select` — Payload only wraps
+   it in the full-width `.react-select-container` on its sortable path — so it
+   sizes to its own value instead of filling its slot. Named per field rather
+   than `.field-type .react-select`: this sheet is unlayered, so a rule reading
+   as a default here outranks Payload's own on every select in the admin,
+   `RolesField` and each built-in select among them. */
+.field-type.address-search .react-select,
+.field-type.string-select .react-select,
+.field-type.notification-preferences .react-select {
   width: 100%;
 }
 
@@ -145,7 +151,86 @@ label.field-label {
 }
 
 /* ============================================================================
-   7. LIVE PREVIEW LAYOUT
+   7. FOCUS, TABS AND SECTIONS
+   ============================================================================ */
+
+/* Payload's `a:focus { outline: none }` outranks its own `:focus-visible`
+   rule, so a keyboard user sees no ring on any link — tiles, tabs, menu rows.
+   Each read carries a fallback: a variable Payload drops takes the whole
+   declaration with it, and a page with no ring looks like a page with one. */
+a:focus-visible {
+  outline: var(--accessibility-outline, 2px solid var(--theme-text));
+  outline-offset: var(--accessibility-outline-offset, 2px);
+}
+
+/* An inactive tab label is at half opacity, which reads below AA in every
+   theme. Carry the muting in a colour that is readable instead. */
+.tabs-field__tab-button,
+.tabs-field__tab-button:hover {
+  opacity: 1;
+}
+
+.tabs-field__tab-button {
+  color: var(--theme-elevation-600);
+}
+
+.tabs-field__tab-button--active {
+  color: var(--theme-text);
+}
+
+/* Restated unlayered: the rule above would otherwise outrank Payload's own. */
+.tabs-field__tab-button--has-error {
+  color: var(--theme-error-500);
+}
+
+/* Payload renders the open document tab as a disabled button, so hovering the
+   tab you are already on answers "not allowed". Its count pill also takes a
+   tinted step, which under a project theme reads as the brand colour rather
+   than as part of the page. */
+.doc-tab--active,
+.doc-tab--active .btn {
+  cursor: default;
+}
+
+.doc-tab--active .pill-version-count,
+.doc-tab--active:hover .pill-version-count {
+  background-color: var(--theme-border-color);
+}
+
+/* Tabs opening a page carry Payload's 40px, which adds to the page's padding.
+   A `HiddenField` renders an `<input type="hidden">` that occupies nothing, so
+   tabs behind one still open the page — Events' `importBatch` is one.
+   shortcut: a visible field before that hidden input also loses the margin,
+   upgrade to `:has()` if one ever sits there. */
+.render-fields > .tabs-field:first-child,
+.render-fields > input[type='hidden'] + .tabs-field {
+  margin-top: 0;
+}
+
+/* Sign-in by link leaves Payload's password and API-key blocks with nothing in
+   them, and `.auth-fields`' own gap then reads as a control that failed to
+   render. */
+.auth-fields__controls:empty,
+.auth-fields__api-key:empty {
+  display: none;
+}
+
+.auth-fields > .field-type:last-child {
+  margin-bottom: 0;
+}
+
+/* A group draws the dividers that frame a section. With no heading between
+   them they frame nothing, and the fields inside read as a section of their
+   own — an event's address. `header` is the heading itself: the wrapper is
+   also rendered for an error pill alone, and is matched by position because
+   Payload gives it a class its own stylesheet never names. */
+.group-field:not(:has(> * > .group-field__header > header)) {
+  border-top: 0;
+  border-bottom: 0;
+}
+
+/* ============================================================================
+   8. LIVE PREVIEW LAYOUT
    ============================================================================ */
 
 /* Open live preview wraps the sidebar under the form (`--force-sidebar-wrap`),
