@@ -104,6 +104,13 @@ Transactional emails are [React Email](https://react.email) components under `sr
 | `DigestEmail.tsx`                   | One manager's digest for one role (#1070): statistics, the open-items list, and the new registrations on their own programs — each section present only when its own pace is due. The subject is the role's label then the summary line, so each role reads as its own job. Sent by `SendDigests`. Admin-facing and English only; `resolveEmailStrings` serves the registrant templates.                                                                                                                                                                                                                                                                                                                                         |
 | `PostEventFollowUpEmail.tsx`        | Registrant follow-up after an attended session (#626), built from composable `sections` so later kinds can be added. Today's only section is a feedback ask, sent only for a published, `unverified` event. Sent by `SendPostEventFollowUps`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
+### ⚠ `public/emails/atlas-migration-banner.jpg` has no caller, and must stay
+
+Nothing in the repo references it. The Atlas migration email delivered to 418 managers on
+2026-11-14 loads it from `cloud.sydevelopers.com`, so deleting it breaks the image in every one of
+those inboxes, not just in a future send. `shortcut: kept for already-delivered mail, may go once
+those emails are a year old (2027-11-14)` (#1157).
+
 ### Registrant mail: the six things, every time
 
 The follow-up email once shipped missing four of these, which is why they're written down. Every registrant template and sender does all six:
