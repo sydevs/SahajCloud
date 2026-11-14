@@ -101,15 +101,6 @@
 /* Shared CMS presentation. Keep status colours, focus rings and disabled
    states owned by Payload. */
 
-/* Payload reads `--base-body-size` bare here, so its own unitless default
-   leaves these three with no size at all. The API-key button is excluded:
-   Payload sizes that one itself, and this sheet is unlayered. */
-.btn:not(.api-key__regenerate-button),
-.preview-btn,
-.live-preview-toggler {
-  font-size: var(--admin-body-size);
-}
-
 /* Tabs keep Payload's own weights: the active list tab is bolder. */
 .btn:not(.btn--style-tab) {
   --btn-font-weight: 500;
