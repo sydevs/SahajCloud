@@ -10,11 +10,29 @@
  * A surface that genuinely must stay a table at every width is a deliberate
  * entry below, not an omission nobody notices.
  */
-import { relative } from 'node:path'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { SRC, sourceFiles, sourceOf } from '../utils/importGraph'
+const SRC = resolve(__dirname, '../../src')
+
+/**
+ * Its own walk, rather than `tests/utils/importGraph`'s.
+ *
+ * Naming that module puts this spec in the hook's selection for every edit of
+ * it, and `select-unit-specs.spec.ts` caps how wide any one edit's selection
+ * may get — which this would push past. The walk costs about 48 ms, and the
+ * shared `sourceOf` memo buys nothing here: the unit project isolates each
+ * spec file, so nothing else has read these files already.
+ */
+function sourceFiles(dir: string = SRC): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) return sourceFiles(path)
+    return /\.tsx?$/.test(entry.name) ? [path] : []
+  })
+}
 
 /** The one module that may render Payload's own `Table`. */
 const WRAPPER = 'components/admin/helpers/stackedTable.tsx'
@@ -31,7 +49,7 @@ const PAYLOAD_UI_IMPORT = /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\
 function tableImporters(): string[] {
   const found: string[] = []
   for (const file of sourceFiles()) {
-    for (const [, typeOnly, specifiers] of sourceOf(file).matchAll(PAYLOAD_UI_IMPORT)) {
+    for (const [, typeOnly, specifiers] of readFileSync(file, 'utf8').matchAll(PAYLOAD_UI_IMPORT)) {
       if (typeOnly) continue
       const imported = specifiers.split(',').map((part) => part.trim())
       if (imported.some((part) => /^Table\b/.test(part))) found.push(relative(SRC, file))

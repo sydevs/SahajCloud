@@ -175,17 +175,17 @@
 .submission-data__key {
   display: block;
   width: max-content;
-  max-width: 100%;
+  max-width: 28em;
   color: var(--theme-elevation-600);
 }
 
-/* The key holds its own width beside the value, up to 28em. Only while it is a
-   table: stacked, the cell is the whole row, and a long question sized to its
-   own content would carry past the edge of a phone
-   (components/admin/helpers/stackedTable.module.css). */
-@media (min-width: 701px) {
+/* Stacked, the cell is the whole row, and a long question sized to its own
+   content would carry past the edge of a phone. Lifted inside the wrapper's own
+   query rather than scoped to the other side of it, so no fractional viewport
+   width falls between the two. */
+@media (max-width: 700px) {
   .submission-data__key {
-    max-width: 28em;
+    max-width: 100%;
   }
 }
 
