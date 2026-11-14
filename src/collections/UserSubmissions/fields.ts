@@ -833,6 +833,12 @@ const systemGroup = (form: Field | undefined): Field => ({
       // names its city here as `placeId`. Ids, not names: an id only ever
       // matches a region that already exists, so a forged value can misroute a
       // submission but never name a region id or carry text a reviewer reads.
+      //
+      // ⚠ **The client owes a permanent Geocoding v6 lookup for these.** They
+      // are stored here, and Mapbox's terms allow storing a geocode only when
+      // it was asked for as permanent — the same rule `src/lib/mapbox/geocoder.ts`
+      // keeps for the ids this repo resolves itself (#893). v6 also holds no
+      // POI layer, so a venue matches on the id of its address.
       ...jsonField({
         name: 'location',
         schemaTitle: 'SubmissionLocation',
