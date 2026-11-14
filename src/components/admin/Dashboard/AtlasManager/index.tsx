@@ -2,6 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { CalendarIcon } from '@payloadcms/ui'
 
+import { AskToAddButton } from './AskToAddButton'
 import { getAtlasManagerData } from './data'
 import { CenteredNotice } from '../../CenteredNotice'
 import styles from '../shared/Dashboard.module.css'
@@ -18,7 +19,7 @@ type AtlasManagerProps = {
 
 /** The Sahaj Atlas home for a program manager: what is waiting on their own classes. */
 export default async function AtlasManager({ req, searchParams }: AtlasManagerProps) {
-  const { canCreate, items, statistics } = await getAtlasManagerData(
+  const { canCreate, items, regionContacts, statistics } = await getAtlasManagerData(
     req,
     parseDashboardQuery(searchParams),
   )
@@ -49,7 +50,13 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
   return (
     <section aria-label="Your events" className={styles.home}>
       <HomeHeader
-        canCreate={canCreate}
+        action={
+          canCreate ? (
+            <AddProgramButton>Add new event</AddProgramButton>
+          ) : regionContacts.length > 0 ? (
+            <AskToAddButton contacts={regionContacts} />
+          ) : null
+        }
         subtitle="Manage your events and keep their public details up to date."
         title="Your events"
       />
@@ -60,12 +67,12 @@ export default async function AtlasManager({ req, searchParams }: AtlasManagerPr
           {statistics.mostRegistered.registrations} sign-ups
         </p>
       ) : null}
+      {/* The lone tab counts the whole list, which is every event this manager
+          runs; the meter beside it is what counts the open ones. */}
       <SectionTabs
         active="items"
         progress={items.progress}
-        tabs={[
-          { count: items.progress?.open ?? items.counts.all, label: 'Open items', value: 'items' },
-        ]}
+        tabs={[{ count: items.counts.all, label: 'Events', value: 'items' }]}
       />
       <OpenItemsList data={items} emptyBanner="All clear. Every event is on track." />
     </section>

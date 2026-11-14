@@ -5,7 +5,7 @@ import { SetStepNav } from '@payloadcms/ui'
 import { getAtlasRegionData } from './data'
 import { CenteredNotice } from '../../CenteredNotice'
 import styles from '../shared/Dashboard.module.css'
-import { HomeHeader } from '../shared/HomeHeader'
+import { AddProgramButton, HomeHeader } from '../shared/HomeHeader'
 import { parseDashboardQuery } from '../shared/model'
 import { OpenItemsList } from '../shared/OpenItemsList'
 import { RegionOverviewTable } from '../shared/RegionOverviewTable'
@@ -37,7 +37,11 @@ export default async function AtlasRegion({ req, searchParams }: AtlasRegionProp
     <section aria-label="Your regions" className={styles.home}>
       {/* A region opened from the overview needs the trail to say which subtree it is. */}
       <SetStepNav nav={data.breadcrumbs} />
-      <HomeHeader canCreate subtitle={data.description} title="Your regions" />
+      <HomeHeader
+        action={<AddProgramButton>Add new event</AddProgramButton>}
+        subtitle={data.description}
+        title="Your regions"
+      />
       <StatTiles label="Verification health" tiles={statistics.health} />
       <StatTiles label="Statistics" note="Last 30 days" tiles={statistics.analytics} />
       <SectionTabs

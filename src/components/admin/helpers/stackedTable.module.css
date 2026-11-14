@@ -1,0 +1,48 @@
+/* The phone layout for a CMS table. `.label` is hidden while the table is a
+   table; the media query below is the whole stacked mode. */
+.label {
+  display: none;
+}
+
+/* One block per row, each line named. Payload's `Table` only scrolls sideways,
+   so a column past the edge is a column nobody finds. */
+@media (max-width: 700px) {
+  .stacked :global(table),
+  .stacked :global(tbody),
+  .stacked :global(tr),
+  .stacked :global(td) {
+    display: block;
+  }
+  /* A header row names the first row alone once the rows are blocks, so each
+     cell carries its own label instead. */
+  .stacked :global(thead) {
+    display: none;
+  }
+  .stacked .label {
+    display: block;
+    color: var(--theme-elevation-500);
+  }
+  .stacked :global(tr) {
+    padding: calc(var(--base) * 0.4) 0;
+  }
+  .stacked :global(td) {
+    /* Payload gives every cell `min-width: 150px`; stacked, each one has the row. */
+    min-width: 0;
+    max-width: none;
+    padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
+  }
+  /* A row owes no line for a cell it left empty. */
+  .stacked :global(td:empty) {
+    display: none;
+  }
+  /* A cell's own control takes the row rather than its content's width. */
+  .stacked :global(td > .btn) {
+    width: 100%;
+  }
+  /* Stacked, the frame's row rule would draw between every cell. Exempting all
+     but the first leaves it drawing the separator it was written for —
+     `border-collapse: separate` here, so the border cannot move to the row. */
+  .stacked :global(.table:not(.table--appearance-condensed) tbody tr + tr td:not(:first-child)) {
+    border-top: 0;
+  }
+}

@@ -7,7 +7,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--base);
+  /* Across only: stacked, the subtitle's own margin is this gap. */
+  column-gap: var(--base);
 }
 .header h1 {
   margin: 0 0 calc(var(--base) / 3);
@@ -60,9 +61,6 @@
 a.tileLink:hover {
   background: var(--theme-elevation-100);
 }
-.tileLabel {
-  color: var(--theme-elevation-650);
-}
 .tileValue {
   font-size: 1.5rem;
   font-weight: 600;
@@ -76,12 +74,16 @@ a.tileLink:hover {
   min-height: 1lh;
   color: var(--theme-elevation-650);
 }
-.better {
+/* A figure that reads as news. The weight alone is neither good nor bad. */
+.figure,
+.better,
+.worse {
   font-weight: 600;
+}
+.better {
   color: var(--theme-success-750);
 }
 .worse {
-  font-weight: 600;
   color: var(--theme-error-650);
 }
 
@@ -194,22 +196,13 @@ a.tileLink:hover {
   background: var(--theme-warning-150);
   color: var(--theme-warning-800);
 }
-.healthy {
-  font-weight: 600;
-}
-.healthyGood {
-  color: var(--theme-success-750);
-}
-.healthyPoor {
-  color: var(--theme-error-650);
-}
 .overview :global(td:not(.cell-name)),
 .overview :global(th:not(#heading-name)) {
   /* Payload gives every cell `min-width: 150px`; a count needs only its own width. */
   min-width: 0;
   white-space: nowrap;
 }
-.stacked {
+.lines {
   display: flex;
   flex-direction: column;
 }
@@ -224,9 +217,73 @@ a.tileLink:hover {
   margin: calc(var(--base) * 0.5) 0 0;
   color: var(--theme-elevation-650);
 }
+/* A phone: one column of blocks, each item's next step on the screen. */
 @media (max-width: 700px) {
   .header {
     align-items: flex-start;
     flex-direction: column;
+  }
+  /* Stacked, nothing is beside the actions to space the heading below them,
+     so "Public Map" sat on the Statistics heading. */
+  .actions {
+    margin-bottom: var(--base);
+  }
+
+  /* Two to a row, smaller, so the list starts on the first screen. Moving the
+     tiles below it with `order` would leave them first to the keyboard. */
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tiles li:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+  }
+  .tileLink {
+    padding: calc(var(--base) * 0.5) calc(var(--base) * 0.6);
+  }
+  .tileValue {
+    font-size: 1.25rem;
+  }
+
+  /* The meter cannot wrap, so the row has no width for it: it drops under the
+     tabs, which keep the underline their active marker sits on. */
+  .sections {
+    display: block;
+    border-bottom: 0;
+  }
+  .tabList {
+    border-bottom: 1px solid var(--theme-elevation-100);
+  }
+  .meter {
+    height: auto;
+    margin-inline-start: 0;
+    padding: calc(var(--base) / 2) 0 0;
+  }
+  .meter meter {
+    flex: 1;
+    width: auto;
+  }
+
+  /* `StackedTable` gives every row a block of its own. What is left here is
+     the widths and nowraps this table asked for while it was a table. */
+  .list :global(.cell-item) {
+    min-width: 0;
+  }
+  .list :global(.cell-status) {
+    white-space: normal;
+  }
+  /* The wide rule above compiles to one `:is()` carrying `#heading-action`'s
+     weight, so this repeats its grouping to win by order instead. */
+  .list :global(.cell-action),
+  .list :global(#heading-action) {
+    width: auto;
+    text-align: start;
+  }
+  .overview :global(.cell-name),
+  .overview :global(#heading-name),
+  .overview :global(.cell-edit) {
+    width: auto;
+  }
+  .overview :global(td:not(.cell-name)) {
+    white-space: normal;
   }
 }

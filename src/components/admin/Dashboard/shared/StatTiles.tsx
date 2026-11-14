@@ -42,7 +42,7 @@ export function StatTiles({
         {tiles.map((tile) => {
           const body = (
             <>
-              <span className={styles.tileLabel}>{tile.label}</span>
+              <span className={styles.muted}>{tile.label}</span>
               <span className={styles.tileValue}>
                 {tile.value}
                 {tile.of === undefined ? null : <small> of {tile.of}</small>}

@@ -4,11 +4,14 @@ import type { PayloadRequest } from 'payload'
 import type { OverviewStatistics } from '@/lib/atlasOverview/statistics'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 
+import { loadRegionContacts, type RegionContact } from './regionContacts'
 import { loadHomeBase } from '../shared/rows'
 
 export interface AtlasManagerData {
   canCreate: boolean
   items: OpenItemsData
+  /** Who to ask for an event, when this manager may not create one. */
+  regionContacts: RegionContact[]
   statistics: OverviewStatistics
 }
 
@@ -23,5 +26,10 @@ export async function getAtlasManagerData(
     req.payload.collections.events!.config.access.create!({ req: localeIsolatedReq(req) }),
     loadHomeBase({ now, query, req, scope }),
   ])
-  return { canCreate: canCreate === true, ...base }
+  const mayCreate = canCreate === true
+  return {
+    canCreate: mayCreate,
+    regionContacts: mayCreate ? [] : await loadRegionContacts(req, scope.managerId),
+    ...base,
+  }
 }

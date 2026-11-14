@@ -6,17 +6,20 @@
  * the details back to the people who have to follow up, both behind
  * `mayReadManagerContacts`: the contacts table under `Regions.managers` and
  * `Events.manager`, and an event's activity log, whose reminder entries record
- * where each one went.
+ * where each one went. A third, the drawer behind a class manager's "Add new
+ * event", is deliberately wider than that gate (#1140).
  *
  * The tree: a country above a region above a city, with the event in the city.
  * Each level has its own manager, the region two, and an unrelated region holds
- * the outsider.
+ * the outsider. The city lists a deactivated manager beside its own, who may
+ * add nothing and so is nobody to ask.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
 import { createLocalReq, docAccessOperation } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { loadRegionContacts } from '@/components/admin/Dashboard/AtlasManager/regionContacts'
 import { loadManagerContacts, STALE_SIGN_IN_MONTHS } from '@/components/admin/ManagerContacts/data'
 import { buildReminderEntry } from '@/lib/eventVerification/log'
 import type { Event } from '@/payload-types'
@@ -40,6 +43,7 @@ describe('Manager contacts (#908)', () => {
   let eventManager: AuthManager
   let outsider: AuthManager
   let regionId: number
+  let cityId: number
   let event: Event
 
   const request = (user: AuthManager): Promise<PayloadRequest> =>
@@ -57,12 +61,19 @@ describe('Manager contacts (#908)', () => {
         roles: [],
         currentProject: 'sahaj-atlas',
       })
-    const [adminRow, country, region, co, city, assignee, outside] = await Promise.all([
+    const [adminRow, country, region, co, city, dormant, assignee, outside] = await Promise.all([
       testData.createManager(payload, { type: 'admin' }),
       manager('Country Manager'),
       manager('Region Manager'),
       manager('Co Manager'),
       manager('City Manager'),
+      testData.createManager(payload, {
+        name: 'Dormant Manager',
+        email: 'dormant-manager@example.com',
+        roles: [],
+        currentProject: 'sahaj-atlas',
+        type: 'inactive',
+      }),
       testData.createManager(payload, {
         name: 'Event Assignee',
         email: REMINDER_DESTINATION,
@@ -99,9 +110,10 @@ describe('Manager contacts (#908)', () => {
         level: 'city',
         parent: regionRow.id,
         mapboxId: 'city.contacts',
-        managers: [city.id],
+        managers: [city.id, dormant.id],
       }),
     })
+    cityId = cityRow.id
     await payload.create({
       collection: 'regions',
       data: createData<'regions'>({
@@ -263,6 +275,64 @@ describe('Manager contacts (#908)', () => {
     it('answers the create screen, and an unknown row, with nothing', async () => {
       expect(await tableFor(admin, 'regions', 'create')).toBeNull()
       expect(await tableFor(admin, 'events', 987654)).toBeNull()
+    })
+  })
+
+  describe('who a class manager asks to add an event (#1140)', () => {
+    const contactsFor = async (user: AuthManager) =>
+      loadRegionContacts(await request(user), user.id)
+
+    it('names every manager above their events, nearest region first', async () => {
+      const contacts = await contactsFor(eventManager)
+      expect(contacts.map((contact) => [contact.name, contact.region])).toEqual([
+        ['City Manager', 'Contacts City'],
+        ['Region Manager', 'Contacts Region'],
+        ['Co Manager', 'Contacts Region'],
+        ['Country Manager', 'Contacts Country'],
+      ])
+    })
+
+    it('never names a deactivated manager, who may add nothing', async () => {
+      // Listed on the nearest region of all, so only the `type` filter keeps
+      // them out of the drawer.
+      const contacts = await contactsFor(eventManager)
+      expect(contacts.map((contact) => contact.name)).not.toContain('Dormant Manager')
+    })
+
+    it('carries the name, the region and a mailto-ready email, nothing else', async () => {
+      const [first] = await contactsFor(eventManager)
+      expect(Object.keys(first!).sort()).toEqual(['email', 'id', 'name', 'region'])
+      expect(first!.email).toBe('city-manager@example.com')
+    })
+
+    it('names nobody to a manager who runs no event', async () => {
+      expect(await contactsFor(outsider)).toEqual([])
+    })
+
+    it('never asks a manager to email themselves', async () => {
+      // The city's own manager, running a class in it: everyone above them is
+      // someone to ask, and they are not.
+      await testData.createEvent(payload, {
+        title: 'City Manager’s own class',
+        region: cityId,
+        manager: cityManager.id,
+      })
+      const contacts = await contactsFor(cityManager)
+      expect(contacts.map((contact) => contact.name)).toEqual([
+        'Region Manager',
+        'Co Manager',
+        'Country Manager',
+      ])
+    })
+
+    it('reaches past the gate that governs the contacts table', async () => {
+      // The decision this ticket carries (Anton, 12 Nov 2026): the drawer shows
+      // a class manager what `mayReadManagerContacts` refuses them.
+      const table = await loadManagerContacts(await request(eventManager), 'regions', regionId)
+      expect(table).toBeNull()
+      expect((await contactsFor(eventManager)).map((contact) => contact.name)).toContain(
+        'Region Manager',
+      )
     })
   })
 

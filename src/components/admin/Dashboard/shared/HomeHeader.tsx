@@ -19,13 +19,14 @@ export function AddProgramButton({ children }: { children: ReactNode }) {
   )
 }
 
-/** A home's title, subtitle, the public map link and, with `canCreate`, "Add new event". */
+/** A home's title, subtitle, the public map link and whatever `action` it offers. */
 export function HomeHeader({
-  canCreate,
+  action,
   subtitle,
   title,
 }: {
-  canCreate?: boolean
+  /** Beside the map link: "Add new event", or what a home offers in its place. */
+  action?: ReactNode
   subtitle: ReactNode
   title: string
 }) {
@@ -39,7 +40,7 @@ export function HomeHeader({
         <Button buttonStyle="secondary" el="link" margin={false} url={NAV_LINKS.map.href}>
           {NAV_LINKS.map.label}
         </Button>
-        {canCreate && <AddProgramButton>Add new event</AddProgramButton>}
+        {action}
       </div>
     </header>
   )
