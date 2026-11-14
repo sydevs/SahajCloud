@@ -57,17 +57,18 @@ function withoutComments(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, '')
 }
 
-function componentSources(dir: string, found: string[] = []): string[] {
+function componentFiles(dir: string, pattern: RegExp, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
-    if (statSync(full).isDirectory()) componentSources(full, found)
-    else if (/\.(tsx?|s?css)$/.test(entry)) found.push(full)
+    if (statSync(full).isDirectory()) componentFiles(full, pattern, found)
+    else if (pattern.test(entry)) found.push(full)
   }
   return found
 }
 
 const sheet = withoutComments(readFileSync(SHEET, 'utf8'))
-const adminSources = componentSources(COMPONENTS)
+const adminFiles = componentFiles(COMPONENTS, /\.(tsx?|s?css)$/)
+const adminSources = componentFiles(COMPONENTS, /\.tsx?$/)
 const styleFiles = payloadStyleFiles()
 const missing = styleFiles.filter((file) => !existsSync(file))
 const styles = styleFiles
@@ -119,7 +120,7 @@ describe('custom.scss', () => {
    * Both halves of the fix fail that silently, so both are pinned here.
    */
   it('sizes admin text from its own length token, never Payload’s number', () => {
-    const files = [SHEET, ...adminSources]
+    const files = [SHEET, ...adminFiles]
     expect(files.length).toBeGreaterThan(40)
 
     const sized = files.map(
@@ -168,9 +169,7 @@ describe('custom.scss', () => {
 
   it('claims as its own only classes this repo renders, and still uses each', () => {
     // A class named only in a stylesheet is not a class this repo renders.
-    const sources = adminSources
-      .filter((file) => /\.tsx?$/.test(file))
-      .map((file) => readFileSync(file, 'utf8'))
+    const sources = adminSources.map((file) => readFileSync(file, 'utf8'))
     const unrendered = OUR_CLASSES.filter((name) => !sources.some((src) => src.includes(name)))
     expect(unrendered).toEqual([])
     expect(OUR_CLASSES.filter((name) => !classes.includes(name))).toEqual([])
