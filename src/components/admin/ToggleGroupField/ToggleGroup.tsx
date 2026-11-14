@@ -196,14 +196,17 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               onKeyDown={(e) => handleKeyDown(e, option.value, index)}
               style={{
                 padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
-                // Payload's own chosen-control pair, which `.btn--style-primary`
-                // and `.pill--style-dark` both paint with. A project theme sets
-                // the elevation scale and not `--theme-success-*`, so the fill
-                // follows the brand here and stayed Payload's blue before;
-                // `project-theme-contrast.spec.ts` pins this pair's contrast in
-                // both modes.
-                background: isSelected ? 'var(--theme-elevation-800)' : 'transparent',
-                color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
+                // The project's own brand colour, painted by `ProjectTheme`.
+                // The fallback is Payload's chosen-control pair, which
+                // `.btn--style-primary` paints with — the elevation scale's
+                // dark end, so under a project theme it is a near-black chip.
+                // `project-theme-contrast.spec.ts` pins the pair's contrast.
+                background: isSelected
+                  ? 'var(--project-accent, var(--theme-elevation-800))'
+                  : 'transparent',
+                color: isSelected
+                  ? 'var(--project-accent-text, var(--theme-elevation-0))'
+                  : 'var(--theme-elevation-800)',
                 fontSize: 'calc(var(--base-body-size) * 1px)',
                 fontWeight: isSelected ? 600 : 400,
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
@@ -245,7 +248,9 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 }
               }}
               onFocus={(e) => {
-                e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--theme-success-300)'
+                // The text colour, so the ring reads on a chosen segment's
+                // accent fill and on an unchosen one's alike.
+                e.currentTarget.style.boxShadow = 'inset 0 0 0 2px var(--theme-text)'
               }}
               onBlur={(e) => {
                 e.currentTarget.style.boxShadow = 'none'

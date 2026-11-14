@@ -3,30 +3,48 @@
 import { useEffect } from 'react'
 
 import { useProject } from '@/contexts/ProjectContext'
-import { ELEVATION_STEPS, PROJECT_THEMES, elevationVar } from '@/lib/branding'
+import {
+  ACCENT_VARS,
+  ELEVATION_STEPS,
+  PROJECT_ACCENTS,
+  PROJECT_THEMES,
+  SUCCESS_SCALE,
+  elevationVar,
+} from '@/lib/branding'
 
 /**
- * Paints the current project's elevation scale onto the document, and follows
- * Payload's own dark-mode switch. No project means Payload's default greys.
+ * Paints the admin's palette onto the document, and follows Payload's own
+ * dark-mode switch: the success scale, which is one green under every project,
+ * and the current project's elevation scale and accent. No project means
+ * Payload's default greys, and a chosen control back on Payload's own pair.
  */
 const ProjectTheme = () => {
   const { currentProject } = useProject()
 
   useEffect(() => {
     const root = document.documentElement
+    const theme = currentProject ? PROJECT_THEMES[currentProject] : null
 
-    if (!currentProject) {
+    if (currentProject) {
+      root.setAttribute('data-project-theme', currentProject)
+      const accent = PROJECT_ACCENTS[currentProject]
+      root.style.setProperty(ACCENT_VARS.fill, accent.fill)
+      root.style.setProperty(ACCENT_VARS.text, accent.text)
+    } else {
       root.removeAttribute('data-project-theme')
       ELEVATION_STEPS.forEach((step) => root.style.removeProperty(elevationVar(step)))
-      return
+      Object.values(ACCENT_VARS).forEach((property) => root.style.removeProperty(property))
     }
 
-    root.setAttribute('data-project-theme', currentProject)
-    const theme = PROJECT_THEMES[currentProject]
-
     const paint = () => {
-      const colors = root.getAttribute('data-theme') === 'dark' ? theme.dark : theme.light
-      Object.entries(colors).forEach(([property, value]) => root.style.setProperty(property, value))
+      const dark = root.getAttribute('data-theme') === 'dark'
+      const scales = [dark ? SUCCESS_SCALE.dark : SUCCESS_SCALE.light]
+      if (theme) scales.push(dark ? theme.dark : theme.light)
+      scales.forEach((scale) =>
+        Object.entries(scale).forEach(([property, value]) =>
+          root.style.setProperty(property, value),
+        ),
+      )
     }
 
     paint()

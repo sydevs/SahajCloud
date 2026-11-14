@@ -221,7 +221,7 @@ export function elevationVar(step: number): string {
   return `--theme-elevation-${step}`
 }
 
-/** `elevationVar(step)` → hex, one entry per `ELEVATION_STEPS`. */
+/** A theme variable → hex, one entry per step of the scale it carries. */
 export type ElevationScale = Record<string, string>
 
 export interface ThemeColors {
@@ -425,6 +425,112 @@ export const PROJECT_THEMES: Record<ProjectSlug, ThemeColors> = Object.fromEntri
     },
   ]),
 ) as Record<ProjectSlug, ThemeColors>
+
+// --- Status Colours ---
+
+/**
+ * Payload's success scale, in order
+ * (`node_modules/@payloadcms/ui/dist/scss/colors.scss`).
+ */
+export const SUCCESS_STEPS = [
+  50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950,
+] as const
+
+/** The CSS custom property Payload reads one success step from. */
+export function successVar(step: number): string {
+  return `--theme-success-${step}`
+}
+
+/**
+ * The hue every project's success colour is drawn at. Payload ships a blue
+ * under that name, which reads as a second brand colour rather than as a
+ * verdict, and is the Atlas's own hue outright. Far enough from all three
+ * brand hues to stay a status.
+ */
+export const SUCCESS_HUE = 130
+
+/** The hue Payload draws its own success ramp at. */
+const PAYLOAD_SUCCESS_HUE = 200
+
+/** Each of Payload's 19 success steps as `[saturation, lightness]`. */
+const SUCCESS_RAMP: Array<[number, number]> = [
+  [50.0, 95.3],
+  [68.2, 91.4],
+  [81.1, 85.5],
+  [96.0, 80.2],
+  [89.8, 73.1],
+  [83.7, 66.3],
+  [81.8, 59.0],
+  [74.5, 50.8],
+  [83.8, 43.5],
+  [79.7, 40.6],
+  [86.7, 35.3],
+  [86.6, 32.2],
+  [84.9, 28.6],
+  [75.4, 27.1],
+  [72.1, 23.9],
+  [66.7, 21.2],
+  [61.7, 18.4],
+  [50.6, 15.1],
+  [27.9, 12.0],
+]
+
+/**
+ * Payload's ramp at `SUCCESS_HUE`: each step keeps that step's saturation and
+ * its **luminance**, so every contrast a consumer was built against is the one
+ * it had. Lightness cannot carry over — a green at a blue's lightness is far
+ * brighter, and step 500, which paints every filled bar and status icon, would
+ * read 2.6:1 on white where Payload's reads 4.2:1.
+ */
+function buildSuccessScale(): ThemeColors {
+  const light = Object.fromEntries(
+    SUCCESS_STEPS.map((step, index) => {
+      const [saturation, lightness] = SUCCESS_RAMP[index]!
+      const target = relativeLuminance(hslToHex(PAYLOAD_SUCCESS_HUE, saturation, lightness))
+      return [
+        successVar(step),
+        hslToHex(
+          SUCCESS_HUE,
+          saturation,
+          dimmestLightness(SUCCESS_HUE, saturation, (hex) => relativeLuminance(hex) >= target),
+        ),
+      ]
+    }),
+  )
+  // Payload reverses the scale in dark mode, step 500 onto itself.
+  const dark = Object.fromEntries(
+    SUCCESS_STEPS.map((step, index) => [
+      successVar(step),
+      light[successVar(SUCCESS_STEPS[SUCCESS_STEPS.length - 1 - index]!)]!,
+    ]),
+  )
+  return { light, dark }
+}
+
+/** The success scale every project paints, in both modes. */
+export const SUCCESS_SCALE: ThemeColors = buildSuccessScale()
+
+// --- Project Accent ---
+
+/** The fill a chosen control takes, and the label colour that reads on it. */
+export const ACCENT_VARS = { fill: '--project-accent', text: '--project-accent-text' } as const
+
+/**
+ * Payload paints a chosen control with the elevation scale's dark end, which
+ * under a project theme is a near-black chip rather than the project's colour.
+ * The brand's dark variant is, and it is the one of the three that stands off
+ * a white page as well as a black one; black or white over it — whichever
+ * reads — clears AA on all three.
+ */
+export const PROJECT_ACCENTS: Record<ProjectSlug, { fill: string; text: string }> =
+  Object.fromEntries(
+    (Object.keys(PROJECT_BRAND_COLORS) as ProjectSlug[]).map((project) => {
+      const fill = PROJECT_BRAND_COLORS[project].dark
+      const text =
+        contrastRatio(fill, '#000000') >= contrastRatio(fill, '#ffffff') ? '#000000' : '#ffffff'
+      return [project, { fill, text }]
+    }),
+  ) as Record<ProjectSlug, { fill: string; text: string }>
 
 // --- Scalar Theme Derivation ---
 
