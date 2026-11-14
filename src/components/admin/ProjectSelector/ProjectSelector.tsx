@@ -108,7 +108,7 @@ const ProjectSelector = () => {
         style={{
           display: 'block',
           marginBottom: 'calc(var(--base) * 0.4)',
-          fontSize: 'calc(var(--base-body-size) * 1px)',
+          fontSize: 'var(--admin-body-size)',
           fontWeight: '600',
           color: 'var(--theme-elevation-600)',
         }}

@@ -97,7 +97,7 @@ function GroupHeader({
             {group.optional ? (
               <span
                 style={{
-                  fontSize: 'calc(var(--base-body-size) * 0.8px)',
+                  fontSize: 'calc(var(--admin-body-size) * 0.8)',
                   color: 'var(--theme-elevation-500)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
@@ -145,7 +145,7 @@ function GroupHeader({
               aria-hidden="true"
               style={{
                 color: 'var(--theme-elevation-600)',
-                fontSize: 'calc(var(--base-body-size) * 0.9px)',
+                fontSize: 'calc(var(--admin-body-size) * 0.9)',
                 textDecoration: 'underline',
                 textUnderlineOffset: '2px',
               }}

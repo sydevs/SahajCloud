@@ -31,7 +31,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
         style={{
           padding: 'calc(var(--base) * 0.5)',
           color: 'var(--theme-elevation-400)',
-          fontSize: 'calc(var(--base-body-size) * 1px)',
+          fontSize: 'var(--admin-body-size)',
           fontStyle: 'italic',
         }}
       >
@@ -113,7 +113,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
               style={{
                 flex: 1,
                 minWidth: 0,
-                fontSize: 'calc(var(--base-body-size) * 1px)',
+                fontSize: 'var(--admin-body-size)',
                 color: 'var(--theme-elevation-800)',
                 textDecoration: isEnabled ? 'none' : 'line-through',
                 overflow: 'hidden',
@@ -130,7 +130,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
             <span
               style={{
                 flexShrink: 0,
-                fontSize: 'calc(var(--base-body-size) * 0.85px)',
+                fontSize: 'calc(var(--admin-body-size) * 0.85)',
                 color: 'var(--theme-elevation-400)',
                 fontFamily: 'var(--font-mono)',
               }}

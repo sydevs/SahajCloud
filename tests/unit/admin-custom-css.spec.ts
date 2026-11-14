@@ -15,7 +15,7 @@
  * sheet spells, so there is nothing to run.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -25,6 +25,13 @@ const COMPONENTS = join(ROOT, 'src/components')
 const PAYLOAD_SCSS = join(ROOT, 'node_modules/@payloadcms/ui/dist/scss')
 const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
 const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
+
+/**
+ * Variables this repo declares for itself. `--admin-body-size` exists because
+ * Payload's `--base-body-size` cannot be shared: its buttons read it bare and
+ * its spinner multiplies it by `1px` (#1144).
+ */
+const OUR_VARIABLES = ['--admin-body-size']
 
 /** Classes this repo's own components render. Everything else is Payload's. */
 const OUR_CLASSES = [
@@ -49,16 +56,21 @@ function payloadStyleFiles(): string[] {
   ]
 }
 
-function componentSources(dir: string, found: string[] = []): string[] {
+/** Prose is not a declaration, and these rules are about declarations. */
+function withoutComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '')
+}
+
+function componentSources(dir: string, match = /\.tsx?$/, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
-    if (statSync(full).isDirectory()) componentSources(full, found)
-    else if (/\.tsx?$/.test(entry)) found.push(full)
+    if (statSync(full).isDirectory()) componentSources(full, match, found)
+    else if (match.test(entry)) found.push(full)
   }
   return found
 }
 
-const sheet = readFileSync(SHEET, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+const sheet = withoutComments(readFileSync(SHEET, 'utf8'))
 const styleFiles = payloadStyleFiles()
 const missing = styleFiles.filter((file) => !existsSync(file))
 const styles = styleFiles
@@ -93,8 +105,39 @@ describe('custom.scss', () => {
   })
 
   it('reads and overrides only variables Payload still declares', () => {
-    const unknown = variables.filter((name) => !styles.includes(`${name}:`))
+    const unknown = variables.filter(
+      (name) => !OUR_VARIABLES.includes(name) && !styles.includes(`${name}:`),
+    )
     expect(unknown).toEqual([])
+  })
+
+  /**
+   * `--base-body-size` is Payload's, unitless, and read both ways in its own
+   * sheets — bare by three buttons, times `1px` by the spinner — so no value
+   * satisfies both. Overriding it with `14px` made every
+   * `calc(var(--base-body-size) * Npx)` a length times a length, which is
+   * invalid at computed-value time: the browser dropped 58 declarations across
+   * 23 files, each rendering at its inherited size with nothing to see (#1144).
+   *
+   * So the admin sizes text from this repo's own length token, times a
+   * unitless factor. Both halves fail silently, which is why they are pinned.
+   */
+  it('sizes admin text from its own length token, never Payload’s number', () => {
+    const files = [SHEET, ...componentSources(COMPONENTS, /\.(tsx?|s?css)$/)]
+    expect(files.length).toBeGreaterThan(40)
+
+    const sized = files.map(
+      (file) => [relative(ROOT, file), withoutComments(readFileSync(file, 'utf8'))] as const,
+    )
+    expect(sheet).toMatch(/--admin-body-size:\s*\d+(\.\d+)?px/)
+
+    const payloads = sized.filter(([, text]) => text.includes('--base-body-size'))
+    expect(payloads.map(([file]) => file)).toEqual([])
+
+    const byLength = sized.filter(([, text]) =>
+      /var\(\s*--admin-body-size\s*\)\s*\*\s*[\d.]+px/.test(text),
+    )
+    expect(byLength.map(([file]) => file)).toEqual([])
   })
 
   /**

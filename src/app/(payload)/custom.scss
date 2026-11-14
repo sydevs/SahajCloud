@@ -15,7 +15,12 @@
   /* Increase base spacing for more comfortable UI */
   --gutter-h: 24px;
   --base: 24px;
-  --base-body-size: 14px;
+
+  /* This repo's body size, as a length, because Payload's `--base-body-size`
+     cannot be one: its own buttons read it bare and its spinner multiplies it
+     by `1px`, so a length there drops every `* Npx` and a number drops the
+     buttons. Multiply this by a unitless factor, never by a length (#1144). */
+  --admin-body-size: 14px;
 }
 
 /* Payload narrows `--gutter-h` at two widths, and this sheet is unlayered, so
@@ -66,7 +71,7 @@
 .address-search__toggle {
   margin-top: calc(var(--base) / 4);
   padding: 0;
-  font-size: calc(var(--base-body-size) * 0.85px);
+  font-size: calc(var(--admin-body-size) * 0.85);
   color: var(--theme-elevation-600);
   background: none;
   border: none;
@@ -96,6 +101,17 @@
 
 /* Shared CMS presentation. Keep status colours, focus rings and disabled
    states owned by Payload. */
+
+/* The three places Payload reads `--base-body-size` bare, where its own
+   unitless default is not a length and the declaration is dropped. Spell the
+   size instead, so a button keeps the size it has rather than falling to the
+   document's. The API-key button is excluded because Payload sizes it itself
+   and this sheet is unlayered. */
+.btn:not(.api-key__regenerate-button),
+.preview-btn,
+.live-preview-toggler {
+  font-size: var(--admin-body-size);
+}
 
 /* Tabs keep Payload's own weights: the active list tab is bolder. */
 .btn:not(.btn--style-tab) {

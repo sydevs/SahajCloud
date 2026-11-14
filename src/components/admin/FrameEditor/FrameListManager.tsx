@@ -232,7 +232,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
           {frames.length > 0 && (
             <div
               style={{
-                fontSize: 'calc(var(--base-body-size) * 0.85px)',
+                fontSize: 'calc(var(--admin-body-size) * 0.85)',
                 color: 'var(--theme-elevation-500)',
                 marginTop: 'calc(var(--base) * 0.25)',
               }}
@@ -245,7 +245,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
           {frames.length === 0 ? (
             <div style={baseStyles.emptyState}>
               <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
-              <p style={{ margin: 0, fontSize: 'calc(var(--base-body-size) * 0.9px)' }}>
+              <p style={{ margin: 0, fontSize: 'calc(var(--admin-body-size) * 0.9)' }}>
                 Switch to the &quot;Insert&quot; tab to add frames from the library.
               </p>
             </div>

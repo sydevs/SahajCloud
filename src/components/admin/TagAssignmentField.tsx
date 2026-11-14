@@ -46,7 +46,7 @@ const TagPill: React.FC<{ tag: TagAssignments[number] }> = ({ tag }) => {
           backgroundColor: 'var(--theme-elevation-100)',
           borderRadius: 'var(--style-radius-s)',
           color: 'var(--theme-text)',
-          fontSize: 'calc(var(--base-body-size) * 1px)',
+          fontSize: 'var(--admin-body-size)',
           border: 'none',
           cursor: 'pointer',
         }}

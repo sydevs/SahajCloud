@@ -80,19 +80,19 @@
 }
 
 .vstage__label {
-  font-size: calc(var(--base-body-size) * 1px);
+  font-size: var(--admin-body-size);
   color: var(--theme-elevation-600);
 }
 
 .vstage__date {
-  font-size: calc(var(--base-body-size) * 0.85px);
+  font-size: calc(var(--admin-body-size) * 0.85);
   color: var(--theme-elevation-500);
 }
 
 .vstage__caption {
   display: block;
   margin-top: 2px;
-  font-size: calc(var(--base-body-size) * 0.8px);
+  font-size: calc(var(--admin-body-size) * 0.8);
   line-height: 1.4;
   color: var(--theme-elevation-400);
   opacity: 0.85;

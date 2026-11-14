@@ -82,7 +82,7 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
           style={{
             width: '100%',
             padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.5)',
-            fontSize: 'calc(var(--base-body-size) * 1px)',
+            fontSize: 'var(--admin-body-size)',
             backgroundColor: 'var(--theme-input-bg)',
             color: 'var(--theme-text)',
             border: '1px solid var(--theme-elevation-150)',
