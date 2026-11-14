@@ -373,9 +373,7 @@ async function run<R>(
   // A preview inherits SAHAJCLOUD_URL and still composes its own address; a run with neither
   // composes localhost. Either mints sign-in links to a host the recipient cannot reach.
   if (campaign.origin !== process.env.SAHAJCLOUD_URL) {
-    throw new Error(
-      `Links would address ${campaign.origin}, not SAHAJCLOUD_URL: refusing to send.`,
-    )
+    throw new Error(`Links would address ${campaign.origin}, not SAHAJCLOUD_URL: refusing to send.`)
   }
 
   console.warn(`⚠ Sending ${recipients.length} email(s) via Resend.`)
