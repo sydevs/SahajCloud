@@ -87,7 +87,7 @@ comma-segment of street>"`. The prefix ("Meditation at") is a per-locale,
 - **Schedule is optional** on Events — Atlas has scheduleless events
   (inactive ones with no recurrence).
 - **Address geocoding**: the Event `address` group (a reusable
-  `addressFields` builder) leads with a Mapbox Search Box — the
+  `addressFields` builder) leads with a Mapbox Geocoding v6 search — the
   `mapboxId` field's component. Selecting a result stores the Mapbox
   feature id and auto-fills street/city/region/country/postCode/
   latitude/longitude. The remaining fields stay hidden until an address is
@@ -105,7 +105,7 @@ comma-segment of street>"`. The prefix ("Meditation at") is a per-locale,
   includes that question on the registration form.
 - **Regions location**: each geo node's identity is a **`mapboxId`**
   (Mapbox feature id) set via the same `AddressSearchField` — configured
-  (`admin.custom`) to search `country,region,place,poi` and to skip
+  (`admin.custom`) to search `country,region,place,address` and to skip
   address-field population (id-only mode). This replaces the former
   `osmId`. The search's "Enter manually" stores a `manual` sentinel that
   reveals explicit `latitude`/`longitude`/`radius`.
@@ -128,8 +128,8 @@ consuming the JSON with an idempotent `upsert` keyed on `legacyId` (regions
 key on `level:legacyId` — the country/region/area id spaces overlap).
 Responsibilities: rewire relationships via `legacyId`. Route venues (more
 than one event → a Regions `venue` node, single-use → an inline event
-address). Resolve each region node's `mapboxId` via the server-side Search
-Box geocoder (`src/lib/mapbox/geocoder.ts`). Parse the structured `schedule`
+address). Resolve each region node's `mapboxId` via the server-side
+geocoder (`src/lib/mapbox/geocoder.ts`). Parse the structured `schedule`
 into the project `scheduleFields`. Fold the managers' `customResourceAccess`
 geo refs onto `Regions.managers` and clients' `location` onto
 `Clients.region`. Seed #484's `verificationStage` (`0`→verified /
@@ -206,8 +206,8 @@ Single array of geo nodes. Each: `legacyId`, `level`
   each event's schedule timezone (`startingAt_tz`). `countryCode` is used
   only for area→country parent resolution at import and is **not stored**
   on the node. The geo identity is now the required **`mapboxId`** field (a
-  Mapbox Search Box feature id, set via the shared `AddressSearchField`
-  searching `country,region,place,poi`) — **not** the legacy `osm_id`.
+  Mapbox feature id, set via the shared `AddressSearchField`
+  searching `country,region,place,address`) — **not** the legacy `osm_id`.
   **Phase-3 implication:** OSM ids do not map to Mapbox ids, so the
   importer resolves each node's `mapboxId` via a Mapbox lookup (by
   name/coords) **or** falls back to the `manual` sentinel + the legacy
@@ -392,7 +392,7 @@ Images, linking it to the event.
 | GCS objects still live/public at import time                  | open — check in Phase 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `area_venues` discard                                         | **resolved**: discard (derived)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `geojson` / `bounds` retention                                | **resolved**: drop both. `osm_id` kept in `legacyData` only (geo identity is now the Mapbox `mapboxId`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Regions `mapboxId` resolution (Phase 3)                       | **resolved (#479)** — `src/lib/mapbox/geocoder.ts` forward-geocodes each node via the Search Box `/forward` endpoint (the id-space `AddressSearchField` round-trips), `types` scoped per level + coordinate-biased. Verified live: 29/29 countries + 100/100 regions resolve. Miss fallback: `manual` sentinel + legacy coords (cities/centers) → untyped centroid search (coordless countries/regions) → `manual` + null coords with a logged warning for cleanup.                                                                                                                                                                                                                                                                                   |
+| Regions `mapboxId` resolution (Phase 3)                       | **resolved (#479)** — `src/lib/mapbox/geocoder.ts` forward-geocodes each node via Geocoding v6's `/forward` endpoint, asked for as permanent because the answer is stored (#893), `types` scoped per level + coordinate-biased. A `venue` has no v6 layer of its own and is placed by its postal address. Verified live: 29/29 countries + 100/100 regions resolve. Miss fallback: `manual` sentinel + legacy coords (cities/centers) → untyped centroid search (coordless countries/regions) → `manual` + null coords with a logged warning for cleanup.                                                                                                                                                                                             |
 | `eventType` representation                                    | **resolved**: enum `offline`/`online`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | jsonb columns parsed (not stringified)                        | **resolved**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Atlas client geo scope mapping                                | **resolved**: → `regions` ref                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |

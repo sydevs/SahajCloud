@@ -1,10 +1,13 @@
 /**
- * Configuration + pure helpers for the NotificationPreferences field.
+ * What a manager can be notified about, how often, and by what route.
  *
- * The field component renders one row per `NOTIFICATION_TYPES` entry and adapts
- * entirely from this config, so adding/removing a type needs no component
- * change. The helpers are pure (no React, no Payload) so they can be reused by
- * the field's `defaultValue`/`validate` and unit-tested directly.
+ * The `NotificationPreferences` field renders one row per `NOTIFICATION_TYPES`
+ * entry and adapts entirely from here, so adding or removing a type needs no
+ * component change. The digest run, the proposal delivery, the invitation mail
+ * and `Managers.contactDetails` read the same vocabulary, which is why it is
+ * here rather than in the field's folder (`src/CLAUDE.md` rule 4). The helpers
+ * are pure — no React, no Payload — so the field's `defaultValue`/`validate`
+ * reuse them and a unit spec calls them directly.
  *
  * ⚠ **Keep this module free of runtime imports.** `NotificationPreferencesField`
  * is a `'use client'` component and value-imports from here, so anything added
@@ -19,6 +22,28 @@ import type { NotificationPreferences } from '@/payload-types'
 
 export const NEVER_FREQUENCY = 'Never'
 export const DEFAULT_NOTIFICATION_METHOD = 'email'
+
+/**
+ * The messaging platforms a manager can be reached on, and how each is named.
+ *
+ * `Managers.contactDetails.platform` offers these and the preferences table
+ * names a chosen one with them, so a platform added here is named at both.
+ */
+export const CONTACT_PLATFORMS = [
+  { label: 'WhatsApp', value: 'whatsapp' },
+  { label: 'Telegram', value: 'telegram' },
+  { label: 'WeChat', value: 'wechat' },
+] as const
+
+/**
+ * What a delivery method is called. A stored method no longer offered — a
+ * platform the manager has removed, or one this vocabulary has retired — keeps
+ * its own value, since the row still sends there.
+ */
+export function notificationMethodLabel(method: string): string {
+  if (method === DEFAULT_NOTIFICATION_METHOD) return 'Email'
+  return CONTACT_PLATFORMS.find((platform) => platform.value === method)?.label ?? method
+}
 
 interface NotificationTypeShape<Key extends string = string> {
   key: Key

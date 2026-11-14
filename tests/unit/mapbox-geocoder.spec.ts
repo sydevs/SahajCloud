@@ -8,10 +8,10 @@ import {
   type GeocodeLocationArgs,
 } from '@/lib/mapbox/geocoder'
 
-/** The Search Box `/forward` types used by the coordless-fallback step. */
+/** The `/forward` types used by the coordless-fallback step. */
 const FALLBACK_TYPES = 'country,region,district,place,locality'
 
-/** Stub global fetch with a per-URL handler returning a Search Box-shaped body. */
+/** Stub global fetch with a per-URL handler returning a Geocoding v6-shaped body. */
 function stubFetch(handler: (url: string) => { status?: number; body: unknown }) {
   const fetchSpy = vi.fn(async (input: unknown) => {
     const { status = 200, body } = handler(String(input))
@@ -36,9 +36,26 @@ async function settled<T>(promise: Promise<T>): Promise<T> {
   return promise
 }
 
-const feature = (mapboxId?: string, coordinates?: [number, number]) => ({
-  features: [{ properties: mapboxId ? { mapbox_id: mapboxId } : {}, geometry: { coordinates } }],
+const feature = (mapboxId?: string, coordinates?: [number, number], featureType?: string) => ({
+  features: [
+    {
+      properties: {
+        ...(mapboxId ? { mapbox_id: mapboxId } : {}),
+        ...(featureType ? { feature_type: featureType } : {}),
+      },
+      geometry: { coordinates },
+    },
+  ],
 })
+
+/** The URL of the last request the stub answered. */
+const lastUrl = (spy: ReturnType<typeof stubFetch>) => new URL(String(spy.mock.calls.at(-1)?.[0]))
+
+/** Every stored lookup owes the same endpoint and the same flag (#893). */
+function expectPermanentV6(url: URL) {
+  expect(url.pathname).toBe('/search/geocode/v6/forward')
+  expect(url.searchParams.get('permanent')).toBe('true')
+}
 
 beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN', 'test-token')
@@ -52,9 +69,22 @@ afterEach(() => {
 })
 
 describe('geocodeRegion', () => {
-  it('returns the Search Box mapbox_id on a hit', async () => {
+  it('returns the mapbox_id on a hit', async () => {
     stubFetch(() => ({ body: feature('mbx-canada') }))
     expect(await geocodeRegion({ name: 'Canada', level: 'country' })).toBe('mbx-canada')
+  })
+
+  /**
+   * ⚠ **The endpoint is the assertion, not the parameter.** Search Box ignores
+   * `permanent`, so a spec pinning the flag alone would be green against the
+   * API that cannot honour it (#893).
+   */
+  it('asks Geocoding v6, as permanent, because the answer is stored', async () => {
+    const fetchSpy = stubFetch(() => ({ body: feature('mbx-canada') }))
+    await geocodeRegion({ name: 'Canada', level: 'country' })
+    const url = lastUrl(fetchSpy)
+    expectPermanentV6(url)
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ q: 'Canada', types: 'country' })
   })
 
   it('returns null with no token (and never calls fetch)', async () => {
@@ -98,11 +128,11 @@ describe('resolveRegionLocation', () => {
     expect(warning).toBeNull()
   })
 
-  it('falls back to manual + legacy coords when a city/venue misses', async () => {
+  it('falls back to manual + legacy coords when a city misses', async () => {
     stubFetch(() => ({ body: { features: [] } }))
     const { location, warning } = await resolveRegionLocation({
-      name: 'Some Center',
-      level: 'venue',
+      name: 'Some Town',
+      level: 'city',
       latitude: 49.2,
       longitude: -123.0,
     })
@@ -111,13 +141,13 @@ describe('resolveRegionLocation', () => {
       manual: true,
       latitude: 49.2,
       longitude: -123.0,
-      radius: 500, // default venue radius
+      radius: 50_000, // default region radius
     })
     expect(warning).toContain('manual')
   })
 
   it('approximates a coordless miss from an untyped centroid search', async () => {
-    stubFetch((url) =>
+    const fetchSpy = stubFetch((url) =>
       url.includes(encodeURIComponent(FALLBACK_TYPES))
         ? { body: feature('ignored', [10, 20]) }
         : { body: { features: [] } },
@@ -133,6 +163,7 @@ describe('resolveRegionLocation', () => {
       latitude: 20,
     })
     expect(warning).toContain('approximated')
+    expectPermanentV6(lastUrl(fetchSpy)) // the centroid is stored too
   })
 
   it('returns manual with null coords when nothing resolves', async () => {
@@ -146,6 +177,61 @@ describe('resolveRegionLocation', () => {
       radius: null,
     })
     expect(warning).toContain('manual cleanup')
+  })
+})
+
+describe('a venue, which Geocoding v6 holds no POI layer for', () => {
+  const venue = {
+    name: 'Friends Meeting House',
+    level: 'venue' as const,
+    latitude: 51.36,
+    longitude: 1.42,
+    countryCode: 'GB',
+    address: { street: '2 Osborne Road', postCode: 'CT10 2BL', city: 'Broadstairs' },
+  }
+
+  /** A v6 answer at one feature type, with a point. */
+  const at = (featureType: string, mapboxId: string) =>
+    feature(mapboxId, [1.42, 51.36], featureType)
+
+  it('is placed by its postal address, as a permanent v6 lookup', async () => {
+    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-address') }))
+    const { location, warning } = await resolveRegionLocation(venue)
+    expect(location).toEqual({ mapboxId: 'mbx-address', manual: false })
+    expect(warning).toBeNull()
+    const url = lastUrl(fetchSpy)
+    expectPermanentV6(url)
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({
+      address_line1: '2 Osborne Road',
+      postcode: 'CT10 2BL',
+      place: 'Broadstairs',
+      country: 'gb',
+    })
+    // The building's own name is never the query — v6 holds no feature for it.
+    expect(url.searchParams.has('q')).toBe(false)
+  })
+
+  it('keeps its legacy coordinates when the match is coarser than an address', async () => {
+    stubFetch(() => ({ body: at('street', 'mbx-street') }))
+    const { location, warning } = await resolveRegionLocation(venue)
+    expect(location).toMatchObject({
+      mapboxId: MANUAL_LOCATION,
+      manual: true,
+      latitude: 51.36,
+      longitude: 1.42,
+      radius: 500, // default venue radius
+    })
+    expect(warning).toContain('manual')
+  })
+
+  it('never reaches Mapbox with no street to place it by', async () => {
+    const fetchSpy = stubFetch(() => ({ body: at('address', 'mbx-address') }))
+    const { location } = await resolveRegionLocation({
+      ...venue,
+      address: { ...venue.address, street: null },
+    })
+    expect(location).toMatchObject({ mapboxId: MANUAL_LOCATION, manual: true })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 

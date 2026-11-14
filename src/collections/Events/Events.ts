@@ -10,10 +10,6 @@ import {
 import { email, text } from 'payload/shared'
 
 import {
-  DEFAULT_REGISTRATION_FREQUENCY,
-  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
-} from '@/components/admin/NotificationPreferences/config'
-import {
   addressFields,
   hideUntilCreated,
   legacyMigrationFields,
@@ -40,6 +36,10 @@ import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
+import {
+  DEFAULT_REGISTRATION_FREQUENCY,
+  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
+} from '@/lib/notifications/preferences'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import {

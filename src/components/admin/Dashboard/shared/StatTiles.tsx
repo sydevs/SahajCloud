@@ -34,10 +34,10 @@ export function StatTiles({
   if (tiles.length === 0) return null
   return (
     <section aria-labelledby={headingId} className={styles.tileGroup}>
-      <h4 className={styles.tilesHeading} id={headingId}>
+      <h2 className={styles.tilesHeading} id={headingId}>
         {label}
         {note ? <span className={styles.muted}> • {note}</span> : null}
-      </h4>
+      </h2>
       <ul className={styles.tiles}>
         {tiles.map((tile) => {
           const body = (

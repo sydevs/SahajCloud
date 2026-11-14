@@ -98,6 +98,19 @@ export function cleanVenueName(name: string): string {
   return name.replace(/[\s,;:.\-–—]+$/u, '').trim()
 }
 
+/**
+ * The postal address a venue is geocoded by. Both venue paths — the shared
+ * node and the inline event address — ask the same question, so neither gets
+ * to decide on its own which fields place a venue.
+ */
+export function venueAddress(venue: AtlasVenue): {
+  street: string | null
+  postCode: string | null
+  city: string | null
+} {
+  return { street: venue.street, postCode: venue.postCode, city: venue.city }
+}
+
 /** A display name for a shared-venue node: the venue name, else its street/city. */
 export function venueDisplayName(venue: AtlasVenue): string {
   const name = venue.name?.trim()

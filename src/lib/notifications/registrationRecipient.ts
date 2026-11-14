@@ -3,7 +3,7 @@ import type { NotificationChannel } from './types'
 import {
   DEFAULT_REGISTRATION_FREQUENCY,
   notificationFrequency,
-} from '@/components/admin/NotificationPreferences/config'
+} from '@/lib/notifications/preferences'
 import type { Event, Manager } from '@/payload-types'
 
 import { pickChannel } from './recipients'
