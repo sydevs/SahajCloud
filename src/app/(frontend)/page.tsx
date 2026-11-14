@@ -8,7 +8,10 @@ import './styles.css'
 
 export default async function HomePage() {
   return (
-    <PublicPage iconSrc="/images/wemeditate-web.svg" title="We Meditate Admin">
+    <PublicPage
+      iconSrc={['/images/wemeditate-web.svg', '/images/sahaj-atlas.png']}
+      title="We Meditate / Sahaj Atlas Admin"
+    >
       {/* Admin Panel - Primary CTA */}
       <Link href="/admin" className="admin-link">
         <span>Admin Panel</span>
