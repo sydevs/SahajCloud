@@ -1,6 +1,6 @@
 import type { CollectionSlug, Field, FieldServerComponent, Payload, PayloadRequest } from 'payload'
 
-import { FieldLabel, Pill, Table } from '@payloadcms/ui'
+import { FieldLabel, Pill } from '@payloadcms/ui'
 import React from 'react'
 
 import { TYPE_LABELS } from '@/collections/UserSubmissions/fields'
@@ -8,7 +8,7 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { SummaryLink } from './SummaryLink'
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 
 import './styles.css'
 
@@ -33,7 +33,8 @@ type Linked = keyof typeof TITLE_FIELDS
  * opening it in a drawer.
  *
  * Marked up as a Payload field — `field-type` and its `FieldLabel` — around a
- * condensed `Table`, the same key/value shape as the submission data beside it.
+ * condensed `StackedTable`, the same key/value shape as the submission data
+ * beside it.
  *
  * **A server component**, so a title costs no client fetch. Each read runs
  * under the viewer's own access: a document they cannot read shows as plain
@@ -84,28 +85,28 @@ const SubmissionSummary: FieldServerComponent<Field> = async ({ data, field, pay
   return (
     <div className="field-type submission-data submission-summary read-only">
       <FieldLabel label={label} />
-      <Table
+      <StackedTable
         appearance="condensed"
-        data={rows.map((_, index) => ({ id: index }))}
+        rows={rows.map((_, index) => ({ id: index }))}
         columns={[
-          tableColumn(
-            'field',
-            'Field',
-            rows.map((row) => (
+          {
+            accessor: 'field',
+            cells: rows.map((row) => (
               <span key={row.label} className="submission-data__key">
                 {row.label}
               </span>
             )),
-          ),
-          tableColumn(
-            'value',
-            'Value',
-            rows.map((row) => (
+            heading: 'Field',
+          },
+          {
+            accessor: 'value',
+            cells: rows.map((row) => (
               <span key={row.label} className="submission-summary__value">
                 {row.value}
               </span>
             )),
-          ),
+            heading: 'Value',
+          },
         ]}
       />
     </div>

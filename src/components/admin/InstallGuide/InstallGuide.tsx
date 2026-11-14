@@ -9,14 +9,13 @@ import {
   FieldDescription,
   FieldError,
   SelectInput,
-  Table,
   TextInput,
 } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { ClaimResult, VerifyEmbedResponse } from '@/collections/Clients/endpoints/verifyEmbed'
 import { CopyBlock } from '@/components/admin/CopyBlock'
-import { tableColumn } from '@/components/admin/helpers/tableColumn'
+import { StackedTable } from '@/components/admin/helpers/stackedTable'
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { StatusIcon } from '@/components/admin/ReadinessField/StatusIcon'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
@@ -162,17 +161,25 @@ function AppearancePreview({ appearance }: { appearance: Appearance }) {
         )}
       </div>
       <div className={styles.appearanceTable}>
-        <Table
+        <StackedTable
           appearance="condensed"
           columns={[
-            tableColumn('setting', 'Setting', ['Contact Email', 'Mailing List']),
-            tableColumn('value', 'Current', [
-              `${appearance.replyTo} — Seekers’ replies to emails are sent here`,
-              appearance.mailingList ??
-                'None configured — configure it to automatically subscribe new seekers to your mailing list',
-            ]),
+            {
+              accessor: 'setting',
+              cells: ['Contact Email', 'Mailing List'],
+              heading: 'Setting',
+            },
+            {
+              accessor: 'value',
+              cells: [
+                `${appearance.replyTo} — Seekers’ replies to emails are sent here`,
+                appearance.mailingList ??
+                  'None configured — configure it to automatically subscribe new seekers to your mailing list',
+              ],
+              heading: 'Current',
+            },
           ]}
-          data={[{ id: 'replies' }, { id: 'list' }]}
+          rows={[{ id: 'replies' }, { id: 'list' }]}
         />
       </div>
     </>

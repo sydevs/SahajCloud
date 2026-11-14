@@ -8,7 +8,6 @@ import {
   ConfirmationModal,
   FieldDescription,
   FieldLabel,
-  Table,
   toast,
   useConfig,
   useDocumentDrawer,
@@ -20,7 +19,7 @@ import { formatDate } from '@payloadcms/ui/shared'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 
 import './styles.css'
 
@@ -113,6 +112,8 @@ export const ImportResultsTable: React.FC<{
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const toPublish = drafts.filter((id) => checked.has(id))
   const toDelete = allDrafts.flatMap((row) => (checked.has(row.eventId!) ? [] : [row.eventId!]))
+  const allTicked = drafts.length > 0 && toPublish.length === drafts.length
+  const toggleAll = () => setChecked(new Set(allTicked ? [] : drafts))
   const skipped = rows.filter((row) => row.status === 'duplicate' || row.status === 'error').length
 
   const eventDrawer = useDrawerLink('events')
@@ -235,6 +236,13 @@ export const ImportResultsTable: React.FC<{
         <div className="event-import__results-actions">
           {allDrafts.length > 0 && (
             <>
+              {/* The table's own select-all sits in its header row, which the
+                  stacked phone layout hides, so the phone is given one here. */}
+              {drafts.length > 0 && (
+                <span className="event-import__select-all">
+                  {pill(allTicked ? 'Clear selection' : `Select all (${drafts.length})`, toggleAll)}
+                </span>
+              )}
               {pill(`Publish (${toPublish.length})`, () => confirm('publish'), !toPublish.length)}
               {pill(`Clean Up (${toDelete.length})`, () => confirm('clean-up'), !toDelete.length)}
             </>
@@ -242,21 +250,17 @@ export const ImportResultsTable: React.FC<{
           {skipped > 0 && pill(`Download Skipped Rows (${skipped})`, download)}
         </div>
       </div>
-      <Table
+      <StackedTable
         appearance="condensed"
         columns={[
+          // Every column past the first carries an explicit `label`, because
+          // which one is first changes with the import: with no drafts to tick
+          // there is no select column, and Row leads the row instead.
           ...(drafts.length
             ? [
-                tableColumn(
-                  'select',
-                  <CheckboxInput
-                    checked={toPublish.length === drafts.length}
-                    onToggle={() =>
-                      setChecked(new Set(toPublish.length === drafts.length ? [] : drafts))
-                    }
-                    partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
-                  />,
-                  rows.map(({ approximate, eventId, status }) =>
+                {
+                  accessor: 'select',
+                  cells: rows.map(({ approximate, eventId, status }) =>
                     status === 'draft' && eventId && !approximate ? (
                       <CheckboxInput
                         checked={checked.has(eventId)}
@@ -265,36 +269,55 @@ export const ImportResultsTable: React.FC<{
                       />
                     ) : null,
                   ),
-                ),
+                  heading: (
+                    <CheckboxInput
+                      checked={allTicked}
+                      onToggle={toggleAll}
+                      partialChecked={toPublish.length > 0 && !allTicked}
+                    />
+                  ),
+                  label: 'Publish',
+                },
               ]
             : []),
-          tableColumn(
-            'row',
-            'Row',
-            rows.map(({ row }) => row),
-          ),
-          tableColumn(
-            'title',
-            'Title',
-            rows.map(({ eventId, title }) => (eventId ? eventLink(eventId, title) : title || '—')),
-          ),
-          tableColumn(
-            'details',
-            'Details',
-            rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
-          ),
-          tableColumn(
-            'manager',
-            'Manager',
-            rows.map(({ manager }) =>
+          {
+            accessor: 'row',
+            cells: rows.map(({ row }) => row),
+            heading: 'Row',
+            label: 'Row',
+          },
+          {
+            accessor: 'title',
+            cells: rows.map(({ eventId, title }) =>
+              eventId ? eventLink(eventId, title) : title || '—',
+            ),
+            heading: 'Title',
+            label: 'Title',
+          },
+          {
+            accessor: 'details',
+            cells: rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
+            heading: 'Details',
+            label: 'Details',
+          },
+          {
+            accessor: 'manager',
+            cells: rows.map(({ manager }) =>
               manager?.id !== undefined
                 ? link(() => managerDrawer.open(manager.id!), manager.name)
                 : (manager?.name ?? '—'),
             ),
-          ),
-          tableColumn('status', 'Status', rows.map(statusOf)),
+            heading: 'Manager',
+            label: 'Manager',
+          },
+          {
+            accessor: 'status',
+            cells: rows.map(statusOf),
+            heading: 'Status',
+            label: 'Status',
+          },
         ]}
-        data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
+        rows={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
       <FieldDescription description={description} path={path} />
       <eventDrawer.Drawer onDelete={refresh} onSave={refresh} />

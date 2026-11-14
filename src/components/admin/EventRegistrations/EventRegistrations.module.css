@@ -9,7 +9,7 @@
 .name {
   font-weight: 550;
 }
-.stacked small {
+.lines small {
   display: block;
   margin-top: calc(var(--base) / 8);
   color: var(--theme-elevation-650);
@@ -19,6 +19,14 @@
      than letting one reply stretch the table past the viewport. */
   max-width: calc(var(--base) * 18);
   margin: 0;
+}
+/* Stacked, the cell is the whole row, so the bound above has nothing to do —
+   and at 360px it is what would overflow a phone instead. The breakpoint is
+   the one in helpers/stackedTable.module.css. */
+@media (max-width: 700px) {
+  .answers {
+    max-width: none;
+  }
 }
 .answers dt {
   color: var(--theme-elevation-650);

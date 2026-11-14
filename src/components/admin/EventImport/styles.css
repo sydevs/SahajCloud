@@ -36,6 +36,29 @@
   white-space: nowrap;
 }
 
+/*
+ * The phone's select-all, beside Publish and Clean Up: stacked, the header row
+ * that holds the table's own is hidden. `contents` so the button is a flex item
+ * of the actions row, as the pills beside it are. The breakpoint is the one in
+ * components/admin/helpers/stackedTable.module.css.
+ */
+.event-import__select-all {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .event-import__select-all {
+    display: contents;
+  }
+  /* Stacked, a cell is the whole row, so the two narrow columns above would
+     shrink to a hundredth of it. */
+  .event-import__results .cell-select,
+  .event-import__results .cell-row {
+    width: auto;
+    white-space: normal;
+  }
+}
+
 .event-import__results .field-description {
   margin-top: calc(var(--base) / 2);
 }
