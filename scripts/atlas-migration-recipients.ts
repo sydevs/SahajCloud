@@ -65,6 +65,8 @@ export interface CandidateService {
   enabled?: boolean | null
   roles?: null | string[]
   site?: { domain?: null | string; track?: null | string } | null
+  /** The new widget's own reports, keyed by mount. */
+  embedMetadata?: Record<string, unknown> | null
   managers?: (null | number | { id: number })[] | null
 }
 
@@ -84,6 +86,12 @@ export interface InstallRecipient {
  * picks a platform on the Install tab, so a set one means it is already in hand.
  * `adopted` names the services SahajCloud took over before the cutover
  * (`ADOPTED_CLIENT_LEGACY_IDS`), whose sites already run the new map.
+ *
+ * `site.track` says someone started, not that the old widget is still up, so an
+ * `embedMetadata` entry is checked too: `POST /api/clients/report` is its only
+ * writer and only the new widget calls it, so a service that has reported one is
+ * not told its map is dead. Any mount counts — a site may carry the map on a page
+ * other than the one `site.page` names.
  */
 export function selectInstallRecipients(args: {
   managers: CandidateManager[]
@@ -103,7 +111,8 @@ export function selectInstallRecipients(args: {
       !service.enabled ||
       !service.roles?.includes('sahaj-atlas-client') ||
       !domain ||
-      service.site?.track
+      service.site?.track ||
+      Object.keys(service.embedMetadata ?? {}).length > 0
     )
       continue
     for (const ref of service.managers ?? []) {

@@ -266,6 +266,7 @@ async function installCampaign(
       overrideAccess: true,
       pagination: false,
       select: {
+        embedMetadata: true,
         enabled: true,
         label: true,
         legacyId: true,

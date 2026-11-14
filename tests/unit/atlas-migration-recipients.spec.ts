@@ -100,6 +100,13 @@ describe('selectInstallRecipients', () => {
     expect(recipients).toEqual([])
   })
 
+  it('skips a service the new widget has already reported, whatever its track says', () => {
+    const reported = { 'https://site17.example/classes': { mode: 'inline' } }
+    const recipients = select({ services: [service(17, { embedMetadata: reported })] })
+
+    expect(recipients).toEqual([])
+  })
+
   it('skips a pair the ledger already holds', () => {
     const recipients = select({
       services: [service(20), service(21)],
