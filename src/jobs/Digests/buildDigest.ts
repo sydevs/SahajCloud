@@ -1,12 +1,5 @@
 import type { PayloadRequest } from 'payload'
 
-import {
-  isSummaryFrequency,
-  type NotificationKey,
-  notificationFrequency,
-  notificationTypesFor,
-  type SummaryFrequency,
-} from '@/components/admin/NotificationPreferences/config'
 import type {
   DigestEmailProps,
   DigestTileBlock,
@@ -22,6 +15,13 @@ import { loadStatistics, type StatTile } from '@/lib/atlasOverview/statistics'
 import { actionPrompt, type OpenItem, type OpenItemStatus } from '@/lib/atlasOverview/status'
 import { formatLongDate } from '@/lib/notifications'
 import type { ManagerRole } from '@/lib/notifications/managerRoles'
+import {
+  isSummaryFrequency,
+  type NotificationKey,
+  notificationFrequency,
+  notificationTypesFor,
+  type SummaryFrequency,
+} from '@/lib/notifications/preferences'
 import { adminDocUrl, adminUrl } from '@/lib/utilities/adminUrl'
 import type { Manager } from '@/payload-types'
 

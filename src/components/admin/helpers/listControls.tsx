@@ -53,7 +53,7 @@ export function FilterTabs({
                 key={tab.value}
                 margin={false}
                 onClick={() => setQuery({ filter: tab.value, page: 1 })}
-                size="medium"
+                size="small"
               >
                 <span className="doc-tab__label">
                   {tab.label}

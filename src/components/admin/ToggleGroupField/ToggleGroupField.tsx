@@ -5,6 +5,7 @@ import type { FieldClientComponent, SelectFieldClient } from 'payload'
 import { FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useEffect, useMemo } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { SelectDescription } from '@/components/admin/SelectDescription'
 
 import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
@@ -50,7 +51,7 @@ import { ToggleGroup, type ToggleGroupOption } from './ToggleGroup'
  * ```
  */
 export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
-  // Extract field properties with nested destructuring for admin
+  const selectField = field as SelectFieldClient
   const {
     name,
     label,
@@ -58,8 +59,8 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     required,
     hasMany = false,
     options: fieldOptions,
-    admin: { className, style } = {},
-  } = field as SelectFieldClient
+    admin: { className } = {},
+  } = selectField
 
   // Use Payload's field hook for state management
   // Path is inferred from context - no need to pass it explicitly
@@ -118,7 +119,7 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     : (value as string) || ''
 
   return (
-    <div className={fieldClasses} id={fieldId} style={style}>
+    <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(selectField.admin)}>
       <FieldLabel label={label} localized={localized} path={name} required={required} />
 
       <div className="field-type__wrap">

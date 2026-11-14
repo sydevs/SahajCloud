@@ -69,6 +69,16 @@ export type ToggleGroupProps = (SingleSelectProps | MultiSelectProps) & {
  * />
  * ```
  */
+/** The gap between separated pills, and between a group and its clear button. */
+const GAP = 'calc(var(--base) * 0.3)'
+
+/**
+ * How wide one choice may get. The group fills its slot as a built-in input
+ * does, so without a ceiling two choices in a wide form sit half a screen
+ * apart and stop reading as one control.
+ */
+const MAX_ITEM_WIDTH = 200
+
 export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
   const { options, readOnly = false, clearable = false, 'aria-label': ariaLabel } = props
   const isMulti = props.hasMany === true
@@ -127,13 +137,20 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
   const hasValue = isMulti ? (props.value as string[]).length > 0 : Boolean(props.value)
   const showClearButton = clearable && !readOnly && hasValue
 
+  // Grow with the slot, stop at what the choices can read at. The ceiling is on
+  // the group rather than on each choice: capping the items would leave the
+  // single-select box drawn full width with its segments ending short of it.
+  const maxGroupWidth = isMulti
+    ? `calc(${options.length} * ${MAX_ITEM_WIDTH}px + ${options.length - 1} * ${GAP})`
+    : `calc(${options.length} * ${MAX_ITEM_WIDTH}px)`
+
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 'calc(var(--base) * 0.3)',
-        width: 'fit-content',
+        gap: GAP,
+        width: '100%',
       }}
     >
       <div
@@ -143,16 +160,21 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          width: 'fit-content',
+          width: '100%',
+          maxWidth: maxGroupWidth,
           ...(isMulti
             ? {
-                gap: 'calc(var(--base) * 0.3)',
+                gap: GAP,
               }
             : {
-                border: '1px solid var(--theme-elevation-200)',
+                // Payload's own text-input box, so a single choice sits level
+                // with the inputs and selects beside it.
+                height: '40px',
+                border: '1px solid var(--theme-elevation-150)',
                 borderRadius: 'var(--style-radius-s)',
+                boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
                 overflow: 'hidden',
-                backgroundColor: 'var(--theme-elevation-0)',
+                backgroundColor: 'var(--theme-input-bg)',
               }),
         }}
       >
@@ -174,8 +196,17 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               onKeyDown={(e) => handleKeyDown(e, option.value, index)}
               style={{
                 padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.8)',
-                background: isSelected ? 'var(--theme-success-500)' : 'transparent',
-                color: isSelected ? 'var(--theme-elevation-0)' : 'var(--theme-elevation-800)',
+                // The project's own brand colour, painted by `ProjectTheme`.
+                // The fallback is Payload's chosen-control pair, which
+                // `.btn--style-primary` paints with — the elevation scale's
+                // dark end, so under a project theme it is a near-black chip.
+                // `project-theme-contrast.spec.ts` pins the pair's contrast.
+                background: isSelected
+                  ? 'var(--project-accent, var(--theme-elevation-800))'
+                  : 'transparent',
+                color: isSelected
+                  ? 'var(--project-accent-text, var(--theme-elevation-0))'
+                  : 'var(--theme-elevation-800)',
                 fontSize: 'calc(var(--base-body-size) * 1px)',
                 fontWeight: isSelected ? 600 : 400,
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
@@ -183,6 +214,12 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 outline: 'none',
                 whiteSpace: 'nowrap',
                 opacity: isDisabled ? 0.5 : 1,
+                // An even share of whatever the group was given, never less
+                // than the label. ⚠ The floor is `min-width`: `flex-basis`
+                // cannot hold it, since a shrinking item resolves its basis
+                // and then shrinks past it.
+                flex: '1 1 0',
+                minWidth: 'min-content',
                 ...(isMulti
                   ? {
                       border: '1px solid var(--theme-elevation-200)',
@@ -192,9 +229,12 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                       border: 'none',
                       borderRight:
                         index < options.length - 1
-                          ? '1px solid var(--theme-elevation-200)'
+                          ? '1px solid var(--theme-elevation-150)'
                           : 'none',
-                      minWidth: '120px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%',
                     }),
               }}
               onMouseEnter={(e) => {
@@ -208,7 +248,9 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 }
               }}
               onFocus={(e) => {
-                e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--theme-success-300)'
+                // The text colour, so the ring reads on a chosen segment's
+                // accent fill and on an unchosen one's alike.
+                e.currentTarget.style.boxShadow = 'inset 0 0 0 2px var(--theme-text)'
               }}
               onBlur={(e) => {
                 e.currentTarget.style.boxShadow = 'none'
@@ -225,7 +267,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
             {
               display: 'flex',
               alignItems: 'center',
-              marginLeft: 'calc(var(--base) * 0.3)',
+              marginLeft: GAP,
               marginBlock: 'calc(var(--base) * -1)',
               '--base': 1, // Use this to reset the size of the button
             } as React.CSSProperties
