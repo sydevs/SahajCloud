@@ -102,11 +102,9 @@
 /* Shared CMS presentation. Keep status colours, focus rings and disabled
    states owned by Payload. */
 
-/* The three places Payload reads `--base-body-size` bare, where its own
-   unitless default is not a length and the declaration is dropped. Spell the
-   size instead, so a button keeps the size it has rather than falling to the
-   document's. The API-key button is excluded because Payload sizes it itself
-   and this sheet is unlayered. */
+/* Payload reads `--base-body-size` bare here, so its own unitless default
+   leaves these three with no size at all. The API-key button is excluded:
+   Payload sizes that one itself, and this sheet is unlayered. */
 .btn:not(.api-key__regenerate-button),
 .preview-btn,
 .live-preview-toggler {

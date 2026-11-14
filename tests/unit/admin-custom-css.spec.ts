@@ -26,11 +26,7 @@ const PAYLOAD_SCSS = join(ROOT, 'node_modules/@payloadcms/ui/dist/scss')
 const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
 const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
 
-/**
- * Variables this repo declares for itself. `--admin-body-size` exists because
- * Payload's `--base-body-size` cannot be shared: its buttons read it bare and
- * its spinner multiplies it by `1px` (#1144).
- */
+/** Variables this repo declares for itself, rather than overriding Payload's. */
 const OUR_VARIABLES = ['--admin-body-size']
 
 /** Classes this repo's own components render. Everything else is Payload's. */
@@ -61,16 +57,17 @@ function withoutComments(text: string): string {
   return text.replace(/\/\*[\s\S]*?\*\//g, '')
 }
 
-function componentSources(dir: string, match = /\.tsx?$/, found: string[] = []): string[] {
+function componentSources(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
-    if (statSync(full).isDirectory()) componentSources(full, match, found)
-    else if (match.test(entry)) found.push(full)
+    if (statSync(full).isDirectory()) componentSources(full, found)
+    else if (/\.(tsx?|s?css)$/.test(entry)) found.push(full)
   }
   return found
 }
 
 const sheet = withoutComments(readFileSync(SHEET, 'utf8'))
+const adminSources = componentSources(COMPONENTS)
 const styleFiles = payloadStyleFiles()
 const missing = styleFiles.filter((file) => !existsSync(file))
 const styles = styleFiles
@@ -115,15 +112,14 @@ describe('custom.scss', () => {
    * `--base-body-size` is Payload's, unitless, and read both ways in its own
    * sheets — bare by three buttons, times `1px` by the spinner — so no value
    * satisfies both. Overriding it with `14px` made every
-   * `calc(var(--base-body-size) * Npx)` a length times a length, which is
-   * invalid at computed-value time: the browser dropped 58 declarations across
-   * 23 files, each rendering at its inherited size with nothing to see (#1144).
+   * `calc(var(--base-body-size) * Npx)` a length times a length, which the
+   * browser drops: 58 sizes across 23 files rendered at their inherited size,
+   * and nothing looked broken (#1144).
    *
-   * So the admin sizes text from this repo's own length token, times a
-   * unitless factor. Both halves fail silently, which is why they are pinned.
+   * Both halves of the fix fail that silently, so both are pinned here.
    */
   it('sizes admin text from its own length token, never Payload’s number', () => {
-    const files = [SHEET, ...componentSources(COMPONENTS, /\.(tsx?|s?css)$/)]
+    const files = [SHEET, ...adminSources]
     expect(files.length).toBeGreaterThan(40)
 
     const sized = files.map(
@@ -171,7 +167,10 @@ describe('custom.scss', () => {
   })
 
   it('claims as its own only classes this repo renders, and still uses each', () => {
-    const sources = componentSources(COMPONENTS).map((file) => readFileSync(file, 'utf8'))
+    // A class named only in a stylesheet is not a class this repo renders.
+    const sources = adminSources
+      .filter((file) => /\.tsx?$/.test(file))
+      .map((file) => readFileSync(file, 'utf8'))
     const unrendered = OUR_CLASSES.filter((name) => !sources.some((src) => src.includes(name)))
     expect(unrendered).toEqual([])
     expect(OUR_CLASSES.filter((name) => !classes.includes(name))).toEqual([])
