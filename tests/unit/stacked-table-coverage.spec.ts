@@ -1,5 +1,5 @@
 /**
- * Every CMS table renders through `StackedTable` (#1151).
+ * Every renderer of Payload's `Table` is `StackedTable` (#1151).
  *
  * Payload's `Table` only scrolls sideways, so a column past the edge is a
  * column nobody finds on a phone — the registrations table hid three of its
@@ -9,6 +9,9 @@
  *
  * A surface that genuinely must stay a table at every width is a deliberate
  * entry below, not an omission nobody notices.
+ *
+ * Only an import of Payload's `Table` is in scope. Four admin surfaces
+ * hand-roll a `<table>` of their own and this guard never sees them.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -44,8 +47,7 @@ const WRAPPER = 'components/admin/helpers/stackedTable.tsx'
  * resolves to the same component as the bare specifier, and this repo already
  * imports that way — `@payloadcms/ui/elements/Pill`, `/icons/Plus`, `/rsc`.
  */
-const PAYLOAD_UI_IMPORT =
-  /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\/ui(?:\/[^']+)?'/g
+const PAYLOAD_UI_IMPORT = /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\/ui(?:\/[^']+)?'/g
 
 /**
  * Files importing `Table` as a value.
