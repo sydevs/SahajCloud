@@ -110,14 +110,9 @@ describe('custom.scss', () => {
   })
 
   /**
-   * `--base-body-size` is Payload's, unitless, and read both ways in its own
-   * sheets — bare by three buttons, times `1px` by the spinner — so no value
-   * satisfies both. Overriding it with `14px` made every
-   * `calc(var(--base-body-size) * Npx)` a length times a length, which the
-   * browser drops: 58 sizes across 23 files rendered at their inherited size,
-   * and nothing looked broken (#1144).
-   *
-   * Both halves of the fix fail that silently, so both are pinned here.
+   * A dropped font-size declaration renders at the inherited size, so both
+   * halves of this fix fail silently and both are pinned here. Why Payload's
+   * own variable cannot carry it: `docs/rules/admin-ui.md` § Styling (#1144).
    */
   it('sizes admin text from its own length token, never Payload’s number', () => {
     const files = [SHEET, ...adminFiles]

@@ -16,10 +16,9 @@
   --gutter-h: 24px;
   --base: 24px;
 
-  /* This repo's body size, as a length, because Payload's `--base-body-size`
-     cannot be one: its own buttons read it bare and its spinner multiplies it
-     by `1px`, so a length there drops every `* Npx` and a number drops the
-     buttons. Multiply this by a unitless factor, never by a length (#1144). */
+  /* Ours; Payload's `--base-body-size` cannot be a length. Multiply this by a
+     unitless factor, never by a length — a length drops the whole declaration
+     silently (#1144, `docs/rules/admin-ui.md` § Styling). */
   --admin-body-size: 14px;
 }
 
