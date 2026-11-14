@@ -70,15 +70,6 @@
   margin: 0 0 calc(var(--base) * 0.25);
 }
 
-/* ToggleGroup never wraps on its own, and four 120px segments overflow a phone.
-   The map-height choice sits inside a step rather than beside a heading, where
-   the same row is what the whole tab's width settles on. */
-.choice :global([role='radiogroup']),
-.inlineChoice :global([role='radiogroup']) {
-  flex-wrap: wrap;
-  max-width: 100%;
-}
-
 .choice + :global(.field-description) {
   margin-top: 0;
 }

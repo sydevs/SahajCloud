@@ -50,13 +50,6 @@
   .event-import__select-all {
     display: contents;
   }
-  /* Stacked, a cell is the whole row, so the two narrow columns above would
-     shrink to a hundredth of it. */
-  .event-import__results .cell-select,
-  .event-import__results .cell-row {
-    width: auto;
-    white-space: normal;
-  }
 }
 
 .event-import__results .field-description {

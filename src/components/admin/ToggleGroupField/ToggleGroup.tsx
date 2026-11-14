@@ -132,7 +132,9 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
       style={{
         display: 'flex',
         alignItems: 'center',
+        flexWrap: 'wrap',
         gap: 'calc(var(--base) * 0.3)',
+        maxWidth: '100%',
         width: 'fit-content',
       }}
     >
@@ -140,9 +142,14 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
         ref={containerRef}
         role={isMulti ? 'group' : 'radiogroup'}
         aria-label={ariaLabel}
+        // Each segment is 120px wide and refuses to break, so four of them
+        // overflow a phone. The container is styled inline, so a consumer
+        // cannot add the wrap from its own stylesheet.
         style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          maxWidth: '100%',
           width: 'fit-content',
           ...(isMulti
             ? {

@@ -175,22 +175,17 @@
 .submission-data__key {
   display: block;
   width: max-content;
-  max-width: 28em;
+  max-width: 100%;
   color: var(--theme-elevation-600);
 }
 
-/*
- * Stacked, a cell is the whole row: the 1% that shrinks the Field column beside
- * its value would shrink it to nothing, and a key sized to its own content
- * would carry a long question past the edge of a phone. The breakpoint is the
- * one in components/admin/helpers/stackedTable.module.css.
- */
-@media (max-width: 700px) {
-  .submission-data .cell-field {
-    width: auto;
-  }
+/* The key holds its own width beside the value, up to 28em. Only while it is a
+   table: stacked, the cell is the whole row, and a long question sized to its
+   own content would carry past the edge of a phone
+   (components/admin/helpers/stackedTable.module.css). */
+@media (min-width: 701px) {
   .submission-data__key {
-    max-width: 100%;
+    max-width: 28em;
   }
 }
 

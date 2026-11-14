@@ -253,9 +253,6 @@ export const ImportResultsTable: React.FC<{
       <StackedTable
         appearance="condensed"
         columns={[
-          // Every column past the first carries an explicit `label`, because
-          // which one is first changes with the import: with no drafts to tick
-          // there is no select column, and Row leads the row instead.
           ...(drafts.length
             ? [
                 {
@@ -276,7 +273,6 @@ export const ImportResultsTable: React.FC<{
                       partialChecked={toPublish.length > 0 && !allTicked}
                     />
                   ),
-                  label: 'Publish',
                 },
               ]
             : []),
@@ -284,7 +280,6 @@ export const ImportResultsTable: React.FC<{
             accessor: 'row',
             cells: rows.map(({ row }) => row),
             heading: 'Row',
-            label: 'Row',
           },
           {
             accessor: 'title',
@@ -292,13 +287,11 @@ export const ImportResultsTable: React.FC<{
               eventId ? eventLink(eventId, title) : title || '—',
             ),
             heading: 'Title',
-            label: 'Title',
           },
           {
             accessor: 'details',
             cells: rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
             heading: 'Details',
-            label: 'Details',
           },
           {
             accessor: 'manager',
@@ -308,13 +301,11 @@ export const ImportResultsTable: React.FC<{
                 : (manager?.name ?? '—'),
             ),
             heading: 'Manager',
-            label: 'Manager',
           },
           {
             accessor: 'status',
             cells: rows.map(statusOf),
             heading: 'Status',
-            label: 'Status',
           },
         ]}
         rows={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}

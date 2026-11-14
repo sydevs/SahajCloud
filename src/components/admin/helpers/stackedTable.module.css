@@ -26,10 +26,18 @@
     padding: calc(var(--base) * 0.4) 0;
   }
   .stacked :global(td) {
-    /* Payload gives every cell `min-width: 150px`; stacked, each one has the row. */
+    padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
+  }
+  /* Every width a cell carries belongs to the table it was a cell of. Payload
+     gives each one `min-width: 150px`; a surface shrinks a narrow column with
+     `width: 1%`, which stacked is a hundredth of the row. Specificity, not
+     order, is what beats the surface's own two-class rule — Payload writes
+     `cell-<accessor>` on each `td` (@payloadcms/ui Table). */
+  .stacked :global(.table td) {
     min-width: 0;
     max-width: none;
-    padding: calc(var(--base) / 5) calc(var(--base) * 0.6);
+    width: auto;
+    white-space: normal;
   }
   /* A row owes no line for a cell it left empty. */
   .stacked :global(td:empty) {

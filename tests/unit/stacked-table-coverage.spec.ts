@@ -10,26 +10,17 @@
  * A surface that genuinely must stay a table at every width is a deliberate
  * entry below, not an omission nobody notices.
  */
-import { readdirSync, readFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-const SRC = resolve(__dirname, '../../src')
+import { SRC, sourceFiles, sourceOf } from '../utils/importGraph'
 
 /** The one module that may render Payload's own `Table`. */
 const WRAPPER = 'components/admin/helpers/stackedTable.tsx'
 
 /** The whole import statement, so its specifiers can be read apart. */
 const PAYLOAD_UI_IMPORT = /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\/ui'/g
-
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(dir, entry.name)
-    if (entry.isDirectory()) return sourceFiles(path)
-    return /\.tsx?$/.test(entry.name) ? [path] : []
-  })
-}
 
 /**
  * Files importing `Table` as a value.
@@ -39,18 +30,14 @@ function sourceFiles(dir: string): string[] {
  */
 function tableImporters(): string[] {
   const found: string[] = []
-  for (const file of sourceFiles(SRC)) {
-    for (const [, typeOnly, specifiers] of readFileSync(file, 'utf8').matchAll(PAYLOAD_UI_IMPORT)) {
+  for (const file of sourceFiles()) {
+    for (const [, typeOnly, specifiers] of sourceOf(file).matchAll(PAYLOAD_UI_IMPORT)) {
       if (typeOnly) continue
-      const imported = specifiers
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part) => !part.startsWith('type '))
-      if (imported.some((part) => /^Table(\s+as\s+\w+)?$/.test(part)))
-        found.push(relative(SRC, file))
+      const imported = specifiers.split(',').map((part) => part.trim())
+      if (imported.some((part) => /^Table\b/.test(part))) found.push(relative(SRC, file))
     }
   }
-  return [...new Set(found)].sort()
+  return found.sort()
 }
 
 describe('StackedTable coverage', () => {
