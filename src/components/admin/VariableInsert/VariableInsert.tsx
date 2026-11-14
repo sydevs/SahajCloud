@@ -68,7 +68,7 @@ const VariableInsert: FieldClientComponent = ({ field }) => {
     >
       <span
         style={{
-          fontSize: 'calc(var(--base-body-size) * 1px)',
+          fontSize: 'var(--admin-body-size)',
           color: 'var(--theme-elevation-600)',
         }}
       >

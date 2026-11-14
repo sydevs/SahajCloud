@@ -15,7 +15,7 @@
  * sheet spells, so there is nothing to run.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
@@ -25,6 +25,9 @@ const COMPONENTS = join(ROOT, 'src/components')
 const PAYLOAD_SCSS = join(ROOT, 'node_modules/@payloadcms/ui/dist/scss')
 const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
 const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
+
+/** Variables this repo declares for itself, rather than overriding Payload's. */
+const OUR_VARIABLES = ['--admin-body-size']
 
 /** Classes this repo's own components render. Everything else is Payload's. */
 const OUR_CLASSES = [
@@ -49,16 +52,23 @@ function payloadStyleFiles(): string[] {
   ]
 }
 
-function componentSources(dir: string, found: string[] = []): string[] {
+/** Prose is not a declaration, and these rules are about declarations. */
+function withoutComments(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '')
+}
+
+function componentFiles(dir: string, pattern: RegExp, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
-    if (statSync(full).isDirectory()) componentSources(full, found)
-    else if (/\.tsx?$/.test(entry)) found.push(full)
+    if (statSync(full).isDirectory()) componentFiles(full, pattern, found)
+    else if (pattern.test(entry)) found.push(full)
   }
   return found
 }
 
-const sheet = readFileSync(SHEET, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+const sheet = withoutComments(readFileSync(SHEET, 'utf8'))
+const adminFiles = componentFiles(COMPONENTS, /\.(tsx?|s?css)$/)
+const adminSources = componentFiles(COMPONENTS, /\.tsx?$/)
 const styleFiles = payloadStyleFiles()
 const missing = styleFiles.filter((file) => !existsSync(file))
 const styles = styleFiles
@@ -93,8 +103,33 @@ describe('custom.scss', () => {
   })
 
   it('reads and overrides only variables Payload still declares', () => {
-    const unknown = variables.filter((name) => !styles.includes(`${name}:`))
+    const unknown = variables.filter(
+      (name) => !OUR_VARIABLES.includes(name) && !styles.includes(`${name}:`),
+    )
     expect(unknown).toEqual([])
+  })
+
+  /**
+   * A dropped font-size declaration renders at the inherited size, so both
+   * halves of this fix fail silently and both are pinned here. Why Payload's
+   * own variable cannot carry it: `docs/rules/admin-ui.md` § Styling (#1144).
+   */
+  it('sizes admin text from its own length token, never Payload’s number', () => {
+    const files = [SHEET, ...adminFiles]
+    expect(files.length).toBeGreaterThan(40)
+
+    const sized = files.map(
+      (file) => [relative(ROOT, file), withoutComments(readFileSync(file, 'utf8'))] as const,
+    )
+    expect(sheet).toMatch(/--admin-body-size:\s*\d+(\.\d+)?px/)
+
+    const payloads = sized.filter(([, text]) => text.includes('--base-body-size'))
+    expect(payloads.map(([file]) => file)).toEqual([])
+
+    const byLength = sized.filter(([, text]) =>
+      /var\(\s*--admin-body-size\s*\)\s*\*\s*[\d.]+px/.test(text),
+    )
+    expect(byLength.map(([file]) => file)).toEqual([])
   })
 
   /**
@@ -128,7 +163,8 @@ describe('custom.scss', () => {
   })
 
   it('claims as its own only classes this repo renders, and still uses each', () => {
-    const sources = componentSources(COMPONENTS).map((file) => readFileSync(file, 'utf8'))
+    // A class named only in a stylesheet is not a class this repo renders.
+    const sources = adminSources.map((file) => readFileSync(file, 'utf8'))
     const unrendered = OUR_CLASSES.filter((name) => !sources.some((src) => src.includes(name)))
     expect(unrendered).toEqual([])
     expect(OUR_CLASSES.filter((name) => !classes.includes(name))).toEqual([])

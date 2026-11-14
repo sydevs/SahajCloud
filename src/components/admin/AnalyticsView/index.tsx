@@ -61,7 +61,7 @@ export default function AnalyticsView({
           >
             <p
               style={{
-                fontSize: 'calc(var(--base-body-size) * 1.15px)',
+                fontSize: 'calc(var(--admin-body-size) * 1.15)',
                 color: 'var(--theme-elevation-600)',
                 margin: 0,
               }}

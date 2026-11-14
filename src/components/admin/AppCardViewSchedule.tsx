@@ -104,7 +104,7 @@ const containerStyle: React.CSSProperties = {
   marginBottom: 'calc(var(--base))',
   backgroundColor: 'var(--theme-elevation-50)',
   borderRadius: 'var(--style-radius-s)',
-  fontSize: 'calc(var(--base-body-size) * 1px)',
+  fontSize: 'var(--admin-body-size)',
   color: 'var(--theme-elevation-650)',
 }
 

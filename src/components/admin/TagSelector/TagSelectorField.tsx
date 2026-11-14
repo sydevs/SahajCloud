@@ -157,7 +157,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
             style={{
               padding: 'calc(var(--base) * 0.5)',
               color: 'var(--theme-elevation-500)',
-              fontSize: 'calc(var(--base-body-size) * 1px)',
+              fontSize: 'var(--admin-body-size)',
             }}
           >
             Loading tags...
@@ -169,7 +169,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
             style={{
               padding: 'calc(var(--base) * 0.5)',
               color: 'var(--theme-error-500)',
-              fontSize: 'calc(var(--base-body-size) * 1px)',
+              fontSize: 'var(--admin-body-size)',
             }}
           >
             Error loading tags
@@ -181,7 +181,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
             style={{
               padding: 'calc(var(--base) * 0.5)',
               color: 'var(--theme-elevation-500)',
-              fontSize: 'calc(var(--base-body-size) * 1px)',
+              fontSize: 'var(--admin-body-size)',
             }}
           >
             No tags available
