@@ -53,21 +53,26 @@ export interface PageAction {
  * home page can wear its own name.
  *
  * @param iconSrc Relative icon path (a local /public asset) — keeps next/image
- *   free of remote-pattern config.
+ *   free of remote-pattern config. Several sit side by side, for a page that
+ *   speaks for more than one product.
  */
 export function PublicPage({
   iconSrc,
   title,
   children,
 }: {
-  iconSrc: string
+  iconSrc: string | readonly string[]
   title: string
   children: ReactNode
 }) {
   return (
     <div style={frame}>
       <div style={column}>
-        <Image alt="" height={64} priority src={iconSrc} style={logo} width={64} />
+        <div style={logoRow}>
+          {(typeof iconSrc === 'string' ? [iconSrc] : iconSrc).map((src) => (
+            <Image alt="" height={64} key={src} priority src={src} style={logo} width={64} />
+          ))}
+        </div>
         <h1 style={productName}>{title}</h1>
         {children}
       </div>
@@ -131,7 +136,13 @@ const frame: CSSProperties = {
   padding: '48px 20px',
 }
 const column: CSSProperties = { width: '100%', maxWidth: 420, textAlign: 'center' }
-const logo: CSSProperties = { display: 'block', margin: '0 auto 16px', objectFit: 'contain' }
+const logoRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  gap: 16,
+  marginBottom: 16,
+}
+const logo: CSSProperties = { display: 'block', objectFit: 'contain' }
 const productName: CSSProperties = {
   margin: '0 0 32px',
   fontSize: 20,

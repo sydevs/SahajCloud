@@ -1,8 +1,11 @@
+import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { AtlasInstallEmail, atlasInstallSubject } from '@/emails/AtlasInstallEmail'
 import { cmsHighlights } from '@/emails/AtlasMigrationEmail'
+import { getEmailBrand, renderEmail } from '@/plugins/email'
 
-import { selectRecipients } from '../../scripts/atlas-migration-recipients'
+import { selectInstallRecipients, selectRecipients } from '../../scripts/atlas-migration-recipients'
 
 const manager = (id: number, extra: Record<string, unknown> = {}) => ({
   id,
@@ -55,6 +58,68 @@ describe('selectRecipients', () => {
   })
 })
 
+describe('selectInstallRecipients', () => {
+  const service = (id: number, extra: Record<string, unknown> = {}) => ({
+    id,
+    label: `Service ${id}`,
+    legacyId: id,
+    enabled: true,
+    roles: ['sahaj-atlas-client'],
+    site: { domain: `site${id}.example`, track: null },
+    managers: [1],
+    ...extra,
+  })
+  const select = (args: Partial<Parameters<typeof selectInstallRecipients>[0]>) =>
+    selectInstallRecipients({
+      managers: [manager(1), manager(2), manager(3, { type: 'admin' })],
+      services: [],
+      adopted: new Set(),
+      alreadySent: new Set(),
+      ...args,
+    })
+
+  it('mails each manager of an imported service still on the old map, once per service', () => {
+    const recipients = select({ services: [service(10, { managers: [1, { id: 2 }, 3] })] })
+
+    expect(recipients.map((r) => [r.managerId, r.service, r.key])).toEqual([
+      [1, { id: 10, label: 'Service 10', domain: 'site10.example' }, 'm1@example.com clients/10'],
+      [2, { id: 10, label: 'Service 10', domain: 'site10.example' }, 'm2@example.com clients/10'],
+    ])
+  })
+
+  it('skips a service with nothing to install, or whose install is already in hand', () => {
+    const recipients = select({
+      services: [
+        service(11, { legacyId: null }),
+        service(12, { enabled: false }),
+        service(13, { roles: ['wemeditate-web-client'] }),
+        service(14, { site: { domain: null } }),
+        service(15, { site: { domain: 'site15.example', track: 'wix' } }),
+        service(16),
+      ],
+      adopted: new Set([16]),
+    })
+
+    expect(recipients).toEqual([])
+  })
+
+  it('skips a service the new widget has already reported, whatever its track says', () => {
+    const reported = { 'https://site17.example/classes': { mode: 'inline' } }
+    const recipients = select({ services: [service(17, { embedMetadata: reported })] })
+
+    expect(recipients).toEqual([])
+  })
+
+  it('skips a pair the ledger already holds', () => {
+    const recipients = select({
+      services: [service(20), service(21)],
+      alreadySent: new Set(['m1@example.com clients/20']),
+    })
+
+    expect(recipients.map((r) => r.service.id)).toEqual([21])
+  })
+})
+
 describe('cmsHighlights', () => {
   const holds = { events: 1, regions: 0, services: 0 }
   const mentions = (lines: { text: string }[], text: string) =>
@@ -73,5 +138,28 @@ describe('cmsHighlights', () => {
   it('offers the registrations list only to someone who runs a class', () => {
     expect(mentions(cmsHighlights(holds), 'signed up')).toBe(true)
     expect(mentions(cmsHighlights({ ...holds, events: 0, regions: 1 }), 'signed up')).toBe(false)
+  })
+})
+
+describe('AtlasInstallEmail', () => {
+  /** A stored host keeps its `www.`, and the subject and the body must not disagree over it. */
+  it('names the site the same way in the subject and the body', async () => {
+    const { html } = await renderEmail(
+      createElement(AtlasInstallEmail, {
+        brand: getEmailBrand('sahaj-atlas'),
+        name: 'Jo',
+        email: 'jo@example.org',
+        domain: 'www.example.org',
+        installUrl: 'https://cloud.test/x?t=1',
+        installTabUrl: 'https://cloud.test/x',
+        validFor: '7 days',
+        signInUrl: 'https://cloud.test/admin/login',
+        mapUrl: 'https://cloud.test/map',
+      }),
+    )
+
+    expect(atlasInstallSubject('www.example.org')).toContain('Upgrade example.org')
+    expect(html).toContain('example.org')
+    expect(html).not.toContain('www.example.org')
   })
 })

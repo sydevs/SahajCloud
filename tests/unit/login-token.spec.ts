@@ -227,6 +227,15 @@ describe('page links', () => {
     expect((await readLinkToken(token, SECRET, justBefore)).status).toBe('valid')
     expect((await readLinkToken(token, SECRET, after)).status).toBe('expired')
   })
+
+  it('expires when its own lifetime says, not the reminder spacing', async () => {
+    const week = 7 * 24 * 60 * 60 * 1000
+    const token = await signLinkToken(link, SECRET, NOW, week)
+    const at = (ms: number) => new Date(NOW.getTime() + ms)
+
+    expect((await readLinkToken(token, SECRET, at(week - 1000))).status).toBe('valid')
+    expect((await readLinkToken(token, SECRET, at(week + 1000))).status).toBe('expired')
+  })
 })
 
 describe('readAnyLoginToken', () => {

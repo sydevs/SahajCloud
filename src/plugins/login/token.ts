@@ -158,13 +158,16 @@ export const { read: readInviteToken, sign: signInviteToken } = baseKind(
  * Sign a link token. Unlike the other two it is **not single-use**: a reminder
  * is re-read, forwarded to a phone, clicked twice, and each click must still
  * land. It expires, and it stops working for an account that stops qualifying.
+ *
+ * @param ttlMs - Its lifetime, when the email carrying it promises another.
  */
 export function signLinkToken(
   claims: LinkTokenClaims,
   secret: string,
   now: Date = new Date(),
+  ttlMs: number = LINK_TOKEN_TTL_MS,
 ): Promise<string> {
-  return signToken({ ...claims }, { kind: LINK_TOKEN_KIND, ttlMs: LINK_TOKEN_TTL_MS }, secret, now)
+  return signToken({ ...claims }, { kind: LINK_TOKEN_KIND, ttlMs }, secret, now)
 }
 
 /** Inspect a link token. See `baseKind`'s `read`. */

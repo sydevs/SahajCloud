@@ -1,4 +1,4 @@
-import { Column, Link, Row, Section, Text } from 'react-email'
+import { Column, Img, Link, Row, Section, Text } from 'react-email'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { EmailBrand } from '@/plugins/email'
@@ -26,6 +26,12 @@ export interface AtlasMigrationEmailProps {
   mapUrl: string
   /** What is new for this manager (`cmsHighlights`). */
   highlights: Highlight[]
+  /**
+   * The new admin on a wide screen beside the new map on a phone, as one hosted
+   * image (`public/emails/atlas-migration-banner.jpg`): email clients render no
+   * SVG and Outlook drops CSS backgrounds, so the composition is baked in.
+   */
+  bannerUrl: string
 }
 
 /** One line of what is new: an emoji (email clients render no SVG), a bold lead, the rest. */
@@ -138,6 +144,7 @@ export function AtlasMigrationEmail({
   signInUrl,
   mapUrl,
   highlights,
+  bannerUrl,
 }: AtlasMigrationEmailProps) {
   // One spelling of the admin host: a second in the prose would name one host
   // and link another the day either moves.
@@ -148,6 +155,12 @@ export function AtlasMigrationEmail({
       heading={ATLAS_MIGRATION_SUBJECT}
       previewText="Your classes have moved to the new Sahaj Atlas. Here is what's new."
     >
+      <Img
+        src={bannerUrl}
+        alt="The new Sahaj Atlas: editing a class beside its live preview, and the new map on a phone"
+        width="560"
+        style={banner}
+      />
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
@@ -218,6 +231,14 @@ function HighlightList({ items }: { items: Highlight[] }) {
   )
 }
 
+const banner = {
+  display: 'block',
+  width: '100%',
+  maxWidth: '560px',
+  height: 'auto',
+  margin: '0 0 24px',
+  borderRadius: '8px',
+}
 const bulletCell = { width: '20px', fontSize: '16px', verticalAlign: 'top', padding: '2px 0' }
 const iconCell = { width: '32px', fontSize: '18px', verticalAlign: 'top', padding: '4px 0' }
 const textCell = { fontSize: '16px', lineHeight: '24px', verticalAlign: 'top', padding: '4px 0' }
