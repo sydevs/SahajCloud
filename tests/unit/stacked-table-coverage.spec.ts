@@ -52,8 +52,8 @@ const PAYLOAD_UI_IMPORT = /import\s+(type\s+)?\{([^}]*)\}\s*from\s+'@payloadcms\
 /**
  * Files importing `Table` as a value.
  *
- * A type-only import is not a render — `tableColumn.ts` reads the component's
- * own props to type a column, which is what keeps that helper honest.
+ * A type-only import is not a render: reading the component's own props to
+ * type a column puts nothing on the page.
  */
 function tableImporters(): string[] {
   const found: string[] = []
