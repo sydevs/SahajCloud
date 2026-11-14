@@ -27,6 +27,8 @@
  * re-run after a failure sends only the rest (default `seeds/atlas/local/<kind>-email-ledger.json`,
  * gitignored because it holds addresses).
  *
+ * `--send` refuses unless the transport is Resend and the links address `SAHAJCLOUD_URL`.
+ *
  * Against production, so the read is production's, the links are production's and the send goes
  * through Resend:
  *   railway run --service SahajCloud -- env DATABASE_URL=<Postgres DATABASE_PUBLIC_URL> \
@@ -115,6 +117,8 @@ interface Campaign<R> {
   recipients: R[]
   sample: R
   summary: string
+  /** The origin every link in it addresses. */
+  origin: string
   /** The ledger's key, and the address it goes to. */
   key: (recipient: R) => string
   to: (recipient: R) => string
@@ -202,6 +206,7 @@ async function welcomeCampaign(
   return {
     recipients,
     sample: SAMPLE,
+    origin,
     summary:
       `${recipients.length} recipient(s) not yet sent: ${regionManagers} region manager(s), ` +
       `${recipients.length - regionManagers} other manager(s).`,
@@ -261,6 +266,7 @@ async function installCampaign(
       overrideAccess: true,
       pagination: false,
       select: {
+        embedMetadata: true,
         enabled: true,
         label: true,
         legacyId: true,
@@ -282,6 +288,7 @@ async function installCampaign(
   return {
     recipients,
     sample: SAMPLE_INSTALL,
+    origin,
     summary: `${recipients.length} email(s) not yet sent, to the managers of ${serviceCount} service(s).`,
     key: (r) => r.key,
     to: (r) => r.email,
@@ -362,6 +369,11 @@ async function run<R>(
   if (!flag('--force')) throw new Error('--send needs --force: it emails every recipient above.')
   if (transport !== 'resend') {
     throw new Error(`The email transport is "${transport}", not Resend: refusing to send.`)
+  }
+  // A preview inherits SAHAJCLOUD_URL and still composes its own address; a run with neither
+  // composes localhost. Either mints sign-in links to a host the recipient cannot reach.
+  if (campaign.origin !== process.env.SAHAJCLOUD_URL) {
+    throw new Error(`Links would address ${campaign.origin}, not SAHAJCLOUD_URL: refusing to send.`)
   }
 
   console.warn(`⚠ Sending ${recipients.length} email(s) via Resend.`)

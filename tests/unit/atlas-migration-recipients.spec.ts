@@ -1,6 +1,9 @@
+import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 
+import { AtlasInstallEmail, atlasInstallSubject } from '@/emails/AtlasInstallEmail'
 import { cmsHighlights } from '@/emails/AtlasMigrationEmail'
+import { getEmailBrand, renderEmail } from '@/plugins/email'
 
 import { selectInstallRecipients, selectRecipients } from '../../scripts/atlas-migration-recipients'
 
@@ -100,6 +103,13 @@ describe('selectInstallRecipients', () => {
     expect(recipients).toEqual([])
   })
 
+  it('skips a service the new widget has already reported, whatever its track says', () => {
+    const reported = { 'https://site17.example/classes': { mode: 'inline' } }
+    const recipients = select({ services: [service(17, { embedMetadata: reported })] })
+
+    expect(recipients).toEqual([])
+  })
+
   it('skips a pair the ledger already holds', () => {
     const recipients = select({
       services: [service(20), service(21)],
@@ -128,5 +138,28 @@ describe('cmsHighlights', () => {
   it('offers the registrations list only to someone who runs a class', () => {
     expect(mentions(cmsHighlights(holds), 'signed up')).toBe(true)
     expect(mentions(cmsHighlights({ ...holds, events: 0, regions: 1 }), 'signed up')).toBe(false)
+  })
+})
+
+describe('AtlasInstallEmail', () => {
+  /** A stored host keeps its `www.`, and the subject and the body must not disagree over it. */
+  it('names the site the same way in the subject and the body', async () => {
+    const { html } = await renderEmail(
+      createElement(AtlasInstallEmail, {
+        brand: getEmailBrand('sahaj-atlas'),
+        name: 'Jo',
+        email: 'jo@example.org',
+        domain: 'www.example.org',
+        installUrl: 'https://cloud.test/x?t=1',
+        installTabUrl: 'https://cloud.test/x',
+        validFor: '7 days',
+        signInUrl: 'https://cloud.test/admin/login',
+        mapUrl: 'https://cloud.test/map',
+      }),
+    )
+
+    expect(atlasInstallSubject('www.example.org')).toContain('Upgrade example.org')
+    expect(html).toContain('example.org')
+    expect(html).not.toContain('www.example.org')
   })
 })

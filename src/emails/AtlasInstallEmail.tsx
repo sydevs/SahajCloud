@@ -25,8 +25,11 @@ export interface AtlasInstallEmailProps {
   mapUrl: string
 }
 
+/** The host as a reader says it: `siteHosts` keeps a stored `www.`, a sentence does not. */
+const readableHost = (domain: string) => domain.replace(/^www\./, '')
+
 export const atlasInstallSubject = (domain: string) =>
-  `Upgrade ${domain.replace(/^www\./, '')} to Sahaj Atlas v3`
+  `Upgrade ${readableHost(domain)} to Sahaj Atlas v3`
 
 const NEEDS = [
   {
@@ -72,18 +75,19 @@ export function AtlasInstallEmail({
   mapUrl,
 }: AtlasInstallEmailProps) {
   const link = { color: brand.colors.primary }
+  const host = readableHost(domain)
   return (
     <EmailLayout
       brand={brand}
       heading="Sahaj Atlas has upgraded to a new version!"
-      previewText={`The map on ${domain} is still the old one. Here is how to switch it.`}
+      previewText={`The map on ${host} is still the old one. Here is how to switch it.`}
     >
       <Text style={styles.paragraph}>
         Hello <strong>{name}</strong>,
       </Text>
       <Text style={styles.paragraph}>
         We&apos;ve recently completed a major overhaul of the Sahaj Atlas. The map on{' '}
-        <strong>{domain}</strong> is still pointing to the old version and classes won&apos;t be
+        <strong>{host}</strong> is still pointing to the old version and classes won&apos;t be
         updated there anymore. This is a one time change. Switching it to the new map is quick, and
         you can do it yourself.
       </Text>
