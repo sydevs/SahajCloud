@@ -162,7 +162,8 @@ export function buildEventCalendar(input: EventCalendarInput): string | null {
     // `name: null`, not the event's zone: ical-generator renders DTSTAMP and
     // LAST-MODIFIED through the CALENDAR zone, and any non-null value drops
     // their `Z` and reads the hours off the host clock (#1158). The generator
-    // still emits a VTIMEZONE per event zone, which DTSTART's TZID needs.
+    // still emits a VTIMEZONE per event zone, which DTSTART's TZID needs. It
+    // also drops the non-standard TIMEZONE-ID and X-WR-TIMEZONE headers.
     timezone: { name: null, generator: getVtimezoneComponent },
     ...(input.ttl != null && { ttl: input.ttl }),
   })
