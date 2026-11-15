@@ -53,6 +53,26 @@ describe('serverEnv', () => {
     expect(serverEnv.EVENT_VERIFICATION_ENABLED).toBe(expected)
   })
 
+  // Live preview frames the new We Meditate app while the public origin is still the old site.
+  it('points live preview at WEMEDITATE_PREVIEW_URL, not the public origin, when set', async () => {
+    process.env = {
+      ...baseEnv,
+      ...requiredEnv,
+      WEMEDITATE_PREVIEW_URL: 'https://wemeditate-web.example.dev',
+    }
+    const { serverEnv, weMeditatePreviewUrl } = await import('../../src/lib/env/server')
+
+    expect(weMeditatePreviewUrl()).toBe('https://wemeditate-web.example.dev')
+    expect(serverEnv.WEMEDITATE_WEB_URL).toBe(requiredEnv.WEMEDITATE_WEB_URL)
+  })
+
+  it('points live preview at WEMEDITATE_WEB_URL when no preview origin is set', async () => {
+    process.env = { ...baseEnv, ...requiredEnv }
+    const { weMeditatePreviewUrl } = await import('../../src/lib/env/server')
+
+    expect(weMeditatePreviewUrl()).toBe(requiredEnv.WEMEDITATE_WEB_URL)
+  })
+
   it('throws a client-specific error if server variables are accessed in a browser bundle', async () => {
     process.env = { ...baseEnv }
     vi.stubGlobal('window', {})

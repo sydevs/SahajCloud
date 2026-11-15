@@ -10,7 +10,7 @@ import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
-import { serverEnv } from '@/lib/env'
+import { serverEnv, weMeditatePreviewUrl } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
@@ -116,7 +116,9 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // token on every registration and report. ⚠ A header missing here makes the
     // browser drop the request unsent, so nothing reaches this server to log.
     cors: { origins: '*', headers: [PREVIEW_SECRET_HEADER, TURNSTILE_TOKEN_HEADER] },
-    csrf: [...ownOrigins(), serverEnv.WEMEDITATE_WEB_URL, serverEnv.SAHAJATLAS_URL],
+    // The We Meditate entry is the live-preview origin, whose panel reads drafts with the
+    // editor's cookie — not the public site, which sends none.
+    csrf: [...ownOrigins(), weMeditatePreviewUrl(), serverEnv.SAHAJATLAS_URL],
     // `routes.admin` stays unset, and so do `admin.routes.account` and
     // `.reset`: the panel's hrefs and `isAdminPath` spell `/admin`, and two
     // `adminUrl()` callers spell the other two (`invite.ts`, `Managers.ts`).

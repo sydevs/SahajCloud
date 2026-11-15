@@ -391,7 +391,10 @@ Never paste a secret into git or email.
 
 ### Frontend URLs
 
-- `WEMEDITATE_WEB_URL`, `SAHAJATLAS_URL` — build-time. `SAHAJATLAS_URL` feeds only the
+- `WEMEDITATE_WEB_URL`, `WEMEDITATE_PREVIEW_URL`, `SAHAJATLAS_URL` — build-time.
+  `WEMEDITATE_WEB_URL` is We Meditate's public origin; `WEMEDITATE_PREVIEW_URL`, while set,
+  moves only live preview, its `frame-src` and its `csrf` entry to the new app's own address
+  (`docs/environment.md`). `SAHAJATLAS_URL` feeds only the
   live-preview `frame-src` CSP and the `csrf` allowlist, not a canonical base — the Atlas host is
   `noindex` on three layers (#634).
 - `WEMEDITATE_ATLAS_BASE_PATH` — optional, default `/map`. Every region no client owns resolves

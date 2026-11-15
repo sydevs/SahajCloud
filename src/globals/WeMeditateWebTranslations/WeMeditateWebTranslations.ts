@@ -1,7 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
-import { serverEnv } from '@/lib/env'
+import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { clientEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
@@ -38,7 +38,7 @@ export const WeMeditateWebTranslations: GlobalConfig = {
       // and clobbers a tab's repoint (#708).
       url: ({ locale }) =>
         livePreviewUrl({
-          base: serverEnv.WEMEDITATE_WEB_URL,
+          base: weMeditatePreviewUrl(),
           // ⚠ The trailing slash is load-bearing. A tab's relative target
           // (`map`) resolves against this URL: under `/fr/` it becomes
           // `/fr/map`, but under `/fr` it hoists to `/map` and the edited

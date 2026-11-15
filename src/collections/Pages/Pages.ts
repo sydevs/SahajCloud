@@ -4,7 +4,7 @@ import { extractID } from 'payload/shared'
 
 import { slugField, publicUrlFields } from '@/fields'
 import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
-import { serverEnv } from '@/lib/env'
+import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
@@ -30,7 +30,7 @@ export const Pages: CollectionConfig = {
       // the explanation instead of a URL that 404s.
       url: ({ data, locale }) =>
         livePreviewUrl({
-          base: serverEnv.WEMEDITATE_WEB_URL,
+          base: weMeditatePreviewUrl(),
           path: buildPageWebPath({ slug: data?.slug, locale: locale.code }),
         }),
     },
