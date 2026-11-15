@@ -30,7 +30,6 @@ import {
   EVENT_QUALITY_CHECK_METADATA,
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
-import { EVENT_REGION_LEVELS } from '@/lib/events/regionLevels'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
@@ -410,7 +409,7 @@ export const Events: CollectionConfig = {
               filterOptions: async (args) => {
                 // City or venue only. For a region manager, also within their
                 // owned-region subtree.
-                const cityOrVenue = { level: { in: [...EVENT_REGION_LEVELS] } }
+                const cityOrVenue = { level: { in: ['city', 'venue'] } }
                 const owned = await ownedRegionFilterOptions(args, args.data?.region)
                 if (owned === true) return cityOrVenue
                 if (owned === false) return false

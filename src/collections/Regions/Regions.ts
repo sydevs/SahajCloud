@@ -6,10 +6,8 @@ import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } f
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
 import { serverEnv } from '@/lib/env/server'
-import { EVENT_REGION_LEVELS } from '@/lib/events/regionLevels'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
-import type { Region } from '@/payload-types'
 import { ownedRegionFilterOptions, regionManagersFieldAccess } from '@/plugins/access'
 
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
@@ -67,14 +65,6 @@ const childLevelVisible = (childLevel: string) => {
 }
 
 /**
- * Condition for the Events tab. The join is direct (`on: 'region'`), not
- * recursive like the child-level tabs below, so a node above the levels an
- * event may attach to lists nothing at all.
- */
-const eventsTabVisible = (data: Record<string, unknown>): boolean =>
-  hideUntilCreated(data) && EVENT_REGION_LEVELS.includes(data?.level as Region['level'])
-
-/**
  * One tab per child level. Each holds a single `join` on the denormalized
  * `breadcrumbs` ancestor path, not `parent`, so it lists every descendant at
  * that level, not just direct children. It is filtered to the level, and
@@ -122,9 +112,8 @@ export const Regions: CollectionConfig = {
     // batch selects `name` alone.
     enableListViewSelectAPI: true,
     components: {
-      // The Events tab's heading carries the same link, and that tab is hidden
-      // above a city — so this is the only "Import classes" a country or a
-      // region has, and `targetRegion` accepts both.
+      // The Events tab's heading carries the same link. The edit menu offers
+      // it from every tab.
       edit: { editMenuItems: ['@/components/admin/EventImport/ImportClassesMenuItem'] },
     },
     // Live Preview loads the Atlas widget's /preview route (same contract as
@@ -350,7 +339,7 @@ export const Regions: CollectionConfig = {
         },
         {
           label: 'Events',
-          admin: { condition: eventsTabVisible },
+          admin: { condition: hideUntilCreated },
           fields: [
             {
               name: 'events',
