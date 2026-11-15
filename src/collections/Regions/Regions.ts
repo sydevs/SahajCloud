@@ -345,9 +345,17 @@ export const Regions: CollectionConfig = {
               name: 'events',
               type: 'join',
               collection: 'events',
+              // The stored answer, and all an API reader gets: the classes
+              // held directly against this node. The tab renders the whole
+              // subtree instead — RegionEvents owns that widening, and the
+              // "Import classes" heading, which it renders as its own Label.
               on: 'region',
+              defaultLimit: 50,
               admin: {
-                components: { Label: '@/components/admin/EventImport/ImportClassesLabel' },
+                // `level` is constant within a subtree only for a venue, so
+                // name the city or venue each class is actually held at.
+                defaultColumns: ['title', 'region'],
+                components: { Field: '@/components/admin/RegionEvents' },
               },
             },
           ],

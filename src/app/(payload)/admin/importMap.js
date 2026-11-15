@@ -61,7 +61,7 @@ import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/component
 import { default as default_b3cee161bebb1edefc1eda122400dd67 } from '@/components/admin/RegionCreatePrefill'
 import { default as default_d9e2d7280c4a9b9d049a85dcf55601cd } from '@/components/admin/ManagerContacts'
 import { default as default_ef5838f2c1b8d0747618a584b33f2f1e } from '@/components/admin/AddressSearchField'
-import { default as default_be0ea71e8bd58bc3b61c88fede674d64 } from '@/components/admin/EventImport/ImportClassesLabel'
+import { default as default_efabfd45ae44c926b547917c01146c1d } from '@/components/admin/RegionEvents'
 import { default as default_f15760648f21b91f3f2a0494c08e91bc } from '@/components/admin/AddChildRegionButton'
 import { default as default_6ed75a1733b63404e4dd1cd6766b78ef } from '@/components/admin/EventImport/ImportClassesMenuItem'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
@@ -171,7 +171,7 @@ export const importMap = {
   "@/components/admin/RegionCreatePrefill#default": default_b3cee161bebb1edefc1eda122400dd67,
   "@/components/admin/ManagerContacts#default": default_d9e2d7280c4a9b9d049a85dcf55601cd,
   "@/components/admin/AddressSearchField#default": default_ef5838f2c1b8d0747618a584b33f2f1e,
-  "@/components/admin/EventImport/ImportClassesLabel#default": default_be0ea71e8bd58bc3b61c88fede674d64,
+  "@/components/admin/RegionEvents#default": default_efabfd45ae44c926b547917c01146c1d,
   "@/components/admin/AddChildRegionButton#default": default_f15760648f21b91f3f2a0494c08e91bc,
   "@/components/admin/EventImport/ImportClassesMenuItem#default": default_6ed75a1733b63404e4dd1cd6766b78ef,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,

@@ -26,6 +26,12 @@ Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } fro
 
 ⚠ **`Table` has no responsive mode — it scrolls sideways**, so a column past the edge is a column nobody finds on a phone. `StackedTable` (`src/components/admin/helpers/stackedTable.tsx`) is the wrapper that answers it: under 700px each row becomes one block, and each cell carries its own heading as a label, because the header row then names the first row alone. The first column takes no label, being the row's own title. Reach for it rather than restating either half in a stylesheet — a table that stacks with no labels reads as unnamed values, which is the defect it exists for.
 
+### A join can list more than its `on` resolves — `RelationshipTable`
+
+A `join` resolves one reverse lookup, so a tab that must list rows reached through an ancestor chain cannot get them from `on`. `RelationshipTable` is the element Payload's own `JoinField` renders, and it is exported: it takes a `filterOptions: Where` of your choosing, re-queries through the `getTableState` server function under the reader's own access, and keeps the columns, pagination and document drawers a join table has. So a custom `Field` on the join renders the wider list with nothing hand-rolled.
+
+`RegionEvents` (`src/components/admin/RegionEvents/`) is the worked example: `events.region` takes a city or a venue, so a country's Events tab is empty under `on: 'region'`, and the component swaps in `region: { in: descendantRegionIds(…) }`. Three things it has to do itself, because replacing the `Field` replaces all of them: render the join's `Label`, pass `parent`, and seed `initialDrawerData` for an Add New the picker's own `filterOptions` would accept — which is why `allowCreate` follows the **stored** level. ⚠ The stored join still answers `on` for every API reader, so the widening is the admin table's alone, and `clientField` arrives with `type` optional while the element requires it.
+
 ### A multipart save renders its own feedback
 
 Payload publishes the state and renders nothing for it. `Form` holds `processing` and exposes it through `useFormProcessing()`; `<Upload>` reads that hook only to reset its remove-file state, and no `upload` option covers progress. So between submit and the response a document with a file attached shows a faded button and nothing else, which on a large file reads as a frozen page (#888).
