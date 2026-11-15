@@ -2,6 +2,8 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { weMeditatePreviewUrl } from '@/lib/env'
+
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -61,7 +63,7 @@ describe('WeMeditate Web live-preview URLs', () => {
     return (await url({ locale: { code } } as never)) as string
   }
 
-  const base = () => new URL(process.env.WEMEDITATE_WEB_URL!)
+  const base = () => new URL(weMeditatePreviewUrl())
 
   describe('the locale rides in the path, never a query parameter', () => {
     it.each([

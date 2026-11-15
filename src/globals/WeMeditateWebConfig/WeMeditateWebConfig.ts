@@ -1,7 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
-import { serverEnv } from '@/lib/env'
+import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 
 export const WeMeditateWebConfig: GlobalConfig = {
@@ -15,7 +15,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
       // repointed panel. The root renders the home page anyway.
       url: ({ locale }) =>
         livePreviewUrl({
-          base: serverEnv.WEMEDITATE_WEB_URL,
+          base: weMeditatePreviewUrl(),
           // Trailing slash for the same reason as the translations global:
           // a relative target must resolve under the locale, not beside it.
           path: locale.code === 'en' ? '' : `${locale.code}/`,

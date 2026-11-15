@@ -9,7 +9,7 @@ import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import { deleteChildren } from '@/lib/cascadeDeletion'
-import { serverEnv } from '@/lib/env'
+import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES } from '@/lib/locales'
 import {
@@ -168,7 +168,7 @@ export const Meditations: CollectionConfig = {
       // panel is opened in a locale other than the document's own.
       url: ({ data, locale }) =>
         livePreviewUrl({
-          base: serverEnv.WEMEDITATE_WEB_URL,
+          base: weMeditatePreviewUrl(),
           path:
             typeof data?.id === 'number'
               ? wmWebLocalePath(`meditations/${data.id}/embed`, locale.code)

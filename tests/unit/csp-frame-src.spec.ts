@@ -40,7 +40,10 @@ describe('the admin CSP frame-src', () => {
   })
 
   it('falls back to the We Meditate production host', async () => {
-    const policy = await frameSrc({ WEMEDITATE_WEB_URL: undefined })
+    const policy = await frameSrc({
+      WEMEDITATE_PREVIEW_URL: undefined,
+      WEMEDITATE_WEB_URL: undefined,
+    })
 
     expect(policy).toContain('https://wemeditate.com')
   })
@@ -48,12 +51,24 @@ describe('the admin CSP frame-src', () => {
   it('prefers the configured values over either fallback', async () => {
     const policy = await frameSrc({
       SAHAJATLAS_URL: 'http://localhost:5174',
+      WEMEDITATE_PREVIEW_URL: undefined,
       WEMEDITATE_WEB_URL: 'http://localhost:5173',
     })
 
     expect(policy).toContain('http://localhost:5174')
     expect(policy).toContain('http://localhost:5173')
     expect(policy).not.toContain('https://sahajatlas.com')
+  })
+
+  // Live preview frames the preview origin, so that is the one We Meditate origin admitted.
+  it('admits WEMEDITATE_PREVIEW_URL in place of WEMEDITATE_WEB_URL when set', async () => {
+    const policy = await frameSrc({
+      WEMEDITATE_PREVIEW_URL: 'https://wemeditate-web.example.dev',
+      WEMEDITATE_WEB_URL: 'https://wemeditate.com',
+    })
+
+    expect(policy).toContain('https://wemeditate-web.example.dev')
+    expect(policy).not.toContain('https://wemeditate.com')
   })
 
   it('admits Turnstile, which the Atlas challenge page on this origin frames', async () => {

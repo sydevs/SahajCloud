@@ -274,8 +274,20 @@ const ServerEnvSchema = ClientEnvSchema.extend({
    */
   SAHAJCLOUD_URL: z.url().optional(),
 
-  /** We Meditate Web frontend URL, for live preview. */
+  /**
+   * We Meditate's public origin: the Atlas canonical fallback and every public
+   * page URL. Live preview reads {@link weMeditatePreviewUrl} instead.
+   */
   WEMEDITATE_WEB_URL: z.url(),
+
+  /**
+   * Where the We Meditate Web app runs for live preview, when that is not
+   * `WEMEDITATE_WEB_URL`. Unset, live preview uses `WEMEDITATE_WEB_URL`.
+   *
+   * shortcut: a second We Meditate origin while the new app is not yet served
+   * at `WEMEDITATE_WEB_URL`; delete it once it is, and nothing else changes.
+   */
+  WEMEDITATE_PREVIEW_URL: z.url().optional(),
 
   /**
    * Path where the Atlas widget mounts on the We Meditate web frontend.
@@ -429,6 +441,15 @@ export const serverEnv = new Proxy({} as ServerEnv, {
     return Reflect.ownKeys(getServerEnv())
   },
 })
+
+/**
+ * The We Meditate Web origin live preview frames: `WEMEDITATE_PREVIEW_URL`, or
+ * `WEMEDITATE_WEB_URL` when that is unset. The CSP `frame-src` and the `csrf`
+ * allowlist admit the same origin, so the panel can load and sign in.
+ */
+export function weMeditatePreviewUrl(): string {
+  return serverEnv.WEMEDITATE_PREVIEW_URL ?? serverEnv.WEMEDITATE_WEB_URL
+}
 
 // Re-export the client type, for convenience in server code. There is no
 // `clientEnv` value to re-export — see the note at the top of `./client`.
