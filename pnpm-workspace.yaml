@@ -82,14 +82,6 @@ overrides:
   # degenerate private-cache directive) is reachable: undici is the HTTP client every
   # server-side fetch uses. Same major, patch-only.
   undici: '^7.29.1'
-  # ⚠ Past a declared major. GHSA-v53p-9fqp-m79j and
-  # GHSA-prgh-xp8r-p3m5 are fixed in 10.0.6, and the only range still capping at
-  # 9.x is @payloadcms/email-nodemailer@3.90.2's `^9.1.1`. Taken deliberately
-  # (#931): the adapter calls `createTransport`, `sendMail` and `verify`, which
-  # 10.x keeps, and the only paths that reach nodemailer are a developer's
-  # Mailpit transport and the preview scripts — production mail goes through
-  # `resendAdapter()`. Drop this line once the adapter declares `^10`.
-  nodemailer: '^10.1.1'
   # ⚠ Past a declared major: @lexical/headless@0.50.0 asks `^20.9.0`. Taken
   # deliberately (#1101) on upstream's own statement that 21 fits the symbols it
   # uses — 0.53.0 asks for `^21.0.4`. Drop this line once richtext-lexical
