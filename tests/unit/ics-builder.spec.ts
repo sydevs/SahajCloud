@@ -308,10 +308,25 @@ describe('buildEventCalendar — feed properties', () => {
 
     expect(line(ics, 'STATUS')).toBe('STATUS:CANCELLED')
     expect(line(ics, 'SEQUENCE')).toBe('SEQUENCE:1')
-    // No trailing `Z`: a calendar-level timezone makes ical-generator render
-    // every timestamp in that zone, which is already true of the DTSTAMP the
-    // email attachment ships. Clients rank revisions by SEQUENCE regardless.
-    expect(line(ics, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000')
+    expect(line(ics, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000Z')
+  })
+
+  // Both surfaces, because the calendar-level timezone that once dropped the
+  // `Z` is shared by them (#1158). RFC 5545 §3.8.7.2 and §3.8.7.3 require UTC,
+  // and without it these read as the rendering host's wall clock — so this case
+  // only distinguishes the two when the process TZ is not UTC.
+  it('stamps DTSTAMP and LAST-MODIFIED in UTC, in the feed and the attachment', () => {
+    const feed = build(
+      { recurrenceType: 'WEEKLY', weekdays: ['TU'] },
+      { lastModified: new Date('2026-08-01T10:00:00.000Z') },
+    )!
+    const attachment = build({ recurrenceType: 'WEEKLY', weekdays: ['TU'] }, { uid: 'reg-abc' })!
+
+    expect(line(feed, 'DTSTAMP')).toMatch(/^DTSTAMP:\d{8}T\d{6}Z$/)
+    expect(line(attachment, 'DTSTAMP')).toMatch(/^DTSTAMP:\d{8}T\d{6}Z$/)
+    expect(line(feed, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000Z')
+    // The event's own zone still qualifies the wall-clock properties.
+    expect(line(feed, 'DTSTART')).toBe('DTSTART;TZID=Europe/London:20260721T190000')
   })
 
   // The confirmation email passes none of the four, and its attachment is a
