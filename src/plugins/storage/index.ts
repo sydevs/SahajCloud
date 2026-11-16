@@ -5,8 +5,8 @@
  * for PayloadCMS upload collections.
  */
 
-// Storage plugin (default export). `STORAGE_BACKENDS` is the slug registry all
-// three of its branches derive their `collections` map from.
+// Storage plugin (default export). `STORAGE_BACKENDS` is the slug registry its
+// one `collections` map derives from.
 export { storagePlugin, STORAGE_BACKENDS } from './storagePlugin'
 export { storagePlugin as default } from './storagePlugin'
 

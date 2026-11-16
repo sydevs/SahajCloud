@@ -4,8 +4,9 @@
  *
  * `cloudStoragePlugin` inserts its own columns — `_objectKey`, and `prefix`
  * under `alwaysInsertFields` — for exactly the slugs its `collections` option
- * names, so all three of `storagePlugin`'s branches have to name the same
- * eight. PR #865 shipped a migration generated without that agreement, and
+ * names. `storagePlugin` derives that one map from `STORAGE_BACKENDS`, so the
+ * eight agree by construction; these cases are what proves it, on each of the
+ * three paths. PR #865 shipped a migration generated without that agreement, and
  * every upload on its Railway preview failed with `column images._objectkey
  * does not exist`. Nothing local could see it, because nothing local ran the
  * plugin enabled. These cases do, with the credentials stubbed.
