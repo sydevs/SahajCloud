@@ -66,7 +66,8 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
     return { ...data, nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, inactive }) }
   }
 
-  if (context?.skipVerifyHook) return data
+  // The preview fixture states each event's stage and watermark itself.
+  if (context?.skipVerifyHook || context?.fixture) return data
 
   // A restore clears `deletedAt` and leaves the stage and the past watermark
   // that had the event trashed, so the nightly run trashes it again the same

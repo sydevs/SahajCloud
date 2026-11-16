@@ -71,6 +71,11 @@ const nextConfig: NextConfig = {
       'coverage/**/*',
     ],
   },
+  // The preview fixture's uploads, which the app reads off disk at boot
+  // (`src/fixture/load.ts`). Whichever route boots Payload first runs the load.
+  outputFileTracingIncludes: {
+    '/*': ['src/fixture/files/**/*'],
+  },
   // Configure CSP headers for Fathom Analytics and Live Preview iframes
   async headers() {
     // Build `frame-src` from environment variables, with fallback values.

@@ -22,6 +22,8 @@ import { runQueueSoon } from '@/lib/jobs/runQueueSoon'
  */
 export const queueTranscription: CollectionAfterChangeHook = async ({ doc, operation, req }) => {
   if (operation !== 'create') return doc
+  // A preview fixture transcript states its own outcome; queueing would pay for a run.
+  if (req.context.fixture) return doc
   // A row created with cues — counted by `stampSegmentCount` before the write —
   // is an import of a transcript that already exists
   // (`seeds/meditation-transcripts/`), not a request to produce one. Queueing
