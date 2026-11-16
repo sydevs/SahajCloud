@@ -53,7 +53,7 @@ import { atlasWixRoute } from './endpoints/atlas/wix/route'
 import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
 import { globals } from './globals'
 import { tasks } from './jobs'
-import { JOB_AUTO_RUN } from './jobs/queues'
+import { jobAutoRun } from './jobs/queues'
 import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
@@ -248,8 +248,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       jobsCollectionOverrides: payloadJobsOverrides,
       enableConcurrencyControl: true,
       // One entry per queue that runs unattended, and the reason a queue has
-      // none, both in `./jobs/queues`.
-      autoRun: JOB_AUTO_RUN,
+      // none, both in `./jobs/queues` — as is why a PR preview runs none.
+      autoRun: jobAutoRun(),
     },
     // Email configuration
     // - Test/Import/E2E: disabled, to avoid model conflicts and external services.
