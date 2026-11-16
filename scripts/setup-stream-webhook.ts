@@ -168,7 +168,7 @@ async function main(): Promise<void> {
   console.log('  1. Copy the signing secret above (Cloudflare only shows it now).')
   console.log('  2. Set it on Railway:')
   console.log('       railway variables --set "CLOUDFLARE_STREAM_WEBHOOK_SECRET=<secret>"')
-  console.log('     (or add it via the Railway dashboard / setup-railway.sh).')
+  console.log('     (or add it via the Railway dashboard).')
   console.log('  3. Redeploy the Railway service to pick it up.')
   console.log('')
 }
