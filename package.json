@@ -106,7 +106,7 @@
     "prettier": "^3.10.1",
     "qs-esm": "8.0.2",
     "tsx": "^4.23.15",
-    "typescript": "5.7.3",
+    "typescript": "6.0.3",
     "vite": "8.3.8",
     "vite-tsconfig-paths": "5.1.4",
     "vitest": "5.1.0"
