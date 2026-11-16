@@ -299,12 +299,7 @@ export async function POST(
         results: verification,
         allPassed: countsPassed,
         skippedReason: verificationSkippedReason,
-      } = verifyCountsForScript(
-        script as ScriptName,
-        counts,
-        pagination,
-        importer.getExpectedCounts(),
-      )
+      } = verifyCountsForScript(script as ScriptName, counts, pagination)
 
       // The importer's own invariants, which hold whatever the target carries.
       // `run()` decides whether this run was one to check.
@@ -397,57 +392,19 @@ async function getImporter(
   }
 
   switch (script) {
-    case 'tags': {
-      const { TagsImporter } = await import('../../../../../../seeds/tags/import')
-      return new TagsImporter(options)
-    }
-    case 'wemeditate': {
-      const { WeMeditateImporter } = await import('../../../../../../seeds/wemeditate/import')
-      return new WeMeditateImporter(options)
-    }
-    case 'meditations': {
-      const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
-      return new MeditationsImporter(options)
-    }
-    case 'meditation-transcripts': {
-      const { MeditationTranscriptsImporter } =
-        await import('../../../../../../seeds/meditation-transcripts/import')
-      return new MeditationTranscriptsImporter(options)
-    }
     case 'file-transcripts': {
       const { FileTranscriptsImporter } =
         await import('../../../../../../seeds/file-transcripts/import')
       return new FileTranscriptsImporter(options)
     }
-    case 'storyblok': {
-      const token = process.env.STORYBLOK_ACCESS_TOKEN
-      if (!token) {
-        throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
-      }
-      const { StoryblokImporter } = await import('../../../../../../seeds/storyblok/import')
-      return new StoryblokImporter(options, token)
-    }
-    case 'wm-app-translations': {
-      const { WeMeditateAppTranslationsImporter } =
-        await import('../../../../../../seeds/wm-app-translations/import')
-      return new WeMeditateAppTranslationsImporter(options)
-    }
     case 'translations': {
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
-    }
-    case 'atlas': {
-      const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
-      return new AtlasImporter(options)
     }
     case 'preview-fixture': {
       const { PreviewFixtureImporter } =
         await import('../../../../../../seeds/preview-fixture/import')
       return new PreviewFixtureImporter(options)
-    }
-    case 'atlas-reset': {
-      const { AtlasResetImporter } = await import('../../../../../../seeds/atlas/reset')
-      return new AtlasResetImporter(options)
     }
     default:
       return null

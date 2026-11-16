@@ -18,7 +18,6 @@ import type { LocaleCode } from '../../src/lib/locales'
 
 export const WM_APP_TRANSLATIONS_DATA_FILE = 'seeds/wm-app-translations/data.en.json'
 export const WM_WEB_TRANSLATIONS_DATA_FILE = 'seeds/wm-web-translations/data.en.json'
-export const MEDITATION_TRANSCRIPTS_DATA_FILE = 'seeds/meditation-transcripts/data.json'
 export const PREVIEW_FIXTURE_DATA_FILE = 'seeds/preview-fixture/data.json'
 
 /**
@@ -45,35 +44,11 @@ export type AtlasTranslationLocale = (typeof ATLAS_TRANSLATION_LOCALES)[number]
 export const atlasTranslationsDataFile = (locale: AtlasTranslationLocale): string =>
   `seeds/sy-atlas-translations/data.${locale}.json`
 
-/**
- * The atlas importer's input: eight extracted tables plus the build manifest
- * that carries the run's verification floors. ⚠ Local only — personal data,
- * gitignored, written by `pnpm atlas:sync build` (seeds/atlas/AGENTS.md).
- */
-export const ATLAS_DUMP_NAMES = [
-  'users',
-  'managers',
-  'regions',
-  'venues',
-  'events',
-  'registrations',
-  'clients',
-  'pictures',
-  'manifest',
-] as const
-
-export type AtlasDumpName = (typeof ATLAS_DUMP_NAMES)[number]
-
-export const atlasDataFile = (name: AtlasDumpName): string => `seeds/atlas/data/${name}.json`
-
 export const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
-  'wm-app-translations': [WM_APP_TRANSLATIONS_DATA_FILE],
   translations: [
     WM_APP_TRANSLATIONS_DATA_FILE,
     WM_WEB_TRANSLATIONS_DATA_FILE,
     ...ATLAS_TRANSLATION_LOCALES.map(atlasTranslationsDataFile),
   ],
-  'meditation-transcripts': [MEDITATION_TRANSCRIPTS_DATA_FILE],
   'preview-fixture': [PREVIEW_FIXTURE_DATA_FILE],
-  atlas: ATLAS_DUMP_NAMES.map(atlasDataFile),
 }

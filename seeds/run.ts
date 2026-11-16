@@ -9,14 +9,10 @@
  * Usage:
  *   pnpm seed [script...] [options]
  *
- * If no script is specified, runs ALL scripts in dependency order:
- *   tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
- *
  * Scripts:
- *   storyblok    - Seed Path Steps from Storyblok CMS
- *   wemeditate   - Seed content from WeMeditate Rails database
- *   meditations  - Seed meditation content from legacy database
- *   tags         - Seed UserChoices and MusicTags from Cloudinary
+ *   translations      - Seed English copy into the three translation globals
+ *   file-transcripts  - Transcribe every audio and video file that has no transcript
+ *   preview-fixture   - Fill a Railway preview with made-up content
  *
  * Options:
  *   --dry-run      Validate data without writing to database
@@ -31,14 +27,11 @@
  * needed against a local server. They are only required for a remote target.
  *
  * Examples:
- *   pnpm seed                           # Run all scripts in order
- *   pnpm seed --dry-run                 # Dry run all scripts
- *   pnpm seed storyblok --dry-run       # Run single script
- *   pnpm seed tags wemeditate           # Run multiple scripts
- *   pnpm seed wemeditate --clear-cache
+ *   pnpm seed                           # Run every script in SCRIPT_RUN_ORDER
+ *   pnpm seed translations --dry-run    # Run a single script
  *
  *   # Seed production
- *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
+ *   SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed translations
  */
 
 import type { ScriptName, VerificationResult } from './lib/expectedCounts'
@@ -49,48 +42,18 @@ import { SCRIPT_DATA_FILES } from './lib/dataFiles'
 import { accessTokenHeaders, PREVIEW_ADMIN_ADDRESS } from '../src/lib/preview/proxy'
 
 const VALID_SCRIPTS: ScriptName[] = [
-  'storyblok',
-  'wemeditate',
-  'meditations',
-  'meditation-transcripts',
-  'tags',
-  'wm-app-translations',
   'translations',
-  'atlas',
-  // Never in SCRIPT_RUN_ORDER: destructive, so it runs only when named.
-  'atlas-reset',
-  // Never in SCRIPT_RUN_ORDER either: every run it queues is a paid vendor call.
+  // Never in SCRIPT_RUN_ORDER: every run it queues is a paid vendor call.
   'file-transcripts',
   // Never in SCRIPT_RUN_ORDER either: it is a preview's content, so a full
   // seed of any other target must not pull it in.
   'preview-fixture',
 ]
 
-// Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
-// then storyblok (lessons), then meditations (may reference tags, narrators, etc.),
-// finally wm-app-translations (independent — updates a PayloadCMS global, no cross-collection deps).
-const SCRIPT_RUN_ORDER: ScriptName[] = [
-  'tags',
-  'wemeditate',
-  'meditations',
-  // Resolves each transcript against a meditation, so it follows them.
-  'meditation-transcripts',
-  'storyblok',
-  'wm-app-translations',
-  // Atlas is independent of the WeMeditate content above (distinct collections).
-  'atlas',
-]
+const SCRIPT_RUN_ORDER: ScriptName[] = ['translations']
 
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
-  storyblok: 'Seed Path Steps from Storyblok CMS',
-  wemeditate: 'Seed content from WeMeditate Rails database',
-  meditations: 'Seed meditation content from legacy database',
-  'meditation-transcripts': "Import the library's existing meditation transcripts",
-  tags: 'Seed UserChoices and MusicTags from Cloudinary',
-  'wm-app-translations': 'Seed English copy for the wm-app-translations global',
   translations: 'Seed English copy for all three translation globals',
-  atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
-  'atlas-reset': '⚠ Delete every Atlas event, region, user and user-submission (before a re-sync)',
   'file-transcripts': 'Transcribe every audio and video file that has no transcript (paid runs)',
   'preview-fixture': 'Fill a preview with made-up classes, managers, registrations and messages',
 }
@@ -160,6 +123,10 @@ function formatElapsed(ms: number): string {
   return `${seconds}s`
 }
 
+function scriptLines(): string {
+  return VALID_SCRIPTS.map((name) => `  ${name.padEnd(18)}${SCRIPT_DESCRIPTIONS[name]}`).join('\n')
+}
+
 function printUsage(): void {
   console.log(`
 📦 Seed Script Runner
@@ -167,16 +134,10 @@ function printUsage(): void {
 Usage:
   pnpm seed [script...] [options]
 
-If no script is specified, runs ALL scripts in dependency order:
-  tags → wemeditate → meditations → meditation-transcripts → storyblok → wm-app-translations → atlas
+If no script is specified, runs: ${SCRIPT_RUN_ORDER.join(' → ')}
 
 Available Scripts:
-  storyblok              Seed Path Steps from Storyblok CMS
-  wemeditate             Seed content from WeMeditate Rails database
-  meditations            Seed meditation content from legacy database
-  meditation-transcripts Import the library's existing meditation transcripts
-  tags                   Seed UserChoices and MusicTags from Cloudinary
-  wm-app-translations    Seed English copy for the wm-app-translations global
+${scriptLines()}
 
 Options:
   --dry-run      Validate data without writing to database
@@ -190,23 +151,17 @@ Environment Variables:
 Local dev enables auto-login, so seeding localhost needs no credentials.
 
 Examples:
-  pnpm seed                           # Run all scripts in order (skip existing)
-  pnpm seed --dry-run                 # Dry run all scripts
-  pnpm seed storyblok --update        # Update existing records
-  pnpm seed tags wemeditate           # Run multiple scripts
-  pnpm seed wemeditate --clear-cache
+  pnpm seed                           # Run every script in the order above
+  pnpm seed --dry-run                 # Dry run those scripts
+  pnpm seed translations --update     # Update existing records
 
   # Seed production
-  SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed
+  SAHAJCLOUD_URL=https://cloud.sydevelopers.com pnpm seed translations
 `)
 }
 
 function printScripts(): void {
-  console.log('\nAvailable scripts:')
-  for (const name of VALID_SCRIPTS) {
-    console.log(`  ${name.padEnd(14)} → ${SCRIPT_DESCRIPTIONS[name]}`)
-  }
-  console.log('')
+  console.log(`\nAvailable scripts:\n${scriptLines()}\n`)
 }
 
 /**

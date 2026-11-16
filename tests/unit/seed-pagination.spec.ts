@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
 
-import { activeRegistrationWhere } from '@/lib/registrations/active'
-
 import {
   EXPECTED_COUNTS,
   getCountTargets,
@@ -13,6 +11,12 @@ import {
   type ScriptName,
 } from '../../seeds/lib/expectedCounts'
 import { getDefaultBatchSize, validatePaginationParam } from '../../seeds/lib/pagination'
+
+/**
+ * `preview-fixture` is the only script left that states collection floors, so
+ * every case here reads its registry rather than a literal of its own.
+ */
+const FIXTURE_COUNTS = EXPECTED_COUNTS['preview-fixture'] as Record<string, number>
 
 describe('Pagination Utilities', () => {
   describe('getDefaultBatchSize', () => {
@@ -29,212 +33,132 @@ describe('Pagination Utilities', () => {
   })
 
   describe('getScriptMetadata', () => {
-    it('returns metadata for tags script', () => {
-      const metadata = getScriptMetadata('tags')
+    it('returns the fixture script metadata', () => {
+      const metadata = getScriptMetadata('preview-fixture')
 
-      expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(2)
-      expect(metadata.collections[0].slug).toBe('user-choices')
-      expect(metadata.collections[1].slug).toBe('song-tags')
-      // image-tags removed - now inline enum strings on Images collection
+      expect(metadata.collections.map((c) => c.slug)).toEqual([
+        'managers',
+        'regions',
+        'forms',
+        'events',
+        'users',
+        'user-submissions',
+      ])
       expect(metadata.requiresPagination).toBe(false)
-      expect(metadata.totalItems).toBe(34) // 27 + 7 (no more image-tags)
+      expect(metadata.totalItems).toBe(
+        metadata.collections.reduce((sum, c) => sum + c.totalItems, 0),
+      )
     })
 
-    it('returns metadata for wemeditate script', () => {
-      const metadata = getScriptMetadata('wemeditate')
-
-      expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(5)
-      expect(metadata.collections.map((c) => c.slug)).toEqual([
-        'authors',
-        'albums',
-        'songs',
-        'pages',
-        'lectures',
-      ])
-      expect(metadata.requiresPagination).toBe(true) // pages requires pagination
-    })
-
-    it('returns metadata for meditations script', () => {
-      const metadata = getScriptMetadata('meditations')
-
-      expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(3)
-      expect(metadata.collections.map((c) => c.slug)).toEqual([
-        'narrators',
-        'frames',
-        'meditations',
-      ])
-      expect(metadata.requiresPagination).toBe(true) // frames and meditations require pagination
-    })
-
-    it('returns metadata for storyblok script', () => {
-      const metadata = getScriptMetadata('storyblok')
-
-      expect(metadata).toBeDefined()
-      expect(metadata.collections).toHaveLength(2)
-      expect(metadata.collections.map((c) => c.slug)).toEqual(['lessons', 'lectures'])
-      expect(metadata.requiresPagination).toBe(true) // lessons requires pagination for consistency
+    it('answers with no collections for a script that targets globals', () => {
+      expect(getScriptMetadata('translations').collections).toEqual([])
     })
 
     it('includes a recommended batch size', () => {
-      const metadata = getScriptMetadata('tags')
-
-      expect(metadata.recommendedBatchSize).toBeGreaterThan(0)
+      expect(getScriptMetadata('preview-fixture').recommendedBatchSize).toBeGreaterThan(0)
     })
   })
 
   describe('getCollectionMetadata', () => {
     it('returns metadata for a specific collection', () => {
-      const framesMetadata = getCollectionMetadata('meditations', 'frames')
+      const regions = getCollectionMetadata('preview-fixture', 'regions')
 
-      expect(framesMetadata).toBeDefined()
-      expect(framesMetadata?.slug).toBe('frames')
-      expect(framesMetadata?.totalItems).toBe(60)
-      expect(framesMetadata?.requiresPagination).toBe(true)
-      expect(framesMetadata?.hasFileUploads).toBe(true)
+      expect(regions?.slug).toBe('regions')
+      expect(regions?.dependencies).toEqual(['managers'])
+      expect(regions?.requiresPagination).toBe(false)
     })
 
     it('returns undefined for non-existent collection', () => {
-      const metadata = getCollectionMetadata('meditations', 'non-existent')
-      expect(metadata).toBeUndefined()
+      expect(getCollectionMetadata('preview-fixture', 'non-existent')).toBeUndefined()
     })
   })
 
   describe('getExpectedCounts', () => {
-    const scripts: ScriptName[] = ['tags', 'wemeditate', 'meditations', 'storyblok']
-
-    scripts.forEach((script) => {
-      it(`returns expected counts for ${script}`, () => {
-        const counts = getExpectedCounts(script)
-
-        expect(counts).toBeDefined()
-        expect(Object.keys(counts).length).toBeGreaterThan(0)
-      })
+    it('returns the floors a script declares', () => {
+      expect(Object.keys(getExpectedCounts('preview-fixture')).length).toBeGreaterThan(0)
     })
   })
 
   describe('verifyCountsForScript', () => {
-    it('passes when actual counts meet expected minimums', () => {
-      const actualCounts = {
-        'user-choices': 30,
-        'song-tags': 10,
-      }
+    /** Every floor met exactly, which each case then varies one entry of. */
+    const atTheFloor = () => ({ ...FIXTURE_COUNTS })
 
-      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+    it('passes when actual counts meet expected minimums', () => {
+      const { results, allPassed } = verifyCountsForScript('preview-fixture', atTheFloor())
 
       expect(allPassed).toBe(true)
-      expect(results).toHaveLength(2)
+      expect(results).toHaveLength(Object.keys(FIXTURE_COUNTS).length)
       expect(results.every((r) => r.passed)).toBe(true)
     })
 
     it('fails when actual counts are below expected', () => {
-      const actualCounts = {
-        'user-choices': 10, // Expected is 27
-        'song-tags': 7,
-      }
-
-      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+      const { results, allPassed } = verifyCountsForScript('preview-fixture', {
+        ...atTheFloor(),
+        users: FIXTURE_COUNTS.users - 1,
+      })
 
       expect(allPassed).toBe(false)
-      const failedResult = results.find((r) => r.collection === 'user-choices')
-      expect(failedResult?.passed).toBe(false)
+      expect(results.find((r) => r.collection === 'users')?.passed).toBe(false)
     })
 
     it('handles missing collections as zero count', () => {
-      const actualCounts = {
-        'user-choices': 30,
-        // song-tags missing
-      }
-
-      const { results, allPassed } = verifyCountsForScript('tags', actualCounts)
+      const { users: _omitted, ...withoutUsers } = atTheFloor()
+      const { results, allPassed } = verifyCountsForScript('preview-fixture', withoutUsers)
 
       expect(allPassed).toBe(false)
-      const musicResult = results.find((r) => r.collection === 'song-tags')
-      expect(musicResult?.actual).toBe(0)
-      expect(musicResult?.passed).toBe(false)
+      const usersResult = results.find((r) => r.collection === 'users')
+      expect(usersResult?.actual).toBe(0)
+      expect(usersResult?.passed).toBe(false)
     })
 
     describe('with pagination', () => {
-      it('adjusts expected count for paginated collection', () => {
-        const actualCounts = {
-          'user-choices': 10,
-          'song-tags': 7,
-        }
-        const pagination = { collection: 'user-choices', offset: 0, limit: 10 }
-        const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
+      it('adjusts expected count for the paginated collection', () => {
+        const limit = FIXTURE_COUNTS.users - 2
+        const { results, allPassed } = verifyCountsForScript(
+          'preview-fixture',
+          { ...atTheFloor(), users: limit },
+          { collection: 'users', offset: 0, limit },
+        )
 
-        // user-choices: expects min(0+10, 27) = 10, actual = 10 → passes
-        const meditationResult = results.find((r) => r.collection === 'user-choices')
-        expect(meditationResult?.expected).toBe(10)
-        expect(meditationResult?.passed).toBe(true)
+        // users: expects min(0 + limit, floor) = limit, actual = limit → passes
+        expect(results.find((r) => r.collection === 'users')?.expected).toBe(limit)
         expect(allPassed).toBe(true)
       })
 
-      it('uses full expected count for non-paginated collections', () => {
-        const actualCounts = {
-          'user-choices': 10,
-          'song-tags': 7,
-        }
-        const pagination = { collection: 'user-choices', offset: 0, limit: 10 }
-        const { results } = verifyCountsForScript('tags', actualCounts, pagination)
+      it('uses full expected count for the collections not being paginated', () => {
+        const { results } = verifyCountsForScript('preview-fixture', atTheFloor(), {
+          collection: 'users',
+          offset: 0,
+          limit: 1,
+        })
 
-        // song-tags: not paginated, expects full 7
-        const songResult = results.find((r) => r.collection === 'song-tags')
-        expect(songResult?.expected).toBe(7)
+        expect(results.find((r) => r.collection === 'regions')?.expected).toBe(
+          FIXTURE_COUNTS.regions,
+        )
       })
 
       it('caps adjusted expected at full count', () => {
-        const actualCounts = {
-          'user-choices': 27,
-          'song-tags': 7,
-        }
-        const pagination = { collection: 'user-choices', offset: 20, limit: 100 }
-        const { results } = verifyCountsForScript('tags', actualCounts, pagination)
+        const { results } = verifyCountsForScript('preview-fixture', atTheFloor(), {
+          collection: 'users',
+          offset: 20,
+          limit: 100,
+        })
 
-        // Expected = min(20+100, 27) = 27 (capped at full count)
-        const meditationResult = results.find((r) => r.collection === 'user-choices')
-        expect(meditationResult?.expected).toBe(27)
+        // Expected = min(20 + 100, floor) = floor
+        expect(results.find((r) => r.collection === 'users')?.expected).toBe(FIXTURE_COUNTS.users)
       })
 
       it('does not adjust when limit is 0 (bulk import)', () => {
-        const actualCounts = {
-          'user-choices': 10,
-          'song-tags': 7,
-        }
-        const pagination = { collection: 'user-choices', offset: 0, limit: 0 }
-        const { results, allPassed } = verifyCountsForScript('tags', actualCounts, pagination)
+        const { results, allPassed } = verifyCountsForScript(
+          'preview-fixture',
+          { ...atTheFloor(), users: 1 },
+          { collection: 'users', offset: 0, limit: 0 },
+        )
 
-        // limit=0 means bulk import, should use full expected count (27)
-        const meditationResult = results.find((r) => r.collection === 'user-choices')
-        expect(meditationResult?.expected).toBe(27)
-        expect(meditationResult?.passed).toBe(false) // actual 10 < expected 27
+        const users = results.find((r) => r.collection === 'users')
+        expect(users?.expected).toBe(FIXTURE_COUNTS.users)
+        expect(users?.passed).toBe(false)
         expect(allPassed).toBe(false)
-      })
-
-      it('adjusts for intermediate batch correctly', () => {
-        // Simulating batch 3 of pages import (offset=20, limit=10)
-        const actualCounts = {
-          authors: 18,
-          albums: 8,
-          songs: 27,
-          pages: 30, // After 3 batches
-          lectures: 40,
-        }
-        const pagination = { collection: 'pages', offset: 20, limit: 10 }
-        const { results, allPassed } = verifyCountsForScript('wemeditate', actualCounts, pagination)
-
-        // pages: expects min(20+10, 60) = 30, actual = 30 → passes
-        const pagesResult = results.find((r) => r.collection === 'pages')
-        expect(pagesResult?.expected).toBe(30)
-        expect(pagesResult?.passed).toBe(true)
-
-        // Other collections use full expected counts
-        const authorsResult = results.find((r) => r.collection === 'authors')
-        expect(authorsResult?.expected).toBe(18)
-
-        expect(allPassed).toBe(true)
       })
     })
   })
@@ -242,53 +166,16 @@ describe('Pagination Utilities', () => {
 
 describe('Collection Metadata', () => {
   describe('dependency ordering', () => {
-    it('lists wemeditate collections in dependency order', () => {
-      const metadata = getScriptMetadata('wemeditate')
-      const slugs = metadata.collections.map((c) => c.slug)
+    it('lists every step after the steps it depends on', () => {
+      const slugs = getScriptMetadata('preview-fixture').collections.map((c) => c.slug)
 
-      // Authors must come before pages (authors are referenced by pages)
-      expect(slugs.indexOf('authors')).toBeLessThan(slugs.indexOf('pages'))
-
-      // Albums must come before songs (albums are referenced by songs)
-      expect(slugs.indexOf('albums')).toBeLessThan(slugs.indexOf('songs'))
-    })
-
-    it('lists meditations collections in dependency order', () => {
-      const metadata = getScriptMetadata('meditations')
-      const slugs = metadata.collections.map((c) => c.slug)
-
-      // Narrators must come before meditations
-      expect(slugs.indexOf('narrators')).toBeLessThan(slugs.indexOf('meditations'))
-
-      // Frames must come before meditations
-      expect(slugs.indexOf('frames')).toBeLessThan(slugs.indexOf('meditations'))
-    })
-  })
-
-  describe('pagination requirements', () => {
-    it('marks small collections as not requiring pagination', () => {
-      const metadata = getScriptMetadata('tags')
-      const meditationTags = metadata.collections.find((c) => c.slug === 'user-choices')
-      const songTags = metadata.collections.find((c) => c.slug === 'song-tags')
-
-      expect(meditationTags?.requiresPagination).toBe(false)
-      expect(songTags?.requiresPagination).toBe(false)
-    })
-
-    it('marks large collections as requiring pagination', () => {
-      const metadata = getScriptMetadata('wemeditate')
-      const pages = metadata.collections.find((c) => c.slug === 'pages')
-
-      expect(pages?.requiresPagination).toBe(true)
-    })
-
-    it('identifies collections with file uploads', () => {
-      const metadata = getScriptMetadata('meditations')
-      const frames = metadata.collections.find((c) => c.slug === 'frames')
-      const meditations = metadata.collections.find((c) => c.slug === 'meditations')
-
-      expect(frames?.hasFileUploads).toBe(true)
-      expect(meditations?.hasFileUploads).toBe(true)
+      for (const step of getScriptMetadata('preview-fixture').collections) {
+        for (const dependency of step.dependencies) {
+          expect(slugs.indexOf(dependency), `${step.slug} → ${dependency}`).toBeLessThan(
+            slugs.indexOf(step.slug),
+          )
+        }
+      }
     })
   })
 })
@@ -322,18 +209,15 @@ const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 // both directions: a new `{}` entry fails the membership case, and a reason
 // rewritten into something vaguer fails its own.
 const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
-  'meditation-transcripts': /the target still carries/,
   'file-transcripts': /without a transcript/,
-  'wm-app-translations': /global/,
   translations: /global/,
-  'atlas-reset': /empties the atlas collections/,
 }
 
 describe('a script that can state no floor says so', () => {
   const unverifiable = ALL_SCRIPTS.filter((script) => isNotApplicable(EXPECTED_COUNTS[script]))
 
-  it("covers the globals-only scripts, and the one whose floor is the target's own library", () => {
-    expect(unverifiable).toEqual(Object.keys(NO_FLOOR_REASONS))
+  it("covers the globals-only script, and the one whose floor is the target's own library", () => {
+    expect(unverifiable.sort()).toEqual(Object.keys(NO_FLOOR_REASONS).sort())
   })
 
   unverifiable.forEach((script) => {
@@ -350,46 +234,39 @@ describe('a script that can state no floor says so', () => {
   })
 
   it('leaves a verifiable script reporting no reason', () => {
-    const { skippedReason, results } = verifyCountsForScript('tags', {
-      'user-choices': 27,
-      'song-tags': 7,
+    const { skippedReason, results } = verifyCountsForScript('preview-fixture', {
+      ...FIXTURE_COUNTS,
     })
 
     expect(skippedReason).toBeUndefined()
-    expect(results).toHaveLength(2)
+    expect(results).toHaveLength(Object.keys(FIXTURE_COUNTS).length)
   })
 })
 
 describe('getCountTargets', () => {
-  it('drops a step that lands in no collection of its own', () => {
-    const atlas = getCountTargets('atlas').map((target) => target.collection)
-
-    expect(atlas).not.toContain('pictures')
-    expect(atlas).toContain('user-submissions')
-  })
-
   it('keeps the script metadata order', () => {
-    expect(getCountTargets('meditations').map((target) => target.collection)).toEqual([
-      'narrators',
-      'frames',
-      'meditations',
-    ])
+    expect(getCountTargets('preview-fixture').map((target) => target.collection)).toEqual(
+      getScriptMetadata('preview-fixture').collections.map((step) => step.collection),
+    )
   })
 
-  it('carries the filter the atlas registration floor is stated under', () => {
-    const registrations = getCountTargets('atlas').find(
-      (target) => target.collection === 'user-submissions',
-    )
+  it('carries the filter a floor is stated under, and nothing more', () => {
+    const targets = getCountTargets('preview-fixture')
+    const registrations = targets.find((target) => target.collection === 'user-submissions')
 
-    // An unfiltered count passes on contact, subscribe and proposal rows alone.
-    expect(registrations?.where).toEqual(activeRegistrationWhere)
-    expect(getCountTargets('tags').every((target) => target.where === undefined)).toBe(true)
+    // An unfiltered count passes on contact rows alone, and on a registration
+    // whose status has since been written away.
+    expect(registrations?.where).toEqual(
+      getCollectionMetadata('preview-fixture', 'user-submissions')?.countWhere,
+    )
+    expect(registrations?.where).toBeDefined()
+    expect(targets.find((target) => target.collection === 'managers')?.where).toBeUndefined()
   })
 
   /**
-   * The invariant the seed route's `getDatabaseCounts` rests on. It was broken:
-   * `wemeditate` expected 40 lectures the route never counted, so every run of
-   * that script reported verification failed on 0.
+   * The invariant the seed route's `getDatabaseCounts` rests on. It was broken
+   * once: a script expected 40 rows in a collection the route never counted, so
+   * every run of it reported verification failed on 0.
    */
   it('covers every floor every script declares', () => {
     const uncounted = ALL_SCRIPTS.flatMap((script) => {
