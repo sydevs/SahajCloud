@@ -84,7 +84,7 @@ describe('Deleting a region', () => {
     const error = await refusal(region)
 
     expect(error).toMatchObject({ status: 409 })
-    expect(error?.message).toContain('(in the trash)')
+    expect(error?.message).toContain('1 event is held in archived-city (1 in the trash)')
   })
 
   it('names the service whose region is beneath it', async () => {

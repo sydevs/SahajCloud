@@ -6,7 +6,7 @@ import { extractID } from 'payload/shared'
 /** `req.context` key: regions an ancestor's delete has already checked. */
 const CHECKED_KEY = 'regionDeleteChecked'
 
-/** How many places an event refusal names before it counts the rest. */
+/** How many places a refusal names before it counts the rest. */
 const PLACES_NAMED = 5
 
 const listFormat = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' })
@@ -91,18 +91,21 @@ async function eventBlockers(
   })
   if (!docs.length) return []
 
-  const places = [...new Set(docs.map((doc) => names.get(extractID(doc.region!))))]
-  const named = places.slice(0, PLACES_NAMED) as string[]
-  if (places.length > PLACES_NAMED) named.push(`${places.length - PLACES_NAMED} more places`)
   const trashed = docs.filter((doc) => doc.deletedAt).length
   const count = docs.length === 1 ? '1 event is' : `${docs.length} events are`
-  const inTrash =
-    trashed === 0
-      ? ''
-      : docs.length === 1
-        ? ' (in the trash)'
-        : ` (${trashed === docs.length ? 'all' : trashed} in the trash)`
-  return [`${count} held in ${listFormat.format(named)}${inTrash}`]
+  // A trashed event is in no list view, so a count with no such note reads as
+  // a blocker the manager cannot find.
+  const inTrash = trashed ? ` (${trashed} in the trash)` : ''
+  const places = docs.map((doc) => names.get(extractID(doc.region!)))
+  return [`${count} held in ${placesPhrase(places)}${inTrash}`]
+}
+
+/** The distinct places named, bounded, since a country's subtree holds thousands. */
+function placesPhrase(places: (string | undefined)[]): string {
+  const distinct = [...new Set(places.filter((place): place is string => !!place))]
+  const named = distinct.slice(0, PLACES_NAMED)
+  if (distinct.length > PLACES_NAMED) named.push(`${distinct.length - PLACES_NAMED} more places`)
+  return listFormat.format(named)
 }
 
 async function serviceBlockers(
