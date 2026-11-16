@@ -2,21 +2,14 @@
 
 import type { ArrayFieldClient, ArrayFieldClientComponent } from 'payload'
 
-import {
-  Drawer,
-  FieldDescription,
-  FieldLabel,
-  Table,
-  useDrawerSlug,
-  useModal,
-} from '@payloadcms/ui'
+import { Drawer, FieldDescription, FieldLabel, useDrawerSlug, useModal } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useState } from 'react'
 
 import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 import { useLogValue } from '../helpers/useLogValue'
 
 import './styles.css'
@@ -74,7 +67,8 @@ export const LogTable: ArrayFieldClientComponent = ({ field, path }) => {
    * earlier version read Payload's `data-id` attribute — correct today, but a
    * silent no-op the day that attribute is renamed, since a click would simply
    * find nothing. Row order is inherent to a table; the attribute is Payload's
-   * to change.
+   * to change. The stacked phone layout is `display: block` and moves no
+   * element, so the same walk resolves a row there.
    */
   const openRow = (target: EventTarget | null) => {
     const row = (target as HTMLElement | null)?.closest?.('tr')
@@ -103,29 +97,27 @@ export const LogTable: ArrayFieldClientComponent = ({ field, path }) => {
               if (event.key === 'Enter' || event.key === ' ') openRow(event.target)
             }}
           >
-            <Table
+            <StackedTable
               appearance="condensed"
-              data={entries.map((_, index) => ({ id: index }))}
+              rows={entries.map((_, index) => ({ id: index }))}
               columns={[
-                tableColumn(
-                  'when',
-                  'When',
+                {
+                  accessor: 'when',
                   // The one tab stop per row — the keyboard's way in.
-                  entries.map((entry, index) => (
+                  cells: entries.map((entry, index) => (
                     <span key={index} tabIndex={0} style={focusableStyle}>
                       {formatLogDate(entry.at)}
                     </span>
                   )),
-                ),
-                ...columns.map((column) =>
-                  tableColumn(
-                    column.key,
-                    column.label ?? toWords(column.key),
-                    entries.map((entry, index) => (
-                      <CellView key={index} cell={entry.cells?.[column.key]} />
-                    )),
-                  ),
-                ),
+                  heading: 'When',
+                },
+                ...columns.map((column) => ({
+                  accessor: column.key,
+                  cells: entries.map((entry, index) => (
+                    <CellView key={index} cell={entry.cells?.[column.key]} />
+                  )),
+                  heading: column.label ?? toWords(column.key),
+                })),
               ]}
             />
             {/*
