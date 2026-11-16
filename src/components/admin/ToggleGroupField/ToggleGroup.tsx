@@ -172,8 +172,14 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
               }
             : {
                 // Payload's own text-input box, so a single choice sits level
-                // with the inputs and selects beside it.
-                height: '40px',
+                // with the inputs and selects beside it. ⚠ A floor, not a
+                // height: a wrapped row is content the box has to grow for,
+                // and `height` with `overflow: hidden` clipped it away.
+                minHeight: '40px',
+                // Each choice fills its own row's height, which is what keeps
+                // a chosen segment's fill edge to edge. `height: 100%` cannot:
+                // a percentage against a floor resolves to `auto`.
+                alignItems: 'stretch',
                 border: '1px solid var(--theme-elevation-150)',
                 borderRadius: 'var(--style-radius-s)',
                 boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
@@ -238,7 +244,6 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      height: '100%',
                     }),
               }}
               onMouseEnter={(e) => {
