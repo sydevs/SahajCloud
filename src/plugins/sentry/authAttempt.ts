@@ -6,7 +6,7 @@
  * ⚠ **Nothing here may return the credential, or any substring of it.** The
  * only value derived from the key is a truncated SHA-256 of it.
  *
- * Why the signal exists and what it cannot see: `docs/architecture.md`.
+ * Why the signal exists and what it cannot see: `src/plugins/sentry/AGENTS.md`.
  */
 import { createHash } from 'node:crypto'
 

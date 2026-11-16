@@ -75,7 +75,7 @@ export const captureFailure = ({
     // hold — a 400, not an incident.
     // ⚠ **This suppresses a 22P02 OUR code composed too.** Do not discriminate
     // on `req.user`: access control denies an anonymous read before any SQL
-    // runs. `docs/architecture.md` has the trade. (sydevs/SahajCloud#670)
+    // runs. `src/plugins/sentry/AGENTS.md` has the trade. (sydevs/SahajCloud#670)
     if (mapPostgresCastError(error)) return false
 
     // ⚠ Resolved inside the `try`, not as a parameter default: `errorStatus`

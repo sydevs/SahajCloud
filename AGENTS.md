@@ -13,7 +13,7 @@ Subsystem guidance loads two ways, by whether its scope is one directory:
 - **Nested `AGENTS.md` guides** — for a subsystem that is one directory subtree. It loads when an agent reads a file there (a `CLAUDE.md` symlink sits beside each one). Run `find src tests scripts seeds -name AGENTS.md` for the inventory.
 - **`docs/rules/*.md`** — for a pattern that spans directories. Each file has `paths:` frontmatter and loads on a matching file. `.claude/rules/` holds symlinks to these files, not copies: a write under `.claude/` triggers Claude Code's Protected Paths guard and stalls an unattended run. Run `ls .claude/rules/` for the inventory.
 - @docs/code-style.md — global code style, loaded every session. ⚠ An `@` import loads only outside backticks: inside a code span it is plain text.
-- **`docs/environment.md`** (environment variables, Railway configuration) and **`docs/architecture.md`** (storage, endpoints, logging, scheduled jobs) — read on demand; neither loads on its own.
+- **`docs/environment.md`** (environment variables, Railway configuration) and **`docs/architecture.md`** (storage, collections, the Payload config, and where each subsystem's guide lives) — read on demand; neither loads on its own.
 - **`.claude/skills/`** — local workflow skills. Run `ls .claude/skills/` to list them.
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** — deployment documentation.
 
