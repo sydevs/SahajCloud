@@ -22,6 +22,11 @@ const sharedPlugins = [tsconfigPaths(), react()]
 // container's URL instead.
 const sharedTestEnv: Record<string, string> = {
   NODE_ENV: 'test',
+  // Deliberately not UTC. Code that reads the host clock where an instant is
+  // required renders the right value on a UTC machine, so CI's UTC runner
+  // cannot see the defect — that is how #1158 shipped green. A zone with a
+  // whole-hour offset and no DST keeps the divergence constant.
+  TZ: 'Asia/Tokyo',
   DATABASE_URL: process.env.DATABASE_URL ?? DEFAULT_TEST_DATABASE_URL,
   PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
   // A fixed Ed25519 signing key (base64 private JWK) so both lanes can mint a

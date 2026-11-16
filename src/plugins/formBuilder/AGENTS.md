@@ -81,7 +81,7 @@ buttons gate on `type === 'proposal'` through a `WorkflowButtons` rule and fall
 through to the ordinary Save otherwise — ahead of them sits one more rule, gated
 on the viewer being an admin, because settling a spam refusal is a move
 `SUBMISSION_MACHINE` grants an admin on **every** intake and nobody else on any
-(`docs/rules/admin-ui.md`); `livePreview.url` sends the other
+(`src/components/admin/WorkflowButtons/AGENTS.md`); `livePreview.url` sends the other
 three to the explanation page, with a reason that fits a row nobody reviews. A
 new slot owes the same branch — the field hooks behind one included, since
 `admin.condition` hides a field without stopping its hooks. The hooks above owe

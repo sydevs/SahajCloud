@@ -59,7 +59,8 @@ One folder per scheduled job (`CleanupOrphanedMedia/`,
 folder (e.g. `CleanupOrphanedMedia/schemaUtils.ts`) and nothing outside it
 imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
-`jobs.tasks`.
+`jobs.tasks`. Each job's schedule and queue, and the traps in both, are in
+`src/jobs/AGENTS.md`.
 
 **A task's failure reaches Sentry once, on its final attempt**
 (`src/plugins/sentry/jobCapture.ts`), at `error`. When the task cannot do its
@@ -233,9 +234,7 @@ No loose files at the root — every file lives in a named folder:
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
   `pageTags/`, `cascadeDeletion/`, `events/` (what more than one
-  reader or writer of a class must agree on: `regionLevels.ts` — the
-  region levels an event may attach to, so `events.region`'s picker and
-  the Regions Events tab cannot narrow differently.
+  reader or writer of a class must agree on:
   `updateEventWithoutValidation.ts` — the bookkeeping write shared by the
   expiry job, the registration-fullness recount and the feedback hook,
   which skips validation so stored data a later validator refuses cannot

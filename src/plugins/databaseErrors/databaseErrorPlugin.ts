@@ -16,7 +16,7 @@
  *
  * So the response is rebuilt here rather than the query pre-validated. The
  * recognition itself is pure and lives in `@/lib/databaseErrors`; the reasoning is
- * in `docs/architecture.md`. (sydevs/SahajCloud#670)
+ * in `src/plugins/sentry/AGENTS.md`. (sydevs/SahajCloud#670)
  *
  * ⚠ **Payload's own REST routes only.** `routeError` is what invokes root `afterError`
  * hooks, so a custom endpoint that catches its own errors never reaches this — it has to

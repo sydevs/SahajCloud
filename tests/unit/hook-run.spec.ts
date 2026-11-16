@@ -123,15 +123,22 @@ describe('respond', () => {
     })
   })
 
-  it('hands the hook the edited path and the project, and passes its message on', () => {
-    vi.stubEnv('CLAUDE_PROJECT_DIR', '/repo')
+  it('hands the hook the edited path, and passes its message on', () => {
     const hook = vi.fn(() => 'something to say')
 
     expect(JSON.parse(respond(tool('/repo/a.ts'), hook, 'example hook'))).toEqual({
       continue: true,
       additionalContext: 'something to say',
     })
-    expect(hook).toHaveBeenCalledWith({ filePath: '/repo/a.ts', projectDir: '/repo' })
+    expect(hook).toHaveBeenCalledWith({ filePath: '/repo/a.ts' })
+  })
+
+  it('leaves the hook on its own checkout when the session names another project', () => {
+    vi.stubEnv('CLAUDE_PROJECT_DIR', '/workspace')
+    const hook = vi.fn(() => null)
+
+    respond(tool('/workspace/repo/a.ts'), hook, 'example hook')
+    expect(hook).toHaveBeenCalledWith({ filePath: '/workspace/repo/a.ts' })
   })
 
   it('runs nothing on input it cannot read', () => {
@@ -141,7 +148,7 @@ describe('respond', () => {
       continue: true,
       suppressOutput: true,
     })
-    expect(hook).toHaveBeenCalledWith({ filePath: undefined, projectDir: undefined })
+    expect(hook).toHaveBeenCalledWith({ filePath: undefined })
   })
 
   it('says so when the hook itself throws', () => {

@@ -2,15 +2,11 @@
 paths:
   - src/components/admin/**/*.tsx
   - src/components/branding/**/*.tsx
-  - src/globals/**/*.ts
-  - src/collections/**/*.ts
-  - src/fields/**/*.ts
-  - src/lib/richEditor/blocks/**/*.ts
 ---
 
 # Admin UI
 
-Rules for PayloadCMS admin-panel components: server vs client, field components, cells, project visibility, and the frame editor.
+Rules for writing a PayloadCMS admin component: built-ins first, server vs client, field components, cells, styling, and custom views. Admin settings on a collection, global or field config are in `docs/rules/admin-config.md`; navigation and the dashboards in `docs/rules/admin-navigation.md`; `WorkflowButtons`, `JobStageView` and the frame editor in the `AGENTS.md` beside each.
 
 ## Prefer Payload's built-in components
 
@@ -18,13 +14,19 @@ Rules for PayloadCMS admin-panel components: server vs client, field components,
 
 Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } from '@payloadcms/ui'`). See `node_modules/@payloadcms/ui/dist/exports/client/index.d.ts` for the full set.
 
-⚠ **`ProgressBar` is exported, and it reads as though it should show a job's count.** It is the route-transition bar: it takes no props and reads its value from `RouteTransitionProvider`, so it cannot show a job's own count. A job's count belongs in `JobStageView`'s banner instead (below), which is where both consumers put it. A determinate bar is `Progress` (`src/components/admin/Progress/`), the one this repo draws — the Install tab's and launch readiness's: a rounded track and fill drawn as divs, since each browser paints a native `<progress>` its own way, carrying `role="progressbar"` and its `aria-value*` so assistive technology still reads the value. A total of nothing draws an empty bar.
+⚠ **`ProgressBar` is exported, and it reads as though it should show a job's count.** It is the route-transition bar: it takes no props and reads its value from `RouteTransitionProvider`, so it cannot show a job's own count. A job's count belongs in `JobStageView`'s banner instead (`src/components/admin/JobStageView/AGENTS.md`), which is where both consumers put it. A determinate bar is `Progress` (`src/components/admin/Progress/`), the one this repo draws — the Install tab's and launch readiness's: a rounded track and fill drawn as divs, since each browser paints a native `<progress>` its own way, carrying `role="progressbar"` and its `aria-value*` so assistive technology still reads the value. A total of nothing draws an empty bar.
 
 **A notice is `InfoBanner`** (`src/components/admin/InfoBanner/`): Payload's `Banner` with an icon, a title and a sentence or two. **Its one control is its typed `action`**, drawn as a small secondary `Button` after the text — `{ label, href }` for a link, which a server component can pass, or `{ label, onClick, disabled? }` for a handler. It takes no `ReactNode`, so a banner's control cannot be styled one way here and another there; never put a button or link in a banner's children, or beside it.
 
 `Table` is list-view-shaped: pass `data` (rows with an `id`) and `columns: Column[]`, each column carrying pre-rendered `renderedCells` (one node per row), `accessor`, and `active: true`. `Column` also requires a `field` the component never reads — stub it (`field: {} as never`). See `src/components/admin/LogTable/` for the working pattern, and note what it hand-rolls: `Table` exposes nothing per row, so opening a row's detail needs a delegated `closest('tr[data-id]')` listener (Payload writes the row's `id` there), and `cursor` must be a stylesheet rule because it targets Payload's own `<tr>`.
 
 ⚠ **`Table` has no responsive mode — it scrolls sideways**, so a column past the edge is a column nobody finds on a phone. `StackedTable` (`src/components/admin/helpers/stackedTable.tsx`) is the wrapper that answers it: under 700px each row becomes one block, and each cell carries its own heading as a label, because the header row then names the first row alone. The first column takes no label, being the row's own title. Reach for it rather than restating either half in a stylesheet — a table that stacks with no labels reads as unnamed values, which is the defect it exists for.
+
+### A join can list more than its `on` resolves — `RelationshipTable`
+
+A `join` resolves one reverse lookup, so a tab that must list rows reached through an ancestor chain cannot get them from `on`. `RelationshipTable` is the element Payload's own `JoinField` renders, and it is exported: it takes a `filterOptions: Where` of your choosing, re-queries through the `getTableState` server function under the reader's own access, and keeps the columns, pagination and document drawers a join table has. So a custom `Field` on the join renders the wider list with nothing hand-rolled.
+
+`RegionEvents` (`src/components/admin/RegionEvents/`) is the worked example: `events.region` takes a city or a venue, so a country's Events tab is empty under `on: 'region'`, and the component swaps in `region: { in: descendantRegionIds(…) }`. Three things it has to do itself, because replacing the `Field` replaces all of them: render the join's `Label`, pass `parent`, and seed `initialDrawerData` for an Add New the picker's own `filterOptions` would accept — which is why `allowCreate` follows the **stored** level. ⚠ The stored join still answers `on` for every API reader, so the widening is the admin table's alone, and `clientField` arrives with `type` optional while the element requires it.
 
 ### A multipart save renders its own feedback
 
@@ -54,101 +56,9 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 There is no width prop: `Drawer` sets `width: calc(100% - (drawerDepth * var(--gutter-h)))` in JS, narrowing one gutter per nesting level. A narrower drawer needs a `className` and a CSS rule.
 
-### A hidden collection is still reachable through a `join`
-
-`admin.hidden: true` removes a collection from the nav **and** unregisters its routes — `/admin/collections/<slug>/<id>` 404s. It does not make the documents unreachable: a `join` field on another collection still renders its rows and opens each in a document drawer, which never touches the route. Nested drawers work from there too.
-
-That combination is often what you want — reachable where it's explained, absent from the sidebar. An admin opens a registration this way, through the join on an event's Registration tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
-
-⚠ **A join is not a way around the related collection's access.** `user-submissions` is restricted and no manager role reads it, so that join renders empty for every manager however the field is configured, and `admin.condition` hides the field without stopping its subquery. A manager reads their own event's signups on the Registrations **view** instead — a document view of its own, below (#1069).
-
-### `WorkflowButtons` — stage-dependent document buttons as data
-
-`src/components/admin/WorkflowButtons/` replaces a bespoke button component per staged collection. A collection declares its buttons through `clientProps` on an edit-view slot:
-
-```ts
-admin.components.edit.SaveButton = {
-  path: WORKFLOW_BUTTONS,
-  clientProps: {
-    statusField: 'status', // the form field whose value picks the stage
-    fallback: null, // 'publish' | 'save' | 'saveDraft' | null
-    rules: [
-      // Precedence order. `when` is optional; omitted, the rule applies to every document.
-      { when: { userType: 'admin' }, stages: SPAM_STAGES },
-      { when: { field: 'type', equals: 'proposal' }, stages: REVIEW_STAGES },
-    ],
-  } satisfies WorkflowButtonsProps<MyStage>,
-}
-```
-
-Each action is `{ label, overrides, confirm?, buttonStyle?, skipValidation? }`; `overrides` is merged into the submit, so `{ status: 'committing' }` is how a button makes a transition and `{}` is a plain save. Six rules:
-
-- **`clientProps`, not `admin.custom`.** An edit-view slot is not a field, so there is no `field.admin.custom` to read, and `createClientCollectionConfig` strips a collection's top-level `custom`. `renderDocumentSlots` passes a `RawPayloadComponent`'s own `clientProps` through — which is why each declaration is an object rather than a path string.
-- **An empty stage array is not a missing one.** `[]` renders nothing; a stage the declaration never names falls through to `fallback`. Collapsing the two put Publish back on Meditations' create screen.
-- **An unsaved document is `CREATE_STAGE`, whatever the status field holds.** A collection that defaults `status` to a running stage would otherwise hand the create form that stage's buttons.
-- **The contract lives in `stages.ts`, not beside the component.** Every export of a `'use client'` module reaches a server module as a client reference, so a config reading `CREATE_STAGE` off the component would key its map on an object. Same split as `UserSubmissions/statuses.ts`.
-- **A slot serving several kinds of document decides over (kind, viewer, stage), so it declares an ordered `rules` list.** The first rule that both applies and names the document's stage wins; a rule that applies but is silent about the stage falls through to the next, so an earlier rule narrows rather than claims. `user-submissions` holds four intakes sharing one status vocabulary, so a `contact` row at `pending` resolves the same stage as a proposal awaiting review — and ungated would be offered Accept and Reject. A stage no applying rule names reaches `fallback`; a stage declared `[]` **is** named, so it wins and renders nothing, which is what keeps "no action here" from reading as "not my kind of document" and restoring the Save button.
-- **A rule offering a privileged move must name the viewer.** `when.userType: 'admin'` is read from `useAuth()`, and it exists because a button the server will refuse is a control that can only answer 403 (`docs/rules/access.md`). Settling a spam refusal is an admin's move on every intake (`SUBMISSION_MACHINE`), and `managerSubmissionScope` does admit a region manager to a refused contact row addressed to them — so that rule is gated on both sides of the wire. `user-submissions-review-lifecycle.int.spec.ts` asserts the coupling by judging every ungated rule's buttons against the machine as a non-admin reviewer who holds the grant.
-
-**A button is an offer, never a permission, so the server owes its own guard.** `admin.readOnly` on a status column is the admin UI alone, and a field access rule that admits managers admits every manager's `PATCH`. `user-submissions` pairs its declaration with `SUBMISSION_MACHINE`, whose guard rides on the `status` column (which moves a reviewer may make) and whose matched move's name `applyReviewDecision` acts on (what each one then does) — see `src/plugins/formBuilder/AGENTS.md`. Build each rule's `stages` map from whatever the server's own rule reads, rather than listing the statuses again: a hand-written map can offer a button the guard then refuses. `stagesFor(statuses, buttons)` in `stages.ts` is that spread — `{ ...stagesFor(OPEN_REVIEW_STATUSES, REVIEW_BUTTONS), accepted: [] }` — and `when` is how the same discipline reaches the half a status set cannot express, the viewer.
-
-**That guard is the state machine's, and the column carries it** (#1121). A lifecycle is declared once with `defineStateMachine` (`src/lib/stateMachine/machine.ts`) — its states, where a row may open, every `(from, to, by)` move, a move's optional `when` condition, `name` and `refusal`, who may name themselves as a writer, and how a request's person resolves — and the column is `stateMachineField(machine, …)` (`src/fields/stateMachineField.ts`), which derives the options and its `defaultValue` from the machine's own `opensAt`, and mounts the guard as a field `beforeChange`, after every collection hook. `user-submissions` and `events` are its two consumers; the domain facts — who reviews, which intake has a review path, the region an accept needs — are rows and conditions in the owner's own table, never a second predicate beside it. Meditations' buttons post `{ _status: 'draft' }` — Payload's own gate — so they need neither.
-
 **Building a custom field component?** Compose Payload's primitives (`FieldLabel`, `FieldError`, `FieldDescription`, `RenderFields`, the `*Field` inputs) instead of bespoke markup.
 
 For non-admin (public) React, use `lucide-react` instead (see `docs/code-style.md`). Emails use neither — see `docs/rules/email.md`.
-
-## A condition reads a sibling its own level declares
-
-`siblingData` is the data at the field's own level, and `Condition` types it as `any`, so a name no level declares compiles, is always false, and hides the field it guards for good — `wisdomStyle` read the legacy `position` for its whole life (#989). `row`, `collapsible` and an unnamed `group` or `tab` hold no data, so a field inside one still reads its parent's level; a named `group`, `array`, `tab` or block starts a level of its own. A `ui` field is declared but holds no data, so its name is not a sibling either.
-
-`tests/unit/admin-condition-fields.spec.ts` fails on a read that names nothing at the level that owns it. It reads the condition's own source text, so a condition reading a sibling must spell its parameter `siblingData` — rename it, destructure it, or hand it to a helper and the spec fails rather than cover nothing. The one exempt spelling is `_siblingData`, which is how a condition declares it reads no sibling at all. `data` and `blockData` are out of its scope: neither names a sibling.
-
-## Live preview pushes the document — the frontend needn't fetch it
-
-Payload posts the edited document's form state into the preview iframe on every change:
-
-```js
-const values = reduceFieldsToValues(formState, true)
-iframeRef.current.contentWindow?.postMessage(
-  { type: 'payload-live-preview', collectionSlug, data: values },
-  url,
-)
-```
-
-Most preview routes here ignore that and re-fetch by `?collection=…&id=…` instead — fine for Events/Regions/Pages, but a _choice_, not a requirement, and it costs preview on anything the frontend can't read: a **restricted** collection (API clients hold create-only on `user-submissions`), or a document with **no id to fetch** (a submission proposing a brand-new event).
-
-For those, carry the render-ready shape in a field and let postMessage deliver it: `UserSubmissions.previewEvent` is a virtual JSON field holding the merged event, and the widget renders from the message. Relationship hydration still fetches by id, so a referenced doc must stay readable by the client.
-
-Two mechanics worth knowing:
-
-- **Open the panel with `livePreview.openByDefault: true`** (Payload 3.86+), not a mount effect. It applies server-side while building the document view, only until the user toggles the panel — after that their stored `editViewType` preference wins. A `setIsLivePreviewing(true)` effect can't honour that, and re-opened the panel every time a reviewer closed it. The proposal review surface was ported off exactly such an effect. A _tab_ still needs the client, and declares `autoOpen` instead — see below.
-- A field that only carries data to the iframe wants `admin.hidden: true`, not a component rendering `null` — Payload renders it as a `HiddenField`, so the value still sits in form state (what `reduceFieldsToValues` posts) while nothing takes up space on the page.
-- A **virtual** field's value computes on read, so it never recomputes as the user types — the right trade only when the document isn't editable, as in the submission-review case.
-
-## Repointing the preview per tab — `previewTargetField`
-
-`admin.livePreview.url` receives `{ collectionConfig, data, globalConfig, locale, payload, req }` and runs on the server, so it can never see which tab is open. `previewTargetField(target, name)` (`src/fields/previewTargetField.ts`) is the seam that can: a zero-height `ui` field whose component repoints the panel through `useLivePreviewContext().setURL`. Declare it on a tab and it applies while that tab is open — `TabsField` mounts only the active tab's content.
-
-Five rules, each of which cost something to learn:
-
-- **Tab granularity only.** A sub-group renders as a collapsible, and a collapsed collapsible still mounts its fields, so a target inside one fires for every sub-group at once.
-- **`admin.custom`, never top-level `custom`** — Payload strips the latter from the client field config. And because it is serialized, the declaration is data: `{ path?, params?, autoOpen? }`, never a callback.
-- **A targeted global's `livePreview.url` reads `locale` and never `data`.** Payload overwrites the panel's URL whenever the server-resolved one changes, so a data-dependent URL re-resolves mid-edit and clobbers the repoint. `tests/int/translations-globals.int.spec.ts` calls each URL with no document, which is how that stays true.
-- **The declaration carries no origin and no credential.** It ships to the browser. `composeTargetUrl` rewrites the server-resolved default instead — keeping its origin and its query, the edited `locale` included — and refuses any target that would land on another origin. A relative `path` resolves against that default, which is how a locale-prefixed site keeps its prefix; an absolute one replaces the whole path.
-- **A targeted global's URL is a view, and sends no preview secret.** Both facts are the same fact: a consumer's `/preview` boot route wants a `collection` and an `id`, and it is also the only route that reads a `secret` — and the only one that scrubs it from the address bar. Point a global there with no document and the panel shows "Save this document to preview it." over a click-swallowing overlay on every untargeted tab, with a live credential parked in the URL beside it. So both translations globals point at a rendered page (the Atlas root, the site's home page in the edited locale) and send only `locale`. A repointed panel therefore shows **published** copy; sydevs/SahajAtlasWeb#198 and sydevs/WeMeditateWeb#80 are the routes that would open a draft session from a view path, and the secret goes back when one of them lands. `tests/int/translations-globals.int.spec.ts` holds both halves.
-
-The component renders `null` rather than taking `admin.hidden: true`: a hidden field renders Payload's own `HiddenField`, and this one exists to run an effect, not to carry a value into form state.
-
-**`unavailable` is the one target that may change the origin.** It names a
-`LivePreviewUnavailableReason` — the same codes a `livePreview.url` passes to
-`livePreviewUnavailableUrl` — rather than a URL, so it carries no origin and no credential and
-resolves against the admin's own. Everything else still goes through `composeTargetUrl`, which
-refuses a cross-origin path. ⚠ A collection whose `livePreview.url` reads `data` (`clients`)
-re-resolves it on every save, so `PreviewTarget` re-applies its target whenever the resolved URL
-changes under it.
-
-Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`, read on top-level groups only) and on the Meditations frame and Transcript tabs, which declare `autoOpen` with no path. `user-submissions` declares a conditioned pair: `autoOpen` for a proposal and `autoClose` for every other intake, because Payload keeps one open/closed preference per collection and a panel left open on a proposal would otherwise greet the next contact message.
 
 ## Styling — PayloadCMS CSS variables
 
@@ -207,10 +117,6 @@ A module several components share, rather than one a collection registers, goes 
 
 **A document tab's count is a `tab.Pill`** — a server component rendered beside the label, as the Versions tab's is. It is handed `req` but no document id, so it reads the id `Root` resolved from `req.routeParams`, and Payload's own `pill-version-count` class makes the two pills match in every tab state. The Registrations tab's pill (`EventRegistrations/RegistrationsPill.tsx`) counts **accepted** registrations — pending ones are not confirmed yet — behind the same gate as its view, which also serves the accepted rows as a CSV (`GET /api/events/:id/registrations/csv`, admin-panel only, so not in the OpenAPI spec).
 
-## Import map generation
-
-After registering a component in `payload.config.ts` (`admin.components`), run `pnpm generate:importmap`. Every registered component needs a default export. Path aliases (`@/`) work via tsconfig. The generated file (`src/app/(payload)/admin/importMap.js`, from `admin.importMap.baseDir` in `src/payload.config.ts`) is auto-managed — never hand-edit it. `tests/unit/sanitized-config-rules.spec.ts` compares it byte for byte against what the generator writes for the sanitized config, so a skipped regeneration and a stale entry both fail the unit lane.
-
 ## A server field component owes its own read gate (#1126)
 
 ⚠ **A field component renders on the document route and is reachable on any `form-state` request, and that request names its own row.** `handleServerFunctions` overwrites only `req`, `user`, `permissions`, `locale` and `cookies`; `id`, `collectionSlug` and `data` stay the browser's. `buildFormState` then gates on `canAccessAdmin({ req })` alone — no document access at all — and `managers` leaves `access.admin` unwritten (`docs/rules/access.md`), so that reduces to "is a manager". A `ui` field is exempt from the field-permission check above it as well, and a crafted request that omits `formState` renders the component anyway — so the gate is not optional.
@@ -265,26 +171,6 @@ Examples of the pattern, each a folder holding `<Name>.tsx` beside `<Name>Field.
 
 `field.admin.custom` accepts any JSON-serializable data, so one component can serve many fields without a code change.
 
-## Closing the Edit view while a job owns a document — `JobStageView`
-
-A collection whose rows a background job writes needs editing closed while the job runs, or the admin form posts a whole stale document over the worker's writes. `JobStageView` (`src/components/admin/JobStageView/`) is that view, generic over the collection.
-
-`runningStages` is required; `statusField` (default `status`), `progressField` and `totalField` are dotted paths, so a count kept inside a group is reachable. `staleAfterMs` is how long a running stage may stand against `updatedAt` before the form opens anyway — declare one wherever a run can be lost to a restart, since nothing expires a stage and the gate is otherwise permanent. Declare `totalField` wherever the job knows its denominator — the banner reads "7 of 20 done" with one and "7 done so far" without. Declare with `satisfies JobStageConfig` — `admin.custom` is `Record<string, any>`, so that is the only thing that makes a misspelled key a build error rather than a view that never fires.
-
-Four things are load-bearing:
-
-- **`views.edit.default.Component` replaces `DefaultEditView`; it does not wrap it.** So a settled stage falls through by rendering `DefaultEditView` itself.
-- **The stored stage at page load is the whole input.** There is no poll, so nothing re-requests the document. **Check again**, the action on its notice (`WaitingNotice.tsx`, the folder's one client component), calls `router.refresh()`, which refetches the route's server render and bypasses the client router cache a `next/link` navigation can be answered from. That is Payload's own idiom — `useRouteCache`'s `clearRouteCache` is the same call. ⚠ Inside a document drawer nothing re-reads the stage: `DocumentDrawerContent` renders the document through the `renderDocument` server function and keeps the result in React state, which no route refresh re-runs. An anchor would re-read it only by leaving the host document and discarding its unsaved edits, so the refresh stands in both surfaces.
-- **The gate releases itself only where `staleAfterMs` is declared.** Without one, a row whose worker died stays behind the waiting view for good; past the window the form opens. Setting the status column back to its queued value is the retry **only where someone may write it** — `imports` closes `status` to every writer, so past the window its page opens with no retry on it. What settles such a row is the hourly stale-job sweep, which cancels the job and then marks the import failed (`@/jobs/RecoverLostJobs/RecoverLostJobs`). Check which of the two a collection has before you rely on the window alone.
-- **Never name a running stage that is also the column's `defaultValue`** — unless the create genuinely queues the job. `transcripts` declares `processing` and not `queued`, because a queued row waits for a person. `imports` declares its own default `pending`, because its create hook queues the import job, so a saved row at that default really is one a worker owns. Either way the release is `staleAfterMs`: without it, a saved row at that default opens behind a view nothing can move on. The view refuses to fire with no document id, which covers the create form alone.
-- **A stage with no form has no `SaveButton` slot either.** The view replaces the whole form, so a `WorkflowButtons` stage declared for a running status is reachable only past `staleAfterMs`.
-
-**`tests/unit/sanitized-config-rules.spec.ts` holds the declaration's wiring.** Every `jobStage` a collection declares has to parse, and every collection registering `JobStageView` has to declare one — which is what answers for a collection that left `satisfies JobStageConfig` off and misspelled a key.
-
-`imports` — the bulk class import's upload collection (`src/plugins/eventImport/importCollection.ts`) — declares `runningStages: ['pending']` with no count. Its job leaves `pending` in one write, with the results (`src/plugins/eventImport/finish.ts`), so the page never opens on a finished import whose rows are not stored yet. After that, a hook on `events` finishes it once the last of its drafts is published or deleted.
-
-⚠ **A `hidden: true` collection cannot show it on a route.** Registering the view is still correct there, and a document drawer renders it (`overrideEntityVisibility`), but `/admin/collections/<slug>/<id>` 404s — see "A hidden collection is still reachable through a `join`" above. Reach such a collection through a `join` before concluding the view is broken.
-
 ## Custom array field components
 
 Reach for `ArrayFieldClientComponent` only when the built-in `ArrayField` doesn't fit — flat rows, no per-row collapsibles, no drag-drop.
@@ -304,51 +190,3 @@ Reference implementation: `src/components/admin/FlatArrayField/FlatArrayField.ts
 ## `usePayloadAPI` and race conditions
 
 See "Eliminating client-side race conditions" in `docs/rules/endpoints.md` — a custom Payload endpoint, not a chained `usePayloadAPI` + `useEffect`, is the fix for a client-side join.
-
-## Project-aware navigation
-
-The Managers `currentProject` field stores the selection. `ProjectSelector` (`beforeNavLinks`) saves a change through `useSwitchProject` (`ProjectSelector/useSwitchProject.ts`), which then re-renders the route with `router.refresh()` — every `admin.hidden` function runs server-side off `user.currentProject` and holds no client state — and moves to `/admin` only when the open collection is hidden in the new project (`shouldRedirectToAdmin`). `ProjectContext` (wrapped in `AdminProvider`) exposes `useProject()` and syncs with the user profile via `useAuth`.
-
-**Which projects a manager may work in, and which one they are in, has one owner:** `getManagerProjects` and `resolveProject` (`src/plugins/access/config/currentProject.ts`), read by the browser and the server alike. A manager reaches their stored roles' projects, plus the projects of the roles their listings derive — Sahaj Atlas once a region or an event names them, read off the `managedRegions` / `managedEvents` joins that both `req.user` and `/me` carry (`docs/rules/access.md`). A stored project they can no longer reach is not honoured. **A manager with exactly one reachable project always works in it**, on every admin page: the server already renders that project's dashboard, and `ProjectProvider` saves it through `useSwitchProject` so the nav and sidebar follow. A failed save is reported in a toast and retried on the next navigation.
-
-**Atlas sidebar.** `admin.components.Nav` is overridden by `AtlasNav`, a server component. When `isManager(user, 'sahaj-atlas')` holds (`src/plugins/access/adminOnly.ts`: a `managers` user of `type: 'manager'` whom `resolveProject` places in `sahaj-atlas`), it renders a purpose-built `AtlasSidebar`. `type` is load-bearing there — an admin must keep `DefaultNav` — and the predicate tests no role, so it is not a check for either Atlas role. The access layer uses the same predicate, without a project, for its non-admin manager branches. Everyone else falls through to Payload's `DefaultNav`. It reproduces the slide-in chrome from exported primitives (`NavWrapper`/`NavHamburger` are internal to `@payloadcms/next`), reuses `ProjectSelector`/`AdminNavLinks`/`Logout`, and adds two panels: the manager's own events, bucketed by stage and collapsible past 8, and the owned-region subtree as an indented, expandable tree with a published/total count pill per node. Data comes from a server-only fetch wrapped in `unstable_cache`, keyed by manager and locale, invalidated by `revalidateAtlasSidebar()` from the Events/Regions change hooks — a server component with direct Payload access, per this file's own rule above.
-
-**The dashboard is one custom view per project.** `admin.components.views.dashboard` is `DashboardView` (`src/components/admin/Dashboard/`), in place of Payload's widget grid — a project's home is composed here rather than registered as a widget, which a saved layout could drop or carry into another project. `dashboardChoiceFor`, beside the view in `DashboardView.tsx`, owns the branch and follows `resolveProject`. A project with no home of its own renders a `CenteredNotice` (`src/components/admin/CenteredNotice/`) in the view itself, so no project list is spelled out there. `currentProject: null` is the admin "All Content" view (`Managers.ts`) and keeps Payload's `CollectionCards`; a manager who has chosen no project gets `ProjectSelectionPrompt`, which the view renders rather than `beforeDashboard`.
-
-**Sahaj Atlas has three homes, one per role, and the widest role wins** (#1070). `managerRoles` (`src/lib/notifications/managerRoles.ts`) reads them off the same `managedRegions` / `managedEvents` joins `virtualRoles` reads, so a home and the grants behind it cannot disagree: an admin gets `AtlasAdmin`, a manager listed on a region gets `AtlasRegion`, and a manager named only on events gets `AtlasManager`. A region manager who also runs a class of their own still gets the region home — it carries their events under its "Your events" filter, where the program home carries nothing of the region. `?region=<id>` renders `AtlasRegion` scoped to one region: an admin may open any, and a region manager outside their own subtree gets the refusal rather than the home, decided before anything is read.
-
-**Each dashboard is one folder of the same shape**: `index.tsx`, a server component that loads and renders, and `data.ts`, its loader, which the integration specs call directly. The client parts — anything reading the URL or handling a click — live in `shared/`, beside what all three compose: `HomeHeader`, `StatTiles`, `OpenItemsList`, `RegionOverviewTable`, `SectionTabs` (progress meter included), the URL-state model, `loadHomeBase` (the open items and tiles every home loads) and one stylesheet. `SetStepNav` needs no client view: a server component renders it like any client component.
-
-**All three open on the same list, and `src/lib/atlasOverview/` is where it comes from.** Every word a reader sees about an open item lives in that folder's `status.ts` — the pill, the line under it, the rank that places the row, the filter it falls under, whether it counts against progress, and the next step. Three homes and the nightly digest read it, so a status spelled at each surface would be four chances to call one state four things. The loaders take `{ scope, req, overrideAccess }`: a page passes `false`, so the list is exactly what the reader's own access admits, and the digest job passes `true` with an explicit scope and no user.
-
-⚠ **A `'use client'` component imports only `atlasOverview/filters`**, the folder's one leaf with no runtime imports; the loaders reach `@/lib/env/server`. `tests/unit/client-bundle-safety.spec.ts` walks the real graph and is what holds it.
-
-**Admin home** (`Dashboard/AtlasAdmin/`): verification health tiles with their 30-day change, then only the work nobody below them covers — a listing at `escalated` or later with no region manager anywhere up its chain, an unadopted listing in such a region, a proposal whose delivery fell through to `CONTACT_EMAIL`, and a sign-up the spam check refused. A region with a manager above it is that manager's work, and the previous home's "Needs attention" row asked an admin to do everyone's. There is **no meter** here: progress is a share of somebody's own workload, and this list is what fell through everyone else's. The Countries overview counts countries, not regions, for the same reason the escalation ladder does.
-
-**Region home** (`Dashboard/AtlasRegion/`): the subtree's open items, plus a Regions overview. **Program home** (`Dashboard/AtlasManager/`): the events they manage, with analytics for the last 30 days. Its lone section tab counts the whole list, because every event they run is on it; the meter beside it is what counts the open ones.
-
-**A program manager holds no `events` create grant, so their "Add new event" opens the people to ask** — the managers of the regions above their own events, nearest first, with their emails (`AtlasManager/AskToAddButton.tsx`, beside its `regionContacts.ts` loader — only this home can render it). ⚠ That read is deliberately wider than `mayReadManagerContacts`, which refuses them every one of those names; `docs/rules/access.md` carries the decision and what stands in for the gate. `HomeHeader` renders whichever button a home hands it as `action`, so no home offers a create screen the server would refuse.
-
-**Every home is laid out for a phone below 700px** (`shared/Dashboard.module.css`): the progress meter drops under the section tabs, which keep the underline the active marker sits on; each open item stacks into one block with a full-width button, through the shared `StackedTable` above; and the tiles sit two to a row so the list starts on the first screen. ⚠ **Not `order`** — moving the tiles below the list that way would leave them first in the keyboard's order.
-
-**A tile's change line has two sources, and neither is optional.** A stage count has no history on the event — the stage is overwritten in place — so its change comes from the daily snapshot the nightly `recordAtlasSnapshot` task writes to `payload.kv`. A sign-up count is a dated row, so its change is two queries over `createdAt`. ⚠ **With no snapshot 30 days old a tile shows no change line at all**, never "+0": a freshly deployed environment knows nothing about 30 days ago.
-
-**Every next step is a link to an edit view that already exists.** No endpoint, action or hook is added for any of them: Verify works because a manager's republish re-verifies (`Events/hooks/syncVerificationOnSave.ts`) and the event page's own banner already asks for it. The filter row is `FilterTabs`, and the section tabs are links carrying `tabs-field__tab-button`, keeping the rest of the query (`?region=` above all) — `TabComponent` itself renders `WatchChildErrors` and needs a `Form`, which a dashboard does not have. All three homes link to the public map through `NAV_LINKS.map` (`AdminNavLinks/links.ts`), the constant the sidebar's links render from, so the sidebar link and the buttons cannot give one destination two names.
-
-## Project visibility (collection sidebar filtering)
-
-`accessPlugin` auto-generates `admin.hidden` for every collection and global. **Never hand-write project visibility — let the plugin do it.** A collection may still hand-write `admin.hidden`, and the plugin composes it (`accessPlugin.ts`): `true` hides the collection outright (`Songs`, `Transcripts`), and a function is asked first, with project visibility applied only when it returns false. ⚠ Reach for neither where the role table already answers: `users` grants a write to no role and sits in no project, so deleting its `hidden` key left the derivation admitting admins alone — and admitting a role granted `users: ['update']` later, which a hand-written `isAdminManager` predicate would have refused (#630). A global's own `admin.hidden` is overwritten.
-
-A role with no write grant on a collection can still be given its admin pages by declaring `virtual: { opens: '<slug>' }`, for a listing whose documents reach the manager through document-level access (`docs/rules/access.md`).
-
-Project assignments live in the internal `PROJECTS` constant (`src/plugins/access/config/projects.ts`). Add a collection to a project by editing its `collections:` array there. Lookup tables recompute automatically.
-
-Page, video, and image tags are inline enum selects, not separate collections.
-
-## Frame editor
-
-`src/components/admin/FrameEditor/` manages audio-synced frames on the Meditations collection, integrated with Live Preview. `FrameListManager` (edit/reorder/remove) and `FrameInserter` (browse/insert at the current playback time) sit under a Video tab's Manage/Insert sub-tabs. Both tabs declare `autoOpen` through `previewTargetField`, which replaced a `useLivePreviewAuto` mount effect. A `PLAYBACK_TIME_UPDATE` postMessage from the iframe drives the active-frame highlight — **accepted from the preview iframe's origin only**, because that playhead is the timestamp a newly inserted frame is written at. Each subscription names the origin it will hear from (`usePlaybackTime`, reading `iframeRef`), so the permission belongs to a mounted component instead of to a flag someone has to clear; with no iframe there is no subscription. The same `iframeRef` carries `SEEK_TO_TIME` back. Both hooks and the store behind them are `helpers/livePreviewPlayback.ts` and `helpers/playbackTimeStore.ts` — the transcript panel reads the same playhead. Inserting at an occupied timestamp replaces rather than throws.
-
-Frames filter by narrator gender automatically, with category pills for the visible library. Two layers gate frames, and only one of them errors. On Meditations the `frames` validator returns `'At least one frame is required'`, on update only and never on create — which is what refuses a publish with no frames. Its `beforeChange` hook silently drops any entry with no id or a negative or non-finite timestamp, then sorts the rest; `afterRead` rounds each timestamp and enriches it with its Frame collection details. Duplicate timestamps are allowed here, as is one frame at several times — whole numbers, no duplicates and the one-hour cap are `validateTimestamp`'s rules in the editor alone.
-
-Tests: `tests/int/meditationFrames.int.spec.ts` (validation, sorting, enrichment, publish rules), `tests/int/frames-by-narrator.int.spec.ts` (the `framesByNarrator` auth gate, gender-matched results, sort order).
