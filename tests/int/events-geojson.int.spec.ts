@@ -326,6 +326,8 @@ describe('eventsGeoJson endpoint', () => {
     }
 
     async function feedIds(headers: Headers): Promise<number[]> {
+      // The widget's live-preview decorator puts `draft=true` on every request.
+      // The handler forwards no `draft`, so it is the request's shape, not a lever.
       const { status, body } = await callGeoJson({ ...SELECT, draft: 'true' }, client, headers)
       expect(status).toBe(200)
       return body.features!.map((f) => f.id)
