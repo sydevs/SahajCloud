@@ -28,7 +28,7 @@ minimumReleaseAge: 0
 # (#1101).
 # A floor entry is scoped to the vulnerable major (`name@^N.0.0`): unscoped, it
 # also answers a parent declaring a later major, silently and below its range.
-# The ⚠ entries are deliberate exceptions; vite/esbuild are caps, not floors.
+# The ⚠ entries are deliberate exceptions.
 #
 # `braces` (GHSA-vfj7-8cjw-p6xm) gets no entry and can get none: `pnpm audit`
 # names `>=3.0.4`, and 3.0.3 is the newest version ever published (checked
@@ -56,13 +56,11 @@ minimumReleaseAge: 0
 # richtext-lexical wants 0.50.0 — two copies of lexical in one tree, which its
 # editor cannot run on.
 overrides:
-  # Build tooling: hold vite at 7.x. @vitejs/plugin-react@4.5.2's peer is
-  # `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0-beta.0`, so vite 8 (latest) breaks it.
-  # Inside that cap 7.3.7 is the newest published and the first to clear
-  # GHSA-587h-7wmj-h5pm. Its esbuild range is ^0.27 || ^0.28, which the esbuild
-  # entry below flattens onto one patched build.
-  vite: '7.3.7'
-  esbuild: '0.28.1'
+  # `vite` needs no cap now: @vitejs/plugin-react 6 takes vite 8, and `vite` is a direct
+  # devDependency at 8.3.8, past GHSA-587h-7wmj-h5pm. `esbuild` keeps a floor: drizzle-kit
+  # reaches esbuild 0.18 through @esbuild-kit/core-utils, which GHSA-67mh-4wv8-2f99 names
+  # (`<=0.24.2`). Scoped to that range so the 0.25+ copies resolve as their parents ask.
+  'esbuild@<=0.24.2': '0.28.1'
   dompurify: '^3.4.11'
   ws: '^8.21.0'
   flatted: '^3.4.2'
