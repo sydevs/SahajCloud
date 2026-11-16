@@ -81,20 +81,6 @@ overrides:
   # (6.12.6 is the newest 6.x and already carries the $data fix), so it is left as-is.
   'yaml@^2.0.0': '^2.8.3'
   'brace-expansion@^1.0.0': '^1.1.13'
-  # `undici` is pinned exactly by payload@3.86.0 (`7.28.0`), so an in-range refresh
-  # cannot reach the patched build. GHSA-4cwx-7wf7-3272 (cross-user disclosure via a
-  # degenerate private-cache directive) is reachable: undici is the HTTP client every
-  # server-side fetch uses. Same major, patch-only. The advisory starts at 7.0.0, so the
-  # 6.x line @apidevtools/json-schema-ref-parser declares needs no floor of its own.
-  'undici@^7.0.0': '^7.29.1'
-  # ⚠ Past a declared major. GHSA-v53p-9fqp-m79j and
-  # GHSA-prgh-xp8r-p3m5 are fixed in 10.0.6, and the only range still capping at
-  # 9.x is @payloadcms/email-nodemailer@3.90.2's `^9.1.1`. Taken deliberately
-  # (#931): the adapter calls `createTransport`, `sendMail` and `verify`, which
-  # 10.x keeps, and the only paths that reach nodemailer are a developer's
-  # Mailpit transport and the preview scripts — production mail goes through
-  # `resendAdapter()`. Drop this line once the adapter declares `^10`.
-  nodemailer: '^10.1.1'
   # ⚠ Past a declared major: @lexical/headless@0.50.0 asks `^20.9.0`. Taken
   # deliberately (#1101) on upstream's own statement that 21 fits the symbols it
   # uses — 0.53.0 asks for `^21.0.4`. Drop this line once richtext-lexical

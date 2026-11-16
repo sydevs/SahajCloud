@@ -76,20 +76,21 @@ describe('Postgres cast failures (SQLSTATE 22P02)', () => {
     })
   })
 
-  it('the live integer case does too — the mapping is not enum-specific', async () => {
-    // Sentry 136881789: `GET /api/lectures/daily_fallback_shri_mataji_clip` →
-    // `invalid input syntax for type integer: "NaN"`. The id reaches the query
-    // as NaN, which is what Postgres refuses.
+  it('the integer case does too — the mapping is not enum-specific', async () => {
+    // Sentry 136881789 — `GET /api/lectures/daily_fallback_shri_mataji_clip`
+    // → `invalid input syntax for type integer: "NaN"` — answered 400 under
+    // payload 3.90.2 and answers 404 under 3.92.1, which refuses a non-finite
+    // id in `findByID` before any SQL (`isValidID`). Both measured, through
+    // `handleEndpoints` against each installed version.
     //
-    // ⚠ The slug itself is NOT the way in through the local API — measured, not
-    // assumed: `findByID({ id: 'daily_fallback_shri_mataji_clip' })` throws
-    // Payload's own `NotFound` (404) before any SQL runs. Only the numeric NaN
-    // reaches Postgres, so that is what this asserts. The coercion in front of
-    // it belongs to the REST layer this lane cannot drive.
+    // ⚠ So this case pins the WRAPPING, not a live path: that a 22P02 on an
+    // integer column still survives drizzle intact. The enum case above is the
+    // live one. A numeric NaN in a `where` is the one way left in — `findByID`
+    // refuses one, and a string in a `where` on `id` is dropped, not cast.
     const error = await thrownBy(() =>
-      payload.findByID({
+      payload.find({
         collection: 'lectures',
-        id: NaN as unknown as number,
+        where: { id: { equals: NaN } },
       }),
     )
 
