@@ -26,7 +26,6 @@ coverage
 # R2/Images/Stream and data in Railway Postgres; these are dev-only and huge.
 media
 seeds/cache
-seeds/**/data.bin
 *.dump
 *.sqlite
 local.db

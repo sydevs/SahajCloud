@@ -168,27 +168,27 @@ Everything below is the second session's run unless the row says otherwise.
 The whole-lane, Tier 2 and per-edit `**bold**` cells are the captures the spec
 reads, so keep those labels and cell shapes when you add a row.
 
-| Metric                                                                                          | Value                                                             |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Files / tests (second session)                                                                  | 203 / 2643                                                        |
-| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                        |
-| One spec alone, the typical edit (third session)                                                | 1.3 s                                                             |
-| Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                         |
-| The same 3 specs on the merged tree (2026-10-23)                                                | 7.7 s                                                             |
-| 8 specs naming `tests/utils/importGraph.ts` (2026-10-23)                                        | 7.9 s                                                             |
-| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                             |
-| Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s |
-| Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                 |
-| One file alone, cold (first session)                                                            | **1.9 s** wall (`convert-vimeo`) to **3.0 s** (`proposal-leaves`) |
-| Whole lane at `--maxWorkers=1` (first session, 198 files)                                       | 140.5 s                                                           |
-| Whole lane at `--maxWorkers=4` (first session, 198 files)                                       | 49.2 s                                                            |
-| `pnpm lint`                                                                                     | 28.5 s                                                            |
-| `pnpm typecheck`                                                                                | 8.4 s                                                             |
-| `pnpm typecheck:tests`                                                                          | 8.2 s                                                             |
-| Those four commands, summed                                                                     | 104 s                                                             |
-| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                               | **174 s** cold, **112 s** with Postgres already up                |
-| `pnpm format:check`, 11-core M3 Pro, 2026-10-23                                                 | 8.7 s first run, 7.2 s second                                     |
-| Gate with the Format step (`check.sh`, #1006), 11-core M3 Pro, 2026-10-23, Postgres already up  | 57 s first run, 45 s second                                       |
+| Metric                                                                                          | Value                                                                            |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Files / tests (second session)                                                                  | 203 / 2643                                                                       |
+| Whole lane, 3 workers (slowest session median, what the consumer docs quote)                    | **77.9 s**                                                                       |
+| One spec alone, the typical edit (third session)                                                | 1.3 s                                                                            |
+| Slowest per-edit selection timed on 4 cores, the 3 specs naming `@/payload.config` (2026-10-21) | **8.7 s**                                                                        |
+| The same 3 specs on the merged tree (2026-10-23)                                                | 7.7 s                                                                            |
+| 8 specs naming `tests/utils/importGraph.ts` (2026-10-23)                                        | 7.9 s                                                                            |
+| 18 specs naming `@/payload-types`, which the hook skips as generated (third session)            | 7.8 s                                                                            |
+| Vitest phase breakdown, at 3 workers                                                            | transform 14.4 s, import 141.6 s, tests 17.5 s, environment 5.2 s                |
+| Slowest file's own duration inside the lane (first session)                                     | 1.8 s (`proposal-leaves.spec.ts`)                                                |
+| One file alone, cold (first session)                                                            | **1.9 s** wall (`convert-vimeo`, since deleted) to **3.0 s** (`proposal-leaves`) |
+| Whole lane at `--maxWorkers=1` (first session, 198 files)                                       | 140.5 s                                                                          |
+| Whole lane at `--maxWorkers=4` (first session, 198 files)                                       | 49.2 s                                                                           |
+| `pnpm lint`                                                                                     | 28.5 s                                                                           |
+| `pnpm typecheck`                                                                                | 8.4 s                                                                            |
+| `pnpm typecheck:tests`                                                                          | 8.2 s                                                                            |
+| Those four commands, summed                                                                     | 104 s                                                                            |
+| Tier 2 lean gate (`check.sh`), slowest cold run of three sessions                               | **174 s** cold, **112 s** with Postgres already up                               |
+| `pnpm format:check`, 11-core M3 Pro, 2026-10-23                                                 | 8.7 s first run, 7.2 s second                                                    |
+| Gate with the Format step (`check.sh`, #1006), 11-core M3 Pro, 2026-10-23, Postgres already up  | 57 s first run, 45 s second                                                      |
 
 ⚠ **One unit spec boots the Payload config, and it is the lane's most expensive
 file.** `tests/unit/sanitized-config-rules.spec.ts` imports `@/payload.config`
@@ -254,7 +254,7 @@ one warm-up run, then three:
 | Edited file                                                                  | Specs selected | Hook wall-clock, consecutive runs | Median |
 | ---------------------------------------------------------------------------- | -------------- | --------------------------------- | ------ |
 | `src/lib/richEditor/index.ts`, the edit #993 reproduced the false failure on | 0              | 0.18 · 0.18 · 0.20 s              | 0.18 s |
-| `seeds/lib/lexicalConverter.ts`                                              | 2              | 0.82 · 0.81 · 0.78 s              | 0.81 s |
+| `seeds/lib/lexicalConverter.ts`, since deleted                               | 2              | 0.82 · 0.81 · 0.78 s              | 0.81 s |
 | `src/lib/locales/index.ts`                                                   | 7              | 1.50 · 1.39 · 1.48 s              | 1.48 s |
 | `src/plugins/login/index.ts`                                                 | 8              | 3.03 · 2.67 · 2.68 s              | 2.68 s |
 | `tests/utils/importGraph.ts`, the widest in the tree                         | 9              | 3.09 · 3.13 · 2.88 s              | 3.09 s |

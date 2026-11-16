@@ -84,12 +84,13 @@ await logger.skip('Skipped item') // Gray
 import { FileUtils } from '../lib'
 const fileUtils = new FileUtils(logger)
 
-await fileUtils.downloadFileFetch(url, destPath)
-await fileUtils.ensureDir(dirPath)
 await fileUtils.clearDir(dirPath)
 const exists = await fileUtils.fileExists(path)
-const mime = fileUtils.getMimeType('audio.mp3') // 'audio/mpeg'
 ```
+
+Its download half (`downloadFileFetch`, `downloadFile`, `downloadAsFileData`,
+`ensureDir`, `getMimeType`) has had no caller since #1169 — see the ⚠ in
+[seeds/AGENTS.md](../AGENTS.md) before reusing one.
 
 ### CLI parser
 

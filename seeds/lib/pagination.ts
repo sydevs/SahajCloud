@@ -31,16 +31,17 @@ export interface CollectionMetadata {
   hasFileUploads?: boolean
   /**
    * The collection this step's rows land in, where it has one. `slug` is the
-   * step's own name and is not always a collection: `atlas`'s `pictures`
-   * downloads into `images`, and `payload.count` throws on `'pictures'`. The
-   * type is what keeps a mistyped slug from reaching a count.
+   * step's own name and need not be a collection: a step that uploads into a
+   * collection another script also writes can claim no floor of its own, and
+   * `payload.count` throws on a slug that is not one. Every step declares one
+   * today. The type is what keeps a mistyped slug from reaching a count.
    */
   collection?: CollectionSlug
   /**
    * Counted under this filter rather than whole-collection. It lives beside
-   * the floor it makes meaningful — `atlas`'s `user-submissions` floor counts
-   * registrations, and the table also holds contact, subscribe and proposal
-   * rows, which would pass the floor on their own.
+   * the floor it makes meaningful — a `user-submissions` floor counting
+   * registrations is met by the contact, subscribe and proposal rows in the
+   * same table unless the count says which rows it means.
    */
   countWhere?: Where
   /** Override batch size for this collection (takes precedence over hasFileUploads) */

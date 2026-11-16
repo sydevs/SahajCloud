@@ -304,50 +304,21 @@ populate it. Otherwise seeded documents get that field empty or default.
 ## Utility architecture
 
 Import scripts share centralized utilities in `seeds/lib/`. For the preload,
-upsert, error-handling and pagination patterns themselves, see
-[seeds/lib/AGENTS.md](lib/AGENTS.md) — this section covers the two utilities not
-documented there.
+upsert, error-handling and pagination patterns, see
+[seeds/lib/AGENTS.md](lib/AGENTS.md).
 
-### Delay utilities (`delays.ts`)
+A script's own data file is read with `loadJsonData` (`lib/dataLoader.ts`),
+which takes the path from `lib/dataFiles.ts` and the uploaded copy from
+`inlineData` — the "Creating a new seed script" checklist below covers it.
 
-```typescript
-import { rateLimitDelay, withRetry } from '../lib'
-
-await rateLimitDelay(300) // Rate limit delay
-const result = await withRetry(() => fetchData(), { maxRetries: 3 }) // Exponential backoff
-```
-
-| Function              | Behavior                         |
-| --------------------- | -------------------------------- |
-| `rateLimitDelay(ms)`  | Waits ms                         |
-| `withRetry(fn, opts)` | Retries with exponential backoff |
-
-### Data loading (`dataLoader.ts`)
-
-```typescript
-import { fetchAsset, readCache, writeCache, loadJsonData } from '../lib'
-
-// Load a JSON data file (fs locally, URL in Workers)
-const data = await loadJsonData<MyType>({
-  localPath: 'seeds/data.json',
-  workerUrl: 'https://raw.githubusercontent.com/.../data.json',
-})
-
-// Fetch an asset with caching (cache only works locally)
-const buffer = await fetchAsset(url, { cachePath: 'seeds/cache/file.jpg' })
-
-// Direct cache operations (no-op in Workers)
-const cached = await readCache('seeds/cache/file.jpg')
-await writeCache('seeds/cache/file.jpg', buffer)
-```
-
-| Function                 | Local mode                | Workers mode             |
-| ------------------------ | ------------------------- | ------------------------ |
-| `loadDataFile(source)`   | Reads from `localPath`    | Fetches from `workerUrl` |
-| `fetchAsset(url, opts)`  | Caches to `cachePath`     | Streams directly         |
-| `readCache(path)`        | Returns a file buffer     | Returns `null`           |
-| `writeCache(path, data)` | Writes to disk            | No-op                    |
-| `cacheExists(path)`      | Validates the file exists | Returns `false`          |
+⚠ **`seeds/lib` still exports a media and retry surface nothing calls.**
+`delays.ts`'s `rateLimitDelay` and `withRetry`, `dataLoader.ts`'s asset fetch
+and disk cache, and `FileUtils`' download half were all reached only from the
+importers #1169 retired. They are left in place rather than half-dismantled,
+because `seeds/lib`'s own fate is settled by the seed CLI's: see §C of #1169.
+Do not reach for one as though a run had exercised it.
+`shortcut: an unexercised utility surface, to delete with the seed CLI or when
+a new importer picks one of them up again.`
 
 ## File organization
 

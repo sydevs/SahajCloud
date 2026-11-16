@@ -16,7 +16,7 @@ import { getDefaultBatchSize, validatePaginationParam } from '../../seeds/lib/pa
  * `preview-fixture` is the only script left that states collection floors, so
  * every case here reads its registry rather than a literal of its own.
  */
-const FIXTURE_COUNTS = EXPECTED_COUNTS['preview-fixture'] as Record<string, number>
+const FIXTURE_COUNTS = getExpectedCounts('preview-fixture')
 
 describe('Pagination Utilities', () => {
   describe('getDefaultBatchSize', () => {
@@ -45,8 +45,9 @@ describe('Pagination Utilities', () => {
         'user-submissions',
       ])
       expect(metadata.requiresPagination).toBe(false)
-      expect(metadata.totalItems).toBe(
-        metadata.collections.reduce((sum, c) => sum + c.totalItems, 0),
+      // Summed across every step, not read off one of them.
+      expect(metadata.totalItems).toBeGreaterThan(
+        Math.max(...metadata.collections.map((c) => c.totalItems)),
       )
     })
 
@@ -137,6 +138,19 @@ describe('Pagination Utilities', () => {
         )
       })
 
+      it('adjusts for an intermediate batch — the offset counts too', () => {
+        // Resuming at row 2 with a batch of 2 expects 4, not 2. Dropping the
+        // `offset` term from `min(offset + limit, floor)` has to fail here.
+        const { results, allPassed } = verifyCountsForScript(
+          'preview-fixture',
+          { ...atTheFloor(), users: 4 },
+          { collection: 'users', offset: 2, limit: 2 },
+        )
+
+        expect(results.find((r) => r.collection === 'users')?.expected).toBe(4)
+        expect(allPassed).toBe(true)
+      })
+
       it('caps adjusted expected at full count', () => {
         const { results } = verifyCountsForScript('preview-fixture', atTheFloor(), {
           collection: 'users',
@@ -171,6 +185,9 @@ describe('Collection Metadata', () => {
 
       for (const step of getScriptMetadata('preview-fixture').collections) {
         for (const dependency of step.dependencies) {
+          // Named first: `indexOf` answers -1 for a step that does not exist,
+          // and -1 is less than every index, so the ordering check blesses it.
+          expect(slugs, `${step.slug} → ${dependency}`).toContain(dependency)
           expect(slugs.indexOf(dependency), `${step.slug} → ${dependency}`).toBeLessThan(
             slugs.indexOf(step.slug),
           )
@@ -245,21 +262,26 @@ describe('a script that can state no floor says so', () => {
 
 describe('getCountTargets', () => {
   it('keeps the script metadata order', () => {
-    expect(getCountTargets('preview-fixture').map((target) => target.collection)).toEqual(
-      getScriptMetadata('preview-fixture').collections.map((step) => step.collection),
-    )
+    expect(getCountTargets('preview-fixture').map((target) => target.collection)).toEqual([
+      'managers',
+      'regions',
+      'forms',
+      'events',
+      'users',
+      'user-submissions',
+    ])
   })
 
   it('carries the filter a floor is stated under, and nothing more', () => {
     const targets = getCountTargets('preview-fixture')
     const registrations = targets.find((target) => target.collection === 'user-submissions')
 
-    // An unfiltered count passes on contact rows alone, and on a registration
-    // whose status has since been written away.
-    expect(registrations?.where).toEqual(
-      getCollectionMetadata('preview-fixture', 'user-submissions')?.countWhere,
-    )
-    expect(registrations?.where).toBeDefined()
+    // Literal, not read back from the registry: an unfiltered count passes on
+    // contact rows alone, and `pending` is the status the fixture exists to
+    // show, so a floor counting `accepted` would pass while it was gone.
+    expect(registrations?.where).toEqual({
+      and: [{ status: { equals: 'pending' } }, { type: { equals: 'registration' } }],
+    })
     expect(targets.find((target) => target.collection === 'managers')?.where).toBeUndefined()
   })
 

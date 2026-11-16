@@ -9,12 +9,9 @@
  *   Streams progress updates over Server-Sent Events.
  *
  * Scripts:
- * - tags: UserChoices, SongTags, and SubtleSystemNodes
- * - wemeditate: Authors, Albums, Music, Pages
- * - meditations: Meditations, Frames, Music
- * - storyblok: Lessons, Lectures
- * - wm-app-translations: WeMeditate App Translations global (English seed)
- * - translations: All three translation globals (English seed)
+ * - translations: all three translation globals (English seed)
+ * - file-transcripts: a transcript for every recording the target holds without one
+ * - preview-fixture: a preview's own content
  *
  * Authentication: Needs an admin session.
  *

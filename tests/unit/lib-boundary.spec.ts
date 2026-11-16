@@ -148,10 +148,18 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/notifications/sendSubmissionReview',
   '@/lib/users/upsertUserByEmail',
   // The two below lost their second consumer when the one-shot content
-  // importers were retired (#1169). Same shape as the five above: each is
-  // general-purpose — a vendor response reader and a slug maker — so the
-  // question is where each belongs now, not whether it is justified.
+  // importers were retired (#1169). Each is general-purpose rather than one
+  // owner's private helper, so the question is where it belongs now.
+  //
+  // ⚠ `lemonfox/` does not move one folder. Every module in it is reached only
+  // from `src/jobs/TranscribeRecording/`, so rule 4 says move the folder — but
+  // `@/lib/transcripts/cues` is consumed only by `lemonfox/normalize.ts` and is
+  // exempt today solely because that consumer sits inside `src/lib`. Moving
+  // `lemonfox/` out makes `cues` fail this check. It is a three-module
+  // reshuffle, decided on its own.
   '@/lib/lemonfox/normalize',
+  // `slugify`'s one consumer is `src/fields/slugField.ts`, which is shared
+  // infrastructure rather than an owner's folder.
   '@/lib/utilities/slugify',
 ])
 
