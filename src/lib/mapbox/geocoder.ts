@@ -1,28 +1,14 @@
 /**
- * Server-side Mapbox forward-geocoder for the Atlas Regions import (#479).
+ * Server-side Mapbox forward-geocoder for the bulk event import.
  *
- * `Regions.mapboxId` is required on every node and Atlas's `osm_id` does not map
- * to a Mapbox id, so the importer resolves each node to a real `mapbox_id`. The
- * `types` filter per level mirrors `Regions.mapboxId`'s `searchTypesByValue`.
+ * One row's postal address, or an online class's town alone, resolves to a
+ * point plus the town around it — the town is what picks the city region a
+ * class is filed under.
  *
  * ⚠ **Every lookup here is Geocoding v6 asked for as permanent, because every
  * answer is stored.** The Search Box API publishes no `permanent` parameter at
  * all — its answers are temporary-use only short of an account-level agreement
  * with Mapbox — so a column written from one may not be kept (#893).
- *
- * Resolution order (`resolveRegionLocation`):
- *  1. Typed forward search (proximity-biased when legacy coords exist) → real id.
- *     A `venue` has no layer of its own in v6 and is placed by its postal
- *     address instead (`geocodeVenue`).
- *  2. Miss + legacy coords (cities from areas, venues from venues) → the
- *     `manual` sentinel + those coords (venues default a radius — they carry
- *     none), matching what "Enter manually" stores in the admin.
- *  3. Miss + no coords (countries/regions have none) → a looser, untyped search
- *     for a centroid → `manual` + that centroid + a wide radius.
- *  4. Total miss → `manual` with null coords; the caller warns and leaves it for
- *     manual cleanup.
- *
- * Every non-clean resolution carries a `warning` for the caller to log.
  */
 
 import type { MapboxContextLayer, MapboxFeature } from './feature'
@@ -30,9 +16,6 @@ import type { MapboxContextLayer, MapboxFeature } from './feature'
 import pRetry from 'p-retry'
 
 import { isRecord } from '@/lib/utilities/isRecord'
-import type { Region } from '@/payload-types'
-
-import { MANUAL_PREFIX } from './manualLocation'
 
 /**
  * Geocoding v6, which every lookup in this file runs against.
@@ -42,22 +25,10 @@ import { MANUAL_PREFIX } from './manualLocation'
  * Offenbach in Bad Vilbel: the right street name in the wrong town. v6 takes the
  * street, postcode, town and state as separate fields and grades each match, so
  * a row whose address Mapbox does not hold is caught rather than placed on a
- * namesake street. `AddressSearchField` reads the same id-space, so a region
- * the import matches or creates is one the admin picker can land on too.
+ * namesake street. `AddressSearchField` reads the same id-space, so an id this
+ * import stores is one the admin picker can land on too.
  */
 const GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
-
-/**
- * Sentinel `mapboxId` for a hand-entered location. The resolver answers the
- * bare prefix; the caller makes it unique with `makeManualMapboxId` where the
- * column is `unique`. `manualLocation.ts` owns the string, so the two spellings
- * it recognises cannot disagree with the one written here.
- */
-export const MANUAL_LOCATION = MANUAL_PREFIX
-
-/** Default radius (m) for a venue/region with no legacy radius. */
-const DEFAULT_VENUE_RADIUS_METERS = 500
-const DEFAULT_REGION_RADIUS_METERS = 50_000
 
 /**
  * ⚠ **Three attempts of 8 s bound one row at about 25 s.** The bulk import
@@ -67,36 +38,6 @@ const DEFAULT_REGION_RADIUS_METERS = 50_000
 const MAX_ATTEMPTS = 3
 const ATTEMPT_TIMEOUT_MS = 8_000
 const BASE_BACKOFF_MS = 500
-
-/** Local shorthand — this file names the level in several places. */
-type RegionLevel = Region['level']
-
-/** A level v6 holds a layer for. `venue` does not — see `geocodeVenue`. */
-type GeocodableLevel = Exclude<RegionLevel, 'venue'>
-
-/**
- * Geocoding v6 `types` per level — mirrors `Regions.mapboxId`'s
- * `searchTypesByValue` so a resolved id round-trips in `AddressSearchField`.
- */
-const TYPES_BY_LEVEL: Record<GeocodableLevel, string> = {
-  country: 'country',
-  region: 'region',
-  city: 'place,locality',
-}
-
-/** Looser `types` for the coordless fallback (step 3) — just enough for a centroid. */
-const FALLBACK_TYPES = 'country,region,district,place,locality'
-
-export interface GeocodeRegionArgs {
-  name: string
-  level: GeocodableLevel
-  latitude?: number | null
-  longitude?: number | null
-  /** ISO 3166-1 alpha-2 country code — restricts the search to that country so
-   *  same-named places in different countries resolve distinctly (e.g. Liverpool
-   *  GB vs Liverpool, Nova Scotia CA). */
-  countryCode?: string | null
-}
 
 /**
  * What one `/forward` lookup came to, after its retries.
@@ -108,8 +49,7 @@ export interface GeocodeRegionArgs {
  * `refused` sits with the first: a 4xx other than 429 is Mapbox rejecting this
  * query, and the same query is rejected however often it is retried — so a
  * caller that waits on it waits forever. `unauthorized` is neither: it is the
- * token, and says nothing about any row. `geocodeRegion` collapses all but an
- * answer to null because its caller is a seed run a maintainer re-runs anyway.
+ * token, and says nothing about any row.
  */
 type ForwardAnswer =
   | { kind: 'answered'; feature: MapboxFeature | null }
@@ -166,24 +106,16 @@ async function attemptForward(url: string): Promise<ForwardAnswer | null> {
   return { kind: 'answered', feature: (data.features[0] as MapboxFeature | undefined) ?? null }
 }
 
-interface ForwardQuery {
-  q: string
-  types: string
-  countryCode?: string | null
-  latitude?: number | null
-  longitude?: number | null
-}
-
 function accessToken(): string | null {
   return process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || null
 }
 
 /**
- * What every lookup in this file sends, whatever shape its query takes.
+ * What every lookup in this file sends.
  *
- * ⚠ **`permanent` belongs here and nowhere else.** Both builders below target
- * the same endpoint, so a lookup assembled without this one is a lookup whose
- * answer may not be stored — and every answer here is (#893).
+ * ⚠ **`permanent` belongs here and nowhere else.** Every `/forward` URL is
+ * assembled past this one, so no lookup can reach Mapbox without the flag —
+ * and every answer here is stored (#893).
  */
 function baseParams(
   types: string,
@@ -202,131 +134,9 @@ function baseParams(
   return params
 }
 
-/** The `/forward` URL for a free-text query. */
-function forwardUrl(query: ForwardQuery, token: string): string {
-  const params = baseParams(query.types, query.countryCode, token)
-  params.set('q', query.q)
-  // Bias toward the coordinates when the caller has them.
-  if (query.latitude != null && query.longitude != null) {
-    params.set('proximity', `${query.longitude},${query.latitude}`)
-  }
-  return `${GEOCODE_URL}?${params.toString()}`
-}
-
-/** Run a `/forward` query; null when no token / query / match. */
-async function forwardFeature(query: ForwardQuery): Promise<MapboxFeature | null> {
-  const token = accessToken()
-  if (!token || !query.q?.trim()) return null
-  const answer = await fetchForwardFeature(forwardUrl(query, token))
-  return answer.kind === 'answered' ? answer.feature : null
-}
-
-/** Forward-geocode a region node to a `mapbox_id`, or null on a miss. */
-export async function geocodeRegion(args: GeocodeRegionArgs): Promise<string | null> {
-  const feature = await forwardFeature({
-    ...args,
-    q: args.name,
-    types: TYPES_BY_LEVEL[args.level],
-  })
-  return feature?.properties?.mapbox_id ?? null
-}
-
-/** A geocoded id, or the manual sentinel with the coordinates Regions requires. */
-export type RegionLocation =
-  | { mapboxId: string; manual: false }
-  | {
-      mapboxId: typeof MANUAL_LOCATION
-      manual: true
-      latitude: number | null
-      longitude: number | null
-      radius: number | null
-    }
-
-export interface ResolveRegionLocationResult {
-  location: RegionLocation
-  /** Set when a fallback was used (caller logs it); null on a clean geocode. */
-  warning: string | null
-}
-
-export interface ResolveRegionLocationArgs {
-  name: string
-  level: RegionLevel
-  latitude?: number | null
-  longitude?: number | null
-  /** ISO 3166-1 alpha-2 country code — narrows geocoding to that country. */
-  countryCode?: string | null
-  /** Legacy radius (areas carry one; venues/regions/countries don't). */
-  radius?: number | null
-  /** A `venue`'s postal address, which is the only way v6 places one. */
-  address?: Omit<GeocodeVenueArgs, 'countryCode'>
-}
-
-/**
- * Resolve a region node's full location, applying the fallback chain above.
- * Returns the patch to write onto the Regions doc (`mapboxId` + manual coords)
- * plus an optional warning for the importer to log.
- */
-export async function resolveRegionLocation(
-  args: ResolveRegionLocationArgs,
-): Promise<ResolveRegionLocationResult> {
-  // 1. Typed forward geocode → real, round-trippable id.
-  const id =
-    args.level === 'venue'
-      ? await geocodeVenue({ ...args.address, countryCode: args.countryCode })
-      : await geocodeRegion({ ...args, level: args.level })
-  if (id) return { location: { mapboxId: id, manual: false }, warning: null }
-
-  // 2. Miss but we have legacy coords (cities, venues) → manual + those coords.
-  if (args.latitude != null && args.longitude != null) {
-    const radius =
-      args.radius ??
-      (args.level === 'venue' ? DEFAULT_VENUE_RADIUS_METERS : DEFAULT_REGION_RADIUS_METERS)
-    return {
-      location: {
-        mapboxId: MANUAL_LOCATION,
-        manual: true,
-        latitude: args.latitude,
-        longitude: args.longitude,
-        radius,
-      },
-      warning: `No Mapbox ${args.level} match for "${args.name}"; using legacy coordinates (manual).`,
-    }
-  }
-
-  // 3. Miss + no coords (countries/regions) → looser search for a centroid.
-  const feature = await forwardFeature({ ...args, q: args.name, types: FALLBACK_TYPES })
-  const coords = feature?.geometry?.coordinates
-  if (coords) {
-    return {
-      location: {
-        mapboxId: MANUAL_LOCATION,
-        manual: true,
-        longitude: coords[0],
-        latitude: coords[1],
-        radius: DEFAULT_REGION_RADIUS_METERS,
-      },
-      warning: `No Mapbox ${args.level} match for "${args.name}"; approximated centroid (manual) — verify.`,
-    }
-  }
-
-  // 4. Unresolvable — manual with null coords; caller warns + leaves for cleanup.
-  return {
-    location: {
-      mapboxId: MANUAL_LOCATION,
-      manual: true,
-      latitude: null,
-      longitude: null,
-      radius: null,
-    },
-    warning: `Could not resolve a location for ${args.level} "${args.name}" — left for manual cleanup.`,
-  }
-}
-
 /**
  * One geocoded address or city: the point, the matched feature, and the town
- * it sits in. The region importer wants only an id (`geocodeRegion`); the bulk
- * event import wants the point and the town, because the town is what picks the
- * city region a class is filed under. Same endpoint, same retry, different answer.
+ * it sits in. The town is what picks the city region a class is filed under.
  */
 export interface GeocodedLocation {
   /** The matched feature's own id, for a later `retrieve` or an address's `mapboxId`. */
@@ -461,36 +271,4 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
  */
 export function addressFeatureMapboxId(location: GeocodedLocation): string | null {
   return location.featureType === 'address' ? location.mapboxId : null
-}
-
-/** A venue's postal address — the only thing v6 can place a venue by. */
-export interface GeocodeVenueArgs {
-  /** The street and number. */
-  street?: string | null
-  postCode?: string | null
-  city?: string | null
-  /** ISO 3166-1 alpha-2 to restrict the search to. */
-  countryCode?: string | null
-}
-
-/**
- * A venue's own `mapbox_id`, from the structured address lookup.
- *
- * ⚠ **v6 carries no POI layer, so a building's name finds nothing** — the query
- * is the venue's postal address. A coarser answer is a miss, so the caller
- * keeps its own coordinates instead.
- */
-export async function geocodeVenue(args: GeocodeVenueArgs): Promise<string | null> {
-  const city = args.city?.trim()
-  const countryCode = args.countryCode?.trim()
-  if (!city || !countryCode || !args.street?.trim()) return null
-
-  const outcome = await geocodeLocation({
-    kind: 'address',
-    address: args.street,
-    postcode: args.postCode,
-    city,
-    countryCode,
-  })
-  return outcome.status === 'found' ? addressFeatureMapboxId(outcome.location) : null
 }
