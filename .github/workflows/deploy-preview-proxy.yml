@@ -31,8 +31,6 @@ concurrency:
 jobs:
   deploy:
     name: Deploy sahajcloud-preview-proxy
-    # Belt to the environment's branch rule: a run dispatched from any other ref stops here.
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: preview-proxy
@@ -42,6 +40,15 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
+      # Belt to the environment's branch rule. This is a step and not a job-level `if` because a
+      # false `if` skips the job, and a run of only skipped jobs reports green: a wrong-ref
+      # dispatch would read as a deploy that happened.
+      - name: Refuse any ref but main
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error title=Wrong ref::Dispatched from ${GITHUB_REF}. Run this from main."
+            exit 1
+          fi
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
