@@ -44,10 +44,12 @@ jobs:
           set -u
           start=$(date +%s)
           last="no response yet"
+          # Cloudflare sits in front of this host and ignores a client's `Cache-Control` by
+          # default, so the unique query string is what misses the edge cache. `/api/health`
+          # reads no query parameter.
+          url="${HEALTH_URL}?sha=${EXPECTED_SHA}"
           while true; do
-            body=$(curl --silent --show-error --max-time 15 \
-              --header 'Cache-Control: no-cache' \
-              "${HEALTH_URL}?sha=${EXPECTED_SHA}" 2>&1) && code=0 || code=$?
+            body=$(curl --silent --show-error --max-time 15 "$url" 2>&1) && code=0 || code=$?
             if [ "$code" -eq 0 ]; then
               status=$(printf '%s' "$body" | jq -r '.status // "?"' 2>/dev/null || echo '?')
               commit=$(printf '%s' "$body" | jq -r '.commit // "absent"' 2>/dev/null || echo '?')
@@ -68,7 +70,7 @@ jobs:
               echo "Not reachable yet (${last})."
             fi
             if [ $(( $(date +%s) - start )) -ge "$DEADLINE_SECONDS" ]; then
-              echo "::error title=Production did not serve ${EXPECTED_SHA}::Last answer from ${HEALTH_URL}: ${last}. Check the Railway deploy logs (a failed migration stops the server) and DEPLOYMENT.md, Troubleshooting."
+              echo "::error title=Production did not serve ${EXPECTED_SHA}::Last answer from ${url}: ${last}. Check the Railway deploy logs (a failed migration stops the server) and DEPLOYMENT.md, Troubleshooting."
               exit 1
             fi
             sleep "$INTERVAL_SECONDS"
