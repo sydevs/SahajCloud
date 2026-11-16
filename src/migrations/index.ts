@@ -134,6 +134,7 @@ import * as migration_20261112_213652_files_spoken_language from './20261112_213
 import * as migration_20261112_234150_merge_main_snapshot_9 from './20261112_234150_merge_main_snapshot_9';
 import * as migration_20261115_184420_payload_3_92 from './20261115_184420_payload_3_92';
 import * as migration_20261116_171937_storage_prefix from './20261116_171937_storage_prefix';
+import * as migration_20261116_181127_merge_main_snapshot_10 from './20261116_181127_merge_main_snapshot_10';
 
 export const migrations = [
   {
@@ -814,6 +815,11 @@ export const migrations = [
   {
     up: migration_20261116_171937_storage_prefix.up,
     down: migration_20261116_171937_storage_prefix.down,
-    name: '20261116_171937_storage_prefix'
+    name: '20261116_171937_storage_prefix',
+  },
+  {
+    up: migration_20261116_181127_merge_main_snapshot_10.up,
+    down: migration_20261116_181127_merge_main_snapshot_10.down,
+    name: '20261116_181127_merge_main_snapshot_10'
   },
 ];
