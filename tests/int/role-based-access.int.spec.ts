@@ -741,11 +741,11 @@ describe('Role-Based Access Control', () => {
       for (const collection of ['events', 'regions', 'images'] as const) {
         expect(may(collection, 'read')).toBe(true)
       }
-      // Role grants events CUD and regions CU (scoped at the access layer). No
-      // region delete, and nothing on unrelated collections.
+      // Role grants events and regions CUD (scoped at the access layer), and
+      // nothing on unrelated collections.
       expect(may('events', 'delete')).toBe(true)
       expect(may('regions', 'update')).toBe(true)
-      expect(may('regions', 'delete')).toBe(false)
+      expect(may('regions', 'delete')).toBe(true)
       expect(may('meditations', 'update')).toBe(false)
     })
 
@@ -824,15 +824,40 @@ describe('Role-Based Access Control', () => {
       expect(created.id).toBeDefined()
     })
 
-    it('cannot delete regions (admin-only)', async () => {
-      await expect(
-        payload.delete({
-          collection: 'regions',
-          id: cityId,
-          user: managerUser(atlasManager),
-          overrideAccess: false,
-        }),
-      ).rejects.toThrow()
+    it('deletes a sub-region beneath a region it owns, with the regions beneath that', async () => {
+      const city = await createRegion({ level: 'city', name: 'AtlasMgr Doomed', parent: regionId })
+      const venue = await createRegion({
+        level: 'venue',
+        name: 'AtlasMgr Doomed Hall',
+        parent: city.id,
+      })
+
+      await payload.delete({
+        collection: 'regions',
+        id: city.id,
+        user: managerUser(atlasManager),
+        overrideAccess: false,
+      })
+
+      const { totalDocs } = await payload.count({
+        collection: 'regions',
+        where: { id: { in: [city.id, venue.id] } },
+      })
+      expect(totalDocs).toBe(0)
+    })
+
+    it('cannot delete the region it is listed on, or one outside its subtree', async () => {
+      // 403 is access's answer. The subtree hook, which runs after it, answers 409.
+      for (const id of [regionId, otherVenueId]) {
+        await expect(
+          payload.delete({
+            collection: 'regions',
+            id,
+            user: managerUser(atlasManager),
+            overrideAccess: false,
+          }),
+        ).rejects.toMatchObject({ status: 403 })
+      }
     })
 
     it('creates events only within its subtree', async () => {

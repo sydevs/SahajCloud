@@ -10,6 +10,7 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions, regionManagersFieldAccess } from '@/plugins/access'
 
+import { deleteEmptySubtree } from './hooks/deleteEmptySubtree'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 import { buildRegionWebPath } from './webPath'
 
@@ -148,6 +149,7 @@ export const Regions: CollectionConfig = {
     // child of a region they own. This blocks rootless creates that the
     // capability check must allow.
     beforeValidate: [requireOwnedParentOnCreate],
+    beforeDelete: [deleteEmptySubtree],
     // Clear the Atlas manager sidebar cache (region tree and counts) on any
     // region write.
     afterChange: [revalidateAtlasSidebarHook],
