@@ -4,14 +4,14 @@ import type { EventRegistrationsData, RegistrationFilter, RegistrationRow } from
 import type { PillProps } from '@payloadcms/ui/elements/Pill'
 import type { ReactNode } from 'react'
 
-import { Button, CalendarIcon, CheckIcon, Gutter, Pill, Table, XIcon } from '@payloadcms/ui'
+import { Button, CalendarIcon, CheckIcon, Gutter, Pill, XIcon } from '@payloadcms/ui'
 
 import { STATUS_LABELS } from '@/collections/UserSubmissions/statuses'
 
 import styles from './EventRegistrations.module.css'
 import { CenteredNotice } from '../CenteredNotice'
 import { FilterTabs, QueryPager } from '../helpers/listControls'
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 
 const FILTERS: Record<RegistrationFilter, { label: string; icon: ReactNode; empty: string }> = {
   accepted: { label: 'Accepted', icon: <CheckIcon />, empty: 'No accepted registrations yet' },
@@ -103,59 +103,64 @@ export function EventRegistrationsView({ data }: { data: EventRegistrationsData 
             has none, and the pager that gets you back must still render. */}
         {registrations.totalDocs > 0 ? (
           <>
-            <Table
-              data={rows}
+            <StackedTable
+              rows={rows}
               columns={[
-                tableColumn(
-                  'registrant',
-                  'Name',
-                  rows.map((row) => (
+                {
+                  accessor: 'registrant',
+                  cells: rows.map((row) => (
                     <span key={row.id} className={styles.name}>
                       {row.name || 'Name not given'}
                     </span>
                   )),
-                ),
-                tableColumn(
-                  'email',
-                  'Email',
-                  rows.map((row) => <span key={row.id}>{row.email}</span>),
-                ),
-                tableColumn(
-                  'registered',
-                  'Registered on',
-                  rows.map((row) => (
-                    <div key={row.id} className={styles.stacked}>
+                  heading: 'Name',
+                },
+                {
+                  accessor: 'email',
+                  cells: rows.map((row) => <span key={row.id}>{row.email}</span>),
+                  heading: 'Email',
+                },
+                {
+                  accessor: 'registered',
+                  cells: rows.map((row) => (
+                    <div key={row.id} className={styles.lines}>
                       {row.registeredOn}
                       {row.attending && <small>Attending {row.attending}</small>}
                     </div>
                   )),
-                ),
-                tableColumn(
-                  'status',
-                  'Status',
-                  rows.map((row) => (
-                    <div key={row.id} className={styles.stacked}>
+                  heading: 'Registered on',
+                },
+                {
+                  accessor: 'status',
+                  cells: rows.map((row) => (
+                    <div key={row.id} className={styles.lines}>
                       <Pill pillStyle={STATUS[row.status].pillStyle} size="small">
                         {STATUS_LABELS[row.status]}
                       </Pill>
                       <small>{STATUS[row.status].detail}</small>
                     </div>
                   )),
-                ),
-                tableColumn(
-                  'answers',
-                  'Answers',
-                  rows.map((row) => (
-                    <dl key={row.id} className={styles.answers}>
-                      {row.answers.map((answer) => (
-                        <div key={answer.label}>
-                          <dt>{answer.label}</dt>
-                          <dd>{answer.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )),
-                ),
+                  heading: 'Status',
+                },
+                {
+                  accessor: 'answers',
+                  // A row with no answers renders an empty `<dl>`, which is a
+                  // cell with no text but not an empty one — so it is left out
+                  // here rather than named as a blank line once stacked.
+                  cells: rows.map((row) =>
+                    row.answers.length === 0 ? null : (
+                      <dl key={row.id} className={styles.answers}>
+                        {row.answers.map((answer) => (
+                          <div key={answer.label}>
+                            <dt>{answer.label}</dt>
+                            <dd>{answer.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ),
+                  ),
+                  heading: 'Answers',
+                },
               ]}
             />
             <QueryPager docs={registrations} />
