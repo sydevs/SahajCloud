@@ -11,9 +11,10 @@
  * worker-level Access app covers every address this Worker answers on, which is
  * why there is one app and not one per PR.
  *
- * ⚠ **Deployed by hand, not from CI.** The pull request that ships this gate
+ * ⚠ **Deployed by hand-started workflow, never on a push.** The pull request that ships this gate
  * gates its own preview, so a broken Worker deployed from inside that PR could
- * not be fixed from inside it. See the ticket's step 0.
+ * not be fixed from inside it. Run `deploy-preview-proxy.yml` from `main` once
+ * the change has merged (DEPLOYMENT.md, "Deploying the preview proxy").
  *
  * No dependency: `wrangler deploy` bundles this file, and the types below are
  * the slice of the Workers runtime it actually uses.

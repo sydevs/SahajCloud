@@ -44,17 +44,17 @@ export const myEndpoint: Endpoint = {
 
 ## Root-level endpoints (the exception)
 
-Almost every endpoint belongs to a collection and lives in its `endpoints/` folder. A resource that belongs to **no** collection goes in `src/endpoints/` and registers on the config root instead:
+Almost every endpoint belongs to a collection and lives in its `endpoints/` folder. A resource that belongs to **no** collection goes in `src/endpoints/` and registers on the config root instead, by joining `rootEndpoints` in `src/endpoints/index.ts`. A spec reads that array to hold the OpenAPI shim to it, so an endpoint registered any other way escapes the check:
 
 ```typescript
-// src/payload.config.ts
-import { atlasChallenge } from './endpoints/atlas/challenge'
-import { atlasSeo } from './endpoints/atlas/seo'
-import { atlasSitemap } from './endpoints/atlas/sitemap'
-import { atlasWixRoute } from './endpoints/atlas/wix/route'
-import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
-
-endpoints: [atlasSeo, atlasSitemap, atlasChallenge, atlasWixRoute, atlasWixSitemap],
+// src/endpoints/index.ts — payload.config.ts spreads `rootEndpoints` into `endpoints`
+export const rootEndpoints: Endpoint[] = [
+  atlasSeo,
+  atlasSitemap,
+  atlasChallenge,
+  atlasWixRoute,
+  atlasWixSitemap,
+]
 ```
 
 The bar is high. Five endpoints clear it, over three resources. `GET /api/atlas/seo` takes a **route** that may name a region or an event, so no single collection owns it. `GET /api/atlas/sitemap` spans regions and events for the same reason, and its real unit is the **client's ownership** — a `clients` fact, not either collection's. `GET /api/atlas/wix/route` and `GET /api/atlas/wix/sitemap` (#1055) are Wix-shaped **serializers** over those same two resolutions, so they inherit the same answer: a Wix Velo router needs JSON-LD as objects, the crawlable body as HTML, and `description`/`robots` as `metaTags` rows, each of which would break a current reader of the published shapes. ⚠ **A resolution therefore carries what every shape needs, and each shape serializes its own way out** — `resolveAtlasSeo` answers `AtlasSeoDocument`, with the JSON-LD as a graph, and `GET /api/atlas/seo` is the one surface that escapes it into a string. Pushing a serialization into the resolution makes the other shape parse it back out. They clear the bar because they serialize an ownerless resource, not because a second shape is reason enough for a second endpoint — a new shape over a **collection's** resource still belongs in that collection's folder. `GET /api/atlas/challenge` (#1072) is an HTML document the Atlas widget frames to render its captcha, gated by every active client's domain at once rather than by one row.

@@ -46,11 +46,7 @@ import { writeGuardPlugin } from '@/plugins/writeGuard'
 
 import { collections, Managers } from './collections'
 import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
-import { atlasChallenge } from './endpoints/atlas/challenge'
-import { atlasSeo } from './endpoints/atlas/seo'
-import { atlasSitemap } from './endpoints/atlas/sitemap'
-import { atlasWixRoute } from './endpoints/atlas/wix/route'
-import { atlasWixSitemap } from './endpoints/atlas/wix/sitemap'
+import { rootEndpoints } from './endpoints'
 import { globals } from './globals'
 import { tasks } from './jobs'
 import { JOB_AUTO_RUN } from './jobs/queues'
@@ -193,7 +189,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `docs/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
-    endpoints: [atlasSeo, atlasSitemap, atlasChallenge, atlasWixRoute, atlasWixSitemap],
+    endpoints: [...rootEndpoints],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
     // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).

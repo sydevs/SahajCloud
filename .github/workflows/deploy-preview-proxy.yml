@@ -1,0 +1,59 @@
+name: Deploy preview proxy
+
+# Deploys `preview-proxy/`, the Cloudflare Worker in front of every Railway preview, so each
+# deploy leaves a run in the Actions history: who, which commit, when. It was deployed by hand
+# with `wrangler deploy` and left no trail.
+#
+# Manual on purpose, never on push. The pull request that changes the Worker also gates its own
+# preview, so a broken Worker deployed from inside that PR could not be fixed from inside it.
+# Merge the change first, then run this from `main`.
+#
+# The job runs in the `preview-proxy` environment. Configure that environment with a required
+# reviewer and a deployment-branch rule limiting it to `main`: the secrets below are visible
+# only to runs that pass it. See DEPLOYMENT.md, "Deploying the preview proxy".
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and validate the Worker without publishing it'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-preview-proxy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy sahajcloud-preview-proxy
+    # Belt to the environment's branch rule: a run dispatched from any other ref stops here.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: preview-proxy
+    env:
+      # Environment secrets, which shadow a repository secret of the same name. Give the
+      # environment its own token scoped to Workers Scripts: Edit (and Workers KV Storage: Read).
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Deploy the Worker
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -eu
+          echo "Deploying ${GITHUB_SHA} (preview-proxy/)"
+          args=""
+          if [ "$DRY_RUN" = "true" ]; then args="--dry-run --outdir $RUNNER_TEMP/preview-proxy-build"; fi
+          # shellcheck disable=SC2086
+          pnpm dlx wrangler@4 deploy --config preview-proxy/wrangler.jsonc $args

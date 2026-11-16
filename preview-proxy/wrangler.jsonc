@@ -1,7 +1,8 @@
 {
-  // The gate in front of every Railway preview of this app. Deployed by hand
-  // (`npx wrangler deploy --config preview-proxy/wrangler.jsonc`), never from
-  // CI: the pull request shipping it gates its own preview.
+  // The gate in front of every Railway preview of this app. Deployed by the
+  // manual "Deploy preview proxy" workflow (`workflow_dispatch`, from `main`;
+  // see DEPLOYMENT.md), never on a push: the pull request shipping it gates
+  // its own preview.
   //
   // The per-PR Custom Domains are NOT listed here. `scripts/preview-domain.ts`
   // creates one on each push and the daily sweep deletes it, so this file would
