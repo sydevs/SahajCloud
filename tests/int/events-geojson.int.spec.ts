@@ -9,6 +9,7 @@ import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import type { Event } from '@/payload-types'
 
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -275,11 +276,12 @@ describe('eventsGeoJson endpoint', () => {
     })
   })
 
-  // A live-preview token lifts the published-only clause, so drafts reach the
-  // feed — including a never-published one with no region, which `required`
-  // does not stop on a draft save (SAHAJATLAS-WEB-2).
-  describe('live preview', () => {
+  // A live-preview token lifts the published-only access clause, so the feed
+  // has to exclude drafts itself. A region-less draft reaching it failed the
+  // widget's whole parse (SAHAJATLAS-WEB-2).
+  describe('drafts and region-less events', () => {
     let regionlessDraftId: number
+    let orphanedEventId: number
 
     beforeAll(async () => {
       const draft = await payload.create({
@@ -298,22 +300,66 @@ describe('eventsGeoJson endpoint', () => {
       })
       regionlessDraftId = draft.id
       expect(draft.region ?? null).toBeNull()
+
+      // Deleting a region nulls the column on its published events.
+      const orphaned = await payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        data: createData<'events'>({
+          title: 'Orphaned Meetup',
+          eventType: 'offline',
+          languages: ['en'],
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          region: regionId,
+          schedule: SCHEDULE,
+          _status: 'published',
+        }),
+      })
+      await storeInvalidEvent(payload, orphaned.id, { region: null })
+      orphanedEventId = orphaned.id
     })
 
-    async function previewFeatureIds(): Promise<number[]> {
+    async function previewHeaders(): Promise<Headers> {
       const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
-      const headers = new Headers({ [PREVIEW_SECRET_HEADER]: token! })
+      return new Headers({ [PREVIEW_SECRET_HEADER]: token! })
+    }
+
+    async function feedIds(headers: Headers): Promise<number[]> {
       const { status, body } = await callGeoJson({ ...SELECT, draft: 'true' }, client, headers)
       expect(status).toBe(200)
       return body.features!.map((f) => f.id)
     }
 
-    it('serves drafts to a live-preview request', async () => {
-      expect(await previewFeatureIds()).toContain(draftEventId)
+    // Without this, a token that unlocked nothing would pass the next case vacuously.
+    it('holds a preview token that unlocks drafts on an ordinary events read', async () => {
+      const req = {
+        payload,
+        headers: await previewHeaders(),
+        routeParams: {},
+        context: {},
+        user: client,
+      } as unknown as PayloadRequest
+      const { docs } = await payload.find({
+        collection: 'events',
+        where: { id: { equals: draftEventId } },
+        select: { title: true },
+        depth: 0,
+        overrideAccess: false,
+        req,
+      })
+      expect(docs.map((doc) => doc.id)).toEqual([draftEventId])
     })
 
-    it('never serves an event with no region, even to a live-preview request', async () => {
-      expect(await previewFeatureIds()).not.toContain(regionlessDraftId)
+    it('serves no draft to a live-preview request', async () => {
+      const ids = await feedIds(await previewHeaders())
+      expect(ids).toContain(offlineEventId)
+      expect(ids).not.toContain(draftEventId)
+      expect(ids).not.toContain(regionlessDraftId)
+    })
+
+    it('serves no published event whose region is gone', async () => {
+      expect(await feedIds(new Headers())).not.toContain(orphanedEventId)
     })
   })
 

@@ -52,13 +52,18 @@ const toBoolean = (value: unknown): boolean | undefined => {
 }
 
 /**
- * Only an event placed in a region can reach the feed.
- *
- * ⚠ `region` is `required`, but Payload skips `required` on a draft save, so a
- * never-published draft can have none. A live-preview request lifts the
- * published-only access clause, which carried such drafts into the feed, and
- * the Atlas widget parses every feature's `region` as an object: one null
- * failed the whole feed and blanked every live preview (SAHAJATLAS-WEB-2).
+ * ⚠ **Published, even for a live-preview request.** A preview token lifts the
+ * published-only access clause, and that put every unpublished draft on every
+ * previewed map. The previewed document never needs the feed: the widget
+ * renders it from its own `draft=true` read.
+ */
+const PUBLISHED: Where = { _status: { equals: 'published' } }
+
+/**
+ * ⚠ **Placed in a region.** The Atlas widget parses every feature's `region` as
+ * an object, so one null fails the whole feed (SAHAJATLAS-WEB-2). Publishing
+ * enforces `required`, but deleting a region nulls the column on its events
+ * (`ON DELETE SET NULL`).
  */
 const PLACED_IN_REGION: Where = { region: { exists: true } }
 
@@ -94,8 +99,8 @@ const PLACED_IN_REGION: Where = { region: { exists: true } }
  * one with a non-null `webPath` / `webUrl` — old Atlas links keep working, they
  * just stop appearing on the map (#603).
  *
- * **Region-less events are always excluded** too, the same way: an event with
- * no region has no place on the map, so every feature carries one.
+ * **Drafts and region-less events are always excluded** too, the same way and
+ * for every caller, a live-preview request included.
  *
  * Each feature's `geometry` is a Point at `[address.longitude, address.latitude]`;
  * callers that want geometry must `select` those fields (e.g.
@@ -122,7 +127,7 @@ export const eventsGeoJson: Endpoint = {
       const { docs, ...page } = await req.payload.find({
         collection: 'events',
         where: andWhere(query.where as Where | undefined, {
-          and: [notFinishedWhere(new Date()), PLACED_IN_REGION],
+          and: [notFinishedWhere(new Date()), PUBLISHED, PLACED_IN_REGION],
         }),
         select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
