@@ -147,9 +147,9 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/mapbox/geocoder',
   '@/lib/notifications/sendSubmissionReview',
   '@/lib/users/upsertUserByEmail',
-  // The two below lost their second consumer when the one-shot content
-  // importers were retired (#1169). Each is general-purpose rather than one
-  // owner's private helper, so the question is where it belongs now.
+  // Lost its second consumer when the one-shot content importers were retired
+  // (#1169). It is general-purpose rather than one owner's private helper, so
+  // the question is where it belongs now.
   //
   // ⚠ `lemonfox/` does not move one folder. Every module in it is reached only
   // from `src/jobs/TranscribeRecording/`, so rule 4 says move the folder — but
@@ -158,9 +158,6 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   // `lemonfox/` out makes `cues` fail this check. It is a three-module
   // reshuffle, decided on its own.
   '@/lib/lemonfox/normalize',
-  // `slugify`'s one consumer is `src/fields/slugField.ts`, which is shared
-  // infrastructure rather than an owner's folder.
-  '@/lib/utilities/slugify',
 ])
 
 describe('src/lib holds shared code only', () => {
