@@ -13,7 +13,7 @@
  * ⚠ **Nothing here may emit the credential, or any substring of it.** The only
  * value derived from the key is `classifyAuthAttempt`'s truncated SHA-256.
  *
- * Why the signal exists and what it still cannot see: `docs/architecture.md`.
+ * Why the signal exists and what it still cannot see: `src/plugins/sentry/AGENTS.md`.
  */
 import type { PayloadRequest } from 'payload'
 

@@ -475,28 +475,6 @@ await writeCache('seeds/cache/file.jpg', buffer)
 | `writeCache(path, data)` | Writes to disk            | No-op                    |
 | `cacheExists(path)`      | Validates the file exists | Returns `false`          |
 
-## File organization
-
-```
-seeds/
-├── storyblok/import.ts    # Storyblok CMS API import
-├── wemeditate/
-│   ├── import.ts          # WeMeditate Rails data import (reads JSON)
-│   ├── data.json          # Pre-extracted data from Rails PostgreSQL
-│   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
-├── meditations/
-│   ├── import.ts          # Meditations data import (reads JSON)
-│   ├── data.json          # Pre-extracted meditation data
-│   └── data.bin           # Original PostgreSQL dump (optional, for re-extraction)
-├── tags/import.ts         # Cloudinary SVG tags import
-├── lib/                   # Shared importer utilities — see lib/AGENTS.md
-├── cache/                 # Downloaded files (git-ignored, local dev only)
-├── run.ts                 # CLI runner (HTTP client that calls the API endpoint)
-└── extract-to-json.ts     # One-time PostgreSQL data extraction script
-
-src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
-```
-
 ## Troubleshooting
 
 **Script won't run** — check env vars (`echo $PAYLOAD_SECRET`, `echo

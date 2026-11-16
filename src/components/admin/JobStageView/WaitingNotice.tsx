@@ -12,7 +12,7 @@ import { InfoBanner } from '@/components/admin/InfoBanner'
  *
  * ⚠ Inside a document drawer nothing re-reads the stage, this call included:
  * `DocumentDrawerContent` keeps the render in React state. See
- * `docs/rules/admin-ui.md` § `JobStageView`.
+ * `src/components/admin/JobStageView/AGENTS.md`.
  */
 export function WaitingNotice({ children }: { children: React.ReactNode }) {
   const router = useRouter()
