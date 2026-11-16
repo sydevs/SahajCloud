@@ -57,9 +57,13 @@ minimumReleaseAge: 0
 # editor cannot run on.
 overrides:
   # `vite` needs no cap now: @vitejs/plugin-react 6 takes vite 8, and `vite` is a direct
-  # devDependency at 8.3.8, past GHSA-587h-7wmj-h5pm. `esbuild` keeps a floor: drizzle-kit
-  # reaches esbuild 0.18 through @esbuild-kit/core-utils, which GHSA-67mh-4wv8-2f99 names
-  # (`<=0.24.2`). Scoped to that range so the 0.25+ copies resolve as their parents ask.
+  # devDependency at 8.3.8, past GHSA-587h-7wmj-h5pm.
+  #
+  # ⚠ Past a declared major: drizzle-kit reaches @esbuild-kit/core-utils@3.3.2, which asks
+  # `~0.18.20`, and GHSA-67mh-4wv8-2f99 names everything `<=0.24.2`. Scoped to the advisory's
+  # range rather than one major, so the 0.25+ copies resolve as their parents ask. Build-time
+  # only — core-utils is reached through drizzle-kit's loader, never by the running app. Drop
+  # this line once drizzle-kit stops reaching @esbuild-kit/core-utils.
   'esbuild@<=0.24.2': '0.28.1'
   dompurify: '^3.4.11'
   ws: '^8.21.0'
