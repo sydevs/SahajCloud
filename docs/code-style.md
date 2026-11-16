@@ -15,27 +15,6 @@ Global code style guidelines for this codebase.
 | `src/types/`                 | camelCase  | `roles.ts`, `users.ts`                 |
 | `src/lib/richEditor/blocks/` | PascalCase | `TextBoxBlock.ts`, `GalleryBlock.ts`   |
 
-## Import Order
-
-ESLint enforces this group order, each separated by a blank line:
-
-1. External type imports
-2. External value imports
-3. Internal (`@/...`) type imports
-4. Internal value imports
-5. Relative (`./...`) type imports
-6. Relative value imports
-
-Sort alphabetically by path within a group. A subpath sorts after its parent (`payload/shared` after `payload`):
-
-```typescript
-import type { JSONField } from 'payload'
-
-import { toWords } from 'payload/shared'
-
-import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
-```
-
 ## After Code Changes
 
 Always lint and fix TypeScript errors. Run `pnpm generate:types` after a schema change.

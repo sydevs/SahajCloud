@@ -209,7 +209,10 @@ describe('buildEventCalendar — recurrence shapes', () => {
 
     const rrule = line(ics, 'RRULE')!
     expect(rrule).toContain('FREQ=WEEKLY')
-    expect(rrule).toContain('UNTIL=20260930')
+    // UTC, per RFC 5545 §3.3.10: UNTIL must be UTC when DTSTART carries a TZID.
+    // The date part is the same either way, so matching it alone would not tell
+    // this from the floating `UNTIL=20260930T235900` it replaced (#1158).
+    expect(rrule).toContain('UNTIL=20260930T225900Z')
   })
 })
 
@@ -254,6 +257,22 @@ describe('buildEventCalendar — exclusions', () => {
 
     expect(line(ics, 'RRULE')).toBe('RRULE:FREQ=WEEKLY;COUNT=8;BYDAY=TU')
     expect(line(ics, 'EXDATE')).toContain('TZID=Europe/London')
+  })
+})
+
+describe('buildEventCalendar — UTC as the event zone', () => {
+  // `buildEventCalendar` falls back to 'UTC' when the rule carries no TZID, and
+  // RFC 5545 spells a UTC instant with a trailing `Z`, never `TZID=UTC`. These
+  // were floating times — no TZID and no `Z`, which a client reads as its own
+  // local time wherever it happens to be (#1158).
+  it('spells a UTC event as a UTC instant, not a floating one', () => {
+    const ics = build({ firstDate_tz: 'UTC', recurrenceType: 'WEEKLY', weekdays: ['TU'] })!
+
+    expect(line(ics, 'DTSTART')).toBe('DTSTART:20260721T180000Z')
+    expect(line(ics, 'DTEND')).toBe('DTEND:20260721T190000Z')
+    // A VTIMEZONE for UTC carries nothing a client needs, and the generator
+    // dates its one transition at the epoch.
+    expect(ics).not.toContain('BEGIN:VTIMEZONE')
   })
 })
 
@@ -308,10 +327,24 @@ describe('buildEventCalendar — feed properties', () => {
 
     expect(line(ics, 'STATUS')).toBe('STATUS:CANCELLED')
     expect(line(ics, 'SEQUENCE')).toBe('SEQUENCE:1')
-    // No trailing `Z`: a calendar-level timezone makes ical-generator render
-    // every timestamp in that zone, which is already true of the DTSTAMP the
-    // email attachment ships. Clients rank revisions by SEQUENCE regardless.
-    expect(line(ics, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000')
+    expect(line(ics, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000Z')
+  })
+
+  // Both surfaces, because the calendar-level timezone that once dropped the
+  // `Z` is shared by them (#1158). RFC 5545 §3.8.7.2 and §3.8.7.3 require UTC,
+  // and without it these read as the rendering host's wall clock.
+  it('stamps DTSTAMP and LAST-MODIFIED in UTC, in the feed and the attachment', () => {
+    const feed = build(
+      { recurrenceType: 'WEEKLY', weekdays: ['TU'] },
+      { lastModified: new Date('2026-08-01T10:00:00.000Z') },
+    )!
+    const attachment = build({ recurrenceType: 'WEEKLY', weekdays: ['TU'] }, { uid: 'reg-abc' })!
+
+    expect(line(feed, 'DTSTAMP')).toMatch(/^DTSTAMP:\d{8}T\d{6}Z$/)
+    expect(line(attachment, 'DTSTAMP')).toMatch(/^DTSTAMP:\d{8}T\d{6}Z$/)
+    expect(line(feed, 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260801T100000Z')
+    // The event's own zone still qualifies the wall-clock properties.
+    expect(line(feed, 'DTSTART')).toBe('DTSTART;TZID=Europe/London:20260721T190000')
   })
 
   // The confirmation email passes none of the four, and its attachment is a

@@ -78,7 +78,7 @@ export interface WorkflowButtonsProps<TStage extends string = string> {
    * see. `user-submissions` holds four intakes sharing one status vocabulary,
    * so its first rule is the admin's spam settlement and its second the
    * proposal review — and a contact row matches neither, which is how it keeps
-   * its ordinary Save (`docs/rules/admin-ui.md`).
+   * its ordinary Save (`AGENTS.md` beside this file).
    */
   rules: WorkflowRule<TStage>[]
   /** Form field whose value picks the stage; omit to key on the create alone. */

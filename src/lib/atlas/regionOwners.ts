@@ -205,7 +205,7 @@ function canonicalOwnerFrom(row: ClientRow): CanonicalOwner | undefined {
  * {@link getCanonicalUrlBase} asks only when the region has no owner of
  * its own.
  *
- * The reasoning behind both points is in `docs/architecture.md`.
+ * The reasoning behind both points is in `src/endpoints/atlas/AGENTS.md`.
  */
 async function loadCanonicalFallbackOwner(
   req: PayloadRequest,
