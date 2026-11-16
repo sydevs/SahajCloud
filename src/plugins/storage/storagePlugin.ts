@@ -70,7 +70,9 @@ const STORAGE_BACKENDS = {
  * the schema those see lacked a column production's queries select, and every
  * upload on a Railway deploy failed with `column images._objectkey does not
  * exist`. Declaring it here keeps one schema whatever the credentials; an
- * enabled plugin swaps in its own identical definition.
+ * enabled plugin drops this one and pushes its own, which differs only in
+ * `admin` config. Upstream's `alwaysInsertFields` replaces this whole
+ * transform, at the price of a `prefix` column on eight tables — #1164.
  */
 const withObjectKeyColumn = (config: Config): Config => ({
   ...config,

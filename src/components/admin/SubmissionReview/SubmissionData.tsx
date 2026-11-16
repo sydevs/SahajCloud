@@ -1,6 +1,6 @@
 import type { Field, FieldServerComponent, Payload, PayloadRequest } from 'payload'
 
-import { FieldLabel, Table } from '@payloadcms/ui'
+import { FieldLabel } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React from 'react'
 
@@ -10,7 +10,7 @@ import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Form } from '@/payload-types'
 
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 
 import './styles.css'
 
@@ -67,28 +67,28 @@ const SubmissionData: FieldServerComponent<Field, never, { part?: Part }> = asyn
       {entries.length === 0 ? (
         <div className="submission-data__empty">Nothing was submitted.</div>
       ) : (
-        <Table
+        <StackedTable
           appearance="condensed"
-          data={entries.map((_, index) => ({ id: index }))}
+          rows={entries.map((_, index) => ({ id: index }))}
           columns={[
-            tableColumn(
-              'field',
-              'Field',
-              entries.map((entry, index) => (
+            {
+              accessor: 'field',
+              cells: entries.map((entry, index) => (
                 <span key={index} className="submission-data__key">
                   {keyLabel(entry.field)}
                 </span>
               )),
-            ),
-            tableColumn(
-              'value',
-              'Value',
-              entries.map((entry, index) => (
+              heading: 'Field',
+            },
+            {
+              accessor: 'value',
+              cells: entries.map((entry, index) => (
                 <span key={index} className="submission-data__value">
                   {entry.value == null || entry.value === '' ? '—' : String(entry.value)}
                 </span>
               )),
-            ),
+              heading: 'Value',
+            },
           ]}
         />
       )}

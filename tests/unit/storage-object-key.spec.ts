@@ -63,6 +63,18 @@ async function objectKeyFields(
   )
 }
 
+/**
+ * `admin` is the one key that cannot reach DDL, and upstream grows it: 3.92.1
+ * added four flags to its own `_objectKey`, reddening this file over config no
+ * column reads. Everything else stays compared, so a new `index`, `hasMany` or
+ * `defaultValue` upstream still fires.
+ */
+const schemaShape = (fields: Field[] = []) =>
+  fields.map((field) => {
+    const { admin: _admin, ...rest } = field as Record<string, unknown>
+    return rest
+  })
+
 afterEach(() => {
   for (const key of Object.keys(CREDENTIALS)) delete env[key]
 })
@@ -84,7 +96,9 @@ describe('storagePlugin _objectKey', () => {
 
     for (const slug of STORAGE_SLUGS) {
       expect(withCredentials.get(slug), slug).toHaveLength(1)
-      expect(withCredentials.get(slug), slug).toEqual(withoutCredentials.get(slug))
+      expect(schemaShape(withCredentials.get(slug)), slug).toEqual(
+        schemaShape(withoutCredentials.get(slug)),
+      )
     }
     expect(withCredentials.get('pages')).toHaveLength(0)
   })
