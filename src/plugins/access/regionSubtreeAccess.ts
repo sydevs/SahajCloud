@@ -132,7 +132,7 @@ export async function scopeRegionSubtreeWrite({
     if (operation === 'delete') {
       // Only what they could have created: a region beneath one they own, never
       // the region they are listed on, which is the manager above them's to
-      // remove. Whether the subtree may go at all is `deleteEmptySubtree`'s.
+      // remove. Whether the subtree may go at all is `refuseDeleteWhileInUse`'s.
       return ownedRegionIds.length ? { parent: { in: ownedRegionIds } } : false
     }
     // A re-parent must keep the region inside the owned subtree — reject moving

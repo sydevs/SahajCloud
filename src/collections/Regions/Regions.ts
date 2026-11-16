@@ -5,12 +5,13 @@ import { createBreadcrumbsField } from '@payloadcms/plugin-nested-docs'
 import { hideUntilCreated, legacyMigrationFields, publicUrlFields, slugField } from '@/fields'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { deleteChildren } from '@/lib/cascadeDeletion'
 import { serverEnv } from '@/lib/env/server'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { ownedRegionFilterOptions, regionManagersFieldAccess } from '@/plugins/access'
 
-import { deleteEmptySubtree } from './hooks/deleteEmptySubtree'
+import { refuseDeleteWhileInUse } from './hooks/refuseDeleteWhileInUse'
 import { requireOwnedParentOnCreate } from './hooks/requireOwnedParentOnCreate'
 import { buildRegionWebPath } from './webPath'
 
@@ -149,7 +150,12 @@ export const Regions: CollectionConfig = {
     // child of a region they own. This blocks rootless creates that the
     // capability check must allow.
     beforeValidate: [requireOwnedParentOnCreate],
-    beforeDelete: [deleteEmptySubtree],
+    // A region goes with every region beneath it, or not at all — in this
+    // order, so nothing is deleted until the whole subtree has been checked.
+    beforeDelete: [
+      refuseDeleteWhileInUse,
+      deleteChildren({ collection: 'regions', field: 'parent' }),
+    ],
     // Clear the Atlas manager sidebar cache (region tree and counts) on any
     // region write.
     afterChange: [revalidateAtlasSidebarHook],

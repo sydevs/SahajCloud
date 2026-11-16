@@ -3,8 +3,8 @@ import type { CollectionBeforeDeleteHook, PayloadRequest, Where } from 'payload'
 import { APIError } from 'payload'
 import { extractID } from 'payload/shared'
 
-/** `req.context` key: regions an ancestor's delete already checked and is now removing. */
-const CLEARED_KEY = 'regionDeleteCleared'
+/** `req.context` key: regions an ancestor's delete has already checked. */
+const CHECKED_KEY = 'regionDeleteChecked'
 
 /** How many places an event refusal names before it counts the rest. */
 const PLACES_NAMED = 5
@@ -12,21 +12,18 @@ const PLACES_NAMED = 5
 const listFormat = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' })
 
 /**
- * A region is deleted with everything beneath it, or not at all — for admins
- * too. Every foreign key onto `regions` is `ON DELETE SET NULL` and nested-docs
- * registers no delete hook, so a bare delete left each child a parentless root
- * outside every manager's subtree, and silently emptied `events.region` and
- * `clients.region`.
+ * Refuses to delete a region while any event (archived ones included) sits in
+ * its subtree, or any service has a region in it, naming what is in the way —
+ * for admins too. It runs before `Regions`' `deleteChildren`, so nothing in the
+ * subtree goes until all of it has been checked.
  *
- * So it refuses while any event (archived ones included) sits in the subtree,
- * or any service has a region in it, naming what is in the way. Otherwise it
- * deletes the descendants inside this delete's transaction, so a failure
- * undoes them with the region.
+ * Every foreign key onto `regions` is `ON DELETE SET NULL`, so without it a
+ * delete silently emptied `events.region` and `clients.region`.
  */
-export const deleteEmptySubtree: CollectionBeforeDeleteHook = async ({ id, req }) => {
-  const cleared = clearedRegions(req)
+export const refuseDeleteWhileInUse: CollectionBeforeDeleteHook = async ({ id, req }) => {
+  const checked = checkedRegions(req)
   const regionId = Number(id)
-  if (cleared.has(regionId)) return
+  if (checked.has(regionId)) return
 
   const names = await readSubtree(req, regionId)
   const ids = [...names.keys()]
@@ -40,39 +37,22 @@ export const deleteEmptySubtree: CollectionBeforeDeleteHook = async ({ id, req }
       409,
     )
   }
-
-  const descendants = ids.filter((descendant) => descendant !== regionId)
-  if (!descendants.length) return
-  for (const descendant of descendants) cleared.add(descendant)
-  // Not `deleteChildren`: a bulk delete reports a row it could not delete in
-  // `errors` instead of throwing, which would let this region go regardless.
-  const { errors } = await req.payload.delete({
-    collection: 'regions',
-    where: { id: { in: descendants } },
-    depth: 0,
-    overrideAccess: true,
-    req,
-  })
-  if (errors.length) {
-    throw new APIError(
-      `Could not delete the regions beneath "${names.get(regionId)}": ${errors.map((error) => error.message).join('; ')}`,
-    )
-  }
+  for (const descendant of ids) checked.add(descendant)
 }
 
-function clearedRegions(req: PayloadRequest): Set<number> {
-  const existing = req.context[CLEARED_KEY]
+function checkedRegions(req: PayloadRequest): Set<number> {
+  const existing = req.context[CHECKED_KEY]
   if (existing instanceof Set) return existing as Set<number>
   const created = new Set<number>()
-  req.context[CLEARED_KEY] = created
+  req.context[CHECKED_KEY] = created
   return created
 }
 
 /** The region and every region beneath it, each with the name a refusal shows. */
 async function readSubtree(req: PayloadRequest, rootId: number): Promise<Map<number, string>> {
   const names = new Map<number, string>()
-  // Walks `parent`, the stored truth, rather than the derived `breadcrumbs`:
-  // a descendant the walk missed would outlive this region as a root.
+  // `parent`, not the derived `breadcrumbs`: it is what `deleteChildren`
+  // follows, so what is checked is exactly what goes.
   let where: Where = { id: { equals: rootId } }
   for (;;) {
     const { docs } = await req.payload.find({

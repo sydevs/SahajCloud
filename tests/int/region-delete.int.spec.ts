@@ -6,8 +6,9 @@ import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
- * `deleteEmptySubtree`: a region is deleted with everything beneath it, or not
- * at all. Access (who may delete which region) is `role-based-access`'s.
+ * `refuseDeleteWhileInUse` and `deleteChildren` together: a region is deleted
+ * with everything beneath it, or not at all. Access (who may delete which
+ * region) is `role-based-access`'s.
  */
 describe('Deleting a region', () => {
   let payload: Payload

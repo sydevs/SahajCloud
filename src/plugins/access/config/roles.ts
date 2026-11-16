@@ -93,7 +93,7 @@ const ROLES = {
     // grants are *scoped to the manager's owned-region subtree* in the access
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
     // appearing here. Region delete reaches only the sub-regions of an owned
-    // region, and only an empty subtree (`deleteEmptySubtree`).
+    // region, and only a subtree nothing uses (`refuseDeleteWhileInUse`).
     permissions: {
       regions: ['create', 'update', 'delete'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
