@@ -5,23 +5,6 @@ global lives in its own PascalCase folder under `src/globals/`, named after
 its TypeScript export — no per-project group folders. Only the master
 barrel (`src/globals/index.ts`) imports from these folders.
 
-```
-src/globals/
-├── WeMeditateWebConfig/               (slug: wm-web-config)
-├── WeMeditateWebTranslations/         (slug: wm-web-translations)
-│   └── translationsSchema.json
-├── WeMeditateAppConfig/               (slug: wm-app-config)
-├── WeMeditateAppTranslations/         (slug: wm-app-translations)
-│   └── translationsSchema.json
-├── WeMeditateAppStatus/               (slug: wm-app-status)
-│   ├── sections/                      (per-section builders, not re-exported)
-│   └── statusConfig.json
-├── SahajAtlasConfig/                  (slug: sy-atlas-config)
-├── SahajAtlasTranslations/            (slug: sy-atlas-translations)
-│   └── translationsSchema.json
-└── index.ts                           (master barrel)
-```
-
 ## Config globals (per project)
 
 **WeMeditate Web** (admin group: System) — `homePage` (relationship to
