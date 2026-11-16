@@ -384,6 +384,9 @@ export const CUSTOM_ENDPOINT_PATHS: Record<string, OpenAPIPathItem> = {
         'finished. The filter is part of the underlying read, so `totalDocs` and ' +
         'pagination reflect the filtered set, and **your `where` cannot re-include ' +
         'finished events here**.\n\n' +
+        '**Drafts and events with no `region` are excluded** the same way, for ' +
+        'every caller: the feed serves published events only, each with a ' +
+        '`region`, even to a live-preview request.\n\n' +
         '`GET /api/events` applies the same default, but there it *can* be ' +
         'overridden: a `where` that references `schedule.lastDate` (e.g. ' +
         '`where[schedule.lastDate][less_than]=2026-01-01T00:00:00Z`) opts out and ' +

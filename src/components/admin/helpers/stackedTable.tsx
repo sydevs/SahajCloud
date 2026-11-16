@@ -1,12 +1,27 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 import { Table } from '@payloadcms/ui'
 import { Fragment } from 'react'
 
 import styles from './stackedTable.module.css'
-import { tableColumn } from './tableColumn'
+
+/** The exact element type Payload's `Table` expects in `columns`. */
+type PayloadColumn = NonNullable<ComponentProps<typeof Table>['columns']>[number]
+
+/**
+ * Build a column for Payload's `Table`.
+ *
+ * The Table is list-view-shaped: it reads `accessor` / `active` / `Heading` /
+ * `renderedCells` (one pre-rendered node per row) and nothing else. `field` is
+ * required by the `Column` type but never touched at runtime, so a stub
+ * satisfies it — which is the whole reason this is a helper rather than an
+ * object literal at each of the two call sites below.
+ */
+function tableColumn(accessor: string, heading: ReactNode, cells: ReactNode[]): PayloadColumn {
+  return { accessor, active: true, Heading: heading, renderedCells: cells, field: {} as never }
+}
 
 export type StackedColumn = {
   accessor: string

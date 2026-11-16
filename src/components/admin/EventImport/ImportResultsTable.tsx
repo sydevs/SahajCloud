@@ -8,7 +8,6 @@ import {
   ConfirmationModal,
   FieldDescription,
   FieldLabel,
-  Table,
   toast,
   useConfig,
   useDocumentDrawer,
@@ -20,7 +19,7 @@ import { formatDate } from '@payloadcms/ui/shared'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
-import { tableColumn } from '../helpers/tableColumn'
+import { StackedTable } from '../helpers/stackedTable'
 
 import './styles.css'
 
@@ -60,16 +59,21 @@ const CONFIRM_MODAL = 'event-import-confirm'
 
 const classes = (count: number) => `${count} draft ${count === 1 ? 'class' : 'classes'}`
 
-/** A first line with quieter lines beneath it. */
-const stacked = (lines: readonly React.ReactNode[]) =>
-  lines.length > 1 ? (
+/**
+ * A first line with quieter lines beneath it.
+ *
+ * Named for the lines, not for stacking: this table is a `StackedTable`, where
+ * stacking is what the whole row does under 700px (#1151).
+ */
+const lines = (parts: readonly React.ReactNode[]) =>
+  parts.length > 1 ? (
     <span className="event-import__details">
-      {lines.map((line, index) => (
-        <span key={index}>{line}</span>
+      {parts.map((part, index) => (
+        <span key={index}>{part}</span>
       ))}
     </span>
   ) : (
-    lines[0]
+    parts[0]
   )
 
 /**
@@ -113,6 +117,8 @@ export const ImportResultsTable: React.FC<{
   const [checked, setChecked] = useState<ReadonlySet<number>>(new Set())
   const toPublish = drafts.filter((id) => checked.has(id))
   const toDelete = allDrafts.flatMap((row) => (checked.has(row.eventId!) ? [] : [row.eventId!]))
+  const allTicked = drafts.length > 0 && toPublish.length === drafts.length
+  const toggleAll = () => setChecked(new Set(allTicked ? [] : drafts))
   const skipped = rows.filter((row) => row.status === 'duplicate' || row.status === 'error').length
 
   const eventDrawer = useDrawerLink('events')
@@ -187,13 +193,13 @@ export const ImportResultsTable: React.FC<{
   const statusOf = (row: ResultRow): React.ReactNode => {
     switch (row.status) {
       case 'published':
-        return stacked([
+        return lines([
           `Published${when(row.at)}`,
           ...(row.unverified ? ['Listed as unverified because the class has no manager'] : []),
           ...(row.approximate ? [APPROXIMATE] : []),
         ])
       case 'draft':
-        return stacked([
+        return lines([
           `Created${when(row.at)}`,
           ...(row.approximate ? [`${APPROXIMATE} before publishing`] : []),
         ])
@@ -235,6 +241,13 @@ export const ImportResultsTable: React.FC<{
         <div className="event-import__results-actions">
           {allDrafts.length > 0 && (
             <>
+              {/* The table's own select-all sits in its header row, which the
+                  stacked phone layout hides, so the phone is given one here. */}
+              {drafts.length > 0 && (
+                <span className="event-import__select-all">
+                  {pill(allTicked ? 'Clear selection' : `Select all (${drafts.length})`, toggleAll)}
+                </span>
+              )}
               {pill(`Publish (${toPublish.length})`, () => confirm('publish'), !toPublish.length)}
               {pill(`Clean Up (${toDelete.length})`, () => confirm('clean-up'), !toDelete.length)}
             </>
@@ -242,21 +255,14 @@ export const ImportResultsTable: React.FC<{
           {skipped > 0 && pill(`Download Skipped Rows (${skipped})`, download)}
         </div>
       </div>
-      <Table
+      <StackedTable
         appearance="condensed"
         columns={[
           ...(drafts.length
             ? [
-                tableColumn(
-                  'select',
-                  <CheckboxInput
-                    checked={toPublish.length === drafts.length}
-                    onToggle={() =>
-                      setChecked(new Set(toPublish.length === drafts.length ? [] : drafts))
-                    }
-                    partialChecked={toPublish.length > 0 && toPublish.length < drafts.length}
-                  />,
-                  rows.map(({ approximate, eventId, status }) =>
+                {
+                  accessor: 'select',
+                  cells: rows.map(({ approximate, eventId, status }) =>
                     status === 'draft' && eventId && !approximate ? (
                       <CheckboxInput
                         checked={checked.has(eventId)}
@@ -265,36 +271,49 @@ export const ImportResultsTable: React.FC<{
                       />
                     ) : null,
                   ),
-                ),
+                  heading: (
+                    <CheckboxInput
+                      checked={allTicked}
+                      onToggle={toggleAll}
+                      partialChecked={toPublish.length > 0 && !allTicked}
+                    />
+                  ),
+                },
               ]
             : []),
-          tableColumn(
-            'row',
-            'Row',
-            rows.map(({ row }) => row),
-          ),
-          tableColumn(
-            'title',
-            'Title',
-            rows.map(({ eventId, title }) => (eventId ? eventLink(eventId, title) : title || '—')),
-          ),
-          tableColumn(
-            'details',
-            'Details',
-            rows.map(({ city, schedule }) => stacked([city || '—', schedule])),
-          ),
-          tableColumn(
-            'manager',
-            'Manager',
-            rows.map(({ manager }) =>
+          {
+            accessor: 'row',
+            cells: rows.map(({ row }) => row),
+            heading: 'Row',
+          },
+          {
+            accessor: 'title',
+            cells: rows.map(({ eventId, title }) =>
+              eventId ? eventLink(eventId, title) : title || '—',
+            ),
+            heading: 'Title',
+          },
+          {
+            accessor: 'details',
+            cells: rows.map(({ city, schedule }) => lines([city || '—', schedule])),
+            heading: 'Details',
+          },
+          {
+            accessor: 'manager',
+            cells: rows.map(({ manager }) =>
               manager?.id !== undefined
                 ? link(() => managerDrawer.open(manager.id!), manager.name)
                 : (manager?.name ?? '—'),
             ),
-          ),
-          tableColumn('status', 'Status', rows.map(statusOf)),
+            heading: 'Manager',
+          },
+          {
+            accessor: 'status',
+            cells: rows.map(statusOf),
+            heading: 'Status',
+          },
         ]}
-        data={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
+        rows={rows.map(({ row, status }) => ({ id: `${status}-${row}` }))}
       />
       <FieldDescription description={description} path={path} />
       <eventDrawer.Drawer onDelete={refresh} onSave={refresh} />
