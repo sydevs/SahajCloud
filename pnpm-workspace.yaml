@@ -65,7 +65,10 @@ overrides:
   dompurify: '^3.4.11'
   ws: '^8.21.0'
   flatted: '^3.4.2'
-  js-yaml: '^4.3.0'
+  # Scoped to 4.x. Unscoped it answers a `js-yaml: ^5.x` dependency with 4.3.2 too, and
+  # @apidevtools/json-schema-ref-parser@15.5.2 then fails to load on a missing `binaryTag`
+  # export. 5.x is past the advisory's range either way.
+  'js-yaml@^4.0.0': '^4.3.0'
   postcss: '^8.5.10'
   '@opentelemetry/core': '^2.8.0'
   '@babel/core': '^7.29.6'
