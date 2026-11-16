@@ -52,6 +52,17 @@ const toBoolean = (value: unknown): boolean | undefined => {
 }
 
 /**
+ * Only an event placed in a region can reach the feed.
+ *
+ * ⚠ `region` is `required`, but Payload skips `required` on a draft save, so a
+ * never-published draft can have none. A live-preview request lifts the
+ * published-only access clause, which carried such drafts into the feed, and
+ * the Atlas widget parses every feature's `region` as an object: one null
+ * failed the whole feed and blanked every live preview (SAHAJATLAS-WEB-2).
+ */
+const PLACED_IN_REGION: Where = { region: { exists: true } }
+
+/**
  * GET /api/events/geojson
  *
  * A thin GeoJSON wrapper over a standard published-events read. It forwards the
@@ -83,6 +94,9 @@ const toBoolean = (value: unknown): boolean | undefined => {
  * one with a non-null `webPath` / `webUrl` — old Atlas links keep working, they
  * just stop appearing on the map (#603).
  *
+ * **Region-less events are always excluded** too, the same way: an event with
+ * no region has no place on the map, so every feature carries one.
+ *
  * Each feature's `geometry` is a Point at `[address.longitude, address.latitude]`;
  * callers that want geometry must `select` those fields (e.g.
  * `select[address][longitude]=true&select[address][latitude]=true`). Events
@@ -107,7 +121,9 @@ export const eventsGeoJson: Endpoint = {
     try {
       const { docs, ...page } = await req.payload.find({
         collection: 'events',
-        where: andWhere(query.where as Where | undefined, notFinishedWhere(new Date())),
+        where: andWhere(query.where as Where | undefined, {
+          and: [notFinishedWhere(new Date()), PLACED_IN_REGION],
+        }),
         select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
         depth: toNumber(query.depth),

@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 import { serverEnv } from '@/lib/env'
+import { mintLivePreviewToken } from '@/lib/livePreview/token'
+import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import type { Event } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -44,12 +46,14 @@ describe('eventsGeoJson endpoint', () => {
   async function callGeoJson(
     query: Record<string, unknown>,
     user: TestUser = client,
+    headers: Headers = new Headers(),
   ): Promise<{ status: number; headers: Headers; body: GeoJsonBody }> {
     const req = {
       payload,
       query,
-      headers: new Headers(),
+      headers,
       routeParams: {},
+      context: {},
       user,
     } as unknown as PayloadRequest
     const response = (await eventsGeoJson.handler(req)) as Response
@@ -268,6 +272,48 @@ describe('eventsGeoJson endpoint', () => {
     it('sets a cacheable Cache-Control header', async () => {
       const { headers } = await callGeoJson(SELECT)
       expect(headers.get('Cache-Control')).toBe('public, max-age=300, s-maxage=300')
+    })
+  })
+
+  // A live-preview token lifts the published-only clause, so drafts reach the
+  // feed — including a never-published one with no region, which `required`
+  // does not stop on a draft save (SAHAJATLAS-WEB-2).
+  describe('live preview', () => {
+    let regionlessDraftId: number
+
+    beforeAll(async () => {
+      const draft = await payload.create({
+        collection: 'events',
+        overrideAccess: true,
+        draft: true,
+        data: createData<'events'>({
+          title: 'Unplaced Draft',
+          eventType: 'offline',
+          languages: ['en'],
+          registrationMode: 'sahaj-atlas',
+          manager: managerId,
+          schedule: SCHEDULE,
+          _status: 'draft',
+        }),
+      })
+      regionlessDraftId = draft.id
+      expect(draft.region ?? null).toBeNull()
+    })
+
+    async function previewFeatureIds(): Promise<number[]> {
+      const token = await mintLivePreviewToken(serverEnv.LIVE_PREVIEW_SIGNING_KEY)
+      const headers = new Headers({ [PREVIEW_SECRET_HEADER]: token! })
+      const { status, body } = await callGeoJson({ ...SELECT, draft: 'true' }, client, headers)
+      expect(status).toBe(200)
+      return body.features!.map((f) => f.id)
+    }
+
+    it('serves drafts to a live-preview request', async () => {
+      expect(await previewFeatureIds()).toContain(draftEventId)
+    })
+
+    it('never serves an event with no region, even to a live-preview request', async () => {
+      expect(await previewFeatureIds()).not.toContain(regionlessDraftId)
     })
   })
 
