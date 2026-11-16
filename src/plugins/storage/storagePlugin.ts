@@ -11,7 +11,7 @@
  * Automatically falls back to local file storage in development when the
  * storage credentials are not configured.
  */
-import type { Config, Field, Plugin } from 'payload'
+import type { Plugin } from 'payload'
 
 import { S3Client } from '@aws-sdk/client-s3'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
@@ -64,29 +64,15 @@ const STORAGE_BACKENDS = {
 } as const
 
 /**
- * ⚠ The plugin stores an `_objectKey` column on every collection it manages
- * (3.90+) — but only when enabled, and it is disabled wherever the Cloudflare
- * credentials are absent: local dev, the test suite, and `migrate:create`. So
- * the schema those see lacked a column production's queries select, and every
- * upload on a Railway deploy failed with `column images._objectkey does not
- * exist`. Declaring it here keeps one schema whatever the credentials; an
- * enabled plugin swaps in its own identical definition.
+ * ⚠ `alwaysInsertFields` inserts upstream's own schema fields for exactly the
+ * slugs listed, so the credential-less branches must name the same ones as the
+ * enabled branch. Name fewer and local dev, the test suite and `migrate:create`
+ * emit a schema missing columns production selects — the defect #865 shipped.
+ * `adapter: null` asks for those fields without any of the upload machinery.
  */
-const withObjectKeyColumn = (config: Config): Config => ({
-  ...config,
-  collections: config.collections?.map((collection) => {
-    if (!(collection.slug in STORAGE_BACKENDS)) return collection
-    if (collection.fields.some((field) => 'name' in field && field.name === '_objectKey')) {
-      return collection
-    }
-    const objectKey: Field = {
-      name: '_objectKey',
-      type: 'text',
-      admin: { hidden: true, readOnly: true },
-    }
-    return { ...collection, fields: [...collection.fields, objectKey] }
-  }),
-})
+const SCHEMA_ONLY_COLLECTIONS = Object.fromEntries(
+  Object.keys(STORAGE_BACKENDS).map((slug) => [slug, { adapter: null }]),
+)
 
 /**
  * Create the storage configuration (Cloudflare Images/Stream + R2 over S3)
@@ -98,15 +84,16 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
   const { enabled = true } = options
 
   return (incomingConfig) => {
-    // Both transforms run above every return below, so the schema and the
-    // uploading notice do not depend on the credentials or on `enabled`.
-    const config = withUploadNotice(withObjectKeyColumn(incomingConfig))
+    // Runs above every return below, so the uploading notice does not depend
+    // on the credentials or on `enabled`.
+    const config = withUploadNotice(incomingConfig)
 
     // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
     if (!enabled) {
       return cloudStoragePlugin({
+        alwaysInsertFields: true,
         enabled: false,
-        collections: {},
+        collections: SCHEMA_ONLY_COLLECTIONS,
       })(config)
     }
 
@@ -134,8 +121,9 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
       !r2SecretAccessKey
     ) {
       return cloudStoragePlugin({
+        alwaysInsertFields: true,
         enabled: false, // Disables cloud storage, uses local file storage
-        collections: {},
+        collections: SCHEMA_ONLY_COLLECTIONS,
       })(config)
     }
 
@@ -212,6 +200,7 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
     }
 
     return cloudStoragePlugin({
+      alwaysInsertFields: true,
       enabled: true,
       collections: Object.fromEntries(
         Object.entries(STORAGE_BACKENDS).map(([slug, backend]) => [
