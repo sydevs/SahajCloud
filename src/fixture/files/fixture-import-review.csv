@@ -1,0 +1,7 @@
+title,eventType,country,city,address,postcode,date,startTime,endTime,recurrenceType,weekdays
+Fixture Reed Lane Sitting,offline,GB,Fixture Harbourton,22 Reed Lane,FX1 2AB,2026-12-03,19:00,20:00,WEEKLY,TH
+Fixture Mill Court Evening,offline,GB,Fixture Harbourton,5 Mill Court,FX1 3CD,2026-12-04,18:30,19:30,WEEKLY,FR
+Fixture Garden Morning,offline,GB,Fixture Harbourton,1 Garden Row,FX1 4EF,2026-12-05,10:00,11:00,WEEKLY,SA
+Fixture Lantern Hall Repeat,offline,GB,Fixture Harbourton,14 Blossom Lane,FX1 5GH,2026-12-04,19:30,20:30,WEEKLY,FR
+Fixture Moonrise Circle,offline,GB,Fixture Driftwood,7 Dock Street,FX9 9ZZ,2026-12-06,20:00,21:00,WEEKLY,SU
+Fixture Bad Time,offline,GB,Fixture Harbourton,2 Pine Close,FX1 6IJ,2026-12-07,25:00,26:00,WEEKLY,MO
