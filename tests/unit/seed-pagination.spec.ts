@@ -14,7 +14,8 @@ import { getDefaultBatchSize, validatePaginationParam } from '../../seeds/lib/pa
 
 /**
  * `preview-fixture` is the only script left that states collection floors, so
- * every case here reads its registry rather than a literal of its own.
+ * a case takes its floors from that registry — except where reading one back
+ * would bless the defect the case exists to catch, and the value is a literal.
  */
 const FIXTURE_COUNTS = getExpectedCounts('preview-fixture')
 
