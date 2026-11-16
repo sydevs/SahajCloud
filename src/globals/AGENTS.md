@@ -91,7 +91,7 @@ over REST: Payload hard-codes `context: {}` on every REST request.
 ⚠ **Every partial write to any of the three config globals must carry
 `availableLocales`.** Payload merges the stored value into the field's
 sibling data and validates it, so a `required` field with no stored value
-refuses a write that never mentioned it. `seeds/wemeditate/import.ts` and four
+refuses a write that never mentioned it. A seed importer and four
 integration suites each needed a line for this. `['en']` alone needs no
 `skipAvailableLocalesCheck` — the field returns early once the gated set is
 empty, above the check that reads stored data.

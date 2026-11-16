@@ -3,7 +3,7 @@
     "purpose": "The made-up content CI fills every preview of this repo with, so a reviewer opens a change's pages on data instead of empty lists.",
     "noRealPeople": "Every name is invented and every address ends in the reserved .invalid TLD, so a search for a surname or for gmail.com on a filled preview returns nothing.",
     "inactiveFalse": "Both events carry a real weekly schedule rather than `inactive: true`, because an event with no schedule shows nothing on the map, the calendar or the listing — which are the pages most changes here are about.",
-    "timezone": "Europe/London is in both the full IANA set production configures and the narrow 47-zone default the integration lane's schema push bakes in (seeds/atlas/AGENTS.md)."
+    "timezone": "Europe/London is in both the full IANA set production configures and the narrow 47-zone default the integration lane's schema push bakes in."
   },
   "managers": [
     {

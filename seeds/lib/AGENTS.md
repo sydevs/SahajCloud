@@ -91,60 +91,6 @@ const exists = await fileUtils.fileExists(path)
 const mime = fileUtils.getMimeType('audio.mp3') // 'audio/mpeg'
 ```
 
-### MediaUploader
-
-```typescript
-import { MediaUploader } from '../lib'
-const uploader = new MediaUploader(payload, logger)
-
-// Upload with deduplication by filename pattern
-const result = await uploader.uploadWithDeduplication(localPath, {
-  alt: 'Description',
-  credit: 'Photo by...',
-  tags: [tagId],
-  locale: 'en',
-})
-// Returns: { id, filename, wasReused } | null
-
-const stats = uploader.getStats() // { uploaded: number, reused: number }
-```
-
-### TagManager
-
-```typescript
-import { TagManager } from '../lib'
-const tagManager = new TagManager(payload, logger)
-
-// For user-choices and music-tags collections (require SVG icons)
-const tagId = await tagManager.ensureTag('user-choices', 'My Tag')
-
-// For image tags (now inline enum strings — pass a string array directly)
-await tagManager.addTagsToImage(imageId, ['thumbnail', 'meditation'])
-```
-
-### LexicalConverter
-
-```typescript
-import { convertEditorJSToLexical, ConversionContext } from '../lib'
-
-const context: ConversionContext = {
-  payload,
-  logger,
-  pageId: 123,
-  pageTitle: 'Home Page', // For error messages
-  locale: 'en',
-  mediaMap: new Map(), // image URL → Media ID
-  formMap: new Map(), // form type → Form ID
-  lectureMap: new Map(), // vimeo_id → Lecture ID
-  treatmentMap: new Map(), // treatment ID → Page ID
-  treatmentThumbnailMap: new Map(), // treatment ID → Media ID
-  meditationTitleMap: new Map(), // meditation title → Meditation ID
-  meditationRailsTitleMap: new Map(), // Rails meditation ID → title
-}
-
-const lexical = await convertEditorJSToLexical(editorJsContent, context)
-```
-
 ### CLI parser
 
 ```typescript
@@ -190,8 +136,8 @@ trashed row still occupies its natural key, so it must count as "exists" —
 otherwise `upsert` takes its `isPreloaded && !preloadedDoc` branch straight
 to `payload.create` (there is no fallback find) and duplicates the row on
 every re-seed. This was a live bug: `CleanupOrphanedMedia` trashes orphaned
-Files/Images, so a later `storyblok`/`meditations` run re-uploaded them.
-Guarded by `tests/int/seed-importer-preload.int.spec.ts`.
+Files/Images, so a later media-uploading run re-uploaded them. Guarded by
+`tests/int/seed-importer-preload.int.spec.ts`.
 
 Consequence worth knowing: **a deliberately-trashed doc is not re-created by
 a re-seed** — it is skipped (or updated, in `--update` mode). Permanently
@@ -200,16 +146,15 @@ delete it to force recreation.
 **A locale-filtered collection needs the `locale` argument.** Omit it and
 Payload resolves the default (`en`), so a collection whose `beforeOperation`
 hook appends a locale filter caches that one locale and every other reads as
-absent. `meditations` is the one here: `filterMeditationsByLocale`
+absent. `meditations` is such a collection: `filterMeditationsByLocale`
 (`src/collections/Meditations/hooks/`) filters every `find` and `count`. State
 the code even when it is the default, so a reader is not left deriving which
 rows a cache holds.
 
 Getting this wrong is quiet, not loud: a cache miss on a preloaded collection
-takes the same no-fallback-find path as a trashed row above, and `label` on
-`meditations` is not `unique`, so a re-seed creates a second row instead of
-erroring. The locale cases in `tests/int/seed-importer-preload.int.spec.ts`
-guard both directions.
+takes the same no-fallback-find path as a trashed row above, so a key that is
+not `unique` gets a second row rather than an error. The locale cases in
+`tests/int/seed-importer-preload.int.spec.ts` guard both directions.
 
 Two limits on the argument:
 
@@ -220,8 +165,8 @@ Two limits on the argument:
   arrives as a per-locale object, which is neither one key nor a usable set of
   them: collapsing it with `String()` collides every row, and merging the
   locales answers a `cs` existence question with an `en` row. The preload
-  refuses such a key and warns. `albums` and `songs` are preloaded by a
-  localized `title`, so they must name a locale.
+  refuses such a key and warns, so a collection keyed by a localized `title`
+  must name a locale.
 
 ### Pagination pattern
 
@@ -231,7 +176,7 @@ requests timing out:
 ```typescript
 protected async import(): Promise<void> {
   // Check if targeting a specific collection
-  if (!this.isCollectionTargeted('meditations')) {
+  if (!this.isCollectionTargeted('events')) {
     return  // Skip if not targeted
   }
 
@@ -246,7 +191,7 @@ protected async import(): Promise<void> {
 // Optional: override to rebuild ID maps for paginated runs
 protected async reconstructIdMaps(): Promise<void> {
   // Called automatically when isPaginated() is true, before import()
-  this.narratorIdMap = await this.reconstructIdMap('narrators', 'slug')
+  this.regionIdMap = await this.reconstructIdMap('regions', 'slug')
 }
 ```
 
@@ -262,7 +207,7 @@ protected async reconstructIdMaps(): Promise<void> {
 
 Two tiers:
 
-**Helper classes** (payloadHelpers, fileUtils, MediaUploader) — use
+**Helper classes** (`fileUtils`, and anything else taking a `Logger`) — use
 `logger.error()` to log without tracking, and return null/false on failure.
 The caller decides how to handle it.
 
@@ -317,10 +262,10 @@ const fileData: FileData = {
 1. Create `seeds/<name>/import.ts`.
 2. Extend `BaseImporter`.
 3. Implement `import()`.
-4. Add it to `VALID_SCRIPTS` and `SCRIPT_RUN_ORDER` in `seeds/run.ts`.
+4. Add it to `VALID_SCRIPTS` and `SCRIPT_DESCRIPTIONS` in `seeds/run.ts`,
+   and to `SCRIPT_RUN_ORDER` if a bare `pnpm seed` should run it.
 5. Register any committed data file in `dataFiles.ts` — see
    [seeds/AGENTS.md](../AGENTS.md#creating-a-new-seed-script).
-6. Add an npm script to `package.json`.
 
 ## File structure
 
@@ -336,11 +281,6 @@ lib/
 ├── fileUtils.ts         # File operations, MIME types
 ├── pagination.ts        # Pagination types, and the query-param validation
 ├── runtime.ts           # ArrayBuffer and Uint8Array to Buffer
-├── tagManager.ts        # Tag creation/management
-├── payloadHelpers.ts    # Common Payload operations
-├── mediaDownloader.ts   # Image download — no conversion, see the module header
-├── MediaUploader.ts     # Media upload with deduplication
-├── lexicalConverter.ts  # EditorJS → Lexical conversion
 ├── validationReport.ts  # Import statistics tracking
 ├── lib.test.ts          # The unit lane for this directory
 └── index.ts             # Barrel export

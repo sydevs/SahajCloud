@@ -3,9 +3,7 @@
  *
  * These started life as one-off regexes guarding the #605 grooming pass over the
  * 511 legacy Atlas listings. That pass was a migration; these are the same
- * judgements made permanent, so the Atlas sync's own data check
- * (`seeds/atlas/sync/check.ts`) imports them from here rather than keeping its
- * own copies to drift.
+ * judgements made permanent.
  */
 import { LOCALES } from '@/lib/locales'
 import { escapeRegExp } from '@/lib/utilities/escapeRegExp'

@@ -65,7 +65,7 @@ interface Fixture {
  * Every timestamp the fixture writes sits in one zone, and it must be one both
  * configurations hold: production configures the full IANA set, while the
  * integration lane's schema push bakes in Payload's narrow 47-zone default, so
- * an Atlas-style zone fails there with an enum error (`seeds/atlas/AGENTS.md`).
+ * an Atlas-style zone fails there with an enum error.
  */
 const TIMEZONE = 'Europe/London'
 
@@ -150,7 +150,7 @@ export class PreviewFixtureImporter extends BaseImporter<BaseImportOptions> {
       // `upsert` returns the data it was given rather than a document, so no id
       // is mapped and every child region's parent is unresolved — reported as
       // an error, that made `--dry-run` exit 1 with two defects that do not
-      // exist. `seeds/atlas/import.ts` warns here for the same reason.
+      // exist.
       const parentId = region.parent ? this.regions.get(region.parent) : undefined
       if (region.parent && parentId == null) {
         this.addWarning(`Region "${region.name}": parent ${region.parent} unresolved`)

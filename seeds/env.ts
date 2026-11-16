@@ -54,12 +54,6 @@ const SeedEnvSchema = z.object({
   CF_ACCESS_CLIENT_SECRET: emptyAsUndefined(z.string().min(1)),
 
   /**
-   * Storyblok CMS access token
-   * Only required for importing Path Steps from Storyblok
-   */
-  STORYBLOK_ACCESS_TOKEN: z.string().optional(),
-
-  /**
    * Cloudflare R2 S3-compatible access key ID
    * Only required for R2 reset scripts (S3 API compatibility)
    */
@@ -94,16 +88,6 @@ const SeedEnvSchema = z.object({
    * Target URL for seed operations
    */
   SAHAJCLOUD_URL: z.url().optional(),
-
-  /**
-   * Storage base URL
-   * Base URL for accessing uploaded media files
-   * Used for importing files from external sources
-   */
-  STORAGE_BASE_URL: z
-    .url()
-    .optional()
-    .default('https://storage.googleapis.com/media.sydevelopers.com'),
 })
 
 // Type inference for TypeScript

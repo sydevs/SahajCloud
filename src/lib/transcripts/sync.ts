@@ -95,7 +95,7 @@ export async function replaceTranscript(
  * `req.context.importedSegments`: cues that already exist for the recording
  * being uploaded. The Storyblok seed passes a Path Step's hand-made subtitles
  * this way, with the file's `spokenLanguage`, so the upload stores them rather
- * than paying for a run (`seeds/storyblok/import.ts`). Unreachable over REST,
+ * than paying for a run. Unreachable over REST,
  * where Payload hard-codes an empty `context`.
  */
 export const syncTranscriptOnSave =

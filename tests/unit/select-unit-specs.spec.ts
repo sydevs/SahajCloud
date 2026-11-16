@@ -178,8 +178,8 @@ describe('this repository', () => {
     expect(selectFrom('tests/utils/importGraph.ts', repo)).toContain(
       'tests/unit/client-bundle-safety.spec.ts',
     )
-    expect(selectFrom('seeds/meditation-transcripts/import.ts', repo)).toContain(
-      'tests/unit/meditation-transcripts-verify-run.spec.ts',
+    expect(selectFrom('seeds/wm-app-translations/lexicalConverter.ts', repo)).toContain(
+      'tests/unit/wm-app-translations-lexical.spec.ts',
     )
     expect(selectFrom('src/globals/WeMeditateAppStatus/statusConfig.json', repo)).toContain(
       'tests/unit/status-config-sync.spec.ts',

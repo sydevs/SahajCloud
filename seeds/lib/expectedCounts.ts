@@ -185,7 +185,7 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   // The empty array tells the runner there are no per-collection pagination
   // buckets or dependencies — the importer runs once, in bulk. `translations`
   // targets three PayloadCMS globals, not collections.
-  translations: []
+  translations: [],
 }
 
 export function getScriptMetadata(script: ScriptName): ScriptMetadata {

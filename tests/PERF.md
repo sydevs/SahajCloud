@@ -34,7 +34,7 @@ bump this file and the four docs above.
 time pnpm test:unit
 
 # One spec, cold
-time pnpm exec vitest run tests/unit/convert-vimeo.spec.ts --project unit --config ./vitest.config.mts
+time pnpm exec vitest run tests/unit/seed-pagination.spec.ts --project unit --config ./vitest.config.mts
 
 # What one edit costs, which Tier 1's target bounds: time the hook itself, since the
 # command it builds is the thing under budget. The second line lists what it selects.
