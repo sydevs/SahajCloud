@@ -59,7 +59,8 @@ One folder per scheduled job (`CleanupOrphanedMedia/`,
 folder (e.g. `CleanupOrphanedMedia/schemaUtils.ts`) and nothing outside it
 imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
 re-exports **only** the task definitions for `payload.config.ts`'s
-`jobs.tasks`.
+`jobs.tasks`. Each job's schedule and queue, and the traps in both, are in
+`src/jobs/AGENTS.md`.
 
 **A task's failure reaches Sentry once, on its final attempt**
 (`src/plugins/sentry/jobCapture.ts`), at `error`. When the task cannot do its

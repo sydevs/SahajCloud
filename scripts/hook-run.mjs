@@ -99,6 +99,10 @@ export function runForHook({
  * The whole of a `.claude/hooks/` entry point: reads the tool call, runs the hook, and returns the
  * JSON line to print. Unreadable input runs nothing; a hook that throws says so.
  *
+ * ⚠ **The hook runs against this file's own checkout, never `CLAUDE_PROJECT_DIR`.** A session
+ * started at the workspace root and working in a worktree has that naming the workspace, which
+ * holds no `node_modules` and none of the repo's paths.
+ *
  * @param {() => string} readInput
  * @param {(hook: { filePath?: string, projectDir?: string }) => string | null} runHook
  * @param {string} name
@@ -114,10 +118,7 @@ export function respond(readInput, runHook, name) {
 
   let message = null
   try {
-    message = runHook({
-      filePath: input?.tool_input?.file_path,
-      projectDir: process.env.CLAUDE_PROJECT_DIR || undefined,
-    })
+    message = runHook({ filePath: input?.tool_input?.file_path })
   } catch (error) {
     message = `The ${name} itself errored, so it did nothing: ${error?.message ?? error}`
   }

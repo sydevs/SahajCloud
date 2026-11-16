@@ -310,7 +310,7 @@ function lexicalBlocks(editor: unknown): Block[] {
   // shortcut: an empty answer means a blockless editor and a shape Payload has
   // moved alike, and the second un-protects every block reference silently.
   // Re-check on a @payloadcms/richtext-lexical upgrade, and in the `dryRun`
-  // review docs/architecture.md mandates before trusting a run.
+  // review src/jobs/AGENTS.md mandates before trusting a run.
   return blocksFeature?.sanitizedServerFeatureProps?.blocks ?? []
 }
 

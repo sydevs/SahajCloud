@@ -320,25 +320,6 @@ Do not reach for one as though a run had exercised it.
 `shortcut: an unexercised utility surface, to delete with the seed CLI or when
 a new importer picks one of them up again.`
 
-## File organization
-
-```
-seeds/
-├── translations/import.ts       # All three translation globals
-├── file-transcripts/import.ts   # Queue a transcript for every untranscribed file
-├── preview-fixture/             # A preview's content: import.ts + data.json
-├── wm-app-translations/         # Seed data + the Markdown → Lexical converter
-├── wm-web-translations/         # Seed data
-├── sy-atlas-translations/       # Seed data, one file per widget locale
-├── lib/                         # Shared importer utilities — see lib/AGENTS.md
-├── tests/                       # Integration specs — see tests/AGENTS.md
-├── cache/                       # Downloaded files (git-ignored, local dev only)
-├── env.ts                       # The seed CLI's own environment schema
-└── run.ts                       # CLI runner (HTTP client that calls the API endpoint)
-
-src/app/(payload)/api/seed/[script]/route.ts  # API route for post-deployment seeding
-```
-
 ## Troubleshooting
 
 **Script won't run** — check env vars (`echo $PAYLOAD_SECRET`) and run

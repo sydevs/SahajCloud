@@ -25,6 +25,12 @@ validation.
 | **Integration** | `tests/int/**/*.int.spec.ts`, `seeds/**/*.test.ts` | bootstrap-heavy per file (full-schema push. See `tests/PERF.md`)                                                               | Calls `createTestEnvironment()`, exercises hooks/access/virtual fields/relationships. Files run in parallel (`vitest.config.mts`). |
 | **Smoke (E2E)** | `tests/e2e/**/*.e2e.spec.ts`                       | Playwright (REST)                                                                                                              | Tier-3 smoke against the Railway PR preview (`pnpm test:smoke`). See below.                                                        |
 
+⚠ **Unit and int both run in `Asia/Tokyo`**, pinned by `sharedTestEnv` in `vitest.config.mts`.
+Production and CI are UTC, where code reading the host clock renders the same text an instant
+would — so the whole class of defect is invisible unless the lane sits somewhere else (#1158). An
+expected timestamp is therefore written as the UTC instant it should be, never copied from a run's
+own output.
+
 ### When to put a test in `tests/unit/`
 
 Put it there when it has no `createTestEnvironment()` call, doesn't touch

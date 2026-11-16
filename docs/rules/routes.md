@@ -72,7 +72,7 @@ Never call `request.json()` and then re-serialize the result. `JSON.stringify` d
 
 ## Payload endpoint vs Next.js route
 
-See `docs/rules/endpoints.md` ("Root-level endpoints") and `docs/architecture.md` → "Custom Endpoints" for the full decision matrix. In short:
+See `docs/rules/endpoints.md` ("Root-level endpoints", and "The custom endpoints this app serves") for the full decision matrix. In short:
 
 - **Payload endpoint** (`src/collections/<Name>/endpoints/*.ts`): an operation tied to one collection, such as `/api/frames/by-narrator/:id`. Register it on that collection's `endpoints` array. Payload supplies `req.payload` automatically.
 - **Next.js route** (`src/app/(payload)/api/**/route.ts`): a webhook, a health check, OpenAPI spec generation, a seed trigger, or anything not scoped to one collection.

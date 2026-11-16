@@ -267,22 +267,3 @@ const fileData: FileData = {
    and to `SCRIPT_RUN_ORDER` if a bare `pnpm seed` should run it.
 5. Register any committed data file in `dataFiles.ts` — see
    [seeds/AGENTS.md](../AGENTS.md#creating-a-new-seed-script).
-
-## File structure
-
-```
-lib/
-├── BaseImporter.ts      # Abstract base class
-├── cliParser.ts         # CLI argument parsing
-├── dataFiles.ts         # Every committed data-file path, and what uploads it
-├── dataLoader.ts        # Data-file reads, and asset fetch with a disk cache
-├── delays.ts            # Rate-limit delay, and retry with exponential backoff
-├── expectedCounts.ts    # Each script's count floors, and what each was derived from
-├── logger.ts            # Colored console logging
-├── fileUtils.ts         # File operations, MIME types
-├── pagination.ts        # Pagination types, and the query-param validation
-├── runtime.ts           # ArrayBuffer and Uint8Array to Buffer
-├── validationReport.ts  # Import statistics tracking
-├── lib.test.ts          # The unit lane for this directory
-└── index.ts             # Barrel export
-```
