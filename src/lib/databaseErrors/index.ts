@@ -16,7 +16,7 @@
  * error is a caller's mistake before reporting an incident, and a custom endpoint that
  * catches its own errors calls it directly. The reasoning — why the error is matched
  * rather than the query pre-validated, and what the seam does and does not reach — is in
- * `docs/architecture.md`; the decision that `lesson` (not `Path`) is the in-code name is
+ * `src/plugins/sentry/AGENTS.md`; the decision that `lesson` (not `Path`) is the in-code name is
  * on sydevs/SahajCloud#670.
  */
 

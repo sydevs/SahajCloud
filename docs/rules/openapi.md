@@ -8,18 +8,6 @@ paths:
 
 Interactive REST API docs combine [`payload-oapi`](https://github.com/janbuchar/payload-oapi) for spec generation with a custom Scalar plugin for the UI.
 
-## Module layout
-
-```
-src/plugins/openapi/
-├── index.ts                       # barrel export
-├── scalarPlugin.ts                # custom Scalar plugin with branding + project selector
-├── specFilter.ts                  # filtering + post-merge parameter injection + `rootEndpointPathsFrom`
-├── customEndpoints.ts             # hand-authored shim for custom collection endpoints
-├── rateLimitingDocs.ts            # X-User-ID header parameter definition
-└── clientReadParametersDocs.ts    # select / populate / depth / limit / page param definitions
-```
-
 ## Endpoints
 
 | Endpoint                              | Description                                    |

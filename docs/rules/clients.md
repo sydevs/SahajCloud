@@ -212,7 +212,7 @@ delivering nothing. So a removal clears the provider in the same save.
 
 ⚠ **Form state is why, not tidiness.** Payload's live preview posts the whole edit form's state to
 the preview iframe on every change, so a key in form state would reach sahajatlas.com
-(`docs/rules/admin-ui.md`). Keeping it out is what lets the Clients preview exist at all.
+(`docs/rules/admin-config.md`). Keeping it out is what lets the Clients preview exist at all.
 
 **Credentials are checked when you save them**, by `validateMailingList`, which reads the named list and refuses the save with the provider's own words. Two bounds on that:
 

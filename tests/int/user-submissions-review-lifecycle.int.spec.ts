@@ -518,7 +518,7 @@ describe('User submission review lifecycle', () => {
      * ⚠ **The coupling the viewer gate exists for.** A button is an offer and
      * the server owes its own guard, so a move only an admin may make must not
      * be offered through a rule every reviewer matches — that is a control which
-     * can only answer 403 (`docs/rules/admin-ui.md`). This reviewer holds the
+     * can only answer 403 (`src/components/admin/WorkflowButtons/AGENTS.md`). This reviewer holds the
      * grant and is not an admin, so the only thing left for the machine to
      * refuse is the authority the rule failed to name.
      */

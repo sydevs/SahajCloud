@@ -27,7 +27,7 @@ export const Users: CollectionConfig = {
     // where a reader looks for who wrote in.
     useAsTitle: 'email',
     defaultColumns: ['email', 'name', 'blockedAt'],
-    // ⚠ No `hidden` key, deliberately: `accessPlugin` derives it (docs/rules/admin-ui.md)
+    // ⚠ No `hidden` key, deliberately: `accessPlugin` derives it (docs/rules/admin-config.md)
     components: {
       edit: {
         beforeDocumentControls: [{ path: BLOCK_BUTTON, clientProps: { source: 'users' } }],
