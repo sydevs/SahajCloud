@@ -132,6 +132,7 @@ import * as migration_20261112_184359_file_transcripts_replace_intro_subtitles f
 import * as migration_20261112_211802_drop_mailing_list_enabled from './20261112_211802_drop_mailing_list_enabled';
 import * as migration_20261112_213652_files_spoken_language from './20261112_213652_files_spoken_language';
 import * as migration_20261112_234150_merge_main_snapshot_9 from './20261112_234150_merge_main_snapshot_9';
+import * as migration_20261115_184420_payload_3_92 from './20261115_184420_payload_3_92';
 
 export const migrations = [
   {
@@ -802,6 +803,11 @@ export const migrations = [
   {
     up: migration_20261112_234150_merge_main_snapshot_9.up,
     down: migration_20261112_234150_merge_main_snapshot_9.down,
-    name: '20261112_234150_merge_main_snapshot_9'
+    name: '20261112_234150_merge_main_snapshot_9',
+  },
+  {
+    up: migration_20261115_184420_payload_3_92.up,
+    down: migration_20261115_184420_payload_3_92.down,
+    name: '20261115_184420_payload_3_92'
   },
 ];
