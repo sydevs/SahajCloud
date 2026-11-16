@@ -137,11 +137,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/payload-types-gen.mjs"
+            "command": "r=$CLAUDE_PROJECT_DIR; [ -f \"$r/.claude/hooks/payload-types-gen.mjs\" ] || r=$(git rev-parse --show-toplevel); exec \"$r/.claude/hooks/payload-types-gen.mjs\""
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/unit-test.mjs"
+            "command": "r=$CLAUDE_PROJECT_DIR; [ -f \"$r/.claude/hooks/unit-test.mjs\" ] || r=$(git rev-parse --show-toplevel); exec \"$r/.claude/hooks/unit-test.mjs\""
           }
         ]
       }
