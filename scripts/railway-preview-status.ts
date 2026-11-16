@@ -296,3 +296,65 @@ export async function pollHealth(deps: HealthDeps): Promise<HealthOutcome> {
 
   return lastHealthy ?? 'silent'
 }
+
+/**
+ * How the preview's fixture load ended, read off `/api/health` (#1168).
+ *
+ * `loaded` and `failed` are the load's own answers. `off` means the preview
+ * decided not to load at all, which on a preview is a gate that went wrong, and
+ * `fieldless` a build older than the field. `loading` at the deadline is a load
+ * that never ended, and `silent` a host that never answered.
+ */
+export type FixtureOutcome = 'failed' | 'fieldless' | 'loaded' | 'loading' | 'off' | 'silent'
+
+export const FIXTURE_ERRORS: Record<Exclude<FixtureOutcome, 'loaded'>, string> = {
+  failed:
+    '::error title=The preview fixture failed to load::`/api/health` reports `fixture: failed`. ' +
+    'The deploy log names each row Payload refused, as `[fixture] <collection> <id> failed to ' +
+    'load`. Fix the entry under `src/fixture/` and push.',
+  fieldless:
+    '::error title=The preview reports no fixture::`/api/health` has no `fixture` field, so the ' +
+    'build predates the boot-time fixture. Merge the base branch into this one and push.',
+  loading:
+    '::error title=The preview fixture never finished loading::`/api/health` still reports ' +
+    '`fixture: loading` at the deadline. Read the deploy log for the `[fixture]` lines: a load ' +
+    'that hangs is waiting on the database or its advisory lock.',
+  off:
+    '::error title=The preview did not load its fixture::`/api/health` reports `fixture: off`, ' +
+    'so the loader decided this deploy is production or a test lane. Check `fixtureGate` ' +
+    '(`src/fixture/gate.ts`) against the environment Railway gave this preview.',
+  silent:
+    '::error title=The preview stopped answering::`/api/health` answered nothing while the ' +
+    "fixture loaded. Read the PR environment's deploy logs in Railway.",
+}
+
+export type FixtureDeps = Omit<HealthDeps, 'expectedSha'>
+
+/** Poll until the preview's fixture load ends, or the deadline passes. */
+export async function pollFixture(deps: FixtureDeps): Promise<FixtureOutcome> {
+  const { fetchHealth, timeoutMs, pollIntervalMs, sleep, now, log } = deps
+  const deadline = now() + timeoutMs
+  let attempt = 0
+  let last: FixtureOutcome = 'silent'
+
+  while (now() < deadline) {
+    attempt++
+    try {
+      const body = await fetchHealth()
+      const fixture = isRecord(body) ? body.fixture : undefined
+      if (fixture === 'loaded' || fixture === 'failed' || fixture === 'off') {
+        log(`fixture ${fixture} after ${attempt} attempt(s)`)
+        return fixture
+      }
+      last = fixture === 'loading' ? 'loading' : 'fieldless'
+      log(`fixture attempt ${attempt}: ${String(fixture ?? 'no field')}`)
+    } catch (err) {
+      log(`fixture attempt ${attempt}: ${(err as Error).message}`)
+    }
+    const remaining = deadline - now()
+    if (remaining <= 0) break
+    await sleep(Math.min(pollIntervalMs, remaining))
+  }
+
+  return last
+}

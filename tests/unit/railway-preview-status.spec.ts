@@ -4,6 +4,7 @@ import {
   classifyStatuses,
   discoverPreview,
   HEALTH_ERRORS,
+  pollFixture,
   pollHealth,
   servingVerdict,
   StatusFetchError,
@@ -359,5 +360,44 @@ describe('pollHealth', () => {
     const h = healthHarness([{ commit: EARLIER_SHA }], 40_000)
     await expect(h.run()).resolves.toBe('behind')
     expect(h.sleep.mock.calls.map(([ms]) => ms)).toEqual([15_000, 15_000, 10_000])
+  })
+})
+
+describe('pollFixture', () => {
+  const run = (answers: unknown[]) => {
+    let clock = 0
+    let call = 0
+    const fetchHealth = vi.fn(async () => {
+      const answer = answers[Math.min(call++, answers.length - 1)]
+      if (answer instanceof Error) throw answer
+      return answer
+    })
+    const outcome = pollFixture({
+      fetchHealth,
+      timeoutMs: 60_000,
+      pollIntervalMs: 10_000,
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+      log: () => {},
+    })
+    return { outcome, fetchHealth }
+  }
+
+  it('waits a load out until it ends', async () => {
+    const h = run([{ fixture: 'loading' }, new Error('HTTP 502'), { fixture: 'loaded' }])
+    await expect(h.outcome).resolves.toBe('loaded')
+    expect(h.fetchHealth).toHaveBeenCalledTimes(3)
+  })
+
+  it.each(['failed', 'off'] as const)('ends at once on %s', async (fixture) => {
+    await expect(run([{ fixture }]).outcome).resolves.toBe(fixture)
+  })
+
+  it('names a load still running at the deadline, a build with no field, and silence apart', async () => {
+    await expect(run([{ fixture: 'loading' }]).outcome).resolves.toBe('loading')
+    await expect(run([{ status: 'ok' }]).outcome).resolves.toBe('fieldless')
+    await expect(run([new Error('HTTP 502')]).outcome).resolves.toBe('silent')
   })
 })

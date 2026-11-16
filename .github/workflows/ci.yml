@@ -105,25 +105,25 @@ jobs:
             --host '${{ steps.preview.outputs.preview_url }}')"
           echo "fixed_url=$url" >> "$GITHUB_OUTPUT"
 
-      # Fill the preview with the committed fixture, so every page a reviewer
-      # opens has content on it.
+      # Wait for the preview to load its committed fixture (`src/fixture/`),
+      # which it does into itself at boot, so every page a reviewer opens has
+      # content on it.
       #
-      # ⚠ It goes RED on failure, and that is the point (#1073): a change used
-      # to be allowed to admit "Data: not seeded" in a line of its description,
-      # and every check accepted the line. A PR with no preview at all still
-      # only warns, above — this step is skipped there.
+      # ⚠ It goes RED when the load fails or never ends, and that is the point
+      # (#1073, #1168): a change used to be allowed to admit "Data: not seeded"
+      # in a line of its description, and every check accepted the line. A PR
+      # with no preview at all still only warns, above — this step is skipped
+      # there.
       #
       # ⚠ Never split this into a job of its own. A new job is a new check name
       # no ruleset requires, the merge gate reads SKIPPED as OK, and
       # sydevs/SahajCloud#903 forbids renaming a required check — so a split
       # would leave this unenforced at the gate.
-      - name: Fill the preview with the fixture
+      - name: Wait for the preview's fixture
         if: ${{ steps.address.outputs.fixed_url != '' }}
         env:
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
-          SAHAJCLOUD_URL: ${{ steps.address.outputs.fixed_url }}
-        run: pnpm seed preview-fixture
+          PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+        run: pnpm tsx scripts/wait-preview-fixture.ts
 
       - name: Run smoke specs against the preview
         if: ${{ steps.address.outputs.fixed_url != '' }}
