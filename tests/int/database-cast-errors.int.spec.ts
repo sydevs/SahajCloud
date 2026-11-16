@@ -81,15 +81,15 @@ describe('Postgres cast failures (SQLSTATE 22P02)', () => {
     // `invalid input syntax for type integer: "NaN"`. The id reaches the query
     // as NaN, which is what Postgres refuses.
     //
-    // ⚠ The slug itself is NOT the way in through the local API — measured, not
-    // assumed: `findByID({ id: 'daily_fallback_shri_mataji_clip' })` throws
-    // Payload's own `NotFound` (404) before any SQL runs. Only the numeric NaN
-    // reaches Postgres, so that is what this asserts. The coercion in front of
-    // it belongs to the REST layer this lane cannot drive.
+    // ⚠ Neither the slug nor `findByID` is the way in through the local API — measured,
+    // not assumed: `findByID({ id: NaN })` throws Payload's own `NotFound` before any SQL
+    // runs since 3.92, which added an `isValidID` guard to it (and `findByID` with the slug
+    // always did). A `where` on `id` skips that guard, so the numeric NaN still reaches
+    // Postgres. The coercion in front of it belongs to the REST layer this lane cannot drive.
     const error = await thrownBy(() =>
-      payload.findByID({
+      payload.find({
         collection: 'lectures',
-        id: NaN as unknown as number,
+        where: { id: { equals: NaN as unknown as number } },
       }),
     )
 

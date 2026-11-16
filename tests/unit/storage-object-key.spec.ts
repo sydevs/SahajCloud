@@ -63,6 +63,12 @@ async function objectKeyFields(
   )
 }
 
+/** A field without its `admin` block, which never reaches the database schema. */
+const schemaOf = (field: Field) => {
+  const { admin: _admin, ...rest } = field as Field & { admin?: unknown }
+  return rest
+}
+
 afterEach(() => {
   for (const key of Object.keys(CREDENTIALS)) delete env[key]
 })
@@ -84,7 +90,12 @@ describe('storagePlugin _objectKey', () => {
 
     for (const slug of STORAGE_SLUGS) {
       expect(withCredentials.get(slug), slug).toHaveLength(1)
-      expect(withCredentials.get(slug), slug).toEqual(withoutCredentials.get(slug))
+      // Compare what shapes the column, not `admin`: since Payload 3.92 the enabled
+      // plugin's own definition carries extra admin flags (`disableBulkEdit`, …)
+      // that change no column, and so no migration.
+      expect(withCredentials.get(slug)?.map(schemaOf), slug).toEqual(
+        withoutCredentials.get(slug)?.map(schemaOf),
+      )
     }
     expect(withCredentials.get('pages')).toHaveLength(0)
   })
