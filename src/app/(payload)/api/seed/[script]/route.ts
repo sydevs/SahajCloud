@@ -44,7 +44,7 @@ import {
 } from '../../../../../../seeds/lib/pagination'
 
 // Every script, read off a table typed `Record<ScriptName, …>`, so a new script
-// cannot be left out here the way one of them first was.
+// cannot be left out here.
 const VALID_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 
 /**
