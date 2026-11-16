@@ -113,15 +113,15 @@ App service → **Settings → Region**: pick one close to your users (`us-west`
 
 ### 7. Set the deploy settings
 
-App service → **Settings**: builder **Railpack**, start command `pnpm start`, healthcheck path
-`/api/health` with a 300-second timeout, restart policy **On failure** with 3 retries. They live
-on the service, not in the repository — see
-[DEPLOYMENT.md § Infrastructure Overview](./DEPLOYMENT.md#infrastructure-overview).
+App service → **Settings**: set the builder, start command, healthcheck and restart policy to
+the values in
+[DEPLOYMENT.md § Infrastructure Overview](./DEPLOYMENT.md#infrastructure-overview). They live on
+the service, not in the repository.
 
-Railpack detects Node.js and builds with `pnpm build`. Railway polls the healthcheck path for up
-to the timeout before it calls the deploy unhealthy, then retries a failed start up to 3 times.
-Migrations need no `preDeployCommand` — Payload's `prodMigrations` hook applies them in-process
-on boot (see DEPLOYMENT.md).
+The builder detects Node.js and builds with `pnpm build`. Railway polls the healthcheck path for
+up to its timeout before it calls the deploy unhealthy, then retries a failed start up to the
+restart policy's limit. Migrations need no `preDeployCommand` — Payload's `prodMigrations` hook
+applies them in-process on boot (see DEPLOYMENT.md).
 
 Once every variable is set, the project is ready to deploy: push to the configured branch.
 
