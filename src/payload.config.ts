@@ -197,7 +197,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     endpoints: [...rootEndpoints],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
-    // src/app/(payload)/api/[[...slug]]/route.ts for the REST handler).
+    // src/app/(payload)/api/[...slug]/route.ts for the REST handler).
     // Disabling here keeps the GraphQL schema-building cost out of Payload's
     // bootstrap and avoids bundling @payloadcms/graphql / graphql into the
     // server bundle.
