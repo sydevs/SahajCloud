@@ -26,7 +26,7 @@ R2 uses the S3-compatible API (`@aws-sdk/client-s3`) with `R2_BUCKET`, `R2_ACCES
 
 Cloudflare Images and Stream are account-scoped, and R2 is one shared bucket, so **every deployment — production, Railway PR previews, staging, dev — reads and writes the same namespaces.** Without a guard, a preview deploy could upload into the prod namespace, or worse, **delete a production asset** (#432).
 
-⚠ **A preview database holds no production rows, and this paragraph is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied and no content rows at all. The guard still matters — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it, so the claim lives in one place.
+⚠ **A preview database holds no production rows, and this paragraph is the one statement of that fact** (#704). Railway forks service configuration and variables, never volume data: a PR environment boots with migrations applied, then loads the invented fixture under `src/fixture/` into itself (#1168). The guard still matters — a preview reaches a production asset ID by any route other than its own database (a key typed, pasted, restored from a dump, or a future seed), and the guard makes that harmless rather than merely unlikely. Cite this paragraph rather than restating it, so the claim lives in one place.
 
 `previewIsolation.ts` fixes this by namespacing within the single account, and is a **no-op in production**:
 
