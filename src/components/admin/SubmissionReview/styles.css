@@ -179,6 +179,16 @@
   color: var(--theme-elevation-600);
 }
 
+/* Stacked, the cell is the whole row, and a long question sized to its own
+   content would carry past the edge of a phone. Lifted inside the wrapper's own
+   query rather than scoped to the other side of it, so no fractional viewport
+   width falls between the two. */
+@media (max-width: 700px) {
+  .submission-data__key {
+    max-width: 100%;
+  }
+}
+
 .submission-data__value {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -2,10 +2,9 @@
 
 import type { Milestone, MilestoneState } from './installModel'
 
-import { Table } from '@payloadcms/ui'
 import React from 'react'
 
-import { tableColumn } from '@/components/admin/helpers/tableColumn'
+import { StackedTable } from '@/components/admin/helpers/stackedTable'
 import type { Tone } from '@/components/admin/helpers/tones'
 import type { NumberBadgeFill } from '@/components/admin/NumberBadge'
 import { NumberBadge } from '@/components/admin/NumberBadge'
@@ -31,13 +30,12 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
   return (
     <div className={styles.progress}>
       <InstallProgressBar milestones={milestones} />
-      <Table
+      <StackedTable
         appearance="condensed"
         columns={[
-          tableColumn(
-            'milestone',
-            'Milestone',
-            milestones.map((milestone, index) => (
+          {
+            accessor: 'milestone',
+            cells: milestones.map((milestone, index) => (
               <span className={styles.milestone} key={milestone.id}>
                 <NumberBadge
                   fill={STATE_LOOK[milestone.state].fill}
@@ -58,18 +56,19 @@ export function InstallProgress({ milestones }: { milestones: Milestone[] }): Re
                 </span>
               </span>
             )),
-          ),
-          tableColumn(
-            'status',
-            'Status',
-            milestones.map((milestone) => (
+            heading: 'Milestone',
+          },
+          {
+            accessor: 'status',
+            cells: milestones.map((milestone) => (
               <span className={STATE_LOOK[milestone.state].status} key={milestone.id}>
                 {milestone.status}
               </span>
             )),
-          ),
+            heading: 'Status',
+          },
         ]}
-        data={milestones.map((milestone) => ({ id: milestone.id }))}
+        rows={milestones.map((milestone) => ({ id: milestone.id }))}
       />
     </div>
   )

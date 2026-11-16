@@ -9,7 +9,7 @@
 .name {
   font-weight: 550;
 }
-.stacked small {
+.lines small {
   display: block;
   margin-top: calc(var(--base) / 8);
   color: var(--theme-elevation-650);
@@ -19,6 +19,14 @@
      than letting one reply stretch the table past the viewport. */
   max-width: calc(var(--base) * 18);
   margin: 0;
+}
+/* Stacked, the cell is the whole row, and 360px is what would overflow a phone
+   instead. Lifted inside the wrapper's own query rather than scoped to the
+   other side of it, so no fractional viewport width falls between the two. */
+@media (max-width: 700px) {
+  .answers {
+    max-width: none;
+  }
 }
 .answers dt {
   color: var(--theme-elevation-650);
