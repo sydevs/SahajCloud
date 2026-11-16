@@ -62,5 +62,8 @@ jobs:
           echo "Deploying ${GITHUB_SHA} (preview-proxy/)"
           args=""
           if [ "$DRY_RUN" = "true" ]; then args="--dry-run --outdir $RUNNER_TEMP/preview-proxy-build"; fi
+          # Pinned exact, not a `@4` range: this Worker gates every preview, so whichever 4.x
+          # shipped that morning must not be able to deploy it alone, and the run log says which
+          # wrangler ran. Bump it here, deliberately.
           # shellcheck disable=SC2086
-          pnpm dlx wrangler@4 deploy --config preview-proxy/wrangler.jsonc $args
+          pnpm dlx wrangler@4.162.0 deploy --config preview-proxy/wrangler.jsonc $args
