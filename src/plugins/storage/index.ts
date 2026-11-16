@@ -5,8 +5,9 @@
  * for PayloadCMS upload collections.
  */
 
-// Storage plugin (default export)
-export { storagePlugin } from './storagePlugin'
+// Storage plugin (default export). `STORAGE_BACKENDS` is the slug registry all
+// three of its branches derive their `collections` map from.
+export { storagePlugin, STORAGE_BACKENDS } from './storagePlugin'
 export { storagePlugin as default } from './storagePlugin'
 
 // Upload size ceilings. The 413 naming them is `@/plugins/uploadErrors`

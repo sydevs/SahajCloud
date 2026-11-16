@@ -52,7 +52,7 @@ const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
  * `mixed` routes by MIME type: Images for images, Stream for video, R2 for the
  * rest. SVG tag icons go to R2 because Cloudflare Images can't serve SVG.
  */
-const STORAGE_BACKENDS = {
+export const STORAGE_BACKENDS = {
   images: 'images',
   frames: 'mixed',
   videos: 'stream',
@@ -64,11 +64,10 @@ const STORAGE_BACKENDS = {
 } as const
 
 /**
- * ⚠ `alwaysInsertFields` inserts upstream's own schema fields for exactly the
- * slugs listed, so the credential-less branches must name the same ones as the
- * enabled branch. Name fewer and local dev, the test suite and `migrate:create`
- * emit a schema missing columns production selects — the defect #865 shipped.
- * `adapter: null` asks for those fields without any of the upload machinery.
+ * ⚠ `alwaysInsertFields` inserts upstream's own fields for exactly the slugs
+ * listed, so every branch must name the same ones — or local dev, the tests and
+ * `migrate:create` emit a schema missing columns production selects (#865).
+ * `adapter: null` is how a slug asks for those fields with no upload machinery.
  */
 const SCHEMA_ONLY_COLLECTIONS = Object.fromEntries(
   Object.keys(STORAGE_BACKENDS).map((slug) => [slug, { adapter: null }]),
