@@ -42,19 +42,25 @@ project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY
 
 **Health Check**: Railway pings `/api/health` during a deploy. Startup takes about 5–10 seconds after the container starts.
 
-**railway.toml**:
+**Service settings** live on the Railway service (dashboard → SahajCloud → Settings), not in this
+repository:
 
-```toml
-[build]
-builder = "RAILPACK"
+| Setting             | Value                 |
+| ------------------- | --------------------- |
+| Builder             | Railpack              |
+| Start command       | `pnpm start`          |
+| Healthcheck path    | `/api/health`         |
+| Healthcheck timeout | 300 s                 |
+| Restart policy      | On failure, 3 retries |
 
-[deploy]
-startCommand = "pnpm start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-```
+⚠ **Change them on production.** A PR environment copies production's settings when Railway
+creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
+a new container before its boot-time migrations finish.
+
+`railway.toml` carried these until 2026-11. Railway stops reading Config as Code files on
+2026-12-01, and its replacement, `.railway/railway.ts`, is not read on deploy: a CLI or CI job
+applies it, and an apply deletes what the file leaves out. With one service to configure, that
+was not worth adopting.
 
 Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
 `next.config.ts`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
