@@ -7,8 +7,7 @@ import { useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
  * not offered: an unsaved region nothing can target, a venue with no cities to
  * file under, or a manager who cannot create an import.
  *
- * Two surfaces offer it — the Events tab's heading, which a country and a
- * region no longer render, and the edit menu, which every level does — so the
+ * Two surfaces offer it — the Events tab's heading and the edit menu — so the
  * answer belongs to neither.
  */
 export const useImportClassesTarget = (): string | null => {
