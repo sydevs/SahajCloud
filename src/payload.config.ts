@@ -189,6 +189,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // `docs/rules/endpoints.md`. The OpenAPI spec derives its root-path
     // exemption from this array (`rootEndpointPathsFrom`), so registering here
     // is all it takes to keep `/api/docs` honest.
+    // ⚠ The copy is load-bearing. `sanitizeConfig` pushes Payload's own auth
+    // root endpoints onto this array in place, so passing `rootEndpoints`
+    // itself would grow the exported constant at boot — and that constant is
+    // what `openapi-endpoint-coverage.spec.ts` reads as the list this repo
+    // declares.
     endpoints: [...rootEndpoints],
     editor: lexicalEditor(),
     // GraphQL is disabled — this project exposes a REST-only API (see
