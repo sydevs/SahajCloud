@@ -11,7 +11,8 @@
  * Automatically falls back to local file storage in development when the
  * storage credentials are not configured.
  */
-import type { Plugin } from 'payload'
+import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
+import type { Config, Plugin } from 'payload'
 
 import { S3Client } from '@aws-sdk/client-s3'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
@@ -38,6 +39,13 @@ const r2FilenameHooks = {
   'other-only': createR2FilenameBeforeOperationHook('other-only'),
 }
 
+/**
+ * ⚠️ When adding/removing an R2-backed collection in `STORAGE_BACKENDS`, also
+ * update this map. The two registries must stay in sync: a collection that
+ * uses the R2 adapter (directly or via mixedMediaAdapter for non-image/video
+ * files) without an entry here will skip the preassignment hook and
+ * reintroduce the DB↔R2 filename drift that this module exists to prevent.
+ */
 const r2FilenameHookModes: Record<string, keyof typeof r2FilenameHooks> = {
   frames: 'other-only',
   files: 'other-only',
@@ -63,15 +71,95 @@ export const STORAGE_BACKENDS = {
   files: 'mixed',
 } as const
 
+type StorageAdapters = Record<(typeof STORAGE_BACKENDS)[keyof typeof STORAGE_BACKENDS], Adapter>
+
 /**
- * ⚠ `alwaysInsertFields` inserts upstream's own fields for exactly the slugs
- * listed, so every branch must name the same ones — or local dev, the tests and
- * `migrate:create` emit a schema missing columns production selects (#865).
- * `adapter: null` is how a slug asks for those fields with no upload machinery.
+ * The adapters for every backend, or `null` when any credential is missing —
+ * local dev, the test suite and `migrate:create`, which keep local file storage.
  */
-const SCHEMA_ONLY_COLLECTIONS = Object.fromEntries(
-  Object.keys(STORAGE_BACKENDS).map((slug) => [slug, { adapter: null }]),
-)
+const createStorageAdapters = (): StorageAdapters | null => {
+  // Images/Stream use the Cloudflare HTTPS APIs; R2 uses the S3-compatible API.
+  const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
+  const apiKey = serverEnv.CLOUDFLARE_API_KEY
+  const imagesDeliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
+  const streamDeliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
+  const r2Bucket = serverEnv.R2_BUCKET
+  const r2AccessKeyId = serverEnv.R2_ACCESS_KEY_ID
+  const r2SecretAccessKey = serverEnv.R2_SECRET_ACCESS_KEY
+
+  if (
+    !accountId ||
+    !apiKey ||
+    !imagesDeliveryUrl ||
+    !streamDeliveryUrl ||
+    !r2Bucket ||
+    !r2AccessKeyId ||
+    !r2SecretAccessKey
+  ) {
+    return null
+  }
+
+  const imagesAdapter = cloudflareImagesAdapter({
+    accountId,
+    apiKey,
+    deliveryUrl: imagesDeliveryUrl,
+  })
+
+  const streamAdapter = cloudflareStreamAdapter({
+    accountId,
+    apiKey,
+    deliveryUrl: streamDeliveryUrl,
+  })
+
+  // R2 over the S3-compatible API. Defaults to the account-derived endpoint
+  // (https://<accountId>.r2.cloudflarestorage.com); a jurisdiction-specific
+  // bucket (e.g. EU → https://<accountId>.eu.r2.cloudflarestorage.com) must set
+  // R2_S3_ENDPOINT. The native R2 binding hid this; the S3 API needs the exact
+  // endpoint or it can't find the bucket.
+  const r2Client = new S3Client({
+    region: 'auto',
+    endpoint: serverEnv.R2_S3_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey },
+  })
+
+  // Note: CLOUDFLARE_R2_DELIVERY_URL may be undefined in development, falling
+  // back to empty string; the adapter handles empty publicUrl gracefully.
+  const r2Adapter = r2NativeAdapter({
+    client: r2Client,
+    bucket: r2Bucket,
+    publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
+  })
+
+  return {
+    images: imagesAdapter,
+    stream: streamAdapter,
+    r2: r2Adapter,
+    mixed: mixedMediaAdapter({
+      routes: {
+        'image/': imagesAdapter,
+        'video/': streamAdapter,
+      },
+      r2Adapter: r2Adapter,
+    }),
+  }
+}
+
+/** Pre-assigns the final R2 key, on every collection the R2 adapter can reach. */
+const withR2FilenameHooks = (config: Config): Config => ({
+  ...config,
+  collections: config.collections?.map((collection) => {
+    const mode = r2FilenameHookModes[collection.slug]
+    if (!mode) return collection
+
+    return {
+      ...collection,
+      hooks: {
+        ...collection.hooks,
+        beforeOperation: [...(collection.hooks?.beforeOperation ?? []), r2FilenameHooks[mode]],
+      },
+    }
+  }),
+})
 
 /**
  * Create the storage configuration (Cloudflare Images/Stream + R2 over S3)
@@ -83,134 +171,31 @@ export const storagePlugin = (options: StoragePluginOptions = {}): Plugin => {
   const { enabled = true } = options
 
   return (incomingConfig) => {
-    // Runs above every return below, so the uploading notice does not depend
-    // on the credentials or on `enabled`.
+    // Runs above the return, so the uploading notice does not depend on the
+    // credentials or on `enabled`.
     const config = withUploadNotice(incomingConfig)
-
-    // Early return if plugin is disabled - use cloudStoragePlugin for consistent behavior
-    if (!enabled) {
-      return cloudStoragePlugin({
-        alwaysInsertFields: true,
-        enabled: false,
-        collections: SCHEMA_ONLY_COLLECTIONS,
-      })(config)
-    }
-
-    // Extract and validate credentials from validated env. Images/Stream use the
-    // Cloudflare HTTPS APIs; R2 uses the S3-compatible API.
-    const accountId = serverEnv.CLOUDFLARE_ACCOUNT_ID
-    const apiKey = serverEnv.CLOUDFLARE_API_KEY
-    const imagesDeliveryUrl = serverEnv.CLOUDFLARE_IMAGES_DELIVERY_URL
-    const streamDeliveryUrl = serverEnv.CLOUDFLARE_STREAM_DELIVERY_URL
-    const r2Bucket = serverEnv.R2_BUCKET
-    const r2AccessKeyId = serverEnv.R2_ACCESS_KEY_ID
-    const r2SecretAccessKey = serverEnv.R2_SECRET_ACCESS_KEY
-    // Optional S3 endpoint override for jurisdiction-specific buckets (e.g. EU);
-    // falls back to the account-derived default below when unset.
-    const r2Endpoint = serverEnv.R2_S3_ENDPOINT
-
-    // If any credential is missing, use local storage (development fallback)
-    if (
-      !accountId ||
-      !apiKey ||
-      !imagesDeliveryUrl ||
-      !streamDeliveryUrl ||
-      !r2Bucket ||
-      !r2AccessKeyId ||
-      !r2SecretAccessKey
-    ) {
-      return cloudStoragePlugin({
-        alwaysInsertFields: true,
-        enabled: false, // Disables cloud storage, uses local file storage
-        collections: SCHEMA_ONLY_COLLECTIONS,
-      })(config)
-    }
-
-    // Create storage adapters for Images and Stream using validated credentials
-    // TypeScript now knows these are defined (not undefined) after the check above
-    const imagesAdapter = cloudflareImagesAdapter({
-      accountId,
-      apiKey,
-      deliveryUrl: imagesDeliveryUrl,
-    })
-
-    const streamAdapter = cloudflareStreamAdapter({
-      accountId,
-      apiKey,
-      deliveryUrl: streamDeliveryUrl,
-    })
-
-    // R2 over the S3-compatible API. Defaults to the account-derived endpoint
-    // (https://<accountId>.r2.cloudflarestorage.com); a jurisdiction-specific
-    // bucket (e.g. EU → https://<accountId>.eu.r2.cloudflarestorage.com) must set
-    // R2_S3_ENDPOINT. The native R2 binding hid this; the S3 API needs the exact
-    // endpoint or it can't find the bucket.
-    const r2Client = new S3Client({
-      region: 'auto',
-      endpoint: r2Endpoint || `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: { accessKeyId: r2AccessKeyId, secretAccessKey: r2SecretAccessKey },
-    })
-
-    // Create R2 adapter for audio and file storage
-    // All filenames are automatically sanitized (slugify + random suffix)
-    // Note: CLOUDFLARE_R2_DELIVERY_URL may be undefined in development, falling
-    // back to empty string; the adapter handles empty publicUrl gracefully.
-    const r2Adapter = r2NativeAdapter({
-      client: r2Client,
-      bucket: r2Bucket,
-      publicUrl: serverEnv.CLOUDFLARE_R2_DELIVERY_URL || '',
-    })
-
-    const configWithR2FilenameHooks = {
-      ...config,
-      collections: config.collections?.map((collection) => {
-        const mode = r2FilenameHookModes[collection.slug]
-        if (!mode) return collection
-
-        return {
-          ...collection,
-          hooks: {
-            ...collection.hooks,
-            beforeOperation: [...(collection.hooks?.beforeOperation ?? []), r2FilenameHooks[mode]],
-          },
-        }
-      }),
-    }
-
-    // Return a single cloudStoragePlugin with all adapters configured.
-    //
-    // ⚠️ When adding/removing an R2-backed collection in `STORAGE_BACKENDS`, also
-    // update `r2FilenameHookModes` above. The two registries must stay in sync:
-    // a collection that uses the R2 adapter (directly or via mixedMediaAdapter
-    // for non-image/video files) without an entry in `r2FilenameHookModes`
-    // will skip the preassignment hook and reintroduce the DB↔R2 filename
-    // drift that this module exists to prevent.
-    const adapters = {
-      images: imagesAdapter,
-      stream: streamAdapter,
-      r2: r2Adapter,
-      mixed: mixedMediaAdapter({
-        routes: {
-          'image/': imagesAdapter,
-          'video/': streamAdapter,
-        },
-        r2Adapter: r2Adapter,
-      }),
-    }
+    const adapters = enabled ? createStorageAdapters() : null
 
     return cloudStoragePlugin({
+      // `alwaysInsertFields` inserts upstream's own columns for exactly the
+      // slugs named below, whether or not the plugin is enabled. One map off
+      // `STORAGE_BACKENDS` is what keeps the schema local dev, the tests and
+      // `migrate:create` emit identical to the one production selects (#865).
       alwaysInsertFields: true,
-      enabled: true,
+      enabled: adapters !== null,
       collections: Object.fromEntries(
         Object.entries(STORAGE_BACKENDS).map(([slug, backend]) => [
           slug,
-          {
-            adapter: adapters[backend],
-            disableLocalStorage: true,
-            disablePayloadAccessControl: true,
-          },
+          adapters
+            ? {
+                adapter: adapters[backend],
+                disableLocalStorage: true,
+                disablePayloadAccessControl: true,
+              }
+            : // No upload machinery, so local file storage stays as it is.
+              { adapter: null },
         ]),
       ),
-    })(configWithR2FilenameHooks)
+    })(adapters ? withR2FilenameHooks(config) : config)
   }
 }
