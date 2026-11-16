@@ -13,23 +13,28 @@ const listFormat = new Intl.ListFormat('en', { style: 'long', type: 'conjunction
 
 /**
  * Refuses to delete a region while any event (archived ones included) sits in
- * its subtree, or any service has a region in it, naming what is in the way —
- * for admins too. It runs before `Regions`' `deleteChildren`, so nothing in the
- * subtree goes until all of it has been checked.
+ * its subtree, any service has a region in it, or any region in it lists a
+ * manager, naming what is in the way — for admins too. It runs before
+ * `Regions`' `deleteChildren`, so nothing in the subtree goes until all of it
+ * has been checked.
  *
  * Every foreign key onto `regions` is `ON DELETE SET NULL`, so without it a
- * delete silently emptied `events.region` and `clients.region`.
+ * delete silently emptied `events.region` and `clients.region`. A `managers`
+ * listing is the same loss of a different kind: the listing *is* the
+ * `atlas-region-manager` grant over that region, so deleting the region
+ * revokes it, and a manager listed nowhere else loses the admin panel.
  */
 export const refuseDeleteWhileInUse: CollectionBeforeDeleteHook = async ({ id, req }) => {
   const checked = checkedRegions(req)
   const regionId = Number(id)
   if (checked.has(regionId)) return
 
-  const names = await readSubtree(req, regionId)
+  const { names, managed } = await readSubtree(req, regionId)
   const ids = [...names.keys()]
   const blockers = [
     ...(await eventBlockers(req, ids, names)),
     ...(await serviceBlockers(req, ids, names)),
+    ...managerBlockers(managed, names),
   ]
   if (blockers.length) {
     throw new APIError(
@@ -48,9 +53,16 @@ function checkedRegions(req: PayloadRequest): Set<number> {
   return created
 }
 
-/** The region and every region beneath it, each with the name a refusal shows. */
-async function readSubtree(req: PayloadRequest, rootId: number): Promise<Map<number, string>> {
+/**
+ * The region and every region beneath it, each with the name a refusal shows,
+ * and which of them list a manager of their own.
+ */
+async function readSubtree(
+  req: PayloadRequest,
+  rootId: number,
+): Promise<{ managed: number[]; names: Map<number, string> }> {
   const names = new Map<number, string>()
+  const managed: number[] = []
   // `parent`, not the derived `breadcrumbs`: it is what `deleteChildren`
   // follows, so what is checked is exactly what goes.
   let where: Where = { id: { equals: rootId } }
@@ -62,12 +74,15 @@ async function readSubtree(req: PayloadRequest, rootId: number): Promise<Map<num
       pagination: false,
       overrideAccess: true,
       joins: false,
-      select: { name: true, slug: true },
+      select: { name: true, slug: true, managers: true },
       req,
     })
     const found = docs.filter((doc) => !names.has(doc.id))
-    if (!found.length) return names
-    for (const doc of found) names.set(doc.id, doc.name || doc.slug || `#${doc.id}`)
+    if (!found.length) return { managed, names }
+    for (const doc of found) {
+      names.set(doc.id, doc.name || doc.slug || `#${doc.id}`)
+      if (doc.managers?.length) managed.push(doc.id)
+    }
     where = { parent: { in: found.map((doc) => doc.id) } }
   }
 }
@@ -126,4 +141,14 @@ async function serviceBlockers(
     (doc) =>
       `the service "${doc.label || `#${doc.id}`}" has ${names.get(extractID(doc.region!))} as its region`,
   )
+}
+
+/**
+ * Named by region, not by manager: the places are what the caller clears, and
+ * the subtree's own `managers` field already shows them who.
+ */
+function managerBlockers(managed: number[], names: Map<number, string>): string[] {
+  if (!managed.length) return []
+  const subject = managed.length === 1 ? 'a manager is listed on' : 'managers are listed on'
+  return [`${subject} ${placesPhrase(managed.map((id) => names.get(id)))}`]
 }

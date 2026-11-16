@@ -102,6 +102,23 @@ describe('Deleting a region', () => {
     expect(await remaining([region, city, venue])).toBe(3)
   })
 
+  it('refuses while a region beneath it lists a manager, whose grant it would revoke', async () => {
+    const { region, city, venue } = await buildTree('delegated')
+    const manager = await testData.createManager(payload, { type: 'manager' })
+    await payload.update({
+      collection: 'regions',
+      id: city,
+      data: { managers: [manager.id] },
+      overrideAccess: true,
+    })
+
+    const error = await refusal(region)
+
+    expect(error).toMatchObject({ status: 409 })
+    expect(error?.message).toContain('a manager is listed on delegated-city')
+    expect(await remaining([region, city, venue])).toBe(3)
+  })
+
   it('deletes a region and a descendant selected together', async () => {
     const { region, city, venue } = await buildTree('together')
 

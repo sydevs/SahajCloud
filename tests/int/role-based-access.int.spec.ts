@@ -825,9 +825,17 @@ describe('Role-Based Access Control', () => {
     })
 
     it('deletes a sub-region beneath a region it owns, with the regions beneath that', async () => {
-      const city = await createRegion({ level: 'city', name: 'AtlasMgr Doomed', parent: regionId })
+      // No `managers`, which the fixture otherwise fills: a listing is itself a
+      // grant, so `refuseDeleteWhileInUse` holds the delete until it is cleared.
+      const city = await createRegion({
+        level: 'city',
+        managers: [],
+        name: 'AtlasMgr Doomed',
+        parent: regionId,
+      })
       const venue = await createRegion({
         level: 'venue',
+        managers: [],
         name: 'AtlasMgr Doomed Hall',
         parent: city.id,
       })
