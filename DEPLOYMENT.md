@@ -57,10 +57,8 @@ repository:
 creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
 a new container before its boot-time migrations finish.
 
-`railway.toml` carried these until 2026-11. Railway stops reading Config as Code files on
-2026-12-01, and its replacement, `.railway/railway.ts`, is not read on deploy: a CLI or CI job
-applies it, and an apply deletes what the file leaves out. With one service to configure, that
-was not worth adopting.
+Do not add `railway.toml` or `.railway/railway.ts` back — Railway stops reading Config as Code on
+2026-12-01, and the `.ts` form is applied by a CLI, never on deploy.
 
 Railway exposes port 3000 through its own `PORT` variable.
 `next.config.ts`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
