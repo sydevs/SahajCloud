@@ -48,7 +48,7 @@ const CheckRow: React.FC<{ item: PanelItem }> = ({ item }) => {
         gap: 'calc(var(--base) * 0.3)',
         padding: passed ? 'calc(var(--base) * 0.12) 0' : 'calc(var(--base) * 0.25) 0',
         lineHeight: 1.35,
-        fontSize: 'calc(var(--base-body-size) * 0.92px)',
+        fontSize: 'calc(var(--admin-body-size) * 0.92)',
         color: passed ? 'var(--theme-elevation-450)' : undefined,
       }}
     >
@@ -63,7 +63,7 @@ const CheckRow: React.FC<{ item: PanelItem }> = ({ item }) => {
               display: 'block',
               marginTop: '1px',
               color: 'var(--theme-elevation-500)',
-              fontSize: 'calc(var(--base-body-size) * 0.85px)',
+              fontSize: 'calc(var(--admin-body-size) * 0.85)',
               lineHeight: 1.3,
             }}
           >
@@ -105,7 +105,7 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
   const heading = (
     <div
       style={{
-        fontSize: 'calc(var(--base-body-size) * 0.8px)',
+        fontSize: 'calc(var(--admin-body-size) * 0.8)',
         fontWeight: 600,
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
@@ -125,7 +125,7 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
         {heading}
         <div
           style={{
-            fontSize: 'calc(var(--base-body-size) * 0.9px)',
+            fontSize: 'calc(var(--admin-body-size) * 0.9)',
             color: 'var(--theme-elevation-500)',
             lineHeight: 1.4,
           }}
@@ -151,7 +151,7 @@ const EventQualityPanel: JSONFieldClientComponent = ({ field }) => {
         {heading}
         <span
           style={{
-            fontSize: 'calc(var(--base-body-size) * 0.8px)',
+            fontSize: 'calc(var(--admin-body-size) * 0.8)',
             fontWeight: 600,
             color: fg,
             whiteSpace: 'nowrap',

@@ -33,7 +33,7 @@ export default function FathomDashboard({ siteId, siteName, title }: FathomDashb
         <div
           style={{
             color: 'var(--theme-elevation-700)',
-            fontSize: 'calc(var(--base-body-size) * 1.2px)',
+            fontSize: 'calc(var(--admin-body-size) * 1.2)',
             marginBottom: 'calc(var(--base) * 1)',
           }}
         >
@@ -46,7 +46,7 @@ export default function FathomDashboard({ siteId, siteName, title }: FathomDashb
           style={{
             color: 'var(--theme-elevation-800)',
             textDecoration: 'underline',
-            fontSize: 'calc(var(--base-body-size) * 1px)',
+            fontSize: 'var(--admin-body-size)',
           }}
         >
           Open analytics in new tab →

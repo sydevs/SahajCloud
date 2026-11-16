@@ -31,7 +31,7 @@ export const tooltipStyle: CSSProperties = {
   padding: 'calc(var(--base) * 0.3) calc(var(--base) * 0.45)',
   background: 'var(--theme-elevation-900)',
   color: 'var(--theme-elevation-0)',
-  fontSize: 'calc(var(--base-body-size) * 0.85px)',
+  fontSize: 'calc(var(--admin-body-size) * 0.85)',
   borderRadius: 'var(--style-radius-s)',
   whiteSpace: 'nowrap',
   zIndex: 20,
@@ -60,12 +60,12 @@ export const headerIndexStyle: CSSProperties = {
 export const headerInlineDescStyle: CSSProperties = {
   color: 'var(--theme-elevation-500)',
   fontWeight: 400,
-  fontSize: 'calc(var(--base-body-size) * 0.9px)',
+  fontSize: 'calc(var(--admin-body-size) * 0.9)',
 }
 
 export const groupDescriptionStyle: CSSProperties = {
   color: 'var(--theme-elevation-500)',
-  fontSize: 'calc(var(--base-body-size) * 0.9px)',
+  fontSize: 'calc(var(--admin-body-size) * 0.9)',
   marginBottom: 'calc(var(--base) * 0.4)',
 }
 
@@ -73,7 +73,7 @@ export const tableStyle: CSSProperties = {
   width: '100%',
   borderCollapse: 'separate',
   borderSpacing: 0,
-  fontSize: 'calc(var(--base-body-size) * 1px)',
+  fontSize: 'var(--admin-body-size)',
 }
 
 export const tableHeaderCellStyle: CSSProperties = {
@@ -116,7 +116,7 @@ export const aggregateBodyStyle: CSSProperties = {
 }
 
 export const aggregateValueStyle: CSSProperties = {
-  fontSize: 'calc(var(--base-body-size) * 1.2px)',
+  fontSize: 'calc(var(--admin-body-size) * 1.2)',
   fontWeight: 600,
 }
 
@@ -126,7 +126,7 @@ export const erroredBannerStyle: CSSProperties = {
   color: 'var(--theme-error-700, #b91c1c)',
   border: '1px solid var(--theme-error-200, rgba(220, 38, 38, 0.3))',
   borderRadius: 'var(--style-radius-s)',
-  fontSize: 'calc(var(--base-body-size) * 0.95px)',
+  fontSize: 'calc(var(--admin-body-size) * 0.95)',
 }
 
 export const emptyGroupStyle: CSSProperties = {

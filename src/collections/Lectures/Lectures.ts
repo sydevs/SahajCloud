@@ -2,7 +2,7 @@ import type { CollectionConfig, Where } from 'payload'
 
 import { mediaField, urlField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
-import { serverEnv } from '@/lib/env'
+import { weMeditatePreviewUrl } from '@/lib/env'
 import { lectureMetadataSchema } from '@/lib/lectures/nirmalaVidya'
 import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
 import { LOCALES, getLocaleLabel } from '@/lib/locales'
@@ -46,7 +46,7 @@ export const Lectures: CollectionConfig = {
     livePreview: {
       url: ({ data, locale }) =>
         livePreviewUrl({
-          base: serverEnv.WEMEDITATE_WEB_URL,
+          base: weMeditatePreviewUrl(),
           path:
             typeof data?.id === 'number'
               ? wmWebLocalePath(`lectures/${data.id}`, locale.code)

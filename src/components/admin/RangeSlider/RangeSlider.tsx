@@ -135,7 +135,7 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
             <span
               key={stepValue}
               style={{
-                fontSize: 'calc(var(--base-body-size) * 0.8px)',
+                fontSize: 'calc(var(--admin-body-size) * 0.8)',
                 lineHeight: 1.2,
                 color: isActive ? 'var(--theme-elevation-800)' : 'var(--theme-elevation-500)',
                 fontWeight: isActive ? 600 : 400,

@@ -15,7 +15,7 @@
   border: 0;
   background: none;
   color: var(--theme-elevation-650);
-  font-size: calc(var(--base-body-size) * 1px);
+  font-size: var(--admin-body-size);
   text-decoration: underline;
   cursor: pointer;
 }

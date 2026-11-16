@@ -211,7 +211,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 color: isSelected
                   ? 'var(--project-accent-text, var(--theme-elevation-0))'
                   : 'var(--theme-elevation-800)',
-                fontSize: 'calc(var(--base-body-size) * 1px)',
+                fontSize: 'var(--admin-body-size)',
                 fontWeight: isSelected ? 600 : 400,
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s ease, color 0.15s ease',

@@ -93,7 +93,10 @@ const nextConfig: NextConfig = {
       "'self'",
       'https://app.usefathom.com',
       'https://challenges.cloudflare.com',
-      process.env.WEMEDITATE_WEB_URL || 'https://wemeditate.com',
+      // The live-preview origin — see `weMeditatePreviewUrl` in `src/lib/env/server.ts`.
+      process.env.WEMEDITATE_PREVIEW_URL ||
+        process.env.WEMEDITATE_WEB_URL ||
+        'https://wemeditate.com',
       process.env.SAHAJATLAS_URL || 'https://sahajatlas.com',
     ].join(' ')
 

@@ -22,13 +22,13 @@ export type TagSelectorSize = 'default' | 'large'
 
 /**
  * Size presets using PayloadCMS CSS variables for consistent scaling.
- * Based on --base (20px default) and --base-body-size (13px default).
+ * Based on --base (20px default) and --admin-body-size (14px, custom.scss).
  */
 const SIZE_PRESETS = {
   default: {
     button: 'calc(var(--base) * 2.4)', // 48px
     container: 'calc(var(--base) * 2.8)', // 56px
-    title: 'calc(var(--base-body-size) * 0.77px)', // ~10px
+    title: 'calc(var(--admin-body-size) * 0.77)', // ~11px
     gap: 'calc(var(--base) * 0.2)', // 4px
     fallbackFont: 'calc(var(--base) * 0.8)', // ~16px for 2-letter fallback
     padding: 'calc(var(--base) * 0.3)', // ~6px
@@ -36,7 +36,7 @@ const SIZE_PRESETS = {
   large: {
     button: 'calc(var(--base) * 3.2)', // 64px
     container: 'calc(var(--base) * 3.6)', // 72px
-    title: 'calc(var(--base-body-size) * 0.85px)', // ~11px
+    title: 'calc(var(--admin-body-size) * 0.85)', // ~12px
     gap: 'calc(var(--base) * 0.25)', // 5px
     fallbackFont: 'calc(var(--base) * 1.05)', // ~21px for 2-letter fallback
     padding: 'calc(var(--base) * 0.4)', // ~8px

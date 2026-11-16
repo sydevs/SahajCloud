@@ -59,7 +59,7 @@ export const baseStyles = {
   } satisfies CSSProperties,
 
   frameCategory: {
-    fontSize: 'calc(var(--base-body-size) * 1px)',
+    fontSize: 'var(--admin-body-size)',
     fontWeight: 500,
     color: 'var(--theme-elevation-800)',
     overflow: 'hidden',
@@ -105,7 +105,7 @@ export const listManagerStyles = {
   } satisfies CSSProperties,
 
   frameTags: {
-    fontSize: 'calc(var(--base-body-size) * 0.85px)',
+    fontSize: 'calc(var(--admin-body-size) * 0.85)',
     color: 'var(--theme-elevation-500)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -115,7 +115,7 @@ export const listManagerStyles = {
   timestampInput: {
     width: '70px',
     padding: 'calc(var(--base) * 0.25) calc(var(--base) * 0.5)',
-    fontSize: 'calc(var(--base-body-size) * 1px)',
+    fontSize: 'var(--admin-body-size)',
     textAlign: 'center' as const,
     border: '1px solid var(--theme-elevation-200)',
     borderRadius: 'var(--style-radius-s)',
@@ -217,7 +217,7 @@ export const inserterStyles = {
     right: '4px',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     color: 'white',
-    fontSize: 'calc(var(--base-body-size) * 0.75px)',
+    fontSize: 'calc(var(--admin-body-size) * 0.75)',
     fontWeight: 500,
     padding: '2px 6px',
     borderRadius: '4px',
@@ -231,7 +231,7 @@ export const inserterStyles = {
   } satisfies CSSProperties,
 
   frameTags: {
-    fontSize: 'calc(var(--base-body-size) * 0.8px)',
+    fontSize: 'calc(var(--admin-body-size) * 0.8)',
     fontWeight: 500,
     color: 'var(--theme-elevation-700)',
   } satisfies CSSProperties,

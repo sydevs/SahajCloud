@@ -51,7 +51,8 @@ The "Admin Access" section in `AGENTS.md` covers each environment's way in; none
 
 ### Live Preview URLs
 
-- `WEMEDITATE_WEB_URL` — required. We Meditate preview URL, for Pages/Meditations live preview and the CSP `frame-src`. Its host and subdomains may also frame the Atlas challenge page.
+- `WEMEDITATE_WEB_URL` — required. We Meditate's public origin: the Atlas canonical fallback (with `WEMEDITATE_ATLAS_BASE_PATH`), the event-verification page's link to the map, and every public page URL. Its host and subdomains may also frame the Atlas challenge page. Production is `https://wemeditate.com`.
+- `WEMEDITATE_PREVIEW_URL` — optional. Where live preview frames the We Meditate app — Pages, Meditations, Lectures and both We Meditate globals — and the origin the CSP `frame-src` and the `csrf` allowlist admit for it. Unset, all three use `WEMEDITATE_WEB_URL`. ⚠ **Temporary**: production sets it to `https://wemeditate-web.contact-c66.workers.dev` only because `wemeditate.com` still serves the old site. Delete it the day the new app serves `wemeditate.com`; nothing else changes.
 - `SAHAJATLAS_URL` — required. Sahaj Atlas preview URL, for the same purposes plus the `csrf` allowlist, and the same challenge-page allowance. Not a canonical base — the Atlas host is `noindex`, so `webUrl` never points at it.
 
   ⚠ **Neither variable covers a PR preview**, which lands on the Cloudflare account's Workers subdomain rather than under either host. `src/endpoints/atlas/challenge/challengeRequest.ts` lists that subdomain outright, and says why it is safe to.

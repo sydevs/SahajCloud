@@ -25,5 +25,5 @@
  */
 
 // Re-export everything from server module for backwards compatibility
-export { serverEnv } from './server'
+export { serverEnv, weMeditatePreviewUrl } from './server'
 export type { ClientEnv, ServerEnv } from './server'

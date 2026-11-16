@@ -1458,7 +1458,7 @@ export interface Manager {
       )
     | null;
   /**
-   * Messaging handles used to deliver notifications.
+   * Messaging handles used to deliver notifications. Email goes to the sign-in address above the tabs.
    */
   contactDetails?:
     | {

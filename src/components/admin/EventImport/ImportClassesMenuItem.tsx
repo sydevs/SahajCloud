@@ -6,9 +6,8 @@ import React from 'react'
 import { useImportClassesTarget } from './useImportClassesTarget'
 
 /**
- * "Import classes" in a region's edit menu. It is the entry point at a level
- * whose Events tab — and so whose tab heading — is hidden, and `targetRegion`
- * accepts a country and a region as readily as a city.
+ * "Import classes" in a region's edit menu, so the link is one click away from
+ * every tab, not only from the Events tab's heading.
  */
 export const ImportClassesMenuItem: React.FC = () => {
   const target = useImportClassesTarget()
