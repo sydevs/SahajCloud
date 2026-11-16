@@ -233,9 +233,7 @@ No loose files at the root — every file lives in a named folder:
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
   `pageTags/`, `cascadeDeletion/`, `events/` (what more than one
-  reader or writer of a class must agree on: `regionLevels.ts` — the
-  region levels an event may attach to, so `events.region`'s picker and
-  the Regions Events tab cannot narrow differently.
+  reader or writer of a class must agree on:
   `updateEventWithoutValidation.ts` — the bookkeeping write shared by the
   expiry job, the registration-fullness recount and the feedback hook,
   which skips validation so stored data a later validator refuses cannot
