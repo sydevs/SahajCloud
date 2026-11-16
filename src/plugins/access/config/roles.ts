@@ -92,9 +92,10 @@ const ROLES = {
     // Read comes implicitly from project membership. These create/update/delete
     // grants are *scoped to the manager's owned-region subtree* in the access
     // layer (regionSubtreeAccess.ts) — they are NOT collection-wide despite
-    // appearing here. Regions get create+update; events also get delete (trash).
+    // appearing here. Region delete reaches only the sub-regions of an owned
+    // region, and only a subtree nothing uses (`refuseDeleteWhileInUse`).
     permissions: {
-      regions: ['create', 'update'] as PermissionLevel[],
+      regions: ['create', 'update', 'delete'] as PermissionLevel[],
       events: ['create', 'update', 'delete'] as PermissionLevel[],
       // Starts a bulk class import. `imports` is restricted and declares its own
       // `access` (imports into their own regions), so this grants no read — it is what keeps
