@@ -1,0 +1,67 @@
+name: Preview sleep
+
+# Lets a PR preview sleep when idle, once CI is done with it
+# (`scripts/preview-sleep.ts`). A preview copies production's settings when
+# Railway creates it, and production must never sleep, so each preview's own
+# copy is changed here.
+#
+# ⚠ workflow_run, never pull_request: RAILWAY_API_TOKEN is a workspace token
+# that can change production too. workflow_run runs this file and the script
+# from main and checks nothing out from the PR, so no branch can change what
+# runs with the token.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'A PR number, or "all" for every open preview'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-sleep-${{ github.event.workflow_run.pull_requests[0].number || inputs.pr }}
+  cancel-in-progress: false
+
+jobs:
+  sleep:
+    name: Let the preview sleep
+    # A cancelled CI run was superseded by a newer push, whose own run calls
+    # this. `pull_requests` is empty for a fork's PR, which has no preview.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.conclusion != 'cancelled' &&
+        github.event.workflow_run.pull_requests[0].number
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install the Railway CLI
+        env:
+          RAILWAY_CLI_VERSION: 5.71.0
+        run: |
+          curl -fsSL "https://github.com/railwayapp/cli/releases/download/v${RAILWAY_CLI_VERSION}/railway-v${RAILWAY_CLI_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Let the preview sleep
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.workflow_run.pull_requests[0].number || inputs.pr }}
+        run: |
+          if [ "$PR" = all ]; then
+            pnpm tsx scripts/preview-sleep.ts --all --apply
+          else
+            pnpm tsx scripts/preview-sleep.ts --pr "$PR" --apply
+          fi
