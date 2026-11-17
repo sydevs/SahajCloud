@@ -58,13 +58,11 @@ export const atlasWixSitemap: Endpoint = {
       })
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      return readFailureResponse(
-        req,
-        error,
-        'Failed to build the sitemap for this client.',
-        { msg: 'atlasWixSitemap: read failed', clientId },
-        'atlas/wix/sitemap',
-      )
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
+        handler: 'atlas/wix/sitemap',
+        msg: 'atlasWixSitemap: read failed',
+        clientId,
+      })
     }
   },
 }

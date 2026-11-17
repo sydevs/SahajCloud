@@ -22,19 +22,19 @@ export function errorResponse(message: string, status: number): Response {
  *
  * ⚠ **The 500 is RETURNED, never thrown**, so Payload's root `afterError` hook
  * and Next's `onRequestError` both miss it and this is the only thing that can
- * report it (#1182). `handler` names the route for the Sentry tag. The
- * `APIError` arm stays silent: a gate refusing a caller's query is a 4xx, and a
- * caller's mistake is not an incident (#670).
+ * report it (#1182). `log.handler` names the route for the Sentry tag, and
+ * rides in the same bag as `msg` so a site names itself once. The `APIError`
+ * arm stays silent: a gate refusing a caller's query is a 4xx, and a caller's
+ * mistake is not an incident (#670).
  */
 export function readFailureResponse(
   req: PayloadRequest,
   error: unknown,
   failure: string,
-  log: { msg: string } & Record<string, unknown>,
-  handler: string,
+  log: { handler: string; msg: string } & Record<string, unknown>,
 ): Response {
   if (error instanceof APIError) return errorResponse(error.message, error.status)
-  const { msg, ...extra } = log
+  const { handler, msg, ...extra } = log
   capture({ error, message: msg, extra, logger: req.payload.logger, tags: handlerTags(handler) })
   return errorResponse(failure, 500)
 }

@@ -242,8 +242,7 @@ describe('readFailureResponse, the shared read-failed answer', () => {
       req,
       thrown,
       'Failed to build the sitemap for this client.',
-      { msg: 'atlasSitemap: read failed', clientId: 7 },
-      'atlas/sitemap',
+      { handler: 'atlas/sitemap', msg: 'atlasSitemap: read failed', clientId: 7 },
     )
 
     expect(response.status).toBe(500)
@@ -262,8 +261,7 @@ describe('readFailureResponse, the shared read-failed answer', () => {
       req,
       new APIError('select is required', 400),
       'Failed to build the sitemap for this client.',
-      { msg: 'atlasSitemap: read failed', clientId: 7 },
-      'atlas/sitemap',
+      { handler: 'atlas/sitemap', msg: 'atlasSitemap: read failed', clientId: 7 },
     )
 
     expect(response.status).toBe(400)

@@ -176,13 +176,11 @@ export const eventsGeoJson: Endpoint = {
       // The query gates throw `APIError`, which keeps its own status and message;
       // anything else is this handler's own 500, reported here because nothing
       // else sees a 5xx it returns.
-      return readFailureResponse(
-        req,
-        error,
-        'Failed to build the GeoJSON feed.',
-        { msg: 'eventsGeoJson: read failed', clientId: req.user?.id },
-        'events/geojson',
-      )
+      return readFailureResponse(req, error, 'Failed to build the GeoJSON feed.', {
+        handler: 'events/geojson',
+        msg: 'eventsGeoJson: read failed',
+        clientId: req.user?.id,
+      })
     }
   },
 }

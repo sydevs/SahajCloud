@@ -90,13 +90,11 @@ export const atlasSitemap: Endpoint = {
       }
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      return readFailureResponse(
-        req,
-        error,
-        'Failed to build the sitemap for this client.',
-        { msg: 'atlasSitemap: read failed', clientId },
-        'atlas/sitemap',
-      )
+      return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
+        handler: 'atlas/sitemap',
+        msg: 'atlasSitemap: read failed',
+        clientId,
+      })
     }
   },
 }
