@@ -5,6 +5,7 @@
  * connection to it, and that connection is refused. `@payloadcms/db-postgres`
  * does not retry, so the request behind it fails.
  */
+import pRetry from 'p-retry'
 
 /**
  * The slice of `pg` this reads, typed structurally: the adapter's `pg` and
@@ -20,7 +21,7 @@ type ConnectCallback = (
 ) => void
 
 /** Headroom over the few seconds a Railway Postgres takes to wake. */
-export const WAKE_BUDGET_MS = 30_000
+const WAKE_BUDGET_MS = 30_000
 
 const RETRY_INTERVAL_MS = 1_000
 
@@ -64,18 +65,21 @@ export const withWakeRetry = <Pg extends { Pool: object }>(
   base: Pg,
   { budgetMs = WAKE_BUDGET_MS, intervalMs = RETRY_INTERVAL_MS, onWaking }: WakeRetryOptions = {},
 ): Pg => {
-  const connectWhileWaking = async (connectOnce: () => Promise<PooledClient>) => {
-    const deadline = Date.now() + budgetMs
-    for (let attempt = 1; ; attempt++) {
-      try {
-        return await connectOnce()
-      } catch (error) {
-        if (!isPostgresWaking(error) || Date.now() >= deadline) throw error
-        if (attempt === 1) onWaking?.(error as Error)
-        await new Promise((resolve) => setTimeout(resolve, intervalMs))
-      }
-    }
-  }
+  const connectWhileWaking = (connectOnce: () => Promise<PooledClient>) =>
+    pRetry(connectOnce, {
+      // The budget bounds the retrying, not a count, so `retries` must not.
+      retries: Number.POSITIVE_INFINITY,
+      maxRetryTime: budgetMs,
+      // A wake takes as long whenever it is asked for, so the interval is flat.
+      minTimeout: intervalMs,
+      factor: 1,
+      // ⚠ `onFailedAttempt` also runs on a failure nothing retries, so the log
+      // owes the same test the retry decision makes.
+      onFailedAttempt: ({ attemptNumber, error }) => {
+        if (attemptNumber === 1 && isPostgresWaking(error)) onWaking?.(error)
+      },
+      shouldRetry: ({ error }) => isPostgresWaking(error),
+    })
 
   class WakingPool extends (base.Pool as PoolConstructor) {
     connect(): Promise<PooledClient>

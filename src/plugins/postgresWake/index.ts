@@ -11,8 +11,8 @@ import { isPreviewEnvironmentName } from '@/lib/preview/proxy'
 import { withWakeRetry } from './wakeRetry'
 
 /**
- * `adapter`, retrying each connection for up to `WAKE_BUDGET_MS` on a PR
- * preview, and untouched anywhere else.
+ * `adapter`, retrying each connection while a PR preview's Postgres wakes
+ * (`wakeRetry.ts` holds the budget), and untouched anywhere else.
  *
  * ⚠ A preview's Postgres sleeps when idle (DEPLOYMENT.md → Cost Monitoring),
  * and the connection that wakes it is refused. Unretried, that fails the
