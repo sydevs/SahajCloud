@@ -430,7 +430,9 @@ async function main() {
       ...body,
     })
     previews.push({
-      label: `${audience} · ${level}${replyTo ? '' : ' · no region mgr'}`,
+      // Only the manager audience has two forms to tell apart: a region
+      // manager is the contact, so their own copy never carries one.
+      label: `${audience} · ${level}${audience === 'manager' && !replyTo ? ' · no region mgr' : ''}`,
       url: messageUrl(info),
     })
   }

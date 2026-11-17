@@ -14,7 +14,7 @@ import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { withActor } from '@/lib/stateMachine/actor'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
-import { capturedFrom } from '../utils/sentryCapture'
+import { capturedFrom, type CapturedContext } from '../utils/sentryCapture'
 import {
   expectEventWriteRefused,
   storeEventOverImageLimit,
@@ -793,6 +793,159 @@ describe('ExpireEvents job', () => {
       expect(after.activityLog).toEqual(before.activityLog)
       expect(after._status).toBe(before._status)
       expect(after.deletedAt ?? null).toBeNull()
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('the Reply-To a verification reminder carries', () => {
+    /** The messages one run sent, narrowed to the fields these cases read. */
+    type Sent = { to?: unknown; replyTo?: { name?: string; address?: string } }
+
+    const sentTo = (sendEmail: { mock: { calls: unknown[][] } }, email: string): Sent[] =>
+      sendEmail.mock.calls
+        .map((call) => call[0] as Sent)
+        .filter((message) => String(message.to ?? '').includes(email))
+
+    /**
+     * How many times the run walked one event's region chain. Told apart from
+     * the other region reads by the lookup's own shape — it is the only one
+     * naming a set of ids and selecting every field — and scoped to the chain
+     * starting at `regionId`, because a run processes every due event in the
+     * database and each contributes a walk of its own.
+     */
+    const chainLookups = (find: { mock: { calls: unknown[][] } }, regionId: number): number =>
+      find.mock.calls.filter((call) => {
+        const args = call[0] as {
+          collection?: string
+          where?: { id?: { in?: unknown } }
+          select?: unknown
+        }
+        return (
+          args.collection === 'regions' &&
+          Array.isArray(args.where?.id?.in) &&
+          (args.where.id.in as unknown[]).includes(regionId) &&
+          args.select === undefined
+        )
+      }).length
+
+    /** What a mocked `captureMessage` reported about one event. */
+    const capturesFor = (eventId: number) =>
+      vi
+        .mocked(Sentry.captureMessage)
+        .mock.calls.filter(
+          (call) => (call[1] as CapturedContext | undefined)?.extra?.eventId === eventId,
+        )
+
+    /** A due event under a region that has a manager of its own. */
+    async function createEventUnderRegion(
+      title: string,
+      options: { ownManagerRunsTheRegion?: boolean } = {},
+    ) {
+      const manager = await testData.createManager(payload, { name: `${title} Manager` })
+      const regionManager = options.ownManagerRunsTheRegion
+        ? manager
+        : await testData.createManager(payload, { name: `${title} Region Manager` })
+      const region = await testData.createRegion(payload, { managers: [regionManager.id] } as never)
+      const event = await createDueEvent(payload, title, {
+        manager: manager.id,
+        region: region.id,
+      })
+      return { event, manager, region, regionManager }
+    }
+
+    /**
+     * Put the event on the stage whose reminder escalates. The create cannot:
+     * `syncVerificationOnSave` re-verifies on every save carrying a manager,
+     * so a stage handed to `createDueEvent` is written back to `verified` and
+     * the case would silently assert the `due` level twice.
+     */
+    const escalate = (id: number) =>
+      setLifecycleState({
+        payload,
+        collection: 'events',
+        id,
+        data: { verificationStage: 'reminded' },
+      })
+
+    it('points the event manager at the nearest region manager, from the first reminder', async () => {
+      const { event, manager, region, regionManager } =
+        await createEventUnderRegion('Due Under Region')
+
+      const find = vi.spyOn(payload, 'find')
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      onTestFinished(() => {
+        find.mockRestore()
+        sendEmail.mockRestore()
+      })
+
+      await runTask(payload)
+
+      // `due` escalates to nobody, so this stage used to look no region
+      // manager up at all and its reminder replied to the admin inbox.
+      expect((await reload(payload, event.id)).verificationStage).toBe('reminded')
+      expect(sentTo(sendEmail, manager.email)[0]?.replyTo).toEqual({
+        name: 'Due Under Region Region Manager',
+        address: regionManager.email,
+      })
+      expect(chainLookups(find, region.id)).toBe(1)
+    })
+
+    it('leaves the region manager’s own escalation copy replying nowhere', async () => {
+      const { event, manager, region, regionManager } = await createEventUnderRegion('Escalating')
+      await escalate(event.id)
+
+      const find = vi.spyOn(payload, 'find')
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      onTestFinished(() => {
+        find.mockRestore()
+        sendEmail.mockRestore()
+      })
+
+      await runTask(payload)
+
+      expect((await reload(payload, event.id)).verificationStage).toBe('escalated')
+
+      const toRegionManager = sentTo(sendEmail, regionManager.email)
+      expect(toRegionManager).toHaveLength(1)
+      expect('replyTo' in toRegionManager[0]).toBe(false)
+      // The same run's other copy still replies to them.
+      expect(sentTo(sendEmail, manager.email)[0]?.replyTo?.address).toBe(regionManager.email)
+      // Two recipients, one lookup.
+      expect(chainLookups(find, region.id)).toBe(1)
+    })
+
+    it('sends no Reply-To, and reports nothing, when the event manager runs the region', async () => {
+      const { event, manager } = await createEventUnderRegion('Own Region', {
+        ownManagerRunsTheRegion: true,
+      })
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      onTestFinished(() => sendEmail.mockRestore())
+
+      await runTask(payload)
+
+      // Nobody distinct up the chain. An empty header value is invalid, so the
+      // key is absent rather than blank.
+      expect('replyTo' in sentTo(sendEmail, manager.email)[0]).toBe(false)
+      // And at `due` that absence is ordinary, not an incident.
+      expect(capturesFor(event.id)).toHaveLength(0)
+    })
+
+    it('still reports that absence once the reminder escalates', async () => {
+      const { event } = await createEventUnderRegion('Own Region Escalating', {
+        ownManagerRunsTheRegion: true,
+      })
+      await escalate(event.id)
+
+      const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
+      onTestFinished(() => sendEmail.mockRestore())
+
+      await runTask(payload)
+
+      // The other direction of the case above, and the half the new lookup
+      // could have silenced: from `escalated` on there is somebody who should
+      // have been there, so the absence is worth a report.
+      expect(capturesFor(event.id)).toHaveLength(1)
     })
   })
 })
