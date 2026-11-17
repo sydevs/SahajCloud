@@ -171,26 +171,26 @@ function pitrEnabled(environment: string): boolean {
   return (JSON.parse(out) as { enabled: boolean }).enabled
 }
 
-/** Whether `commit` carries the connection retry, so its preview survives a sleeping Postgres. */
-function runsWakeRetry(commit: string): boolean {
+/** Whether `ref` carries the connection retry, so its preview survives a sleeping Postgres. */
+function runsWakeRetry(ref: string): boolean {
   try {
     execFileSync(
       'gh',
-      ['api', '--silent', `repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${commit}`],
+      ['api', '--silent', `repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${ref}`],
       { stdio: ['ignore', 'ignore', 'pipe'] },
     )
     return true
   } catch (error) {
     const stderr = String((error as { stderr?: Buffer }).stderr ?? '')
     if (stderr.includes('HTTP 404')) return false
-    throw new Error(`Could not read ${WAKE_RETRY_PATH} at ${commit}: ${stderr.trim()}`)
+    throw new Error(`Could not read ${WAKE_RETRY_PATH} at ${ref}: ${stderr.trim()}`)
   }
 }
 
 /**
- * Why a preview's Postgres stays awake. Merging fixes a commit older than the
- * retry, never a `WAKE_RETRY_PATH` naming nothing, so only the first gets that
- * remedy. A failed read names neither: this note must not stop the changes.
+ * Why a preview's Postgres stays awake. Merging fixes only the commit-age
+ * cause, so the other must not be told to merge. A failed read names neither,
+ * and must not stop the changes below it.
  */
 function wakeRetryGap(commit: string): string {
   const short = commit.slice(0, 8)
