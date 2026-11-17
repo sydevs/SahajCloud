@@ -82,6 +82,16 @@ const completeProgress: EventListingProgress = {
 
 const EVENT_URL = 'https://cloud.test/event/1042'
 
+const regionManager = { name: 'Rohan Patil', email: 'rohan.patil@example.com' }
+
+/**
+ * The in-row button gap, which only `BrandButtonRow` applies. Counting it is
+ * how a case proves two buttons sit side by side at one size: both take the
+ * same base style and the same primary fill, so the gap is the only mark that
+ * distinguishes a row from the single stacked button.
+ */
+const IN_ROW_BUTTON = /margin:0 6px/g
+
 /**
  * The outlined secondary button, which only the event link uses. Keyed on the
  * variant's own fill and border rather than its label: asserting the absence of
@@ -341,6 +351,66 @@ describe('EventVerificationEmail', () => {
       await expect(render({ ...regionProps, level: 'due' })).rejects.toThrow(
         /not supported for region/,
       )
+    })
+  })
+
+  describe('the region manager a reply reaches', () => {
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'offers the %s reminder an ask button beside verify, at the same size',
+      async (level) => {
+        const html = await render({ level, regionManager })
+
+        expect(html).toMatch(`mailto:${regionManager.email}`)
+        expect(html).toContain(baseProps.verifyUrl)
+        expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(2)
+      },
+    )
+
+    it('labels the second button and says a reply reaches that manager by name', async () => {
+      const html = await render({ level: 'due', regionManager })
+
+      expect(html).toContain('Ask region manager')
+      expect(html).toMatch(/Reply to this email to reach/)
+      expect(html).toContain(regionManager.name)
+    })
+
+    it('asks for help with the class in the button’s own subject', async () => {
+      // The ask hands the listing up; the region CTA chases it down. Sending
+      // either one's wording would read as written by the wrong person.
+      const html = await render({ level: 'due', regionManager })
+
+      expect(html).toContain(encodeURIComponent('Help with my Sahaja Yoga class'))
+      expect(html).not.toContain(encodeURIComponent('Please verify your Sahaja Yoga class'))
+    })
+
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'leaves the %s reminder one button and no reply line when nobody is above it',
+      async (level) => {
+        // ⚠ Byte-identity against the no-prop render cannot carry this case on
+        // its own: both sides lack the prop, so anything rendered
+        // unconditionally appears in each and the comparison still passes. The
+        // absences are asserted outright for that reason.
+        const absent = await render({ level, regionManager: undefined })
+
+        expect(absent).toBe(await render({ level }))
+        expect(absent.match(IN_ROW_BUTTON) ?? []).toHaveLength(0)
+        expect(absent).not.toMatch(/Reply to this email to reach/)
+        expect(absent).not.toContain('Ask region manager')
+      },
+    )
+
+    it('keeps it out of a region manager’s own copy, who is the contact', async () => {
+      const html = await render({
+        level: 'escalated',
+        audience: 'region',
+        regionName: 'Maharashtra',
+        eventManager,
+        regionManager,
+      })
+
+      expect(html).not.toContain('Ask region manager')
+      expect(html).not.toMatch(/Reply to this email to reach/)
+      expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(0)
     })
   })
 

@@ -365,22 +365,31 @@ async function main() {
       { label: 'WhatsApp', value: '+91 98765 43210' },
     ],
   }
+  const regionManager = { name: 'Rohan Patil', email: 'rohan.patil@example.com' }
 
   // The event manager gets all four levels. Region managers get looped
   // in from escalated onward, with a different framing and the
-  // manager's contacts.
-  const combos: { level: ReminderLevel; audience: ReminderAudience }[] = [
+  // manager's contacts. `regionManager: false` is the chain with nobody
+  // above the event, which renders the manager's copy as it was before.
+  const combos: {
+    level: ReminderLevel
+    audience: ReminderAudience
+    regionManager?: boolean
+  }[] = [
+    { level: 'due', audience: 'manager', regionManager: true },
+    { level: 'escalated', audience: 'manager', regionManager: true },
+    { level: 'urgent', audience: 'manager', regionManager: true },
+    { level: 'expired', audience: 'manager', regionManager: true },
     { level: 'due', audience: 'manager' },
-    { level: 'escalated', audience: 'manager' },
-    { level: 'urgent', audience: 'manager' },
-    { level: 'expired', audience: 'manager' },
     { level: 'escalated', audience: 'region' },
     { level: 'urgent', audience: 'region' },
     { level: 'expired', audience: 'region' },
   ]
 
   const previews: { label: string; url: string | false }[] = []
-  for (const { level, audience } of combos) {
+  for (const combo of combos) {
+    const { level, audience } = combo
+    const replyTo = combo.regionManager ? regionManager : undefined
     // The same button ExpireEvents mints, per audience.
     const verifyUrl = await reminderButtonUrl({
       event: { id: sample.eventId, title: sample.eventTitle },
@@ -408,15 +417,22 @@ async function main() {
         sinceLastVerified,
         regionName: audience === 'region' ? 'Maharashtra' : undefined,
         eventManager: audience === 'region' ? eventManager : undefined,
+        regionManager: replyTo,
       }),
     )
     const info = await transport.sendMail({
       from: 'Sahaj Atlas <dev@wemeditate.com>',
-      to: audience === 'region' ? 'rohan.patil@example.com' : sample.managerEmail,
+      to: audience === 'region' ? regionManager.email : sample.managerEmail,
+      // The header the template's reply line promises — the whole point of
+      // reviewing these in a real client rather than in a render test.
+      ...(replyTo && { replyTo: [{ name: replyTo.name, address: replyTo.email }] }),
       subject: `[${audience}/${level}] ${sample.eventTitle}`,
       ...body,
     })
-    previews.push({ label: `${audience} · ${level}`, url: messageUrl(info) })
+    previews.push({
+      label: `${audience} · ${level}${replyTo ? '' : ' · no region mgr'}`,
+      url: messageUrl(info),
+    })
   }
 
   console.log('\n━━━ Event verification reminder previews ━━━\n')

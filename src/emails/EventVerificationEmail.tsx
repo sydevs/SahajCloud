@@ -7,6 +7,7 @@ import { getEmailBrand } from '@/plugins/email'
 
 import {
   BrandButton,
+  BrandButtonRow,
   DetailRow,
   EmailLayout,
   ProgressBar,
@@ -83,6 +84,15 @@ export interface EventManagerContact {
 }
 
 /**
+ * The region manager the event manager's replies reach — the nearest one above
+ * the event. Just the two fields a `Reply-To` and a `mailto:` need.
+ */
+export interface RegionManagerContact {
+  name: string
+  email: string
+}
+
+/**
  * One open listing-quality recommendation (#609), resolved for display.
  *
  * The wording is resolved before it reaches the template — the check registry
@@ -149,6 +159,11 @@ interface EventVerificationEmailProps {
   regionName?: string
   /** Event manager's contacts — shown to region managers so they can reach out. */
   eventManager?: EventManagerContact
+  /**
+   * The region manager this email replies to (manager audience). Absent renders
+   * the email exactly as it did before: one button, and no reply line.
+   */
+  regionManager?: RegionManagerContact
   /** Project to brand for. Defaults to `sahaj-atlas` (events are Atlas). */
   project?: ProjectSlug
 }
@@ -230,6 +245,17 @@ const COPY: {
     subject: (eventTitle: string) => string
     body: (eventTitle: string, managerName: string) => string
   }
+  /**
+   * The event manager's own escape hatch: hand the listing to the region
+   * manager above them, by button or by replying.
+   */
+  askRegionManager: {
+    label: string
+    subject: (eventTitle: string) => string
+    body: (eventTitle: string, regionManagerName: string) => string
+    /** The line saying who a reply reaches. */
+    replyLine: (regionManagerName: string) => ReactNode
+  }
   variants: {
     manager: Record<ReminderLevel, VariantCopy>
     // Region managers are first looped in at `escalated`; there is no `due`.
@@ -279,6 +305,19 @@ const COPY: {
     subject: (eventTitle) => `Please verify your Sahaja Yoga class: ${eventTitle}`,
     body: (eventTitle, managerName) =>
       `Hello ${managerName},\n\nYour event “${eventTitle}” is going to be automatically unpublished soon if we don't check it. Could you verify it from your reminder email, or let me know if it is no longer running?\n\nThank you.`,
+  },
+
+  askRegionManager: {
+    label: 'Ask region manager',
+    subject: (eventTitle) => `Help with my Sahaja Yoga class: ${eventTitle}`,
+    body: (eventTitle, regionManagerName) =>
+      `Hello ${regionManagerName},\n\nI have been asked to verify my class “${eventTitle}”, and I would like you to take a look at it. Could you check the listing and verify it on my behalf, or let me know what you need from me?\n\nThank you.`,
+    replyLine: (regionManagerName) => (
+      <>
+        Questions? Reply to this email to reach <strong>{regionManagerName}</strong>, your region
+        manager.
+      </>
+    ),
   },
 
   variants: {
@@ -430,10 +469,8 @@ function renderDoneTicks(
   ))
 }
 
-/** mailto a region manager uses to reach the event manager (the region CTA). */
-function contactManagerHref(email: string, eventTitle: string, managerName: string): string {
-  const subject = COPY.contactManager.subject(eventTitle)
-  const body = COPY.contactManager.body(eventTitle, managerName)
+/** A mailto button's href, with its subject and body pre-filled. */
+function mailtoHref(email: string, subject: string, body: string): string {
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
@@ -458,6 +495,7 @@ export function EventVerificationEmail({
   listingProgress,
   regionName,
   eventManager,
+  regionManager,
   project = 'sahaj-atlas',
 }: EventVerificationEmailProps) {
   const brand = getEmailBrand(project)
@@ -489,8 +527,16 @@ export function EventVerificationEmail({
   const contactEmail = eventManager?.contacts.find((entry) => entry.label === 'Email')?.value
   const ctaHref =
     audience === 'region' && contactEmail
-      ? contactManagerHref(contactEmail, eventTitle, eventManager?.name ?? 'there')
+      ? mailtoHref(
+          contactEmail,
+          COPY.contactManager.subject(eventTitle),
+          COPY.contactManager.body(eventTitle, eventManager?.name ?? 'there'),
+        )
       : verifyUrl
+
+  // The event manager can hand the listing up instead of verifying it, so the
+  // two actions sit side by side at the same weight.
+  const askRegion = audience === 'manager' && regionManager ? regionManager : null
 
   return (
     <EmailLayout
@@ -613,9 +659,26 @@ export function EventVerificationEmail({
         )
       ) : null}
 
-      <BrandButton href={ctaHref} brand={brand}>
-        {variant.cta}
-      </BrandButton>
+      {askRegion ? (
+        <BrandButtonRow
+          brand={brand}
+          buttons={[
+            { href: ctaHref, label: variant.cta },
+            {
+              href: mailtoHref(
+                askRegion.email,
+                COPY.askRegionManager.subject(eventTitle),
+                COPY.askRegionManager.body(eventTitle, askRegion.name),
+              ),
+              label: COPY.askRegionManager.label,
+            },
+          ]}
+        />
+      ) : (
+        <BrandButton href={ctaHref} brand={brand}>
+          {variant.cta}
+        </BrandButton>
+      )}
       {eventUrl ? (
         <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
           View event
@@ -625,6 +688,9 @@ export function EventVerificationEmail({
         <Text style={styles.hint}>
           {audience === 'manager' ? COPY.verifyHint : COPY.signInHint}
         </Text>
+      ) : null}
+      {askRegion ? (
+        <Text style={styles.hint}>{COPY.askRegionManager.replyLine(askRegion.name)}</Text>
       ) : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>
