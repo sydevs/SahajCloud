@@ -21,10 +21,6 @@ import { withWakeRetry } from './wakeRetry'
  *
  * The retry wraps the adapter's own `pg` rather than passing ours through the
  * `pg` option, so a preview runs the driver version production does.
- *
- * ⚠ `scripts/preview-sleep.ts` lets a preview's Postgres sleep only when the
- * commit the preview runs has `wakeRetry.ts` here. Move the file and update it
- * there, or previews quietly stop sleeping their Postgres.
  */
 export const retryWhilePostgresWakes = (
   adapter: DatabaseAdapterObj<PostgresAdapter>,
