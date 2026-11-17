@@ -23,6 +23,8 @@ export interface ServiceState {
 
 export interface PreviewState {
   app: ServiceState
+  /** Whether CI is still running against the commit the app runs. */
+  ciRunning: boolean
   postgres: ServiceState & { pitrEnabled: boolean }
   /** Whether the commit the app runs retries a connection while Postgres wakes. */
   postgresCanWake: boolean
@@ -56,6 +58,11 @@ export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
  *   through it; the app's deploy builds for minutes.
  * - **An app that is not running is left alone**: one still deploying belongs
  *   to a CI run that will call this again, and a failed one has nothing to sleep.
+ * - **So is a preview CI is still testing.** A fresh deploy and a Postgres
+ *   restart mid-run would fail its smoke lane, and the run's completion calls
+ *   this again anyway. A manual run meets one most often, because the workflow
+ *   runs after CI — but not only, so the read is not gated on that path: an
+ *   automatic run queued behind a newer push meets that push's CI instead.
  */
 export function planPreviewSleep(state: PreviewState): SleepPlan {
   const { app, postgres } = state
@@ -64,6 +71,7 @@ export function planPreviewSleep(state: PreviewState): SleepPlan {
   }
   const commit = app.deployment.commitHash
   if (!commit) return { skip: 'its app deployment names no commit' }
+  if (state.ciRunning) return { skip: 'CI is still running against it' }
 
   const actions: SleepAction[] = []
   if (state.postgresCanWake) {
