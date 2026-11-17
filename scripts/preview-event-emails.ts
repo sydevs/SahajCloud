@@ -369,17 +369,18 @@ async function main() {
 
   // The event manager gets all four levels. Region managers get looped
   // in from escalated onward, with a different framing and the
-  // manager's contacts. `regionManager: false` is the chain with nobody
-  // above the event, which renders the manager's copy as it was before.
+  // manager's contacts. The manager combination carrying no
+  // `regionManager` is the chain with nobody above the event, which
+  // renders as the reminder did before #1193.
   const combos: {
     level: ReminderLevel
     audience: ReminderAudience
-    regionManager?: boolean
+    regionManager?: typeof regionManager
   }[] = [
-    { level: 'due', audience: 'manager', regionManager: true },
-    { level: 'escalated', audience: 'manager', regionManager: true },
-    { level: 'urgent', audience: 'manager', regionManager: true },
-    { level: 'expired', audience: 'manager', regionManager: true },
+    { level: 'due', audience: 'manager', regionManager },
+    { level: 'escalated', audience: 'manager', regionManager },
+    { level: 'urgent', audience: 'manager', regionManager },
+    { level: 'expired', audience: 'manager', regionManager },
     { level: 'due', audience: 'manager' },
     { level: 'escalated', audience: 'region' },
     { level: 'urgent', audience: 'region' },
@@ -387,9 +388,7 @@ async function main() {
   ]
 
   const previews: { label: string; url: string | false }[] = []
-  for (const combo of combos) {
-    const { level, audience } = combo
-    const replyTo = combo.regionManager ? regionManager : undefined
+  for (const { level, audience, regionManager: replyTo } of combos) {
     // The same button ExpireEvents mints, per audience.
     const verifyUrl = await reminderButtonUrl({
       event: { id: sample.eventId, title: sample.eventTitle },

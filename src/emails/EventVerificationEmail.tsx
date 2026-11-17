@@ -535,8 +535,9 @@ export function EventVerificationEmail({
       : verifyUrl
 
   // The event manager can hand the listing up instead of verifying it, so the
-  // two actions sit side by side at the same weight.
-  const askRegion = audience === 'manager' && regionManager ? regionManager : null
+  // two actions sit side by side at the same weight. A region manager is the
+  // contact themselves, so theirs stays a single button.
+  const askRegion = audience === 'manager' ? regionManager : undefined
 
   return (
     <EmailLayout
