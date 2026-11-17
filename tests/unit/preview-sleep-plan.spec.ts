@@ -30,9 +30,8 @@ describe('planPreviewSleep', () => {
     })
   })
 
-  // Recovery on with no wake retry is a state the caller builds: it reads
-  // point-in-time recovery whenever it reads the Postgres, and this gate is the
-  // plan's alone.
+  // The caller reads recovery whenever it reads the Postgres, so recovery-on
+  // with no wake retry is a state it really builds.
   it('leaves Postgres awake behind an app with no wake retry', () => {
     expect(planPreviewSleep(freshPreview({ postgresCanWake: false }))).toEqual({
       actions: [
@@ -90,14 +89,19 @@ describe('planPreviewSleep', () => {
     expect(planPreviewSleep(state)).toEqual({ skip: 'its app deployment is missing' })
   })
 
+  it.each(['BUILDING', 'FAILED'])('leaves a preview whose Postgres is %s alone', (status) => {
+    const state = freshPreview()
+    state.postgres.deployment!.status = status
+    expect(planPreviewSleep(state)).toEqual({ skip: `its Postgres deployment is ${status}` })
+  })
+
   it('leaves a preview with no Postgres deployment alone', () => {
     const state = freshPreview()
     state.postgres.deployment = null
     expect(planPreviewSleep(state)).toEqual({ skip: 'its Postgres deployment is missing' })
   })
 
-  // The skip sits inside the wake-retry gate, so a preview that was never going
-  // to touch Postgres still sleeps its app.
+  // Where the skip sits is what keeps this preview's app sleeping.
   it('sleeps the app of a preview with no Postgres deployment and no wake retry', () => {
     const state = freshPreview({ postgresCanWake: false })
     state.postgres.deployment = null

@@ -39,6 +39,15 @@ export type SleepPlan = { actions: SleepAction[] } | { skip: string }
 /** A deployment serving the preview now. */
 export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
 
+/** The deployment a service can snapshot settings from, or the word its skip line needs. */
+function runningDeployment(
+  service: ServiceState,
+): { deployment: DeploymentState } | { gap: string } {
+  if (!service.deployment) return { gap: 'missing' }
+  if (!RUNNING_STATUSES.has(service.deployment.status)) return { gap: service.deployment.status }
+  return { deployment: service.deployment }
+}
+
 /**
  * The changes, in the order to apply them.
  *
@@ -54,30 +63,29 @@ export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
  *   awake, so it goes off in the same deployment.
  * - **Postgres goes first.** Its restart takes seconds and the app retries
  *   through it; the app's deploy builds for minutes.
- * - **An app that is not running is left alone**: one still deploying belongs
- *   to a CI run that will call this again, and a failed one has nothing to sleep.
- * - **A Postgres with no deployment is left alone too**, for the same reason:
- *   there is no settings snapshot to replace, and the next CI run calls this
- *   again once Railway has finished creating the environment.
+ * - **A service that is not running is left alone, and the preview waits with
+ *   it**: one still deploying belongs to a CI run that will call this again, a
+ *   failed one has nothing to sleep, and one Railway never deployed here has no
+ *   settings snapshot to replace.
  */
 export function planPreviewSleep(state: PreviewState): SleepPlan {
   const { app, postgres } = state
-  if (!app.deployment || !RUNNING_STATUSES.has(app.deployment.status)) {
-    return { skip: `its app deployment is ${app.deployment?.status ?? 'missing'}` }
-  }
-  const commit = app.deployment.commitHash
+  const appRead = runningDeployment(app)
+  if ('gap' in appRead) return { skip: `its app deployment is ${appRead.gap}` }
+  const commit = appRead.deployment.commitHash
   if (!commit) return { skip: 'its app deployment names no commit' }
 
   const actions: SleepAction[] = []
   if (state.postgresCanWake) {
-    if (!postgres.deployment) return { skip: 'its Postgres deployment is missing' }
+    const postgresRead = runningDeployment(postgres)
+    if ('gap' in postgresRead) return { skip: `its Postgres deployment is ${postgresRead.gap}` }
     if (!postgres.sleepApplication) actions.push({ kind: 'set-sleep', service: 'postgres' })
     if (postgres.pitrEnabled) actions.push({ kind: 'disable-pitr' })
-    if (postgres.pitrEnabled || !postgres.deployment.manifestSleeps) {
+    if (postgres.pitrEnabled || !postgresRead.deployment.manifestSleeps) {
       actions.push({ kind: 'deploy', service: 'postgres' })
     }
   }
   if (!app.sleepApplication) actions.push({ kind: 'set-sleep', service: 'app' })
-  if (!app.deployment.manifestSleeps) actions.push({ kind: 'deploy', service: 'app', commit })
+  if (!appRead.deployment.manifestSleeps) actions.push({ kind: 'deploy', service: 'app', commit })
   return { actions }
 }
