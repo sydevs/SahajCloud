@@ -543,6 +543,10 @@ no outbound traffic, so anything a preview does on a timer keeps it billed: that
 runs no job crons (`src/jobs/AGENTS.md`). `railway logs --network --json` on a preview shows
 what it still sends while idle.
 
+A preview's Postgres can sleep as well, but the connection that wakes it is refused, so on a
+preview the database adapter retries a connection for up to 30 s (`src/plugins/postgresWake/`).
+Production's adapter has no retry: its Postgres never sleeps.
+
 ---
 
 ## Related Documentation
