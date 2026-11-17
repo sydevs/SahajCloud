@@ -23,8 +23,12 @@ vi.mock('@sentry/nextjs', () => ({
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import { setProject } from '@/collections/Managers/endpoints/setProject'
+import { blockUser } from '@/collections/Users/endpoints/block'
+import { atlasChallenge } from '@/endpoints/atlas/challenge'
 import { readFailureResponse, requireIntegerClientId } from '@/lib/endpoints'
+import { requestTranscript } from '@/lib/transcripts/request'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
+import { r2NativeAdapter } from '@/plugins/storage/r2NativeAdapter'
 
 import { capturedFrom } from '../utils/sentryCapture'
 import {
@@ -457,5 +461,198 @@ describe('a telemetry failure never reaches the caller', () => {
     expect(await response.json()).toEqual({
       errors: [{ message: 'Failed to build the GeoJSON feed.' }],
     })
+  })
+})
+
+/**
+ * The six branches the adversarial review found after the first pass — same
+ * root cause, four of them inside the ticket's own sweep.
+ */
+describe('GET /api/atlas/challenge, when it cannot render one', () => {
+  const challengeRequest = (payload: Record<string, unknown>) =>
+    ({ payload: { logger, ...payload }, query: { parent: 'https://partner.org' } }) as never
+
+  it('reports a missing Turnstile site key', async () => {
+    // The unit lane sets none, which is this branch (`vitest.config.mts`).
+    const response = await atlasChallenge.handler(challengeRequest({}))
+
+    expect(response.status).toBe(503)
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    expect(captured().level).toBe('error')
+    expect(captured().tags).toMatchObject(handlerTags('atlas/challenge'))
+    expect(logger.error).toHaveBeenCalledWith({
+      msg: 'atlasChallenge: TURNSTILE_SITE_KEY is not set',
+    })
+  })
+
+  /** `serverEnv` parses at import, so a key has to be in place before the import. */
+  const challengeWith = async (siteKey: string, over: Record<string, string> = {}) => {
+    vi.stubEnv('TURNSTILE_SITE_KEY', siteKey)
+    for (const [key, value] of Object.entries(over)) vi.stubEnv(key, value)
+    vi.resetModules()
+    return (await import('@/endpoints/atlas/challenge')).atlasChallenge
+  }
+
+  it('reports a production deployment carrying Cloudflare’s test key', async () => {
+    const handler = await challengeWith('1x00000000000000000000AA', {
+      RAILWAY_ENVIRONMENT_NAME: 'production',
+    })
+
+    const response = await handler.handler(challengeRequest({}))
+
+    expect(response.status).toBe(503)
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    expect(captured().level).toBe('error')
+    expect(captured().tags).toMatchObject(handlerTags('atlas/challenge'))
+    vi.unstubAllEnvs()
+  })
+
+  it('reports an allowlist read that failed', async () => {
+    const handler = await challengeWith('0x4AAAAAAAreal')
+    const thrown = new Error('clients read failed')
+
+    const response = await handler.handler(
+      challengeRequest({ find: vi.fn().mockRejectedValue(thrown) }),
+    )
+
+    expect(response.status).toBe(503)
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
+    expect(capturedError().tags).toMatchObject(handlerTags('atlas/challenge'))
+    vi.unstubAllEnvs()
+  })
+
+  it('reports nothing for a parent it refuses, which answers 403', async () => {
+    const handler = await challengeWith('0x4AAAAAAAreal')
+
+    const response = await handler.handler({
+      payload: { logger },
+      query: { parent: 'not-an-origin' },
+    } as never)
+
+    expect(response.status).toBe(403)
+    expect(reported()).toBe(0)
+    vi.unstubAllEnvs()
+  })
+})
+
+describe('POST /api/users/:id/block, when the block cannot be saved', () => {
+  const request = (error: unknown) =>
+    ({
+      headers: new Headers(),
+      json: vi.fn().mockResolvedValue({ blocked: true, reason: 'spam' }),
+      payload: {
+        // `createLocalReq` reads these three off the config to build the
+        // userless request this endpoint writes with.
+        config: {
+          i18n: {
+            fallbackLanguage: 'en',
+            supportedLanguages: { en: { dateFNSKey: 'en-US', translations: {} } },
+          },
+          localization: false,
+        },
+        db: {},
+        logger,
+        update: vi.fn().mockRejectedValue(error),
+      },
+      routeParams: { id: '42' },
+      url: 'https://cloud.sydevelopers.com/api/users/42/block',
+      user: { collection: 'managers', email: 'admin@example.org', id: 1, type: 'admin' },
+    }) as never
+
+  it('answers 500 and reports the exception once, naming the route', async () => {
+    const thrown = new Error('deadlock detected')
+    const response = await blockUser.handler(request(thrown))
+
+    expect(response.status).toBe(500)
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
+    expect(capturedError().level).toBe('error')
+    expect(capturedError().tags).toMatchObject(handlerTags('users/block'))
+    expect(capturedError().extra).toMatchObject({ userId: 42 })
+    expect(logger.error).toHaveBeenCalledOnce()
+  })
+
+  it('reports nothing when the registrant is simply gone, which answers 404', async () => {
+    const response = await blockUser.handler(
+      request(Object.assign(new Error('Not Found'), { status: 404 })),
+    )
+
+    expect(response.status).toBe(404)
+    expect(reported()).toBe(0)
+  })
+})
+
+describe('requestTranscript, when the replacement write fails', () => {
+  const source = { relationTo: 'meditations', value: 3 } as never
+
+  const request = (error: unknown) =>
+    ({
+      payload: {
+        create: vi.fn().mockRejectedValue(error),
+        db: {},
+        delete: vi.fn().mockResolvedValue({ errors: [] }),
+        find: vi.fn().mockResolvedValue({ docs: [] }),
+        logger,
+      },
+    }) as never
+
+  const ask = (error: unknown) =>
+    requestTranscript(request(error), { source, audioFilename: 'talk.mp3', noun: 'meditation' })
+
+  it('answers 500 and reports the exception once, naming the shared body', async () => {
+    const thrown = new Error('connection terminated unexpectedly')
+    const response = await ask(thrown)
+
+    expect(response.status).toBe(500)
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
+    expect(capturedError().level).toBe('error')
+    expect(capturedError().tags).toMatchObject(handlerTags('transcripts/request'))
+    expect(logger.error).toHaveBeenCalledOnce()
+  })
+
+  it('reports nothing for a gate’s own refusal, which keeps its status', async () => {
+    const response = await ask(new APIError('You may not transcribe this.', 403))
+
+    expect(response.status).toBe(403)
+    expect(reported()).toBe(0)
+  })
+})
+
+describe('the R2 static handler, when the object cannot be read', () => {
+  const adapterFor = (send: ReturnType<typeof vi.fn>) =>
+    r2NativeAdapter({
+      client: { send } as never,
+      bucket: 'test-bucket',
+      publicUrl: 'https://assets.example.test',
+    })({ collection: { slug: 'imports' }, prefix: undefined } as never)
+
+  const serve = (send: ReturnType<typeof vi.fn>) =>
+    adapterFor(send).staticHandler(
+      {} as never,
+      {
+        params: { collection: 'imports', filename: 'classes-ab12cd.csv' },
+      } as never,
+    )
+
+  it('answers 500 and reports the exception once, naming the key', async () => {
+    const thrown = new Error('socket hang up')
+    const response = await serve(vi.fn().mockRejectedValue(thrown))
+
+    expect(response.status).toBe(500)
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
+    expect(capturedError().tags).toMatchObject(handlerTags('r2/static'))
+    expect(capturedError().extra).toMatchObject({ key: 'classes-ab12cd.csv' })
+  })
+
+  it('reports nothing for an object that is simply absent, which answers 404', async () => {
+    const response = await serve(
+      vi.fn().mockRejectedValue(Object.assign(new Error('no such key'), { name: 'NoSuchKey' })),
+    )
+
+    expect(response.status).toBe(404)
+    expect(reported()).toBe(0)
   })
 })

@@ -2,11 +2,14 @@ import type { ChallengeConfig } from './challengeDocument'
 import type { Endpoint } from 'payload'
 
 import { serverEnv } from '@/lib/env/server'
+import { capture, handlerTags } from '@/plugins/sentry/capture'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 import { challengeParentAllowlist } from './allowlist'
 import { challengeDocument } from './challengeDocument'
 import { isParentAllowed, isTestSiteKey, readChallengeRequest } from './challengeRequest'
+
+const CHALLENGE_TAGS = handlerTags('atlas/challenge')
 
 function respond(config: ChallengeConfig, status: number): Response {
   return new Response(challengeDocument(config), {
@@ -57,12 +60,26 @@ export const atlasChallenge: Endpoint = {
     const request = readChallengeRequest(req.query ?? {})
     const siteKey = serverEnv.TURNSTILE_SITE_KEY
 
+    // Each 503 below is returned, so nothing else reports it (#1182). All three
+    // are `error` everywhere: `.env` is tracked and carries Cloudflare's test
+    // pair, so every deployment configures this — unlike the Stream webhook,
+    // which dev deliberately leaves unset.
     if (!siteKey) {
-      req.payload.logger.error({ msg: 'atlasChallenge: TURNSTILE_SITE_KEY is not set' })
+      capture({
+        message: 'atlasChallenge: TURNSTILE_SITE_KEY is not set',
+        level: 'error',
+        logger: req.payload.logger,
+        tags: CHALLENGE_TAGS,
+      })
       return respond({ refusal: 'unavailable' }, 503)
     }
     if (isProductionDeployment() && isTestSiteKey(siteKey)) {
-      req.payload.logger.error({ msg: 'atlasChallenge: production carries a Turnstile TEST key' })
+      capture({
+        message: 'atlasChallenge: production carries a Turnstile TEST key',
+        level: 'error',
+        logger: req.payload.logger,
+        tags: CHALLENGE_TAGS,
+      })
       return respond({ refusal: 'unavailable' }, 503)
     }
     if (request.parent === null) return respond({ refusal: 'origin' }, 403)
@@ -71,9 +88,11 @@ export const atlasChallenge: Endpoint = {
     try {
       patterns = await challengeParentAllowlist(req.payload)
     } catch (error) {
-      req.payload.logger.error({
-        msg: 'atlasChallenge: could not read the client allowlist',
-        error: error instanceof Error ? error.message : String(error),
+      capture({
+        error,
+        message: 'atlasChallenge: could not read the client allowlist',
+        logger: req.payload.logger,
+        tags: CHALLENGE_TAGS,
       })
       return respond({ refusal: 'unavailable' }, 503)
     }
