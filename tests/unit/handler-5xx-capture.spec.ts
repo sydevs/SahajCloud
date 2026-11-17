@@ -273,7 +273,7 @@ describe('readFailureResponse, the shared read-failed answer', () => {
     expect(reported()).toBe(0)
   })
 
-  it('reports an APIError carrying a 500 — the status decides, never the class', () => {
+  it('reports an APIError carrying a 500 — the status decides, never the class', async () => {
     const response = readFailureResponse(
       req,
       new APIError('the region tree could not be walked'),
@@ -284,6 +284,12 @@ describe('readFailureResponse, the shared read-failed answer', () => {
     expect(response.status).toBe(500)
     expect(reported()).toBe(1)
     expect(capturedError().tags).toMatchObject(handlerTags('atlas/sitemap'))
+
+    // Payload marks a 500 `APIError` `isPublic: false`, so the caller reads the
+    // handler's own words and never the driver's.
+    await expect(response.json()).resolves.toEqual({
+      errors: [{ message: 'Failed to build the sitemap for this client.' }],
+    })
   })
 
   it('reports a client id that is not an integer, which would answer "you own nothing"', () => {

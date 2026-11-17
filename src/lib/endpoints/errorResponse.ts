@@ -29,6 +29,11 @@ export function errorResponse(message: string, status: number): Response {
  * alone whether anything is reported — so the gate's 4xx stays silent without a
  * second rule written here (#670), and an `APIError` that carries a 500 of its
  * own is reported rather than slipping past on its class.
+ *
+ * ⚠ **Only a 4xx `APIError` speaks for itself.** Payload marks a 500 `APIError`
+ * `isPublic: false` and its own `routeError` withholds the message, so
+ * surfacing one here would hand an API client a driver's text that nothing else
+ * in the app discloses. A 5xx answers `failure`, whatever threw it.
  */
 export function readFailureResponse(
   req: PayloadRequest,
@@ -38,7 +43,7 @@ export function readFailureResponse(
 ): Response {
   const { handler, msg, ...extra } = log
   const refusal =
-    error instanceof APIError
+    error instanceof APIError && error.status < 500
       ? { message: error.message, status: error.status }
       : { message: failure, status: 500 }
 

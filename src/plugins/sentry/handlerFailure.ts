@@ -42,8 +42,14 @@ export interface HandlerFailure {
   logger?: Pick<Payload['logger'], 'error' | 'info' | 'warn'>
   /** What happened. The log line's `msg`, and the Sentry title where there is no exception. */
   message: string
-  /** Overrides what `status` decides. */
-  report?: boolean
+  /**
+   * A 2xx that hides an upstream failure, reported anyway.
+   *
+   * ⚠ **`true` is the only value**, so the escape hatch cannot run backwards: a
+   * `report: false` on a 500 would silence a real incident, and the type is
+   * what stops anyone writing one.
+   */
+  report?: true
   /** What the caller is about to answer with. */
   status: number
 }
