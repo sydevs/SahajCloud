@@ -37,6 +37,7 @@ const APP_SERVICE = 'SahajCloud'
 const POSTGRES_SERVICE = 'Postgres'
 const PRODUCTION = 'production'
 const REPOSITORY = process.env.GITHUB_REPOSITORY || 'sydevs/SahajCloud'
+const DEFAULT_BRANCH = 'main'
 /**
  * The file whose presence at a commit says its app retries while Postgres
  * wakes. ⚠ Keep it in step with `src/plugins/postgresWake/`: if the file moves,
@@ -186,6 +187,22 @@ function runsWakeRetry(commit: string): boolean {
   }
 }
 
+/**
+ * Why a preview's Postgres stays awake. Merging fixes a commit older than the
+ * retry, never a `WAKE_RETRY_PATH` naming nothing, so only the first gets that
+ * remedy. A failed read names neither: this note must not stop the changes.
+ */
+function wakeRetryGap(commit: string): string {
+  const short = commit.slice(0, 8)
+  try {
+    return runsWakeRetry(DEFAULT_BRANCH)
+      ? `${short} predates the wake retry; merge ${DEFAULT_BRANCH}`
+      : `${WAKE_RETRY_PATH} is not at ${DEFAULT_BRANCH} either, so WAKE_RETRY_PATH is stale`
+  } catch {
+    return `${short} does not carry ${WAKE_RETRY_PATH}`
+  }
+}
+
 function describe(action: SleepAction): string {
   switch (action.kind) {
     case 'deploy':
@@ -279,9 +296,7 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
     return
   }
   if (commit && !postgresCanWake) {
-    console.log(
-      `PR #${pr}: Postgres stays awake — ${commit.slice(0, 8)} predates the wake retry; merge main.`,
-    )
+    console.log(`PR #${pr}: Postgres stays awake — ${wakeRetryGap(commit)}.`)
   }
   if (plan.actions.length === 0) {
     console.log(`PR #${pr}: already sleeps when idle.`)
