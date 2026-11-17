@@ -52,7 +52,8 @@ const statementsOf = (down: string): Statement[] => {
 describe('migration `down` blocks', () => {
   it('reads the chain, so a passing run means something', () => {
     // A glob that matches nothing would make every assertion below vacuous.
-    expect(files.length).toBeGreaterThan(40)
+    // The chain was squashed to one baseline, so a later migration adds to a count of 1.
+    expect(files.length).toBeGreaterThanOrEqual(1)
     expect(referencedTable.size).toBeGreaterThan(40)
   })
 
