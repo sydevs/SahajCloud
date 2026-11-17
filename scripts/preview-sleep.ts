@@ -43,6 +43,8 @@ const REPOSITORY = process.env.GITHUB_REPOSITORY || 'sydevs/SahajCloud'
  * every preview's Postgres quietly stays awake.
  */
 const WAKE_RETRY_PATH = 'src/plugins/postgresWake/wakeRetry.ts'
+/** The `ci.yml` job that tests a preview. */
+const CI_CHECK = 'Lint, Test & Smoke'
 
 interface Environment {
   id: string
@@ -186,6 +188,24 @@ function runsWakeRetry(commit: string): boolean {
   }
 }
 
+/**
+ * Whether CI's preview job is still running against `commit`. ⚠ It reads the
+ * job by its check name, which sydevs/SahajCloud#903 already forbids renaming.
+ */
+function ciRunning(commit: string): boolean {
+  const out = execFileSync(
+    'gh',
+    [
+      'api',
+      `repos/${REPOSITORY}/commits/${commit}/check-runs?check_name=${encodeURIComponent(CI_CHECK)}`,
+      '--jq',
+      '[.check_runs[] | select(.status != "completed")] | length',
+    ],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  )
+  return Number(out.trim()) > 0
+}
+
 function describe(action: SleepAction): string {
   switch (action.kind) {
     case 'deploy':
@@ -270,6 +290,7 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
       pitrEnabled: postgresCanWake && pitrEnabled(env.name),
       sleepApplication: postgres.sleepApplication === true,
     },
+    ciRunning: commit ? ciRunning(commit) : false,
     postgresCanWake,
   }
 
