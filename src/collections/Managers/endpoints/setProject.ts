@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { parseBody, requireActiveManager } from '@/lib/endpoints'
 import { isValidProject } from '@/plugins/access'
+import { capture } from '@/plugins/sentry/capture'
 
 const bodySchema = z.object({
   // `null` is the admin "All Content" view. A slug selects a project.
@@ -56,10 +57,15 @@ export const setProject: Endpoint = {
       })
       return Response.json({ ok: true, currentProject: updated.currentProject ?? null })
     } catch (error) {
-      req.payload.logger.error({
-        msg: 'setProject: failed to persist currentProject',
-        managerId,
-        error: error instanceof Error ? error.message : String(error),
+      // Returning the 500 means no `afterError` hook runs, so the handler is the
+      // only thing that can report it (#1182).
+      capture({
+        error,
+        message: 'setProject: failed to persist currentProject',
+        extra: { managerId },
+        level: 'error',
+        logger: req.payload.logger,
+        tags: { capture_source: 'handler', handler: 'managers/set-project' },
       })
       return Response.json({ errors: [{ message: 'Failed to change project.' }] }, { status: 500 })
     }

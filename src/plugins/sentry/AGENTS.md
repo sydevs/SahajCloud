@@ -24,6 +24,20 @@ Two differences follow from the guard denying rather than throwing. It captures 
 
 ⚠ **`requireActiveManager` is deliberately not covered.** It guards the admin surface, where a denial is a person's stale session far more often than a broken integration, and #743's criteria name the client guard alone. Adding it is a one-line call to the same helper if the admin surface ever wants the signal.
 
+## A handler that answers its own 5xx reports it (#1182)
+
+The same blind spot as the returned 403 above, one status class up. A handler that answers a failure by **returning** a 5xx `Response` never throws, so neither `afterError` nor Next's `onRequestError` — the whole path a routed failure takes to Sentry — ever sees it. Nine such branches left nothing but a Railway log line: the Atlas event feed's own 500, the embed-report write, the project switcher, and every failure branch of the Cloudflare Stream webhook.
+
+Each of those branches now calls `capture` directly (`src/plugins/sentry/capture.ts`) in place of its `logger.error`, so the line Railway gets is unchanged and no site gains a second one. They carry two tags: `capture_source: handler` says the handler reported for itself, and `handler` names which — `events/geojson`, `clients/report`, `managers/set-project`, `cloudflare-stream-webhook`. The `handler` tag is what identifies a `captureException` whose title is the driver's own message and says nothing about the route.
+
+⚠ **Not `captureFailure`.** Its job is to classify a **routed** failure from a `req` and a `CaptureSource`; these sites bring their own message, extras and logger, and two of them have no request at all. Everything it would add beyond `capture` is its `mapPostgresCastError` exclusion, and the one branch here where a caller's value reaches a Postgres cast — the geojson feed, which forwards the client's `where` verbatim — already calls that mapper itself and answers 400 before reaching the report.
+
+**Every 4xx is deliberately left alone**, which is the #670 rule again: the feed's cast-failure and query-validation 400s, and the webhook's signature 400 and 401, report nothing. A caller's mistake is not an incident.
+
+**The two "not configured" 503s are the deployment's own gap**, so they follow the rule the jobs already use (`src/jobs/TranscribeRecording/`): `warning` outside production, `error` in production, decided by `isProductionDeployment()`. Dev deliberately subscribes to no Stream webhook, so those branches are the normal answer there and alerting on them would be noise. Every other branch is `error`, including the two that answer **200** — an unplayable upload and a transcript that was never queued are both incidents Cloudflare must not be asked to retry.
+
+`capture`'s never-throw guard is what lets these sites report with no `try` of their own: a broken transport or log destination cannot turn a handler's 500 into a different answer. `tests/unit/handler-5xx-capture.spec.ts` drives each branch through its own handler and pins that.
+
 ## A swallowed admin write reaches no one (#1039)
 
 `afterError` is invoked from `routeError` and the GraphQL handler alone, so it sees only a failure a routed request answers with. The admin also writes through the **Local API**, while a page renders or inside a server function, and those failures are caught inside `node_modules`: `DocumentView` hands the error to Payload's `logError` and returns `undefined` — the page answers 200 with the admin chrome and an empty body — and `schedulePublishHandler` returns `{ error }` to the UI. Payload logs a `ValidationError` at `info` by default, so neither leaves a line that reads as an incident, and nothing escapes the render for `onRequestError` to see. That is how #1038 — nobody could create a Page at all — stood for four months, visible only in the Railway deploy log.

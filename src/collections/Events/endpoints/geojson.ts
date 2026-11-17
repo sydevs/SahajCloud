@@ -7,6 +7,7 @@ import { INVALID_TEXT_REPRESENTATION, mapPostgresCastError } from '@/lib/databas
 import { requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
+import { capture } from '@/plugins/sentry/capture'
 
 import { andWhere, notFinishedWhere } from '../lifecycle/finished'
 
@@ -179,10 +180,15 @@ export const eventsGeoJson: Endpoint = {
           { status: mapped.status },
         )
       }
-      req.payload.logger.error({
-        msg: 'eventsGeoJson: read failed',
-        clientId: req.user?.id,
-        error: error instanceof Error ? error.message : String(error),
+      // Returning the 500 means no `afterError` hook runs, so the handler is the
+      // only thing that can report it (#1182).
+      capture({
+        error,
+        message: 'eventsGeoJson: read failed',
+        extra: { clientId: req.user?.id },
+        level: 'error',
+        logger: req.payload.logger,
+        tags: { capture_source: 'handler', handler: 'events/geojson' },
       })
       return Response.json(
         { errors: [{ message: 'Failed to build the GeoJSON feed.' }] },

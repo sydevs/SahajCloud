@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 
+import { computeStreamSignature as computeSignature } from '../utils/streamWebhookSignature'
+
 // Dynamic-import these after env is prepared so any module-level validation
 // (none today, but cheap insurance) sees the expected env values. The
 // `WebhookLogger` import above is type-only, so it is erased and does not
@@ -41,24 +43,6 @@ function makeLogger(): CapturedLogger {
     warn: vi.fn(),
     error: vi.fn(),
   }
-}
-
-async function computeSignature(rawBody: string, secret: string, time: number): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(`${time}.${rawBody}`))
-  const bytes = new Uint8Array(signed)
-  let hex = ''
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0')
-  }
-  return hex
 }
 
 function buildReadyPayload(overrides: Record<string, unknown> = {}): string {

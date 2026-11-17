@@ -12,6 +12,7 @@ import {
 import { siteHosts } from '@/lib/clients/site'
 import { parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
+import { capture } from '@/plugins/sentry/capture'
 import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
 
 /**
@@ -175,9 +176,14 @@ export const clientEmbedReport: Endpoint = {
       }
       const pool = getPgPool(req)
       if (!pool) {
-        req.payload.logger.error({
-          msg: 'clientEmbedReport: Postgres pool unavailable; report dropped',
-          clientId: client.id,
+        // The 500 is returned, not thrown, so no `afterError` hook reports it
+        // and a client's usage would otherwise stop accruing in silence (#1182).
+        capture({
+          message: 'clientEmbedReport: Postgres pool unavailable; report dropped',
+          extra: { clientId: client.id },
+          level: 'error',
+          logger: req.payload.logger,
+          tags: { capture_source: 'handler', handler: 'clients/report' },
         })
         return Response.json(
           { errors: [{ message: 'Could not record this report.' }] },

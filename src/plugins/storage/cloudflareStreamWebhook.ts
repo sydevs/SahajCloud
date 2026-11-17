@@ -1,5 +1,7 @@
 /**
- * Cloudflare Stream webhook helpers (pure, no Payload / Next.js dependency).
+ * Cloudflare Stream webhook helpers. No Payload dependency — the logger and the
+ * ready-video follow-up are injected, so a spec drives the whole processor
+ * without booting one.
  *
  * Kept in `src/plugins/storage` rather than co-located with the route handler
  * because Next.js App Router routes may only export specific named exports
@@ -11,12 +13,30 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { z } from 'zod'
 
+import type { CaptureLevel } from '@/plugins/sentry/capture'
+import { capture } from '@/plugins/sentry/capture'
+
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
 } from './cloudflareSchemas'
+import { isProductionDeployment } from './previewIsolation'
 
 const FIVE_MINUTES_SECONDS = 300
+
+/**
+ * Every report this webhook sends. Cloudflare reads the status code and retries;
+ * nobody reads the Railway log, so a failure answered here reaches no one unless
+ * the handler reports it itself (#1182).
+ */
+const HANDLER_TAGS = { capture_source: 'handler', handler: 'cloudflare-stream-webhook' }
+
+/**
+ * A missing secret or credential is the deployment's own gap: an answer on a
+ * preview or locally, where nothing configures them, and an incident in
+ * production. Same rule as a job's (`src/jobs/TranscribeRecording/`).
+ */
+const configGapLevel = (): CaptureLevel => (isProductionDeployment() ? 'error' : 'warning')
 
 /**
  * Compare two strings without leaking where they first differ.
@@ -129,9 +149,14 @@ export async function verifySignature(
 }
 
 /**
- * Pure webhook processor. No Payload or Next.js dependency — the route handler
- * is a thin wrapper. Callers can inject `fetchFn` for tests, and `onReady` for
- * the work a ready video starts beyond its downloads.
+ * The webhook processor. The route handler is a thin wrapper. Callers can inject
+ * `fetchFn` for tests, and `onReady` for the work a ready video starts beyond
+ * its downloads.
+ *
+ * ⚠ **Every branch that answers 5xx, or 200 after recording an upstream
+ * failure, reports for itself** (#1182). Cloudflare reads the status code and
+ * retries; the signature 400s stay silent, because a caller's mistake is not an
+ * incident (#670).
  */
 export async function handleStreamWebhook(params: {
   rawBody: string
@@ -164,7 +189,12 @@ export async function handleStreamWebhook(params: {
   } = params
 
   if (!secret) {
-    logger.warn({ msg: 'Cloudflare Stream webhook secret not configured' })
+    capture({
+      message: 'Cloudflare Stream webhook secret not configured',
+      level: configGapLevel(),
+      logger,
+      tags: HANDLER_TAGS,
+    })
     return { status: 503, body: { error: 'Webhook secret not configured' } }
   }
 
@@ -202,12 +232,17 @@ export async function handleStreamWebhook(params: {
   const { uid, status } = payload
 
   if (status.state === 'error') {
-    logger.error({
-      msg: 'Cloudflare Stream reported processing error',
-      uid,
-      state: status.state,
-      errorReasonCode: status.errorReasonCode,
-      errorReasonText: status.errorReasonText,
+    capture({
+      message: 'Cloudflare Stream reported processing error',
+      extra: {
+        uid,
+        state: status.state,
+        errorReasonCode: status.errorReasonCode,
+        errorReasonText: status.errorReasonText,
+      },
+      level: 'error',
+      logger,
+      tags: HANDLER_TAGS,
     })
     return { status: 200, body: { ok: true, action: 'logged-error' } }
   }
@@ -222,9 +257,12 @@ export async function handleStreamWebhook(params: {
   }
 
   if (!accountId || !apiKey) {
-    logger.error({
-      msg: 'Cannot enable MP4 downloads — Cloudflare credentials not configured',
-      uid,
+    capture({
+      message: 'Cannot enable MP4 downloads — Cloudflare credentials not configured',
+      extra: { uid },
+      level: configGapLevel(),
+      logger,
+      tags: HANDLER_TAGS,
     })
     return { status: 503, body: { error: 'Cloudflare credentials not configured' } }
   }
@@ -248,7 +286,13 @@ export async function handleStreamWebhook(params: {
 
     if (!result.success) {
       const errors = result.errors.map((e) => e.message).join(', ')
-      logger.error({ msg: 'Failed to enable MP4 downloads', uid, errors })
+      capture({
+        message: 'Failed to enable MP4 downloads',
+        extra: { uid, errors },
+        level: 'error',
+        logger,
+        tags: HANDLER_TAGS,
+      })
       return { status: 500, body: { error: 'Failed to enable downloads' } }
     }
 
@@ -256,28 +300,37 @@ export async function handleStreamWebhook(params: {
     logger.info({ msg: 'MP4 downloads enabled via webhook', uid, status: downloadStatus })
     if (onReady) {
       await onReady(uid).catch((error: unknown) => {
-        logger.error({
-          msg: 'Stream video ready, but its follow-up work failed',
-          uid,
-          error: error instanceof Error ? error.message : String(error),
+        capture({
+          error,
+          message: 'Stream video ready, but its follow-up work failed',
+          extra: { uid },
+          level: 'error',
+          logger,
+          tags: HANDLER_TAGS,
         })
       })
     }
     return { status: 200, body: { ok: true, action: 'downloads-enabled', downloadStatus } }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.error({
-        msg: 'Cloudflare downloads API response validation failed',
-        uid,
-        issues: error.issues,
+      capture({
+        error,
+        message: 'Cloudflare downloads API response validation failed',
+        extra: { uid, issues: error.issues },
+        level: 'error',
+        logger,
+        tags: HANDLER_TAGS,
       })
       return { status: 500, body: { error: 'Invalid downstream response' } }
     }
 
-    logger.error({
-      msg: 'Error enabling MP4 downloads via webhook',
-      uid,
-      error: error instanceof Error ? error.message : String(error),
+    capture({
+      error,
+      message: 'Error enabling MP4 downloads via webhook',
+      extra: { uid },
+      level: 'error',
+      logger,
+      tags: HANDLER_TAGS,
     })
     return { status: 500, body: { error: 'Failed to enable downloads' } }
   }
