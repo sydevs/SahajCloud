@@ -35,8 +35,7 @@ import * as path from 'path'
 
 import type { SongTag, UserChoice } from '@/payload-types'
 
-import { seedEnv } from 'seeds/env'
-
+import { seedEnv } from '../env'
 import {
   BaseImporter,
   BaseImportOptions,

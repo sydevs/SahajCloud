@@ -127,7 +127,7 @@ export const cloudflareStreamAdapter = (config: CloudflareStreamConfig): Adapter
         const formData = new FormData()
         // Native Node Buffer works directly with Blob/FormData (the indexed
         // byte-copy was a Workers Buffer-polyfill workaround).
-        const blob = new Blob([file.buffer], { type: file.mimeType })
+        const blob = new Blob([file.buffer as Uint8Array<ArrayBuffer>], { type: file.mimeType })
         formData.append('file', blob, file.filename)
 
         req.payload.logger.info({
