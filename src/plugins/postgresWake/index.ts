@@ -21,6 +21,11 @@ import { withWakeRetry } from './wakeRetry'
  *
  * The retry wraps the adapter's own `pg` rather than passing ours through the
  * `pg` option, so a preview runs the driver version production does.
+ *
+ * ⚠ `init` is the seam because the adapter builds its pool later, in its own
+ * `connect()`, as `new this.pg.Pool(this.poolOptions)` — `init` leaves `pool`
+ * undefined. That pool's first connection is an unretried `pool.connect()`,
+ * and a refusal there is the `cannot connect to Postgres` that fails init.
  */
 export const retryWhilePostgresWakes = (
   adapter: DatabaseAdapterObj<PostgresAdapter>,

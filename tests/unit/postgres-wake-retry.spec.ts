@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg'
 
 import { createServer } from 'node:net'
 
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import pg from 'pg'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -112,6 +113,36 @@ describe('withWakeRetry', () => {
     expect(onWaking).toHaveBeenCalledOnce()
     expect(Date.now() - started).toBeGreaterThanOrEqual(200)
     await pool.end()
+  })
+})
+
+/**
+ * The adapter builds its pool inside its own `connect()`, from the `pg` that
+ * `init` left on it. Nothing in the adapter's types says so, so this drives the
+ * real adapter at a refused port: the seam the wrapper hangs on either carries
+ * the retry or it does not, with no sleeping Postgres needed to find out.
+ */
+describe("the adapter's own connect path", () => {
+  it('builds its pool from the pg that init left, and retries through it', async () => {
+    const onWaking = vi.fn()
+    const logger = { error: vi.fn(), info: vi.fn() }
+    const adapter = postgresAdapter({
+      pool: { host: '127.0.0.1', port: await closedPort() },
+    })
+
+    const db = adapter.init({ payload: { logger } as unknown as Payload })
+    expect(db.pool).toBeUndefined()
+    db.pg = withWakeRetry(db.pg, { budgetMs: 300, intervalMs: 20, onWaking })
+    // `connect()`'s own failure path rejects this, which nothing else awaits.
+    db.initializing.catch(() => {})
+    const started = Date.now()
+
+    // `connect` is optional on Payload's adapter type; this seam is it being there.
+    expect(db.connect).toBeInstanceOf(Function)
+    await expect(db.connect?.()).rejects.toThrow(/cannot connect to Postgres/)
+    expect(onWaking).toHaveBeenCalledOnce()
+    expect(Date.now() - started).toBeGreaterThanOrEqual(300)
+    await db.pool?.end()
   })
 })
 
