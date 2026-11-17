@@ -73,6 +73,9 @@ const nextConfig: NextConfig = {
   },
   // The preview fixture's uploads, which the app reads off disk at boot
   // (`src/fixture/load.ts`). Whichever route boots Payload first runs the load.
+  // `'/*'` is Next's documented all-routes key, not a one-segment one: a route
+  // glob is matched with picomatch's `contains`, so it covers `/api/health` and
+  // `/admin/[[...segments]]` too.
   outputFileTracingIncludes: {
     '/*': ['src/fixture/files/**/*'],
   },
