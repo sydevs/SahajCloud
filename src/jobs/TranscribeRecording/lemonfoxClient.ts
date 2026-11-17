@@ -45,7 +45,7 @@ export const TRANSCRIPTION_UNAVAILABLE_ERROR =
  *
  * `audioUrl` must be publicly reachable: Lemonfox fetches it itself, so the
  * recording never passes through this process. Returns the parsed JSON body
- * untouched — `normalizeLemonfoxResponse` gives it a shape.
+ * untouched — `normalizeLemonfoxCues` gives it a shape.
  */
 export async function requestLemonfoxTranscript({
   apiKey,

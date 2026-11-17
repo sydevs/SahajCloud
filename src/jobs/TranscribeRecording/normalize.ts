@@ -5,9 +5,9 @@
  * A run stores subtitle-length cues made from the word timings, whatever the
  * recording (#1016): one shape serves a Path Step's subtitles and a
  * meditation's reading view, which groups cues into paragraphs by the pauses
- * between them. The library's existing transcripts were stored as Lemonfox's
- * phrases before that, and the seed that imports them keeps them so
- * (`normalizeLemonfoxResponse`) — they are production's rows as they are.
+ * between them. The library's transcripts imported before that are stored as
+ * Lemonfox's longer phrases and stay so — they are production's rows as they
+ * are.
  */
 import { z } from 'zod'
 
@@ -55,35 +55,6 @@ const UNREADABLE = 'Lemonfox returned a response this app cannot read.'
  * millisecond precision. That one ships cues 1000× too fast.
  */
 const toMilliseconds = (seconds: number): number => Math.round(Math.max(0, seconds) * 1000)
-
-/**
- * Reduce a Lemonfox `verbose_json` body to its phrase segments — the shape the
- * library's existing transcripts carry, imported once under #897.
- *
- * Throws when the body holds no timestamped segment, since a transcript the
- * editor cannot seek through is not one this feature can use.
- */
-export function normalizeLemonfoxResponse(raw: unknown): TranscriptSegment[] {
-  const parsed = rawResponseSchema.safeParse(raw)
-  if (!parsed.success) throw new Error(UNREADABLE)
-
-  const segments = (parsed.data.segments ?? [])
-    .filter((segment) => segment.text.trim())
-    .sort((a, b) => a.start - b.start)
-  if (segments.length === 0) {
-    // An answer about the recording (music, silence), already shown on its row.
-    throw new ExpectedJobFailure('Lemonfox returned no timestamped speech for this recording.')
-  }
-
-  return segments.map((segment) => {
-    const startTimeMs = toMilliseconds(segment.start)
-    return {
-      content: segment.text.trim(),
-      startTimeMs,
-      endTimeMs: Math.max(startTimeMs, toMilliseconds(segment.end)),
-    }
-  })
-}
 
 /**
  * Reduce a Lemonfox `verbose_json` body to the stored cues.
