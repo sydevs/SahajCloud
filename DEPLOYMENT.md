@@ -121,12 +121,12 @@ Cloudflare Access runs **ahead** of that Worker, so only a `sydevs` member — o
 one of two named service tokens — gets through, and the address is known the
 moment the pull request exists.
 
-| Piece                                               | Where                                                                                                            |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| The Worker                                          | `preview-proxy/`, deployed by the manual **Deploy preview proxy** workflow ([how](#deploying-the-preview-proxy)) |
-| The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                                      |
-| The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                                              |
-| The content a reviewer opens it on                  | `src/fixture/`, loaded by the app at boot; `ci.yml` waits for `/api/health` to say `loaded`                      |
+| Piece                                               | Where                                                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The Worker                                          | `preview-proxy/`, deployed by hand (`wrangler deploy --config preview-proxy/wrangler.jsonc`) |
+| The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                  |
+| The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
+| The content a reviewer opens it on                  | `src/fixture/`, loaded by the app at boot; `ci.yml` waits for `/api/health` to say `loaded`  |
 
 ⚠ **The address step needs more of the Cloudflare token than Images and Stream.** CI reads
 the org secret `CLOUDFLARE_API_TOKEN` (as `CLOUDFLARE_API_KEY`). The step writes KV and attaches
@@ -278,29 +278,6 @@ SahajAtlasWeb needs nothing either way — its only cache beyond the edge is a p
 Query window, which a reload clears.
 
 ---
-
-### Deploying the preview proxy
-
-`.github/workflows/deploy-preview-proxy.yml` ("Deploy preview proxy") deploys `preview-proxy/` with
-`wrangler deploy --config preview-proxy/wrangler.jsonc`, so each deploy leaves a run: who, which
-commit, when. It is `workflow_dispatch` only, and refuses any ref but `main`. It is never
-triggered by a push or a pull request: the PR that changes the Worker also gates its own preview,
-so a broken Worker deployed from inside it could not be fixed from inside it. Merge the change,
-then run the workflow from `main`. Tick **dry_run** to build and validate without publishing.
-
-**One-time setup (owner, GitHub → Settings → Environments).** Create an environment named
-`preview-proxy`, then:
-
-1. Add a **required reviewer** and a **deployment branch rule** limiting it to `main`.
-2. Add two **environment secrets**. The names match the repository secrets `cleanup-preview-assets.yml`
-   already reads, and an environment secret shadows a repository one, so this environment can hold
-   a narrower token:
-   - `CLOUDFLARE_API_TOKEN`: an API token scoped to **Workers Scripts: Edit** on the account (the
-     Worker's KV binding is only referenced, never written, at deploy time).
-   - `CLOUDFLARE_ACCOUNT_ID`: the account that owns `sahajcloud-preview-proxy`.
-
-`PREVIEW_PROXY_SECRET` stays a Worker secret set with `wrangler secret put`. The workflow neither
-sets nor needs it, and `wrangler deploy` leaves existing secrets alone.
 
 ## Database Migrations
 
@@ -456,8 +433,7 @@ Never paste a secret into git or email.
    railway logs -s sahajcloud --tail
    ```
 
-5. **Verify** (the **Post-deploy check** workflow does the health half on every push to `main`;
-   see [Post-deploy check](#post-deploy-check-and-holding-a-deploy-behind-ci)):
+5. **Verify**:
 
    ```bash
    curl https://cloud.sydevelopers.com/api/health
@@ -471,34 +447,6 @@ routes to the new instance → the previous instance keeps running until the new
 
 The Next.js build can warn about Payload's dynamic migration loading and Sentry's source-map
 processing — both are expected and do not affect the app.
-
-### Post-deploy check, and holding a deploy behind CI
-
-**What the repo owns.** Railway's own gate is `healthcheckPath = "/api/health"` in `railway.toml`
-(300 s, then up to 3 restarts): the previous instance keeps serving until the new one answers it.
-That gate only says the new container is up. `.github/workflows/post-deploy-check.yml` closes the
-loop on every push to `main`: it polls production's `/api/health` (one read-only GET, no
-credentials, no data) until it reports `status: ok` **and** `commit` equal to the pushed SHA, and
-fails the run after 25 minutes otherwise. The `commit` match is the point: `/api/health` answers
-`ok` from the previous instance too, and `version` is the same on every commit. A newer push
-cancels an older check. A red run means the deploy failed or never landed (a failed migration
-stops the server, see Troubleshooting), and it shows on the commit like any failed workflow.
-
-**What only the dashboard can do (manual, owner).** Railway deploys on push whether or not CI has
-passed. To hold production until CI is green, open the Railway dashboard, then the `sahajcloud`
-service in the production environment, **Settings → Source**, and turn on **Wait for CI**. The
-workflow named **CI** (`ci.yml`) is what it waits for. Nothing in this repository can set it, and
-it is not part of `railway.toml`.
-
-Two effects to expect once it is on. A push to `main` deploys only after CI passes on that commit,
-so the post-deploy check above waits longer (its budget allows for it). And CI runs on `main`
-only if a trigger exists for it: `ci.yml` runs on `pull_request` and `merge_group`, not on `push`,
-so a commit that lands on `main` may carry no CI run of its own for Railway to wait on. That
-could leave the deploy waiting indefinitely, and the post-deploy check then goes red at its
-deadline. Watch the first deploy after enabling the setting, and turn it off again if a `main`
-commit never deploys. (Adding `push: branches: [main]` to `ci.yml` would give Railway a run to
-wait on, at the price of a second full CI run per merge. That is a decision for the owner, and
-this change does not make it.)
 
 ### ⚠ Post-deploy step: re-verify each canonical-owning client (#644)
 

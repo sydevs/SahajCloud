@@ -103,7 +103,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full documentation.
 
 ## Project Structure
 
-Standard Next.js + Payload layout under `src/`. One directory sits outside it: **`preview-proxy/`**, the Cloudflare Worker in front of every Railway preview, deployed only by the manual `deploy-preview-proxy.yml` workflow (`workflow_dispatch`, from `main`, protected `preview-proxy` environment; see DEPLOYMENT.md) and never on a push — the pull request shipping a change to it gates its own preview, so a broken Worker deployed from inside that PR could not be fixed from inside it. See **`src/AGENTS.md`** for the `src/` layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
+Standard Next.js + Payload layout under `src/`. One directory sits outside it: **`preview-proxy/`**, the Cloudflare Worker in front of every Railway preview, deployed by hand and never from CI — the pull request shipping a change to it gates its own preview, so a broken Worker deployed from inside that PR could not be fixed from inside it. See **`src/AGENTS.md`** for the `src/` layout and where new code belongs (`plugins/` vs `jobs/` vs `lib/` vs an owner's folder). Tests live under `tests/` — see **`tests/AGENTS.md`** for the lanes and where a new spec belongs.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
