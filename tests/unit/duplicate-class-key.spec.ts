@@ -107,7 +107,7 @@ describe('classKey', () => {
   })
 
   it('answers null for a class with no time to compare', () => {
-    expect(classKey({ eventType: 'offline', inactive: true })).toBeNull()
+    expect(classKey({ eventType: 'offline', repeats: 'inactive' })).toBeNull()
   })
 })
 

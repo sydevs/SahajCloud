@@ -6,7 +6,7 @@ import { type EventFullnessInput, isEventFull } from './fullness'
 
 /** The event fields the gate reads — structurally a subset of an Event doc. */
 export interface RegistrationGateInput extends EventFullnessInput {
-  inactive?: boolean | null
+  repeats?: string | null
   schedule?: Partial<EventSchedule> | null
 }
 

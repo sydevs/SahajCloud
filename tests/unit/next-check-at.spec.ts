@@ -48,7 +48,7 @@ describe('resolveNextCheckAt — pre-adoption stages', () => {
 
   it('is null for a dormant event — it has no schedule to run out', () => {
     expect(
-      resolveNextCheckAt({ stage: 'unverified', schedule: endingSchedule, inactive: true }),
+      resolveNextCheckAt({ stage: 'unverified', schedule: endingSchedule, repeats: 'inactive' }),
     ).toBeNull()
   })
 
@@ -89,7 +89,7 @@ describe('resolveNextCheckAt — ladder stages', () => {
         stage: 'verified',
         stageDeadline: deadline,
         schedule: endingSchedule,
-        inactive: true,
+        repeats: 'inactive',
       }),
     ).toBe(deadline.toISOString())
   })
@@ -118,7 +118,7 @@ describe('resolveNextCheckAt — finished retention', () => {
     const now = new Date('2026-06-15T00:00:00.000Z')
     for (const input of [
       { schedule: openEndedSchedule },
-      { schedule: endingSchedule, inactive: true },
+      { schedule: endingSchedule, repeats: 'inactive' },
       { schedule: null },
     ]) {
       const result = resolveNextCheckAt({ stage: 'finished', ...input, now })
@@ -159,7 +159,7 @@ describe('the nullability contract', () => {
         stage,
         stageDeadline: deadlineFor(stage),
         schedule: null,
-        inactive: true,
+        repeats: 'inactive',
         now,
       })
       if (isPreAdoptionStage(stage)) {

@@ -184,6 +184,17 @@ export function createTestLexicalContent(text: string = 'Test content'): Lexical
 }
 
 /** Test data factory functions for creating test entities with payload.create() */
+/**
+ * The `repeats` a fixture's own schedule implies: its recurrence, else a
+ * one-off, else dormant — the default this helper has always had.
+ */
+function repeatsFor(overrides: FixtureOverrides<Event>): string {
+  const schedule = overrides.schedule
+  if (!schedule) return 'inactive'
+  const recurrence = schedule.recurrenceType
+  return recurrence ? recurrence.toLowerCase() : 'once'
+}
+
 export const testData = {
   /** Create an app card with image relationship */
   async createAppCard(
@@ -1182,14 +1193,22 @@ export const testData = {
       regionId = regionId.id
     }
 
-    // Default to inactive (simplest case): no schedule required, but needs contact info
+    // Dormant by default (the simplest case): no schedule required, but it owes
+    // the contact details a dormant class must carry.
+    //
+    // ⚠ **`repeats` is derived from a supplied schedule's own recurrence.**
+    // `syncScheduleRecurrence` writes `schedule.recurrenceType` from `repeats`,
+    // so a case handing over a weekly schedule under the dormant default would
+    // have that recurrence cleared. Verified against
+    // `src/collections/Events/hooks/syncScheduleRecurrence.ts`.
     const eventData: any = {
       title: overrides.title || `Test Event ${uniqueId}`,
       languages: overrides.languages || ['en'],
       manager: managerId,
       region: regionId,
       verificationStage: overrides.verificationStage || 'verified',
-      inactive: true, // Default to inactive to avoid schedule complexity
+      repeats: repeatsFor(overrides),
+      allowContact: true,
       contactPhone: overrides.contactPhone || '+1-555-0100',
       contactName: overrides.contactName || 'Test Contact',
       ...overrides,

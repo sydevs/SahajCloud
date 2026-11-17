@@ -34,3 +34,16 @@ export const EVENT_REGISTRATION_MODE_OPTIONS = [
   { label: 'Sahaj Atlas', value: 'sahaj-atlas' },
   { label: 'External', value: 'external' },
 ] as const
+
+/**
+ * How often a class meets, plus the dormant state — one control, because an
+ * editor is choosing one thing. `once` stores no recurrence; `inactive` leaves
+ * the recurrence alone, so choosing a pace again restores the schedule.
+ */
+export const EVENT_REPEATS_OPTIONS = [
+  { label: "Doesn't repeat", value: 'once' },
+  { label: 'Daily', value: 'daily' },
+  { label: 'Weekly', value: 'weekly' },
+  { label: 'Monthly', value: 'monthly' },
+  { label: 'Inactive', value: 'inactive' },
+] as const

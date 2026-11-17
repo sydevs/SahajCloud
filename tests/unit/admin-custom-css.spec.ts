@@ -22,6 +22,8 @@ import { describe, expect, it } from 'vitest'
 const ROOT = resolve(__dirname, '../..')
 const SHEET = join(ROOT, 'src/app/(payload)/custom.scss')
 const COMPONENTS = join(ROOT, 'src/components')
+/** Where an `admin.className` is declared, which renders a class as surely as a component. */
+const CONFIGS = [join(ROOT, 'src/collections'), join(ROOT, 'src/fields'), join(ROOT, 'src/globals')]
 const PAYLOAD_SCSS = join(ROOT, 'node_modules/@payloadcms/ui/dist/scss')
 const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
 const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
@@ -29,10 +31,14 @@ const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
 /** Variables this repo declares for itself, rather than overriding Payload's. */
 const OUR_VARIABLES = ['--admin-body-size']
 
-/** Classes this repo's own components render. Everything else is Payload's. */
+/**
+ * Classes this repo renders itself — from a component, or from an
+ * `admin.className` on a field config. Everything else is Payload's.
+ */
 const OUR_CLASSES = [
   'address-search',
   'address-search__toggle',
+  'checkbox-group',
   'notification-preferences',
   'string-select',
 ]
@@ -68,7 +74,10 @@ function componentFiles(dir: string, pattern: RegExp, found: string[] = []): str
 
 const sheet = withoutComments(readFileSync(SHEET, 'utf8'))
 const adminFiles = componentFiles(COMPONENTS, /\.(tsx?|s?css)$/)
-const adminSources = componentFiles(COMPONENTS, /\.tsx?$/)
+const adminSources = [
+  ...componentFiles(COMPONENTS, /\.tsx?$/),
+  ...CONFIGS.flatMap((dir) => componentFiles(dir, /\.tsx?$/)),
+]
 const styleFiles = payloadStyleFiles()
 const missing = styleFiles.filter((file) => !existsSync(file))
 const styles = styleFiles
@@ -163,7 +172,8 @@ describe('custom.scss', () => {
   })
 
   it('claims as its own only classes this repo renders, and still uses each', () => {
-    // A class named only in a stylesheet is not a class this repo renders.
+    // A class named only in a stylesheet is not a class this repo renders, so a
+    // component or a field config has to spell it.
     const sources = adminSources.map((file) => readFileSync(file, 'utf8'))
     const unrendered = OUR_CLASSES.filter((name) => !sources.some((src) => src.includes(name)))
     expect(unrendered).toEqual([])

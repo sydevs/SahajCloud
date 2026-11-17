@@ -96,8 +96,8 @@ describe('shouldFinish', () => {
     ).toBe(false)
   })
 
-  it('never finishes an inactive event, even with a stale past firstDate', () => {
-    expect(shouldFinish({ inactive: true, schedule: ONE_OFF_PAST }, NOW)).toBe(false)
+  it('never finishes a dormant class, even with a stale past firstDate', () => {
+    expect(shouldFinish({ repeats: 'inactive', schedule: ONE_OFF_PAST }, NOW)).toBe(false)
   })
 
   it('never finishes an event with no schedule', () => {
@@ -125,10 +125,10 @@ describe('shouldFinish', () => {
 })
 
 describe('notFinishedWhere', () => {
-  it('is an OR of the inactive escape, a null lastDate, and a future lastDate', () => {
+  it('is an OR of the dormant escape, a null lastDate, and a future lastDate', () => {
     expect(notFinishedWhere(NOW)).toEqual({
       or: [
-        { inactive: { equals: true } },
+        { repeats: { equals: 'inactive' } },
         { 'schedule.lastDate': { exists: false } },
         { 'schedule.lastDate': { greater_than_equal: NOW.toISOString() } },
       ],
@@ -148,13 +148,13 @@ describe('notFinishedWhere agrees with shouldFinish', () => {
    */
   const evaluate = (
     where: Where,
-    row: { inactive?: boolean | null; lastDate?: string | null },
+    row: { repeats?: string | null; lastDate?: string | null },
   ): boolean => {
     const branches = where.or as Array<Record<string, Record<string, unknown>>>
-    const [inactiveBranch, nullBranch, futureBranch] = branches
+    const [dormantBranch, nullBranch, futureBranch] = branches
     expect(branches).toHaveLength(3)
 
-    if (row.inactive === (inactiveBranch.inactive.equals as boolean)) return true
+    if (row.repeats === (dormantBranch.repeats.equals as string)) return true
     if (nullBranch['schedule.lastDate'].exists === false && row.lastDate == null) return true
     const threshold = futureBranch['schedule.lastDate'].greater_than_equal as string
     return row.lastDate != null && row.lastDate >= threshold
@@ -162,7 +162,7 @@ describe('notFinishedWhere agrees with shouldFinish', () => {
 
   const cases: Array<{
     name: string
-    inactive?: boolean
+    repeats?: string
     schedule: Parameters<typeof lastOccurrenceEnd>[0]
   }> = [
     { name: 'one-off in the past', schedule: ONE_OFF_PAST },
@@ -220,19 +220,19 @@ describe('notFinishedWhere agrees with shouldFinish', () => {
         exclusions: [{ startDate: '2025-03-17' }],
       },
     },
-    { name: 'inactive with a stale past firstDate', inactive: true, schedule: ONE_OFF_PAST },
-    { name: 'inactive with no schedule', inactive: true, schedule: {} },
+    { name: 'dormant with a stale past firstDate', repeats: 'inactive', schedule: ONE_OFF_PAST },
+    { name: 'dormant with no schedule', repeats: 'inactive', schedule: {} },
     { name: 'no schedule at all', schedule: {} },
   ]
 
-  it.each(cases)('$name', ({ inactive, schedule }) => {
+  it.each(cases)('$name', ({ repeats, schedule }) => {
     // The row as the DB would hold it: lastDate is what computeLastDate writes.
     const lastDate = lastOccurrenceEnd(schedule)
     const passesFeedFilter = evaluate(notFinishedWhere(NOW), {
-      inactive: inactive ?? false,
+      repeats: repeats ?? 'weekly',
       lastDate,
     })
 
-    expect(passesFeedFilter).toBe(!shouldFinish({ inactive, schedule }, NOW))
+    expect(passesFeedFilter).toBe(!shouldFinish({ repeats, schedule }, NOW))
   })
 })

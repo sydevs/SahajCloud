@@ -2,8 +2,18 @@
 
 import type { UIFieldClientProps } from 'payload'
 
-import { Banner, Button, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
+import {
+  Banner,
+  Button,
+  ErrorIcon,
+  InfoIcon,
+  SuccessIcon,
+  useConfig,
+  useDocumentInfo,
+  WarningIcon,
+} from '@payloadcms/ui'
 import { GraduationCap } from 'lucide-react'
+import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
 /** The `Banner` types Payload styles: `info` has no rule of its own, so it is `default`. */
@@ -27,12 +37,26 @@ const NAMED_ICONS: Record<string, React.FC> = {
   warning: WarningIcon,
 }
 
-/** A `ui` field's `admin.custom`: `{ icon?: 'tutorial' | 'info' | 'warning', title?, text?, type? }`. */
+/**
+ * A `ui` field's `admin.custom`:
+ * `{ icon?: 'tutorial' | 'info' | 'warning', title?, text?, type?, action? }`.
+ *
+ * `admin.custom` is serialized, so the action is data — a `path` on the document
+ * being edited, never a URL or a callback.
+ */
 interface InfoBannerConfig {
   icon?: string
   title?: string
   text?: string
   type?: InfoBannerType | 'info'
+  action?: { label: string; path: string }
+}
+
+/** Where a `ui` field's declared action resolves. */
+interface DocumentTarget {
+  adminRoute: string
+  collectionSlug?: string
+  id?: number | string | null
 }
 
 /**
@@ -55,8 +79,17 @@ export interface InfoBannerProps {
   field?: UIFieldClientProps['field']
 }
 
-function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
-  const { icon, title, text, type = 'default' } = (field?.admin?.custom ?? {}) as InfoBannerConfig
+function fromField(
+  field: UIFieldClientProps['field'],
+  target: DocumentTarget,
+): InfoBannerProps | null {
+  const {
+    icon,
+    title,
+    text,
+    type = 'default',
+    action,
+  } = (field?.admin?.custom ?? {}) as InfoBannerConfig
   if (!title && !text) return null
   const Icon = icon ? NAMED_ICONS[icon] : undefined
   return {
@@ -64,6 +97,29 @@ function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
     title,
     children: text,
     type: type === 'info' ? 'default' : type,
+    action: documentAction(action, target),
+  }
+}
+
+/**
+ * The declared action as a link to one of this document's own views.
+ *
+ * Dropped before the document exists: an unsaved one has no address to open,
+ * and a field whose banner needs one carries `hideUntilCreated` as well.
+ * `formatAdminURL` is Payload's own joiner, and the route comes from the live
+ * config rather than a second copy of `/admin`.
+ */
+function documentAction(
+  action: InfoBannerConfig['action'],
+  { adminRoute, collectionSlug, id }: DocumentTarget,
+): InfoBannerAction | undefined {
+  if (!action || !collectionSlug || id == null) return undefined
+  return {
+    label: action.label,
+    href: formatAdminURL({
+      adminRoute,
+      path: `/collections/${collectionSlug}/${id}${action.path}`,
+    }),
   }
 }
 
@@ -76,7 +132,13 @@ function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
  * beside a title and a sentence it strands a small icon at the top left.
  */
 export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactElement | null {
-  const banner = field ? fromField(field) : props
+  const { collectionSlug, id } = useDocumentInfo()
+  const {
+    config: {
+      routes: { admin: adminRoute },
+    },
+  } = useConfig()
+  const banner = field ? fromField(field, { adminRoute, collectionSlug, id }) : props
   if (!banner) return null
   const { type = 'default', icon, title, children, action } = banner
   const Icon = TYPE_ICONS[type]

@@ -44,13 +44,15 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
   const languages = [...new Set(splitList(values.languages?.toLowerCase()))]
 
   const data: Record<string, unknown> = {
-    // `newEventDefaults` reads the schedule only to derive `inactive`.
+    // `newEventDefaults` reads the schedule to derive `repeats`, and the patch
+    // it is handed carries no contact, so `allowContact` is set below.
     ...newEventDefaults(scheduled, managerId),
     ...scheduled,
     title: values.title,
     languages: languages.length ? languages : [...args.defaultLanguages],
     description: plainTextToLexical(values.description) ?? null,
     website: values.website || null,
+    allowContact: Boolean(values.contactPhone || values.contactEmail),
     contactName: values.contactName || null,
     contactPhone: values.contactPhone || null,
     contactEmail: values.contactEmail || null,

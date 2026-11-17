@@ -124,7 +124,9 @@ async function notifyManager(args: {
       : null
 
     if (!manager) return
-    if (notificationFrequency(manager.notificationPreferences, 'event_registration') !== 'Immediate')
+    if (
+      notificationFrequency(manager.notificationPreferences, 'event_registration') !== 'Immediate'
+    )
       return
     const { channel, destination } = pickChannel(manager, 'event_registration')
     if (!destination) return

@@ -1,3 +1,4 @@
+import { isRecord } from '@/lib/utilities/isRecord'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -35,11 +36,12 @@ export type ProposedPatch = Record<string, unknown>
  * so the preview and the diff can't be optimistic about fields the submitter
  * never supplied.
  *
- * A **function** of the patch, not a constant, because one of those defaults is
+ * A **function** of the patch, not a constant, because two of those defaults are
  * derived from it: a submission proposing no schedule creates a *dormant*
- * listing. As a constant this was invisible to the reviewer, who accepted a
- * complete-looking diff and got an event that never appears on the map until
- * someone gives it a schedule.
+ * listing, and one proposing a contact is created with contact details
+ * switched on. As a constant the first was invisible to the reviewer, who
+ * accepted a complete-looking diff and got an event that never appears on the
+ * map until someone gives it a schedule.
  */
 export function newEventDefaults(
   proposed: ProposedPatch | null | undefined,
@@ -61,9 +63,27 @@ export function newEventDefaults(
     // the map as unverified until somebody takes it on.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
-    inactive: (proposed ?? {}).schedule == null,
+    repeats: repeatsFor((proposed ?? {}).schedule),
+    allowContact: hasContact(proposed),
     _status: 'published',
   }
+}
+
+/**
+ * The pace a proposed schedule stores, as an Events `repeats` option.
+ *
+ * ⚠ **`syncScheduleRecurrence` writes `schedule.recurrenceType` from this**, so
+ * a patch's own recurrence has to be read back here or that hook clears it.
+ */
+function repeatsFor(schedule: unknown): string {
+  if (schedule == null) return 'inactive'
+  const recurrence = isRecord(schedule) ? schedule.recurrenceType : null
+  return typeof recurrence === 'string' && recurrence ? recurrence.toLowerCase() : 'once'
+}
+
+/** Whether the patch carries a contact route, which the checkbox gates. */
+function hasContact(proposed: ProposedPatch | null | undefined): boolean {
+  return Boolean(proposed?.contactPhone || proposed?.contactEmail)
 }
 
 /**

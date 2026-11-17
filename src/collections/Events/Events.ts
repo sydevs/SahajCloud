@@ -42,7 +42,6 @@ import {
   adminOnlyCondition,
   eventContactsFieldAccess,
   eventManagerFieldAccess,
-  isAdminManager,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
@@ -55,14 +54,17 @@ import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
+  EVENT_REPEATS_OPTIONS,
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_LABELS,
 } from './eventOptions'
+import { clearContactDetails } from './hooks/clearContactDetails'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
+import { syncScheduleRecurrence } from './hooks/syncScheduleRecurrence'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { buildEventWebPath } from './webPath'
 
@@ -187,15 +189,23 @@ export const Events: CollectionConfig = {
     // The `select` repair in front of it is `virtualFieldsPlugin`'s, built from
     // the inputs this collection's own computed fields declare.
     beforeOperation: [excludeFinishedEvents],
+    // `syncScheduleRecurrence` first: the duplicate check reads the schedule's
+    // recurrence, so it must see the one this save lands on.
+    //
     // A class that repeats one already listed is refused before anything else
     // runs, drafts included — see refuseDuplicateClass.
-    beforeValidate: [refuseDuplicateClass],
+    beforeValidate: [syncScheduleRecurrence, refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark, and it
     // names the writer the stage column's own guard then judges. Both stamping
     // hooks must run after it. `syncEventFullness` writes `registrationsFull`,
     // and `stampEventQuality`'s skip rules read `verificationStage`.
-    beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
+    beforeChange: [
+      syncVerificationOnSave,
+      syncEventFullness,
+      stampEventQuality,
+      clearContactDetails,
+    ],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -265,6 +275,47 @@ export const Events: CollectionConfig = {
               admin: { description: 'Language(s) this event is conducted in.' },
             },
             {
+              name: 'description',
+              type: 'richText',
+              editor: eventDescriptionEditor,
+            },
+            urlField({
+              name: 'website',
+              label: 'Website',
+              admin: {
+                description: 'Link to a page with more information about this class.',
+              },
+            }),
+            {
+              name: 'images',
+              type: 'upload',
+              relationTo: 'images',
+              hasMany: true,
+              maxRows: 7,
+              admin: { description: 'Photos for this event (up to 7).' },
+            },
+            {
+              // Contact details are optional for most classes, and the three
+              // fields crowded the top of this tab. ⚠ Unchecking this **clears**
+              // all three on save (`clearContactDetails`): a hidden field keeps
+              // its value, and the Atlas widget reads `contactPhone`.
+              name: 'allowContact',
+              type: 'checkbox',
+              label: 'Allow seekers to contact someone by phone or email',
+              defaultValue: false,
+              // A dormant class has no schedule to show, so a reachable person
+              // is the only way a seeker can learn more. The phone field's own
+              // validator says the same thing, and cannot fire while this box is
+              // unchecked — Payload skips a conditioned field's validation.
+              validate: (
+                value: boolean | null | undefined,
+                options: { data?: { repeats?: string | null } },
+              ) =>
+                options.data?.repeats === 'inactive' && !value
+                  ? 'Switch this on and add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
+                  : true,
+            },
+            {
               type: 'row',
               fields: [
                 {
@@ -279,9 +330,9 @@ export const Events: CollectionConfig = {
                   // is metadata about the event, not a route to someone who
                   // can answer a question. The same applies to `onlineUrl`, a
                   // join link for sessions an inactive event is not running.
-                  // This field is always visible, so it cannot gate on an
-                  // `admin.condition`. A validate function keeps active
-                  // events optional instead.
+                  // A validate function keeps active events optional, and
+                  // `allowContact` carries the same rule for the save where
+                  // this field is hidden and so never validated.
                   //
                   // Composed with `text` from payload/shared, because
                   // supplying `validate` REPLACES Payload's default, which
@@ -289,15 +340,18 @@ export const Events: CollectionConfig = {
                   // src/collections/AGENTS.md.
                   validate: (
                     value: string | null | undefined,
-                    options: { data?: { inactive?: boolean; contactEmail?: string | null } },
+                    options: { data?: { repeats?: string | null; contactEmail?: string | null } },
                   ) => {
                     const base = text(value, options as Parameters<typeof text>[1])
                     if (base !== true) return base
-                    return options.data?.inactive && !value && !options.data.contactEmail
+                    return options.data?.repeats === 'inactive' &&
+                      !value &&
+                      !options.data.contactEmail
                       ? 'Add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
                       : true
                   },
                   admin: {
+                    condition: (data) => !!data?.allowContact,
                     description:
                       'A phone number that seekers can call to learn more about the program.',
                   },
@@ -327,6 +381,7 @@ export const Events: CollectionConfig = {
                       : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
                   },
                   admin: {
+                    condition: (data) => !!data?.allowContact,
                     description:
                       'An email address seekers can write to for more information about the program.',
                   },
@@ -335,38 +390,17 @@ export const Events: CollectionConfig = {
                   name: 'contactName',
                   type: 'text',
                   maxLength: CONTACT_TEXT_MAX,
-                  // Shown once there is a contact route to put a name to:
-                  // whoever answers the phone, or reads the inbox. Not
+                  // Whoever answers the phone, or reads the inbox. Not
                   // *required*. The Atlas dump holds numbers and addresses
                   // with no name against them, and refusing those would throw
                   // away the only contact route a dormant listing had. A
                   // nicety, not a necessity.
                   admin: {
-                    condition: (data) => !!data?.contactPhone || !!data?.contactEmail,
+                    condition: (data) => !!data?.allowContact,
                     description: 'The name of the person seekers will reach',
                   },
                 },
               ],
-            },
-            {
-              name: 'description',
-              type: 'richText',
-              editor: eventDescriptionEditor,
-            },
-            urlField({
-              name: 'website',
-              label: 'Website',
-              admin: {
-                description: 'Link to a page with more information about this class.',
-              },
-            }),
-            {
-              name: 'images',
-              type: 'upload',
-              relationTo: 'images',
-              hasMany: true,
-              maxRows: 7,
-              admin: { description: 'Photos for this event (up to 7).' },
             },
             // Canonical Atlas web path and URL: the event's region path, plus
             // `/<id>` (for example `/belgium/flanders/antwerp/downtown-hall/12345`).
@@ -449,19 +483,41 @@ export const Events: CollectionConfig = {
           label: 'Schedule',
           fields: [
             {
-              // Dormant events have no active schedule. They still need
-              // verification, and can expire, but never auto-finish: the
-              // ExpireEvents finished-check skips inactive events. Hiding the
-              // schedule when inactive also drops its `required` validation.
-              // Payload skips `required` and `validate` when a condition is
-              // false.
-              name: 'inactive',
-              type: 'checkbox',
-              defaultValue: false,
+              // The one control for how often a class meets *and* whether it is
+              // dormant, because an editor is choosing one thing. A dormant
+              // class still needs verification, and can expire, but never
+              // auto-finishes: the ExpireEvents finished-check skips it. Hiding
+              // the schedule also drops its `required` validation — Payload
+              // skips `required` and `validate` when a condition is false.
+              //
+              // `syncScheduleRecurrence` writes `schedule.recurrenceType` from
+              // this, so the stored pair cannot disagree.
+              name: 'repeats',
+              type: 'select',
+              required: true,
+              defaultValue: 'once',
+              options: [...EVENT_REPEATS_OPTIONS],
+              // Pinned so it never collides with the drafts `_status` enum,
+              // as `verificationStage` is.
+              enumName: 'enum_events_repeats',
               admin: {
                 description:
-                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
+                  'How often this class meets. Inactive marks it dormant — no schedule to show, so it must carry contact details instead.',
+                components: { Field: TOGGLE_GROUP_FIELD },
               },
+            },
+            {
+              // The dormant flag as the API has always published it. Computed,
+              // because `repeats` now stores the same fact: the Atlas widget
+              // selects `inactive`, and the We Meditate site reads
+              // `schedule.inactive` off `/api/atlas/seo`. ⚠ A `where` cannot
+              // name a virtual field — query `repeats` instead.
+              name: 'inactive',
+              type: 'checkbox',
+              virtual: true,
+              custom: virtualFieldInputs('repeats'),
+              admin: { hidden: true, readOnly: true },
+              hooks: { afterRead: [({ data }) => data?.repeats === 'inactive'] },
             },
             scheduleFields({
               label: false,
@@ -471,13 +527,32 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
-              admin: { condition: (data) => !data?.inactive },
+              recurrenceFrom: 'repeats',
+              admin: { condition: (data) => data?.repeats !== 'inactive' },
             }),
           ],
         },
         {
           label: 'Registration',
           fields: [
+            {
+              // Signups are read on the Registrations view, a document view of
+              // its own. The `join` that used to list them here rendered empty
+              // for every manager — `user-submissions` is restricted and no
+              // manager role reads a registration row (#1069).
+              name: 'registrationsNotice',
+              type: 'ui',
+              admin: {
+                condition: (data) => hideUntilCreated(data),
+                custom: {
+                  icon: 'info',
+                  title: 'Signups are on the Registrations tab',
+                  text: 'Everyone who has signed up for this class is listed there, with the answers they gave.',
+                  action: { label: 'Open Registrations', path: '/registrations' },
+                },
+                components: { Field: '@/components/admin/InfoBanner' },
+              },
+            },
             {
               type: 'row',
               fields: [
@@ -511,40 +586,18 @@ export const Events: CollectionConfig = {
               name: 'registrationQuestions',
               type: 'group',
               admin: {
+                // A checkbox per question, tightened by `.checkbox-group` in
+                // `custom.scss`: Payload's own field gap frames a section, and
+                // these read as one list.
+                className: 'checkbox-group',
                 description:
-                  'Optional questions to ask registrants — each enabled question appears on the registration form.',
+                  'Optional questions to ask registrants — each enabled question appears on the registration form. Email contact@sydevelopers.com to ask for another question option.',
               },
               fields: EVENT_REGISTRATION_QUESTIONS.map((question) => ({
                 name: question.name,
                 type: 'checkbox' as const,
                 label: question.label,
               })),
-            },
-            {
-              // ⚠ The `type` predicate is load-bearing. One table now holds
-              // four intakes and three of them can name an event, so without it
-              // this tab would list the event's proposals and its spawned
-              // subscribe rows alongside its registrants.
-              //
-              // Deliberately the bare type, not `activeRegistrationWhere`: a
-              // manager needs to see the row they flagged `spam`.
-              //
-              // ⚠ The condition hides the field; it does not stop the read.
-              // `user-submissions` is restricted and no manager role reads a
-              // `registration` row, so this rendered empty for every manager —
-              // the drawer it opens is an admin's way into a row, and a manager
-              // reads their own event's signups on the Registrations tab
-              // instead (#1069). The join's subquery still runs for them, which
-              // is the cost of keeping that drawer.
-              name: 'registrations',
-              type: 'join',
-              collection: 'user-submissions',
-              on: 'event',
-              where: { type: { equals: 'registration' } },
-              admin: {
-                condition: (data, _siblingData, { user }) =>
-                  hideUntilCreated(data) && isAdminManager(user),
-              },
             },
           ],
         },
@@ -784,7 +837,7 @@ export const Events: CollectionConfig = {
           name: 'calendarFeedUrl',
           type: 'text',
           virtual: true,
-          custom: virtualFieldInputs('_status', 'deletedAt', 'inactive', 'schedule', 'updatedAt'),
+          custom: virtualFieldInputs('_status', 'deletedAt', 'repeats', 'schedule', 'updatedAt'),
           admin: {
             readOnly: true,
             disableListColumn: true,

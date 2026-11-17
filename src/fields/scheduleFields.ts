@@ -31,6 +31,16 @@ export interface ScheduleFieldsOptions {
   hasEnding?: boolean
   /** Show exclusion date ranges for recurring events (default: false) */
   hasExclusions?: boolean
+  /**
+   * The document path of a caller-owned recurrence control, which then replaces
+   * this group's own Repeats select: it is hidden, and every sub-field reacts to
+   * the control's value instead. Its lowercased option values must match
+   * `RECURRENCE_OPTIONS`; anything else reads as no recurrence.
+   *
+   * ⚠ The stored `recurrenceType` column stays, so the caller owes a hook that
+   * writes it — nothing in the form does once the select is hidden.
+   */
+  recurrenceFrom?: string
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
@@ -119,6 +129,7 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     hasComplexMonthly = false,
     hasEnding = false,
     hasExclusions = false,
+    recurrenceFrom,
     admin = {},
   } = options
 
@@ -129,6 +140,7 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     hasComplexMonthly,
     hasEnding,
     hasExclusions,
+    recurrenceFrom,
   })
 
   const groupField: GroupField = {
@@ -146,6 +158,25 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
   }
 
   return groupField
+}
+
+/**
+ * The recurrence the sub-fields react to, as a `RECURRENCE_OPTIONS` value.
+ *
+ * A caller owning the control writes `recurrenceType` on save, so reading the
+ * stored column would leave the form a save behind: choosing Weekly would show
+ * the weekday picker only after the save. Its own value is read instead, and a
+ * value naming no recurrence — "doesn't repeat", "inactive" — reads as none.
+ */
+function recurrenceOf(
+  { recurrenceFrom }: SubFieldConfig,
+  data: Record<string, unknown> | undefined,
+  own: unknown,
+): string | undefined {
+  if (!recurrenceFrom) return typeof own === 'string' ? own : undefined
+  const value = data?.[recurrenceFrom]
+  const recurrence = typeof value === 'string' ? value.toUpperCase() : undefined
+  return RECURRENCE_OPTIONS.some((option) => option.value === recurrence) ? recurrence : undefined
 }
 
 // ─── Row Builders ─────────────────────────────────────────────────────
@@ -221,6 +252,9 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         label: 'Repeats',
         options: [...RECURRENCE_OPTIONS],
         admin: {
+          // Hidden, not dropped: it is the stored column, and a hidden field
+          // keeps its value in form state.
+          hidden: Boolean(config.recurrenceFrom),
           placeholder: 'Does not repeat',
         },
       },
@@ -234,7 +268,8 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         required: config.required,
         admin: {
           step: 1,
-          condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+          condition: (data, siblingData) =>
+            !!recurrenceOf(config, data, siblingData?.recurrenceType),
           description: 'Repeat every N days/weeks/months',
         },
       },
@@ -245,7 +280,7 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
 }
 
 /** Weekday multi-select for weekly recurrence (complexWeekly flag). */
-function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
+function buildComplexWeeklyFields(config: SubFieldConfig): Field[] {
   return [
     {
       name: 'weekdays',
@@ -253,16 +288,18 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
       hasMany: true,
       label: 'On Days',
       options: [...WEEKDAY_OPTIONS],
-      required,
+      required: config.required,
       admin: {
-        condition: (_data, siblingData) => siblingData?.recurrenceType === 'WEEKLY',
+        condition: (data, siblingData) =>
+          recurrenceOf(config, data, siblingData?.recurrenceType) === 'WEEKLY',
       },
     },
   ]
 }
 
 /** Monthly mode fields: by date (monthDay) or by weekday (weekNumber + weekdayOfMonth). */
-function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
+function buildComplexMonthlyFields(config: SubFieldConfig): Field[] {
+  const { required } = config
   return [
     {
       name: 'monthlyMode',
@@ -275,7 +312,8 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
         { label: 'By weekday', value: 'weekday' },
       ],
       admin: {
-        condition: (_data, siblingData) => siblingData?.recurrenceType === 'MONTHLY',
+        condition: (data, siblingData) =>
+          recurrenceOf(config, data, siblingData?.recurrenceType) === 'MONTHLY',
         isClearable: false,
       },
     },
@@ -289,8 +327,9 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       required,
       admin: {
         step: 1,
-        condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'date',
+        condition: (data, siblingData) =>
+          recurrenceOf(config, data, siblingData?.recurrenceType) === 'MONTHLY' &&
+          siblingData?.monthlyMode === 'date',
         description: 'Day of the month (1-31)',
       },
     },
@@ -308,8 +347,9 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       ],
       required,
       admin: {
-        condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
+        condition: (data, siblingData) =>
+          recurrenceOf(config, data, siblingData?.recurrenceType) === 'MONTHLY' &&
+          siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
     },
@@ -329,8 +369,9 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
       ],
       required,
       admin: {
-        condition: (_data, siblingData) =>
-          siblingData?.recurrenceType === 'MONTHLY' && siblingData?.monthlyMode === 'weekday',
+        condition: (data, siblingData) =>
+          recurrenceOf(config, data, siblingData?.recurrenceType) === 'MONTHLY' &&
+          siblingData?.monthlyMode === 'weekday',
         isClearable: false,
       },
     },
@@ -338,7 +379,8 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
 }
 
 /** Optional Row 3: ending conditions (count or until date). */
-function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
+function buildEndingRow(config: SubFieldConfig): Field[] {
+  const { required, hasEnding } = config
   if (!hasEnding) return []
 
   return [
@@ -351,7 +393,8 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           label: 'Ends',
           options: ENDING_OPTIONS,
           admin: {
-            condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+            condition: (data, siblingData) =>
+              !!recurrenceOf(config, data, siblingData?.recurrenceType),
             placeholder: 'Never',
           },
         },
@@ -365,8 +408,9 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           required,
           admin: {
             step: 1,
-            condition: (_data, siblingData) =>
-              !!siblingData?.recurrenceType && siblingData?.endingType === 'count',
+            condition: (data, siblingData) =>
+              !!recurrenceOf(config, data, siblingData?.recurrenceType) &&
+              siblingData?.endingType === 'count',
           },
         },
         {
@@ -375,8 +419,9 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
           label: 'End Date',
           required,
           admin: {
-            condition: (_data, siblingData) =>
-              !!siblingData?.recurrenceType && siblingData?.endingType === 'until',
+            condition: (data, siblingData) =>
+              !!recurrenceOf(config, data, siblingData?.recurrenceType) &&
+              siblingData?.endingType === 'until',
             date: {
               pickerAppearance: 'dayOnly',
               displayFormat: 'MMM d, yyyy',
@@ -392,8 +437,8 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
  * Optional exclusion date ranges array field.
  * Shown only when recurrenceType is set (exclusions only apply to recurring events).
  */
-function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
-  if (!hasExclusions) return []
+function buildExclusionsField(config: SubFieldConfig): Field[] {
+  if (!config.hasExclusions) return []
 
   return [
     {
@@ -404,7 +449,7 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
       admin: {
         description:
           'Dates when this recurring event will not occur, such as holidays or seasonal breaks.',
-        condition: (_data, siblingData) => !!siblingData?.recurrenceType,
+        condition: (data, siblingData) => !!recurrenceOf(config, data, siblingData?.recurrenceType),
         components: {
           Field: '@/components/admin/FlatArrayField',
         },

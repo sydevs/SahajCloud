@@ -112,13 +112,24 @@ describe('mergeProposal', () => {
   })
 
   it('shows a schedule-less proposal as the dormant listing it would create', () => {
-    // `inactive` is derived from the patch by `applyReview`. As a constant it
+    // `repeats` is derived from the patch by `applyReview`. As a constant it
     // was invisible here, so a reviewer accepted a complete-looking diff and
     // got an event that never appears on the map.
-    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).inactive).toBe(true)
+    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).repeats).toBe('inactive')
     expect(
-      mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).inactive,
-    ).toBe(false)
+      mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).repeats,
+    ).toBe('once')
+    expect(mergeProposal({ proposed: { schedule: { recurrenceType: 'WEEKLY' } } }).repeats).toBe(
+      'weekly',
+    )
+  })
+
+  it('switches the contact box on for a proposal that carries one', () => {
+    // A hidden contact field keeps no value, so an accepted proposal carrying a
+    // phone has to arrive with the box checked or `clearContactDetails` wipes it.
+    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { contactEmail: 'a@b.test' } }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { title: 'No contact' } }).allowContact).toBe(false)
   })
 
   it('creates an unadopted listing unverified, and an adopted one verified', () => {
