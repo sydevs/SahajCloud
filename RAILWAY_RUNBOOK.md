@@ -54,7 +54,7 @@ troubleshoot the configuration.
 ### 1. Create the project
 
 Dashboard: **New Project** → **GitHub repo** → authorize Railway → select `SahajCloud` → pick the
-deploy branch → **Deploy Now**. Railway detects `railway.toml` and builds via Railpack.
+deploy branch → **Deploy Now**. Railway detects the Node.js project and builds it with Railpack.
 
 CLI alternative: `railway init` (prompts for a project name, then writes `.railway/`).
 
@@ -111,24 +111,17 @@ railway variables --set PAYLOAD_SECRET="$(openssl rand -base64 24)"
 App service → **Settings → Region**: pick one close to your users (`us-west`, `us-east`,
 `eu-west`, `ap`). Put the app and the database in the **same region**, to minimize latency.
 
-### 7. Confirm `railway.toml`
+### 7. Set the deploy settings
 
-```toml
-[build]
-builder = "RAILPACK"
+App service → **Settings**: set the builder, start command, healthcheck and restart policy to
+the values in
+[DEPLOYMENT.md § Infrastructure Overview](./DEPLOYMENT.md#infrastructure-overview). They live on
+the service, not in the repository.
 
-[deploy]
-startCommand = "pnpm start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-```
-
-Railpack detects Node.js and builds with `pnpm build`. Railway polls `healthcheckPath` for up to
-`healthcheckTimeout` seconds before it calls the deploy unhealthy, then retries a failed start up
-to `restartPolicyMaxRetries` times. Migrations need no `preDeployCommand` — Payload's
-`prodMigrations` hook applies them in-process on boot (see DEPLOYMENT.md).
+The builder detects Node.js and builds with `pnpm build`. Railway polls the healthcheck path for
+up to its timeout before it calls the deploy unhealthy, then retries a failed start up to the
+restart policy's limit. Migrations need no `preDeployCommand` — Payload's `prodMigrations` hook
+applies them in-process on boot (see DEPLOYMENT.md).
 
 Once every variable is set, the project is ready to deploy: push to the configured branch.
 
@@ -223,8 +216,8 @@ skips and the job stays green — treat that skip as "unit and integration passe
 passed." **When a deploy succeeds but publishes no URL, the job now fails instead** (#661); see the
 warning below for why those two cases must not look alike.
 
-Setting up a new PR-preview service the first time: **Project Canvas → + New → GitHub Repo**,
-same `railway.toml` and Railpack builder as production.
+PR environments are switched on under **Project Settings → Environments**. Each one copies the
+production service's settings when Railway creates it.
 
 ### ⚠ PR previews inherit their domain from production
 
@@ -305,12 +298,12 @@ new error spike, and response times and the DB connection pool (under 95% used) 
 Issues specific to provisioning. For day-to-day operational issues (deploy fails, DB connection,
 migrations, email), see [DEPLOYMENT.md § Troubleshooting](./DEPLOYMENT.md#troubleshooting).
 
-| Symptom                                         | Cause                                                                                       | Fix                                                                                                     |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Health check times out (300s)                   | App takes too long to start, or `/api/health` doesn't exist                                 | Confirm the endpoint responds `200`. Raise `healthcheckTimeout` in `railway.toml` for a slow cold start |
-| `PAYLOAD_SECRET must be at least 32 characters` | Secret too short                                                                            | `railway variables --set PAYLOAD_SECRET="$(openssl rand -base64 24)"`                                   |
-| Memory limit exceeded                           | Free Hobby plan (128 MB RAM) can't run this app                                             | Upgrade to the Pro plan                                                                                 |
-| `DATABASE_URL not resolved`                     | The `${{ Postgres.DATABASE_URL }}` reference doesn't match the Postgres service's real name | `railway services list`, then set the reference to the exact name                                       |
+| Symptom                                         | Cause                                                                                       | Fix                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Health check times out (300s)                   | App takes too long to start, or `/api/health` doesn't exist                                 | Confirm the endpoint responds `200`. Raise the service's healthcheck timeout for a slow cold start |
+| `PAYLOAD_SECRET must be at least 32 characters` | Secret too short                                                                            | `railway variables --set PAYLOAD_SECRET="$(openssl rand -base64 24)"`                              |
+| Memory limit exceeded                           | Free Hobby plan (128 MB RAM) can't run this app                                             | Upgrade to the Pro plan                                                                            |
+| `DATABASE_URL not resolved`                     | The `${{ Postgres.DATABASE_URL }}` reference doesn't match the Postgres service's real name | `railway services list`, then set the reference to the exact name                                  |
 
 ---
 
@@ -319,7 +312,7 @@ migrations, email), see [DEPLOYMENT.md § Troubleshooting](./DEPLOYMENT.md#troub
 - Railway: [docs](https://docs.railway.app/), [Railpack](https://docs.railway.app/deployment/builds), [variables](https://docs.railway.app/guides/variables), [health checks](https://docs.railway.app/guides/healthchecks), [backups](https://docs.railway.app/volumes/backups), [custom domains](https://docs.railway.app/guides/custom-domains)
 - PostgreSQL: [PostgreSQL 18 docs](https://www.postgresql.org/docs/18/index.html)
 - Cloudflare: [DNS](https://developers.cloudflare.com/dns/), [Cache Rules](https://developers.cloudflare.com/cache/how-to/cache-rules/), [Rate Limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/), [R2](https://developers.cloudflare.com/r2/)
-- This project: [DEPLOYMENT.md](./DEPLOYMENT.md), [`railway.toml`](./railway.toml), [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md)
+- This project: [DEPLOYMENT.md](./DEPLOYMENT.md), [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md)
 
 ---
 

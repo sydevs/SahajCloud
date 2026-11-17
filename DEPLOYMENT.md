@@ -34,29 +34,33 @@ project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY
 
 **Build & Start**:
 
-- **Railpack** (Railway's native builder) detects the Node.js project and builds it — no Dockerfile.
+- The builder detects the Node.js project and builds it — no Dockerfile, and no build configuration in this repository.
 - `pnpm build` deletes `.next/cache/turbopack`, runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
-- `pnpm start` runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
+- The start command runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
 - Migrations apply **in-process on server boot**, via Payload's `prodMigrations` hook (see [Database Migrations](#database-migrations)). The migration files import statically, so they trace into the bundle and still run at boot.
 - `@sentry/nextjs` wraps `next.config.ts` via `withSentryConfig`.
 
-**Health Check**: Railway pings `/api/health` during a deploy. Startup takes about 5–10 seconds after the container starts.
+**Health Check**: Railway polls the healthcheck path during a deploy. Startup takes about 5–10 seconds after the container starts.
 
-**railway.toml**:
+**Service settings** live on the Railway service (dashboard → SahajCloud → Settings), not in this
+repository:
 
-```toml
-[build]
-builder = "RAILPACK"
+| Setting             | Value                 |
+| ------------------- | --------------------- |
+| Builder             | Railpack              |
+| Start command       | `pnpm start`          |
+| Healthcheck path    | `/api/health`         |
+| Healthcheck timeout | 300 s                 |
+| Restart policy      | On failure, 3 retries |
 
-[deploy]
-startCommand = "pnpm start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-```
+⚠ **Change them on production.** A PR environment copies production's settings when Railway
+creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
+a new container before its boot-time migrations finish.
 
-Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
+Do not add `railway.toml` or `.railway/railway.ts` back — Railway stops reading Config as Code on
+2026-12-01, and the `.ts` form is applied by a CLI, never on deploy.
+
+Railway exposes port 3000 through its own `PORT` variable.
 `next.config.ts`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
 of the trace — without it, a local `pnpm build` balloons `.next/standalone` to many GB.
 
