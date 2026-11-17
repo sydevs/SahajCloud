@@ -20,7 +20,9 @@
  *
  * Needs the Railway CLI, signed in or given `RAILWAY_API_TOKEN` (a workspace
  * token: a project token reaches one environment, and every preview is its
- * own), and `gh`, signed in or given `GH_TOKEN`.
+ * own), and `gh`, signed in or given `GH_TOKEN`. That token needs
+ * `contents: read` and `checks: read`; without the second, `ciRunning` throws
+ * and nothing sleeps.
  */
 import { execFileSync } from 'node:child_process'
 
