@@ -12,9 +12,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
-  ATLAS_DUMP_NAMES,
   ATLAS_TRANSLATION_LOCALES,
-  atlasDataFile,
   atlasTranslationsDataFile,
   SCRIPT_DATA_FILES,
   WM_APP_TRANSLATIONS_DATA_FILE,
@@ -23,25 +21,12 @@ import {
 import { EXPECTED_COUNTS } from '../../seeds/lib/expectedCounts'
 
 describe('seed data file registry', () => {
-  it('registers a file that exists on disk, for every committed script', () => {
-    const registered = Object.entries(SCRIPT_DATA_FILES)
-      .filter(([script]) => script !== 'atlas')
-      .flatMap(([, files]) => files ?? [])
+  it('registers a file that exists on disk, for every script', () => {
+    const registered = Object.values(SCRIPT_DATA_FILES).flatMap((files) => files ?? [])
     expect(registered.length).toBeGreaterThan(0)
 
     for (const filePath of registered) {
       expect(existsSync(path.resolve(process.cwd(), filePath)), filePath).toBe(true)
-    }
-  })
-
-  it('keeps the atlas data out of git — it is personal data, built locally', () => {
-    // `pnpm atlas:sync build` writes these. A deployed route still receives
-    // them, because the CLI uploads every registered file as inlineData.
-    const ignored = readFileSync(path.resolve(process.cwd(), '.gitignore'), 'utf-8').split('\n')
-    expect(ignored).toContain('/seeds/atlas/data/')
-    expect(ignored).toContain('/seeds/atlas/local/')
-    for (const filePath of SCRIPT_DATA_FILES.atlas ?? []) {
-      expect(filePath.startsWith('seeds/atlas/data/'), filePath).toBe(true)
     }
   })
 
@@ -52,12 +37,6 @@ describe('seed data file registry', () => {
       ...ATLAS_TRANSLATION_LOCALES.map(atlasTranslationsDataFile),
     ])
     expect(SCRIPT_DATA_FILES.translations).toHaveLength(12)
-  })
-
-  it('registers the eight atlas tables and the build manifest', () => {
-    expect(SCRIPT_DATA_FILES.atlas).toEqual(ATLAS_DUMP_NAMES.map(atlasDataFile))
-    expect(SCRIPT_DATA_FILES.atlas).toHaveLength(9)
-    expect(SCRIPT_DATA_FILES.atlas).toContain('seeds/atlas/data/manifest.json')
   })
 })
 

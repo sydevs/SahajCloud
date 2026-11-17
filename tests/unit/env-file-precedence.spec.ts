@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
  *
  * Seeding a remote target takes its admin credentials from the shell:
  *
- *   ADMIN_TOKEN=… pnpm seed:prod atlas
+ *   ADMIN_TOKEN=… pnpm seed translations
  *
  * That only works while the loaders leave an already-set variable alone. The
  * original pair — `dotenv.config({ path: '.env' })` followed by

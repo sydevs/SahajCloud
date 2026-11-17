@@ -10,8 +10,8 @@ a running Postgres (Docker or Railway) for local dev.
 > **History footnote.** This app moved from Cloudflare Workers + D1 (SQLite)
 > to Railway + Postgres (infra #466). The 36 old D1 migrations were
 > deleted — they imported `@payloadcms/db-d1-sqlite` and do not apply to
-> Postgres. Only the **data** migrated 1:1, via a one-off ETL script
-> (`scripts/etl-d1-to-postgres.ts`). The schema restarted from a fresh
+> Postgres. Only the **data** migrated 1:1, via a one-off ETL script that
+> has since been deleted (#1169). The schema restarted from a fresh
 > Postgres baseline, `20260606_050852_initial_schema.{ts,json}`. This is the
 > only place this history is recorded — do not re-add it elsewhere. Postgres
 > migrations are real transactional DDL (every statement in a migration

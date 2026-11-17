@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { slugifyValue } from '../../src/lib/utilities/slugify'
+import { slugifyValue } from '../../src/fields/slugify'
 
 describe('slugifyValue', () => {
   it('transliterates Cyrillic to ASCII', () => {

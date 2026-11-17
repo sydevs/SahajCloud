@@ -12,7 +12,7 @@ import { subtitlesSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 /**
  * The Zod schema and the JSON Schema describe the same cues for two different
- * consumers: Zod parses a third-party payload in the Storyblok importer, the
+ * consumers: Zod parses a third-party payload from outside the CMS, the
  * JSON Schema is what Payload validates and types the column with.
  *
  * Nothing forces them to agree, so this pins them against one fixture set in

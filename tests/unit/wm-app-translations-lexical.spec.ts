@@ -4,8 +4,8 @@
  *
  * These tests run in the unit lane (no Payload bootstrap) because the
  * converter is a pure function. The Lexical shape it emits is asserted
- * exactly so that any drift from the project's known-working Lexical
- * conventions (matched against `seeds/lib/lexicalConverter.ts`) is caught.
+ * exactly so that any drift from the Lexical conventions Payload's own editor
+ * persists is caught.
  *
  * In particular:
  *   - All container nodes use `direction: null` (NOT `'ltr'`) — this matches

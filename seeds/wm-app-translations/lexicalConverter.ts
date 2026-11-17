@@ -5,11 +5,10 @@
  * `seeds/wm-app-translations/data.<locale>.json` into the Lexical JSON
  * tree shape that Payload's richText fields persist.
  *
- * The Lexical shape this emits intentionally matches the conventions of
- * `seeds/lib/lexicalConverter.ts` (the EditorJS→Lexical converter that
- * has been tested against the live Payload editor) — same field set on
- * text/paragraph/link/root nodes, `direction: null` everywhere, link
- * nodes use `version: 3` with `fields: { linkType: 'custom', url, newTab: false }`.
+ * The Lexical shape this emits intentionally matches what Payload's own editor
+ * persists — same field set on text/paragraph/link/root nodes, `direction: null`
+ * everywhere, link nodes at `version: 3` with
+ * `fields: { linkType: 'custom', url, newTab: false }`.
  *
  * Kept as a separate file (not inlined into import.ts) so the conversion
  * logic can be unit-tested in `tests/unit/wm-app-translations-lexical.spec.ts`

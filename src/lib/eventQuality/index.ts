@@ -17,7 +17,10 @@ export {
   MINIMUM_IMAGES,
   QUALITY_CHECK_VERSION,
 } from './checks'
-export { EMAIL_RE, findStaleDates, GENERIC_TITLE_RE, URL_RE } from './heuristics'
+// `URL_RE` alone: the rest are read by `./checks` next door, by its own
+// relative import. The Atlas sync's data check was the one outside consumer
+// of the wider line, and it is retired (#1169).
+export { URL_RE } from './heuristics'
 export { buildEventQualityReport, countOpenDocumentIssues, type BuildReportOptions } from './report'
 export { eventQualityReportZodSchema } from './schema'
 export { SKIP_REASON_LABELS, shouldSkipQualityChecks } from './skip'
