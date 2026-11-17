@@ -31,6 +31,7 @@ import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
+import { retryWhilePostgresWakes } from '@/plugins/postgresWake'
 import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
 import { sentryPlugin } from '@/plugins/sentry'
 import {
@@ -209,34 +210,37 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     },
     // Database configuration — Railway Postgres for every environment.
     // Dev/test/E2E use Drizzle `push` to auto-sync the schema; production runs
-    // migrations (`pnpm db:migrate`) instead of push.
-    db: postgresAdapter({
-      pool: {
-        connectionString: serverEnv.DATABASE_URL,
-        // Cap the pool so bursts of parallel admin work (e.g. a bulk publish,
-        // whose per-doc queries the driver runs concurrently) can't exhaust the
-        // Railway Postgres connection limit. Size to that limit divided across
-        // running instances — see the pool-sizing notes in
-        // `docs/architecture.md`. Tune via DATABASE_POOL_MAX.
-        max: serverEnv.DATABASE_POOL_MAX,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 10000,
-      },
-      push: !isProduction,
-      // The preview fixture writes its rows at pinned ids (`src/fixture/`). ⚠ The
-      // flag is adapter-wide, so a REST create honours a caller's `id` too — on
-      // production that could plant an id ahead of the serial and fail a later
-      // insert, which is why production keeps it off.
-      allowIDOnCreate: !isProductionDeployment(),
-      // Drizzle query logging (SQL + params to the console). Opt-in via
-      // DB_QUERY_LOGGING and force-disabled in production — used to capture the
-      // query trail behind a slow admin operation in dev/staging (issue #529).
-      logger: !isProduction && serverEnv.DB_QUERY_LOGGING,
-      // Production runs as a long-running container, so apply any pending
-      // migrations in-process on boot (Payload only runs these when
-      // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
-      prodMigrations: migrations,
-    }),
+    // migrations (`pnpm db:migrate`) instead of push. A PR preview also retries
+    // a connection while its sleeping Postgres wakes (`@/plugins/postgresWake`).
+    db: retryWhilePostgresWakes(
+      postgresAdapter({
+        pool: {
+          connectionString: serverEnv.DATABASE_URL,
+          // Cap the pool so bursts of parallel admin work (e.g. a bulk publish,
+          // whose per-doc queries the driver runs concurrently) can't exhaust the
+          // Railway Postgres connection limit. Size to that limit divided across
+          // running instances — see the pool-sizing notes in
+          // `docs/architecture.md`. Tune via DATABASE_POOL_MAX.
+          max: serverEnv.DATABASE_POOL_MAX,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 10000,
+        },
+        push: !isProduction,
+        // The preview fixture writes its rows at pinned ids (`src/fixture/`). ⚠ The
+        // flag is adapter-wide, so a REST create honours a caller's `id` too — on
+        // production that could plant an id ahead of the serial and fail a later
+        // insert, which is why production keeps it off.
+        allowIDOnCreate: !isProductionDeployment(),
+        // Drizzle query logging (SQL + params to the console). Opt-in via
+        // DB_QUERY_LOGGING and force-disabled in production — used to capture the
+        // query trail behind a slow admin operation in dev/staging (issue #529).
+        logger: !isProduction && serverEnv.DB_QUERY_LOGGING,
+        // Production runs as a long-running container, so apply any pending
+        // migrations in-process on boot (Payload only runs these when
+        // NODE_ENV=production). Dev/test use Drizzle `push` above instead.
+        prodMigrations: migrations,
+      }),
+    ),
     // Reconcile the Railway preview's admin account, at a committed constant
     // address, after the migrations above have run. A no-op everywhere else —
     // see the gate's docblock in `@/plugins/previewAdmin` for why each of its
