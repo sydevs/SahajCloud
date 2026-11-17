@@ -34,7 +34,6 @@ import {
 } from '../utils/testHelpers'
 
 /** A manager's address, seeded on the event, that no client may read back. */
-const NOTIFICATION_EMAIL = 'registrations-go-here@example.com'
 /** The seeker-facing address on the same event, which must survive the locks. */
 const PUBLIC_EMAIL = 'ask-us-anything@example.com'
 /** A manager's address inside the activity log's reminder history. */
@@ -126,7 +125,6 @@ describe('Managers access (#821)', () => {
       manager: eventManager.id,
       region: region.id,
       registrationMode: 'sahaj-atlas',
-      registrationNotificationEmail: NOTIFICATION_EMAIL,
       contactEmail: PUBLIC_EMAIL,
       _status: 'published',
     })
@@ -191,7 +189,6 @@ describe('Managers access (#821)', () => {
       expect((readRegion.managers as Manager[])[0]!.email).toBe('event-manager@example.com')
       expect((readClient.managers as Manager[])[0]!.email).toBe('event-manager@example.com')
       expect((readClient.primaryContact as Manager).email).toBe('event-manager@example.com')
-      expect(readEvent.registrationNotificationEmail).toBe(NOTIFICATION_EMAIL)
       expect(JSON.stringify(readEvent.activityLog)).toContain(REMINDER_DESTINATION)
     })
   })
@@ -270,22 +267,6 @@ describe('Managers access (#821)', () => {
 
       expect(self.managers).toEqual([eventManager.id])
       expect(self.primaryContact).toBe(eventManager.id)
-    })
-
-    it('gets no registrationNotificationEmail, even asking for it by name', async () => {
-      // Restricting the collection cannot reach this one: the field is a copy
-      // of a manager's address, not a relationship to the manager.
-      const { docs } = await payload.find({
-        collection: 'events',
-        select: { title: true, registrationNotificationEmail: true },
-        depth: 0,
-        overrideAccess: false,
-        req: clientReq(),
-      })
-
-      const managed = docs.find((doc) => doc.id === event.id)
-      expect(managed).toBeDefined()
-      expect(managed!.registrationNotificationEmail).toBeUndefined()
     })
 
     it('still reads contactEmail, which is public by design', async () => {
@@ -580,33 +561,6 @@ describe('Managers access (#821)', () => {
           req: managerReq(eventOnlyManager),
         }),
       ).rejects.toThrow()
-    })
-
-    it('still reads and writes registrationNotificationEmail', async () => {
-      const read = await payload.findByID({
-        collection: 'events',
-        id: event.id,
-        depth: 0,
-        overrideAccess: false,
-        req: managerReq(eventManager),
-      })
-      expect(read.registrationNotificationEmail).toBe(NOTIFICATION_EMAIL)
-
-      const updated = await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { registrationNotificationEmail: 'rewritten@example.com' },
-        overrideAccess: false,
-        req: managerReq(eventManager),
-      })
-      expect(updated.registrationNotificationEmail).toBe('rewritten@example.com')
-
-      await payload.update({
-        collection: 'events',
-        id: event.id,
-        data: { registrationNotificationEmail: NOTIFICATION_EMAIL },
-        overrideAccess: true,
-      })
     })
   })
 })

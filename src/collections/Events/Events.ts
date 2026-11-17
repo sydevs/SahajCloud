@@ -35,10 +35,6 @@ import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
-import {
-  DEFAULT_REGISTRATION_FREQUENCY,
-  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
-} from '@/lib/notifications/preferences'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Region } from '@/payload-types'
@@ -47,7 +43,6 @@ import {
   eventContactsFieldAccess,
   eventManagerFieldAccess,
   isAdminManager,
-  managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
@@ -508,56 +503,6 @@ export const Events: CollectionConfig = {
                   admin: {
                     description: 'Maximum registrations (blank = unlimited).',
                     condition: (data) => data?.registrationMode === 'sahaj-atlas',
-                  },
-                },
-              ],
-            },
-            {
-              type: 'row',
-              fields: [
-                {
-                  name: 'registrationNotificationEmail',
-                  label: 'Send Registration Updates To',
-                  // Built-in email format validation. No hand-rolled validator.
-                  type: 'email',
-                  // ⚠ A copy of a manager's email address, sitting on a collection
-                  // the `sahaj-atlas` project can read. Hiding the `managers`
-                  // collection hides linked manager records, never a copy like this
-                  // one, so this field carries its own lock (#821).
-                  access: {
-                    read: managersOnlyFieldAccess,
-                    create: managersOnlyFieldAccess,
-                    update: managersOnlyFieldAccess,
-                  },
-                  admin: {
-                    // Hidden pre-adoption. An unverified or denied event has
-                    // no manager, and its registrations are recorded, but
-                    // forwarded to nobody until a manager adopts the event.
-                    condition: (data) =>
-                      data?.registrationMode === 'sahaj-atlas' &&
-                      !isPreAdoptionStage(data?.verificationStage),
-                    placeholder: 'Event Manager',
-                    description:
-                      'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
-                  },
-                },
-                {
-                  name: 'registrationNotificationFrequency',
-                  label: 'How Often',
-                  type: 'select',
-                  // These options come from NOTIFICATION_TYPES'
-                  // `event_registration` entry, so the two surfaces cannot
-                  // drift. Summary cadences are omitted until the digest run
-                  // exists (see #588 §4). Immediate is the default, matching
-                  // buildDefaultNotificationPreferences.
-                  defaultValue: DEFAULT_REGISTRATION_FREQUENCY,
-                  options: [...REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS],
-                  // Pin the enum name so it stays stable across migrations.
-                  // This mirrors `verificationStage`, and never collides with
-                  // the drafts `_status` enum.
-                  enumName: 'enum_events_registration_notification_frequency',
-                  admin: {
-                    condition: (data) => Boolean(data?.registrationNotificationEmail),
                   },
                 },
               ],

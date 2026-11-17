@@ -6,8 +6,6 @@ export {
 } from './eventDetails'
 export { buildEventListingProgress, listingProgressFromReport } from './listingProgress'
 export { buildManagerContacts, pickChannel, resolveRecipients } from './recipients'
-export { resolveRegistrationRecipient } from './registrationRecipient'
-export type { RegistrationRecipient } from './registrationRecipient'
 export { sendNotification } from './send'
 export type {
   EventDetails,
@@ -15,6 +13,7 @@ export type {
   EventListingProgress,
   EventSuggestion,
   NotificationChannel,
+  RegistrationRecipient,
   ReminderAudience,
   ReminderLevel,
   ReminderPayload,

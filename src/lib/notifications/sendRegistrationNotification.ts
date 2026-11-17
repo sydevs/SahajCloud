@@ -9,7 +9,7 @@
  * policy (retry) from the same recipient seam.
  */
 
-import type { RegistrationRecipient } from './registrationRecipient'
+import type { RegistrationRecipient } from './types'
 import type { Payload } from 'payload'
 
 import { createElement } from 'react'

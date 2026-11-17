@@ -19,7 +19,7 @@
  * preview. Override it to point elsewhere.
  */
 
-import type { RegistrationRecipient } from '@/lib/notifications/registrationRecipient'
+import type { RegistrationRecipient } from '@/lib/notifications'
 import type { Event } from '@/payload-types'
 
 import dotenv from 'dotenv'
@@ -40,20 +40,11 @@ function daysFromNow(days: number): string {
   return date.toISOString()
 }
 
-/** A named manager recipient (email channel, Immediate cadence). */
+/** A named manager recipient, on the email channel. */
 const managerRecipient: RegistrationRecipient = {
   destination: 'anna.manager@example.com',
   name: 'Anna Kightley',
   channel: 'email',
-  frequency: 'Immediate',
-}
-
-/** A per-event override address, with no display name, so the greeting stays neutral. */
-const overrideRecipient: RegistrationRecipient = {
-  destination: 'events-team@example.org',
-  name: null,
-  channel: 'email',
-  frequency: 'Immediate',
 }
 
 interface Scenario {
@@ -96,16 +87,6 @@ const SCENARIOS: Scenario[] = [
     label: 'manager · update',
     note: 'the same signup, folded into the registration the sender already held — update wording in the Subject, heading, preview text and intro, with every fact and answer unchanged',
     isUpdate: true,
-  },
-  {
-    label: 'override · neutral greeting',
-    note: 'per-event override address (no display name) → "Hello there,"; one forwarded answer',
-    recipient: overrideRecipient,
-    event: { id: 1043, title: 'Saturday Morning Meditation' },
-    registrantName: 'Priya Deshmukh',
-    registrantEmail: 'priya.d@example.com',
-    startingAt: daysFromNow(3),
-    questions: { referral: 'Instagram' },
   },
   {
     label: 'manager · minimal',

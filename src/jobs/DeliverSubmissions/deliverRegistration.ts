@@ -6,7 +6,8 @@ import {
 } from '@/collections/UserSubmissions/submissionData'
 import { asLog, hasLogEntryType } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
-import { resolveRegistrationRecipient } from '@/lib/notifications/registrationRecipient'
+import { notificationFrequency } from '@/lib/notifications/preferences'
+import { pickChannel } from '@/lib/notifications/recipients'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { EMAIL_CLIENT_SELECT } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -93,9 +94,8 @@ export async function deliverRegistration({
 }
 
 /**
- * Tell the event's manager — or the per-event override address — that somebody
- * registered, or changed a registration they already held. Best-effort, for the
- * reason in this module's docblock.
+ * Tell the event's manager that somebody registered, or changed a registration
+ * they already held. Best-effort, for the reason in this module's docblock.
  *
  * Only the `Immediate` cadence delivers here; a summary cadence belongs to the
  * digest run, and `Never` sends nothing.
@@ -123,12 +123,15 @@ async function notifyManager(args: {
           .catch(() => null)
       : null
 
-    const recipient = resolveRegistrationRecipient(event, manager)
-    if (!recipient || recipient.frequency !== 'Immediate') return
+    if (!manager) return
+    if (notificationFrequency(manager.notificationPreferences, 'event_registration') !== 'Immediate')
+      return
+    const { channel, destination } = pickChannel(manager, 'event_registration')
+    if (!destination) return
 
     await sendRegistrationNotification({
       payload: req.payload,
-      recipient,
+      recipient: { channel, destination, name: manager.name || manager.email || null },
       event,
       registrantName,
       registrantEmail,

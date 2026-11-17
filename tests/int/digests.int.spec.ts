@@ -304,26 +304,6 @@ describe('SendDigests job', () => {
       expect((await watermarksOf(managerId)).program?.event_registration).toBeTruthy()
     })
 
-    /**
-     * ⚠ An override address gets the notice at once, so counting its
-     * registrations here would send them twice.
-     */
-    it('leaves out an event carrying an override address', async () => {
-      const managerId = await createManager('override@example.com', {
-        event_registration: { frequency: 'Daily' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      const overridden = await createEvent(managerId, 'Overridden Event', {
-        registrationNotificationEmail: 'ops@example.org',
-      })
-      await register(overridden, 'Hank')
-
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      expect(emailsTo('override@example.com')).toHaveLength(0)
-    })
-
     it('includes a registrant who opted out of their own reminders', async () => {
       // `unsubscribedAt` covers registrant reminders only; the manager's digest
       // is their own preference's business.
