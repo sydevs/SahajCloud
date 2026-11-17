@@ -361,7 +361,8 @@ at the moment of the squash**, `.ts` and `.json`, and `index.ts` lists only it.
 Production (and any database fully migrated on `main`) already holds that name,
 so it sees nothing pending and never runs the baseline. A fresh database has no
 row and runs the baseline whole. Never give the baseline a new timestamp, and
-never rename it later.
+never rename it later — its own `down` guard compares against that name as a SQL
+literal, so a rename disarms the guard silently.
 
 ### Procedure
 
@@ -384,7 +385,11 @@ never rename it later.
    snapshot except for `id`.
 3. **Keep the `down` guard.** A rollback of the baseline on a database that applied
    the old chain would drop its whole schema and leave 136 stale rows. The baseline's
-   `down` refuses when `payload_migrations` holds more than one non-dev row.
+   `down` refuses when `payload_migrations` holds a non-dev **name older than the
+   baseline's**. ⚠ Not a row count: `migrate:refresh` reverses `getMigrations`'
+   `-batch,-name` order, so it runs the baseline's `down` **first**, deleting no row
+   beforehand — a count then refuses a healthy post-squash database as soon as a
+   second migration exists.
 4. **Delete what imported the old files**: an integration spec that imports a
    one-shot migration's `up` goes with it, and `migration-down-cascade.spec.ts`
    only asserts there is at least one file.

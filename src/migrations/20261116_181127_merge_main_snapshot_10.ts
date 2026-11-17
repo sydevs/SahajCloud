@@ -2919,14 +2919,17 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
-  // A database that applied the pre-squash chain holds that chain's rows
-  // beside this one. Rolling back here would drop its whole schema and leave
-  // those rows behind, so refuse. A database built from this baseline holds
-  // only this row (plus Payload's dev row, batch -1).
-  const applied = await db.execute(
-    sql`SELECT count(*)::int AS n FROM "payload_migrations" WHERE "batch" <> -1`,
+  // A database that applied the pre-squash chain holds that chain's rows beside
+  // this one, every name older than this file's. Rolling back here would drop
+  // its whole schema and leave those rows behind, so refuse.
+  // Test the names, never the row count: migrate:refresh runs this down first
+  // and deletes nothing beforehand, so on a healthy database every later
+  // migration's row is still present and a count refuses them too.
+  const stale = await db.execute(
+    sql`SELECT count(*)::int AS n FROM "payload_migrations"
+        WHERE "batch" <> -1 AND "name" < '20261116_181127_merge_main_snapshot_10'`,
   )
-  if (Number(applied.rows[0]?.n) > 1) {
+  if (Number(stale.rows[0]?.n) > 0) {
     throw new Error(
       'Refusing to roll back the squashed baseline: this database applied the pre-squash migration chain. Dropping the schema would destroy its data. See src/migrations/AGENTS.md, "Squashing the chain".',
     )
