@@ -366,19 +366,14 @@ describe('EventVerificationEmail', () => {
       },
     )
 
-    it('labels the second button and says a reply reaches that manager by name', async () => {
+    it('labels the button, names the manager, and asks in the ask’s own words', async () => {
       const html = await render({ level: 'due', regionManager })
 
       expect(html).toContain('Ask region manager')
       expect(html).toMatch(/Reply to this email to reach/)
       expect(html).toContain(regionManager.name)
-    })
-
-    it('asks for help with the class in the button’s own subject', async () => {
       // The ask hands the listing up; the region CTA chases it down. Sending
       // either one's wording would read as written by the wrong person.
-      const html = await render({ level: 'due', regionManager })
-
       expect(html).toContain(encodeURIComponent('Help with my Sahaja Yoga class'))
       expect(html).not.toContain(encodeURIComponent('Please verify your Sahaja Yoga class'))
     })
@@ -386,13 +381,12 @@ describe('EventVerificationEmail', () => {
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
       'leaves the %s reminder one button and no reply line when nobody is above it',
       async (level) => {
-        // ⚠ Byte-identity against the no-prop render cannot carry this case on
-        // its own: both sides lack the prop, so anything rendered
-        // unconditionally appears in each and the comparison still passes. The
-        // absences are asserted outright for that reason.
+        // ⚠ Asserted as absences, not as byte-identity against the no-prop
+        // render: both sides of that comparison lack the prop, so anything
+        // rendered unconditionally appears in each and it passes anyway. A
+        // reply line with a 'your region manager' fallback survived it.
         const absent = await render({ level, regionManager: undefined })
 
-        expect(absent).toBe(await render({ level }))
         expect(absent.match(IN_ROW_BUTTON) ?? []).toHaveLength(0)
         expect(absent).not.toMatch(/Reply to this email to reach/)
         expect(absent).not.toContain('Ask region manager')

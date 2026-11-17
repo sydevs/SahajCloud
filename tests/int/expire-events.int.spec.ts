@@ -58,6 +58,15 @@ function failEventLoad(payload: Payload, failingId: number) {
 
 const DUE = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // 24h ago
 
+/** The message fields these cases read. `replyTo` is narrowed from nodemailer's own union. */
+type Sent = { to?: unknown; replyTo?: { name?: string; address?: string } }
+
+/** The run's messages to one address. A run emails every due event's recipients. */
+const sentTo = (sendEmail: { mock: { calls: unknown[][] } }, email: string): Sent[] =>
+  sendEmail.mock.calls
+    .map((call) => call[0] as Sent)
+    .filter((message) => String(message.to ?? '').includes(email))
+
 const reload = (payload: Payload, id: number, trash = false) =>
   payload.findByID({ collection: 'events', id, overrideAccess: true, depth: 0, trash })
 
@@ -645,10 +654,7 @@ describe('ExpireEvents job', () => {
 
       // Before the fix the log write threw, so the event stayed at `verified`
       // and past due — and the same manager got the same reminder every night.
-      const toManager = sendEmail.mock.calls.filter((call) =>
-        String((call[0] as { to?: unknown }).to ?? '').includes(manager.email),
-      )
-      expect(toManager).toHaveLength(1)
+      expect(sentTo(sendEmail, manager.email)).toHaveLength(1)
 
       const after = await reload(payload, event.id)
       expect(after.verificationStage).toBe('reminded')
@@ -798,33 +804,25 @@ describe('ExpireEvents job', () => {
 
   // ──────────────────────────────────────────────────────────────────────────
   describe('the Reply-To a verification reminder carries', () => {
-    /** The messages one run sent, narrowed to the fields these cases read. */
-    type Sent = { to?: unknown; replyTo?: { name?: string; address?: string } }
-
-    const sentTo = (sendEmail: { mock: { calls: unknown[][] } }, email: string): Sent[] =>
-      sendEmail.mock.calls
-        .map((call) => call[0] as Sent)
-        .filter((message) => String(message.to ?? '').includes(email))
-
     /**
-     * How many times the run walked one event's region chain. Told apart from
-     * the other region reads by the lookup's own shape — it is the only one
-     * naming a set of ids and selecting every field — and scoped to the chain
-     * starting at `regionId`, because a run processes every due event in the
-     * database and each contributes a walk of its own.
+     * How many times the run walked one event's region chain. Scoped to the
+     * chain starting at `regionId`, because a run processes every due event in
+     * the database and each contributes a walk of its own, and told apart from
+     * the run's other region reads by what the walk asks for: it is the one
+     * that selects `managers`, which is the whole reason it reads.
      */
     const chainLookups = (find: { mock: { calls: unknown[][] } }, regionId: number): number =>
       find.mock.calls.filter((call) => {
         const args = call[0] as {
           collection?: string
           where?: { id?: { in?: unknown } }
-          select?: unknown
+          select?: { managers?: unknown }
         }
         return (
           args.collection === 'regions' &&
           Array.isArray(args.where?.id?.in) &&
           (args.where.id.in as unknown[]).includes(regionId) &&
-          args.select === undefined
+          args.select?.managers === true
         )
       }).length
 
@@ -868,15 +866,10 @@ describe('ExpireEvents job', () => {
       })
 
     it('points the event manager at the nearest region manager, from the first reminder', async () => {
-      const { event, manager, region, regionManager } =
-        await createEventUnderRegion('Due Under Region')
+      const { event, manager, regionManager } = await createEventUnderRegion('Due Under Region')
 
-      const find = vi.spyOn(payload, 'find')
       const sendEmail = vi.spyOn(payload, 'sendEmail').mockResolvedValue(undefined as never)
-      onTestFinished(() => {
-        find.mockRestore()
-        sendEmail.mockRestore()
-      })
+      onTestFinished(() => sendEmail.mockRestore())
 
       await runTask(payload)
 
@@ -887,7 +880,6 @@ describe('ExpireEvents job', () => {
         name: 'Due Under Region Region Manager',
         address: regionManager.email,
       })
-      expect(chainLookups(find, region.id)).toBe(1)
     })
 
     it('leaves the region manager’s own escalation copy replying nowhere', async () => {

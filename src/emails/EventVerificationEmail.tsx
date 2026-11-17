@@ -469,9 +469,23 @@ function renderDoneTicks(
   ))
 }
 
-/** A mailto button's href, with its subject and body pre-filled. */
-function mailtoHref(email: string, subject: string, body: string): string {
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+/**
+ * A mailto button's href, pre-filled from one of `COPY`'s request blocks. Takes
+ * the block rather than two rendered strings, so a caller names the request it
+ * is making instead of spelling its subject-and-body pair.
+ */
+function mailtoHref(
+  email: string,
+  copy: {
+    subject: (eventTitle: string) => string
+    body: (eventTitle: string, name: string) => string
+  },
+  eventTitle: string,
+  name: string,
+): string {
+  const subject = encodeURIComponent(copy.subject(eventTitle))
+  const body = encodeURIComponent(copy.body(eventTitle, name))
+  return `mailto:${email}?subject=${subject}&body=${body}`
 }
 
 /**
@@ -527,17 +541,15 @@ export function EventVerificationEmail({
   const contactEmail = eventManager?.contacts.find((entry) => entry.label === 'Email')?.value
   const ctaHref =
     audience === 'region' && contactEmail
-      ? mailtoHref(
-          contactEmail,
-          COPY.contactManager.subject(eventTitle),
-          COPY.contactManager.body(eventTitle, eventManager?.name ?? 'there'),
-        )
+      ? mailtoHref(contactEmail, COPY.contactManager, eventTitle, eventManager?.name ?? 'there')
       : verifyUrl
 
   // The event manager can hand the listing up instead of verifying it, so the
   // two actions sit side by side at the same weight. A region manager is the
   // contact themselves, so theirs stays a single button.
   const askRegion = audience === 'manager' ? regionManager : undefined
+  const askHref =
+    askRegion && mailtoHref(askRegion.email, COPY.askRegionManager, eventTitle, askRegion.name)
 
   return (
     <EmailLayout
@@ -660,19 +672,15 @@ export function EventVerificationEmail({
         )
       ) : null}
 
-      {askRegion ? (
+      {/* The single button keeps `BrandButton`, rather than a one-button row:
+          the row's own 6px side margins would narrow every reminder that has
+          nobody above the event, and a region manager's too. */}
+      {askRegion && askHref ? (
         <BrandButtonRow
           brand={brand}
           buttons={[
             { href: ctaHref, label: variant.cta },
-            {
-              href: mailtoHref(
-                askRegion.email,
-                COPY.askRegionManager.subject(eventTitle),
-                COPY.askRegionManager.body(eventTitle, askRegion.name),
-              ),
-              label: COPY.askRegionManager.label,
-            },
+            { href: askHref, label: COPY.askRegionManager.label },
           ]}
         />
       ) : (
