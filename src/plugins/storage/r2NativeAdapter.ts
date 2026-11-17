@@ -14,7 +14,7 @@ import type { Adapter, HandleUpload } from '@payloadcms/plugin-cloud-storage/typ
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 
 import { serverEnv } from '@/lib/env'
-import { capture, handlerTags } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 import { applyFilename, generateR2Key } from './filenameUtils'
 import {
@@ -159,15 +159,15 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
         if ((error instanceof Error && error.name === 'NoSuchKey') || httpStatus === 404) {
           return new Response('Not Found', { status: 404 })
         }
-        // The 500 is returned, so nothing else reports it (#1182). The line
-        // stays its own: `storageLogger` runs without a `req` and offers no
-        // `info`, so it does not fit `capture`'s mirror.
+        // The line stays its own: `storageLogger` runs without a `req` and
+        // offers no `info`, so it does not fit the mirror.
         storageLogger.error({ msg: 'R2 static handler error', key, error })
-        capture({
+        reportHandlerFailure({
           error,
-          message: 'R2 static handler error',
           extra: { key },
-          tags: handlerTags('r2/static'),
+          handler: 'r2/static',
+          message: 'R2 static handler error',
+          status: 500,
         })
         return new Response('Internal Server Error', { status: 500 })
       }

@@ -27,6 +27,7 @@ import { blockUser } from '@/collections/Users/endpoints/block'
 import { atlasChallenge } from '@/endpoints/atlas/challenge'
 import { readFailureResponse, requireIntegerClientId } from '@/lib/endpoints'
 import { requestTranscript } from '@/lib/transcripts/request'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 import { r2NativeAdapter } from '@/plugins/storage/r2NativeAdapter'
 
@@ -46,7 +47,7 @@ const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
 const captured = () => capturedFrom(sentry.captureMessage)
 const capturedError = () => capturedFrom(sentry.captureException)
 
-/** What `handlerTags` builds, restated so a renamed tag reds this spec. */
+/** What `reportHandlerFailure` tags with, restated so a renamed tag reds this spec. */
 const handlerTags = (handler: string) => ({ capture_source: 'handler', handler })
 
 const reported = () =>
@@ -272,6 +273,19 @@ describe('readFailureResponse, the shared read-failed answer', () => {
     expect(reported()).toBe(0)
   })
 
+  it('reports an APIError carrying a 500 — the status decides, never the class', () => {
+    const response = readFailureResponse(
+      req,
+      new APIError('the region tree could not be walked'),
+      'Failed to build the sitemap for this client.',
+      { handler: 'atlas/sitemap', msg: 'atlasSitemap: read failed', clientId: 7 },
+    )
+
+    expect(response.status).toBe(500)
+    expect(reported()).toBe(1)
+    expect(capturedError().tags).toMatchObject(handlerTags('atlas/sitemap'))
+  })
+
   it('reports a client id that is not an integer, which would answer "you own nothing"', () => {
     const caller = requireIntegerClientId(
       clientRequest({ user: { collection: 'clients', enabled: true, id: 'abc' } }),
@@ -283,6 +297,45 @@ describe('readFailureResponse, the shared read-failed answer', () => {
     expect(sentry.captureMessage).toHaveBeenCalledOnce()
     expect(captured().level).toBe('error')
     expect(captured().tags).toMatchObject(handlerTags('atlas/sitemap'))
+  })
+})
+
+describe('reportHandlerFailure, where the policy lives', () => {
+  it('reports a 5xx and stays silent for a 4xx, from the status alone', () => {
+    reportHandlerFailure({ handler: 'atlas/seo', message: 'a gate refused the query', status: 400 })
+    expect(reported()).toBe(0)
+
+    reportHandlerFailure({ handler: 'atlas/seo', message: 'the read failed', status: 500 })
+    expect(reported()).toBe(1)
+    expect(captured().tags).toMatchObject(handlerTags('atlas/seo'))
+  })
+
+  it('stays silent for a 2xx until the site says the answer hides a failure', () => {
+    reportHandlerFailure({ handler: 'cloudflare-stream-webhook', message: 'ignored', status: 200 })
+    expect(reported()).toBe(0)
+
+    reportHandlerFailure({
+      handler: 'cloudflare-stream-webhook',
+      message: 'the upload is unplayable',
+      report: true,
+      status: 200,
+    })
+    expect(reported()).toBe(1)
+  })
+
+  it('levels a 5xx carrying no exception at error, which `capture` alone would call a warning', () => {
+    reportHandlerFailure({ handler: 'clients/report', message: 'the pool is gone', status: 500 })
+    expect(captured().level).toBe('error')
+  })
+
+  it('takes the level a deployment gap asks for instead', () => {
+    reportHandlerFailure({
+      handler: 'cloudflare-stream-webhook',
+      level: 'warning',
+      message: 'no webhook secret here',
+      status: 503,
+    })
+    expect(captured().level).toBe('warning')
   })
 })
 

@@ -14,7 +14,7 @@ import {
   transcriptPhase,
   transcriptPhaseIsRetryable,
 } from '@/lib/transcripts/bounds'
-import { capture, handlerTags } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 import { findTranscript, type TranscriptSource } from './read'
 import { replaceTranscript } from './sync'
@@ -117,15 +117,16 @@ export async function requestTranscript(
     }
     if (error instanceof APIError) return transcriptRefusal(error.message, error.status)
 
-    // The 500 is returned, so nothing else reports it (#1182). Not
-    // `readFailureResponse`: the `ValidationError` arm above has to precede the
-    // `APIError` one, and a refusal here can carry `Retry-After`.
-    capture({
+    // Not `readFailureResponse`: the `ValidationError` arm above has to precede
+    // the `APIError` one, and a refusal here can carry `Retry-After`. The
+    // report is the one every site makes.
+    reportHandlerFailure({
       error,
-      message: 'requestTranscript: could not ask for a transcript',
       extra: { source },
+      handler: 'transcripts/request',
       logger: req.payload.logger,
-      tags: handlerTags('transcripts/request'),
+      message: 'requestTranscript: could not ask for a transcript',
+      status: 500,
     })
     return transcriptRefusal('Could not ask for a transcript. Please try again.', 500)
   }

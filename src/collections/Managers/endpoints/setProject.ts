@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { errorResponse, parseBody, requireActiveManager } from '@/lib/endpoints'
 import { isValidProject } from '@/plugins/access'
-import { capture, handlerTags } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 const bodySchema = z.object({
   // `null` is the admin "All Content" view. A slug selects a project.
@@ -57,15 +57,16 @@ export const setProject: Endpoint = {
       })
       return Response.json({ ok: true, currentProject: updated.currentProject ?? null })
     } catch (error) {
-      // A returned 500 throws nothing, so nothing else reports it (#1182). Not
-      // `readFailureResponse`: that answers for a read, and surfaces an
-      // `APIError`'s own status — this write's answer is uniform by design.
-      capture({
+      // Not `readFailureResponse`: that surfaces an `APIError`'s own status, and
+      // `payload.update` can throw a localised `ValidationError` — this write's
+      // answer is uniform by design. The report is the one every site makes.
+      reportHandlerFailure({
         error,
-        message: 'setProject: failed to persist currentProject',
         extra: { managerId },
+        handler: 'managers/set-project',
         logger: req.payload.logger,
-        tags: handlerTags('managers/set-project'),
+        message: 'setProject: failed to persist currentProject',
+        status: 500,
       })
       return errorResponse('Failed to change project.', 500)
     }

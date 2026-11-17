@@ -12,7 +12,7 @@ import {
 import { siteHosts } from '@/lib/clients/site'
 import { errorResponse, parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
-import { capture, handlerTags } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
 
 /**
@@ -176,13 +176,12 @@ export const clientEmbedReport: Endpoint = {
       }
       const pool = getPgPool(req)
       if (!pool) {
-        // A returned 500 throws nothing, so nothing else reports it (#1182).
-        capture({
-          message: 'clientEmbedReport: Postgres pool unavailable; report dropped',
+        reportHandlerFailure({
           extra: { clientId: client.id },
-          level: 'error',
+          handler: 'clients/report',
           logger: req.payload.logger,
-          tags: handlerTags('clients/report'),
+          message: 'clientEmbedReport: Postgres pool unavailable; report dropped',
+          status: 500,
         })
         return errorResponse('Could not record this report.', 500)
       }

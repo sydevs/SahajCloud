@@ -2,7 +2,7 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
-import { capture, handlerTags } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 /**
  * The refusal envelope every public endpoint answers with — the shape
@@ -23,9 +23,12 @@ export function errorResponse(message: string, status: number): Response {
  * ⚠ **The 500 is RETURNED, never thrown**, so Payload's root `afterError` hook
  * and Next's `onRequestError` both miss it and this is the only thing that can
  * report it (#1182). `log.handler` names the route for the Sentry tag, and
- * rides in the same bag as `msg` so a site names itself once. The `APIError`
- * arm stays silent: a gate refusing a caller's query is a 4xx, and a caller's
- * mistake is not an incident (#670).
+ * rides in the same bag as `msg` so a site names itself once.
+ *
+ * Both arms go through `reportHandlerFailure`, which decides from the status
+ * alone whether anything is reported — so the gate's 4xx stays silent without a
+ * second rule written here (#670), and an `APIError` that carries a 500 of its
+ * own is reported rather than slipping past on its class.
  */
 export function readFailureResponse(
   req: PayloadRequest,
@@ -33,10 +36,21 @@ export function readFailureResponse(
   failure: string,
   log: { handler: string; msg: string } & Record<string, unknown>,
 ): Response {
-  if (error instanceof APIError) return errorResponse(error.message, error.status)
   const { handler, msg, ...extra } = log
-  capture({ error, message: msg, extra, logger: req.payload.logger, tags: handlerTags(handler) })
-  return errorResponse(failure, 500)
+  const refusal =
+    error instanceof APIError
+      ? { message: error.message, status: error.status }
+      : { message: failure, status: 500 }
+
+  reportHandlerFailure({
+    error,
+    extra,
+    handler,
+    logger: req.payload.logger,
+    message: msg,
+    status: refusal.status,
+  })
+  return errorResponse(refusal.message, refusal.status)
 }
 
 /**
@@ -60,12 +74,12 @@ export function requireIntegerClientId(
   const clientId = Number(req.user?.id)
   if (Number.isInteger(clientId)) return { ok: true, clientId }
 
-  capture({
-    message: 'client id is not an integer',
+  reportHandlerFailure({
     extra: { clientId: req.user?.id },
-    level: 'error',
+    handler,
     logger: req.payload.logger,
-    tags: handlerTags(handler),
+    message: 'client id is not an integer',
+    status: 500,
   })
   return { ok: false, response: errorResponse(failure, 500) }
 }

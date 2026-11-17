@@ -33,7 +33,7 @@ import { describeRejectedCredential } from './credentialRejection'
  *
  * ⚠ **`handler` is excluded because nothing reaches this classifier with it** —
  * a handler that answers its own 5xx has no routed failure to classify — so
- * `handlerTags` (`./capture`) writes that one (#1182).
+ * `reportHandlerFailure` (`./handlerFailure`) writes that one (#1182).
  */
 export type CaptureSource = Exclude<CaptureSourceTag, 'handler'>
 
