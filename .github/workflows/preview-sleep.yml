@@ -50,11 +50,10 @@ jobs:
       - name: Install the Railway CLI
         env:
           RAILWAY_CLI_VERSION: 5.71.0
-        # `@railway/cli`'s postinstall fetches the platform binary, so nothing
-        # here depends on the release archive's layout. pnpm runs a dependency's
-        # build script only where `--allow-build` names it, and refuses a global
-        # install whose bin directory is off PATH — pnpm/action-setup puts
-        # PNPM_HOME and its `bin` there already.
+        # The platform binary arrives from `@railway/cli`'s postinstall, and
+        # pnpm runs a dependency's build script only where `--allow-build`
+        # names it. A global install also refuses a bin directory off PATH —
+        # pnpm/action-setup puts PNPM_HOME and its `bin` there already.
         run: |
           pnpm add --global --allow-build=@railway/cli "@railway/cli@$RAILWAY_CLI_VERSION"
           railway --version
