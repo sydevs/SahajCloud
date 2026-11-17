@@ -196,7 +196,7 @@ function wakeRetryGap(commit: string): string {
   const short = commit.slice(0, 8)
   try {
     return runsWakeRetry(DEFAULT_BRANCH)
-      ? `${short} predates the wake retry; merge ${DEFAULT_BRANCH}`
+      ? `${short} predates the wake retry; merge ${DEFAULT_BRANCH}, unless this branch moved it`
       : `${WAKE_RETRY_PATH} is not at ${DEFAULT_BRANCH} either, so WAKE_RETRY_PATH is stale`
   } catch {
     return `${short} does not carry ${WAKE_RETRY_PATH}`

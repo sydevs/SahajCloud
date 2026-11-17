@@ -89,10 +89,20 @@ describe('planPreviewSleep', () => {
     expect(planPreviewSleep(state)).toEqual({ skip: 'its app deployment is missing' })
   })
 
-  it.each(['BUILDING', 'FAILED'])('leaves a preview whose Postgres is %s alone', (status) => {
+  // ⚠ Pins the asymmetry: a present-but-failed Postgres is deployed, not
+  // skipped, or the preview's app would stay billed for the life of the PR.
+  it('deploys a Postgres whose deployment failed, rather than skipping the preview', () => {
     const state = freshPreview()
-    state.postgres.deployment!.status = status
-    expect(planPreviewSleep(state)).toEqual({ skip: `its Postgres deployment is ${status}` })
+    state.postgres.deployment!.status = 'FAILED'
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'postgres' },
+        { kind: 'disable-pitr' },
+        { kind: 'deploy', service: 'postgres' },
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
   })
 
   it('leaves a preview with no Postgres deployment alone', () => {
