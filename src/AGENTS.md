@@ -216,15 +216,18 @@ No loose files at the root — every file lives in a named folder:
   — because four surfaces show the same list. No barrel: import each module
   by its own path
 - `transcripts/` — a recording's transcript, wherever the recording lives
-  (#1016): `sync.ts` starts a run when a recording or its language is saved
-  or, for a video, when Stream has made it, `request.ts` is a re-request and
-  the bounds a paid run needs, `read.ts` the row lookup, a file's cues
-  (batched per request), which files' rows are finished, and which column each
-  kind of recording states its language in, `language.ts` whether a
-  recording's language is the one being read, and `media.ts` which files carry
-  one at all. Meditations, files, lessons, the job and `seeds/file-transcripts`
-  all read it; deep imports, no barrel, because `media.ts` is also read in the
-  browser
+  (#1016): `schema.ts` the stored cue shape and the status and provider
+  vocabularies, `bounds.ts` the two time bounds and the phase they decide —
+  kept out of `schema.ts` so the client Transcript tab reads them without
+  pulling zod into the browser, `sync.ts` starts a run when a recording or
+  its language is saved or, for a video, when Stream has made it,
+  `request.ts` is a re-request, gated on those bounds, `read.ts` the row
+  lookup, a file's cues (batched per request), which files' rows are
+  finished, and which column each kind of recording states its language in,
+  `language.ts` whether a recording's language is the one being read, and
+  `media.ts` which files carry one at all. Meditations, files, lessons, the
+  job and `seeds/file-transcripts` all read it; deep imports, no barrel,
+  because `media.ts` and `bounds.ts` are also read in the browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
