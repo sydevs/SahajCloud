@@ -25,7 +25,7 @@ Type error: Route "path/to/route.ts" does not match the required types of a Next
 When a route needs real logic, such as signature verification or branching, move it to a sibling file under `src/lib/`. Keep the route file a thin wrapper. A test can then call the logic directly, with no Payload boot.
 
 ```
-src/plugins/storage/cloudflareStreamWebhook.ts             ← pure helpers (exported freely)
+src/plugins/storage/cloudflareStreamWebhook.ts             ← the processor + helpers (exported freely)
 src/app/(payload)/api/webhooks/cloudflare-stream/route.ts  ← thin POST wrapper
 tests/unit/cloudflare-stream-webhook.spec.ts               ← imports helpers from @/lib/
 ```
@@ -56,6 +56,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json(result.body, { status: result.status })
 }
 ```
+
+A handler that answers its own 5xx still reports it to Sentry — nothing else sees a failure it returns (`src/plugins/sentry/AGENTS.md`, #1182). That needs no Payload either.
 
 Prefer `createWorkerSafeLogger` over `getPayload({ config })` when the handler is pure. Booting Payload only for `payload.logger` slows the response. This matters for a webhook: Cloudflare Stream retries on a non-2xx response and on a timeout. Reach for `getPayload` only when the handler needs a real Payload feature, such as `payload.find` or `payload.auth`.
 

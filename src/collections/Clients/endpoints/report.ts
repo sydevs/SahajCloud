@@ -10,8 +10,9 @@ import {
   parseMountKey,
 } from '@/lib/clients/embedMetadata'
 import { siteHosts } from '@/lib/clients/site'
-import { parseBody, requireClientAccess } from '@/lib/endpoints'
+import { errorResponse, parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
 
 /**
@@ -175,14 +176,14 @@ export const clientEmbedReport: Endpoint = {
       }
       const pool = getPgPool(req)
       if (!pool) {
-        req.payload.logger.error({
-          msg: 'clientEmbedReport: Postgres pool unavailable; report dropped',
-          clientId: client.id,
+        reportHandlerFailure({
+          extra: { clientId: client.id },
+          handler: 'clients/report',
+          logger: req.payload.logger,
+          message: 'clientEmbedReport: Postgres pool unavailable; report dropped',
+          status: 500,
         })
-        return Response.json(
-          { errors: [{ message: 'Could not record this report.' }] },
-          { status: 500 },
-        )
+        return errorResponse('Could not record this report.', 500)
       }
 
       // The merged record and the keys it dropped, as separate arguments: the

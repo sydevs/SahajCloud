@@ -11,8 +11,9 @@
  * is not set. See `docs/rules/storage.md`.
  *
  * The actual verification and processing logic lives in
- * `src/plugins/storage/cloudflareStreamWebhook.ts` (pure, testable). This file is
- * just a Next.js route handler wrapper.
+ * `src/plugins/storage/cloudflareStreamWebhook.ts`, which reports its own
+ * failures to Sentry (#1182). This file is just a Next.js route handler
+ * wrapper.
  *
  * A ready video that is a `files` row also starts its transcript (#1016) —
  * the one step here that needs Payload, so it is booted only for that step.
@@ -32,7 +33,7 @@ import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 
 import config from '@payload-config'
 
-// The webhook handler is pure and doesn't touch Payload, so we skip getPayload()
+// The webhook handler doesn't touch Payload, so we skip getPayload()
 // until a ready video needs it, and use the worker-safe logger directly. This keeps cold-start latency low on
 // Cloudflare Workers, where Cloudflare Stream retries on non-2xx.
 // createWorkerSafeLogger is typed as Config['logger'] (a union including option

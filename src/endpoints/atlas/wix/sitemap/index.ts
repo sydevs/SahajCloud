@@ -40,7 +40,11 @@ export const atlasWixSitemap: Endpoint = {
     const parsed = parseQuery(req, wixSitemapQuery)
     if (!parsed.ok) return parsed.response
 
-    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    const caller = requireIntegerClientId(
+      req,
+      'Failed to build the sitemap for this client.',
+      'atlas/wix/sitemap',
+    )
     if (!caller.ok) return caller.response
     const { clientId } = caller
 
@@ -55,6 +59,7 @@ export const atlasWixSitemap: Endpoint = {
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
       return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
+        handler: 'atlas/wix/sitemap',
         msg: 'atlasWixSitemap: read failed',
         clientId,
       })

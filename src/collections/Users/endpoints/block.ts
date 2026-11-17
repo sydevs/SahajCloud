@@ -7,6 +7,7 @@ import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { appendLogEntry } from '@/lib/atomicWrites/appendLogEntry'
 import { parseBody, requireManagerPermission } from '@/lib/endpoints'
 import { transition } from '@/lib/stateMachine/transition'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 const bodySchema = z.object({
   blocked: z.boolean(),
@@ -106,10 +107,13 @@ export const blockUser: Endpoint = {
     } catch (error) {
       if (owned) await killTransaction(systemReq)
       if ((error as { status?: number }).status === 404) return refusal('No such registrant.', 404)
-      req.payload.logger.error({
-        msg: 'blockUser: the block could not be saved',
-        userId: id,
-        error: error instanceof Error ? error.message : String(error),
+      reportHandlerFailure({
+        error,
+        extra: { userId: id },
+        handler: 'users/block',
+        logger: req.payload.logger,
+        message: 'blockUser: the block could not be saved',
+        status: 500,
       })
       return refusal('The block could not be saved.', 500)
     }

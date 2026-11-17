@@ -30,6 +30,15 @@ const LOG_METHOD = { error: 'error', info: 'info', warning: 'warn' } as const
 export type CaptureLevel = keyof typeof LOG_METHOD
 
 /**
+ * Every value the `capture_source` tag carries, named once here because this
+ * is where the tag is written. `captureFailure`'s `CaptureSource` is the subset
+ * that classifier accepts, and `reportHandlerFailure` writes `handler`; a value
+ * spelled at a call site instead could split one Sentry issue in two on a typo
+ * (#1182).
+ */
+export type CaptureSourceTag = 'afterError' | 'handler' | 'job' | 'localApi' | 'signIn'
+
+/**
  * A tag is a non-empty string or absent: Sentry has no use for `''`.
  *
  * ⚠ **No `environment` tag.** Every event already carries an `environment`

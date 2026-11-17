@@ -1,10 +1,8 @@
 import type { EventFeature, GeoJsonPoint } from './responseTypes'
 import type { Endpoint, PopulateType, SelectType, Sort, Where } from 'payload'
 
-import { APIError } from 'payload'
-
 import { INVALID_TEXT_REPRESENTATION, mapPostgresCastError } from '@/lib/databaseErrors'
-import { requireActiveClient } from '@/lib/endpoints'
+import { readFailureResponse, requireActiveClient } from '@/lib/endpoints'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 
@@ -154,18 +152,14 @@ export const eventsGeoJson: Endpoint = {
         },
       )
     } catch (error) {
-      // validateClientQueryParamsHook throws APIError(400) for a missing
-      // select / populate-at-depth>1, and validateClientOriginHook throws
-      // APIError(403) for a disallowed origin — surface status + message verbatim.
-      if (error instanceof APIError) {
-        return Response.json({ errors: [{ message: error.message }] }, { status: error.status })
-      }
       // This handler forwards the client's `where` verbatim, and `eventType` is a
       // Postgres enum column the OpenAPI docs invite callers to filter on — so
       // `where[eventType][equals]=bogus` raises SQLSTATE 22P02 here. Payload's root
       // `afterError` hook (`@/plugins/databaseErrors`) fires from `routeError`, which a
       // handler that catches its own errors never reaches, so the mapping is asked for
       // directly. (sydevs/SahajCloud#670)
+      // ⚠ Asked before the APIError arm below, which answers every other 4xx:
+      // a cast failure is no `APIError`, so neither arm can take the other's.
       const mapped = mapPostgresCastError(error)
       if (mapped) {
         req.payload.logger.warn({
@@ -179,15 +173,14 @@ export const eventsGeoJson: Endpoint = {
           { status: mapped.status },
         )
       }
-      req.payload.logger.error({
+      // The query gates throw `APIError`, which keeps its own status and message;
+      // anything else is this handler's own 500, reported here because nothing
+      // else sees a 5xx it returns.
+      return readFailureResponse(req, error, 'Failed to build the GeoJSON feed.', {
+        handler: 'events/geojson',
         msg: 'eventsGeoJson: read failed',
         clientId: req.user?.id,
-        error: error instanceof Error ? error.message : String(error),
       })
-      return Response.json(
-        { errors: [{ message: 'Failed to build the GeoJSON feed.' }] },
-        { status: 500 },
-      )
     }
   },
 }

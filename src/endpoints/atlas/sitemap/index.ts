@@ -68,7 +68,11 @@ export const atlasSitemap: Endpoint = {
     // The gate has established a published `clients` user; this is
     // the id that read leaves on the request. Its docblock carries why an
     // unusable one must fail loudly rather than answer "you own nothing".
-    const caller = requireIntegerClientId(req, 'Failed to build the sitemap for this client.')
+    const caller = requireIntegerClientId(
+      req,
+      'Failed to build the sitemap for this client.',
+      'atlas/sitemap',
+    )
     if (!caller.ok) return caller.response
     const { clientId } = caller
 
@@ -87,6 +91,7 @@ export const atlasSitemap: Endpoint = {
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
       return readFailureResponse(req, error, 'Failed to build the sitemap for this client.', {
+        handler: 'atlas/sitemap',
         msg: 'atlasSitemap: read failed',
         clientId,
       })

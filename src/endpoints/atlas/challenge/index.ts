@@ -2,6 +2,7 @@ import type { ChallengeConfig } from './challengeDocument'
 import type { Endpoint } from 'payload'
 
 import { serverEnv } from '@/lib/env/server'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
 import { challengeParentAllowlist } from './allowlist'
@@ -57,13 +58,28 @@ export const atlasChallenge: Endpoint = {
     const request = readChallengeRequest(req.query ?? {})
     const siteKey = serverEnv.TURNSTILE_SITE_KEY
 
-    if (!siteKey) {
-      req.payload.logger.error({ msg: 'atlasChallenge: TURNSTILE_SITE_KEY is not set' })
+    /**
+     * The page's own 503: reported, then answered as a document rather than the
+     * JSON envelope, because this is what the widget's frame renders.
+     *
+     * All three are `error` everywhere — `.env` is tracked and carries
+     * Cloudflare's test pair, so every deployment configures this, unlike the
+     * Stream webhook, which dev deliberately leaves unset.
+     */
+    const unavailable = (message: string, error?: unknown): Response => {
+      reportHandlerFailure({
+        error,
+        handler: 'atlas/challenge',
+        logger: req.payload.logger,
+        message,
+        status: 503,
+      })
       return respond({ refusal: 'unavailable' }, 503)
     }
+
+    if (!siteKey) return unavailable('atlasChallenge: TURNSTILE_SITE_KEY is not set')
     if (isProductionDeployment() && isTestSiteKey(siteKey)) {
-      req.payload.logger.error({ msg: 'atlasChallenge: production carries a Turnstile TEST key' })
-      return respond({ refusal: 'unavailable' }, 503)
+      return unavailable('atlasChallenge: production carries a Turnstile TEST key')
     }
     if (request.parent === null) return respond({ refusal: 'origin' }, 403)
 
@@ -71,11 +87,7 @@ export const atlasChallenge: Endpoint = {
     try {
       patterns = await challengeParentAllowlist(req.payload)
     } catch (error) {
-      req.payload.logger.error({
-        msg: 'atlasChallenge: could not read the client allowlist',
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return respond({ refusal: 'unavailable' }, 503)
+      return unavailable('atlasChallenge: could not read the client allowlist', error)
     }
 
     if (!isParentAllowed(request.parent, patterns)) return respond({ refusal: 'origin' }, 403)

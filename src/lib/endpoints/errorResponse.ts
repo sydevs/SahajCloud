@@ -2,6 +2,8 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
+
 /**
  * The refusal envelope every public endpoint answers with — the shape
  * `parseQuery` returns for a 400 and `requireActiveClient` for a 403.
@@ -16,20 +18,44 @@ export function errorResponse(message: string, status: number): Response {
 /**
  * The answer for a read that threw: an `APIError` — the client-query gates the
  * forwarded reads run — keeps its status and message, and anything else is
- * logged and answered as a 500 carrying `failure`.
+ * logged, reported, and answered as a 500 carrying `failure`.
+ *
+ * ⚠ **The 500 is RETURNED, never thrown**, so Payload's root `afterError` hook
+ * and Next's `onRequestError` both miss it and this is the only thing that can
+ * report it (#1182). `log.handler` names the route for the Sentry tag, and
+ * rides in the same bag as `msg` so a site names itself once.
+ *
+ * Both arms go through `reportHandlerFailure`, which decides from the status
+ * alone whether anything is reported — so the gate's 4xx stays silent without a
+ * second rule written here (#670), and an `APIError` that carries a 500 of its
+ * own is reported rather than slipping past on its class.
+ *
+ * ⚠ **Only a 4xx `APIError` speaks for itself.** Payload marks a 500 `APIError`
+ * `isPublic: false` and its own `routeError` withholds the message, so
+ * surfacing one here would hand an API client a driver's text that nothing else
+ * in the app discloses. A 5xx answers `failure`, whatever threw it.
  */
 export function readFailureResponse(
   req: PayloadRequest,
   error: unknown,
   failure: string,
-  log: { msg: string } & Record<string, unknown>,
+  log: { handler: string; msg: string } & Record<string, unknown>,
 ): Response {
-  if (error instanceof APIError) return errorResponse(error.message, error.status)
-  req.payload.logger.error({
-    ...log,
-    error: error instanceof Error ? error.message : String(error),
+  const { handler, msg, ...extra } = log
+  const refusal =
+    error instanceof APIError && error.status < 500
+      ? { message: error.message, status: error.status }
+      : { message: failure, status: 500 }
+
+  reportHandlerFailure({
+    error,
+    extra,
+    handler,
+    logger: req.payload.logger,
+    message: msg,
+    status: refusal.status,
   })
-  return errorResponse(failure, 500)
+  return errorResponse(refusal.message, refusal.status)
 }
 
 /**
@@ -48,13 +74,17 @@ export function readFailureResponse(
 export function requireIntegerClientId(
   req: PayloadRequest,
   failure: string,
+  handler: string,
 ): { ok: true; clientId: number } | { ok: false; response: Response } {
   const clientId = Number(req.user?.id)
   if (Number.isInteger(clientId)) return { ok: true, clientId }
 
-  req.payload.logger.error({
-    msg: 'client id is not an integer',
-    clientId: req.user?.id,
+  reportHandlerFailure({
+    extra: { clientId: req.user?.id },
+    handler,
+    logger: req.payload.logger,
+    message: 'client id is not an integer',
+    status: 500,
   })
   return { ok: false, response: errorResponse(failure, 500) }
 }

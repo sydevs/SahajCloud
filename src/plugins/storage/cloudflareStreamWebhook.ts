@@ -1,5 +1,5 @@
 /**
- * Cloudflare Stream webhook helpers (pure, no Payload / Next.js dependency).
+ * Cloudflare Stream webhook helpers. No Payload dependency.
  *
  * Kept in `src/plugins/storage` rather than co-located with the route handler
  * because Next.js App Router routes may only export specific named exports
@@ -11,12 +11,26 @@ import { timingSafeEqual } from 'node:crypto'
 
 import { z } from 'zod'
 
+import type { CaptureLevel } from '@/plugins/sentry/capture'
+import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
+
 import {
   CloudflareStreamDownloadsResponseSchema,
   CloudflareStreamWebhookPayloadSchema,
 } from './cloudflareSchemas'
+import { isProductionDeployment } from './previewIsolation'
 
 const FIVE_MINUTES_SECONDS = 300
+
+/** Every report this webhook sends names this route (#1182). */
+const HANDLER = 'cloudflare-stream-webhook'
+
+/**
+ * A missing secret or credential is the deployment's own gap: an answer on a
+ * preview or locally, where nothing configures them, and an incident in
+ * production. Same rule as a job's (`src/jobs/TranscribeRecording/`).
+ */
+const configGapLevel = (): CaptureLevel => (isProductionDeployment() ? 'error' : 'warning')
 
 /**
  * Compare two strings without leaking where they first differ.
@@ -129,9 +143,14 @@ export async function verifySignature(
 }
 
 /**
- * Pure webhook processor. No Payload or Next.js dependency — the route handler
- * is a thin wrapper. Callers can inject `fetchFn` for tests, and `onReady` for
- * the work a ready video starts beyond its downloads.
+ * The webhook processor. The route handler is a thin wrapper. Callers can inject
+ * `fetchFn` for tests, and `onReady` for the work a ready video starts beyond
+ * its downloads.
+ *
+ * ⚠ **Every branch that answers 5xx, or 200 after recording an upstream
+ * failure, reports for itself** (#1182). Cloudflare reads the status code and
+ * retries; the signature 400s stay silent, because a caller's mistake is not an
+ * incident (#670).
  */
 export async function handleStreamWebhook(params: {
   rawBody: string
@@ -164,7 +183,13 @@ export async function handleStreamWebhook(params: {
   } = params
 
   if (!secret) {
-    logger.warn({ msg: 'Cloudflare Stream webhook secret not configured' })
+    reportHandlerFailure({
+      handler: HANDLER,
+      level: configGapLevel(),
+      logger,
+      message: 'Cloudflare Stream webhook secret not configured',
+      status: 503,
+    })
     return { status: 503, body: { error: 'Webhook secret not configured' } }
   }
 
@@ -202,12 +227,20 @@ export async function handleStreamWebhook(params: {
   const { uid, status } = payload
 
   if (status.state === 'error') {
-    logger.error({
-      msg: 'Cloudflare Stream reported processing error',
-      uid,
-      state: status.state,
-      errorReasonCode: status.errorReasonCode,
-      errorReasonText: status.errorReasonText,
+    // Answered 200 so Cloudflare stops retrying an upload it cannot fix, which
+    // is why the report is forced past the status rule: the upload is unplayable.
+    reportHandlerFailure({
+      extra: {
+        uid,
+        state: status.state,
+        errorReasonCode: status.errorReasonCode,
+        errorReasonText: status.errorReasonText,
+      },
+      handler: HANDLER,
+      logger,
+      message: 'Cloudflare Stream reported processing error',
+      report: true,
+      status: 200,
     })
     return { status: 200, body: { ok: true, action: 'logged-error' } }
   }
@@ -222,9 +255,13 @@ export async function handleStreamWebhook(params: {
   }
 
   if (!accountId || !apiKey) {
-    logger.error({
-      msg: 'Cannot enable MP4 downloads — Cloudflare credentials not configured',
-      uid,
+    reportHandlerFailure({
+      extra: { uid },
+      handler: HANDLER,
+      level: configGapLevel(),
+      logger,
+      message: 'Cannot enable MP4 downloads — Cloudflare credentials not configured',
+      status: 503,
     })
     return { status: 503, body: { error: 'Cloudflare credentials not configured' } }
   }
@@ -248,7 +285,13 @@ export async function handleStreamWebhook(params: {
 
     if (!result.success) {
       const errors = result.errors.map((e) => e.message).join(', ')
-      logger.error({ msg: 'Failed to enable MP4 downloads', uid, errors })
+      reportHandlerFailure({
+        extra: { uid, errors },
+        handler: HANDLER,
+        logger,
+        message: 'Failed to enable MP4 downloads',
+        status: 500,
+      })
       return { status: 500, body: { error: 'Failed to enable downloads' } }
     }
 
@@ -256,28 +299,41 @@ export async function handleStreamWebhook(params: {
     logger.info({ msg: 'MP4 downloads enabled via webhook', uid, status: downloadStatus })
     if (onReady) {
       await onReady(uid).catch((error: unknown) => {
-        logger.error({
-          msg: 'Stream video ready, but its follow-up work failed',
-          uid,
-          error: error instanceof Error ? error.message : String(error),
+        // 200 on purpose: the video is ready, and Cloudflare must not retry the
+        // whole delivery for a transcript. Forced past the status rule because a
+        // recording that was never transcribed is still an incident.
+        reportHandlerFailure({
+          error,
+          extra: { uid },
+          handler: HANDLER,
+          logger,
+          message: 'Stream video ready, but its follow-up work failed',
+          report: true,
+          status: 200,
         })
       })
     }
     return { status: 200, body: { ok: true, action: 'downloads-enabled', downloadStatus } }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      logger.error({
-        msg: 'Cloudflare downloads API response validation failed',
-        uid,
-        issues: error.issues,
+      reportHandlerFailure({
+        error,
+        extra: { uid, issues: error.issues },
+        handler: HANDLER,
+        logger,
+        message: 'Cloudflare downloads API response validation failed',
+        status: 500,
       })
       return { status: 500, body: { error: 'Invalid downstream response' } }
     }
 
-    logger.error({
-      msg: 'Error enabling MP4 downloads via webhook',
-      uid,
-      error: error instanceof Error ? error.message : String(error),
+    reportHandlerFailure({
+      error,
+      extra: { uid },
+      handler: HANDLER,
+      logger,
+      message: 'Error enabling MP4 downloads via webhook',
+      status: 500,
     })
     return { status: 500, body: { error: 'Failed to enable downloads' } }
   }

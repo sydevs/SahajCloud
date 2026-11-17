@@ -12,10 +12,11 @@
  * ]
  * ```
  *
- * ⚠ Neither `capture` nor `captureFailure` is here. `captureFailure`'s callers
- * outside this folder — the managers sign-in action and the magic-link endpoint
- * — and every caller of `capture` import by deep path, so they do not pull the
- * plugin, its env parse, or the Local API wrapper in behind them.
+ * ⚠ None of `capture`, `captureFailure` or `reportHandlerFailure` is here.
+ * `captureFailure`'s callers outside this folder — the managers sign-in action
+ * and the magic-link endpoint — and every caller of the other two import by deep
+ * path, so they do not pull the plugin, its env parse, or the Local API wrapper
+ * in behind them.
  */
 
 export { sentryPlugin } from './sentryPlugin'

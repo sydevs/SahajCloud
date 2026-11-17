@@ -12,6 +12,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 
+import {
+  computeStreamSignature,
+  readyStreamPayload,
+  STREAM_DOWNLOADS_ENABLED,
+  STREAM_NOW_SECONDS,
+  STREAM_SECRET,
+  streamFetchAnswering,
+  streamSignatureHeader,
+} from '../utils/streamWebhook'
+
 // Dynamic-import these after env is prepared so any module-level validation
 // (none today, but cheap insurance) sees the expected env values. The
 // `WebhookLogger` import above is type-only, so it is erased and does not
@@ -19,9 +29,6 @@ import type { WebhookLogger } from '@/plugins/storage/cloudflareStreamWebhook'
 let parseSignatureHeader: typeof import('@/plugins/storage/cloudflareStreamWebhook').parseSignatureHeader
 let verifySignature: typeof import('@/plugins/storage/cloudflareStreamWebhook').verifySignature
 let handleStreamWebhook: typeof import('@/plugins/storage/cloudflareStreamWebhook').handleStreamWebhook
-
-const FAKE_NOW_SECONDS = 1_750_000_000
-const SECRET = 'test-webhook-signing-secret-with-32-plus-chars'
 
 /**
  * The injected logger, mocked method-for-method off the real interface.
@@ -43,33 +50,6 @@ function makeLogger(): CapturedLogger {
   }
 }
 
-async function computeSignature(rawBody: string, secret: string, time: number): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const signed = await crypto.subtle.sign('HMAC', key, encoder.encode(`${time}.${rawBody}`))
-  const bytes = new Uint8Array(signed)
-  let hex = ''
-  for (let i = 0; i < bytes.length; i++) {
-    hex += bytes[i].toString(16).padStart(2, '0')
-  }
-  return hex
-}
-
-function buildReadyPayload(overrides: Record<string, unknown> = {}): string {
-  return JSON.stringify({
-    uid: 'test-video-uid-abc123',
-    readyToStream: true,
-    status: { state: 'ready', pctComplete: '100.000000' },
-    ...overrides,
-  })
-}
-
 describe('Cloudflare Stream webhook handler', () => {
   const originalEnv = process.env
 
@@ -78,7 +58,7 @@ describe('Cloudflare Stream webhook handler', () => {
     process.env = {
       ...originalEnv,
       PAYLOAD_SECRET: 'test-secret-key-with-32-chars-minimum',
-      CLOUDFLARE_STREAM_WEBHOOK_SECRET: SECRET,
+      CLOUDFLARE_STREAM_WEBHOOK_SECRET: STREAM_SECRET,
       CLOUDFLARE_ACCOUNT_ID: 'test-account-id',
       CLOUDFLARE_API_KEY: 'test-cloudflare-api-key-20chars',
     }
@@ -130,93 +110,78 @@ describe('Cloudflare Stream webhook handler', () => {
 
   describe('verifySignature', () => {
     it('accepts a valid signature', async () => {
-      const body = buildReadyPayload()
-      const sig = await computeSignature(body, SECRET, FAKE_NOW_SECONDS)
-      const header = `time=${FAKE_NOW_SECONDS},sig1=${sig}`
-      const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
+      const body = readyStreamPayload()
+      const sig = computeStreamSignature(body, STREAM_SECRET, STREAM_NOW_SECONDS)
+      const header = `time=${STREAM_NOW_SECONDS},sig1=${sig}`
+      const result = await verifySignature(body, header, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: true })
     })
 
     it('rejects a signature signed with the wrong secret', async () => {
-      const body = buildReadyPayload()
-      const sig = await computeSignature(
+      const body = readyStreamPayload()
+      const sig = computeStreamSignature(
         body,
         'some-other-secret-32-chars-minimum!',
-        FAKE_NOW_SECONDS,
+        STREAM_NOW_SECONDS,
       )
-      const header = `time=${FAKE_NOW_SECONDS},sig1=${sig}`
-      const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
+      const header = `time=${STREAM_NOW_SECONDS},sig1=${sig}`
+      const result = await verifySignature(body, header, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'mismatch' })
     })
 
     it('rejects a stale signature (> 5 minutes in the past)', async () => {
-      const body = buildReadyPayload()
-      const staleTime = FAKE_NOW_SECONDS - 301
-      const sig = await computeSignature(body, SECRET, staleTime)
+      const body = readyStreamPayload()
+      const staleTime = STREAM_NOW_SECONDS - 301
+      const sig = computeStreamSignature(body, STREAM_SECRET, staleTime)
       const header = `time=${staleTime},sig1=${sig}`
-      const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
+      const result = await verifySignature(body, header, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'stale' })
     })
 
     it('rejects a signature from > 5 minutes in the future', async () => {
-      const body = buildReadyPayload()
-      const futureTime = FAKE_NOW_SECONDS + 301
-      const sig = await computeSignature(body, SECRET, futureTime)
+      const body = readyStreamPayload()
+      const futureTime = STREAM_NOW_SECONDS + 301
+      const sig = computeStreamSignature(body, STREAM_SECRET, futureTime)
       const header = `time=${futureTime},sig1=${sig}`
-      const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
+      const result = await verifySignature(body, header, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'stale' })
     })
 
     it('rejects a missing header', async () => {
-      const result = await verifySignature('{}', null, SECRET, FAKE_NOW_SECONDS)
+      const result = await verifySignature('{}', null, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'missing' })
     })
 
     it('rejects a malformed header', async () => {
-      const result = await verifySignature('{}', 'garbage', SECRET, FAKE_NOW_SECONDS)
+      const result = await verifySignature('{}', 'garbage', STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'malformed' })
     })
 
     it('rejects a signature with wrong length (different hex length)', async () => {
-      const body = buildReadyPayload()
-      const header = `time=${FAKE_NOW_SECONDS},sig1=deadbeef`
-      const result = await verifySignature(body, header, SECRET, FAKE_NOW_SECONDS)
+      const body = readyStreamPayload()
+      const header = `time=${STREAM_NOW_SECONDS},sig1=deadbeef`
+      const result = await verifySignature(body, header, STREAM_SECRET, STREAM_NOW_SECONDS)
       expect(result).toEqual({ ok: false, reason: 'mismatch' })
     })
   })
 
   describe('handleStreamWebhook', () => {
-    function makeFetchFn(response: unknown, status = 200): ReturnType<typeof vi.fn> {
-      return vi.fn().mockResolvedValue(
-        new Response(JSON.stringify(response), {
-          status,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
-    }
-
-    async function signedHeader(body: string): Promise<string> {
-      const sig = await computeSignature(body, SECRET, FAKE_NOW_SECONDS)
-      return `time=${FAKE_NOW_SECONDS},sig1=${sig}`
-    }
+    const makeFetchFn = (response: unknown, status = 200) =>
+      vi.fn(streamFetchAnswering(response, status))
 
     it('enables downloads when a ready event arrives', async () => {
-      const rawBody = buildReadyPayload()
-      const header = await signedHeader(rawBody)
-      const fetchFn = makeFetchFn({
-        success: true,
-        errors: [],
-        result: { default: { status: 'ready' } },
-      })
+      const rawBody = readyStreamPayload()
+      const header = streamSignatureHeader(rawBody)
+      const fetchFn = makeFetchFn(STREAM_DOWNLOADS_ENABLED)
       const logger = makeLogger()
 
-      // Freeze Date.now so verifySignature uses FAKE_NOW_SECONDS
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      // Freeze Date.now so verifySignature uses STREAM_NOW_SECONDS
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -247,15 +212,15 @@ describe('Cloudflare Stream webhook handler', () => {
           errorReasonText: 'The video was deemed to be corrupted',
         },
       })
-      const header = await signedHeader(rawBody)
+      const header = streamSignatureHeader(rawBody)
       const fetchFn = makeFetchFn({})
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -278,15 +243,15 @@ describe('Cloudflare Stream webhook handler', () => {
         uid: 'processing-video',
         status: { state: 'inprogress', pctComplete: '50.0' },
       })
-      const header = await signedHeader(rawBody)
+      const header = streamSignatureHeader(rawBody)
       const fetchFn = makeFetchFn({})
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -298,15 +263,15 @@ describe('Cloudflare Stream webhook handler', () => {
     })
 
     it('rejects with 401 when signature is invalid', async () => {
-      const rawBody = buildReadyPayload()
+      const rawBody = readyStreamPayload()
       const fetchFn = makeFetchFn({})
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
-        signatureHeader: `time=${FAKE_NOW_SECONDS},sig1=${'0'.repeat(64)}`,
-        secret: SECRET,
+        signatureHeader: `time=${STREAM_NOW_SECONDS},sig1=${'0'.repeat(64)}`,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -320,9 +285,9 @@ describe('Cloudflare Stream webhook handler', () => {
     it('rejects with 400 when signature header is missing', async () => {
       const logger = makeLogger()
       const result = await handleStreamWebhook({
-        rawBody: buildReadyPayload(),
+        rawBody: readyStreamPayload(),
         signatureHeader: null,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -333,7 +298,7 @@ describe('Cloudflare Stream webhook handler', () => {
     it('returns 503 when webhook secret is missing', async () => {
       const logger = makeLogger()
       const result = await handleStreamWebhook({
-        rawBody: buildReadyPayload(),
+        rawBody: readyStreamPayload(),
         signatureHeader: 'time=1,sig1=abc',
         secret: undefined,
         accountId: 'test-account-id',
@@ -345,15 +310,15 @@ describe('Cloudflare Stream webhook handler', () => {
     })
 
     it('returns 503 when accountId or apiKey is missing but event is ready', async () => {
-      const rawBody = buildReadyPayload()
-      const header = await signedHeader(rawBody)
+      const rawBody = readyStreamPayload()
+      const header = streamSignatureHeader(rawBody)
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: undefined,
         apiKey: undefined,
         logger,
@@ -363,19 +328,19 @@ describe('Cloudflare Stream webhook handler', () => {
     })
 
     it('returns 500 when downstream Cloudflare API returns success: false', async () => {
-      const rawBody = buildReadyPayload()
-      const header = await signedHeader(rawBody)
+      const rawBody = readyStreamPayload()
+      const header = streamSignatureHeader(rawBody)
       const fetchFn = makeFetchFn({
         success: false,
         errors: [{ message: 'Video not ready yet' }],
       })
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -390,14 +355,14 @@ describe('Cloudflare Stream webhook handler', () => {
 
     it('returns 400 when body is not valid JSON', async () => {
       const rawBody = 'not-json'
-      const header = await signedHeader(rawBody)
+      const header = streamSignatureHeader(rawBody)
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -408,14 +373,14 @@ describe('Cloudflare Stream webhook handler', () => {
 
     it('returns 400 when payload fails schema validation', async () => {
       const rawBody = JSON.stringify({ uid: 'abc' }) // missing status
-      const header = await signedHeader(rawBody)
+      const header = streamSignatureHeader(rawBody)
       const logger = makeLogger()
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,
@@ -425,8 +390,8 @@ describe('Cloudflare Stream webhook handler', () => {
     })
 
     it('returns non-2xx when the downloads call times out (stalled Cloudflare API)', async () => {
-      const rawBody = buildReadyPayload()
-      const header = await signedHeader(rawBody)
+      const rawBody = readyStreamPayload()
+      const header = streamSignatureHeader(rawBody)
       const logger = makeLogger()
 
       // A fetch that never settles on its own but honours the AbortSignal the
@@ -442,13 +407,13 @@ describe('Cloudflare Stream webhook handler', () => {
           }),
       )
 
-      vi.spyOn(Date, 'now').mockReturnValue(FAKE_NOW_SECONDS * 1000)
+      vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
 
       // A tiny timeout keeps the test fast while exercising the real timeout path.
       const result = await handleStreamWebhook({
         rawBody,
         signatureHeader: header,
-        secret: SECRET,
+        secret: STREAM_SECRET,
         accountId: 'test-account-id',
         apiKey: 'test-api-key',
         logger,

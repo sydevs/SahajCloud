@@ -327,12 +327,14 @@ direct dependency.
 **Every server report goes through one body, by deep path**: `capture`
 (`src/plugins/sentry/capture.ts`), which takes an exception, a message, or
 both, and owns the never-throw guard, the tags, the level default and the
-optional log mirror. `captureFailure` is the one layer above it — it classifies
-a **routed** failure from a `CaptureSource` and reports through the same body,
-so a site without a source cannot end up under a different policy. Neither
-takes the SDK's own export name, so a reader cannot mistake one for
-`Sentry.captureMessage` sitting beside it. `src/plugins/sentry/index.ts` says
-why neither is in the barrel.
+optional log mirror. Two seams sit above it, one per way a failure arrives:
+`captureFailure` classifies a **routed** failure from a `CaptureSource`, and
+`reportHandlerFailure` (`./handlerFailure`) reports one a handler answers by
+**returning** a response, deciding from that response's status whether it is an
+incident at all (#1182). Both report through the same body, so no site
+reaching past them to it can report under a policy of its own. None takes the SDK's own
+export name, so a reader cannot mistake one for `Sentry.captureMessage` sitting
+beside it. `src/plugins/sentry/index.ts` says why none is in the barrel.
 
 ⚠ **No server site reaches the SDK itself** — `tests/unit/sentry-capture.spec.ts`
 fails a second spelling of either entry point. The three browser reporters
