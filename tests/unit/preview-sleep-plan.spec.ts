@@ -89,4 +89,23 @@ describe('planPreviewSleep', () => {
     state.app.deployment = null
     expect(planPreviewSleep(state)).toEqual({ skip: 'its app deployment is missing' })
   })
+
+  it('leaves a preview with no Postgres deployment alone', () => {
+    const state = freshPreview()
+    state.postgres.deployment = null
+    expect(planPreviewSleep(state)).toEqual({ skip: 'its Postgres deployment is missing' })
+  })
+
+  // The skip sits inside the wake-retry gate, so a preview that was never going
+  // to touch Postgres still sleeps its app.
+  it('sleeps the app of a preview with no Postgres deployment and no wake retry', () => {
+    const state = freshPreview({ postgresCanWake: false })
+    state.postgres.deployment = null
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
+  })
 })

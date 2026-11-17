@@ -56,6 +56,9 @@ export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
  *   through it; the app's deploy builds for minutes.
  * - **An app that is not running is left alone**: one still deploying belongs
  *   to a CI run that will call this again, and a failed one has nothing to sleep.
+ * - **A Postgres with no deployment is left alone too**, for the same reason:
+ *   there is no settings snapshot to replace, and the next CI run calls this
+ *   again once Railway has finished creating the environment.
  */
 export function planPreviewSleep(state: PreviewState): SleepPlan {
   const { app, postgres } = state
@@ -67,9 +70,10 @@ export function planPreviewSleep(state: PreviewState): SleepPlan {
 
   const actions: SleepAction[] = []
   if (state.postgresCanWake) {
+    if (!postgres.deployment) return { skip: 'its Postgres deployment is missing' }
     if (!postgres.sleepApplication) actions.push({ kind: 'set-sleep', service: 'postgres' })
     if (postgres.pitrEnabled) actions.push({ kind: 'disable-pitr' })
-    if (postgres.pitrEnabled || !postgres.deployment?.manifestSleeps) {
+    if (postgres.pitrEnabled || !postgres.deployment.manifestSleeps) {
       actions.push({ kind: 'deploy', service: 'postgres' })
     }
   }
