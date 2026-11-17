@@ -1,7 +1,7 @@
 /**
  * Region-Subtree Write Scoping (Atlas managers)
  *
- * The `atlas-region-manager` role grants create/update on `regions` and
+ * The `atlas-region-manager` role grants create/update/delete on `regions` and
  * create/update/delete on `events`; `atlas-event-manager` grants
  * update/delete on `events` alone. Those grants are intentionally **not**
  * collection-wide: a region manager may only write to events and regions inside
@@ -107,7 +107,8 @@ function eventScopeWhere(ownedRegionIds: number[], userId: number): Where {
  * Returns:
  * - `boolean` for create (validates the incoming `parent`/`region`) and for
  *   single-document update/delete (`id` present).
- * - `Where` for list-level update/delete (no `id`).
+ * - `Where` for list-level update/delete (no `id`), and for every region
+ *   delete — `deleteByID` answers a `Where` that misses the row with 403.
  */
 export async function scopeRegionSubtreeWrite({
   req,
@@ -128,9 +129,14 @@ export async function scopeRegionSubtreeWrite({
       if (parentId !== null) return ownedRegionIds.includes(parentId)
       return ownedRegionIds.length > 0
     }
-    // update (region delete isn't granted to a region manager). A re-parent must
-    // keep the region inside the owned subtree — reject moving it under a region
-    // they don't own.
+    if (operation === 'delete') {
+      // Only what they could have created: a region beneath one they own, never
+      // the region they are listed on, which is the manager above them's to
+      // remove. Whether the subtree may go at all is `refuseDeleteWhileInUse`'s.
+      return ownedRegionIds.length ? { parent: { in: ownedRegionIds } } : false
+    }
+    // A re-parent must keep the region inside the owned subtree — reject moving
+    // it under a region they don't own.
     const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
     if (id !== undefined) {
       if (!ownedRegionIds.includes(Number(id))) return false

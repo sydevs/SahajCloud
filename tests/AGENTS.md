@@ -420,19 +420,20 @@ chromium`. That took **18 minutes**, blew the job's `timeout-minutes`, and
 > issued real requests. If a future spec needs a page, install the browser
 > in that spec's own job rather than the shared one.
 
-#### A per-PR preview carries no content, so every spec builds its own
+#### A per-PR preview holds the fixture, and only that
 
-Railway forks service **configuration and variables**, never volume data.
-A PR environment boots with migrations applied and exactly one row
-anywhere — the admin `src/plugins/previewAdmin` reconciles on boot. Every
-content table is empty on every PR. Read directly from a live preview's
-Postgres (#704): 140 tables, 20 MB, `managers` = 1, everything else 0.
+Railway forks service **configuration and variables**, never volume data, so
+a PR environment boots empty and then loads `src/fixture/` into itself
+(#1168). CI's `Wait for the preview's fixture` step holds this lane until
+`/api/health` reports `fixture: loaded`, so every pinned fixture row exists
+before a spec runs.
 
-So a spec must **never** read a list and skip when it comes back empty.
-That condition holds on every run, so the spec asserts nothing while the
-job stays green — `lectures`, `songs` and `meditations` did exactly that
-for their whole lives. Each of the three now creates its dependencies
-through `tests/e2e/_helpers/fixtures.ts`.
+So a spec that only needs a row to exist names it by its fixture id —
+`src/fixture/ids.ts` and `src/fixture/content-ids.ts`, imported by relative
+path — and a spec that tests a create or an upload makes its own row through
+`tests/e2e/_helpers/fixtures.ts`. A spec must still **never** read a list and
+skip when it comes back empty: that let `lectures`, `songs` and `meditations`
+assert nothing for their whole lives before the fixture existed.
 
 **Import `test` from `_helpers/smokeTest.ts` in any spec that creates a
 record.** Its `trash` fixture empties in fixture teardown, which Playwright

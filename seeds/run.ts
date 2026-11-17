@@ -61,9 +61,6 @@ const VALID_SCRIPTS: ScriptName[] = [
   'atlas-reset',
   // Never in SCRIPT_RUN_ORDER either: every run it queues is a paid vendor call.
   'file-transcripts',
-  // Never in SCRIPT_RUN_ORDER either: it is a preview's content, so a full
-  // seed of any other target must not pull it in.
-  'preview-fixture',
 ]
 
 // Dependency order: tags first (referenced by other content), then wemeditate (authors/categories),
@@ -92,7 +89,6 @@ const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   atlas: 'Seed Sahaj Atlas events, regions, managers, registrations + clients',
   'atlas-reset': '⚠ Delete every Atlas event, region, user and user-submission (before a re-sync)',
   'file-transcripts': 'Transcribe every audio and video file that has no transcript (paid runs)',
-  'preview-fixture': 'Fill a preview with made-up classes, managers, registrations and messages',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']

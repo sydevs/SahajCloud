@@ -1,5 +1,8 @@
 import type { JobsConfig } from 'payload'
 
+import { railwayEnvironmentName } from '@/lib/env/deploymentEnvironment'
+import { isPreviewEnvironmentName } from '@/lib/preview/proxy'
+
 /**
  * Queue names and the `autoRun` entries that drive them.
  *
@@ -69,6 +72,20 @@ export const JOB_AUTO_RUN: AutoRunEntry[] = [
     queue: 'monthly',
   },
 ]
+
+/**
+ * `jobs.autoRun` for this deployment: `JOB_AUTO_RUN`, except on a Railway PR
+ * preview, which gets none.
+ *
+ * ⚠ A tick queries the database even when nothing is due, and Railway sleeps a
+ * service only after 5 minutes without outbound traffic — so with these crons an
+ * idle preview, app and Postgres alike, never sleeps and bills memory around the
+ * clock. A preview still runs a queue its own write kicks (`runQueueSoon`); it
+ * loses the schedules and the safety-net retries. `undefined` rather than `[]`,
+ * so `loginPlugin` appends no `invitations` tick either.
+ */
+export const jobAutoRun = (): AutoRunEntry[] | undefined =>
+  isPreviewEnvironmentName(railwayEnvironmentName()) ? undefined : JOB_AUTO_RUN
 
 /**
  * Queues a schedule may name with no `autoRun` entry, each with the reason

@@ -123,9 +123,14 @@ export const r2NativeAdapter = (config: R2NativeConfig): Adapter => {
 
     staticHandler: async (_req, { params }) => {
       // ⚠ **The key its siblings compose, from the factory's own `prefix` —
-      // never from `params.collection`.** `storagePlugin` passes no prefix, so
-      // objects sit flat at the bucket root; reading `<collection>/<filename>`
-      // fetched a key nothing had ever written and answered 404 for every file.
+      // never from `params.collection`, and never from the document's own
+      // `prefix` column.** Upstream's `url` afterRead does read that column,
+      // appending `?prefix=<value>` when it has a stored `url` to append to.
+      // Every `url` on these eight is virtual, so that value is `undefined` and
+      // the branch never fires; a stored `url` here would revive it.
+      // `storagePlugin` passes no prefix, so objects sit flat at the bucket
+      // root; reading `<collection>/<filename>` fetched a key nothing had ever
+      // written and answered 404 for every file.
       // Dormant until #907, because until then every R2 collection set
       // `disablePayloadAccessControl: true` and the plugin mounted no handler on
       // this route at all — so the first collection to want a gated download is

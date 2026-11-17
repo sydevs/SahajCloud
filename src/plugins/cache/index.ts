@@ -38,12 +38,17 @@ export function cachePlugin(config: Config): Config {
       if (!CACHEABLE_SLUGS.has(collection.slug)) return collection
 
       const tag = collection.slug
+      // A preview fixture write purges nothing: the zone's cache is production's.
       const afterChange: CollectionAfterChangeHook = ({ doc, req }) => {
-        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        if (!req.context.fixture) {
+          void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        }
         return doc
       }
       const afterDelete: CollectionAfterDeleteHook = ({ doc, req }) => {
-        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        if (!req.context.fixture) {
+          void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        }
         return doc
       }
 

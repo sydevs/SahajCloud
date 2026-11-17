@@ -1,0 +1,3 @@
+title,eventType,country,city,address,postcode,date,startTime,endTime,recurrenceType,weekdays
+Fixture Dawn Sitting,offline,GB,Fixture Harbourton,22 Reed Lane,FX1 2AB,2026-12-01,07:00,08:00,WEEKLY,TU
+Fixture Lunchtime Calm,offline,GB,Fixture Harbourton,5 Mill Court,FX1 3CD,2026-12-02,12:30,13:15,WEEKLY,WE

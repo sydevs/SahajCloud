@@ -1,5 +1,7 @@
 import type { CollectionBeforeDeleteHook, CollectionSlug, Payload, PayloadRequest } from 'payload'
 
+import { APIError } from 'payload'
+
 /**
  * A single cascade target: the child collection and the field on that child
  * that references the parent being deleted.
@@ -47,6 +49,16 @@ export type CascadeHook = CollectionBeforeDeleteHook & {
  * A **polymorphic** child field is the same job needing a different `where`,
  * and the hook reads that off the child's own schema — see `polymorphicField`.
  *
+ * A **self-referential** rule (`regions.parent`) recurses: each child's own
+ * delete runs this hook in turn, so a tree goes leaves first.
+ *
+ * ⚠ **A child it cannot delete fails the parent's delete.** A bulk delete
+ * reports such a row in `errors` rather than throwing, so unchecked the parent
+ * went regardless and left exactly the orphan this exists to prevent. For a
+ * single-document delete the throw rolls the children back with it. A bulk
+ * delete of several parents still commits the rest, along with any children a
+ * refused parent had already lost: Payload offers no per-row savepoint.
+ *
  * ## Trash-enabled collections
  *
  * On trash-enabled collections, `payload.delete()` still physically removes
@@ -72,7 +84,7 @@ export type CascadeHook = CollectionBeforeDeleteHook & {
 export function deleteChildren(...rules: CascadeRule[]): CascadeHook {
   const cascade: CollectionBeforeDeleteHook = async ({ collection, id, req }) => {
     for (const rule of rules) {
-      await req.payload.delete({
+      const { errors } = await req.payload.delete({
         collection: rule.collection,
         where: {
           [rule.field]: polymorphicField(req, rule)
@@ -87,6 +99,14 @@ export function deleteChildren(...rules: CascadeRule[]): CascadeHook {
         trash: true,
         req,
       })
+      if (errors.length) {
+        throw new APIError(
+          `${collection.slug} #${id} was not deleted: its ${rule.collection} could not be. ${errors.map((error) => error.message).join('; ')}`,
+          500,
+          undefined,
+          errors.every((error) => error.isPublic),
+        )
+      }
     }
   }
 

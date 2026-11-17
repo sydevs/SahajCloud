@@ -46,6 +46,8 @@ export const spawnSubscribeFromRegistration: CollectionAfterChangeHook = async (
   // the exception, and is safe: payload returns the new row's id whatever the
   // projection asks for.
   if (operation !== 'create' || data.type !== 'registration') return doc
+  // A fixture registration's spawned row would be screened and sent on.
+  if (req.context.fixture) return doc
   if (!parseOptIn(readSubmissionValue(data.submissionData, SUBSCRIBE_OPT_IN))) return doc
 
   // Nothing to subscribe. A registration may be anonymous; an opt-in with no

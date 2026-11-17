@@ -9,6 +9,7 @@ import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { buildConfig, Config } from 'payload'
 import { openapi } from 'payload-oapi'
 
+import { startFixtureLoad } from '@/fixture/gate'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
 import { serverEnv, weMeditatePreviewUrl } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
@@ -49,7 +50,7 @@ import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { rootEndpoints } from './endpoints'
 import { globals } from './globals'
 import { tasks } from './jobs'
-import { JOB_AUTO_RUN } from './jobs/queues'
+import { jobAutoRun } from './jobs/queues'
 import { migrations } from './migrations'
 
 const filename = fileURLToPath(import.meta.url)
@@ -222,6 +223,11 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         connectionTimeoutMillis: 10000,
       },
       push: !isProduction,
+      // The preview fixture writes its rows at pinned ids (`src/fixture/`). ⚠ The
+      // flag is adapter-wide, so a REST create honours a caller's `id` too — on
+      // production that could plant an id ahead of the serial and fail a later
+      // insert, which is why production keeps it off.
+      allowIDOnCreate: !isProductionDeployment(),
       // Drizzle query logging (SQL + params to the console). Opt-in via
       // DB_QUERY_LOGGING and force-disabled in production — used to capture the
       // query trail behind a slow admin operation in dev/staging (issue #529).
@@ -236,8 +242,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // see the gate's docblock in `@/plugins/previewAdmin` for why each of its
     // two conditions is there, and why production is detected by Railway's
     // environment name rather than NODE_ENV.
+    //
+    // Then start the preview fixture's load, unawaited: `/api/health` reports
+    // its progress, and CI waits for `loaded` (`src/fixture/AGENTS.md`).
     onInit: async (payload) => {
       await seedPreviewAdmin(payload)
+      startFixtureLoad(payload)
     },
     jobs: {
       tasks,
@@ -249,8 +259,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       jobsCollectionOverrides: payloadJobsOverrides,
       enableConcurrencyControl: true,
       // One entry per queue that runs unattended, and the reason a queue has
-      // none, both in `./jobs/queues`.
-      autoRun: JOB_AUTO_RUN,
+      // none, both in `./jobs/queues` — as is why a PR preview runs none.
+      autoRun: jobAutoRun(),
     },
     // Email configuration
     // - Test/Import/E2E: disabled, to avoid model conflicts and external services.

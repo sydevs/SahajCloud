@@ -49,8 +49,7 @@ export function isLaneSource(rel) {
 
 /**
  * The repo-relative key a specifier addresses from `fromDir`. Anything neither aliased nor relative
- * is read from the repo root, as tsconfig's `baseUrl: "."` reads it, so a package name becomes a key
- * no edited path matches.
+ * is taken as written, so a package name becomes a key no edited path matches.
  */
 export function resolveSpecifier(specifier, fromDir) {
   if (specifier === '@payload-config') return 'src/payload.config'

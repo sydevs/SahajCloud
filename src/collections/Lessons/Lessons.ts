@@ -168,9 +168,9 @@ export const Lessons: CollectionConfig = {
               },
             },
             jsonField({
-              // shortcut: a read-only copy of the intro file's transcript, for
-              // app releases that read this column; remove once every supported
-              // release reads `introAudio.subtitles` (#1133).
+              // shortcut: a read-only copy of the intro file's transcript, for app
+              // releases that read this column; remove once WeMeditateApp#452 ships
+              // as the minimum supported version (#1133).
               name: 'introSubtitles',
               schemaTitle: 'Subtitles',
               schema: subtitlesSchema,

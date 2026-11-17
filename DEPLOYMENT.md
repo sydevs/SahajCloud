@@ -34,29 +34,33 @@ project from scratch, or for disaster recovery, see [RAILWAY_RUNBOOK.md](RAILWAY
 
 **Build & Start**:
 
-- **Railpack** (Railway's native builder) detects the Node.js project and builds it — no Dockerfile.
+- The builder detects the Node.js project and builds it — no Dockerfile, and no build configuration in this repository.
 - `pnpm build` deletes `.next/cache/turbopack`, runs `next build` (emits a self-contained `.next/standalone`, `output: 'standalone'`), then `scripts/standalone-postbuild.mjs` copies `.next/static` and `public/` next to `server.js` — Next does not copy these on its own.
-- `pnpm start` runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
+- The start command runs `node .next/standalone/server.js` (`HOSTNAME=0.0.0.0`). It ships only the traced production dependencies, not the full `node_modules`.
 - Migrations apply **in-process on server boot**, via Payload's `prodMigrations` hook (see [Database Migrations](#database-migrations)). The migration files import statically, so they trace into the bundle and still run at boot.
 - `@sentry/nextjs` wraps `next.config.ts` via `withSentryConfig`.
 
-**Health Check**: Railway pings `/api/health` during a deploy. Startup takes about 5–10 seconds after the container starts.
+**Health Check**: Railway polls the healthcheck path during a deploy. Startup takes about 5–10 seconds after the container starts.
 
-**railway.toml**:
+**Service settings** live on the Railway service (dashboard → SahajCloud → Settings), not in this
+repository:
 
-```toml
-[build]
-builder = "RAILPACK"
+| Setting             | Value                 |
+| ------------------- | --------------------- |
+| Builder             | Railpack              |
+| Start command       | `pnpm start`          |
+| Healthcheck path    | `/api/health`         |
+| Healthcheck timeout | 300 s                 |
+| Restart policy      | On failure, 3 retries |
 
-[deploy]
-startCommand = "pnpm start"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
-```
+⚠ **Change them on production.** A PR environment copies production's settings when Railway
+creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
+a new container before its boot-time migrations finish.
 
-Railway builds with Railpack and exposes port 3000 through its own `PORT` variable.
+Do not add `railway.toml` or `.railway/railway.ts` back — Railway stops reading Config as Code on
+2026-12-01, and the `.ts` form is applied by a CLI, never on deploy.
+
+Railway exposes port 3000 through its own `PORT` variable.
 `next.config.ts`'s `outputFileTracingExcludes` keeps dev-only `media/`, `seeds/`, and tests out
 of the trace — without it, a local `pnpm build` balloons `.next/standalone` to many GB.
 
@@ -122,7 +126,7 @@ moment the pull request exists.
 | The Worker                                          | `preview-proxy/`, deployed by the manual **Deploy preview proxy** workflow ([how](#deploying-the-preview-proxy)) |
 | The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                                      |
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                                              |
-| The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                                     |
+| The content a reviewer opens it on                  | `src/fixture/`, loaded by the app at boot; `ci.yml` waits for `/api/health` to say `loaded`                      |
 
 ⚠ **The address step needs more of the Cloudflare token than Images and Stream.** CI reads
 the org secret `CLOUDFLARE_API_TOKEN` (as `CLOUDFLARE_API_KEY`). The step writes KV and attaches
@@ -579,8 +583,17 @@ and Sentry for new errors, and watch Postgres and R2 usage.
 
 Railway bills per-minute resource usage (CPU, memory, bandwidth). Production typically runs
 $10–15/month. Watch usage in the Railway dashboard (resource usage, Postgres disk, deploy
-history) and set a cost-limit alert under **Billing → Cost limits**. Watch R2 usage under
+history), or from the CLI: `railway usage --period previous` for the bill by line item, and
+`railway usage projects --project sahajcloud --period previous` for it per service. A $40 soft
+limit on the workspace emails when a period passes it. Watch R2 usage under
 **Cloudflare Dashboard → R2 → Analytics**.
+
+⚠ **PR previews are billed like production, by the minute they hold memory.** Each one is an app
+(~0.5 GB) plus its own Postgres (~0.25 GB), and the 16 Oct – 16 Nov 2026 period had about five
+open at all times — roughly $39 of a $61 bill. Railway sleeps a service only after 5 minutes with
+no outbound traffic, so anything a preview does on a timer keeps it billed: that is why a preview
+runs no job crons (`src/jobs/AGENTS.md`). `railway logs --network --json` on a preview shows
+what it still sends while idle.
 
 ---
 
