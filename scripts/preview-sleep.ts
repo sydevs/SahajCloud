@@ -163,12 +163,23 @@ const deploymentState = (read: InstanceRead): DeploymentState | null =>
     status: read.latestDeployment.status,
   }
 
-function pitrEnabled(environment: string): boolean {
-  const out = railwayCli([
-    ...['postgres', 'pitr', 'status', '--json'],
-    ...['-p', PROJECT_ID, '-e', environment, '-s', POSTGRES_SERVICE],
-  ])
-  return (JSON.parse(out) as { enabled: boolean }).enabled
+/**
+ * Railway's point-in-time recovery answer, or no answer at all. A preview
+ * Railway is still creating answers neither, and this read now runs before the
+ * plan decides anything — so a throw here would cost the app its own sleep for
+ * a preview the plan was going to leave alone.
+ */
+function readPitr(environment: string): { enabled: boolean | null; error?: string } {
+  try {
+    const out = railwayCli([
+      ...['postgres', 'pitr', 'status', '--json'],
+      ...['-p', PROJECT_ID, '-e', environment, '-s', POSTGRES_SERVICE],
+    ])
+    return { enabled: (JSON.parse(out) as { enabled: boolean }).enabled }
+  } catch (error) {
+    const { message = '', stderr = '' } = error as { message?: string; stderr?: string }
+    return { enabled: null, error: String(stderr).trim() || message || 'unknown error' }
+  }
 }
 
 /** Whether `ref` carries the connection retry, so its preview survives a sleeping Postgres. */
@@ -280,11 +291,12 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
   const appDeployment = deploymentState(app)
   const commit = appDeployment?.commitHash
   const postgresCanWake = commit ? runsWakeRetry(commit) : false
+  const pitr = readPitr(env.name)
   const state: PreviewState = {
     app: { deployment: appDeployment, sleepApplication: app.sleepApplication === true },
     postgres: {
       deployment: deploymentState(postgres),
-      pitrEnabled: pitrEnabled(env.name),
+      pitrEnabled: pitr.enabled,
       sleepApplication: postgres.sleepApplication === true,
     },
     postgresCanWake,
@@ -297,6 +309,8 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
   }
   if (commit && !postgresCanWake) {
     console.log(`PR #${pr}: Postgres stays awake — ${wakeRetryGap(commit)}.`)
+  } else if (pitr.error) {
+    console.log(`PR #${pr}: Postgres stays awake — recovery status unread: ${pitr.error}`)
   }
   if (plan.actions.length === 0) {
     console.log(`PR #${pr}: already sleeps when idle.`)

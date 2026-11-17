@@ -23,7 +23,8 @@ export interface ServiceState {
 
 export interface PreviewState {
   app: ServiceState
-  postgres: ServiceState & { pitrEnabled: boolean }
+  /** `pitrEnabled` is `null` where Railway's recovery status did not answer. */
+  postgres: ServiceState & { pitrEnabled: boolean | null }
   /** Whether the commit the app runs retries a connection while Postgres wakes. */
   postgresCanWake: boolean
 }
@@ -62,6 +63,8 @@ export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
  *   its status is deliberately not read: the fresh deploy is both how the
  *   setting lands and how a failed one recovers, and skipping it would keep the
  *   preview's app billed for the life of the PR.
+ * - **An unread recovery status leaves Postgres alone, never the preview.** The
+ *   app is the billed service, so it sleeps either way.
  */
 export function planPreviewSleep(state: PreviewState): SleepPlan {
   const { app, postgres } = state
@@ -72,7 +75,7 @@ export function planPreviewSleep(state: PreviewState): SleepPlan {
   if (!commit) return { skip: 'its app deployment names no commit' }
 
   const actions: SleepAction[] = []
-  if (state.postgresCanWake) {
+  if (state.postgresCanWake && postgres.pitrEnabled !== null) {
     if (!postgres.deployment) return { skip: 'its Postgres deployment is missing' }
     if (!postgres.sleepApplication) actions.push({ kind: 'set-sleep', service: 'postgres' })
     if (postgres.pitrEnabled) actions.push({ kind: 'disable-pitr' })
