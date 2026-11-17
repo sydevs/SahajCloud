@@ -13,9 +13,11 @@ export function uniqueId(): string {
 
 /**
  * Create Lexical content with TextBoxBlock containing image
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts:
- * - blockType goes INSIDE fields
- * - version: 2 for block nodes
+ *
+ * The block-node shape every helper here emits: `blockType` goes INSIDE
+ * `fields`, and a block node is `version: 2`. Both are what Payload's editor
+ * persists, and a fixture that gets either wrong is accepted on write and then
+ * renders as nothing.
  */
 export function createLexicalWithTextBoxBlock(imageId: number): Page['content'] {
   return {
@@ -45,7 +47,6 @@ export function createLexicalWithTextBoxBlock(imageId: number): Page['content'] 
 
 /**
  * Create Lexical content with LayoutBlock containing images in items
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 export function createLexicalWithLayoutBlock(imageIds: number[]): Page['content'] {
   return {
@@ -78,7 +79,6 @@ export function createLexicalWithLayoutBlock(imageIds: number[]): Page['content'
 
 /**
  * Create Lexical content with QuoteBlock containing text, credit, and caption
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 export function createLexicalWithQuoteBlock(options: {
   text: string
@@ -115,7 +115,6 @@ export function createLexicalWithQuoteBlock(options: {
 /**
  * Create Lexical content with ImageGalleryBlock containing images
  * Note: ImageGalleryBlock requires minRows: 3 images in actual usage
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 export function createLexicalWithGalleryBlock(imageIds: number[]): Page['content'] {
   return {
@@ -204,7 +203,6 @@ export function createLexicalWithRelationshipNode(options: {
 
 /**
  * Create Lexical content with TableOfContentsBlock
- * Structure based on createBlockNode in seeds/lib/lexicalConverter.ts
  */
 export function createLexicalWithTableOfContentsBlock(options: {
   title?: string

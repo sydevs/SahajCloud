@@ -677,8 +677,7 @@ await payload.update({ collection: 'events', id, data: { deletedAt: new Date().t
 await payload.delete({ collection: 'events', id })
 ```
 
-The ExpireEvents job's `expired → trash` step and the Atlas importer's
-archived-event handling both use the `update` form.
+The ExpireEvents job's `expired → trash` step uses the `update` form.
 
 Use `deletedAt` in `where` clauses (`{ deletedAt: { exists: true|false } }`),
 not `_status`.
@@ -700,8 +699,8 @@ so a later re-seed re-uploaded them instead of finding the trashed row (see
 
 **It applies to writes too, which is easier to miss.** An `update`
 addressing a trashed row _by id_ throws `Not Found` without the flag —
-even when you got that id from a query that did pass it. Two archived
-Atlas events failed on every seed run for exactly this reason:
+even when you got that id from a query that did pass it. Two trashed
+events failed on every run of the Atlas migration for exactly this reason:
 `preloadCollection` handed `upsert` the right id, and the update refused
 it. Fixing the read is not enough — every write that can land on a
 trashed row needs the flag too (#609):

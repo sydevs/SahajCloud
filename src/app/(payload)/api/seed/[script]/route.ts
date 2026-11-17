@@ -9,12 +9,8 @@
  *   Streams progress updates over Server-Sent Events.
  *
  * Scripts:
- * - tags: UserChoices, SongTags, and SubtleSystemNodes
- * - wemeditate: Authors, Albums, Music, Pages
- * - meditations: Meditations, Frames, Music
- * - storyblok: Lessons, Lectures
- * - wm-app-translations: WeMeditate App Translations global (English seed)
- * - translations: All three translation globals (English seed)
+ * - translations: all three translation globals (English seed)
+ * - file-transcripts: a transcript for every recording the target holds without one
  *
  * Authentication: Needs an admin session.
  *
@@ -47,7 +43,7 @@ import {
 } from '../../../../../../seeds/lib/pagination'
 
 // Every script, read off a table typed `Record<ScriptName, …>`, so a new script
-// cannot be left out here the way `atlas-reset` first was.
+// cannot be left out here.
 const VALID_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 
 /**
@@ -299,12 +295,7 @@ export async function POST(
         results: verification,
         allPassed: countsPassed,
         skippedReason: verificationSkippedReason,
-      } = verifyCountsForScript(
-        script as ScriptName,
-        counts,
-        pagination,
-        importer.getExpectedCounts(),
-      )
+      } = verifyCountsForScript(script as ScriptName, counts, pagination)
 
       // The importer's own invariants, which hold whatever the target carries.
       // `run()` decides whether this run was one to check.
@@ -397,52 +388,14 @@ async function getImporter(
   }
 
   switch (script) {
-    case 'tags': {
-      const { TagsImporter } = await import('../../../../../../seeds/tags/import')
-      return new TagsImporter(options)
-    }
-    case 'wemeditate': {
-      const { WeMeditateImporter } = await import('../../../../../../seeds/wemeditate/import')
-      return new WeMeditateImporter(options)
-    }
-    case 'meditations': {
-      const { MeditationsImporter } = await import('../../../../../../seeds/meditations/import')
-      return new MeditationsImporter(options)
-    }
-    case 'meditation-transcripts': {
-      const { MeditationTranscriptsImporter } =
-        await import('../../../../../../seeds/meditation-transcripts/import')
-      return new MeditationTranscriptsImporter(options)
-    }
     case 'file-transcripts': {
       const { FileTranscriptsImporter } =
         await import('../../../../../../seeds/file-transcripts/import')
       return new FileTranscriptsImporter(options)
     }
-    case 'storyblok': {
-      const token = process.env.STORYBLOK_ACCESS_TOKEN
-      if (!token) {
-        throw new Error('STORYBLOK_ACCESS_TOKEN environment variable is required')
-      }
-      const { StoryblokImporter } = await import('../../../../../../seeds/storyblok/import')
-      return new StoryblokImporter(options, token)
-    }
-    case 'wm-app-translations': {
-      const { WeMeditateAppTranslationsImporter } =
-        await import('../../../../../../seeds/wm-app-translations/import')
-      return new WeMeditateAppTranslationsImporter(options)
-    }
     case 'translations': {
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
-    }
-    case 'atlas': {
-      const { AtlasImporter } = await import('../../../../../../seeds/atlas/import')
-      return new AtlasImporter(options)
-    }
-    case 'atlas-reset': {
-      const { AtlasResetImporter } = await import('../../../../../../seeds/atlas/reset')
-      return new AtlasResetImporter(options)
     }
     default:
       return null

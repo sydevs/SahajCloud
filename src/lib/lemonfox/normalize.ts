@@ -58,7 +58,7 @@ const toMilliseconds = (seconds: number): number => Math.round(Math.max(0, secon
 
 /**
  * Reduce a Lemonfox `verbose_json` body to its phrase segments — the shape the
- * library's existing transcripts carry (`seeds/meditation-transcripts/`).
+ * library's existing transcripts carry, imported once under #897.
  *
  * Throws when the body holds no timestamped segment, since a transcript the
  * editor cannot seek through is not one this feature can use.

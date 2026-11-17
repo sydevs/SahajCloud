@@ -54,36 +54,6 @@ const SeedEnvSchema = z.object({
   CF_ACCESS_CLIENT_SECRET: emptyAsUndefined(z.string().min(1)),
 
   /**
-   * Storyblok CMS access token
-   * Only required for importing Path Steps from Storyblok
-   */
-  STORYBLOK_ACCESS_TOKEN: z.string().optional(),
-
-  /**
-   * Cloudflare R2 S3-compatible access key ID
-   * Only required for R2 reset scripts (S3 API compatibility)
-   */
-  CLOUDFLARE_R2_ACCESS_KEY_ID: z.string().optional(),
-
-  /**
-   * Cloudflare R2 S3-compatible secret access key
-   * Only required for R2 reset scripts (S3 API compatibility)
-   */
-  CLOUDFLARE_R2_SECRET_ACCESS_KEY: z.string().optional(),
-
-  /**
-   * Cloudflare Account ID (from main app env)
-   * Required for Cloudflare API operations
-   */
-  CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
-
-  /**
-   * Cloudflare API Key (from main app env)
-   * Required for Cloudflare API operations
-   */
-  CLOUDFLARE_API_KEY: z.string().min(20).optional(),
-
-  /**
    * Server port number
    * Used to construct target URL for seed operations
    */
@@ -94,16 +64,6 @@ const SeedEnvSchema = z.object({
    * Target URL for seed operations
    */
   SAHAJCLOUD_URL: z.url().optional(),
-
-  /**
-   * Storage base URL
-   * Base URL for accessing uploaded media files
-   * Used for importing files from external sources
-   */
-  STORAGE_BASE_URL: z
-    .url()
-    .optional()
-    .default('https://storage.googleapis.com/media.sydevelopers.com'),
 })
 
 // Type inference for TypeScript

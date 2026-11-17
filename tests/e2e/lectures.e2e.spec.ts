@@ -13,7 +13,7 @@ type LectureDoc = SmokeDoc & {
 /**
  * The lecture this spec builds its parent from.
  *
- * **Take the ID from production, never from `seeds/wemeditate/data.json`.**
+ * **Take the ID from production, never from an embedded page video.**
  * The seed file's `vimeo_id` values are the videos WeMeditate embedded in page
  * content, and NV's catalogue is Shri Mataji's lectures — the two overlap only
  * by accident. `importLectures` says so itself, isolating a per-video NV 404 so

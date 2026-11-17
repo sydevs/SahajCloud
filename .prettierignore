@@ -28,15 +28,6 @@ src/app/(payload)/admin/importMap.js
 # pnpm writes this. Reformatting it makes the next `pnpm install` churn it back.
 pnpm-lock.yaml
 
-# Seed data dumps, each emitted as `JSON.stringify(data, null, 2)` by the
-# script named beside it. Listed one by one on purpose: the translation seed
-# files alongside them have no writer, so they are ordinary tracked data and
-# stay in scope.
-seeds/atlas/data/
-seeds/meditations/data.json
-seeds/wemeditate/data.json
-seeds/meditation-transcripts/data.json
-
 # The canonical block here is compared against the copies in the other three
 # product repos, modulo whitespace only
 # (claude-workflow/workflow/lib/comment-rule-sync.mjs). Prettier rewrites

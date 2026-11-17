@@ -82,6 +82,9 @@ seed*.log
 # Local debug/log files (e.g. pasted console output)
 *.log
 
-# Atlas migration data — personal data, local only (seeds/atlas/AGENTS.md)
+# The legacy Atlas migration's extracted tables and its grooming overlay. The
+# importers that read them are retired (#1169), but a maintainer's machine may
+# still hold the files — personal data, so they stay ignored rather than
+# turning up untracked in `git status`.
 /seeds/atlas/data/
 /seeds/atlas/local/
