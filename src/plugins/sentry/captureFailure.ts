@@ -16,6 +16,7 @@
  * reader — run before `capture` is reached. Every site calls this while already
  * handling a failure.
  */
+import type { CaptureSourceTag } from './capture'
 import type { PayloadRequest } from 'payload'
 
 import { mapPostgresCastError } from '@/lib/databaseErrors'
@@ -26,14 +27,15 @@ import { capture } from './capture'
 import { describeRejectedCredential } from './credentialRejection'
 
 /**
- * The `capture_source` tag. A routed failure and a swallowed admin write can
- * carry the same error class, and only this tells them apart in Sentry.
+ * What this classifier accepts: every `capture_source` value but `handler`.
+ * A routed failure and a swallowed admin write can carry the same error class,
+ * and only the tag tells them apart in Sentry.
  *
- * ⚠ **The tag has a fifth value this type does not: `handler`.** Nothing
- * reaches this classifier with it — a handler that answers its own 5xx has no
- * routed failure to classify — so `handlerTags` (`./capture`) owns it (#1182).
+ * ⚠ **`handler` is excluded because nothing reaches this classifier with it** —
+ * a handler that answers its own 5xx has no routed failure to classify — so
+ * `handlerTags` (`./capture`) writes that one (#1182).
  */
-export type CaptureSource = 'afterError' | 'job' | 'localApi' | 'signIn'
+export type CaptureSource = Exclude<CaptureSourceTag, 'handler'>
 
 export interface CaptureFailureArgs {
   /** Collection or global slug, where the failure names one. */
