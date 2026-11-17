@@ -2,14 +2,14 @@ import type { Field } from 'payload'
 
 import { join, relative } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { tasks } from '@/jobs'
 import {
   orphanScanWindow,
   trashDeletionCutoff,
 } from '@/jobs/CleanupOrphanedMedia/CleanupOrphanedMedia'
-import { JOB_AUTO_RUN, UNSCHEDULED_QUEUES } from '@/jobs/queues'
+import { JOB_AUTO_RUN, jobAutoRun, UNSCHEDULED_QUEUES } from '@/jobs/queues'
 import { REQUEST_TIMEOUT_MS } from '@/jobs/TranscribeRecording/lemonfoxClient'
 import { TRANSCRIPTION_STALL_MS } from '@/lib/transcripts/bounds'
 import {
@@ -258,11 +258,13 @@ describe('Job schedules', () => {
 
   /**
    * The assertions above read `JOB_AUTO_RUN`, so they are worth nothing unless
-   * the config is what hands it to Payload. Checked as source text because
-   * importing `payload.config.ts` would build the whole config.
+   * the config is what hands it to Payload — through `jobAutoRun()`, which the
+   * `jobAutoRun` cases below pin to this same array everywhere but a preview.
+   * Checked as source text because importing `payload.config.ts` would build
+   * the whole config.
    */
   it('is the array the config passes to Payload', () => {
-    expect(sourceOf(join(SRC, 'payload.config.ts'))).toContain('autoRun: JOB_AUTO_RUN')
+    expect(sourceOf(join(SRC, 'payload.config.ts'))).toContain('autoRun: jobAutoRun()')
   })
 
   /**
@@ -382,5 +384,31 @@ describe('Job schedules', () => {
       'plugins/login/invitations.ts',
       'plugins/usage/tasks.ts',
     ])
+  })
+})
+
+/**
+ * A PR preview runs no tick at all, so an idle one can sleep; everywhere else
+ * runs every entry. An allowlist of preview names, like every other preview
+ * decision (`isPreviewEnvironmentName`), so an unrecognised name keeps its jobs.
+ */
+describe('jobAutoRun', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  const inRailwayEnvironment = (name: string | undefined): void => {
+    vi.stubEnv('RAILWAY_ENVIRONMENT', undefined)
+    vi.stubEnv('RAILWAY_ENVIRONMENT_NAME', name)
+  }
+
+  it('runs nothing on a PR preview', () => {
+    inRailwayEnvironment('SahajCloud-pr-1173')
+    expect(jobAutoRun()).toBeUndefined()
+  })
+
+  it.each([['production'], ['staging'], [undefined]])('runs every entry in %s', (name) => {
+    inRailwayEnvironment(name)
+    expect(jobAutoRun()).toBe(JOB_AUTO_RUN)
   })
 })

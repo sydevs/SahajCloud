@@ -72,7 +72,7 @@ describe('resolveSpecifier', () => {
     expect(resolveSpecifier('src/lib/geo.ts', 'tests/unit')).toBe('src/lib/geo.ts')
   })
 
-  it('reads anything else from the repo root, where a package name matches no file', () => {
+  it('takes anything else as written, where a package name matches no file', () => {
     expect(resolveSpecifier('next.config.ts', 'tests/unit')).toBe('next.config.ts')
     expect(resolveSpecifier('vitest', 'tests/unit')).toBe('vitest')
   })

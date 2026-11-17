@@ -91,7 +91,7 @@ A missing `PAYLOAD_SECRET` or `DATABASE_URL` stops the app from starting. A miss
 
 ## Railway Configuration
 
-`railway.toml` uses Railpack, with `start.command = 'pnpm start'`. Migrations apply automatically on boot, via `prodMigrations`.
+The Railway service builds with Railpack and starts with `pnpm start`. Those settings live on the service, not in this repository (`DEPLOYMENT.md` → Infrastructure Overview). Migrations apply automatically on boot, via `prodMigrations`.
 
 ### Preview environments provision their own admin
 
