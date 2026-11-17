@@ -18,7 +18,7 @@ import { subtitleCue } from '@/lib/utilities/subtitles'
  *
  * One shape is not one length: the library's transcripts imported before #1016
  * hold Lemonfox's longer phrases rather than cues, and nothing re-cuts them,
- * so no stored segment is bounded by `SUBTITLE_CUE_MAX_CHARS`.
+ * so not every stored segment is bounded by `SUBTITLE_CUE_MAX_CHARS`.
  */
 const transcriptSegmentSchema = z.strictObject(subtitleCue)
 
