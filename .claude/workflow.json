@@ -23,8 +23,20 @@
   "worktreeNotes": ".env is git-tracked, so it is already present. The dev server needs a distinct PORT (shared local Postgres via push: true).",
   "deployTarget": "Railway (+ per-PR preview)",
   "previewUrl": {
-    "$comment": "Railway names a PR preview after the pull request NUMBER, so the host is known the moment the PR exists and cannot collide. finalize-pr writes deep links from it rather than waiting for the build. (why: sydevs/claude-workflow docs/why.md#construct-a-number-discover-a-slug)",
-    "pattern": "https://sahajcloud-sahajcloud-pr-{pr}.up.railway.app"
+    "$comment": "Every PR preview is reached at its fixed address, keyed on the pull request NUMBER, so the host is known the moment the PR exists and cannot collide. Railway's own host is shut to a browser (DEPLOYMENT.md, \"Previews are gated\"). finalize-pr writes deep links from it rather than waiting for the build. (why: sydevs/claude-workflow docs/why.md#construct-a-number-discover-a-slug)",
+    "pattern": "https://pr-{pr}.cloud-preview.sydevelopers.com"
+  },
+  "fixture": {
+    "$comment": "Every preview loads src/fixture/ into itself at boot, each row at a pinned id, so a link to one is built from the diff and never by opening the preview (src/fixture/AGENTS.md, sydevs/SahajCloud#1168).",
+    "path": "src/fixture/",
+    "link": "https://pr-{pr}.cloud-preview.sydevelopers.com/admin/collections/{collection}/{id}",
+    "surfacePaths": [
+      "src/collections/",
+      "src/components/admin/",
+      "src/app/(payload)/",
+      "src/plugins/",
+      "src/fixture/"
+    ]
   },
   "devServer": {
     "command": "pnpm devsafe",

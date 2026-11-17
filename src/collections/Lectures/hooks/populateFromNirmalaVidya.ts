@@ -28,6 +28,8 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
 }) => {
   if (operation !== 'create') return data
   if (data.type !== 'full') return data
+  // A preview fixture lecture carries the metadata a fetch would have filled.
+  if (req.context.fixture) return data
 
   const vimeoUrl = data.nirmalVidyaVimeoUrl as string | undefined
   if (!vimeoUrl) {

@@ -305,7 +305,8 @@ export const importCollection: CollectionConfig = {
     afterRead: [({ doc }) => ({ ...doc, url: null, thumbnailURL: null })],
     afterChange: [
       async ({ doc, operation, req }) => {
-        if (operation !== 'create') return doc
+        // A preview fixture import states its own outcome; the job would geocode and mail.
+        if (operation !== 'create' || req.context.fixture) return doc
         await req.payload.jobs.queue({
           task: IMPORT_TASK,
           input: { importId: doc.id },

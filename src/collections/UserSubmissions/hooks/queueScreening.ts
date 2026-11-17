@@ -25,6 +25,8 @@ export const queueScreening: CollectionAfterChangeHook = async ({ data, doc, ope
   // unscreened row gets no disposable-address check, no content scan, no `spam`
   // verdict and no abuse strike, and is delivered as though one had cleared it.
   if (data.status !== 'pending') return doc
+  // The preview fixture's rows are invented: screening one queues its delivery mail.
+  if (req.context.fixture) return doc
 
   // `user-submissions` ids are Postgres serials, and `screenSubmission` declares
   // `type: 'number'` for the row it names — so the narrowing is the task's own

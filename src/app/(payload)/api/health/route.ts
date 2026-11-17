@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server'
 
+import { fixtureEnabled, fixtureStatus, type FixtureStatus } from '@/fixture/gate'
 import { deploymentEnvironment } from '@/lib/env/deploymentEnvironment'
+
+/**
+ * Where the preview fixture's load stands (`src/fixture/AGENTS.md`).
+ *
+ * Payload boots on first use, and the load starts from its `onInit`, so a
+ * health check finding no load yet boots Payload itself — this route is what
+ * Railway and CI poll after every deploy. Production never imports the config
+ * here.
+ */
+async function fixtureHealth(): Promise<FixtureStatus> {
+  if (!fixtureEnabled()) return 'off'
+  const status = fixtureStatus()
+  if (status) return status
+  const [{ getPayload }, { default: config }] = await Promise.all([
+    import('payload'),
+    import('@payload-config'),
+  ])
+  void getPayload({ config }).catch(() => {})
+  return 'loading'
+}
 
 export async function GET() {
   try {
@@ -23,6 +44,9 @@ export async function GET() {
       // and tells the reader to merge the base (#1124), so omitting it on any
       // path would send them there for nothing.
       commit: process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown',
+      // CI waits for `loaded` on the head commit, and fails on `failed`. Only
+      // the word: the error is in the deploy log.
+      fixture: await fixtureHealth(),
     }
 
     return NextResponse.json(health, { status: 200 })

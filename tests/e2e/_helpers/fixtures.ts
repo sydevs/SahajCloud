@@ -2,21 +2,15 @@ import type { APIRequestContext, APIResponse } from '@playwright/test'
 
 import { readFileSync } from 'node:fs'
 
-import type { Frame, Image, Narrator } from '@/payload-types'
+import type { Image } from '@/payload-types'
 
 /**
- * The dependencies a smoke spec creates for itself, and the bin that removes
- * them again.
+ * What a smoke spec uploads for itself, and the bin that removes it again.
  *
- * **A per-PR preview carries no content.** Railway forks service configuration
- * and variables, not volume data, so a PR environment boots with migrations
- * applied and exactly one row anywhere: the admin `src/plugins/previewAdmin`
- * reconciles on every boot. Every content table is empty on every PR (#704).
- *
- * That is why a spec must not read a list and skip when it comes back empty —
- * the condition holds on every run, so the spec never asserts anything while
- * the job stays green. Each spec creates its own dependencies instead, and
- * `smokeTest.ts` empties the bin in a fixture teardown.
+ * A spec that only needs a row to exist reads the preview fixture's pinned ids
+ * (`src/fixture/`), which CI waits for before this lane runs. A spec testing a
+ * create or an upload makes its own row here, and `smokeTest.ts` empties the
+ * bin in a fixture teardown.
  *
  * Field values are typed against `@/payload-types` rather than written as bare
  * literals, so `pnpm typecheck:tests` catches a renamed field or a dropped enum
@@ -72,24 +66,6 @@ async function createdDoc(res: APIResponse, collection: string): Promise<SmokeDo
 }
 
 /**
- * POST a JSON document to a collection.
- *
- * `data` needs no `content-type` header of its own: an object goes over the
- * wire as `jsonData`, and Playwright then sets `content-type: application/json`
- * unless the caller already named one
- * (`playwright-core/lib/server/fetch.js`, `serializePostData`).
- */
-async function postJson(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  collection: string,
-  data: unknown,
-): Promise<SmokeDoc> {
-  const res = await request.post(`/api/${collection}`, { headers, data })
-  return createdDoc(res, collection)
-}
-
-/**
  * POST a file to an upload collection. Payload's REST convention puts the JSON
  * document in `_payload` and the binary in `file`.
  * https://payloadcms.com/docs/rest-api/overview#uploads
@@ -139,12 +115,6 @@ export function createTrash(request: APIRequestContext, headers: Record<string, 
   }
 }
 
-/**
- * The tag a Meditation thumbnail must carry: `mediaField` turns `tagName` into
- * `filterOptions: { tags: { contains: tagName } }` (`src/fields/mediaField.ts`).
- */
-export const MEDITATION_IMAGE_TAG: NonNullable<Image['tags']>[number] = 'meditation'
-
 /** Upload an Image. */
 export function createImage(
   request: APIRequestContext,
@@ -157,42 +127,5 @@ export function createImage(
     name: `${name}.${format}`,
     mimeType: SAMPLE_IMAGES[format].mimeType,
     buffer: sampleImage(format),
-  })
-}
-
-/** Create an Album. `artwork`, `title` and `artist` are all required. */
-export function createAlbum(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  { title, artist, artwork }: { title: string; artist: string; artwork: Id },
-): Promise<SmokeDoc> {
-  return postJson(request, headers, 'albums', { title, artist, artwork })
-}
-
-/** Create a Narrator. `name` and `gender` are the whole collection. */
-export function createNarrator(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  name: string,
-): Promise<SmokeDoc> {
-  const data: Pick<Narrator, 'name' | 'gender'> = { name, gender: 'female' }
-  return postJson(request, headers, 'narrators', data)
-}
-
-/**
- * Upload a Frame. `imageSet` is required, and so is `label` — the admin shows
- * the latter only for a frame with no `subtleSystemNode`, but the field is
- * required either way.
- */
-export function createFrame(
-  request: APIRequestContext,
-  headers: Record<string, string>,
-  label: string,
-): Promise<SmokeDoc> {
-  const data: Pick<Frame, 'imageSet' | 'label'> = { imageSet: 'female', label }
-  return postUpload(request, headers, 'frames', data, {
-    name: `${label}.webp`,
-    mimeType: SAMPLE_IMAGES.webp.mimeType,
-    buffer: sampleImage('webp'),
   })
 }

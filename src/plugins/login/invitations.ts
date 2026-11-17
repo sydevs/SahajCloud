@@ -86,10 +86,10 @@ async function enqueue(
 ): Promise<void> {
   // A manager's own change is not news to them — creating an event they
   // manage, or a sub-region they look after. Nor is a seed import's
-  // (`LoginPluginOptions.invitations`).
+  // (`LoginPluginOptions.invitations`), or the preview fixture's.
   const self =
     req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)
-  if (self || req.context?.seed) return
+  if (self || req.context?.seed || req.context?.fixture) return
 
   const { payload } = req
   const manager = await payload
