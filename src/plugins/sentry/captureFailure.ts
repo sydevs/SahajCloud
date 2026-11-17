@@ -28,6 +28,10 @@ import { describeRejectedCredential } from './credentialRejection'
 /**
  * The `capture_source` tag. A routed failure and a swallowed admin write can
  * carry the same error class, and only this tells them apart in Sentry.
+ *
+ * ⚠ **The tag has a fifth value this type does not: `handler`.** Nothing
+ * reaches this classifier with it — a handler that answers its own 5xx has no
+ * routed failure to classify — so `handlerTags` (`./capture`) owns it (#1182).
  */
 export type CaptureSource = 'afterError' | 'job' | 'localApi' | 'signIn'
 

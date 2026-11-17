@@ -135,3 +135,17 @@ export const capture = (args: CaptureArgs): boolean => {
     return false
   }
 }
+
+/**
+ * The tags a handler answering its own 5xx reports under (#1182).
+ *
+ * `capture_source` is the fifth value of the tag `CaptureSource` names, for a
+ * failure no `afterError` hook saw because the handler **returned** it. The
+ * `handler` half names which — `events/geojson`, `clients/report` — because a
+ * captured exception is titled by the driver's own message and says nothing
+ * about the route it came from.
+ */
+export const handlerTags = (handler: string): Record<string, string> => ({
+  capture_source: 'handler',
+  handler,
+})

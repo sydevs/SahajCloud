@@ -2,9 +2,9 @@ import type { Endpoint } from 'payload'
 
 import { z } from 'zod'
 
-import { parseBody, requireActiveManager } from '@/lib/endpoints'
+import { errorResponse, parseBody, requireActiveManager } from '@/lib/endpoints'
 import { isValidProject } from '@/plugins/access'
-import { capture } from '@/plugins/sentry/capture'
+import { capture, handlerTags } from '@/plugins/sentry/capture'
 
 const bodySchema = z.object({
   // `null` is the admin "All Content" view. A slug selects a project.
@@ -57,17 +57,17 @@ export const setProject: Endpoint = {
       })
       return Response.json({ ok: true, currentProject: updated.currentProject ?? null })
     } catch (error) {
-      // Returning the 500 means no `afterError` hook runs, so the handler is the
-      // only thing that can report it (#1182).
+      // A returned 500 throws nothing, so nothing else reports it (#1182). Not
+      // `readFailureResponse`: that answers for a read, and surfaces an
+      // `APIError`'s own status — this write's answer is uniform by design.
       capture({
         error,
         message: 'setProject: failed to persist currentProject',
         extra: { managerId },
-        level: 'error',
         logger: req.payload.logger,
-        tags: { capture_source: 'handler', handler: 'managers/set-project' },
+        tags: handlerTags('managers/set-project'),
       })
-      return Response.json({ errors: [{ message: 'Failed to change project.' }] }, { status: 500 })
+      return errorResponse('Failed to change project.', 500)
     }
   },
 }

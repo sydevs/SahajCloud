@@ -1,7 +1,5 @@
 /**
- * Cloudflare Stream webhook helpers. No Payload dependency — the logger and the
- * ready-video follow-up are injected, so a spec drives the whole processor
- * without booting one.
+ * Cloudflare Stream webhook helpers. No Payload dependency.
  *
  * Kept in `src/plugins/storage` rather than co-located with the route handler
  * because Next.js App Router routes may only export specific named exports
@@ -14,7 +12,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 
 import type { CaptureLevel } from '@/plugins/sentry/capture'
-import { capture } from '@/plugins/sentry/capture'
+import { capture, handlerTags } from '@/plugins/sentry/capture'
 
 import {
   CloudflareStreamDownloadsResponseSchema,
@@ -24,12 +22,8 @@ import { isProductionDeployment } from './previewIsolation'
 
 const FIVE_MINUTES_SECONDS = 300
 
-/**
- * Every report this webhook sends. Cloudflare reads the status code and retries;
- * nobody reads the Railway log, so a failure answered here reaches no one unless
- * the handler reports it itself (#1182).
- */
-const HANDLER_TAGS = { capture_source: 'handler', handler: 'cloudflare-stream-webhook' }
+/** Every report this webhook sends (#1182). */
+const HANDLER_TAGS = handlerTags('cloudflare-stream-webhook')
 
 /**
  * A missing secret or credential is the deployment's own gap: an answer on a
@@ -304,7 +298,6 @@ export async function handleStreamWebhook(params: {
           error,
           message: 'Stream video ready, but its follow-up work failed',
           extra: { uid },
-          level: 'error',
           logger,
           tags: HANDLER_TAGS,
         })
@@ -317,7 +310,6 @@ export async function handleStreamWebhook(params: {
         error,
         message: 'Cloudflare downloads API response validation failed',
         extra: { uid, issues: error.issues },
-        level: 'error',
         logger,
         tags: HANDLER_TAGS,
       })
@@ -328,7 +320,6 @@ export async function handleStreamWebhook(params: {
       error,
       message: 'Error enabling MP4 downloads via webhook',
       extra: { uid },
-      level: 'error',
       logger,
       tags: HANDLER_TAGS,
     })

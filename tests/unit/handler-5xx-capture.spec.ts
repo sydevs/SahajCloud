@@ -10,6 +10,7 @@
  */
 import type { PayloadRequest } from 'payload'
 
+import { APIError } from 'payload'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const sentry = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }))
@@ -22,24 +23,35 @@ vi.mock('@sentry/nextjs', () => ({
 import { clientEmbedReport } from '@/collections/Clients/endpoints/report'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import { setProject } from '@/collections/Managers/endpoints/setProject'
+import { readFailureResponse, requireIntegerClientId } from '@/lib/endpoints'
 import { handleStreamWebhook } from '@/plugins/storage/cloudflareStreamWebhook'
 
 import { capturedFrom } from '../utils/sentryCapture'
-import { streamSignatureHeader } from '../utils/streamWebhookSignature'
+import {
+  readyStreamPayload,
+  STREAM_DOWNLOADS_ENABLED,
+  STREAM_NOW_SECONDS,
+  STREAM_SECRET,
+  STREAM_UID,
+  streamFetchAnswering,
+  streamSignatureHeader,
+} from '../utils/streamWebhook'
 
 const logger = { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
 
 const captured = () => capturedFrom(sentry.captureMessage)
 const capturedError = () => capturedFrom(sentry.captureException)
 
-/** Every event this ticket adds carries both, whichever entry point sent it. */
+/** What `handlerTags` builds, restated so a renamed tag reds this spec. */
 const handlerTags = (handler: string) => ({ capture_source: 'handler', handler })
 
 const reported = () =>
   sentry.captureException.mock.calls.length + sentry.captureMessage.mock.calls.length
 
 beforeEach(() => {
-  vi.clearAllMocks()
+  // `reset`, not `clear`: the telemetry-failure case below installs throwing
+  // implementations, and `clearAllMocks` would keep them for every later case.
+  vi.resetAllMocks()
 })
 
 /**
@@ -114,6 +126,16 @@ describe('GET /api/events/geojson, when the read fails', () => {
     expect(response.status).toBe(400)
     expect(reported()).toBe(0)
   })
+
+  it('reports nothing when a query gate refused the caller', async () => {
+    // `validateClientQueryParamsHook` throws APIError(400) for a missing
+    // `select`, and the origin gate APIError(403) — both the caller's, and both
+    // surfaced verbatim.
+    const response = await eventsGeoJson.handler(failing(new APIError('select is required', 400)))
+
+    expect(response.status).toBe(400)
+    expect(reported()).toBe(0)
+  })
 })
 
 describe('POST /api/clients/report, when the pool is gone', () => {
@@ -165,10 +187,10 @@ describe('POST /api/clients/report, when the pool is gone', () => {
 })
 
 describe('POST /api/managers/set-project, when the write fails', () => {
-  const request = (error: unknown) =>
+  const request = ({ error, body = { currentProject: null } }: Record<string, unknown> = {}) =>
     ({
       headers: new Headers(),
-      json: vi.fn().mockResolvedValue({ currentProject: null }),
+      json: vi.fn().mockResolvedValue(body),
       payload: { logger, update: vi.fn().mockRejectedValue(error) },
       url: 'https://cloud.sydevelopers.com/api/managers/set-project',
       user: { collection: 'managers', id: 12, type: 'admin' },
@@ -176,7 +198,7 @@ describe('POST /api/managers/set-project, when the write fails', () => {
 
   it('answers 500 and reports the exception once, naming the route', async () => {
     const thrown = new Error('deadlock detected')
-    const response = await setProject.handler(request(thrown))
+    const response = await setProject.handler(request({ error: thrown }))
 
     expect(response.status).toBe(500)
     expect(sentry.captureException).toHaveBeenCalledOnce()
@@ -187,7 +209,7 @@ describe('POST /api/managers/set-project, when the write fails', () => {
   })
 
   it('still writes the line Railway sees, and only one', async () => {
-    await setProject.handler(request(new Error('deadlock detected')))
+    await setProject.handler(request({ error: new Error('deadlock detected') }))
 
     expect(logger.error).toHaveBeenCalledOnce()
     expect(logger.error).toHaveBeenCalledWith(
@@ -199,55 +221,83 @@ describe('POST /api/managers/set-project, when the write fails', () => {
   })
 
   it('reports nothing for a project slug the schema refuses, which answers 400', async () => {
-    const req = {
-      headers: new Headers(),
-      json: vi.fn().mockResolvedValue({ currentProject: 'no-such-project' }),
-      payload: { logger, update: vi.fn() },
-      user: { collection: 'managers', id: 12, type: 'admin' },
-    } as unknown as PayloadRequest
+    const response = await setProject.handler(request({ body: { currentProject: 'no-such' } }))
 
-    expect((await setProject.handler(req)).status).toBe(400)
+    expect(response.status).toBe(400)
     expect(reported()).toBe(0)
   })
 })
 
+/**
+ * The shared seam the four `/api/atlas/*` endpoints answer their own 500s
+ * through. Driving it directly covers all six of their branches: each passes
+ * the same arguments and differs only in the wording.
+ */
+describe('readFailureResponse, the shared read-failed answer', () => {
+  const req = clientRequest()
+
+  it('reports the exception and names the handler it came from', () => {
+    const thrown = new Error('region tree read failed')
+    const response = readFailureResponse(
+      req,
+      thrown,
+      'Failed to build the sitemap for this client.',
+      { msg: 'atlasSitemap: read failed', clientId: 7 },
+      'atlas/sitemap',
+    )
+
+    expect(response.status).toBe(500)
+    expect(sentry.captureException).toHaveBeenCalledOnce()
+    expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
+    expect(capturedError().tags).toMatchObject(handlerTags('atlas/sitemap'))
+    expect(capturedError().extra).toMatchObject({ clientId: 7 })
+    expect(logger.error).toHaveBeenCalledOnce()
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ msg: 'atlasSitemap: read failed', clientId: 7 }),
+    )
+  })
+
+  it('reports nothing for an APIError, which carries the caller’s own status', () => {
+    const response = readFailureResponse(
+      req,
+      new APIError('select is required', 400),
+      'Failed to build the sitemap for this client.',
+      { msg: 'atlasSitemap: read failed', clientId: 7 },
+      'atlas/sitemap',
+    )
+
+    expect(response.status).toBe(400)
+    expect(reported()).toBe(0)
+  })
+
+  it('reports a client id that is not an integer, which would answer "you own nothing"', () => {
+    const caller = requireIntegerClientId(
+      clientRequest({ user: { collection: 'clients', enabled: true, id: 'abc' } }),
+      'Failed to build the sitemap for this client.',
+      'atlas/sitemap',
+    )
+
+    expect(caller.ok).toBe(false)
+    expect(sentry.captureMessage).toHaveBeenCalledOnce()
+    expect(captured().level).toBe('error')
+    expect(captured().tags).toMatchObject(handlerTags('atlas/sitemap'))
+  })
+})
+
 describe('the Cloudflare Stream webhook', () => {
-  const SECRET = 'test-webhook-signing-secret-with-32-plus-chars'
-  const NOW_SECONDS = 1_750_000_000
-  const UID = 'test-video-uid-abc123'
   const TAGS = handlerTags('cloudflare-stream-webhook')
 
-  const readyBody = JSON.stringify({
-    uid: UID,
-    readyToStream: true,
-    status: { state: 'ready', pctComplete: '100.000000' },
-  })
-
-  const respondWith = (body: unknown) =>
-    vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(body), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    ) as unknown as typeof fetch
-
-  const enabled = respondWith({
-    success: true,
-    errors: [],
-    result: { default: { status: 'ready' } },
-  })
-
   const deliver = async (over: Record<string, unknown> = {}) => {
-    const rawBody = (over.rawBody as string) ?? readyBody
-    vi.spyOn(Date, 'now').mockReturnValue(NOW_SECONDS * 1000)
+    const rawBody = (over.rawBody as string) ?? readyStreamPayload()
+    vi.spyOn(Date, 'now').mockReturnValue(STREAM_NOW_SECONDS * 1000)
     return handleStreamWebhook({
       rawBody,
-      signatureHeader: await streamSignatureHeader(rawBody, SECRET, NOW_SECONDS),
-      secret: SECRET,
+      signatureHeader: streamSignatureHeader(rawBody),
+      secret: STREAM_SECRET,
       accountId: 'test-account-id',
       apiKey: 'test-api-key',
       logger,
-      fetchFn: enabled,
+      fetchFn: streamFetchAnswering(STREAM_DOWNLOADS_ENABLED),
       ...over,
     })
   }
@@ -302,18 +352,21 @@ describe('the Cloudflare Stream webhook', () => {
     expect(result.status).toBe(503)
     expect(sentry.captureMessage).toHaveBeenCalledOnce()
     expect(captured().level).toBe('warning')
-    expect(captured().extra).toMatchObject({ uid: UID })
+    expect(captured().extra).toMatchObject({ uid: STREAM_UID })
   })
 
   it('reports a downloads call the API refused', async () => {
     const result = await deliver({
-      fetchFn: respondWith({ success: false, errors: [{ message: 'Video not ready yet' }] }),
+      fetchFn: streamFetchAnswering({
+        success: false,
+        errors: [{ message: 'Video not ready yet' }],
+      }),
     })
 
     expect(result.status).toBe(500)
     expect(sentry.captureMessage).toHaveBeenCalledOnce()
     expect(captured().level).toBe('error')
-    expect(captured().extra).toMatchObject({ uid: UID, errors: 'Video not ready yet' })
+    expect(captured().extra).toMatchObject({ uid: STREAM_UID, errors: 'Video not ready yet' })
   })
 
   it('reports a ready video whose follow-up work never ran', async () => {
@@ -326,16 +379,16 @@ describe('the Cloudflare Stream webhook', () => {
     expect(sentry.captureException).toHaveBeenCalledOnce()
     expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
     expect(capturedError().level).toBe('error')
-    expect(capturedError().extra).toMatchObject({ uid: UID })
+    expect(capturedError().extra).toMatchObject({ uid: STREAM_UID })
   })
 
   it('reports a downloads response that did not match the schema', async () => {
-    const result = await deliver({ fetchFn: respondWith({ success: 'yes' }) })
+    const result = await deliver({ fetchFn: streamFetchAnswering({ success: 'yes' }) })
 
     expect(result.status).toBe(500)
     expect(sentry.captureException).toHaveBeenCalledOnce()
     expect(capturedError().tags).toMatchObject(TAGS)
-    expect(capturedError().extra).toMatchObject({ uid: UID })
+    expect(capturedError().extra).toMatchObject({ uid: STREAM_UID })
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ msg: 'Cloudflare downloads API response validation failed' }),
     )
@@ -350,14 +403,14 @@ describe('the Cloudflare Stream webhook', () => {
     expect(result.status).toBe(500)
     expect(sentry.captureException).toHaveBeenCalledOnce()
     expect(sentry.captureException.mock.calls[0]?.[0]).toBe(thrown)
-    expect(capturedError().extra).toMatchObject({ uid: UID })
+    expect(capturedError().extra).toMatchObject({ uid: STREAM_UID })
   })
 
   it('reports nothing for a signature it refuses — that is a caller, not an incident', async () => {
     const result = await handleStreamWebhook({
-      rawBody: readyBody,
+      rawBody: readyStreamPayload(),
       signatureHeader: null,
-      secret: SECRET,
+      secret: STREAM_SECRET,
       accountId: 'test-account-id',
       apiKey: 'test-api-key',
       logger,
@@ -372,7 +425,7 @@ describe('the Cloudflare Stream webhook', () => {
     expect(
       (
         await deliver({
-          rawBody: JSON.stringify({ uid: UID, status: { state: 'inprogress' } }),
+          rawBody: JSON.stringify({ uid: STREAM_UID, status: { state: 'inprogress' } }),
         })
       ).status,
     ).toBe(200)
@@ -381,11 +434,13 @@ describe('the Cloudflare Stream webhook', () => {
   })
 })
 
-/**
- * The guarantee every site above leans on: `capture` owns a never-throw body, so
- * no handler needs a `try` of its own around its own reporting.
- */
 describe('a telemetry failure never reaches the caller', () => {
+  /**
+   * The guarantee every site above leans on: `capture` owns a never-throw body,
+   * so no handler needs a `try` of its own around its own reporting.
+   * `sentry-capture.spec.ts` pins that guard; this pins that a handler really is
+   * behind it.
+   */
   it('leaves a handler’s status and body exactly as they were', async () => {
     sentry.captureException.mockImplementation(() => {
       throw new Error('transport is down')
@@ -404,25 +459,5 @@ describe('a telemetry failure never reaches the caller', () => {
     expect(await response.json()).toEqual({
       errors: [{ message: 'Failed to build the GeoJSON feed.' }],
     })
-  })
-
-  it('leaves the webhook’s status and body exactly as they were', async () => {
-    sentry.captureMessage.mockImplementation(() => {
-      throw new Error('transport is down')
-    })
-    logger.warn.mockImplementation(() => {
-      throw new Error('log destination is down')
-    })
-
-    const result = await handleStreamWebhook({
-      rawBody: '{}',
-      signatureHeader: 'time=1,sig1=abc',
-      secret: undefined,
-      accountId: 'test-account-id',
-      apiKey: 'test-api-key',
-      logger,
-    })
-
-    expect(result).toEqual({ status: 503, body: { error: 'Webhook secret not configured' } })
   })
 })

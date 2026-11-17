@@ -98,11 +98,13 @@ export const atlasWixRoute: Endpoint = {
       })
       return Response.json(body, { headers })
     } catch (error) {
-      return readFailureResponse(req, error, 'Failed to build the page metadata for that route.', {
-        msg: 'atlasWixRoute: read failed',
-        clientId: req.user?.id,
-        path: parsed.data.path,
-      })
+      return readFailureResponse(
+        req,
+        error,
+        'Failed to build the page metadata for that route.',
+        { msg: 'atlasWixRoute: read failed', clientId: req.user?.id, path: parsed.data.path },
+        'atlas/wix/route',
+      )
     }
   },
 }

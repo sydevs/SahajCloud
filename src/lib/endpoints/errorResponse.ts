@@ -2,6 +2,8 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
+import { capture, handlerTags } from '@/plugins/sentry/capture'
+
 /**
  * The refusal envelope every public endpoint answers with — the shape
  * `parseQuery` returns for a 400 and `requireActiveClient` for a 403.
@@ -16,19 +18,24 @@ export function errorResponse(message: string, status: number): Response {
 /**
  * The answer for a read that threw: an `APIError` — the client-query gates the
  * forwarded reads run — keeps its status and message, and anything else is
- * logged and answered as a 500 carrying `failure`.
+ * logged, reported, and answered as a 500 carrying `failure`.
+ *
+ * ⚠ **The 500 is RETURNED, never thrown**, so Payload's root `afterError` hook
+ * and Next's `onRequestError` both miss it and this is the only thing that can
+ * report it (#1182). `handler` names the route for the Sentry tag. The
+ * `APIError` arm stays silent: a gate refusing a caller's query is a 4xx, and a
+ * caller's mistake is not an incident (#670).
  */
 export function readFailureResponse(
   req: PayloadRequest,
   error: unknown,
   failure: string,
   log: { msg: string } & Record<string, unknown>,
+  handler: string,
 ): Response {
   if (error instanceof APIError) return errorResponse(error.message, error.status)
-  req.payload.logger.error({
-    ...log,
-    error: error instanceof Error ? error.message : String(error),
-  })
+  const { msg, ...extra } = log
+  capture({ error, message: msg, extra, logger: req.payload.logger, tags: handlerTags(handler) })
   return errorResponse(failure, 500)
 }
 
@@ -48,13 +55,17 @@ export function readFailureResponse(
 export function requireIntegerClientId(
   req: PayloadRequest,
   failure: string,
+  handler: string,
 ): { ok: true; clientId: number } | { ok: false; response: Response } {
   const clientId = Number(req.user?.id)
   if (Number.isInteger(clientId)) return { ok: true, clientId }
 
-  req.payload.logger.error({
-    msg: 'client id is not an integer',
-    clientId: req.user?.id,
+  capture({
+    message: 'client id is not an integer',
+    extra: { clientId: req.user?.id },
+    level: 'error',
+    logger: req.payload.logger,
+    tags: handlerTags(handler),
   })
   return { ok: false, response: errorResponse(failure, 500) }
 }

@@ -146,11 +146,13 @@ export const atlasSeo: Endpoint = {
 
       return Response.json(body, { headers: publicReadCacheHeaders(req, ['events', 'regions']) })
     } catch (error) {
-      return readFailureResponse(req, error, 'Failed to build the SEO metadata for that route.', {
-        msg: 'atlasSeo: read failed',
-        clientId: req.user?.id,
-        route: parsed.data.route,
-      })
+      return readFailureResponse(
+        req,
+        error,
+        'Failed to build the SEO metadata for that route.',
+        { msg: 'atlasSeo: read failed', clientId: req.user?.id, route: parsed.data.route },
+        'atlas/seo',
+      )
     }
   },
 }

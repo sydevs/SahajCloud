@@ -10,9 +10,9 @@ import {
   parseMountKey,
 } from '@/lib/clients/embedMetadata'
 import { siteHosts } from '@/lib/clients/site'
-import { parseBody, requireClientAccess } from '@/lib/endpoints'
+import { errorResponse, parseBody, requireClientAccess } from '@/lib/endpoints'
 import type { Client } from '@/payload-types'
-import { capture } from '@/plugins/sentry/capture'
+import { capture, handlerTags } from '@/plugins/sentry/capture'
 import { getPgPool, isHostAllowed, quotedDbSchema } from '@/plugins/usage'
 
 /**
@@ -176,19 +176,15 @@ export const clientEmbedReport: Endpoint = {
       }
       const pool = getPgPool(req)
       if (!pool) {
-        // The 500 is returned, not thrown, so no `afterError` hook reports it
-        // and a client's usage would otherwise stop accruing in silence (#1182).
+        // A returned 500 throws nothing, so nothing else reports it (#1182).
         capture({
           message: 'clientEmbedReport: Postgres pool unavailable; report dropped',
           extra: { clientId: client.id },
           level: 'error',
           logger: req.payload.logger,
-          tags: { capture_source: 'handler', handler: 'clients/report' },
+          tags: handlerTags('clients/report'),
         })
-        return Response.json(
-          { errors: [{ message: 'Could not record this report.' }] },
-          { status: 500 },
-        )
+        return errorResponse('Could not record this report.', 500)
       }
 
       // The merged record and the keys it dropped, as separate arguments: the
