@@ -174,9 +174,9 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. Lemonfox is not here: its HTTP client and its two response
-  readers all sit in `src/jobs/TranscribeRecording/`, because that queued run
-  is their one caller (#1016)
+  booting it. Lemonfox is not here: its HTTP client, its two response readers
+  and the cue grouper they feed all sit in `src/jobs/TranscribeRecording/`,
+  because that queued run is their one caller (#1016)
 - `atomicWrites/` — the two writes a background worker owes a row it read
   before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
   into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
@@ -222,8 +222,9 @@ No loose files at the root — every file lives in a named folder:
   (batched per request), which files' rows are finished, and which column each
   kind of recording states its language in, `language.ts` whether a
   recording's language is the one being read, and `media.ts` which files carry
-  one at all. Meditations, files, lessons and the job all read it; deep
-  imports, no barrel, because `media.ts` is also read in the browser
+  one at all. Meditations, files, lessons, the job and `seeds/file-transcripts`
+  all read it; deep imports, no barrel, because `media.ts` is also read in the
+  browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,

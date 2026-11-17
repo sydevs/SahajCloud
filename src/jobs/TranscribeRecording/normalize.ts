@@ -1,13 +1,11 @@
 /**
- * Separate from the HTTP client beside it: nothing here fetches, so a recorded
- * body is this module's whole input.
+ * Its own module beside the HTTP client so the readers test on a recorded body,
+ * with no network.
  *
  * A run stores subtitle-length cues made from the word timings, whatever the
  * recording (#1016): one shape serves a Path Step's subtitles and a
  * meditation's reading view, which groups cues into paragraphs by the pauses
- * between them. The library's transcripts imported before that are stored as
- * Lemonfox's longer phrases and stay so — they are production's rows as they
- * are.
+ * between them.
  */
 import { z } from 'zod'
 
