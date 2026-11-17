@@ -527,8 +527,17 @@ and Sentry for new errors, and watch Postgres and R2 usage.
 
 Railway bills per-minute resource usage (CPU, memory, bandwidth). Production typically runs
 $10–15/month. Watch usage in the Railway dashboard (resource usage, Postgres disk, deploy
-history) and set a cost-limit alert under **Billing → Cost limits**. Watch R2 usage under
+history), or from the CLI: `railway usage --period previous` for the bill by line item, and
+`railway usage projects --project sahajcloud --period previous` for it per service. A $40 soft
+limit on the workspace emails when a period passes it. Watch R2 usage under
 **Cloudflare Dashboard → R2 → Analytics**.
+
+⚠ **PR previews are billed like production, by the minute they hold memory.** Each one is an app
+(~0.5 GB) plus its own Postgres (~0.25 GB), and the 16 Oct – 16 Nov 2026 period had about five
+open at all times — roughly $39 of a $61 bill. Railway sleeps a service only after 5 minutes with
+no outbound traffic, so anything a preview does on a timer keeps it billed: that is why a preview
+runs no job crons (`src/jobs/AGENTS.md`). `railway logs --network --json` on a preview shows
+what it still sends while idle.
 
 ---
 
