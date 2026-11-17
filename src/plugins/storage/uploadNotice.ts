@@ -11,10 +11,11 @@ export const UPLOAD_NOTICE = '@/components/admin/UploadNotice'
  * Gives every upload collection the uploading notice, so a new one cannot ship
  * without feedback during a multipart save (#888).
  *
- * ⚠ `storagePlugin` applies this **above** its two early returns. A save still
- * posts a file with the plugin disabled and with the Cloudflare credentials
- * absent — local dev, the test suite, `migrate:create` — and those are the
- * paths a notice folded in below the returns would miss.
+ * ⚠ `storagePlugin` applies this **above** its `cloudStoragePlugin` call, so it
+ * does not depend on the credentials or on `enabled`. A save still posts a file
+ * with the plugin disabled and with the Cloudflare credentials absent — local
+ * dev, the test suite, `migrate:create` — and those are the paths a notice
+ * mounted only where an adapter exists would miss.
  *
  * Keyed on `collection.upload` rather than `STORAGE_BACKENDS`, which is what
  * makes the coverage need no wiring: a new upload collection is covered before
