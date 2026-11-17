@@ -14,6 +14,7 @@ The whole-app view of SahajCloud, read on demand. Each subsystem's detail lives 
 | Admin navigation and the dashboards              | `docs/rules/admin-navigation.md`                       |
 | Logging and Sentry                               | `src/plugins/sentry/AGENTS.md`                         |
 | Scheduled jobs                                   | `src/jobs/AGENTS.md`                                   |
+| The preview fixture every preview loads at boot  | `src/fixture/AGENTS.md`                                |
 
 ## Storage
 

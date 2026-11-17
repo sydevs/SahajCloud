@@ -101,6 +101,8 @@ export async function replaceTranscript(
 export const syncTranscriptOnSave =
   (relationTo: RecordingCollection): CollectionAfterChangeHook =>
   async ({ context, doc, previousDoc, req }) => {
+    // The preview fixture writes a recording's transcript as a row of its own.
+    if (context.fixture) return doc
     const languageField = RECORDING_LANGUAGE_FIELD[relationTo]
     const media = transcribableMedia(doc.mimeType)
     const audioFilename = doc.filename

@@ -12,7 +12,6 @@
  * Scripts:
  *   translations      - Seed English copy into the three translation globals
  *   file-transcripts  - Transcribe every audio and video file that has no transcript
- *   preview-fixture   - Fill a Railway preview with made-up content
  *
  * Options:
  *   --dry-run      Validate data without writing to database
@@ -45,9 +44,6 @@ const VALID_SCRIPTS: ScriptName[] = [
   'translations',
   // Never in SCRIPT_RUN_ORDER: every run it queues is a paid vendor call.
   'file-transcripts',
-  // Never in SCRIPT_RUN_ORDER either: it is a preview's content, so a full
-  // seed of any other target must not pull it in.
-  'preview-fixture',
 ]
 
 const SCRIPT_RUN_ORDER: ScriptName[] = ['translations']
@@ -55,7 +51,6 @@ const SCRIPT_RUN_ORDER: ScriptName[] = ['translations']
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   translations: 'Seed English copy for all three translation globals',
   'file-transcripts': 'Transcribe every audio and video file that has no transcript (paid runs)',
-  'preview-fixture': 'Fill a preview with made-up classes, managers, registrations and messages',
 }
 
 const VALID_OPTIONS = ['--dry-run', '--clear-cache', '--update']

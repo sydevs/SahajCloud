@@ -11,7 +11,6 @@
  * Scripts:
  * - translations: all three translation globals (English seed)
  * - file-transcripts: a transcript for every recording the target holds without one
- * - preview-fixture: a preview's own content
  *
  * Authentication: Needs an admin session.
  *
@@ -397,11 +396,6 @@ async function getImporter(
     case 'translations': {
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
-    }
-    case 'preview-fixture': {
-      const { PreviewFixtureImporter } =
-        await import('../../../../../../seeds/preview-fixture/import')
-      return new PreviewFixtureImporter(options)
     }
     default:
       return null

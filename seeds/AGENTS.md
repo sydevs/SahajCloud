@@ -81,15 +81,14 @@ Server-Sent Events (SSE) with progress updates.
 
 ## Available scripts
 
-| Script           | Command                      | Prerequisites                                   | Targets                                                   |
-| ---------------- | ---------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
-| translations     | `pnpm seed translations`     | None                                            | the three translation globals (see below)                 |
-| file-transcripts | `pnpm seed file-transcripts` | ⚠ Paid runs — run only by name                  | transcripts (one queued run per untranscribed file)       |
-| preview-fixture  | `pnpm seed preview-fixture`  | A Railway preview, reached at its fixed address | managers, regions, forms, events, users, user-submissions |
+| Script           | Command                      | Prerequisites                  | Targets                                             |
+| ---------------- | ---------------------------- | ------------------------------ | --------------------------------------------------- |
+| translations     | `pnpm seed translations`     | None                           | the three translation globals (see below)           |
+| file-transcripts | `pnpm seed file-transcripts` | ⚠ Paid runs — run only by name | transcripts (one queued run per untranscribed file) |
 
 `translations` is the only one in `SCRIPT_RUN_ORDER`, so a bare `pnpm seed`
-runs it alone. The other two are deliberately out of it: one costs money per
-run, and the other is a preview's own content.
+runs it alone. `file-transcripts` is deliberately out of it: every run it
+queues is a paid vendor call.
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -150,46 +149,6 @@ Lexical conversion — are what `translations` reads. A `wm-app-translations`
 script of its own existed until #1169 and was retired as a strict subset of
 this one.
 
-### `preview-fixture` — the content CI puts into every preview
-
-A Railway PR preview forks service configuration and variables, never volume
-data, so it boots with one row anywhere: the admin `previewAdmin` reconciles. The
-pages a change is about therefore showed empty lists, and the only thing a change
-could do about it was admit so in a line of its own description (#1073). CI now
-fills every preview from `seeds/preview-fixture/data.json` — three regions in a
-country → city → venue tree, two accepted managers, two published classes, eight
-registrations and five contact messages across all five statuses — and **goes red
-when a preview exists and the fill does not succeed**.
-
-Three things worth knowing before you edit the data file:
-
-- ⚠ **A registration cannot be created `pending`.** A created-`pending` row
-  queues screening; a screening **pass leaves it `pending`**, and delivery then
-  writes `accepted`, because `registration`'s `deliveredStatus` is `accepted`.
-  Both guards read the status at **create**, so every row is authored with a
-  terminal status — which skips screening — and a `pending` one is reached by a
-  second, update pass. ⚠ Both writes name `import` as their writer
-  (`withActor`), or the lifecycle guard refuses them: a status change naming
-  nobody is refused since #1121, and a re-run writes each row's authored status
-  back. `COLLECTION_METADATA` states a `countWhere` floor for the
-  surviving row rather than trusting the count.
-- ⚠ **Every manager needs `_verified: true`.** `Managers.auth.verify` is
-  configured and the JWT strategy yields no user while that flag is false, so an
-  unaccepted manager is offered by the preview's sign-in picker and signs nobody
-  in.
-- **No real person is in it, structurally.** Every name is invented and every
-  address ends in the reserved `.invalid` TLD, and since #1079 the real-data files
-  are not in the checkout at all — so no CI run holds a real name to leak.
-
-A run against a gated preview needs no `ADMIN_TOKEN`: the CLI asks the preview
-to sign its own admin in, carrying only the `CF_ACCESS_CLIENT_ID` /
-`CF_ACCESS_CLIENT_SECRET` service token that gets the request past Cloudflare
-Access.
-
-sydevs/SahajCloud#1168 replaces this script with a typed fixture the app loads
-at boot. Whichever of the two lands second deletes the seed CLI, the seed route
-and `seeds/lib` if nothing is left using them.
-
 ### `file-transcripts` — the bulk re-request
 
 An audio or video file is transcribed as it is saved since #1016, so this asks
@@ -221,17 +180,9 @@ paginates every collection with `requiresPagination: true`.
 **Batch sizes**: 100 without file uploads, 10 with.
 
 Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`. No
-surviving script needs pagination — the mechanism is the route's and the CLI's,
-and it stays because the request shape above is public.
-
-| Script          | Collection       | Items | Paginated? | Dependencies         |
-| --------------- | ---------------- | ----- | ---------- | -------------------- |
-| preview-fixture | managers         | 2     | No         | None                 |
-| preview-fixture | regions          | 3     | No         | managers             |
-| preview-fixture | forms            | 1     | No         | managers             |
-| preview-fixture | events           | 2     | No         | managers, regions    |
-| preview-fixture | users            | 6     | No         | None                 |
-| preview-fixture | user-submissions | 13    | No         | events, users, forms |
+surviving script declares a collection there, so nothing paginates today. The
+mechanism stays because the request shape above is public — the route's and the
+CLI's, not a per-script feature.
 
 The completion event on a paginated request carries a `pagination` block
 (`offset`, `limit`, `processedCount`, `hasMore`, `nextOffset`,

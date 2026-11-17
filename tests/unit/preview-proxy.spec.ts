@@ -76,7 +76,7 @@ describe('the preview proxy', () => {
     })
 
     const response = await handle(
-      new Request('https://pr-470.cloud-preview.sydevelopers.com/api/seed/preview-fixture', {
+      new Request('https://pr-470.cloud-preview.sydevelopers.com/api/seed/translations', {
         method: 'POST',
       }),
       env(),

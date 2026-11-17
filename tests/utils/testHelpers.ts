@@ -131,6 +131,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
         options: TEST_PG_POOL_OPTIONS,
       },
       push: true, // Auto-create schema (no migrations in tests)
+      // Mirrors `payload.config.ts` off production, where the preview fixture
+      // writes its rows at pinned ids.
+      allowIDOnCreate: true,
       schemaName,
     }),
     jobs: {

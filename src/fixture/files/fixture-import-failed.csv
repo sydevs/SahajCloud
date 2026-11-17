@@ -1,0 +1,3 @@
+title,eventType,country,city,address,postcode,date,startTime,endTime,recurrenceType,weekdays
+Fixture Lost Row One,offline,GB,Fixture Nowhere,1 Void Lane,FX0 0AA,2026-11-09,19:00,20:00,WEEKLY,MO
+Fixture Lost Row Two,offline,GB,Fixture Nowhere,2 Void Lane,FX0 0AB,2026-11-10,19:00,20:00,WEEKLY,TU

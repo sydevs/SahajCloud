@@ -51,7 +51,8 @@ export const validateMailingList: CollectionBeforeChangeHook = async ({
   req,
 }) => {
   const incoming = data?.mailingList as MailingListConfig | undefined
-  if (!incoming?.provider) return data
+  // A preview fixture list is invented, so no provider could confirm it.
+  if (!incoming?.provider || req.context.fixture) return data
 
   const previous = (originalDoc?.mailingList ?? null) as MailingListConfig | null
 

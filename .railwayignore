@@ -36,5 +36,4 @@ local.db
 *.log
 
 # Local-only helpers / docs not needed at runtime
-setup-railway.sh
 RAILWAY_RUNBOOK.md

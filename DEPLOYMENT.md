@@ -126,7 +126,7 @@ moment the pull request exists.
 | The Worker                                          | `preview-proxy/`, deployed by hand (`wrangler deploy --config preview-proxy/wrangler.jsonc`) |
 | The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                  |
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
-| The content a reviewer opens it on                  | `seeds/preview-fixture/`, filled by `ci.yml`                                                 |
+| The content a reviewer opens it on                  | `src/fixture/`, loaded by the app at boot; `ci.yml` waits for `/api/health` to say `loaded`  |
 
 ⚠ **The address step needs more of the Cloudflare token than Images and Stream.** CI reads
 the org secret `CLOUDFLARE_API_TOKEN` (as `CLOUDFLARE_API_KEY`). The step writes KV and attaches

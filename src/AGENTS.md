@@ -18,6 +18,7 @@ split into `plugins/`, `jobs/`, and shared utilities).
 | `src/components/`  | Admin-panel React components (`PascalCase`)                                                                                                                         |
 | `src/app/`         | Next.js routes (admin, REST API, frontend, webhooks). Shared UI for one route group goes in a `_components/` folder there — `_`-prefixed, so Next does not route it |
 | `src/migrations/`  | Payload schema migrations (see `src/migrations/AGENTS.md`)                                                                                                          |
+| `src/fixture/`     | The preview fixture: invented rows every non-production server loads at boot (see `src/fixture/AGENTS.md`)                                                          |
 
 ### `src/plugins/`
 

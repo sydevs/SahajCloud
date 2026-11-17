@@ -12,13 +12,16 @@ import {
 } from '../../seeds/lib/expectedCounts'
 import { getDefaultBatchSize, validatePaginationParam } from '../../seeds/lib/pagination'
 
-/**
- * `preview-fixture` is the only script left that states collection floors, so
- * a case takes its floors from that registry — except where reading one back
- * would bless the defect the case exists to catch, and the value is a literal.
- */
-const FIXTURE_COUNTS = getExpectedCounts('preview-fixture')
+const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
 
+/**
+ * ⚠ **No surviving script states a collection floor**, so nothing here can
+ * exercise `verifyCountsForScript`'s floor arithmetic or a dependency order.
+ * #1169 retired the one-shot importers and #1181 the `preview-fixture` seed,
+ * which was the last registry with steps in it. What is left are the
+ * registry-wide invariants, which hold over an empty registry and fail the day
+ * a script is added that breaks one.
+ */
 describe('Pagination Utilities', () => {
   describe('getDefaultBatchSize', () => {
     it('returns 100 without file uploads', () => {
@@ -34,147 +37,20 @@ describe('Pagination Utilities', () => {
   })
 
   describe('getScriptMetadata', () => {
-    it('returns the fixture script metadata', () => {
-      const metadata = getScriptMetadata('preview-fixture')
-
-      expect(metadata.collections.map((c) => c.slug)).toEqual([
-        'managers',
-        'regions',
-        'forms',
-        'events',
-        'users',
-        'user-submissions',
-      ])
-      expect(metadata.requiresPagination).toBe(false)
-      // Summed across every step, not read off one of them.
-      expect(metadata.totalItems).toBeGreaterThan(
-        Math.max(...metadata.collections.map((c) => c.totalItems)),
-      )
-    })
-
     it('answers with no collections for a script that targets globals', () => {
       expect(getScriptMetadata('translations').collections).toEqual([])
     })
 
-    it('includes a recommended batch size', () => {
-      expect(getScriptMetadata('preview-fixture').recommendedBatchSize).toBeGreaterThan(0)
+    it('includes a recommended batch size even with no collections to page', () => {
+      expect(getScriptMetadata('translations').recommendedBatchSize).toBe(
+        getDefaultBatchSize(false),
+      )
     })
   })
 
   describe('getCollectionMetadata', () => {
-    it('returns metadata for a specific collection', () => {
-      const regions = getCollectionMetadata('preview-fixture', 'regions')
-
-      expect(regions?.slug).toBe('regions')
-      expect(regions?.dependencies).toEqual(['managers'])
-      expect(regions?.requiresPagination).toBe(false)
-    })
-
-    it('returns undefined for non-existent collection', () => {
-      expect(getCollectionMetadata('preview-fixture', 'non-existent')).toBeUndefined()
-    })
-  })
-
-  describe('getExpectedCounts', () => {
-    it('returns the floors a script declares', () => {
-      expect(Object.keys(getExpectedCounts('preview-fixture')).length).toBeGreaterThan(0)
-    })
-  })
-
-  describe('verifyCountsForScript', () => {
-    /** Every floor met exactly, which each case then varies one entry of. */
-    const atTheFloor = () => ({ ...FIXTURE_COUNTS })
-
-    it('passes when actual counts meet expected minimums', () => {
-      const { results, allPassed } = verifyCountsForScript('preview-fixture', atTheFloor())
-
-      expect(allPassed).toBe(true)
-      expect(results).toHaveLength(Object.keys(FIXTURE_COUNTS).length)
-      expect(results.every((r) => r.passed)).toBe(true)
-    })
-
-    it('fails when actual counts are below expected', () => {
-      const { results, allPassed } = verifyCountsForScript('preview-fixture', {
-        ...atTheFloor(),
-        users: FIXTURE_COUNTS.users - 1,
-      })
-
-      expect(allPassed).toBe(false)
-      expect(results.find((r) => r.collection === 'users')?.passed).toBe(false)
-    })
-
-    it('handles missing collections as zero count', () => {
-      const { users: _omitted, ...withoutUsers } = atTheFloor()
-      const { results, allPassed } = verifyCountsForScript('preview-fixture', withoutUsers)
-
-      expect(allPassed).toBe(false)
-      const usersResult = results.find((r) => r.collection === 'users')
-      expect(usersResult?.actual).toBe(0)
-      expect(usersResult?.passed).toBe(false)
-    })
-
-    describe('with pagination', () => {
-      it('adjusts expected count for the paginated collection', () => {
-        const limit = FIXTURE_COUNTS.users - 2
-        const { results, allPassed } = verifyCountsForScript(
-          'preview-fixture',
-          { ...atTheFloor(), users: limit },
-          { collection: 'users', offset: 0, limit },
-        )
-
-        // users: expects min(0 + limit, floor) = limit, actual = limit → passes
-        expect(results.find((r) => r.collection === 'users')?.expected).toBe(limit)
-        expect(allPassed).toBe(true)
-      })
-
-      it('uses full expected count for the collections not being paginated', () => {
-        const { results } = verifyCountsForScript('preview-fixture', atTheFloor(), {
-          collection: 'users',
-          offset: 0,
-          limit: 1,
-        })
-
-        expect(results.find((r) => r.collection === 'regions')?.expected).toBe(
-          FIXTURE_COUNTS.regions,
-        )
-      })
-
-      it('adjusts for an intermediate batch — the offset counts too', () => {
-        // Resuming at row 2 with a batch of 2 expects 4, not 2. Dropping the
-        // `offset` term from `min(offset + limit, floor)` has to fail here.
-        const { results, allPassed } = verifyCountsForScript(
-          'preview-fixture',
-          { ...atTheFloor(), users: 4 },
-          { collection: 'users', offset: 2, limit: 2 },
-        )
-
-        expect(results.find((r) => r.collection === 'users')?.expected).toBe(4)
-        expect(allPassed).toBe(true)
-      })
-
-      it('caps adjusted expected at full count', () => {
-        const { results } = verifyCountsForScript('preview-fixture', atTheFloor(), {
-          collection: 'users',
-          offset: 20,
-          limit: 100,
-        })
-
-        // Expected = min(20 + 100, floor) = floor
-        expect(results.find((r) => r.collection === 'users')?.expected).toBe(FIXTURE_COUNTS.users)
-      })
-
-      it('does not adjust when limit is 0 (bulk import)', () => {
-        const { results, allPassed } = verifyCountsForScript(
-          'preview-fixture',
-          { ...atTheFloor(), users: 1 },
-          { collection: 'users', offset: 0, limit: 0 },
-        )
-
-        const users = results.find((r) => r.collection === 'users')
-        expect(users?.expected).toBe(FIXTURE_COUNTS.users)
-        expect(users?.passed).toBe(false)
-        expect(allPassed).toBe(false)
-      })
+    it('returns undefined for a collection the script does not declare', () => {
+      expect(getCollectionMetadata('translations', 'non-existent')).toBeUndefined()
     })
   })
 })
@@ -182,16 +58,18 @@ describe('Pagination Utilities', () => {
 describe('Collection Metadata', () => {
   describe('dependency ordering', () => {
     it('lists every step after the steps it depends on', () => {
-      const slugs = getScriptMetadata('preview-fixture').collections.map((c) => c.slug)
+      for (const script of ALL_SCRIPTS) {
+        const slugs = getScriptMetadata(script).collections.map((c) => c.slug)
 
-      for (const step of getScriptMetadata('preview-fixture').collections) {
-        for (const dependency of step.dependencies) {
-          // Named first: `indexOf` answers -1 for a step that does not exist,
-          // and -1 is less than every index, so the ordering check blesses it.
-          expect(slugs, `${step.slug} → ${dependency}`).toContain(dependency)
-          expect(slugs.indexOf(dependency), `${step.slug} → ${dependency}`).toBeLessThan(
-            slugs.indexOf(step.slug),
-          )
+        for (const step of getScriptMetadata(script).collections) {
+          for (const dependency of step.dependencies) {
+            // Named first: `indexOf` answers -1 for a step that does not exist,
+            // and -1 is less than every index, so the ordering check blesses it.
+            expect(slugs, `${step.slug} → ${dependency}`).toContain(dependency)
+            expect(slugs.indexOf(dependency), `${step.slug} → ${dependency}`).toBeLessThan(
+              slugs.indexOf(step.slug),
+            )
+          }
         }
       }
     })
@@ -221,8 +99,6 @@ describe('validatePaginationParam', () => {
   })
 })
 
-const ALL_SCRIPTS = Object.keys(EXPECTED_COUNTS) as ScriptName[]
-
 // Each script that states no floor, and the reason it gives. A closed list in
 // both directions: a new `{}` entry fails the membership case, and a reason
 // rewritten into something vaguer fails its own.
@@ -250,42 +126,9 @@ describe('a script that can state no floor says so', () => {
       expect(getCountTargets(script)).toEqual([])
     })
   })
-
-  it('leaves a verifiable script reporting no reason', () => {
-    const { skippedReason, results } = verifyCountsForScript('preview-fixture', {
-      ...FIXTURE_COUNTS,
-    })
-
-    expect(skippedReason).toBeUndefined()
-    expect(results).toHaveLength(Object.keys(FIXTURE_COUNTS).length)
-  })
 })
 
 describe('getCountTargets', () => {
-  it('keeps the script metadata order', () => {
-    expect(getCountTargets('preview-fixture').map((target) => target.collection)).toEqual([
-      'managers',
-      'regions',
-      'forms',
-      'events',
-      'users',
-      'user-submissions',
-    ])
-  })
-
-  it('carries the filter a floor is stated under, and nothing more', () => {
-    const targets = getCountTargets('preview-fixture')
-    const registrations = targets.find((target) => target.collection === 'user-submissions')
-
-    // Literal, not read back from the registry: an unfiltered count passes on
-    // contact rows alone, and `pending` is the status the fixture exists to
-    // show, so a floor counting `accepted` would pass while it was gone.
-    expect(registrations?.where).toEqual({
-      and: [{ status: { equals: 'pending' } }, { type: { equals: 'registration' } }],
-    })
-    expect(targets.find((target) => target.collection === 'managers')?.where).toBeUndefined()
-  })
-
   /**
    * The invariant the seed route's `getDatabaseCounts` rests on. It was broken
    * once: a script expected 40 rows in a collection the route never counted, so

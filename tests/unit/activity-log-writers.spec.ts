@@ -33,6 +33,12 @@ const RESETS = ['collections/Events/lifecycle/verify.ts']
 /** Generated: it declares the column rather than writing it. */
 const IGNORED = ['payload-types.ts']
 
+/**
+ * The preview fixture authors the log an invented row starts with, and only a
+ * changed entry rewrites it (`src/fixture/AGENTS.md`), so it races no writer.
+ */
+const AUTHORED = 'fixture/'
+
 function sourceFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry)
@@ -52,7 +58,9 @@ function wholeArrayWrites(file: string): number[] {
 }
 
 describe('activityLog writers', () => {
-  const files = sourceFiles(SRC).filter((file) => !IGNORED.includes(file))
+  const files = sourceFiles(SRC).filter(
+    (file) => !IGNORED.includes(file) && !file.startsWith(AUTHORED),
+  )
 
   it('reads the files it is meant to', () => {
     // A walk that found nothing would pass every assertion below.
