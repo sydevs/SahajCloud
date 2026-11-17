@@ -57,6 +57,10 @@ repository:
 creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
 a new container before its boot-time migrations finish.
 
+**Serverless is the exception: only previews get it.** Production must never sleep, so
+`.github/workflows/preview-sleep.yml` turns it on for each preview's own copy after CI finishes:
+the app, and the preview's Postgres too once the commit it runs retries while Postgres wakes.
+
 Do not add `railway.toml` or `.railway/railway.ts` back — Railway stops reading Config as Code on
 2026-12-01, and the `.ts` form is applied by a CLI, never on deploy.
 
@@ -127,6 +131,7 @@ moment the pull request exists.
 | The address, created on each push and swept nightly | `scripts/preview-domain.ts`, from `ci.yml` and `cleanup-preview-assets.yml`                  |
 | The app-side gate on the raw Railway host           | `src/middleware.ts`                                                                          |
 | The content a reviewer opens it on                  | `src/fixture/`, loaded by the app at boot; `ci.yml` waits for `/api/health` to say `loaded`  |
+| Sleeping when idle, set after each CI run           | `scripts/preview-sleep.ts`, from `preview-sleep.yml`                                         |
 
 ⚠ **The address step needs more of the Cloudflare token than Images and Stream.** CI reads
 the org secret `CLOUDFLARE_API_TOKEN` (as `CLOUDFLARE_API_KEY`). The step writes KV and attaches
@@ -136,6 +141,13 @@ Domain needs the zone's Workers Routes:Edit. Too narrow, and Cloudflare answers 
 `401 10000: Authentication error`, which reads as a wrong token rather than a narrow one.
 In Actions the value is the org secret `CLOUDFLARE_API_TOKEN`, shared with SahajAtlasWeb;
 only the environment variable the scripts read keeps the `CLOUDFLARE_API_KEY` name.
+
+⚠ **`RAILWAY_API_TOKEN` can change production.** It is a Railway **workspace** token, a repo
+secret, because a project token reaches one environment and every preview is its own. Only
+`preview-sleep.yml` reads it, and that workflow runs from `main` on `workflow_run`, checking out
+nothing from a PR — keep it that way. To rotate it, create a workspace token for SY Developers in
+Railway's account settings, `gh secret set RAILWAY_API_TOKEN -R sydevs/SahajCloud`, then delete
+the old token.
 
 ⚠ **Railway's own address for a preview is shut.** A browser read there is sent
 on to the fixed address and anything else is refused, because Access never sees a
