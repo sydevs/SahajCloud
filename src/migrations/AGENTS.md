@@ -394,29 +394,26 @@ literal, so a rename disarms the guard silently.
    one-shot migration's `up` goes with it, and `migration-down-cascade.spec.ts`
    only asserts there is at least one file.
 
-### Checks (all against throwaway databases, dropped afterwards)
+### What must hold before it merges
 
-Set `DATABASE_URL` to each in turn. A fresh database is `createdb`; run
-`pnpm payload migrate` on it.
+Each against a throwaway database, dropped afterwards. CI proves none of them:
+every lane builds the schema with `push`.
 
-- **A. Same schema.** Fresh DB, old chain (`origin/main`), `pg_dump --schema-only
-  --no-owner` = S_old. Fresh DB, baseline = S_new. Normalise column order inside
-  `CREATE TABLE` (an `ADD COLUMN` appends, a baseline lists the final order) and
-  statement order, then diff. Expect only the names of objects an old table
-  rename left behind (a sequence or primary-key name still carrying the old table
-  name); explain any other line.
-- **B. Old-chain database sees nothing pending.** On the database from A's old
-  run: `pnpm payload migrate:status` lists the baseline as `Yes`, `pnpm payload
-  migrate` runs nothing, and a boot with `NODE_ENV=production` (the real
-  `prodMigrations` path, with `.env` loaded) logs no `Migrating:` line and leaves
-  the row count unchanged.
-- **C. No drift.** `pnpm db:migrations:create probe --skip-empty < /dev/null`
-  writes no files.
-- **D. A fresh boot works.** A `NODE_ENV=production` boot on an empty database runs
-  the baseline, and the preview fixture loads on it with zero failures (set
-  `NEXT_RUNTIME=nodejs` and a non-production `RAILWAY_ENVIRONMENT_NAME`).
-- Also: `migrate:down` then `migrate` on a baseline-built database round-trips,
-  and `migrate:down` on an old-chain database refuses and leaves the schema.
+- **Same schema.** `pg_dump --schema-only` of a fresh database migrated on
+  `origin/main` and of one migrated on the baseline. Normalise statement order
+  and the column order inside each `CREATE TABLE` first — an `ADD COLUMN`
+  appends where a baseline lists the final order. Only an old table rename's
+  leftover object names may differ; explain any other line.
+- **An old-chain database sees nothing pending.** `migrate:status` lists the
+  baseline as `Yes`, `migrate` runs nothing, and a `NODE_ENV=production` boot
+  (the real `prodMigrations` path) logs no `Migrating:` line.
+- **No drift.** `pnpm db:migrations:create probe --skip-empty < /dev/null` writes
+  no files.
+- **A fresh boot works**, and the preview fixture loads on it with zero failures
+  (`NEXT_RUNTIME=nodejs`, a non-production `RAILWAY_ENVIRONMENT_NAME`).
+- **The guard fires where it should and nowhere else.** `migrate:down` refuses on
+  an old-chain database and leaves the schema; `migrate:down` then `migrate`
+  round-trips on a baseline-built one.
 
 ### Merge timing (the rule that makes this safe)
 
