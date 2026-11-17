@@ -35,8 +35,8 @@ export default class FailOnSkipReporter implements Reporter {
       .join('\n')
     console.error(
       `\n${this.skipped.size} smoke spec(s) skipped while PREVIEW_URL was set:\n${list}\n\n` +
-        'A preview answered, so nothing here is skippable. A per-PR preview carries no seeded ' +
-        'content by design — each spec builds its own fixtures (tests/e2e/_helpers/fixtures.ts). ' +
+        'A preview answered, so nothing here is skippable. CI waits for its fixture to load ' +
+        '(src/fixture/), and a spec that writes builds its own records (tests/e2e/_helpers/fixtures.ts). ' +
         'Failing the run rather than reporting it green.\n',
     )
 

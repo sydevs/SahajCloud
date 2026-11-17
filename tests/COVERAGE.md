@@ -156,8 +156,9 @@ closed by `tests/int/frames-by-narrator.int.spec.ts`. The previous gap on
 
 ## Smoke specs (`tests/e2e/`) and dedup analysis
 
-Tier 3 smoke specs run against the per-PR Railway preview environment, which
-carries no content — each spec builds its own fixtures (`tests/AGENTS.md`).
+Tier 3 smoke specs run against the per-PR Railway preview once it reports its
+fixture `loaded`. A spec that only reads uses the fixture's pinned ids; one that
+creates or uploads builds its own records (`tests/AGENTS.md`).
 They cover REST API, auth, and deployment as one cohesive flow.
 
 | Spec                           | REST paths exercised                                                                                                                                                    |
