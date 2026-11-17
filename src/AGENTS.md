@@ -174,14 +174,9 @@ No loose files at the root — every file lives in a named folder:
 - external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
   captcha siteverify) — single-consumer today, but an integration seam
   rather than one endpoint's private helper, and unit-testable without
-  booting it. `lemonfox/` holds the vendor's response half: `languages.ts`
-  (our locales to its language names and back) and `normalize.ts`, which reads
-  its undocumented `verbose_json` — words grouped into the cues a run stores,
-  and the phrases the library's existing transcripts were imported as. The
-  HTTP client itself is `src/jobs/TranscribeRecording/lemonfoxClient.ts`,
-  because the job is its one caller since every request became a queued run
-  (#1016); with one consumer, `tests/unit/lib-boundary.spec.ts` refuses it
-  here
+  booting it. Lemonfox is not here: its HTTP client, its two response readers
+  and the cue grouper they feed all sit in `src/jobs/TranscribeRecording/`,
+  because that queued run is their one caller (#1016)
 - `atomicWrites/` — the two writes a background worker owes a row it read
   before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
   into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
@@ -221,16 +216,18 @@ No loose files at the root — every file lives in a named folder:
   — because four surfaces show the same list. No barrel: import each module
   by its own path
 - `transcripts/` — a recording's transcript, wherever the recording lives
-  (#1016): `sync.ts` starts a run when a recording or its language is saved
-  or, for a video, when Stream has made it, `request.ts` is a re-request and
-  the bounds a paid run needs, `read.ts` the row lookup, a file's cues
-  (batched per request), which files' rows are finished, and which column each
-  kind of recording states its language in, `cues.ts` the cue vocabulary a
-  provider's words are grouped into and the two bounds that cut one,
+  (#1016): `schema.ts` the stored cue shape and the status and provider
+  vocabularies, `bounds.ts` the two time bounds and the phase they decide —
+  kept out of `schema.ts` so the client Transcript tab reads them without
+  pulling zod into the browser, `sync.ts` starts a run when a recording or
+  its language is saved or, for a video, when Stream has made it,
+  `request.ts` is a re-request, gated on those bounds, `read.ts` the row
+  lookup, a file's cues (batched per request), which files' rows are
+  finished, and which column each kind of recording states its language in,
   `language.ts` whether a recording's language is the one being read, and
   `media.ts` which files carry one at all. Meditations, files, lessons, the
-  job and a seed all read it; deep imports, no barrel, because `media.ts` is
-  also read in the browser
+  job and `seeds/file-transcripts` all read it; deep imports, no barrel,
+  because `media.ts` and `bounds.ts` are also read in the browser
 - domain folders shared across 2+ owners (**2+ is enforced** — see "One
   consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
   `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
@@ -263,7 +260,7 @@ cohesive public surface imported as a unit (`@/lib/locales`,
 `@/lib/pageTags`, `@/lib/cascadeDeletion`). Grab-bag and per-owner helper
 folders whose modules are cherry-picked individually use deep imports and
 have **no** barrel: `utilities/`, `logger/`, `lectures/`, `meditations/`,
-`audiences/`, `mapbox/`, `turnstile/`, `lemonfox/`, `schedule/`
+`audiences/`, `mapbox/`, `turnstile/`, `schedule/`
 (`@/lib/schedule/scheduleHooks`). Don't add a barrel that re-exports
 unrelated modules just for symmetry — it can pull server-only code into
 client bundles, hurts tree-shaking, and invites import cycles.

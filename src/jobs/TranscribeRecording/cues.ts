@@ -1,11 +1,12 @@
-import type { TranscriptSegment } from './schema'
+import type { TranscriptSegment } from '@/lib/transcripts/schema'
 
 /**
  * One spoken word with its own timings, in the same milliseconds a cue counts.
  *
- * Here rather than beside the Lemonfox reader that produces it: the grouper
- * below is this app's cue vocabulary, not the vendor's, so a second provider
- * reads into this shape instead of teaching the grouper its own.
+ * The grouper below is this app's cue vocabulary, not the vendor's, so a second
+ * provider reads into this shape instead of teaching the grouper its own. It
+ * lives beside its one reader until there is a second one, which is what moves
+ * it back to `@/lib/transcripts/`.
  */
 export type TimedWord = {
   content: string

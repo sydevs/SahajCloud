@@ -4,8 +4,6 @@ import { extractID } from 'payload/shared'
 
 import { updateIfUnchanged } from '@/lib/atomicWrites/updateIfUnchanged'
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import { localeForLemonfoxLanguage } from '@/lib/lemonfox/languages'
-import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from '@/lib/lemonfox/normalize'
 import type { LocaleCode } from '@/lib/locales'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { findTranscript, type TranscriptSource } from '@/lib/transcripts/read'
@@ -15,11 +13,13 @@ import type { Transcript } from '@/payload-types'
 import { getCloudflareStreamMp4Url, getR2Url } from '@/plugins/storage'
 import { isProductionDeployment } from '@/plugins/storage/previewIsolation'
 
+import { localeForLemonfoxLanguage } from './languages'
 import {
   lemonfoxApiKey,
   requestLemonfoxTranscript,
   TRANSCRIPTION_UNAVAILABLE_ERROR,
 } from './lemonfoxClient'
+import { lemonfoxDetectedLanguage, normalizeLemonfoxCues } from './normalize'
 
 /**
  * A missing key or bucket URL is the deployment's gap, not the recording's: an

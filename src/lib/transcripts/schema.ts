@@ -15,6 +15,10 @@ import { subtitleCue } from '@/lib/utilities/subtitles'
  * here, so no stored row can be stranded by refusing an unknown key — and
  * refusing one is what keeps word timings out, which were 85% of the bytes
  * with no consumer.
+ *
+ * One shape is not one length: the library's transcripts imported before #1016
+ * hold Lemonfox's longer phrases rather than cues, and nothing re-cuts them,
+ * so not every stored segment is bounded by `SUBTITLE_CUE_MAX_CHARS`.
  */
 const transcriptSegmentSchema = z.strictObject(subtitleCue)
 

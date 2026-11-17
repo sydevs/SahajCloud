@@ -3,13 +3,13 @@
  *
  * Inside the job, because the job is the one caller since transcripts belong to
  * recordings (#1016) — every request, a meditation's or a file's, is a queued
- * run. The response readers stay in `@/lib/lemonfox`, which the library seed
- * shares.
+ * run.
  */
 import { glossaryPrompt } from '@/collections/Transcripts/glossary'
 import { serverEnv } from '@/lib/env'
-import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
 import type { LocaleCode } from '@/lib/locales'
+
+import { lemonfoxLanguage } from './languages'
 
 const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcriptions'
 
@@ -45,7 +45,7 @@ export const TRANSCRIPTION_UNAVAILABLE_ERROR =
  *
  * `audioUrl` must be publicly reachable: Lemonfox fetches it itself, so the
  * recording never passes through this process. Returns the parsed JSON body
- * untouched — `normalizeLemonfoxResponse` gives it a shape.
+ * untouched — `normalizeLemonfoxCues` gives it a shape.
  */
 export async function requestLemonfoxTranscript({
   apiKey,
