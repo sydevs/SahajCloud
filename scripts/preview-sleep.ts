@@ -20,7 +20,9 @@
  *
  * Needs the Railway CLI, signed in or given `RAILWAY_API_TOKEN` (a workspace
  * token: a project token reaches one environment, and every preview is its
- * own), and `gh`, signed in or given `GH_TOKEN`.
+ * own), and `gh`, signed in or given `GH_TOKEN`. That token needs
+ * `contents: read` and `checks: read`; without the second, `ciRunning` throws
+ * and nothing sleeps.
  */
 import { execFileSync } from 'node:child_process'
 
@@ -44,6 +46,8 @@ const DEFAULT_BRANCH = 'main'
  * every preview's Postgres quietly stays awake.
  */
 const WAKE_RETRY_PATH = 'src/plugins/postgresWake/wakeRetry.ts'
+/** The `ci.yml` job that tests a preview. */
+const CI_CHECK = 'Lint, Test & Smoke'
 
 interface Environment {
   id: string
@@ -81,6 +85,32 @@ function railwayApi<T>(query: string, variables: Record<string, string> = {}): T
 
 function railwayCli(args: string[]): string {
   return execFileSync('railway', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+}
+
+class GitHubError extends Error {
+  constructor(
+    message: string,
+    readonly stderr: string,
+  ) {
+    super(message)
+  }
+}
+
+/**
+ * One `gh api` read, projected through `jq`. ⚠ It throws on every refusal, 404
+ * included, so a caller that needs one as a *value* catches `GitHubError` and
+ * reads its `stderr` — as `runsWakeRetry` does.
+ */
+function ghApi(path: string, jq: string): string {
+  try {
+    return execFileSync('gh', ['api', path, '--jq', jq], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  } catch (error) {
+    const stderr = String((error as { stderr?: Buffer }).stderr ?? '')
+    throw new GitHubError(`gh api ${path} failed: ${stderr.trim()}`, stderr)
+  }
 }
 
 function loadIds(): Ids {
@@ -185,16 +215,12 @@ function readPitr(environment: string): { enabled: boolean | null; error?: strin
 /** Whether `ref` carries the connection retry, so its preview survives a sleeping Postgres. */
 function runsWakeRetry(ref: string): boolean {
   try {
-    execFileSync(
-      'gh',
-      ['api', '--silent', `repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${ref}`],
-      { stdio: ['ignore', 'ignore', 'pipe'] },
-    )
+    ghApi(`repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${ref}`, '.sha')
     return true
   } catch (error) {
-    const stderr = String((error as { stderr?: Buffer }).stderr ?? '')
-    if (stderr.includes('HTTP 404')) return false
-    throw new Error(`Could not read ${WAKE_RETRY_PATH} at ${ref}: ${stderr.trim()}`)
+    // An absent file is the answer, not a failure: that ref predates the retry.
+    if (error instanceof GitHubError && error.stderr.includes('HTTP 404')) return false
+    throw error
   }
 }
 
@@ -212,6 +238,18 @@ function wakeRetryGap(commit: string): string {
   } catch {
     return `${short} does not carry ${WAKE_RETRY_PATH}`
   }
+}
+
+/**
+ * Whether CI's preview job is still running against `commit`. ⚠ It reads the
+ * job by its check name, which sydevs/SahajCloud#903 already forbids renaming.
+ */
+function ciRunning(commit: string): boolean {
+  const out = ghApi(
+    `repos/${REPOSITORY}/commits/${commit}/check-runs?check_name=${encodeURIComponent(CI_CHECK)}`,
+    '[.check_runs[] | select(.status != "completed")] | length',
+  )
+  return Number(out.trim()) > 0
 }
 
 function describe(action: SleepAction): string {
@@ -299,6 +337,7 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
       pitrEnabled: pitr.enabled,
       sleepApplication: postgres.sleepApplication === true,
     },
+    ciRunning: commit ? ciRunning(commit) : false,
     postgresCanWake,
   }
 

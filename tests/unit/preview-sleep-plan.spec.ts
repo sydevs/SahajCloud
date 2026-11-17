@@ -8,6 +8,7 @@ const freshPreview = (overrides: Partial<PreviewState> = {}): PreviewState => ({
     deployment: { commitHash: 'abc123', manifestSleeps: false, status: 'SUCCESS' },
     sleepApplication: false,
   },
+  ciRunning: false,
   postgres: {
     deployment: { manifestSleeps: false, status: 'SUCCESS' },
     pitrEnabled: true,
@@ -82,6 +83,12 @@ describe('planPreviewSleep', () => {
       expect(planPreviewSleep(state)).toEqual({ skip: `its app deployment is ${status}` })
     },
   )
+
+  it('leaves a preview alone while CI is still testing it', () => {
+    expect(planPreviewSleep(freshPreview({ ciRunning: true }))).toEqual({
+      skip: 'CI is still running against it',
+    })
+  })
 
   it('leaves a preview with no app deployment alone', () => {
     const state = freshPreview()
