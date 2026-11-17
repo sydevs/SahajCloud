@@ -323,6 +323,8 @@ SELECT * FROM payload_migrations ORDER BY id DESC;  -- applied migrations
 \d <table_name>                                     -- table structure (psql)
 ```
 
+**Squashing the chain** is rare and has one hard rule: the baseline keeps the **name of the newest migration on `main`**, because production's `payload_migrations` holds names, and a baseline under a new name looks pending there and crash-loops the boot. Merge it only once production has applied that migration, and with no other migration-adding PR merging in between. The procedure, checks and reset instructions are in [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md), "Squashing the chain".
+
 See [`src/migrations/AGENTS.md`](./src/migrations/AGENTS.md) for the full workflow: the
 non-interactive attempt sequence, the outcome table, the out-of-order snapshot trap, and how to
 reshape a migration that has already deployed to a PR preview.

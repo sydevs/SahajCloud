@@ -312,7 +312,7 @@ write.
   loads the document from the `latest: true` version row, so a key left there
   returns on the next save. Guard the delete with `? '<key>'`: `jsonb - text`
   raises `cannot delete from scalar`, which would abort the boot migration.
-  `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057), and
+  `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057; squashed away, read it at `c70081c0`), and
   this holds for all three translations globals — `stringsSchema` sets
   `additionalProperties` from the group, and every leaf group in all three
   declares it `false`.
@@ -325,7 +325,7 @@ write.
 - **Production's English copy ships as a guarded data migration.** The seed
   files reach only a fresh database, so a new key is otherwise blank in
   production until someone types it into the admin.
-  `20261107_225000_atlas_clock_copy` is the worked example: a new key lands
+  `20261107_225000_atlas_clock_copy` (squashed away, read it at `c70081c0`) is the worked example: a new key lands
   only where English lacks it, a rewording only where the stored value is still
   the seeded original, and both the main row and the `latest: true` version row
   are written. Its `down` is required, not tidy, and it sweeps wider than `up`

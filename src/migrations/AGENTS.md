@@ -18,6 +18,12 @@ a running Postgres (Docker or Railway) for local dev.
 > commits or rolls back together, foreign keys can defer, `ALTER TABLE`
 > renames/retypes a column directly). The old SQLite/D1 constraints no
 > longer apply.
+>
+> **Second squash (2026-11-17).** The 137 Postgres migrations that followed
+> collapsed into one baseline, `20261116_181127_merge_main_snapshot_10.{ts,json}`
+> — the name of the newest migration that was on `main`, on purpose (see
+> "Squashing the chain"). The old files, and the worked examples cited below,
+> are in git history: `git show c70081c0:src/migrations/<name>.ts`.
 
 ## Creating a migration
 
@@ -176,7 +182,7 @@ for a database that holds the value:
   a fresh type instead, exactly as `up` does.
 
 Both were measured against a throwaway database, not reasoned about.
-`20261102_213524_derive_atlas_roles.{ts,json}` is the worked example.
+`20261102_213524_derive_atlas_roles.{ts,json}` is the worked example (squashed away; read it at `c70081c0`).
 
 ### "Exit 0, no new files" is ambiguous — check the snapshot
 
@@ -314,7 +320,7 @@ a sample — the `.ts` is worthless and the `.json` is exactly what the chain
 needs, because it was generated on the merged tree. Replace `up`/`down` with
 empty bodies, say in a docblock which migrations already ship the DDL, and
 keep the file's timestamp so the snapshot stays newest.
-`20260914_175014.{ts,json}` is the worked example. Then prove it healed:
+`20260914_175014.{ts,json}` is the worked example (squashed away; read it at `c70081c0`). Then prove it healed:
 `timeout 300 pnpm db:migrations:create <probe> --skip-empty < /dev/null`
 must write no files.
 
@@ -332,13 +338,128 @@ Drizzle can emit `SELECT new_column FROM old_table`, which fails because the
 old table only has the previous name. Prefer a guarded `ALTER TABLE ...
 RENAME COLUMN` for that narrow case.
 
-## Squashing (preserve data)
+## Squashing the chain
 
-When the migration chain gets painfully large, squash it (see
-`DEPLOYMENT.md`). After pulling a squash commit, reset your local Postgres
-so it no longer carries pre-squash `payload_migrations` rows — drop the
-local database/schema and let `push` recreate it, or re-run `pnpm
-db:migrate` from a clean database.
+**When.** The chain is painfully long (the 2026-11 squash replaced 137 files and
+a 3.8 MB tree), and only then. It is a cleanup, never a prerequisite. Do not
+squash to hide a bad migration: a database that already applied it keeps its
+effect.
+
+### The failure this design prevents
+
+Production's `payload_migrations` table holds the **names** of every migration
+it applied. `migrate` runs any file whose name has no row. A baseline under a
+new name therefore looks pending in production, tries to `CREATE TABLE` tables
+that exist, and the boot-time `prodMigrations` run aborts: a crash-loop on every
+restart. Nothing in CI catches it, because CI and every test lane build the
+schema with `push`, and a PR preview boots an empty database.
+
+### The naming rule
+
+**The baseline's file name is exactly the name of the newest migration on `main`
+at the moment of the squash**, `.ts` and `.json`, and `index.ts` lists only it.
+Production (and any database fully migrated on `main`) already holds that name,
+so it sees nothing pending and never runs the baseline. A fresh database has no
+row and runs the baseline whole. Never give the baseline a new timestamp, and
+never rename it later.
+
+### Procedure
+
+1. **Settle the facts first.**
+   - Production has applied the newest migration on `main`: read it, never write
+     it (`SELECT name, batch FROM payload_migrations ORDER BY id DESC LIMIT 5`,
+     over the public proxy in a `default_transaction_read_only=on` session). Also
+     compare the full list of names to `ls src/migrations/*.ts`.
+   - `gh pr list --state open` and the files of each: list PRs that add a
+     migration (see merge timing).
+   - Check the old chain for data inserts (`grep -l -E 'INSERT|UPDATE|DELETE'`),
+     then dump the data of a freshly migrated database. Only `payload_migrations`
+     rows means the baseline is DDL only. Anything else must be reproduced in
+     `up`.
+2. **Generate, do not hand-write.** In a worktree off `origin/main`: `git rm` every
+   migration `.ts` and `.json`, set `index.ts` to `export const migrations = []`,
+   run `pnpm db:migrations:create baseline --skip-empty < /dev/null` against a
+   throwaway database, then rename the two new files to the newest old name and fix
+   the three names in `index.ts`. The generated `.json` must equal the old newest
+   snapshot except for `id`.
+3. **Keep the `down` guard.** A rollback of the baseline on a database that applied
+   the old chain would drop its whole schema and leave 136 stale rows. The baseline's
+   `down` refuses when `payload_migrations` holds more than one non-dev row.
+4. **Delete what imported the old files**: an integration spec that imports a
+   one-shot migration's `up` goes with it, and `migration-down-cascade.spec.ts`
+   only asserts there is at least one file.
+
+### Checks (all against throwaway databases, dropped afterwards)
+
+Set `DATABASE_URL` to each in turn. A fresh database is `createdb`; run
+`pnpm payload migrate` on it.
+
+- **A. Same schema.** Fresh DB, old chain (`origin/main`), `pg_dump --schema-only
+  --no-owner` = S_old. Fresh DB, baseline = S_new. Normalise column order inside
+  `CREATE TABLE` (an `ADD COLUMN` appends, a baseline lists the final order) and
+  statement order, then diff. Expect only the names of objects an old table
+  rename left behind (a sequence or primary-key name still carrying the old table
+  name); explain any other line.
+- **B. Old-chain database sees nothing pending.** On the database from A's old
+  run: `pnpm payload migrate:status` lists the baseline as `Yes`, `pnpm payload
+  migrate` runs nothing, and a boot with `NODE_ENV=production` (the real
+  `prodMigrations` path, with `.env` loaded) logs no `Migrating:` line and leaves
+  the row count unchanged.
+- **C. No drift.** `pnpm db:migrations:create probe --skip-empty < /dev/null`
+  writes no files.
+- **D. A fresh boot works.** A `NODE_ENV=production` boot on an empty database runs
+  the baseline, and the preview fixture loads on it with zero failures (set
+  `NEXT_RUNTIME=nodejs` and a non-production `RAILWAY_ENVIRONMENT_NAME`).
+- Also: `migrate:down` then `migrate` on a baseline-built database round-trips,
+  and `migrate:down` on an old-chain database refuses and leaves the schema.
+
+### Merge timing (the rule that makes this safe)
+
+1. **Merge only after production has applied the newest migration on `main`**,
+   and the baseline's name is that migration. If `main` gained a migration since
+   the branch was cut, redo the squash: the name is stale.
+2. **No other migration-adding PR may merge between this PR's base and its
+   merge.** The baseline holds exactly the schema as of its base. A migration that
+   lands in between is not in the baseline's DDL or its `.json`, so the merge
+   either conflicts in `index.ts` or, resolved by keeping both, leaves a fresh
+   database running the baseline and then that migration against a snapshot that
+   never saw it: the next `migrate:create` re-emits its DDL. Redo the squash on the
+   new `main` (and its newest name).
+3. After merging, an open PR that adds a migration must rebase: delete its
+   old-chain context, keep its own migration, and regenerate its `.json` against
+   the baseline (`pnpm db:migrations:create`) so the snapshot chain starts from the
+   baseline. Reset its preview (below).
+
+### Environments that applied only part of the old chain
+
+A database that holds some old names but **not the baseline's name** sees the
+baseline as pending and crashes on its first `CREATE`. Who can be in that state:
+
+| Database | State | What to do |
+| --- | --- | --- |
+| Production | Has the newest name (verified before merge) | Nothing |
+| A Railway PR preview whose branch was cut before the squash and has deployed | Holds an older subset | Reset it: `railway environment delete SahajCloud-pr-<n> --yes`; the next push recreates it empty, and the fixture reloads |
+| A preview of a PR that adds its own migration, after it rebases onto the squash | Holds old names plus its own | Same reset |
+| A local dev database built by `push` | Holds only the `dev` row (batch -1), no names | Nothing; it never applied migrations |
+| A local database built by `pnpm payload migrate` | Holds the old names | Fully migrated on `main`: nothing. Behind `main`: drop and recreate it, then `pnpm payload migrate` |
+| Test databases (`payload_test`, CI) | `push`, never migrations | Nothing |
+
+### How Payload treats `payload_migrations` rows with no file (3.93)
+
+Read from `payload/dist/database/migrations` and `@payloadcms/drizzle/dist`, and
+run against a database that applied the old chain:
+
+| Command | After the squash |
+| --- | --- |
+| boot (`prodMigrations`), `migrate` | Walks the **files** only. A row with no file is ignored; nothing errors |
+| `migrate:status` | Lists the files only. Orphan rows are invisible |
+| `migrate:create` | Reads only the newest `.json` here. Rows play no part |
+| `migrate:down` | ⚠ Takes the latest **batch** and runs `down` newest name first. Without the baseline's guard it would drop the entire schema, then throw `Migration <x> not found locally.` for the next orphan row. The guard refuses first |
+| `migrate:refresh` | Exits 1 at the oldest orphan row (`not found locally`) before changing anything |
+| `migrate:reset` | Reaches the baseline's `down`, which the guard refuses |
+| `migrate:fresh` | Works: drops the database, then runs the baseline. Use it to reset a local database |
+
+Never run `migrate:down`, `migrate:refresh` or `migrate:reset` against production.
 
 ## Augmenting generated migrations
 
