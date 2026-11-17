@@ -374,6 +374,7 @@ describe('pollFixture', () => {
     })
     const outcome = pollFixture({
       fetchHealth,
+      expectedSha: HEAD_SHA,
       timeoutMs: 60_000,
       pollIntervalMs: 10_000,
       sleep: async (ms) => {
@@ -386,18 +387,36 @@ describe('pollFixture', () => {
   }
 
   it('waits a load out until it ends', async () => {
-    const h = run([{ fixture: 'loading' }, new Error('HTTP 502'), { fixture: 'loaded' }])
+    const h = run([
+      { commit: HEAD_SHA, fixture: 'loading' },
+      new Error('HTTP 502'),
+      { commit: HEAD_SHA, fixture: 'loaded' },
+    ])
     await expect(h.outcome).resolves.toBe('loaded')
     expect(h.fetchHealth).toHaveBeenCalledTimes(3)
   })
 
   it.each(['failed', 'off'] as const)('ends at once on %s', async (fixture) => {
-    await expect(run([{ fixture }]).outcome).resolves.toBe(fixture)
+    await expect(run([{ commit: HEAD_SHA, fixture }]).outcome).resolves.toBe(fixture)
   })
 
   it('names a load still running at the deadline, a build with no field, and silence apart', async () => {
-    await expect(run([{ fixture: 'loading' }]).outcome).resolves.toBe('loading')
-    await expect(run([{ status: 'ok' }]).outcome).resolves.toBe('fieldless')
+    await expect(run([{ commit: HEAD_SHA, fixture: 'loading' }]).outcome).resolves.toBe('loading')
+    await expect(run([{ commit: HEAD_SHA, status: 'ok' }]).outcome).resolves.toBe('fieldless')
     await expect(run([new Error('HTTP 502')]).outcome).resolves.toBe('silent')
+  })
+
+  // A replica still on the previous deploy reports that deploy's fixture as
+  // `loaded`. Believing it greens the lane on rows this PR's links never open.
+  it('refuses a terminal answer from another commit, and waits for the head one', async () => {
+    await expect(run([{ commit: EARLIER_SHA, fixture: 'loaded' }]).outcome).resolves.toBe('behind')
+    await expect(run([{ fixture: 'loaded' }]).outcome).resolves.toBe('behind')
+
+    const h = run([
+      { commit: EARLIER_SHA, fixture: 'loaded' },
+      { commit: HEAD_SHA, fixture: 'loaded' },
+    ])
+    await expect(h.outcome).resolves.toBe('loaded')
+    expect(h.fetchHealth).toHaveBeenCalledTimes(2)
   })
 })

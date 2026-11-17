@@ -303,11 +303,17 @@ export async function pollHealth(deps: HealthDeps): Promise<HealthOutcome> {
  * `loaded` and `failed` are the load's own answers. `off` means the preview
  * decided not to load at all, which on a preview is a gate that went wrong, and
  * `fieldless` a build older than the field. `loading` at the deadline is a load
- * that never ended, and `silent` a host that never answered.
+ * that never ended, `behind` a host that never answered as the head commit, and
+ * `silent` one that never answered at all.
  */
-export type FixtureOutcome = 'failed' | 'fieldless' | 'loaded' | 'loading' | 'off' | 'silent'
+export type FixtureOutcome =
+  'behind' | 'failed' | 'fieldless' | 'loaded' | 'loading' | 'off' | 'silent'
 
 export const FIXTURE_ERRORS: Record<Exclude<FixtureOutcome, 'loaded'>, string> = {
+  behind:
+    '::error title=The preview never reported its fixture as this commit::`/api/health` answered ' +
+    'for the whole budget from a build that is not this head commit, so its `fixture` word ' +
+    "describes the previous deploy's rows. Check the PR environment's deploy list in Railway.",
   failed:
     '::error title=The preview fixture failed to load::`/api/health` reports `fixture: failed`. ' +
     'The deploy log names each row Payload refused, as `[fixture] <collection> <id> failed to ' +
@@ -328,11 +334,20 @@ export const FIXTURE_ERRORS: Record<Exclude<FixtureOutcome, 'loaded'>, string> =
     "fixture loaded. Read the PR environment's deploy logs in Railway.",
 }
 
-export type FixtureDeps = Omit<HealthDeps, 'expectedSha'>
+export type FixtureDeps = HealthDeps
 
-/** Poll until the preview's fixture load ends, or the deadline passes. */
+/**
+ * Poll until the preview's fixture load ends, or the deadline passes.
+ *
+ * ⚠ **Every answer is re-checked against `expectedSha`**, as #1168 asks, and an
+ * answer from any other build is waited out rather than believed. Discovery
+ * pinned the head commit a step earlier, but a preview can answer from a
+ * replica still serving the previous deploy — and that build reports `loaded`
+ * about the *previous* fixture, so the lane would go green on rows the PR's
+ * links do not open.
+ */
 export async function pollFixture(deps: FixtureDeps): Promise<FixtureOutcome> {
-  const { fetchHealth, timeoutMs, pollIntervalMs, sleep, now, log } = deps
+  const { fetchHealth, expectedSha, timeoutMs, pollIntervalMs, sleep, now, log } = deps
   const deadline = now() + timeoutMs
   let attempt = 0
   let last: FixtureOutcome = 'silent'
@@ -341,13 +356,18 @@ export async function pollFixture(deps: FixtureDeps): Promise<FixtureOutcome> {
     attempt++
     try {
       const body = await fetchHealth()
+      const serving = servingVerdict(body, expectedSha) === 'serving'
       const fixture = isRecord(body) ? body.fixture : undefined
-      if (fixture === 'loaded' || fixture === 'failed' || fixture === 'off') {
+      if (serving && (fixture === 'loaded' || fixture === 'failed' || fixture === 'off')) {
         log(`fixture ${fixture} after ${attempt} attempt(s)`)
         return fixture
       }
-      last = fixture === 'loading' ? 'loading' : 'fieldless'
-      log(`fixture attempt ${attempt}: ${String(fixture ?? 'no field')}`)
+      last = !serving ? 'behind' : fixture === 'loading' ? 'loading' : 'fieldless'
+      log(
+        serving
+          ? `fixture attempt ${attempt}: ${String(fixture ?? 'no field')}`
+          : `fixture attempt ${attempt}: answered from another commit`,
+      )
     } catch (err) {
       log(`fixture attempt ${attempt}: ${(err as Error).message}`)
     }

@@ -123,6 +123,7 @@ jobs:
         if: ${{ steps.address.outputs.fixed_url != '' }}
         env:
           PREVIEW_URL: ${{ steps.preview.outputs.preview_url }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm tsx scripts/wait-preview-fixture.ts
 
       - name: Run smoke specs against the preview
