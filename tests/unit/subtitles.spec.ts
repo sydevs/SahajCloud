@@ -7,7 +7,7 @@ import {
   SUBTITLE_CUE_MAX_CHARS,
   SUBTITLE_CUE_MAX_GAP_MS,
   type TimedWord,
-} from '@/lib/transcripts/cues'
+} from '@/jobs/TranscribeRecording/cues'
 import { subtitlesSchema, subtitlesZodSchema } from '@/lib/utilities/subtitles'
 
 /**

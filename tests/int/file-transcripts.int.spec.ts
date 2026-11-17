@@ -11,7 +11,7 @@
  * checked against the code they stand in for:
  *
  * - The body is `verbose_json` with per-segment word timings and a top-level
- *   `language` name, which is what `src/lib/lemonfox/normalize.ts` reads.
+ *   `language` name, which is what `src/jobs/TranscribeRecording/normalize.ts` reads.
  * - `getR2Url` is mocked at the `@/plugins/storage` barrel, where the job
  *   imports it: `CLOUDFLARE_R2_DELIVERY_URL` is unset in the lane, so the real
  *   one answers `undefined` and every run would refuse before the vendor.

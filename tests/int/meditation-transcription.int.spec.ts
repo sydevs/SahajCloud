@@ -14,7 +14,7 @@
  *
  * - The body shape is `{ segments: [{ text, start, end, words }] }` in seconds,
  *   with the word timings a run asks for (`wordTimings: true`).
- *   Checked against `src/lib/lemonfox/normalize.ts`, the
+ *   Checked against `src/jobs/TranscribeRecording/normalize.ts`, the
  *   one normaliser, which is the real code under these assertions.
  * - `LEMONFOX_API_KEY` is `''` in `vitest.config.mts`, so the unmocked key
  *   reader returns `undefined`. The mock's default overrides that on purpose:

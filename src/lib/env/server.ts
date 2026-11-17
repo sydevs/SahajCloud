@@ -128,9 +128,9 @@ const ServerEnvSchema = ClientEnvSchema.extend({
 
   /**
    * Lemonfox speech-to-text API key, for meditation transcripts
-   * (`src/lib/lemonfox`). Optional, and an empty value counts as unset — every
-   * other third-party key here is optional, and a required one would refuse to
-   * boot every environment without it.
+   * (`src/jobs/TranscribeRecording/`). Optional, and an empty value counts as
+   * unset — every other third-party key here is optional, and a required one
+   * would refuse to boot every environment without it.
    *
    * Without it, transcription is unavailable: a request writes a failed row
    * saying so. Nothing stands in for a real transcript (#897, success line 13).

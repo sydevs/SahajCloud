@@ -7,19 +7,19 @@
  *
  * Fixture pre-mortem: these bodies claim to be what Lemonfox's
  * OpenAI-compatible `verbose_json` returns. Verified against the shape the
- * normaliser declares in `src/lib/lemonfox/normalize.ts` —
+ * normaliser declares in `src/jobs/TranscribeRecording/normalize.ts` —
  * `segments[]` of `{ text, start, end }`, with word timings arriving either on
  * each segment (WhisperX) or in one top-level list (OpenAI).
  */
 import { describe, expect, it } from 'vitest'
 
-import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 import {
   lemonfoxDetectedLanguage,
   normalizeLemonfoxCues,
   normalizeLemonfoxResponse,
   normalizeLemonfoxWords,
-} from '@/lib/lemonfox/normalize'
+} from '@/jobs/TranscribeRecording/normalize'
+import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
 
 const PER_SEGMENT_WORDS = {
   text: 'Place your attention. Let the thoughts settle.',

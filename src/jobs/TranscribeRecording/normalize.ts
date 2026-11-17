@@ -1,7 +1,6 @@
 /**
- * Here rather than beside the HTTP client, because two writers share it: a live
- * transcription, and the import of the library's existing transcript files.
- * Nothing in this module fetches.
+ * Separate from the HTTP client beside it: nothing here fetches, so a recorded
+ * body is this module's whole input.
  *
  * A run stores subtitle-length cues made from the word timings, whatever the
  * recording (#1016): one shape serves a Path Step's subtitles and a
@@ -13,8 +12,9 @@
 import { z } from 'zod'
 
 import { ExpectedJobFailure } from '@/lib/jobs/expectedFailure'
-import { groupWordsIntoCues, type TimedWord } from '@/lib/transcripts/cues'
 import type { TranscriptSegment } from '@/lib/transcripts/schema'
+
+import { groupWordsIntoCues, type TimedWord } from './cues'
 
 /**
  * Lemonfox exposes an OpenAI-compatible `verbose_json`, but documents no

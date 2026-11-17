@@ -16,8 +16,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { glossaryPrompt } from '@/collections/Transcripts/glossary'
+import { lemonfoxLanguage } from '@/jobs/TranscribeRecording/languages'
 import { requestLemonfoxTranscript } from '@/jobs/TranscribeRecording/lemonfoxClient'
-import { lemonfoxLanguage } from '@/lib/lemonfox/languages'
 import { LOCALES } from '@/lib/locales'
 
 const AUDIO_URL = 'https://media.example.test/meditations/evening-calm-abc123.mp3'
