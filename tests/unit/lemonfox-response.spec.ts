@@ -7,8 +7,8 @@
  * Fixture pre-mortem: these bodies claim to be what Lemonfox's
  * OpenAI-compatible `verbose_json` returns. Verified against the shape the
  * normaliser declares in `src/jobs/TranscribeRecording/normalize.ts` —
- * `segments[]` of `{ text, start, end }`, with word timings arriving either on
- * each segment (WhisperX) or in one top-level list (OpenAI).
+ * `segments[]` carrying `start`, with word timings arriving either on each
+ * segment (WhisperX) or in one top-level list (OpenAI).
  */
 import { describe, expect, it } from 'vitest'
 
@@ -97,6 +97,8 @@ describe('normalizeLemonfoxCues', () => {
 describe('lemonfoxDetectedLanguage', () => {
   it('reads the language the vendor reports', () => {
     expect(lemonfoxDetectedLanguage({ language: 'czech', segments: [] })).toBe('czech')
+    // A segment omitting a field nothing reads must not cost the language too.
+    expect(lemonfoxDetectedLanguage({ language: 'czech', segments: [{ start: 0 }] })).toBe('czech')
   })
 
   it('answers nothing for a body without one, or one it cannot read', () => {
@@ -227,6 +229,16 @@ describe('normalizeLemonfoxWords', () => {
   it('answers no words for a body with no aligned speech', () => {
     expect(normalizeLemonfoxWords({ segments: [{ start: 0, end: 4, text: 'hmm' }] })).toEqual([])
     expect(normalizeLemonfoxWords({})).toEqual([])
+  })
+
+  // #1177 took the last reader of a segment's `text` and `end`. Requiring
+  // either refuses a whole body over a field no cue is built from.
+  it('reads a segment that omits the fields nothing reads', () => {
+    expect(
+      normalizeLemonfoxWords({
+        segments: [{ start: 0, words: [{ word: 'Place', start: 0.1, end: 0.6 }] }],
+      }),
+    ).toEqual([{ content: 'Place', startTimeMs: 100, endTimeMs: 600 }])
   })
 
   it('refuses a body it cannot read', () => {

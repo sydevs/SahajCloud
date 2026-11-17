@@ -27,10 +27,15 @@ const rawWordSchema = z.object({
   end: z.number().optional(),
 })
 
+/**
+ * `start` orders the segments, so it is required. Nothing reads the rest since
+ * #1177 dropped the phrase reader, and the vendor documents no schema — so
+ * requiring one would refuse a whole body over a field no one reads.
+ */
 const rawSegmentSchema = z.object({
-  text: z.string(),
+  text: z.string().optional(),
   start: z.number(),
-  end: z.number(),
+  end: z.number().optional(),
   words: z.array(rawWordSchema).optional(),
 })
 
