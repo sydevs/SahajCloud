@@ -30,6 +30,9 @@ describe('planPreviewSleep', () => {
     })
   })
 
+  // Recovery on with no wake retry is a state the caller builds: it reads
+  // point-in-time recovery whenever it reads the Postgres, and this gate is the
+  // plan's alone.
   it('leaves Postgres awake behind an app with no wake retry', () => {
     expect(planPreviewSleep(freshPreview({ postgresCanWake: false }))).toEqual({
       actions: [

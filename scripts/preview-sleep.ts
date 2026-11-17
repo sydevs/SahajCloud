@@ -267,7 +267,7 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
     app: { deployment: appDeployment, sleepApplication: app.sleepApplication === true },
     postgres: {
       deployment: deploymentState(postgres),
-      pitrEnabled: postgresCanWake && pitrEnabled(env.name),
+      pitrEnabled: pitrEnabled(env.name),
       sleepApplication: postgres.sleepApplication === true,
     },
     postgresCanWake,
