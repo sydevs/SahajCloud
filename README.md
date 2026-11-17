@@ -66,7 +66,7 @@ A headless content management system built with **Next.js 16** and **PayloadCMS 
 | `pnpm test:smoke`     | Run smoke specs against a deployed preview (Playwright)                |
 | `pnpm generate:types` | Generate TypeScript types from the Payload schema                      |
 | `pnpm db:migrate`     | Apply pending database migrations                                      |
-| `pnpm seed`           | Seed local data                                                        |
+| `pnpm seed`           | Seed English copy into the translation globals                         |
 
 ## Environment Configuration
 

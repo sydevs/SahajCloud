@@ -1,7 +1,7 @@
 /**
  * Select-option arrays for the Events collection enums.
  *
- * Values mirror the Atlas source enums (see seeds/atlas/MIGRATION_PLAN.md):
+ * Values mirror the legacy Atlas source enums the #605 migration imported:
  * Rails STI / integer enums / Ruby bitmasks are remapped to these strings by
  * the Phase 3 importer.
  */

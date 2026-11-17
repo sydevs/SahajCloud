@@ -26,7 +26,7 @@ export const queueTranscription: CollectionAfterChangeHook = async ({ doc, opera
   if (req.context.fixture) return doc
   // A row created with cues — counted by `stampSegmentCount` before the write —
   // is an import of a transcript that already exists
-  // (`seeds/meditation-transcripts/`), not a request to produce one. Queueing
+  // (the one-off #897 import), not a request to produce one. Queueing
   // there would pay the vendor to re-transcribe the whole library.
   if (doc.segmentCount) return doc
 

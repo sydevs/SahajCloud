@@ -272,10 +272,7 @@ export const Regions: CollectionConfig = {
                   // country, a region or state, a city, or a venue — which
                   // Geocoding v6 holds no POI layer for, so it is picked by
                   // its address. AddressSearchField reads this live off the
-                  // `level` field. The importer's twin is `TYPES_BY_LEVEL`
-                  // (`src/lib/mapbox/geocoder.ts`) for the first three; it
-                  // carries no venue row at all, placing one by its postal
-                  // address through `geocodeVenue` instead.
+                  // `level` field.
                   searchTypesField: 'level',
                   searchTypesByValue: {
                     country: 'country',

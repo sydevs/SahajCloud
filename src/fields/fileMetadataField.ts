@@ -16,7 +16,7 @@ import { jsonField } from './jsonField'
  * every save, including one that never touched this column, so
  * `additionalProperties: false` would make such a row unsaveable rather than
  * catch a bug. Declaring the one key every writer sets still buys the generated
- * type, which is what `BaseImporter` and `MediaUploader` read.
+ * type, which is what `BaseImporter` reads.
  */
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
   return jsonField({

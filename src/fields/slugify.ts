@@ -7,8 +7,7 @@ import slugify from 'slugify'
  * (`Москва → ""`, which then needs disambiguation or fails the slug constraint).
  *
  * This is the default `slugify` for every {@link slugField}, so any collection
- * with non-Latin titles/names gets readable slugs (`Москва → "moskva"`). Seed
- * importers reuse it so seeded and admin-generated slugs agree.
+ * with non-Latin titles/names gets readable slugs (`Москва → "moskva"`).
  *
  * `strict` drops anything that isn't `[a-z0-9-]` after transliteration; `lower`
  * lowercases. Returns `''` for empty/blank input (callers that require a

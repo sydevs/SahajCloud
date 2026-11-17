@@ -152,7 +152,7 @@ No loose files at the root — every file lives in a named folder:
 - `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
 - `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
   set) + `lexicalHooks`, plus the two conversions either way:
-  `plainTextToLexical` (what the Atlas importer writes in) and
+  `plainTextToLexical` (what the class import writes in) and
   `lexicalToPlainText`. Never re-export either from the barrel — that is the
   editor presets, so a caller reaching one through it would pull the whole
   Lexical config. Nothing else may flatten Lexical: a second spelling under

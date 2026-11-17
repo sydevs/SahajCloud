@@ -1,9 +1,8 @@
 import { z } from 'zod'
 
 /**
- * Parser for subtitle payloads arriving from **outside** the CMS — the
- * Storyblok importer reads them off a third-party response before anything is
- * written. Payload validates the stored column itself (see
+ * Parser for subtitle payloads arriving from **outside** the CMS — cues read
+ * off a third-party response by an importer, before anything is written. Payload validates the stored column itself (see
  * `subtitlesSchema` below), so this is not a second gate on writes.
  *
  * It is the same cue shape the column declares below — one literal, read in two

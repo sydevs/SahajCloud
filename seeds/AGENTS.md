@@ -1,7 +1,14 @@
 # Data Seed Scripts
 
-Scripts that seed content from external sources into Payload CMS. All
-scripts use `BaseImporter` for idempotent, resilient imports.
+Scripts that write content into Payload CMS from a committed data file or from
+what the target already holds. Every script extends `BaseImporter` for
+idempotent, resilient runs.
+
+⚠ **The one-shot content migrations are gone** (#1169). The legacy We Meditate
+database, Storyblok, the meditation library, Cloudinary tags and the Sahaj Atlas
+sync each ran to completion, so their importers, data dumps and `pnpm
+atlas:sync` were deleted rather than left to rot against a schema they no longer
+match. What is here is what is still run.
 
 ## Quick start
 
@@ -70,71 +77,18 @@ POST /api/seed/<script>?collection=X&offset=0&limit=25  # Paginated import
 ```
 
 Requires an admin session (a Manager with `admin: true`). The response is
-Server-Sent Events (SSE) with progress updates. Scripts: `tags`,
-`wemeditate`, `meditations`, `storyblok`, `atlas`, `atlas-reset`,
-`file-transcripts`.
-
-## Pagination support
-
-Pagination splits a large import across multiple HTTP requests. The CLI
-paginates every collection with `requiresPagination: true`.
-
-1. The CLI fetches metadata (GET) to learn batch sizes.
-2. It paginates when metadata says `requiresPagination: true`.
-3. Collections import in dependency order.
-4. Each request is stateless — ID maps rebuild from the database.
-
-**Batch sizes**: 100 without file uploads, 10 with.
-
-Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`.
-Atlas's floors ride in its build manifest instead (`data` below), because they
-change with every refresh:
-
-| Script                 | Collection       | Items | Paginated? | Dependencies            |
-| ---------------------- | ---------------- | ----- | ---------- | ----------------------- |
-| tags                   | user-choices     | 27    | No         | None                    |
-| tags                   | music-tags       | 7     | No         | None                    |
-| wemeditate             | authors          | 18    | No         | None                    |
-| wemeditate             | albums           | 8     | No         | None                    |
-| wemeditate             | music            | 27    | No         | albums                  |
-| wemeditate             | pages            | 60    | Yes        | authors                 |
-| meditations            | narrators        | 2     | No         | None                    |
-| meditations            | frames           | 60    | Yes        | None                    |
-| meditations            | meditations      | 73    | Yes        | narrators, frames, tags |
-| meditation-transcripts | transcripts      | 126   | No         | meditations             |
-| file-transcripts       | transcripts      | data  | No         | files                   |
-| storyblok              | lessons          | 17    | Yes        | None                    |
-| storyblok              | lectures         | 0     | No         | None                    |
-| atlas                  | managers         | data  | No         | None                    |
-| atlas                  | regions          | data  | No         | managers                |
-| atlas                  | users            | data  | Yes        | None                    |
-| atlas                  | events           | data  | Yes        | managers, regions       |
-| atlas                  | user-submissions | data  | Yes        | events, users           |
-| atlas                  | clients          | data  | No         | managers                |
-
-**Meditations note**: targeting `collection=meditations` also runs
-`narrators`, `frames`, and `tags` in bulk (unpaginated) in the same
-request, so keyframe and tag ID maps are populated before the meditations
-themselves process, paginated if enabled.
-
-The completion event on a paginated request carries a `pagination` block
-(`offset`, `limit`, `processedCount`, `hasMore`, `nextOffset`,
-`collection`) beside the summary. The CLI reads it to drive the next batch
-automatically — printing per-batch progress as it goes.
+Server-Sent Events (SSE) with progress updates.
 
 ## Available scripts
 
-| Script                 | Command                            | Prerequisites                                      | Target Collections                                          |
-| ---------------------- | ---------------------------------- | -------------------------------------------------- | ----------------------------------------------------------- |
-| storyblok              | `pnpm seed storyblok`              | STORYBLOK_ACCESS_TOKEN                             | lessons, images, files                                      |
-| wemeditate             | `pnpm seed wemeditate`             | data.json (pre-extracted)                          | pages, authors, page-tags, albums                           |
-| meditations            | `pnpm seed meditations`            | Run `tags` + `wemeditate` first, data.json         | meditations, frames, music, narrators                       |
-| meditation-transcripts | `pnpm seed meditation-transcripts` | The meditations the transcripts were made from     | transcripts                                                 |
-| tags                   | `pnpm seed tags`                   | None                                               | user-choices, music-tags                                    |
-| atlas                  | `pnpm seed atlas`                  | `pnpm atlas:sync build` (local data, below)        | managers, regions, users, events, user-submissions, clients |
-| atlas-reset            | `pnpm seed atlas-reset`            | ⚠ Destructive — run only by name, before a re-sync | events, regions, users, user-submissions (emptied)          |
-| file-transcripts       | `pnpm seed file-transcripts`       | ⚠ Paid runs — run only by name                     | transcripts (one queued run per untranscribed file)         |
-| translations           | `pnpm seed translations`           | None                                               | the three translations globals (see below)                  |
+| Script           | Command                      | Prerequisites                  | Targets                                             |
+| ---------------- | ---------------------------- | ------------------------------ | --------------------------------------------------- |
+| translations     | `pnpm seed translations`     | None                           | the three translation globals (see below)           |
+| file-transcripts | `pnpm seed file-transcripts` | ⚠ Paid runs — run only by name | transcripts (one queued run per untranscribed file) |
+
+`translations` is the only one in `SCRIPT_RUN_ORDER`, so a bare `pnpm seed`
+runs it alone. `file-transcripts` is deliberately out of it: every run it
+queues is a paid vendor call.
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -189,90 +143,51 @@ A key a locale has no translation for is **omitted, never blank**: the
 client-read English merge serves English for it, and a blank would defeat
 that merge.
 
-**Seed order** for a full seed:
+⚠ **`seeds/wm-app-translations/` holds data, not a script.** Its
+`data.en.json` and its `lexicalConverter.ts` — the seed's own Markdown →
+Lexical conversion — are what `translations` reads. A `wm-app-translations`
+script of its own existed until #1169 and was retired as a strict subset of
+this one.
 
-1. `pnpm seed tags` — creates tag definitions
-2. `pnpm seed wemeditate` — creates albums (music needs albums)
-3. `pnpm seed meditations` — creates meditations and music (matches music
-   to albums by credit/artist)
-
-`atlas` is **independent of the chain above** — it populates a disjoint
-set of collections and can run at any point. Its own six collections have
-an internal order the importer handles. `SCRIPT_RUN_ORDER` in
-[run.ts](run.ts) places it last.
-
-Atlas reads nine files from `seeds/atlas/data/` — eight tables and a build
-manifest carrying the run's verification floors. ⚠ **They are personal data,
-gitignored, and built locally** from the legacy Atlas's Heroku database by
-`pnpm atlas:sync` (fetch → build → groom → check → record). The CLI uploads
-them with the seed request, so a deployed target needs nothing on disk. The
-grooming lives in a local overlay that each refresh re-applies to the rows
-Atlas has not changed. A re-sync empties the target with `pnpm seed
-atlas-reset`, then seeds with `--update`. See [atlas/AGENTS.md](atlas/AGENTS.md)
-("The sync pipeline") for the procedure, and
-[atlas/MIGRATION_PLAN.md](atlas/MIGRATION_PLAN.md) for the importer design.
-
-### `meditation-transcripts` — where the data came from, and the id it cannot trust
-
-`data.json` holds the 126 transcripts the library's recordings were already
-transcribed into. The source files live on `proposal/897-transcripts`, which is
-**reference and never merges** — only its data enters this repository, through
-`generate.ts`. To regenerate:
-
-```bash
-mkdir -p /tmp/897-transcripts
-git archive origin/proposal/897-transcripts seeds/meditation-transcripts \
-  | tar -x -C /tmp/897-transcripts --strip-components=2
-pnpm tsx seeds/meditation-transcripts/generate.ts /tmp/897-transcripts
-git diff --exit-code seeds/meditation-transcripts/data.json   # reproducible
-```
-
-The conversion runs each file through `normalizeLemonfoxResponse`
-(`src/lib/lemonfox/normalize.ts`), not a hand-written
-`.map()`, so one definition of "what a phrase is" serves this import and the
-live transcription — and the 86,571 word timings are dropped by the code that
-will drop them at runtime.
-
-⚠ **Each entry's `meditationId` is production's row number, so it is a hint and
-the filename is the proof.** The meditations seed assigns its own ids, so on any
-other database id 5 is a different recording, and a transcript on the wrong
-meditation is worse than none. An entry imports only when the resolved
-meditation's `filename`, less any `preview-` prefix, equals the entry's
-`audioFilename`. On a locally seeded database expect most entries to skip on a
-disagreeing filename — that is the guard working, not a failure.
-
-Everything unresolved is one warning and a skip, never an error: four of the 126
-name a meditation production no longer has (121, 122, 143, and 151, the one
-French recording), and a non-zero error count would report the whole run as
-failed. `--dry-run` validates the file alone and cannot say which ids would
-skip — that answer needs the library.
-
-**Production was loaded on 2026-10-21**: 122 created, those four skipped, 0
-errors, and every live meditation carries a transcript. A re-run skips all 122.
-To load another target:
-
-```bash
-pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed meditation-transcripts
-```
-
-The glossary is applied by the collection's `applyGlossaryToSegments` hook, not
-here, in the meditation's own `locale`, which the hook reads off the meditation:
-a transcript stores no language of its own (#1016).
-
-### `file-transcripts` — the one-off for files uploaded before #1016
+### `file-transcripts` — the bulk re-request
 
 An audio or video file is transcribed as it is saved since #1016, so this asks
-for a transcript of every one that has none — about 40 short vibe-check
-prompts and a handful of panel videos in production when it shipped. Each is
-created the way an upload creates one, so its run is queued and started on the
-target's own server with the target's own vendor key. **Every row it creates is
-a paid Lemonfox run**, which is why it is in no seed order and runs only by
-name. A re-run finds nothing left to do; `--dry-run` counts and stops:
+for a transcript of every one that has none: the files uploaded before #1016,
+and any since whose run never happened. Each is created the way an upload
+creates one, so its run is queued and started on the **target's own server**
+with the target's own vendor key — which is why it lives behind the seed route
+rather than in `scripts/`.
+
+**Every row it creates is a paid Lemonfox run**, which is why it is in no seed
+order and runs only by name. A re-run finds nothing left to do; `--dry-run`
+counts and stops:
 
 ```bash
 pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed file-transcripts --dry-run
 pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed file-transcripts
 ```
+
+## Pagination support
+
+Pagination splits a large import across multiple HTTP requests. The CLI
+paginates every collection with `requiresPagination: true`.
+
+1. The CLI fetches metadata (GET) to learn batch sizes.
+2. It paginates when metadata says `requiresPagination: true`.
+3. Collections import in dependency order.
+4. Each request is stateless — ID maps rebuild from the database.
+
+**Batch sizes**: 100 without file uploads, 10 with.
+
+Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`. No
+surviving script declares a collection there, so nothing paginates today. The
+mechanism stays because the request shape above is public — the route's and the
+CLI's, not a per-script feature.
+
+The completion event on a paginated request carries a `pagination` block
+(`offset`, `limit`, `processedCount`, `hasMore`, `nextOffset`,
+`collection`) beside the summary. The CLI reads it to drive the next batch
+automatically — printing per-batch progress as it goes.
 
 ## Common flags
 
@@ -299,19 +214,6 @@ with only the fields needed to validate existence (id + natural key). In
 skip mode, a cache hit skips the document entirely. In update mode, it
 updates using the cached ID. Either way, a cache miss creates.
 
-| Scenario                     | Before (per-doc find)       | After (bulk preload)            |
-| ---------------------------- | --------------------------- | ------------------------------- |
-| 73 meditations, all exist    | 146 queries (find + skip)   | 2 queries (preload + done)      |
-| 73 meditations, all new      | 146 queries (find + create) | ~75 queries (preload + creates) |
-| 73 meditations with --update | 146 queries (find + update) | ~75 queries (preload + updates) |
-
-```bash
-pnpm seed meditations                    # Skip mode — fastest for new content
-pnpm seed meditations --update           # Update mode — content changed
-pnpm seed meditations --dry-run          # Dry run works with both modes
-pnpm seed meditations --update --dry-run
-```
-
 ## Environment variables
 
 For local development, add to `.env.local` (gitignored):
@@ -321,12 +223,6 @@ For local development, add to `.env.local` (gitignored):
 # localhost, so this can be left blank for local development.
 ADMIN_TOKEN=
 PAYLOAD_SECRET=your-secret-key
-
-# Storyblok
-STORYBLOK_ACCESS_TOKEN=your-token
-
-# Meditations
-STORAGE_BASE_URL=https://storage.googleapis.com/your-bucket
 ```
 
 For production, hand a sign-in link to the run. The target is the server the
@@ -338,16 +234,15 @@ pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed <script>
 
 ## Design principles
 
-1. **Idempotent** — slug-based upsert: find existing records and update,
+1. **Idempotent** — natural-key upsert: find existing records and update,
    or create new.
 2. **Resilient** — continue on errors, report all issues at the end.
 3. **Comprehensive reporting** — a summary with counts, warnings, errors.
 
 ## Maintenance: updating seed scripts when fields change
 
-If you add a field to a collection (e.g. `timings` on Meditations), update
-the matching seed script to populate it. Otherwise seeded documents get
-that field empty or default.
+If you add a field to a collection a seed writes, update that script to
+populate it. Otherwise seeded documents get that field empty or default.
 
 **Checklist**:
 
@@ -357,97 +252,33 @@ that field empty or default.
 4. Test with `--dry-run` to validate the mapping.
 5. Run a full seed with `--update` to update existing documents.
 
-```typescript
-// Extract timing values from legacy tags
-const TIMING_SLUGS = new Set(['morning', 'afternoon', 'evening'])
-
-private extractTimingsFromTags(taggings, allTags) {
-  const timings = []
-  for (const tagging of taggings) {
-    const tag = allTags.find(t => t.id === tagging.tag_id)
-    const slug = this.mapLegacyTagSlug(tag?.name)
-    if (TIMING_SLUGS.has(slug)) {
-      timings.push(slug)
-    }
-  }
-  return [...new Set(timings)]
-}
-
-// Include in upsert
-await this.upsert('meditations', where, {
-  ...otherFields,
-  timings: this.extractTimingsFromTags(taggings, allTags),
-})
-```
-
 ## Utility architecture
 
-Import scripts share centralized utilities in `seeds/lib/` for rate
-limiting, retries, and data loading. For the preload, upsert, error-
-handling, pagination, media-upload, and locale-handling patterns
-themselves, see [seeds/lib/AGENTS.md](lib/AGENTS.md) — this section covers
-the two utilities not documented there.
+Import scripts share centralized utilities in `seeds/lib/`. For the preload,
+upsert, error-handling and pagination patterns, see
+[seeds/lib/AGENTS.md](lib/AGENTS.md).
 
-### Delay utilities (`delays.ts`)
+A script's own data file is read with `loadJsonData` (`lib/dataLoader.ts`),
+which takes the path from `lib/dataFiles.ts` and the uploaded copy from
+`inlineData` — the "Creating a new seed script" checklist below covers it.
 
-```typescript
-import { rateLimitDelay, withRetry } from '../lib'
-
-await rateLimitDelay(300) // Rate limit delay
-const result = await withRetry(() => fetchData(), { maxRetries: 3 }) // Exponential backoff
-```
-
-| Function              | Behavior                         |
-| --------------------- | -------------------------------- |
-| `rateLimitDelay(ms)`  | Waits ms                         |
-| `withRetry(fn, opts)` | Retries with exponential backoff |
-
-### Data loading (`dataLoader.ts`)
-
-```typescript
-import { fetchAsset, readCache, writeCache, loadJsonData } from '../lib'
-
-// Load a JSON data file (fs locally, URL in Workers)
-const data = await loadJsonData<MyType>({
-  localPath: 'seeds/data.json',
-  workerUrl: 'https://raw.githubusercontent.com/.../data.json',
-})
-
-// Fetch an asset with caching (cache only works locally)
-const buffer = await fetchAsset(url, { cachePath: 'seeds/cache/file.jpg' })
-
-// Direct cache operations (no-op in Workers)
-const cached = await readCache('seeds/cache/file.jpg')
-await writeCache('seeds/cache/file.jpg', buffer)
-```
-
-| Function                 | Local mode                | Workers mode             |
-| ------------------------ | ------------------------- | ------------------------ |
-| `loadDataFile(source)`   | Reads from `localPath`    | Fetches from `workerUrl` |
-| `fetchAsset(url, opts)`  | Caches to `cachePath`     | Streams directly         |
-| `readCache(path)`        | Returns a file buffer     | Returns `null`           |
-| `writeCache(path, data)` | Writes to disk            | No-op                    |
-| `cacheExists(path)`      | Validates the file exists | Returns `false`          |
+⚠ **`seeds/lib` still exports a media and retry surface nothing calls.**
+`delays.ts`'s `rateLimitDelay` and `withRetry`, `dataLoader.ts`'s asset fetch
+and disk cache, and `FileUtils`' download half were all reached only from the
+importers #1169 retired. They are left in place rather than half-dismantled,
+because `seeds/lib`'s own fate is settled by the seed CLI's: see §C of #1169.
+Do not reach for one as though a run had exercised it.
+`shortcut: an unexercised utility surface, to delete with the seed CLI or when
+a new importer picks one of them up again.`
 
 ## Troubleshooting
 
-**Script won't run** — check env vars (`echo $PAYLOAD_SECRET`, `echo
-$STORYBLOK_ACCESS_TOKEN`) and run `pnpm generate:types` if types look
-stale.
+**Script won't run** — check env vars (`echo $PAYLOAD_SECRET`) and run
+`pnpm generate:types` if types look stale.
 
 **Errors during import** — run with `--dry-run` first to validate data,
 use `--clear-cache` to re-download files, and check console output for
 details.
-
-**Missing data.json files** — `wemeditate` and `meditations` need
-pre-extracted JSON at `seeds/wemeditate/data.json` and
-`seeds/meditations/data.json`, generated from PostgreSQL dumps via
-`seeds/extract-to-json.ts`. To regenerate from the original `data.bin`
-files (requires PostgreSQL installed locally):
-
-```bash
-pnpm tsx seeds/extract-to-json.ts
-```
 
 ## Summary output format
 
@@ -478,12 +309,11 @@ No errors - import completed successfully!
    `{ kind: 'not-applicable', reason }` rather than `{}`, so a run that
    verified nothing stops reporting like one that verified and passed. Where an
    invariant over the run's own totals still holds, override `verifyRun()`
-   (`seeds/lib/BaseImporter.ts`). `meditation-transcripts` is the worked
-   example: every entry ends in a write, an error, or a skip that named its
-   reason, and the arithmetic is a pure function beside the importer.
+   (`seeds/lib/BaseImporter.ts`).
 4. Register it in `getImporter()` in
-   `src/app/(payload)/api/seed/[script]/route.ts`.
-5. Add it to the "Available Scripts" table above.
+   `src/app/(payload)/api/seed/[script]/route.ts`, and in `VALID_SCRIPTS` and
+   `SCRIPT_DESCRIPTIONS` in [run.ts](run.ts).
+5. Add it to the "Available scripts" table above.
 6. **Does it read a committed data file?** Export its path from
    `seeds/lib/dataFiles.ts` and register it under the script's key in
    `SCRIPT_DATA_FILES`. An unregistered file is never uploaded, so the
@@ -538,15 +368,3 @@ export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
 
 export default MyScriptImporter
 ```
-
-## Known inconsistencies (backlog)
-
-Documented for future standardization, not yet fixed: the data source
-varies by script (embedded constants, JSON files, API fetch — each
-choice's rationale should be documented). Error handling mixes per-item
-try/catch with whole-loop try/catch (standardize on per-item with
-`addError()`). Locale handling varies between hardcoded `'en'`, full
-16-locale, and none. `storyblok` hand-rolls a composite-key preload that
-could become a shared `preloadWithCompositeKey()` helper. Identifier
-passing is inconsistent between explicit and auto-generated. Fix each in
-its own issue, not as a drive-by.

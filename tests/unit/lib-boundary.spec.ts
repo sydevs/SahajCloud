@@ -22,10 +22,10 @@ import { describe, expect, it } from 'vitest'
  * 2. **Sibling relative imports.** `browserRendering.ts` is imported by
  *    `./verifyEmbed` next door, which a `@/lib/...` search never sees.
  * 3. **`scripts/` and `seeds/`.** The email preview scripts import senders
- *    directly, and the Atlas importer is the second owner of `mapbox/geocoder`
- *    and `richEditor/plainTextToLexical`. Both trees were outside the graph
- *    until #681, which made `geocoder` read as single-consumer the moment a
- *    `src/lib` re-export of its `RegionLevel` was removed.
+ *    directly, and a seed importer is the second owner of several lib modules.
+ *    Both trees were outside the graph until #681, which made `mapbox/geocoder`
+ *    read as single-consumer the moment a `src/lib` re-export of its
+ *    `RegionLevel` was removed.
  *
  * So consumers are counted over `src/`, `scripts/` and `seeds/`, in every import
  * form. `tests/` is deliberately outside the graph: nearly every lib module has
@@ -133,10 +133,9 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/notifications/sendRegistrationNotification',
   '@/lib/notifications/sendUserMessage',
   '@/lib/registrations/gating',
-  // Only consumer is `seeds/atlas/helpers/lexical.ts`. Surfaced by adding
-  // `seeds/` to the graph rather than newly written — a plain-text→Lexical
-  // converter is general-purpose, so this is the "move it" shape, not the
-  // "justify it" one, and it is nobody's to move in a types refactor.
+  // A plain-text→Lexical converter is general-purpose, so this is the "move
+  // it" shape, not the "justify it" one. Its one consumer is now the class
+  // import's `eventData.ts`.
   '@/lib/richEditor/plainTextToLexical',
   '@/lib/utilities/weightedSample',
   // The five below lost their second consumer when the three legacy intake
@@ -148,6 +147,17 @@ const KNOWN_SINGLE_CONSUMER = new Set<string>([
   '@/lib/mapbox/geocoder',
   '@/lib/notifications/sendSubmissionReview',
   '@/lib/users/upsertUserByEmail',
+  // Lost its second consumer when the one-shot content importers were retired
+  // (#1169). It is general-purpose rather than one owner's private helper, so
+  // the question is where it belongs now.
+  //
+  // ⚠ `lemonfox/` does not move one folder. Every module in it is reached only
+  // from `src/jobs/TranscribeRecording/`, so rule 4 says move the folder — but
+  // `@/lib/transcripts/cues` is consumed only by `lemonfox/normalize.ts` and is
+  // exempt today solely because that consumer sits inside `src/lib`. Moving
+  // `lemonfox/` out makes `cues` fail this check. It is a three-module
+  // reshuffle, decided on its own.
+  '@/lib/lemonfox/normalize',
 ])
 
 describe('src/lib holds shared code only', () => {

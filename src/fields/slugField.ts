@@ -4,8 +4,8 @@ import { slugField as payloadSlugField, ValidationError } from 'payload'
 import { hasDraftsEnabled } from 'payload/shared'
 
 import { isPublished } from '@/fields/publicUrlFields'
+import { slugifyValue } from '@/fields/slugify'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
-import { slugifyValue } from '@/lib/utilities/slugify'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
 /**
