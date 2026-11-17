@@ -133,6 +133,12 @@ export async function findManagerForRegion(
     depth: 1,
     limit: chainIds.length,
     overrideAccess: true,
+    // `Regions` declares four join fields, three of them recursive over every
+    // descendant, and `defaultPopulate` suppresses those only for relationship
+    // hydration — a direct read enables all four. Every reminder pays for this
+    // walk now, a country node's descendant set included.
+    joins: false,
+    select: { name: true, managers: true },
     req,
   })
   const byId = new Map(regions.map((region) => [region.id, region]))
