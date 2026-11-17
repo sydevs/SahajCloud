@@ -86,6 +86,32 @@ function railwayCli(args: string[]): string {
   return execFileSync('railway', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 }
 
+class GitHubError extends Error {
+  constructor(
+    message: string,
+    readonly stderr: string,
+  ) {
+    super(message)
+  }
+}
+
+/**
+ * One `gh api` read, projected through `jq`. ⚠ It throws on every refusal, 404
+ * included, so a caller that needs one as a *value* catches `GitHubError` and
+ * reads its `stderr` — as `runsWakeRetry` does.
+ */
+function ghApi(path: string, jq: string): string {
+  try {
+    return execFileSync('gh', ['api', path, '--jq', jq], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  } catch (error) {
+    const stderr = String((error as { stderr?: Buffer }).stderr ?? '')
+    throw new GitHubError(`gh api ${path} failed: ${stderr.trim()}`, stderr)
+  }
+}
+
 function loadIds(): Ids {
   const { project } = railwayApi<{
     project: {
@@ -177,16 +203,12 @@ function pitrEnabled(environment: string): boolean {
 /** Whether `commit` carries the connection retry, so its preview survives a sleeping Postgres. */
 function runsWakeRetry(commit: string): boolean {
   try {
-    execFileSync(
-      'gh',
-      ['api', '--silent', `repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${commit}`],
-      { stdio: ['ignore', 'ignore', 'pipe'] },
-    )
+    ghApi(`repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${commit}`, '.sha')
     return true
   } catch (error) {
-    const stderr = String((error as { stderr?: Buffer }).stderr ?? '')
-    if (stderr.includes('HTTP 404')) return false
-    throw new Error(`Could not read ${WAKE_RETRY_PATH} at ${commit}: ${stderr.trim()}`)
+    // An absent file is the answer, not a failure: the commit predates the retry.
+    if (error instanceof GitHubError && error.stderr.includes('HTTP 404')) return false
+    throw error
   }
 }
 
@@ -195,15 +217,9 @@ function runsWakeRetry(commit: string): boolean {
  * job by its check name, which sydevs/SahajCloud#903 already forbids renaming.
  */
 function ciRunning(commit: string): boolean {
-  const out = execFileSync(
-    'gh',
-    [
-      'api',
-      `repos/${REPOSITORY}/commits/${commit}/check-runs?check_name=${encodeURIComponent(CI_CHECK)}`,
-      '--jq',
-      '[.check_runs[] | select(.status != "completed")] | length',
-    ],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  const out = ghApi(
+    `repos/${REPOSITORY}/commits/${commit}/check-runs?check_name=${encodeURIComponent(CI_CHECK)}`,
+    '[.check_runs[] | select(.status != "completed")] | length',
   )
   return Number(out.trim()) > 0
 }
