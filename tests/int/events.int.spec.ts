@@ -313,6 +313,34 @@ describe('Events collection', () => {
         ]),
       )
     })
+
+    // `syncScheduleRecurrence` patches the group with `recurrenceType` alone,
+    // resting on Payload filling the rest from the stored group. `mergedSchedule`
+    // next door exists because a collection hook gets no such merge on read, so
+    // the claim is pinned here rather than assumed.
+    it('keeps the rest of the schedule when a pace change names no schedule', async () => {
+      const event = await testData.createEvent(payload, {
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      const repaced = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { repeats: 'monthly' },
+      })
+
+      expect(repaced.schedule?.recurrenceType).toBe('MONTHLY')
+      expect(repaced.schedule?.firstDate).toBe('2026-01-05T10:00:00.000Z')
+      expect(repaced.schedule?.firstDate_tz).toBe('Europe/London')
+      expect(repaced.schedule?.interval).toBe(1)
+    })
   })
 
   describe('allowContact', () => {
