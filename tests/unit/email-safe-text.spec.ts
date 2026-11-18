@@ -3,7 +3,7 @@
  *
  * These block header and calendar-property injection, so the cases are the
  * malicious inputs: a CR/LF that would start a new header/line, and the
- * break-out characters of an unquoted display name.
+ * characters a display name must be quoted around or stripped of.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -36,11 +36,21 @@ describe('stripNewlines', () => {
 
 describe('headerDisplayName', () => {
   it('strips the characters that break out of `Name <addr>`', () => {
-    expect(headerDisplayName('Evil <a@b> "x"')).toBe('Evil a@b x')
+    expect(headerDisplayName('Evil <a@b> "x"')).toBe('"Evil a@b x"')
   })
 
   it('also strips line breaks', () => {
-    expect(headerDisplayName('Service\r\nBcc: x@y')).toBe('Service Bcc: x@y')
+    expect(headerDisplayName('Service\r\nBcc: x@y')).toBe('"Service Bcc: x@y"')
+  })
+
+  it('quotes a comma, so one address cannot become two', () => {
+    expect(headerDisplayName('Patil, Rohan')).toBe('"Patil, Rohan"')
+  })
+
+  it('quotes every other specials character', () => {
+    for (const name of ['A.B', 'A;B', 'A:B', 'A@B', 'A(B)', 'A[B]', 'A\\B']) {
+      expect(headerDisplayName(name)).toBe(`"${name}"`)
+    }
   })
 
   it('leaves a normal service name intact', () => {

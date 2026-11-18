@@ -51,7 +51,7 @@ Payload's `SendEmailOptions` is nodemailer-shaped, but the adapter translates it
 Currently mapped: `from`, `to`, `subject`, `html`, `text`, `replyTo`, `attachments`.
 
 - `attachments` narrows to a string/Buffer `content` or a hosted `path`. nodemailer also allows a `Readable`, which Resend's REST API cannot accept — a stream is dropped with a warning rather than sent as a payload that would 422.
-- `replyTo` flattens nodemailer's `Address` objects to plain strings, through `headerDisplayName` — the display name is emitted unquoted inside `Name <address>`. An entry with no `address` is dropped with a warning: nodemailer 10 made that field optional, so the shape type-checks and the Resend 422 that used to surface it is gone.
+- `replyTo` flattens nodemailer's `Address` objects to plain strings, through `headerDisplayName`, which quotes the name when it holds an RFC 5322 specials character — a region manager named `Patil, Rohan` would otherwise be two addresses, the second unroutable, and Resend refuses the whole send. An entry with no `address` is dropped with a warning: nodemailer 10 made that field optional, so the shape type-checks and the Resend 422 that used to surface it is gone.
 
 The nodemailer/Mailpit adapter needs no such mapping — it spreads `...message` straight into `transport.sendMail()`, so every field passes through.
 
@@ -72,7 +72,7 @@ So: canonical production uses Resend, `SMTP_URL` set uses Mailpit, and otherwise
 
 ### Sanitize manager/client-authored text before it becomes a header or ICS line
 
-A free-text field (event title, client name) can reach a single-line sink where an embedded CR/LF lets the rest be reparsed as structure. Route such text through `src/lib/utilities/emailSafeText.ts` — `stripNewlines` for a `Subject` or an ICS property, `headerDisplayName` for an unquoted `From` display name (it also strips `"<>`).
+A free-text field (event title, client name) can reach a single-line sink where an embedded CR/LF lets the rest be reparsed as structure. Route such text through `src/lib/utilities/emailSafeText.ts` — `stripNewlines` for a `Subject` or an ICS property, `headerDisplayName` for a `From` or `Reply-To` display name (it strips `"<>` and quotes the rest when it must).
 
 Two sinks are easy to miss:
 
