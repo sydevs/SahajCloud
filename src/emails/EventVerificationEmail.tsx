@@ -531,17 +531,20 @@ export function EventVerificationEmail({
         )
       : verifyUrl
 
-  // The event manager can hand the listing up instead of verifying it, so the
-  // two actions sit side by side at the same weight. A region manager is the
+  // The event manager can ask for help instead of verifying, so the two
+  // actions sit side by side at the same weight. A region manager is the
   // contact themselves, so theirs stays a single button.
-  const askRegion = audience === 'manager' ? regionManager : undefined
-  const askHref =
-    askRegion &&
-    mailtoHref(
-      askRegion.email,
-      COPY.askRegionManager.subject(eventTitle),
-      COPY.askRegionManager.body(eventTitle, askRegion.name),
-    )
+  const askRegion =
+    audience === 'manager' && regionManager
+      ? {
+          name: regionManager.name,
+          href: mailtoHref(
+            regionManager.email,
+            COPY.askRegionManager.subject(eventTitle),
+            COPY.askRegionManager.body(eventTitle, regionManager.name),
+          ),
+        }
+      : null
 
   return (
     <EmailLayout
@@ -664,15 +667,15 @@ export function EventVerificationEmail({
         )
       ) : null}
 
-      {/* The single button keeps `BrandButton`, rather than a one-button row:
-          the row's own 6px side margins would narrow every reminder that has
-          nobody above the event, and a region manager's too. */}
-      {askRegion && askHref ? (
+      {/* A reminder with nobody above the event keeps `BrandButton`, so it
+          renders byte-identical to before (#1193): a one-button row would add
+          the row's own 6px side margins to it. */}
+      {askRegion ? (
         <BrandButtonRow
           brand={brand}
           buttons={[
             { href: ctaHref, label: variant.cta },
-            { href: askHref, label: COPY.askRegionManager.label },
+            { href: askRegion.href, label: COPY.askRegionManager.label },
           ]}
         />
       ) : (
