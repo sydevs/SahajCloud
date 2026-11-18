@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 
 import { Link, Section, Text } from 'react-email'
 
+import { mailtoHref } from '@/lib/utilities/mailto'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -470,25 +471,6 @@ function renderDoneTicks(
 }
 
 /**
- * A mailto button's href, pre-filled from one of `COPY`'s request blocks. Takes
- * the block rather than two rendered strings, so a caller names the request it
- * is making instead of spelling its subject-and-body pair.
- */
-function mailtoHref(
-  email: string,
-  copy: {
-    subject: (eventTitle: string) => string
-    body: (eventTitle: string, name: string) => string
-  },
-  eventTitle: string,
-  name: string,
-): string {
-  const subject = encodeURIComponent(copy.subject(eventTitle))
-  const body = encodeURIComponent(copy.body(eventTitle, name))
-  return `mailto:${email}?subject=${subject}&body=${body}`
-}
-
-/**
  * Event verification email — the escalating nudge the ExpireEvents job sends as
  * an event ages `verified → reminded → escalated → urgent → expired`. All
  * wording lives in `COPY` above; this component only wires the chosen variation
@@ -541,7 +523,11 @@ export function EventVerificationEmail({
   const contactEmail = eventManager?.contacts.find((entry) => entry.label === 'Email')?.value
   const ctaHref =
     audience === 'region' && contactEmail
-      ? mailtoHref(contactEmail, COPY.contactManager, eventTitle, eventManager?.name ?? 'there')
+      ? mailtoHref(
+          contactEmail,
+          COPY.contactManager.subject(eventTitle),
+          COPY.contactManager.body(eventTitle, eventManager?.name ?? 'there'),
+        )
       : verifyUrl
 
   // The event manager can hand the listing up instead of verifying it, so the
@@ -549,7 +535,12 @@ export function EventVerificationEmail({
   // contact themselves, so theirs stays a single button.
   const askRegion = audience === 'manager' ? regionManager : undefined
   const askHref =
-    askRegion && mailtoHref(askRegion.email, COPY.askRegionManager, eventTitle, askRegion.name)
+    askRegion &&
+    mailtoHref(
+      askRegion.email,
+      COPY.askRegionManager.subject(eventTitle),
+      COPY.askRegionManager.body(eventTitle, askRegion.name),
+    )
 
   return (
     <EmailLayout

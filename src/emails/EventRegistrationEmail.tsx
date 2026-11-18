@@ -1,6 +1,7 @@
 import { Link, Section, Text } from 'react-email'
 
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
+import { mailtoHref } from '@/lib/utilities/mailto'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
@@ -97,9 +98,11 @@ export function EventRegistrationEmail({
 
   // Pre-fill a reply to the registrant (with a quoted recap) so the manager can
   // welcome them in one click.
-  const replyHref = `mailto:${registrantEmail}?subject=${encodeURIComponent(
+  const replyHref = mailtoHref(
+    registrantEmail,
     `Re: Your registration for ${eventTitle}`,
-  )}&body=${encodeURIComponent(buildReplyBody({ registrantName, eventTitle, startDate, answers }))}`
+    buildReplyBody({ registrantName, eventTitle, startDate, answers }),
+  )
 
   return (
     <EmailLayout
