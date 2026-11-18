@@ -39,10 +39,7 @@ export const previewNoticePlugin: Plugin = (config) => ({
           ...collection.admin.components,
           edit: {
             ...edit,
-            beforeDocumentControls: [
-              ...(edit?.beforeDocumentControls ?? []),
-              LIVE_PREVIEW_NOTICE,
-            ],
+            beforeDocumentControls: [...(edit?.beforeDocumentControls ?? []), LIVE_PREVIEW_NOTICE],
           },
         },
       },

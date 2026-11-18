@@ -1,7 +1,7 @@
 'use client'
 
 import { useLivePreviewContext } from '@payloadcms/ui'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { composePanelUrl, panelNoticeUrl } from '@/components/admin/helpers/panelUrl'
 import { panelUrlSubscribes } from '@/lib/livePreview/scope'
@@ -33,8 +33,11 @@ export const PREVIEW_SILENCE_MS = 12_000
  * ends any chance of a late handshake.
  */
 export function LivePreviewNotice() {
-  const { appIsReady, isLivePreviewing, previewWindowType, setAppIsReady, setURL, url } =
+  const { appIsReady, iframeRef, isLivePreviewing, previewWindowType, setAppIsReady, setURL, url } =
     useLivePreviewContext()
+
+  /** The address the latch below was last cleared for. */
+  const clearedFor = useRef(url)
 
   /**
    * ⚠ **Payload re-arms the latch for an address it was asked to show, not for
@@ -45,11 +48,14 @@ export function LivePreviewNotice() {
    * later address. Clearing it here is what that setter's own docblock
    * promises, and the frame is reloading at this moment anyway.
    *
-   * Only for the panel: a popup is not reloaded by an address change, so
-   * clearing it there would stop Payload posting form state with nothing to
-   * re-arm it.
+   * Only an address change, and only for the panel. A popup is not reloaded by
+   * one, so clearing it there would stop Payload posting form state with
+   * nothing to re-arm it — and clearing it on a mount would retract a
+   * handshake the panel had already heard.
    */
   useEffect(() => {
+    if (clearedFor.current === url) return
+    clearedFor.current = url
     if (previewWindowType === 'iframe') setAppIsReady(false)
   }, [previewWindowType, setAppIsReady, url])
 
@@ -60,13 +66,28 @@ export function LivePreviewNotice() {
     // has spoken needs no asking.
     if (!isLivePreviewing || previewWindowType !== 'iframe' || appIsReady) return
 
-    const timer = setTimeout(
-      () => composePanelUrl(setURL, panelNoticeUrl('preview-unreachable')),
-      PREVIEW_SILENCE_MS,
-    )
+    // ⚠ **Restarted by each `load`**, so the budget bounds silence from a frame
+    // that has settled rather than the whole load: a slow network buys itself
+    // more time instead of being called blocked. A blocked frame may fire no
+    // `load` at all, which is the case this clock is for.
+    const frame = iframeRef?.current
+    let timer: ReturnType<typeof setTimeout>
+    const wait = () => {
+      clearTimeout(timer)
+      timer = setTimeout(
+        () => composePanelUrl(setURL, panelNoticeUrl('preview-unreachable')),
+        PREVIEW_SILENCE_MS,
+      )
+    }
 
-    return () => clearTimeout(timer)
-  }, [appIsReady, isLivePreviewing, previewWindowType, setURL, url])
+    wait()
+    frame?.addEventListener('load', wait)
+
+    return () => {
+      clearTimeout(timer)
+      frame?.removeEventListener('load', wait)
+    }
+  }, [appIsReady, iframeRef, isLivePreviewing, previewWindowType, setURL, url])
 
   return null
 }

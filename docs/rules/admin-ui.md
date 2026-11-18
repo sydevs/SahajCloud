@@ -44,6 +44,14 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 ⚠ **`<Upload>`'s `UploadControls` slot cannot carry a notice about a save.** It renders inside the dropzone, and the dropzone gives way to the staged-file preview the moment a file is chosen — so the slot is empty exactly when the notice is needed.
 
+### A blank live-preview panel says why
+
+`LivePreviewNotice` (`src/components/admin/LivePreviewNotice/`) points the panel at the explanation page when a frame never completes Payload's handshake — an ad blocker, a network block, or the consumer being down — rather than leaving a blank rectangle (#1204). `previewNoticePlugin` mounts it on every entity declaring `admin.livePreview`, so a new preview surface declares nothing.
+
+⚠ **The slot is `edit.beforeDocumentControls` on a collection and `elements.beforeDocumentControls` on a global.** `renderDocumentSlots` reads exactly those two paths, so the other spelling type-checks, ships, and mounts nothing.
+
+`appIsReady` is the signal, and it is per-address only because the component clears it on an address change: Payload clears it in the context's own `setURL`, but a URL the **server** re-resolved — every save — reaches the provider through the raw state setter beside it. A panel whose page does not subscribe is left unwatched, decided from the panel URL's own `scope` (`@/lib/livePreview/scope`); that is the three scoped globals, whose consumers mount no subscriber.
+
 ### `Drawer` must mount unconditionally, or it won't animate
 
 `Drawer` seeds `animateIn` from `modalState[slug].isOpen` with `useState`, read **once at mount**, then adds `drawer--is-open` in a layout effect. A drawer rendered behind a condition that turns true in the same tick as `openModal` mounts **already open**: the class is on its first paint, so it reads as a styling bug rather than a mounting one.
