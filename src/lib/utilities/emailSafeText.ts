@@ -30,10 +30,17 @@ export function stripNewlines(value: string): string {
 }
 
 /**
- * `stripNewlines` plus removal of the quote/angle-bracket characters that would
- * break out of an email display name — which is emitted unquoted inside
+ * `stripNewlines` plus the quoting a display name needs inside
  * `Display Name <address>`.
+ *
+ * A comma ends an address and makes the rest of the name a second one, so a
+ * manager-authored name reaching the header unquoted can turn one `Reply-To`
+ * or `From` into two — the second of them unroutable, which Resend refuses
+ * outright. Every RFC 5322 `specials` character therefore forces the
+ * quoted-string form. `"`, `<` and `>` are dropped rather than escaped, so
+ * nothing inside the quotes can close them.
  */
 export function headerDisplayName(value: string): string {
-  return stripNewlines(value).replace(/["<>]/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = stripNewlines(value).replace(/["<>]/g, ' ').replace(/\s+/g, ' ').trim()
+  return /[(),.:;@[\\\]]/.test(text) ? `"${text}"` : text
 }

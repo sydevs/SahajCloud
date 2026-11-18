@@ -69,6 +69,9 @@ export async function sendRegistrationNotification(args: {
     to: recipient.destination,
     // Resend verifies senders per domain; the brand name carries the identity.
     from: `${headerDisplayName(brand.productName)} <${MANAGER_EMAIL_FROM}>`,
+    // The body's whole purpose is a one-click welcome, so the mail client's own
+    // Reply must reach the registrant too — not the shared sender address.
+    ...(registrantEmail && { replyTo: registrantEmail }),
     // The event title is manager-authored free text; strip line breaks so it
     // can't inject a second header off the Subject line.
     subject: stripNewlines(

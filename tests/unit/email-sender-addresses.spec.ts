@@ -159,6 +159,23 @@ describe('transactional senders pick their envelope by audience', () => {
     expect(text).not.toMatch(/<[a-z]/i)
   })
 
+  it('points a reply to the registration notice at the registrant, not the sender', async () => {
+    // The envelope sender is shared, so without this a manager hitting their
+    // client's own Reply answers the admin inbox — while the body beside it
+    // offers a one-click welcome addressed to the registrant.
+    const { payload, sendEmail } = stubEmailPayload()
+
+    await sendRegistrationNotification({
+      payload,
+      recipient,
+      event: { id: event.id, title: event.title },
+      registrantName: 'Asha',
+      registrantEmail: REGISTRANT,
+    })
+
+    expect(sendEmail.mock.calls[0][0].replyTo).toBe(REGISTRANT)
+  })
+
   it('uses two different addresses, so no row above can pass vacuously', () => {
     // Every assertion in this file compares a constant against a constant, and
     // would stay green if the split collapsed back to one address.

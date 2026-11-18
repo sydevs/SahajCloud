@@ -11,6 +11,7 @@ import { addDays, verificationPeriodDays } from '@/lib/eventVerification/periods
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 import { resolveNextCheckAt } from '@/lib/eventVerification/watermark'
 import { notificationFrequency } from '@/lib/notifications/preferences'
+import { managerDisplayName } from '@/lib/notifications/recipients'
 import { can } from '@/lib/stateMachine/machine'
 import { transition } from '@/lib/stateMachine/transition'
 import type { Event, Manager } from '@/payload-types'
@@ -63,7 +64,7 @@ export function managerCadence(manager: Manager | number | null | undefined): st
 export function actorFromUser(user: PayloadRequest['user']): ActorRef | null {
   if (!user || user.collection !== 'managers') return null
   const manager = user as { id: number; name?: string | null; email?: string | null }
-  return { id: manager.id, name: manager.name || manager.email || `#${manager.id}` }
+  return { id: manager.id, name: managerDisplayName(manager) }
 }
 
 /**
@@ -221,7 +222,7 @@ export async function verifyEventFromLink(args: {
     payload,
     eventId: verifies,
     method: 'email-link',
-    by: { id: manager.id, name: manager.name || manager.email || `#${manager.id}` },
+    by: { id: manager.id, name: managerDisplayName(manager) },
     now,
     overrideAccess: true,
   })
