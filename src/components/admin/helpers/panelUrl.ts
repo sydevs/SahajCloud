@@ -10,9 +10,9 @@
  * nobody asked for on the way out. Remembering what we last composed, for all of
  * them, is what tells a URL we set apart from one Payload resolved.
  *
- * ⚠ **Every field that moves the panel composes through {@link composePanelUrl},
+ * ⚠ **Everything that moves the panel composes through {@link composePanelUrl},
  * not through `setURL` directly.** `PreviewTarget` repoints per tab and
- * `MapPreviewField` repoints when the atlas never answers; a bare `setURL` from
+ * `LivePreviewNotice` repoints when the page never answers; a bare `setURL` from
  * either is read as a freshly resolved default by the other, which then restores
  * an explanation page in place of the site.
  */

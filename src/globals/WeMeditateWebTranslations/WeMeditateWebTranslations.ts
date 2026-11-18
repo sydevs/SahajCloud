@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 import { weMeditatePreviewUrl } from '@/lib/env'
+import { PREVIEW_SCOPES } from '@/lib/livePreview/scope'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { clientEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
@@ -44,7 +45,7 @@ export const WeMeditateWebTranslations: GlobalConfig = {
           // `/fr/map`, but under `/fr` it hoists to `/map` and the edited
           // locale is silently lost.
           path: locale.code === 'en' ? '' : `${locale.code}/`,
-          params: { scope: 'wm-web-translations' },
+          scope: PREVIEW_SCOPES.wmWebTranslations,
         }),
     },
   },

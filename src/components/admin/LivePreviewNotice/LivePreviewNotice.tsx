@@ -1,5 +1,7 @@
 'use client'
 
+import type { LivePreviewURLType } from 'payload'
+
 import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
@@ -17,16 +19,21 @@ import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 export const PREVIEW_SILENCE_MS = 12_000
 
 /**
+ * A panel worth watching: one already explaining itself needs no second
+ * explanation, and one whose page runs no subscriber would answer nothing
+ * however long it had.
+ */
+const watchable = (url: LivePreviewURLType): boolean =>
+  Boolean(url && !isLivePreviewUnavailableUrl(url) && panelUrlSubscribes(url))
+
+/**
  * Says why a live-preview panel is blank, in place of the blank rectangle.
  *
  * A frame that never completes Payload's handshake is a frame nobody can see
  * into: an ad blocker or privacy extension, a network block, or the consumer
  * site being down. The panel is pointed at the explanation page instead — the
- * same place every other refusal lands.
- *
- * `previewNoticePlugin` mounts it on every entity declaring `admin.livePreview`,
- * so no surface declares anything, and `appIsReady` is the signal because every
- * consumer that subscribes sends the handshake that sets it.
+ * same place every other refusal lands. `previewNoticePlugin` mounts it on
+ * every entity declaring `admin.livePreview`.
  *
  * Showing the notice costs the live page until the document is reloaded, which
  * is what {@link PREVIEW_SILENCE_MS} is sized against: navigating the frame away
@@ -36,35 +43,33 @@ export function LivePreviewNotice() {
   const { appIsReady, iframeRef, isLivePreviewing, previewWindowType, setAppIsReady, setURL, url } =
     useLivePreviewContext()
 
-  /** The address the latch below was last cleared for. */
   const clearedFor = useRef(url)
 
   /**
-   * ⚠ **Payload re-arms the latch for an address it was asked to show, not for
-   * one the server resolved.** The context's `setURL` clears `appIsReady`
-   * (`@payloadcms/ui/dist/providers/LivePreview/index.js:91-103`), but a URL
-   * re-resolved by a save reaches the provider through the raw state setter
-   * beside it (`:107-111`), so a frame that spoke once would vouch for every
-   * later address. Clearing it here is what that setter's own docblock
-   * promises, and the frame is reloading at this moment anyway.
+   * ⚠ **Payload clears `appIsReady` for an address it was asked to show, not
+   * for one the server resolved.** The context's `setURL` clears it
+   * (`@payloadcms/ui/dist/providers/LivePreview/index.js:91-103`), but the URL
+   * a save re-resolves reaches the provider through the raw state setter beside
+   * it (`:107-111`), so a frame that spoke once would vouch for every later
+   * address.
    *
-   * Only an address change, and only for the panel. A popup is not reloaded by
-   * one, so clearing it there would stop Payload posting form state with
-   * nothing to re-arm it — and clearing it on a mount would retract a
-   * handshake the panel had already heard.
+   * Clearing it here rather than patching the provider keeps the change to the
+   * one reader that needs it. Payload's own reader, which posts form state,
+   * then posts into a frame mid-reload — which is upstream's behaviour today,
+   * with or without this.
    */
   useEffect(() => {
     if (clearedFor.current === url) return
     clearedFor.current = url
-    if (previewWindowType === 'iframe') setAppIsReady(false)
-  }, [previewWindowType, setAppIsReady, url])
+    // A popup is not reloaded by an address change, so nothing would re-arm it.
+    if (watchable(url) && appIsReady && previewWindowType === 'iframe') setAppIsReady(false)
+  }, [appIsReady, previewWindowType, setAppIsReady, url])
 
   useEffect(() => {
-    // Already explaining itself, or a preview whose page answers nothing.
-    if (!url || isLivePreviewUnavailableUrl(url) || !panelUrlSubscribes(url)) return
-    // A closed panel and a popup both leave no frame to watch, and a frame that
-    // has spoken needs no asking.
-    if (!isLivePreviewing || previewWindowType !== 'iframe' || appIsReady) return
+    if (!watchable(url) || !isLivePreviewing || appIsReady) return
+    // A popup leaves no frame to watch, and repointing the panel is not its
+    // remedy.
+    if (previewWindowType !== 'iframe') return
 
     // ⚠ **Restarted by each `load`**, so the budget bounds silence from a frame
     // that has settled rather than the whole load: a slow network buys itself

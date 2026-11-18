@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { buildTranslationTabs, type TranslationsSchema } from '@/fields/translationsField'
 import { serverEnv } from '@/lib/env'
+import { PREVIEW_SCOPES } from '@/lib/livePreview/scope'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { clientEnglishFallback } from '@/lib/translations/clientEnglishFallback'
 
@@ -49,7 +50,8 @@ export const SahajAtlasTranslations: GlobalConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           path: '',
-          params: { locale: locale.code, scope: 'sy-atlas-translations' },
+          params: { locale: locale.code },
+          scope: PREVIEW_SCOPES.atlasTranslations,
         }),
       // Phone-sized frame, matching the Events and Regions previews — the
       // widget's drawer layout is designed against it.

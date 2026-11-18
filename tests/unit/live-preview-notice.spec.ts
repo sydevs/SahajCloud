@@ -15,7 +15,7 @@ import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { panelUrlSubscribes } from '@/lib/livePreview/scope'
+import { PREVIEW_SCOPES, panelUrlSubscribes } from '@/lib/livePreview/scope'
 
 const ATLAS = 'https://atlas.example/preview'
 
@@ -55,11 +55,6 @@ const { LivePreviewNotice, PREVIEW_SILENCE_MS } =
 let container: HTMLDivElement
 let root: Root
 
-const paint = () =>
-  act(async () => {
-    root.render(createElement(LivePreviewNotice, {}))
-  })
-
 /**
  * Renders, then renders again. Clearing the latch is a state update on the
  * provider, so the real panel re-renders under the component before its clock
@@ -67,8 +62,11 @@ const paint = () =>
  * render stands in for that one.
  */
 const render = async () => {
-  await paint()
-  await paint()
+  for (const _ of [0, 1]) {
+    await act(async () => {
+      root.render(createElement(LivePreviewNotice, {}))
+    })
+  }
 }
 
 /**
@@ -102,13 +100,16 @@ describe('panelUrlSubscribes', () => {
   })
 
   it('watches the Clients Atlas tab, whose consumer subscribes under its scope', () => {
-    expect(panelUrlSubscribes(`${ATLAS}?scope=clients&locale=en`)).toBe(true)
+    expect(panelUrlSubscribes(`${ATLAS}?scope=${PREVIEW_SCOPES.clients}&locale=en`)).toBe(true)
   })
 
   it('watches no scoped global — each consumer refuses the session it names', () => {
-    expect(panelUrlSubscribes(`${ATLAS}?scope=sy-atlas-translations`)).toBe(false)
-    expect(panelUrlSubscribes('https://wemeditate.example/?scope=wm-web-translations')).toBe(false)
-    expect(panelUrlSubscribes('https://wemeditate.example/?scope=wm-web-config')).toBe(false)
+    // Derived, so a scope added to the vocabulary is answered for here too.
+    const globals = Object.values(PREVIEW_SCOPES).filter((s) => s !== PREVIEW_SCOPES.clients)
+
+    expect(globals.map((scope) => panelUrlSubscribes(`${ATLAS}?scope=${scope}`))).toEqual(
+      globals.map(() => false),
+    )
   })
 
   it('leaves a scope it does not know unwatched', () => {
@@ -140,12 +141,13 @@ describe('LivePreviewNotice', () => {
 
   it('watches no scoped global, however long it stays silent', async () => {
     fakeClock()
-    stub.url = `${ATLAS}?scope=sy-atlas-translations`
+    const scoped = `${ATLAS}?scope=${PREVIEW_SCOPES.atlasTranslations}`
+    stub.url = scoped
     await render()
 
     tick(PREVIEW_SILENCE_MS)
 
-    expect(stub.url).toBe(`${ATLAS}?scope=sy-atlas-translations`)
+    expect(stub.url).toBe(scoped)
   })
 
   it('watches no frame while the panel is closed', async () => {

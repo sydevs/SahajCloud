@@ -2,6 +2,7 @@ import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
 import { weMeditatePreviewUrl } from '@/lib/env'
+import { PREVIEW_SCOPES } from '@/lib/livePreview/scope'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 
 export const WeMeditateWebConfig: GlobalConfig = {
@@ -23,7 +24,7 @@ export const WeMeditateWebConfig: GlobalConfig = {
           // document", and reads drafts for the home *page* rather than for
           // the config global being edited. `wm-web-config` is a declared
           // scope in WeMeditateWeb's closed set; this is its only emitter.
-          params: { scope: 'wm-web-config' },
+          scope: PREVIEW_SCOPES.wmWebConfig,
         }),
     },
   },

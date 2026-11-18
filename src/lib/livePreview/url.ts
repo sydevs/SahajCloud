@@ -1,3 +1,5 @@
+import type { LivePreviewScope } from './scope'
+
 import { serverEnv } from '@/lib/env'
 
 import { mintLivePreviewToken } from './token'
@@ -59,10 +61,18 @@ export async function livePreviewUrl(opts: {
    * own key carries. Checked against `req.user.roles` when the consumer
    * forwards it back, so a token minted for one site cannot unlock the other.
    */
-  /** Extra query parameters — `locale`, `scope`, or a document reference. */
+  /** Extra query parameters — `locale`, or a document reference. */
   params?: Record<string, string>
   /** Which explanation to show when `path` is null. */
   reason?: LivePreviewUnavailableReason
+  /**
+   * Which preview session this is, for a consumer that serves more than one.
+   *
+   * Typed, because the watchdog that decides whether a silent panel is blocked
+   * reads this value back (`./scope`): a scope spelled only here would be left
+   * unwatched with nothing to say so.
+   */
+  scope?: LivePreviewScope
 }): Promise<string> {
   if (opts.path === null) {
     return livePreviewUnavailableUrl(opts.reason ?? 'no-path')
@@ -73,7 +83,11 @@ export async function livePreviewUrl(opts: {
     return livePreviewUnavailableUrl('no-key')
   }
 
-  const query = new URLSearchParams({ ...opts.params, 'live-preview': token })
+  const query = new URLSearchParams({
+    ...opts.params,
+    ...(opts.scope ? { scope: opts.scope } : {}),
+    'live-preview': token,
+  })
 
   // An empty path is the site root, which is what the config and translations
   // globals preview against. A trailing slash, where a caller kept one, is
