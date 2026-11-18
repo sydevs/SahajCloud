@@ -16,8 +16,16 @@ const PLATFORM_LABELS: Record<string, string> = {
   wechat: 'WeChat',
 }
 
-/** How a manager is addressed, with a fallback for the blank-name row. */
-function managerDisplayName(manager: Manager): string {
+/**
+ * How a manager is addressed, with a fallback for the blank-name row. Takes the
+ * three columns rather than a `Manager`, so an authenticated user object
+ * narrowed to them is also an argument.
+ */
+export function managerDisplayName(manager: {
+  id: number
+  name?: string | null
+  email?: string | null
+}): string {
   return manager.name || manager.email || `#${manager.id}`
 }
 
