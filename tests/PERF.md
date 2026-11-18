@@ -354,6 +354,32 @@ confirmation the lane is DB-bound. The no-regression bar is met with
 margin. CI uses a tighter cap (≤4, matching the runner) against its
 dedicated service-container Postgres.
 
+## The integration lane — 2026-11-18 (#1199, the bound restored)
+
+Measured on a cloud routine container: 4 cores (Intel Xeon @ 2.10 GHz),
+15 GB, local Postgres 16.15. `time pnpm test:int`, two consecutive runs.
+
+| Metric                   | Value                                  |
+| ------------------------ | -------------------------------------- |
+| Suites / tests           | 107 files, 1959 tests (all passing)    |
+| Vitest duration          | 382.25 · 401.55 s — **median 391.9 s** |
+| Total wall-clock — local | 6m23s · 6m42s                          |
+
+**The bound above it was read by nothing from the Vitest 5 bump (b6f5a90)
+until this measurement.** Vitest 4 removed `poolOptions`, so the lane ran
+at Vitest's own default — `availableParallelism() - 1` — while the config
+still spelled a cap. `maxWorkers` carries it now, and
+`VITEST_INT_MAX_FORKS` reaches it again: measured by sampling
+`vitest/dist/workers/forks.js` processes, an override of 1 peaked at 1
+worker and 2 at 2, where the old spelling peaked at 4 under an override of 2.
+
+**This number is not comparable to the 2026-06-18 rows**, and not only for
+the schema it measures. Those ran on 11 cores, where the local derivation
+gives 6; here it gives `max(2, min(3, 6))` = 3, which is also what Vitest's
+own default would have chosen, so restoring the bound moved nothing on this
+machine. A wider machine is where the two diverge, and where the lane was
+spending connections it was configured not to.
+
 ## Schema-reuse / clone evaluation (#499 §2)
 
 **Considered**: build the schema once into a template, then clone it per
