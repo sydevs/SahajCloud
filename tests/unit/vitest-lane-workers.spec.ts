@@ -6,10 +6,6 @@
  * `tsconfig.test.json` is what makes a removed key a compile error, so the
  * first case here pins that `vitest.config.mts` is still in its program — the
  * gate disappears silently if it falls out.
- *
- * The import spells the config `.mjs` because `.mts` is not an importable
- * specifier under `moduleResolution: bundler`; the describe name spells `.mts`
- * so the per-edit hook selects these cases on a config edit.
  */
 import type { TestProjectConfiguration, TestProjectInlineConfiguration } from 'vitest/config'
 
@@ -24,7 +20,7 @@ const ROOT = join(import.meta.dirname, '../..')
 
 const readLanes = async (): Promise<Lane[]> => {
   vi.resetModules()
-  const { default: config } = await import('../../vitest.config.mjs')
+  const { default: config } = await import('../../vitest.config.mts')
   const projects: TestProjectConfiguration[] = config.test?.projects ?? []
   return projects.flatMap((project) =>
     typeof project === 'object' && 'test' in project && project.test ? [project.test] : [],
