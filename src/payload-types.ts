@@ -5697,10 +5697,6 @@ export interface WmWebTranslationsCommonA11YStrings {
    */
   breadcrumb?: string;
   /**
-   * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab. `%{label}` = the destination's own name (a social network, untranslated).
-   */
-  opens_in_new_tab?: string;
-  /**
    * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab, and is read directly after the link's own words. Takes no placeholder, because the link's text is arbitrary. Keep the brackets if the language uses them.
    */
   opens_in_new_tab_suffix?: string;
