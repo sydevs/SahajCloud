@@ -5,9 +5,10 @@
  * own recurrence, and `allow_contact` gates the three contact fields, which
  * were unconditional before.
  *
- * ⚠ The contact backfill reads the phone and the email and not the name, which
- * is the gate `hasContactRoute` applies: a name alone reaches nobody. A row
- * carrying only a name keeps it, unread, until someone switches the box on.
+ * ⚠ The contact backfill reads the phone and the email and not the name, and
+ * counts a blank as absent, which is the gate `hasContactRoute` applies: a name
+ * alone reaches nobody. A row carrying only a name keeps it, unread, until
+ * someone switches the box on.
  *
  * The down migration is schema-faithful, not data-faithful: it restores the two
  * notification columns at their defaults, since `up` drops the values.
@@ -27,14 +28,14 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
       WHEN "schedule_recurrence_type" IS NOT NULL THEN lower("schedule_recurrence_type"::text)
       ELSE 'once'
     END)::"public"."enum_events_repeats",
-    "allow_contact" = ("contact_phone" IS NOT NULL OR "contact_email" IS NOT NULL);
+    "allow_contact" = (COALESCE("contact_phone", '') <> '' OR COALESCE("contact_email", '') <> '');
   UPDATE "_events_v" SET
     "version_repeats" = (CASE
       WHEN "version_inactive" THEN 'inactive'
       WHEN "version_schedule_recurrence_type" IS NOT NULL THEN lower("version_schedule_recurrence_type"::text)
       ELSE 'once'
     END)::"public"."enum_events_repeats",
-    "version_allow_contact" = ("version_contact_phone" IS NOT NULL OR "version_contact_email" IS NOT NULL);
+    "version_allow_contact" = (COALESCE("version_contact_phone", '') <> '' OR COALESCE("version_contact_email", '') <> '');
   ALTER TABLE "events" DROP COLUMN "inactive";
   ALTER TABLE "events" DROP COLUMN "registration_notification_email";
   ALTER TABLE "events" DROP COLUMN "registration_notification_frequency";
