@@ -40,7 +40,7 @@ const REASONS: Record<string, { title: string; body: string }> = {
   },
   'no-classes': {
     title: 'This region has no published classes yet',
-    body: 'The preview draws this service’s own region, and nothing is published there yet, so it has nothing to show. Publish a class in the region and the map fills in.',
+    body: 'The map shows the classes published in this service’s region, and there are none yet. Publish one under Events and it will appear here.',
   },
   'no-key': {
     title: 'Live preview is not configured',
