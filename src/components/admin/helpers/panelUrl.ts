@@ -17,25 +17,41 @@
  * an explanation page in place of the site.
  */
 
+import {
+  livePreviewUnavailableUrl,
+  type LivePreviewUnavailableReason,
+} from '@/lib/livePreview/unavailable'
+
 let lastComposedUrl: null | string = null
 let serverResolvedUrl: null | string = null
 
 /**
- * Takes the provider's current `url` and answers the server-resolved default.
+ * Records the provider's current `url`.
  *
- * Any URL none of these fields composed is that default, because the provider
- * overwrites `url` whenever the server resolves a new one
+ * Any URL none of these fields composed is the server-resolved default, because
+ * the provider overwrites `url` whenever the server resolves a new one
  * (`@payloadcms/ui/dist/providers/LivePreview/index.js:100-104`).
  */
-export function trackPanelUrl(url: string): null | string {
+export function trackPanelUrl(url: string): void {
   if (url !== lastComposedUrl) serverResolvedUrl = url
+}
 
+/** The default: what the panel shows unless one of these fields moved it. */
+export function panelDefaultUrl(): null | string {
   return serverResolvedUrl
 }
 
-/** The default to restore, for a field that moved the panel and is unmounting. */
-export function panelDefaultUrl(): null | string {
-  return serverResolvedUrl
+/**
+ * The explanation page, absolute against the admin window.
+ *
+ * ⚠ `livePreviewUnavailableUrl` is root-relative on purpose, for the panel URL
+ * Payload resolves itself. `setURL` takes a URL, so a field moving the panel
+ * resolves it — here, once, rather than at each call site, where two fields
+ * could resolve the same reason against different origins and stop recognising
+ * each other's output.
+ */
+export function panelNoticeUrl(reason: LivePreviewUnavailableReason): string {
+  return new URL(livePreviewUnavailableUrl(reason), window.location.origin).toString()
 }
 
 /** Points the panel at a URL of our own, and remembers it as ours. */

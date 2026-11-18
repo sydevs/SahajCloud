@@ -8,13 +8,11 @@ import { useEffect, useRef } from 'react'
 import {
   composePanelUrl,
   panelDefaultUrl,
+  panelNoticeUrl,
   trackPanelUrl,
 } from '@/components/admin/helpers/panelUrl'
 import type { PreviewTarget as PreviewTargetDeclaration } from '@/fields/previewTargetField'
-import {
-  isLivePreviewUnavailableUrl,
-  livePreviewUnavailableUrl,
-} from '@/lib/livePreview/unavailable'
+import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 
 import { composeTargetUrl } from './composeTargetUrl'
 
@@ -81,13 +79,14 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
     // up on another global's origin.
     if (!isLivePreviewEnabled || !target || !url) return
 
-    const resolved = trackPanelUrl(url)
+    trackPanelUrl(url)
+    const resolved = panelDefaultUrl()
     // The document's own refusal outranks a tab's: a service with no atlas is
     // told that on every tab, not that its preview belongs to a tab it lacks.
     if (!resolved || isLivePreviewUnavailableUrl(resolved)) return
 
     const composed = target.unavailable
-      ? new URL(livePreviewUnavailableUrl(target.unavailable), window.location.origin).toString()
+      ? panelNoticeUrl(target.unavailable)
       : composeTargetUrl(resolved, target)
     if (!composed || composed === url) return
 

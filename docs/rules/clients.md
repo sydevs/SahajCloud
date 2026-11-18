@@ -29,9 +29,10 @@ other field.
 - **Four things leave the panel with nothing to draw, and each says which.** The tab
   (`atlas-tab-only`); no atlas role (`no-atlas-role`); a region holding no class a visitor would
   see (`no-classes`); and a frame that never answers (`atlas-unreachable`). ⚠ **Whether the region
-  is empty is the CMS's own answer, never the widget's** — `atlasPreviewTarget` counts published,
-  unfinished classes across the region's whole subtree, which is the public feed's test rather than
-  a plain count, and the preview session sends no message about it. The last one is the browser's:
+  is empty is the CMS's own answer, never the widget's** — `atlasPreviewTarget` asks the map feed's
+  own predicate (`drawnOnMapWhere`, `@/lib/events/mapVisibility`) across the region's whole
+  subtree, and the preview session sends no message about it. A clause in one and not the other is
+  this notice over a map with a pin on it. The last one is the browser's:
   an extension, a network block or an outage leaves the frame silent, so `MapPreviewField` points
   the panel at the explanation page after `ATLAS_SILENCE_MS` with nothing heard, restarted by each
   `load` so a slow atlas is not called blocked. There is no way back from that one inside the tab —

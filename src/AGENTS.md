@@ -236,7 +236,9 @@ No loose files at the root — every file lives in a named folder:
   `updateEventWithoutValidation.ts` — the bookkeeping write shared by the
   expiry job, the registration-fullness recount and the feedback hook,
   which skips validation so stored data a later validator refuses cannot
-  block any of the three), `eventTitle/` (the auto-title
+  block any of the three; `mapVisibility.ts` — which classes the Atlas map
+  draws, read by the geojson feed that returns them and by the Clients
+  preview panel, which only asks whether a region has any), `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check

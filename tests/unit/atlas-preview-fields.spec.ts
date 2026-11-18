@@ -21,6 +21,8 @@ import { PALETTE_REPORT_MESSAGE, readSwatch } from '@/components/admin/AtlasPrev
 const stub = vi.hoisted(() => ({
   fields: {} as Record<string, { setValue: (value: unknown) => void; value: null | string }>,
   iframeRef: { current: null as HTMLIFrameElement | null },
+  open: true,
+  windowType: 'iframe',
   url: 'https://atlas.example/preview',
 }))
 
@@ -40,6 +42,8 @@ vi.mock('@payloadcms/ui', () => ({
   useField: ({ path }: { path: string }) => stub.fields[path],
   useLivePreviewContext: () => ({
     iframeRef: stub.iframeRef,
+    isLivePreviewing: stub.open,
+    previewWindowType: stub.windowType,
     setURL: (next: string) => {
       stub.url = next
     },
@@ -162,6 +166,8 @@ const button = (name: string) =>
 
 beforeEach(() => {
   stub.iframeRef.current = null
+  stub.open = true
+  stub.windowType = 'iframe'
   stub.url = 'https://atlas.example/preview'
   stub.fields = Object.fromEntries(
     ['color1', 'color2', 'color3'].map((path) => [path, { setValue: vi.fn(), value: null }]),
@@ -357,6 +363,49 @@ describe('MapPreviewField', () => {
     tick(ATLAS_SILENCE_MS - 1)
     act(() => void frame.dispatchEvent(new Event('load')))
     tick(ATLAS_SILENCE_MS - 1)
+
+    expect(stub.url).toBe('https://atlas.example/preview')
+  })
+
+  it('watches no frame while the panel is closed', async () => {
+    fakeClock()
+    openPreview()
+    await mount(MapPreviewField)
+
+    stub.open = false
+    await mount(MapPreviewField)
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toBe('https://atlas.example/preview')
+  })
+
+  it('never re-asks a frame that has already spoken', async () => {
+    // Payload renders the iframe once and never unmounts it, so reopening the
+    // panel brings back a frame that has already loaded and already answered.
+    // A fresh clock on it would expire over a working map.
+    fakeClock()
+    const frame = openPreview()
+    await mount(MapPreviewField)
+    await post(report({}), frame.contentWindow)
+
+    stub.open = false
+    await mount(MapPreviewField)
+    stub.open = true
+    await mount(MapPreviewField)
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toBe('https://atlas.example/preview')
+  })
+
+  it('watches no frame while the preview is a popup', async () => {
+    // The whole window returns null then, so the iframe the clock waits on is
+    // detached and the popup's own messages come from another window.
+    fakeClock()
+    openPreview()
+    stub.windowType = 'popup'
+    await mount(MapPreviewField)
+
+    tick(ATLAS_SILENCE_MS)
 
     expect(stub.url).toBe('https://atlas.example/preview')
   })

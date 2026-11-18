@@ -10,10 +10,10 @@ import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import type { Client, Manager } from '@/payload-types'
+import type { Client, Event, Manager } from '@/payload-types'
 
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
-import { createData, testData } from '../utils/testData'
+import { type FixtureOverrides, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Clients live preview', () => {
@@ -46,37 +46,35 @@ describe('Clients live preview', () => {
     )
   }
 
-  /** A region whose only class is published, past, and so off every public feed. */
-  const createFinishedClassRegion = async (): Promise<number> => {
-    const region = await testData.createRegionNode(payload, {
-      prefix: 'clients-preview',
-      slug: 'pastland',
-      level: 'country',
-    })
-    const city = await testData.createRegionNode(payload, {
-      prefix: 'clients-preview',
-      slug: 'pastington',
-      level: 'city',
-      parent: region,
+  /**
+   * A country holding one published class, and its id.
+   *
+   * The class goes on a city beneath it, never on the country itself: that is
+   * what `events.region` accepts, and it is why the panel's emptiness check
+   * walks the subtree.
+   */
+  const countryWithClass = async (
+    slug: string,
+    overrides: FixtureOverrides<Event> = {},
+  ): Promise<number> => {
+    const node = (level: string, nodeSlug: string, parent?: number) =>
+      testData.createRegionNode(payload, {
+        prefix: 'clients-preview',
+        slug: nodeSlug,
+        level,
+        parent,
+      })
+
+    const country = await node('country', slug)
+    await testData.createEvent(payload, {
+      _status: 'published',
+      manager: adminManager.id,
+      region: await node('city', `${slug}-city`, country),
+      title: `${slug} class`,
+      ...overrides,
     })
 
-    await payload.create({
-      collection: 'events',
-      overrideAccess: true,
-      data: createData<'events'>({
-        _status: 'published',
-        eventType: 'online',
-        languages: ['en'],
-        manager: adminManager.id,
-        onlineUrl: 'https://example.invalid/meet',
-        region: city,
-        registrationMode: 'sahaj-atlas',
-        schedule: { firstDate: '2020-05-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
-        title: 'Past Class',
-      }),
-    })
-
-    return region
+    return country
   }
 
   beforeAll(async () => {
@@ -90,27 +88,9 @@ describe('Clients live preview', () => {
     listedRest = await createRestClientAs(env, listedManager)
     outsideRest = await createRestClientAs(env, outsideManager)
 
-    regionId = await testData.createRegionNode(payload, {
-      prefix: 'clients-preview',
-      slug: 'previewland',
-      level: 'country',
-    })
-
-    // The panel opens on the map only where there is something to draw, so
-    // every service that expects one needs a published class in its region.
-    // A class attaches to a city, never to the country the service opens on,
-    // which is why the count walks the subtree.
-    await testData.createEvent(payload, {
-      _status: 'published',
-      manager: adminManager.id,
-      region: await testData.createRegionNode(payload, {
-        prefix: 'clients-preview',
-        slug: 'previewton',
-        level: 'city',
-        parent: regionId,
-      }),
-      title: 'Preview Class',
-    })
+    // The panel opens on the map only where there is something to draw, so a
+    // service that expects one needs a published class in its region.
+    regionId = await countryWithClass('previewland')
 
     atlasService = await testData.createClient(payload, adminManager.id, {
       apiKey: 'clients-preview-atlas-key',
@@ -132,7 +112,13 @@ describe('Clients live preview', () => {
     finishedService = await testData.createClient(payload, adminManager.id, {
       apiKey: 'clients-preview-finished-key',
       label: 'Finished Classes Service',
-      region: await createFinishedClassRegion(),
+      region: await countryWithClass('pastland', {
+        eventType: 'online',
+        inactive: false,
+        onlineUrl: 'https://example.invalid/meet',
+        registrationMode: 'sahaj-atlas',
+        schedule: { firstDate: '2020-05-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
+      }),
       roles: ['sahaj-atlas-client'],
     })
     worldwideService = await testData.createClient(payload, adminManager.id, {
@@ -165,6 +151,15 @@ describe('Clients live preview', () => {
 
       expect(url.pathname).toBe('/')
       expect(url.searchParams.get('scope')).toBe('clients')
+    })
+
+    it('judges the root’s own emptiness when the region has no path', async () => {
+      // A region whose slug chain cannot resolve has no page, so the panel
+      // opens the atlas root — which draws every region. Asking the empty
+      // subtree would refuse a preview that had plenty to show.
+      const url = new URL(await previewUrl({ ...atlasService, region: 9_999_999 }))
+
+      expect(url.pathname).toBe('/')
     })
 
     it('explains a region with nothing published in it', async () => {

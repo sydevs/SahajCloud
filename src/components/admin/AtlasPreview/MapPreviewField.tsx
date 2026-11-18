@@ -3,14 +3,11 @@
 import type { UIFieldClientComponent } from 'payload'
 
 import { FieldLabel, useLivePreviewContext } from '@payloadcms/ui'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
-import { composePanelUrl } from '@/components/admin/helpers/panelUrl'
+import { composePanelUrl, panelNoticeUrl } from '@/components/admin/helpers/panelUrl'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
-import {
-  isLivePreviewUnavailableUrl,
-  livePreviewUnavailableUrl,
-} from '@/lib/livePreview/unavailable'
+import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 import { originOf } from '@/lib/utilities/url'
 
 import { isFromPreviewFrame } from './paletteReport'
@@ -43,8 +40,10 @@ const MODES: { label: string; value: Mode }[] = [
  * Stores nothing: the mode is a way of looking at the colours, not a setting.
  */
 export const MapPreviewField: UIFieldClientComponent = () => {
-  const { iframeRef, setURL, url } = useLivePreviewContext()
+  const { iframeRef, isLivePreviewing, previewWindowType, setURL, url } = useLivePreviewContext()
   const [mode, setMode] = useState<Mode>('light')
+  /** Whether the atlas has answered since the frame last loaded. */
+  const heard = useRef(false)
 
   // ⚠ Keyed on the panel's `url`, not on the ref alone. `autoOpen` opens the panel
   // after this field has mounted, so an effect depending only on stable values
@@ -95,37 +94,65 @@ export const MapPreviewField: UIFieldClientComponent = () => {
    * ⚠ **Its own effect.** The mode effect above re-runs on every toggle, and a
    * clock restarted there would read a silent atlas as reachable each time.
    *
-   * There is no way back: navigating the frame away ends any chance of a late
-   * message, which is what `ATLAS_SILENCE_MS` is sized against. Leaving the tab
-   * and returning restores the panel, as does a save.
+   * ⚠ **`heard` outlives the effect, and only a `load` clears it.** Payload
+   * renders the iframe once and never unmounts it on close — "defer load and
+   * never unmount" (`providers/LivePreview/index.js`) — so reopening the panel
+   * brings back a frame that has already loaded and already spoken. There is no
+   * second `load` and no second message, so a clock restarted on that frame
+   * would expire over a working map, with no way back.
+   *
+   * Two states leave no frame to watch: the panel closed, and the preview moved
+   * to a popup, which returns `null` for the whole window
+   * (`elements/LivePreview/Window`). Keying on both is also what attaches this
+   * to a panel opened after the field mounted.
+   *
+   * Showing the notice costs the live map until the tab is left and returned
+   * to, or the document saved. That is the price of the panel explaining
+   * itself where the other four refusals do, rather than a banner beside it,
+   * and it is what `ATLAS_SILENCE_MS` is sized against: navigating the frame
+   * away ends any chance of a late message.
    */
   useEffect(() => {
     const frame = iframeRef?.current
     // Already explaining itself — this notice, or the document's own refusal.
     if (!frame || !url || isLivePreviewUnavailableUrl(url)) return
+    if (!isLivePreviewing || previewWindowType !== 'iframe') return
 
     let timer: ReturnType<typeof setTimeout> | undefined
     const wait = () => {
       clearTimeout(timer)
-      timer = setTimeout(() => {
-        const notice = livePreviewUnavailableUrl('atlas-unreachable')
-        composePanelUrl(setURL, new URL(notice, window.location.origin).toString())
-      }, ATLAS_SILENCE_MS)
+      if (heard.current) return
+      timer = setTimeout(
+        () => composePanelUrl(setURL, panelNoticeUrl('atlas-unreachable')),
+        ATLAS_SILENCE_MS,
+      )
+    }
+    const onLoad = () => {
+      heard.current = false
+      wait()
     }
     const onMessage = (event: MessageEvent) => {
-      if (isFromPreviewFrame(event, frame)) clearTimeout(timer)
+      if (!isFromPreviewFrame(event, frame)) return
+      heard.current = true
+      clearTimeout(timer)
     }
 
     wait()
-    frame.addEventListener('load', wait)
+    frame.addEventListener('load', onLoad)
     window.addEventListener('message', onMessage)
 
     return () => {
       clearTimeout(timer)
-      frame.removeEventListener('load', wait)
+      frame.removeEventListener('load', onLoad)
       window.removeEventListener('message', onMessage)
     }
-  }, [iframeRef, setURL, url])
+  }, [iframeRef, isLivePreviewing, previewWindowType, setURL, url])
+
+  // A new address in the frame is a page that has not spoken yet. Its own
+  // effect, so re-running the watch above for any other reason keeps the answer.
+  useEffect(() => {
+    heard.current = false
+  }, [url])
 
   return (
     <div className="field-type">
