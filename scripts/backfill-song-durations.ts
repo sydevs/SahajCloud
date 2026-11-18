@@ -7,8 +7,10 @@
  * lists it. This reads each such song's stored audio and writes the length it
  * states.
  *
- * Dry run by default; `--force` writes. Re-runnable — a song that already
- * holds a duration is never fetched or written.
+ * Dry run by default; `--force` writes. The dry run reads the same audio the
+ * write would, so the operator sees each length before it lands — only the
+ * format block is read, not the whole track. Re-runnable: a song that already
+ * holds a duration is never read or written.
  *
  * Usage:
  *   pnpm tsx scripts/backfill-song-durations.ts
@@ -19,18 +21,18 @@
 import dotenv from 'dotenv'
 
 import { backfillSongDurations } from '../src/lib/audio/backfillSongDurations'
-import { loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
+import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
 
 async function main(): Promise<void> {
   const force = process.argv.includes('--force')
-  if (force) console.warn('--force: every song below will be written.\n')
+  if (force) console.warn('--force: every song listed below will be written.\n')
 
   dotenv.config({ path: ['.env.local', '.env'] })
   const payload = await loadPayloadWithoutSchemaChanges()
 
-  const { scanned, written, skipped } = await backfillSongDurations(payload, { dryRun: !force })
+  const { written, skipped } = await backfillSongDurations(payload, { dryRun: !force })
 
-  console.log(`${scanned} song(s) hold no duration.\n`)
+  console.log(`${written.length + skipped.length} song(s) hold no duration.\n`)
   for (const row of written) {
     console.log(`  songs#${row.id}  ${row.duration}s  ${JSON.stringify(row.title)}`)
   }
@@ -42,10 +44,10 @@ async function main(): Promise<void> {
     `\n${written.length} ${force ? 'written' : 'to write'}, ${skipped.length} skipped.` +
       (force ? '' : '\nRe-run with --force to write them.'),
   )
-  process.exit(0)
+  exitAfterFlush(0)
 }
 
 void main().catch((error) => {
   console.error(error)
-  process.exit(1)
+  exitAfterFlush(1)
 })

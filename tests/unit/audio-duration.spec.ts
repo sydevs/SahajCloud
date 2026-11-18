@@ -1,3 +1,8 @@
+/**
+ * Reads `src/fixture/files/` rather than `tests/files/`, because the preview
+ * fixture's own bytes are the subject: what a reviewer sees on each fixture
+ * song is the duration asserted here.
+ */
 import fs from 'fs'
 import path from 'path'
 

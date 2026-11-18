@@ -109,6 +109,12 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
     },
   })
 
+/**
+ * The longest recording a meditation may carry. The Lemonfox client's request
+ * timeout is budgeted against it, so the two move together.
+ */
+export const MAX_MEDITATION_MINUTES = 50
+
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
   trash: true,
@@ -119,7 +125,7 @@ export const Meditations: CollectionConfig = {
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       // After `extractAudioDuration`: the weights are computed against the
       // duration this save is about to store.
-      extractAudioDuration({ maxMinutes: 50 }),
+      extractAudioDuration({ maxMinutes: MAX_MEDITATION_MINUTES }),
       cacheMeditationNodeWeights,
     ],
     afterChange: [syncTranscriptOnSave('meditations')],

@@ -56,7 +56,7 @@ export default fixture('songs', [
     id: 1_018_005,
     file: UNREADABLE_AUDIO,
     data: {
-      title: 'Fixture Untagged Interlude',
+      title: 'Fixture Damaged Interlude (no duration)',
       album: ALBUM.morning,
       includeForMeditations: true,
     },

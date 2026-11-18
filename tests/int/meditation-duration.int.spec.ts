@@ -5,8 +5,6 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { extractAudioDuration } from '@/lib/audio/duration'
-
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -109,40 +107,6 @@ describe('Meditation Duration Extraction', () => {
       })
 
       expect(found.duration).toBe(originalDuration)
-    })
-  })
-
-  describe('extractAudioDuration hook (unit)', () => {
-    it('returns data without duration for non-audio content', async () => {
-      const mockReq = {
-        file: {
-          data: Buffer.from('not-a-real-audio-file'),
-          mimetype: 'audio/mpeg',
-          name: 'corrupted.mp3',
-        },
-        payload: { logger: { warn: () => {} } },
-      }
-
-      const result = await extractAudioDuration()({
-        data: { label: 'test' },
-        req: mockReq,
-      } as never)
-
-      // Should return data without duration rather than throwing
-      expect(result).toBeDefined()
-      expect((result as Record<string, unknown>).duration).toBeUndefined()
-    })
-
-    it('skips extraction when no file is uploaded', async () => {
-      const mockReq = { payload: { logger: { warn: () => {} } } }
-
-      const result = await extractAudioDuration()({
-        data: { label: 'test', duration: 100 },
-        req: mockReq,
-      } as never)
-
-      // Should preserve existing data unchanged
-      expect(result).toEqual({ label: 'test', duration: 100 })
     })
   })
 

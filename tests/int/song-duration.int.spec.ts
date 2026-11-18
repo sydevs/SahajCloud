@@ -5,9 +5,6 @@
  */
 import type { Payload } from 'payload'
 
-import fs from 'fs'
-import path from 'path'
-
 import { handleEndpoints } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -17,8 +14,8 @@ import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const API_KEY = 'app-client-key-for-song-duration-spec'
-/** The preview fixture's corrupt track: real MPEG header, no duration in it. */
-const UNREADABLE = 'fixture-audio-unreadable.mp3'
+/** A real MPEG header with no duration behind it, as a corrupt upload arrives. */
+const UNREADABLE = 'audio-unreadable.mp3'
 
 describe('Song duration extraction', () => {
   let payload: Payload
@@ -26,14 +23,6 @@ describe('Song duration extraction', () => {
   let config: Awaited<ReturnType<typeof createTestEnvironment>>['config']
   let album: Album
   let admin: Manager
-
-  /** A song created with bytes of the caller's choosing, as a trusted system call. */
-  const createSongWith = (data: Buffer, title: string): Promise<Song> =>
-    payload.create({
-      collection: 'songs',
-      data: { title, album: album.id },
-      file: { data, mimetype: 'audio/mpeg', name: `${title}.mp3`, size: data.length },
-    }) as Promise<Song>
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
@@ -75,10 +64,7 @@ describe('Song duration extraction', () => {
   })
 
   it('saves a song whose audio states no duration, with none stored', async () => {
-    const song = await createSongWith(
-      fs.readFileSync(path.join(process.cwd(), 'src', 'fixture', 'files', UNREADABLE)),
-      'Unreadable',
-    )
+    const song = await testData.createSong(payload, { album: album.id }, UNREADABLE)
 
     expect(song.id).toBeDefined()
     expect(song.duration).toBeNull()

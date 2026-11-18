@@ -1,6 +1,6 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { parseBuffer } from 'music-metadata'
+import { parseBuffer, parseWebStream } from 'music-metadata'
 
 interface ExtractAudioDurationOptions {
   /** Refuse audio longer than this. Omitted, any length is accepted. */
@@ -8,14 +8,19 @@ interface ExtractAudioDurationOptions {
 }
 
 /**
- * The length of `buffer` in whole seconds, or `undefined` when the container
+ * The length of `source` in whole seconds, or `undefined` when the container
  * states none. Throws when the bytes cannot be parsed as audio.
+ *
+ * A stream is read only as far as the format block, so a caller holding a
+ * response body never has to download the rest of the track.
  */
 export const readAudioDuration = async (
-  buffer: Buffer,
+  source: Buffer | ReadableStream<Uint8Array>,
   mimeType?: string,
 ): Promise<number | undefined> => {
-  const { format } = await parseBuffer(buffer, { mimeType })
+  const { format } = Buffer.isBuffer(source)
+    ? await parseBuffer(source, { mimeType })
+    : await parseWebStream(source, { mimeType })
   return format.duration == null ? undefined : Math.round(format.duration)
 }
 

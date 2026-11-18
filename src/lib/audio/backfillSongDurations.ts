@@ -4,20 +4,17 @@ import { getR2Url } from '@/plugins/storage'
 
 import { readAudioDuration } from './duration'
 
-export interface SongDurationRow {
+/** A stalled R2 transfer must not hang an operator's run for ever. */
+const FETCH_TIMEOUT_MS = 60_000
+
+interface SongRow {
   id: number
   title: string
-  /** Whole seconds read from the stored audio, absent when it could not be read. */
-  duration?: number
-  /** Why this song was left alone. */
-  reason?: string
 }
 
 export interface BackfillSongDurationsResult {
-  /** Songs holding no duration, trashed rows included. */
-  scanned: number
-  written: SongDurationRow[]
-  skipped: SongDurationRow[]
+  written: (SongRow & { duration: number })[]
+  skipped: (SongRow & { reason: string })[]
 }
 
 interface BackfillSongDurationsOptions {
@@ -30,9 +27,9 @@ interface BackfillSongDurationsOptions {
  * at. The upload hook fires on an upload alone, so a song stored before it
  * landed carries none.
  *
- * Re-runnable: a song that already holds a duration is never fetched or
- * written. A song whose audio cannot be read is reported and skipped, so one
- * unreadable file does not end the run.
+ * Re-runnable: a song that already holds a duration is never read or written.
+ * A song whose audio cannot be read is reported and skipped, so one unreadable
+ * file does not end the run.
  */
 export const backfillSongDurations = async (
   payload: Payload,
@@ -50,22 +47,28 @@ export const backfillSongDurations = async (
     select: { title: true, filename: true },
   })
 
-  const result: BackfillSongDurationsResult = { scanned: docs.length, written: [], skipped: [] }
+  const result: BackfillSongDurationsResult = { written: [], skipped: [] }
 
   for (const doc of docs) {
-    const row: SongDurationRow = { id: doc.id, title: doc.title }
+    const row = { id: doc.id, title: doc.title }
 
-    const url = doc.filename ? getR2Url(doc.filename) : undefined
-    if (!url) {
-      result.skipped.push({ ...row, reason: doc.filename ? 'no R2 delivery URL' : 'no audio file' })
+    if (!doc.filename) {
+      result.skipped.push({ ...row, reason: 'no audio file' })
       continue
     }
 
+    const url = getR2Url(doc.filename)
+    if (!url) throw new Error('CLOUDFLARE_R2_DELIVERY_URL is unset, so no song can be read.')
+
     let duration: number | undefined
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
       if (!response.ok) throw new Error(`fetch failed with ${response.status}`)
-      duration = await readAudioDuration(Buffer.from(await response.arrayBuffer()))
+      if (!response.body) throw new Error('fetch answered with no body')
+      duration = await readAudioDuration(
+        response.body,
+        response.headers.get('content-type') ?? undefined,
+      )
     } catch (error) {
       result.skipped.push({
         ...row,
