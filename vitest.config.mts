@@ -142,9 +142,8 @@ export default defineConfig({
           fileParallelism: true,
           maxWorkers: intMaxForks,
           // A run covering both projects groups them by `sequence.groupOrder`
-          // and refuses a group whose projects disagree on `maxWorkers`. Its
-          // own order keeps the int lane out of unit's group, and the groups
-          // then run one after the other.
+          // and refuses a group whose projects disagree on `maxWorkers`.
+          // Groups run in sequence, so a combined run serializes the lanes.
           sequence: { groupOrder: 1 },
           // Postgres has real per-operation latency, unlike the old instant
           // in-memory SQLite. Write-heavy integration tests and the

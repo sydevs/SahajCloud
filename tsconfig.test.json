@@ -9,11 +9,17 @@
   // files pull it in transitively through their `@/` imports, and the
   // root config already typechecks `src/` on its own.
   //
+  // `vitest.config.mts` is here because no other program takes it: the root
+  // config's `**/*.ts` glob does not match a `.mts` filename, so the file that
+  // configures both lanes was typechecked by nothing. `InlineConfig` has no
+  // index signature, so excess-property checking on each project's `test`
+  // literal turns a key Vitest has removed into a compile error here (#1199).
+  //
   // Editors use `tests/tsconfig.json` as their entry point. A TS server
   // finds the nearest `tsconfig.json` by walking up from a file, so it
   // will not find this file by name. `tests/tsconfig.json` is a one-line
   // re-export, so all real options live here.
   "extends": "./tsconfig.json",
-  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/*.d.ts"],
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/*.d.ts", "vitest.config.mts"],
   "exclude": ["node_modules"]
 }
