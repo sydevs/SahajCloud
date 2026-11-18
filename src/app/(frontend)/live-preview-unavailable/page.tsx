@@ -28,7 +28,7 @@ import React from 'react'
 const REASONS: Record<string, { title: string; body: string }> = {
   'atlas-tab-only': {
     title: 'The preview belongs to the Atlas tab',
-    body: 'This panel shows the atlas as visitors see it, so the colours and logo on the Atlas tab can be checked while they are chosen. There is nothing on this tab for it to show.',
+    body: 'There is nothing on this tab for it to show. Open the Atlas tab to see the map, and the colours and logo as a visitor will.',
   },
   'atlas-unreachable': {
     title: 'The map did not load',
@@ -36,7 +36,7 @@ const REASONS: Record<string, { title: string; body: string }> = {
   },
   'no-atlas-role': {
     title: 'This service has no atlas',
-    body: 'Live preview opens this service’s own atlas, and this service does not have one. An administrator can give it the Sahaj Atlas role under Access.',
+    body: 'An administrator can give this service the Sahaj Atlas role under Access. The map appears here once it has one.',
   },
   'no-classes': {
     title: 'This region has no published classes yet',
@@ -44,19 +44,19 @@ const REASONS: Record<string, { title: string; body: string }> = {
   },
   'no-key': {
     title: 'Live preview is not configured',
-    body: 'This environment cannot issue preview links. An administrator needs to configure live-preview signing before the panel will work here.',
+    body: 'An administrator needs to set up live-preview signing before the preview will work here.',
   },
   'no-path': {
     title: 'This document has no address yet',
-    body: 'Live preview opens the page this document will be published at, and that address cannot be worked out yet. Fill in the fields it is built from — usually the slug — then save.',
+    body: 'Fill in the fields the address is built from — usually the slug — then save, and the preview opens the page this document will be published at.',
   },
   'no-region': {
     title: 'This event has no region yet',
-    body: 'An event is previewed on its region’s map, so it needs one before there is anywhere to show it. Choose a region under Location, then save.',
+    body: 'Choose a region under Location, then save. The preview opens on that region’s map.',
   },
   'not-reviewable': {
     title: 'There is nothing to preview here',
-    body: 'Live preview shows the event an accepted proposal would leave behind. This submission is not a proposal, so there is no listing to draw.',
+    body: 'This submission is not a proposal, so there is no event for the preview to show.',
   },
 }
 
