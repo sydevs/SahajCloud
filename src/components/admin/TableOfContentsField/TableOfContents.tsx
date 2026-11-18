@@ -1,16 +1,16 @@
 'use client'
 
-import type { DetectedHeading } from './headings'
-
 import React from 'react'
 
+import type { TableOfContentsHeadings } from '@/payload-types'
+
 interface TableOfContentsProps {
-  detected: DetectedHeading[]
+  detected: TableOfContentsHeadings
   /** Positions in `detected`, which is what identifies a heading — two may slugify alike. */
   enabled: ReadonlySet<number>
   onToggle: (position: number) => void
   readOnly?: boolean
-  blocked?: ReadonlySet<number>
+  blocked: ReadonlySet<number>
 }
 
 export const TableOfContents: React.FC<TableOfContentsProps> = ({
@@ -47,7 +47,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
     >
       {detected.map((heading, position) => {
         const isEnabled = enabled.has(position)
-        const isBlocked = !isEnabled && !!blocked?.has(position)
+        const isBlocked = blocked.has(position)
         const indentLevel = heading.level - 1
         const buttonCursor = readOnly ? 'default' : isBlocked ? 'not-allowed' : 'pointer'
 

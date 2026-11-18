@@ -738,6 +738,9 @@ export type TableOfContentsHeadings = {
   slug: string;
   text: string;
   level: number;
+  /**
+   * Position among the document's detected headings, counted from 0 — what tells two headings that slugify alike apart. Optional because Payload validates this schema on every save of the page, so a required key would refuse the next save of every page stored before it existed (#1207). Read its absence as unknown, never as 0.
+   */
   index?: number;
   [k: string]: unknown;
 }[];

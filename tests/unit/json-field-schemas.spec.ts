@@ -362,8 +362,6 @@ describe('TableOfContentsBlock.headings', () => {
   })
 
   it('still accepts an entry stored before `index` existed', () => {
-    // Optional on purpose: a required key would refuse the next save of every
-    // page stored today, since nothing migrates the column (#1207).
     expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
     expect(
       runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2, index: '0' }]),

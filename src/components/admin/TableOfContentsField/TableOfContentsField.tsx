@@ -1,6 +1,5 @@
 'use client'
 
-import type { DetectedHeading } from './headings'
 import type { JSONFieldClientComponent } from 'payload'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -8,9 +7,10 @@ import { $isHeadingNode } from '@lexical/rich-text'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import { $getRoot, type EditorState } from 'lexical'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import slugify from 'slugify'
 
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+import { slugifyValue } from '@/fields/slugify'
+import type { TableOfContentsHeadings } from '@/payload-types'
 
 import { blockedHeadings, rebuildStored, resolveStored, toggleHeading } from './headings'
 import { TableOfContents } from './TableOfContents'
@@ -18,22 +18,27 @@ import { TableOfContents } from './TableOfContents'
 export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly }) => {
   const { name, label, admin: { description } = {} } = field
 
-  const { value: storedValue, setValue, showError } = useField<DetectedHeading[] | null>()
+  const { value: storedValue, setValue, showError } = useField<TableOfContentsHeadings | null>()
 
-  const [detectedHeadings, setDetectedHeadings] = useState<DetectedHeading[]>([])
+  const [detectedHeadings, setDetectedHeadings] = useState<TableOfContentsHeadings>([])
 
   // Keep a ref mirror of storedValue to avoid stale closures in registerUpdateListener.
   // Updated synchronously during render (not via useEffect) so it is never stale when
   // Lexical fires an update listener between a setValue call and the next effect flush.
-  const storedValueRef = useRef<DetectedHeading[] | null>(null)
+  const storedValueRef = useRef<TableOfContentsHeadings | null>(null)
   storedValueRef.current = storedValue ?? null
   const prevDetectedKeyRef = useRef<string>('')
 
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const scanHeadings = (editorState: EditorState): DetectedHeading[] => {
-      const detected: DetectedHeading[] = []
+    // ⚠ Cross-repo contract: a consumer rendering the document re-derives each
+    // entry's `index` by counting headings the same way, to anchor its link.
+    // What counts is a top-level heading node with non-empty trimmed text, in
+    // document order, from 0. Changing that moves every anchor on every
+    // consumer site — sydevs/WeMeditateWeb#266 is the first.
+    const scanHeadings = (editorState: EditorState): TableOfContentsHeadings => {
+      const detected: TableOfContentsHeadings = []
       editorState.read(() => {
         $getRoot()
           .getChildren()
@@ -42,7 +47,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
               const text = node.getTextContent().trim()
               if (text) {
                 detected.push({
-                  slug: slugify(text, { lower: true, strict: true }),
+                  slug: slugifyValue(text),
                   text,
                   level: parseInt(node.getTag().slice(1), 10),
                   index: detected.length,
@@ -54,9 +59,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
       return detected
     }
 
-    const applyUpdate = (detected: DetectedHeading[]) => {
-      // Skip update if the heading list hasn't changed (cursor/format changes).
-      // Serialized whole, so reordering two headings that slugify alike is still a change.
+    const applyUpdate = (detected: TableOfContentsHeadings) => {
+      // Skip update if the heading list hasn't changed (cursor/format changes)
       const key = JSON.stringify(detected)
       if (key === prevDetectedKeyRef.current) return
       prevDetectedKeyRef.current = key
@@ -98,7 +102,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
 
   const handleToggle = useCallback(
     (position: number) => {
-      if (!enabledHeadings.has(position) && blocked.has(position)) return
+      if (blocked.has(position)) return
       setValue(toggleHeading(detectedHeadings, enabledHeadings, position))
     },
     [blocked, detectedHeadings, enabledHeadings, setValue],

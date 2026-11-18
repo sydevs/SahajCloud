@@ -28,22 +28,20 @@ export const TableOfContentsBlock: Block = {
     jsonField({
       name: 'headings',
       // Written only by `TableOfContentsField`, which stores the subset of the
-      // document's detected headings an author ticked. The schema restates that
-      // component's `DetectedHeading` (`src/components/admin/TableOfContentsField/
-      // headings.ts`), because a TypeScript type cannot build a schema.
-      // Entries stay open so a heading gaining a field does not make every
-      // existing page unsaveable.
+      // document's detected headings an author ticked. Entries stay open so a
+      // heading gaining a field does not make every existing page unsaveable.
       schemaTitle: 'TableOfContentsHeadings',
       schema: z.array(
         z.looseObject({
           slug: z.string(),
           text: z.string(),
           level: z.int(),
-          // The heading's ordinal among the document's detected headings, which
-          // is what tells two headings that slugify alike apart. Optional, or
-          // the next save of every page stored before it would be refused —
-          // so a consumer reads its absence as unknown, never as 0.
-          index: z.int().optional(),
+          index: z
+            .int()
+            .optional()
+            .describe(
+              "Position among the document's detected headings, counted from 0 — what tells two headings that slugify alike apart. Optional because Payload validates this schema on every save of the page, so a required key would refuse the next save of every page stored before it existed (#1207). Read its absence as unknown, never as 0.",
+            ),
         }),
       ),
       admin: {

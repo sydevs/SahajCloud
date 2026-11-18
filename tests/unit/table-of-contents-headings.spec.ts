@@ -5,8 +5,9 @@ import {
   rebuildStored,
   resolveStored,
   toggleHeading,
-  type DetectedHeading,
 } from '@/components/admin/TableOfContentsField/headings'
+import { slugifyValue } from '@/fields/slugify'
+import type { TableOfContentsHeadings } from '@/payload-types'
 
 /**
  * #1207: a heading used to be identified by its slug, so two headings whose text
@@ -14,27 +15,18 @@ import {
  * could not say which of the two it stood for.
  */
 
-/** A document, written as `<level><text>`; the slug is the text, lowercased and hyphenated. */
-function doc(...spec: string[]): DetectedHeading[] {
+/** A document, written as `<level><text>`, slugged the way the field slugs it. */
+function doc(...spec: string[]): TableOfContentsHeadings {
   return spec.map((entry, index) => {
     const text = entry.slice(1)
-    return {
-      slug: text
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, ''),
-      text,
-      level: Number(entry[0]),
-      index,
-    }
+    return { slug: slugifyValue(text), text, level: Number(entry[0]), index }
   })
 }
 
 /** The two headings this ticket is about: different text, one slug. */
 const ALIKE = doc('2Begin', '2Begin!')
 
-const texts = (headings: DetectedHeading[]) => headings.map((h) => h.text)
-const indexes = (headings: DetectedHeading[]) => headings.map((h) => h.index)
+const indexes = (headings: TableOfContentsHeadings) => headings.map((h) => h.index)
 
 describe('resolveStored', () => {
   it('places an entry on the heading its own index names', () => {
@@ -42,10 +34,17 @@ describe('resolveStored', () => {
     expect([...resolveStored(ALIKE, [ALIKE[0]])]).toEqual([0])
   })
 
-  it('re-places an entry the document moved, by slug, in order', () => {
-    // A heading inserted above shifts every index by one; slug order places them again.
+  it('re-places an entry the document moved, by text', () => {
+    // A heading inserted above shifts every index by one, so the index alone
+    // would land this on `Begin`.
     const shifted = doc('2Intro', '2Begin', '2Begin!')
+    expect([...resolveStored(shifted, [ALIKE[1]])]).toEqual([2])
     expect([...resolveStored(shifted, [ALIKE[0], ALIKE[1]])]).toEqual([1, 2])
+  })
+
+  it('tells two headings with identical text apart by position', () => {
+    const twins = doc('2Begin', '2Begin')
+    expect([...resolveStored(twins, [twins[1]])]).toEqual([1])
   })
 
   it('places an entry stored before `index` existed, by slug', () => {
@@ -68,20 +67,9 @@ describe('resolveStored', () => {
 })
 
 describe('rebuildStored', () => {
-  it('keeps one of two alike headings and re-emits it with its index', () => {
-    const rebuilt = rebuildStored(ALIKE, [ALIKE[1]])
-    expect(texts(rebuilt)).toEqual(['Begin!'])
-    expect(indexes(rebuilt)).toEqual([1])
-  })
-
-  it('gives a stored list with no indexes one', () => {
+  it('re-emits a stored list carrying no index with one', () => {
     const legacy = [{ slug: 'begin', text: 'Begin', level: 2 }]
-    expect(indexes(rebuildStored(ALIKE, legacy))).toEqual([0])
-  })
-
-  it('holds a selection still when a heading is inserted above it', () => {
-    const shifted = doc('2Intro', '2Begin', '2Begin!')
-    expect(texts(rebuildStored(shifted, [ALIKE[1]]))).toEqual(['Begin!'])
+    expect(rebuildStored(ALIKE, legacy)).toEqual([ALIKE[0]])
   })
 
   it('drops a child whose own parent dropped out', () => {
@@ -96,8 +84,7 @@ describe('rebuildStored', () => {
 describe('blockedHeadings', () => {
   it('blocks a child by its own parent, not by a heading that slugifies alike', () => {
     const document = doc('2Begin', '3Detail', '2Begin!', '3Detail')
-    const blocked = blockedHeadings(document, new Set([2]))
-    expect([...blocked]).toEqual([1])
+    expect([...blockedHeadings(document, new Set([2]))]).toEqual([1])
   })
 
   it('blocks nothing at the top level', () => {
@@ -107,13 +94,11 @@ describe('blockedHeadings', () => {
 
 describe('toggleHeading', () => {
   it('disables one of two alike headings and leaves the other', () => {
-    const left = toggleHeading(ALIKE, new Set([0, 1]), 1)
-    expect(indexes(left)).toEqual([0])
+    expect(indexes(toggleHeading(ALIKE, new Set([0, 1]), 1))).toEqual([0])
   })
 
   it('enables one of two alike headings and leaves the other', () => {
-    const next = toggleHeading(ALIKE, new Set([0]), 1)
-    expect(indexes(next)).toEqual([0, 1])
+    expect(indexes(toggleHeading(ALIKE, new Set([0]), 1))).toEqual([0, 1])
   })
 
   it('carries only its own nested headings', () => {
