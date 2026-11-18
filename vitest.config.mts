@@ -2,19 +2,23 @@ import os from 'os'
 import path from 'path'
 
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
-import { DEFAULT_TEST_DATABASE_URL } from './tests/utils/postgresTestPool'
+import { DEFAULT_TEST_DATABASE_URL } from './tests/utils/postgresTestPool.ts'
 
+// `import.meta.dirname` and the extension on the import above are what Vite's
+// planned `configLoader: 'native'` needs. The aliases survive `tsconfigPaths`
+// because they bind to this file's directory, not to the tsconfig nearest the
+// importing module.
 const sharedResolve = {
   alias: {
-    '@': path.resolve(__dirname, './src'),
-    tests: path.resolve(__dirname, './tests'),
+    '@': path.resolve(import.meta.dirname, './src'),
+    tests: path.resolve(import.meta.dirname, './tests'),
   },
+  tsconfigPaths: true,
 }
 
-const sharedPlugins = [tsconfigPaths(), react()]
+const sharedPlugins = [react()]
 
 // Shared by both Vitest projects, unit and int. Each project's `env` block
 // used to copy this (see #499 §6). DATABASE_URL falls back to a local

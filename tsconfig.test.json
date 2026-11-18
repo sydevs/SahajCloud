@@ -20,6 +20,10 @@
   // will not find this file by name. `tests/tsconfig.json` is a one-line
   // re-export, so all real options live here.
   "extends": "./tsconfig.json",
+  // `vitest.config.mts` spells its one import with a `.ts` extension, which
+  // `configLoader: 'native'` requires and `moduleResolution: bundler` refuses
+  // without this.
+  "compilerOptions": { "allowImportingTsExtensions": true },
   "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/types/*.d.ts", "vitest.config.mts"],
   "exclude": ["node_modules"]
 }
