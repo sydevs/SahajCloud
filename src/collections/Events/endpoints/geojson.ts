@@ -3,10 +3,11 @@ import type { Endpoint, PopulateType, SelectType, Sort, Where } from 'payload'
 
 import { INVALID_TEXT_REPRESENTATION, mapPostgresCastError } from '@/lib/databaseErrors'
 import { readFailureResponse, requireActiveClient } from '@/lib/endpoints'
+import { drawnOnMapWhere } from '@/lib/events/mapVisibility'
 import type { Event } from '@/payload-types'
 import { publicReadCacheHeaders } from '@/plugins/cache'
 
-import { andWhere, notFinishedWhere } from '../lifecycle/finished'
+import { andWhere } from '../lifecycle/finished'
 
 /** Build a `[lon, lat]` Point from an event's address, or `null` when coordinates are absent. */
 function pointGeometry(doc: Event): GeoJsonPoint | null {
@@ -50,22 +51,6 @@ const toBoolean = (value: unknown): boolean | undefined => {
 }
 
 /**
- * ⚠ **Published, even for a live-preview request.** A preview token lifts the
- * published-only access clause, and that put every unpublished draft on every
- * previewed map. The previewed document never needs the feed: the widget
- * renders it from its own `draft=true` read.
- */
-const PUBLISHED: Where = { _status: { equals: 'published' } }
-
-/**
- * ⚠ **Placed in a region.** The Atlas widget parses every feature's `region` as
- * an object, so one null fails the whole feed (SAHAJATLAS-WEB-2). Publishing
- * enforces `required`, but deleting a region nulls the column on its events
- * (`ON DELETE SET NULL`).
- */
-const PLACED_IN_REGION: Where = { region: { exists: true } }
-
-/**
  * GET /api/events/geojson
  *
  * A thin GeoJSON wrapper over a standard published-events read. It forwards the
@@ -85,6 +70,10 @@ const PLACED_IN_REGION: Where = { region: { exists: true } }
  * timezone. `inactive` events are dormant by design and never count as finished,
  * and a NULL `lastDate` (an open-ended recurrence, or a row predating the
  * backfill) stays visible.
+ *
+ * That clause and the two beside it — published, and placed in a region — are
+ * `drawnOnMapWhere` (`@/lib/events/mapVisibility`), which the Clients preview
+ * panel reads to decide whether a region has anything to draw.
  *
  * There is deliberately **no opt-out** here: because the filter is part of the
  * read rather than a post-read drop, `totalDocs` and pagination reflect the
@@ -124,9 +113,7 @@ export const eventsGeoJson: Endpoint = {
     try {
       const { docs, ...page } = await req.payload.find({
         collection: 'events',
-        where: andWhere(query.where as Where | undefined, {
-          and: [notFinishedWhere(new Date()), PUBLISHED, PLACED_IN_REGION],
-        }),
+        where: andWhere(query.where as Where | undefined, drawnOnMapWhere(new Date())),
         select: query.select as SelectType | undefined,
         populate: query.populate as PopulateType | undefined,
         depth: toNumber(query.depth),

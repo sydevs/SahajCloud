@@ -35,6 +35,7 @@ const CLIENT_MIXED = 1_022_005 // web + atlas, cleverreach
 const CLIENT_APP_ONLY = 1_022_004 // no atlas role
 const CLIENT_DORMANT = 1_022_006
 const CLIENT_HOSTED = 1_022_007
+const CLIENT_EMPTY_REGION = 1_022_008 // atlas, region with nothing published
 
 export const VIEWS: ViewRegistry = {
   // Chrome on every admin page.
@@ -185,7 +186,10 @@ export const VIEWS: ViewRegistry = {
     doc('clients', CLIENT_FIRST),
     doc('clients', CLIENT_SECOND),
   ),
-  '@/components/admin/AtlasPreview/MapPreviewField#default': links(doc('clients', CLIENT_FIRST)),
+  '@/components/admin/AtlasPreview/MapPreviewField#default': links(
+    doc('clients', CLIENT_FIRST),
+    doc('clients', CLIENT_EMPTY_REGION),
+  ),
   '@/components/admin/AtlasPreview/EmailPreviewField#default': links(doc('clients', CLIENT_FIRST)),
   '@/components/admin/SecretField#default': links(
     doc('clients', CLIENT_FIRST),

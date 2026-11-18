@@ -6,7 +6,14 @@
  * rather than breaking, which is the right way round for a panel.
  */
 export type LivePreviewUnavailableReason =
-  'atlas-tab-only' | 'no-atlas-role' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+  | 'atlas-tab-only'
+  | 'atlas-unreachable'
+  | 'no-atlas-role'
+  | 'no-classes'
+  | 'no-key'
+  | 'no-path'
+  | 'no-region'
+  | 'not-reviewable'
 
 const UNAVAILABLE_PATH = '/live-preview-unavailable'
 

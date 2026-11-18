@@ -1,7 +1,6 @@
 import type { JSONSchema4 } from 'json-schema'
 import type { CollectionConfig, Condition, Field, FieldAccess, PayloadRequest, Tab } from 'payload'
 
-import { buildRegionWebPath } from '@/collections/Regions/webPath'
 import { colorField, legacyMigrationFields, secretField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
@@ -28,7 +27,6 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
 import { MAILING_LIST_PROVIDER_LABELS, MAILING_LIST_PROVIDERS } from '@/lib/mailingList/types'
-import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import {
   adminOnlyFieldAccess,
@@ -40,6 +38,7 @@ import { USER_EMAIL_FROM } from '@/plugins/email/senders'
 import { abuseScoreSchema, calculateAbuseScore } from '@/plugins/usage'
 
 import { atlasWrites, isAtlasClient } from './access'
+import { atlasPreviewTarget } from './atlasPreviewTarget'
 import { clientEmailPreview } from './endpoints/emailPreview'
 import { clientEmbedReport } from './endpoints/report'
 import { verifyEmbedOnDemand } from './endpoints/verifyEmbed'
@@ -462,6 +461,9 @@ export const Clients: CollectionConfig = {
      *
      * ⚠ **A region change re-resolves this and reloads the panel.** Accepted:
      * only an admin sets `region`, and only on the Config tab.
+     *
+     * `atlasPreviewTarget` decides between the map and an explanation, and
+     * costs a `regions` read plus one `events` count on each resolution.
      */
     livePreview: {
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
@@ -469,11 +471,7 @@ export const Clients: CollectionConfig = {
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
           params: { locale: locale.code, scope: 'clients' },
-          // Worldwide, or a region with no path of its own, is the atlas root.
-          path: isAtlasClient(data ?? {})
-            ? ((await buildRegionWebPath({ data: { id: relationId(data?.region) }, req })) ?? '')
-            : null,
-          reason: 'no-atlas-role',
+          ...(await atlasPreviewTarget({ data: data ?? {}, req })),
         }),
     },
     components: {
