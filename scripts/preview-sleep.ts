@@ -39,6 +39,7 @@ const APP_SERVICE = 'SahajCloud'
 const POSTGRES_SERVICE = 'Postgres'
 const PRODUCTION = 'production'
 const REPOSITORY = process.env.GITHUB_REPOSITORY || 'sydevs/SahajCloud'
+const DEFAULT_BRANCH = 'main'
 /**
  * The file whose presence at a commit says its app retries while Postgres
  * wakes. ⚠ Keep it in step with `src/plugins/postgresWake/`: if the file moves,
@@ -192,23 +193,50 @@ const deploymentState = (read: InstanceRead): DeploymentState | null =>
     status: read.latestDeployment.status,
   }
 
-function pitrEnabled(environment: string): boolean {
-  const out = railwayCli([
-    ...['postgres', 'pitr', 'status', '--json'],
-    ...['-p', PROJECT_ID, '-e', environment, '-s', POSTGRES_SERVICE],
-  ])
-  return (JSON.parse(out) as { enabled: boolean }).enabled
+/**
+ * Railway's point-in-time recovery answer, or no answer at all. A preview
+ * Railway is still creating answers neither, and this read now runs before the
+ * plan decides anything — so a throw here would cost the app its own sleep for
+ * a preview the plan was going to leave alone.
+ */
+function readPitr(environment: string): { enabled: boolean | null; error?: string } {
+  try {
+    const out = railwayCli([
+      ...['postgres', 'pitr', 'status', '--json'],
+      ...['-p', PROJECT_ID, '-e', environment, '-s', POSTGRES_SERVICE],
+    ])
+    return { enabled: (JSON.parse(out) as { enabled: boolean }).enabled }
+  } catch (error) {
+    const { message = '', stderr = '' } = error as { message?: string; stderr?: string }
+    return { enabled: null, error: String(stderr).trim() || message || 'unknown error' }
+  }
 }
 
-/** Whether `commit` carries the connection retry, so its preview survives a sleeping Postgres. */
-function runsWakeRetry(commit: string): boolean {
+/** Whether `ref` carries the connection retry, so its preview survives a sleeping Postgres. */
+function runsWakeRetry(ref: string): boolean {
   try {
-    ghApi(`repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${commit}`, '.sha')
+    ghApi(`repos/${REPOSITORY}/contents/${WAKE_RETRY_PATH}?ref=${ref}`, '.sha')
     return true
   } catch (error) {
-    // An absent file is the answer, not a failure: the commit predates the retry.
+    // An absent file is the answer, not a failure: that ref predates the retry.
     if (error instanceof GitHubError && error.stderr.includes('HTTP 404')) return false
     throw error
+  }
+}
+
+/**
+ * Why a preview's Postgres stays awake. Merging fixes only the commit-age
+ * cause, so the other must not be told to merge. A failed read names neither,
+ * and must not stop the changes below it.
+ */
+function wakeRetryGap(commit: string): string {
+  const short = commit.slice(0, 8)
+  try {
+    return runsWakeRetry(DEFAULT_BRANCH)
+      ? `${short} predates the wake retry; merge ${DEFAULT_BRANCH}, unless this branch moved it`
+      : `${WAKE_RETRY_PATH} is not at ${DEFAULT_BRANCH} either, so WAKE_RETRY_PATH is stale`
+  } catch {
+    return `${short} does not carry ${WAKE_RETRY_PATH}`
   }
 }
 
@@ -301,11 +329,12 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
   const appDeployment = deploymentState(app)
   const commit = appDeployment?.commitHash
   const postgresCanWake = commit ? runsWakeRetry(commit) : false
+  const pitr = readPitr(env.name)
   const state: PreviewState = {
     app: { deployment: appDeployment, sleepApplication: app.sleepApplication === true },
     postgres: {
       deployment: deploymentState(postgres),
-      pitrEnabled: postgresCanWake && pitrEnabled(env.name),
+      pitrEnabled: pitr.enabled,
       sleepApplication: postgres.sleepApplication === true,
     },
     ciRunning: commit ? ciRunning(commit) : false,
@@ -318,9 +347,9 @@ function sleepPreview(pr: string, env: Environment, ids: Ids, write: boolean): v
     return
   }
   if (commit && !postgresCanWake) {
-    console.log(
-      `PR #${pr}: Postgres stays awake — ${commit.slice(0, 8)} predates the wake retry; merge main.`,
-    )
+    console.log(`PR #${pr}: Postgres stays awake — ${wakeRetryGap(commit)}.`)
+  } else if (pitr.error) {
+    console.log(`PR #${pr}: Postgres stays awake — recovery status unread: ${pitr.error}`)
   }
   if (plan.actions.length === 0) {
     console.log(`PR #${pr}: already sleeps when idle.`)

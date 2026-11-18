@@ -25,7 +25,8 @@ export interface PreviewState {
   app: ServiceState
   /** Whether CI is still running against the commit the app runs. */
   ciRunning: boolean
-  postgres: ServiceState & { pitrEnabled: boolean }
+  /** `pitrEnabled` is `null` where Railway's recovery status did not answer. */
+  postgres: ServiceState & { pitrEnabled: boolean | null }
   /** Whether the commit the app runs retries a connection while Postgres wakes. */
   postgresCanWake: boolean
 }
@@ -63,6 +64,14 @@ export const RUNNING_STATUSES = new Set(['SLEEPING', 'SUCCESS'])
  *   this again anyway. A manual run meets one most often, because the workflow
  *   runs after CI — but not only, so the read is not gated on that path: an
  *   automatic run queued behind a newer push meets that push's CI instead.
+ * - **A Postgres with no deployment is left alone too**, and the preview waits
+ *   with it: there is no settings snapshot to replace.
+ * - ⚠ **A Postgres that is present but not running still gets the deploy**, and
+ *   its status is deliberately not read: the fresh deploy is both how the
+ *   setting lands and how a failed one recovers, and skipping it would keep the
+ *   preview's app billed for the life of the PR.
+ * - **An unread recovery status leaves Postgres alone, never the preview.** The
+ *   app is the billed service, so it sleeps either way.
  */
 export function planPreviewSleep(state: PreviewState): SleepPlan {
   const { app, postgres } = state
@@ -74,10 +83,11 @@ export function planPreviewSleep(state: PreviewState): SleepPlan {
   if (state.ciRunning) return { skip: 'CI is still running against it' }
 
   const actions: SleepAction[] = []
-  if (state.postgresCanWake) {
+  if (state.postgresCanWake && postgres.pitrEnabled !== null) {
+    if (!postgres.deployment) return { skip: 'its Postgres deployment is missing' }
     if (!postgres.sleepApplication) actions.push({ kind: 'set-sleep', service: 'postgres' })
     if (postgres.pitrEnabled) actions.push({ kind: 'disable-pitr' })
-    if (postgres.pitrEnabled || !postgres.deployment?.manifestSleeps) {
+    if (postgres.pitrEnabled || !postgres.deployment.manifestSleeps) {
       actions.push({ kind: 'deploy', service: 'postgres' })
     }
   }
