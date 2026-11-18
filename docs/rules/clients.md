@@ -34,8 +34,9 @@ other field.
   subtree, and the preview session sends no message about it. A clause in one and not the other is
   this notice over a map with a pin on it. The last one is the browser's:
   an extension, a network block or an outage leaves the frame silent, so `MapPreviewField` points
-  the panel at the explanation page after `ATLAS_SILENCE_MS` with nothing heard, restarted by each
-  `load` so a slow atlas is not called blocked. There is no way back from that one inside the tab —
+  the panel at the explanation page after `ATLAS_SILENCE_MS` with nothing heard. The clock restarts
+  on each `load`, so a slow atlas is not called blocked, and on each new panel address, which no
+  `load` is guaranteed to announce. There is no way back from that one inside the tab —
   the frame has been navigated away — which is what the budget is sized against.
 - ⚠ **Every field that moves the panel composes through `components/admin/helpers/panelUrl`.** It
   remembers what we pointed the panel at, so the next field does not read our own URL as a freshly
