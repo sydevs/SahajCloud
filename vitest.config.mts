@@ -136,16 +136,16 @@ export default defineConfig({
           // files. Vitest defaults to `fileParallelism: true` for the forks
           // pool. This line pins that value so it cannot silently change.
           // It runs suites concurrently across forked workers, bounded by
-          // `poolOptions.forks.maxForks` (see `intMaxForks` above for the
-          // connection-count reason).
+          // `maxWorkers` (see `intMaxForks` above for the connection-count
+          // reason).
           maxConcurrency: 1,
           fileParallelism: true,
-          poolOptions: {
-            forks: {
-              minForks: 1,
-              maxForks: intMaxForks,
-            },
-          },
+          maxWorkers: intMaxForks,
+          // A run covering both projects groups them by `sequence.groupOrder`
+          // and refuses a group whose projects disagree on `maxWorkers`. Its
+          // own order keeps the int lane out of unit's group, and the groups
+          // then run one after the other.
+          sequence: { groupOrder: 1 },
           // Postgres has real per-operation latency, unlike the old instant
           // in-memory SQLite. Write-heavy integration tests and the
           // per-suite schema push need more time. Coverage instrumentation
