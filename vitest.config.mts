@@ -46,6 +46,13 @@ const sharedTestEnv: Record<string, string> = {
   LEMONFOX_API_KEY: '',
 }
 
+// V8 coverage instruments the whole Payload module graph. This makes the
+// per-suite bootstrap (buildConfig, getPayload, Drizzle push) many times
+// slower, past the normal 60s/120s timeouts. `pnpm test:coverage` is an
+// opt-in run that takes about 20 minutes, so it gets 600s timeouts instead.
+// This flag is read from argv because Vitest does not expose it in config.
+const isCoverage = process.argv.includes('--coverage')
+
 // Upper bound on concurrent integration-suite forks (#499 §2). The int lane
 // is DB-bound. Every suite runs a full-schema Drizzle `push` against the
 // same Postgres, and each Payload instance opens a connection pool (the
@@ -55,13 +62,6 @@ const sharedTestEnv: Record<string, string> = {
 // in docs/rules/testing-reqs.md). CI uses a dedicated service-container
 // Postgres, so it can use the whole (smaller) runner. Override this value
 // with VITEST_INT_MAX_FORKS.
-// V8 coverage instruments the whole Payload module graph. This makes the
-// per-suite bootstrap (buildConfig, getPayload, Drizzle push) many times
-// slower, past the normal 60s/120s timeouts. `pnpm test:coverage` is an
-// opt-in run that takes about 20 minutes, so it gets 600s timeouts instead.
-// This flag is read from argv because Vitest does not expose it in config.
-const isCoverage = process.argv.includes('--coverage')
-
 const cpuCount = os.availableParallelism?.() ?? os.cpus().length
 const envMaxForks = Number(process.env.VITEST_INT_MAX_FORKS)
 const intMaxForks =
