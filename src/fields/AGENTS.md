@@ -51,14 +51,13 @@ Two things the caller owes, and the factory cannot:
   the schedule's own field hooks see the value on the same save.
 - **Option values that `recurrenceForRepeats` resolves** — the lowercase
   spelling of `RECURRENCE_OPTIONS`. Both live in `@/lib/schedule/recurrence`,
-  free of Payload and zod, because the summary banner and the interval's unit
+  free of Payload and zod, because the summary banner and the interval's label
   read the caller's control in the browser. `EVENT_REPEATS_OPTIONS` derives them from it
   rather than listing them, which is what keeps the two in step.
 
-The group's own summary banner sits at its top. A caller owning the control
-usually wants the summary above that control instead: it passes
-`hasSummary: false` and places `ScheduleSummaryBanner` itself, as Events does
-through `EventScheduleNotice`.
+The group's own summary banner goes too, because it would sit below the control
+it describes: the caller places `ScheduleSummaryBanner` above that control
+itself, as Events does through `EventScheduleNotice`.
 
 ⚠ **So a frequency added to `RECURRENCE_OPTIONS` moves `enum_events_repeats`**, a
 pinned Postgres column, and owes a migration. `EVENT_REPEATS_OPTIONS` is annotated

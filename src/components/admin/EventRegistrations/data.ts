@@ -167,10 +167,14 @@ async function countRegistrations(
   req: PayloadRequest,
   eventId: number,
   filter: RegistrationFilter,
+  since?: Date,
 ) {
+  const where = registrationsOf(eventId, filter)
   const { totalDocs } = await req.payload.count({
     collection: 'user-submissions',
-    where: registrationsOf(eventId, filter),
+    where: since
+      ? { and: [where, { createdAt: { greater_than_equal: since.toISOString() } }] }
+      : where,
     overrideAccess: true,
     req: localeIsolatedReq(req),
   })
@@ -287,12 +291,12 @@ export async function countAcceptedRegistrations(
 }
 
 /** Accepted signups over the windows the Registration tab's banner reports. */
-export type RecentRegistrations = { lastWeek: number; lastMonth: number; total: number }
+export type RecentRegistrations = { lastWeek: number; lastMonth: number }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * How many accepted signups arrived in the last week and month, and in all —
+ * How many accepted signups arrived in the last week and the last month,
  * behind the same gate as the view, so a refused caller learns no count.
  *
  * ⚠ **That gate is this banner's read gate too** (#1126): it renders on a
@@ -306,26 +310,12 @@ export async function recentRegistrations(
 ): Promise<RecentRegistrations | null> {
   const event = await readableEvent(req, docID)
   if (!event) return null
-
-  const since = (days: number): Where => ({
-    createdAt: { greater_than_equal: new Date(now.getTime() - days * DAY_MS).toISOString() },
-  })
-  const count = async (window?: Where) => {
-    const accepted = registrationsOf(event.id, 'accepted')
-    const { totalDocs } = await req.payload.count({
-      collection: 'user-submissions',
-      where: window ? { and: [accepted, window] } : accepted,
-      overrideAccess: true,
-      req: localeIsolatedReq(req),
-    })
-    return totalDocs
-  }
-  const [lastWeek, lastMonth, total] = await Promise.all([
-    count(since(7)),
-    count(since(30)),
-    count(),
+  const since = (days: number) => new Date(now.getTime() - days * DAY_MS)
+  const [lastWeek, lastMonth] = await Promise.all([
+    countRegistrations(req, event.id, 'accepted', since(7)),
+    countRegistrations(req, event.id, 'accepted', since(30)),
   ])
-  return { lastWeek, lastMonth, total }
+  return { lastWeek, lastMonth }
 }
 
 /**

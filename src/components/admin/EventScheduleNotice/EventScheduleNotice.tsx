@@ -1,57 +1,39 @@
 'use client'
 
-import type { UIFieldClientComponent } from 'payload'
-
 import { useField, useFormFields } from '@payloadcms/ui'
-import React, { useCallback } from 'react'
+import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { ScheduleSummaryBanner } from '@/components/admin/ScheduleSummary'
 
-/** `admin.custom` on the `ui` field — serialized, so names, never callbacks. */
-interface EventScheduleNoticeConfig {
-  /** The schedule group's path. */
-  schedule: string
-  /** The `repeats` control. */
-  recurrenceFrom: string
-  /** The tab holding the public contact, and the checkbox that opens it. */
-  contactTab: string
-  contactToggle: string
-}
-
 /**
  * The head of an event's Schedule tab: the schedule in a sentence, or — for an
  * on-demand class, which has none — whether a seeker can reach anyone, with a
- * way to the contact fields when they cannot.
+ * way to the contact fields.
  *
  * Reads live form state, so it answers for the choice just made, unsaved.
  */
-export const EventScheduleNotice: UIFieldClientComponent = ({ field }) => {
-  const config = (field?.admin?.custom ?? {}) as EventScheduleNoticeConfig
-  const repeats = useFormFields(([fields]) => fields[config.recurrenceFrom]?.value)
-
-  if (repeats === 'inactive') return <OnDemandContactNotice config={config} />
-  return (
-    <ScheduleSummaryBanner recurrenceFrom={config.recurrenceFrom} schedulePath={config.schedule} />
-  )
+export function EventScheduleNotice(): React.ReactElement | null {
+  const repeats = useFormFields(([fields]) => fields.repeats?.value)
+  if (repeats === 'inactive') return <OnDemandContactNotice />
+  return <ScheduleSummaryBanner recurrenceFrom="repeats" schedulePath="schedule" />
 }
 
-function OnDemandContactNotice({ config }: { config: EventScheduleNoticeConfig }) {
+function OnDemandContactNotice() {
   const { value: allowContact, setValue: setAllowContact } = useField<boolean>({
-    path: config.contactToggle,
+    path: 'allowContact',
   })
-  const phone = useFormFields(([fields]) => fields.contactPhone?.value)
-  const email = useFormFields(([fields]) => fields.contactEmail?.value)
+  const reachable = useFormFields(([fields]) =>
+    Boolean(fields.contactPhone?.value || fields.contactEmail?.value),
+  )
   const name = useFormFields(([fields]) => fields.contactName?.value)
 
-  const reachable = Boolean(allowContact && (phone || email))
-
-  const openContact = useCallback(() => {
+  const openContact = () => {
     if (!allowContact) setAllowContact(true)
-    revealField(config.contactTab, `field-${config.contactToggle}`)
-  }, [allowContact, setAllowContact, config.contactTab, config.contactToggle])
+    revealField('Details', 'field-allowContact')
+  }
 
-  if (!reachable) {
+  if (!allowContact || !reachable) {
     return (
       <InfoBanner
         action={{ label: 'Add contact details', onClick: openContact }}
@@ -64,50 +46,37 @@ function OnDemandContactNotice({ config }: { config: EventScheduleNoticeConfig }
     )
   }
 
-  const routes =
-    phone && email
-      ? 'a phone number and an email address'
-      : phone
-        ? 'a phone number'
-        : 'an email address'
   return (
     <InfoBanner
       action={{ label: 'Edit public contact', onClick: openContact }}
       title={`Seekers will contact ${typeof name === 'string' && name ? name : 'you'} to arrange a time`}
     >
-      The listing shows no schedule. It shows {routes} instead, so seekers can get in touch.
+      The listing shows your public contact in place of a schedule.
     </InfoBanner>
   )
 }
 
 /**
- * Switch to another tab of the form and bring one field into view.
+ * Switch to another tab of the form and bring one of its fields into view.
  *
  * shortcut: Payload's `Tabs` field keeps its active tab in component state and
  * exposes no way to set it, so this clicks the tab's own button. Upgrade if
  * Payload ships a tab API or URL-addressable tabs.
  */
 function revealField(tabLabel: string, fieldId: string) {
+  Array.from(document.querySelectorAll<HTMLButtonElement>('.tabs-field__tab-button'))
+    .find((button) => button.textContent?.trim() === tabLabel)
+    ?.click()
+  // The tab mounts its fields after the click; give them a few frames.
+  let attempts = 0
   const scroll = () => {
     const target = document.getElementById(fieldId)
-    if (!target) return false
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    target.focus({ preventScroll: true })
-    return true
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      target.focus({ preventScroll: true })
+    } else if (++attempts < 20) requestAnimationFrame(scroll)
   }
-  if (scroll()) return
-
-  const tab = Array.from(
-    document.querySelectorAll<HTMLButtonElement>('.tabs-field__tab-button'),
-  ).find((button) => button.textContent?.trim() === tabLabel)
-  tab?.click()
-  // The tab's fields mount after the click; give them a few frames.
-  let attempts = 0
-  const retry = () => {
-    if (scroll() || ++attempts > 20) return
-    requestAnimationFrame(retry)
-  }
-  requestAnimationFrame(retry)
+  requestAnimationFrame(scroll)
 }
 
 export default EventScheduleNotice

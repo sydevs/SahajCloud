@@ -18,7 +18,7 @@ Import directly from `@payloadcms/ui` (e.g. `import { Banner, Button, Pill } fro
 
 **A notice is `InfoBanner`** (`src/components/admin/InfoBanner/`): Payload's `Banner` with an icon, a title and a sentence or two. **Its one control is its typed `action`**, drawn as a small secondary `Button` after the text — `{ label, href }` for a link, which a server component can pass, or `{ label, onClick, disabled? }` for a handler. It takes no `ReactNode`, so a banner's control cannot be styled one way here and another there; never put a button or link in a banner's children, or beside it.
 
-Registered as a `ui` field, it is configured through `admin.custom`, which is serialized — so its words are fixed and its action is **data**: `{ label, path }`, resolved against the document being edited and dropped before that document exists. `Events.verificationGuide` is the worked example.
+Registered as a `ui` field, it is configured through `admin.custom`, which is serialized — so its words are fixed and it takes no action. `Events.verificationGuide` is the worked example.
 
 **A banner whose words depend on data is a component of its own composing `InfoBanner`**, because `admin.custom` cannot carry a function. Where the data is decides which kind: stored data is a server `ui` field, which owes the read gate below (`EventRegistrations/RegistrationsNotice`, counting an event's recent signups); live form state is a client one, which reads it with `useFormFields` and so follows each unsaved change (`EventScheduleNotice`).
 

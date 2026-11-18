@@ -1,7 +1,5 @@
 'use client'
 
-import type { GroupFieldClient } from 'payload'
-
 import { useAllFormFields } from '@payloadcms/ui'
 import { CalendarDays } from 'lucide-react'
 import React, { useMemo } from 'react'
@@ -31,15 +29,6 @@ export function ScheduleSummaryBanner({
     [formState, schedulePath, recurrenceFrom],
   )
   if (!summary) return null
-
-  if (summary.kind === 'empty') {
-    return (
-      <InfoBanner icon={<CalendarDays aria-hidden size={20} />} title="No schedule yet">
-        Set the first date and time below, and how often it repeats. A summary appears here as you
-        fill them in.
-      </InfoBanner>
-    )
-  }
   return (
     <InfoBanner icon={<CalendarDays aria-hidden size={20} />} title={summary.title}>
       {summary.detail}
@@ -47,22 +36,9 @@ export function ScheduleSummaryBanner({
   )
 }
 
-/**
- * The banner heading the schedule group, registered by `scheduleFields` as its
- * `beforeInput` (`hasSummary`).
- */
-export function ScheduleSummary({
-  field,
-  path,
-  recurrenceFrom,
-}: {
-  field?: GroupFieldClient
-  path?: string
-  recurrenceFrom?: string
-}): React.ReactElement | null {
-  const schedulePath = path ?? (field && 'name' in field ? field.name : undefined)
-  if (!schedulePath) return null
-  return <ScheduleSummaryBanner recurrenceFrom={recurrenceFrom} schedulePath={schedulePath} />
+/** The banner heading the schedule group, registered by `scheduleFields` as its `beforeInput`. */
+export function ScheduleSummary({ path }: { path: string }): React.ReactElement {
+  return <ScheduleSummaryBanner schedulePath={path} />
 }
 
 export default ScheduleSummary

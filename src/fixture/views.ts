@@ -101,7 +101,7 @@ export const VIEWS: ViewRegistry = {
     doc('app-cards', 1_021_004),
   ),
   '@/components/admin/ScheduleSummary#default': links(doc('app-cards', 1_021_004)),
-  '@/components/admin/ScheduleSummary/IntervalUnit#default': links(
+  '@/components/admin/ScheduleSummary/IntervalLabel#default': links(
     doc('events', EVENT_THURSDAY),
     doc('events', EVENT_ONLINE),
     doc('app-cards', 1_021_004),

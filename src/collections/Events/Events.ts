@@ -516,15 +516,7 @@ export const Events: CollectionConfig = {
               // Read from live form state, so it follows each change unsaved.
               name: 'scheduleNotice',
               type: 'ui',
-              admin: {
-                components: { Field: '@/components/admin/EventScheduleNotice' },
-                custom: {
-                  schedule: 'schedule',
-                  recurrenceFrom: 'repeats',
-                  contactTab: 'Details',
-                  contactToggle: 'allowContact',
-                },
-              },
+              admin: { components: { Field: '@/components/admin/EventScheduleNotice' } },
             },
             {
               // The one control for how often a class meets *and* whether it is
@@ -572,7 +564,6 @@ export const Events: CollectionConfig = {
               hasEnding: true,
               hasExclusions: true,
               recurrenceFrom: 'repeats',
-              hasSummary: false,
               admin: { condition: (data) => data?.repeats !== 'inactive' },
             }),
           ],

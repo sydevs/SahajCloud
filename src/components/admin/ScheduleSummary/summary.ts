@@ -22,9 +22,17 @@ interface ScheduleFormValues {
   breaks: number
 }
 
-/** What the banner says: nothing set yet, or the schedule in a sentence. */
-export type ScheduleSummary =
-  { kind: 'empty' } | { kind: 'scheduled'; title: string; detail: string | null }
+/** What the banner says. */
+export interface ScheduleSummary {
+  title: string
+  detail: string
+}
+
+const EMPTY: ScheduleSummary = {
+  title: 'No schedule yet',
+  detail:
+    'Set the first date and time below, and how often it repeats. A summary appears here as you fill them in.',
+}
 
 /**
  * Read the schedule group's values from form state, where its sub-fields sit
@@ -153,8 +161,8 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 /**
  * The schedule as the banner states it: the recurrence in words as its title
  * (`rrule-temporal`'s `toText`), or the one date of a one-off; and below it,
- * where the series starts and how many breaks it takes. `empty` until a first
- * date is set, since nothing can be said before one.
+ * where the series starts and how many breaks it takes. Until a first date is
+ * set, what to fill in.
  */
 export function summarizeSchedule(
   formState: FormState,
@@ -162,7 +170,7 @@ export function summarizeSchedule(
   recurrenceFrom?: string,
 ): ScheduleSummary | null {
   const values = extractScheduleValues(formState, groupPath, recurrenceFrom)
-  if (!values.firstDate) return { kind: 'empty' }
+  if (!values.firstDate) return EMPTY
 
   const timeZone = values.firstDate_tz || 'UTC'
   const first = new Date(values.firstDate)
@@ -171,7 +179,6 @@ export function summarizeSchedule(
   try {
     if (!values.recurrenceType) {
       return {
-        kind: 'scheduled',
         title: `Once, on ${formatDate(first, timeZone)} at ${formatTime(first, timeZone)}`,
         detail: `Times are in ${timeZone}.`,
       }
@@ -181,7 +188,6 @@ export function summarizeSchedule(
     if (!ical) return null
     const breaks = values.breaks ? `, with ${plural(values.breaks, 'scheduled break')}` : ''
     return {
-      kind: 'scheduled',
       title: toText(ical).replace(/^./, (char) => char.toUpperCase()),
       detail: `Starting ${formatDate(first, timeZone)}${breaks}.`,
     }

@@ -38,17 +38,14 @@ export interface ScheduleFieldsOptions {
    * hidden, and every sub-field reacts to the control's value instead. Its
    * values are read through {@link recurrenceForRepeats}.
    *
+   * The group's summary banner goes with it: the caller places
+   * `ScheduleSummaryBanner` above its own control, so the summary heads the
+   * whole schedule rather than sitting below the control it describes.
+   *
    * ⚠ The stored `recurrenceType` column stays, so the caller owes a hook that
    * writes it — nothing in the form does once the select is hidden.
    */
   recurrenceFrom?: string
-  /**
-   * Show the schedule summary banner at the top of the group (default: true).
-   * A caller owning the recurrence control turns it off and places
-   * `ScheduleSummary` above that control itself, so the summary heads the whole
-   * schedule rather than sitting below the control it describes.
-   */
-  hasSummary?: boolean
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
@@ -93,7 +90,8 @@ const ENDING_OPTIONS = [
  *
  * A `ScheduleSummary` beforeInput banner heads the group with a
  * human-readable description of the configured recurrence, updating in
- * real time as the user edits sub-fields (`hasSummary`).
+ * real time as the user edits sub-fields — unless a caller owns the
+ * recurrence control (`recurrenceFrom`).
  *
  * Feature flags enable additional field groups:
  * - `endTime` — end time field
@@ -131,7 +129,6 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     hasEnding = false,
     hasExclusions = false,
     recurrenceFrom,
-    hasSummary = true,
     admin = {},
   } = options
 
@@ -152,14 +149,8 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     admin: {
       description: admin.description || 'Configure when this event occurs and repeats',
       condition: admin.condition,
-      ...(hasSummary && {
-        components: {
-          beforeInput: [
-            recurrenceFrom
-              ? { path: '@/components/admin/ScheduleSummary', clientProps: { recurrenceFrom } }
-              : '@/components/admin/ScheduleSummary',
-          ],
-        },
+      ...(!recurrenceFrom && {
+        components: { beforeInput: ['@/components/admin/ScheduleSummary'] },
       }),
     },
     fields: subFields,
@@ -303,15 +294,11 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         admin: {
           step: 1,
           condition: whenRecurring(recurrenceFrom),
-          // The unit, faded inside the input — "2 weeks". The control naming
-          // the unit may sit a tab's height away, so "Every" alone said nothing.
           components: {
-            afterInput: [
-              {
-                path: '@/components/admin/ScheduleSummary/IntervalUnit',
-                clientProps: { recurrenceFrom },
-              },
-            ],
+            Label: {
+              path: '@/components/admin/ScheduleSummary/IntervalLabel',
+              clientProps: { recurrenceFrom },
+            },
           },
         },
       },

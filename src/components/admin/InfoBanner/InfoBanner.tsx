@@ -1,6 +1,9 @@
 'use client'
 
+import type { UIFieldClientProps } from 'payload'
+
 import { Banner, Button, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
+import { GraduationCap } from 'lucide-react'
 import React from 'react'
 
 /** The `Banner` types Payload styles: `info` has no rule of its own, so it is `default`. */
@@ -11,6 +14,25 @@ const TYPE_ICONS: Record<InfoBannerType, React.FC> = {
   error: ErrorIcon,
   success: SuccessIcon,
   warning: WarningIcon,
+}
+
+/**
+ * The icons a `ui` field can name in `admin.custom`, which is serialized and so
+ * holds a string. Payload ships no teaching glyph, so `tutorial` is lucide's,
+ * sized to sit beside Payload's own ~24px icons.
+ */
+const NAMED_ICONS: Record<string, React.FC> = {
+  tutorial: () => <GraduationCap size={22} aria-hidden />,
+  info: InfoIcon,
+  warning: WarningIcon,
+}
+
+/** A `ui` field's `admin.custom`: `{ icon?: 'tutorial' | 'info' | 'warning', title?, text?, type? }`. */
+interface InfoBannerConfig {
+  icon?: string
+  title?: string
+  text?: string
+  type?: InfoBannerType | 'info'
 }
 
 /**
@@ -29,6 +51,20 @@ export interface InfoBannerProps {
   /** The description, one or two short sentences. */
   children?: React.ReactNode
   action?: InfoBannerAction
+  /** Set when registered as a `ui` field, which configures the banner through `admin.custom`. */
+  field?: UIFieldClientProps['field']
+}
+
+function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
+  const { icon, title, text, type = 'default' } = (field?.admin?.custom ?? {}) as InfoBannerConfig
+  if (!title && !text) return null
+  const Icon = icon ? NAMED_ICONS[icon] : undefined
+  return {
+    icon: Icon ? <Icon /> : null,
+    title,
+    children: text,
+    type: type === 'info' ? 'default' : type,
+  }
 }
 
 /**
@@ -39,13 +75,10 @@ export interface InfoBannerProps {
  * which is a bare flex row with no gap or alignment: fine beside one line, but
  * beside a title and a sentence it strands a small icon at the top left.
  */
-export function InfoBanner({
-  type = 'default',
-  icon,
-  title,
-  children,
-  action,
-}: InfoBannerProps): React.ReactElement | null {
+export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactElement | null {
+  const banner = field ? fromField(field) : props
+  if (!banner) return null
+  const { type = 'default', icon, title, children, action } = banner
   const Icon = TYPE_ICONS[type]
   return (
     <Banner type={type}>
@@ -89,3 +122,5 @@ function ActionButton({ action }: { action: InfoBannerAction }) {
     </Button>
   )
 }
+
+export default InfoBanner

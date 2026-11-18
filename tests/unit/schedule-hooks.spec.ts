@@ -1434,13 +1434,9 @@ describe('Schedule Field Hooks', () => {
       expect(field.admin?.components?.beforeInput).toEqual(['@/components/admin/ScheduleSummary'])
     })
 
-    it('hands a caller-owned recurrence control to the summary, and omits it on request', () => {
+    it('leaves the summary to a caller that owns the recurrence control', () => {
       const owned = scheduleFields({ recurrenceFrom: 'repeats' }) as NamedGroupField
-      expect(owned.admin?.components?.beforeInput).toEqual([
-        { path: '@/components/admin/ScheduleSummary', clientProps: { recurrenceFrom: 'repeats' } },
-      ])
-      const placed = scheduleFields({ recurrenceFrom: 'repeats', hasSummary: false })
-      expect((placed as NamedGroupField).admin?.components).toBeUndefined()
+      expect(owned.admin?.components).toBeUndefined()
     })
 
     it('exposes lastDate as a stored, indexed, hidden column driven by computeLastDate', () => {

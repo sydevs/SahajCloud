@@ -55,7 +55,7 @@ import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/component
 import { default as default_a86ea17da05fe19d05690105977131bd } from '@/components/admin/InstallGuide/InstallView'
 import { default as default_0a6b8160e35e150007da27e645325d20 } from '@/components/admin/AppCardViewSchedule'
 import { default as default_ea9ef661de0dfca6f36a4b6ccae0182b } from '@/components/admin/VariableInsert'
-import { default as default_2a4211c8078758859ba7da13003cdbdd } from '@/components/admin/ScheduleSummary/IntervalUnit'
+import { default as default_5b9f746a67cd7e30e14588fc93c9d03a } from '@/components/admin/ScheduleSummary/IntervalLabel'
 import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/components/admin/FlatArrayField'
 import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/components/admin/ScheduleSummary'
 import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/components/admin/RangeSlider'
@@ -168,7 +168,7 @@ export const importMap = {
   "@/components/admin/InstallGuide/InstallView#default": default_a86ea17da05fe19d05690105977131bd,
   "@/components/admin/AppCardViewSchedule#default": default_0a6b8160e35e150007da27e645325d20,
   "@/components/admin/VariableInsert#default": default_ea9ef661de0dfca6f36a4b6ccae0182b,
-  "@/components/admin/ScheduleSummary/IntervalUnit#default": default_2a4211c8078758859ba7da13003cdbdd,
+  "@/components/admin/ScheduleSummary/IntervalLabel#default": default_5b9f746a67cd7e30e14588fc93c9d03a,
   "@/components/admin/FlatArrayField#default": default_6d9b854e6fdb8fea981b4ce63c2d6380,
   "@/components/admin/ScheduleSummary#default": default_694d4100fd066d11aca6d41604a80bc0,
   "@/components/admin/RangeSlider#default": default_7994614945cfe693dd6db5da6470f962,

@@ -3,7 +3,7 @@
  * own recurrence control.
  *
  * Its own module, free of Payload and zod, because the admin form reads it in
- * the browser too: the schedule summary and the interval's unit both follow the
+ * the browser too: the schedule summary and the interval's label both follow the
  * control as the editor changes it, before any save writes `recurrenceType`.
  */
 
