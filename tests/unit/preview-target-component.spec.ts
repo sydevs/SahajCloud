@@ -192,6 +192,29 @@ describe('PreviewTarget', () => {
     expect(panel.url).toBe(DEFAULT_URL)
   })
 
+  it('keeps the default when another field of ours repoints the panel', async () => {
+    // `MapPreviewField` moves the panel to the atlas-unreachable notice while
+    // the Atlas tab is open. Read as a freshly resolved default, that notice
+    // becomes what the Config tab explains over and what the restore goes back
+    // to — so the panel never shows the atlas again.
+    const { composePanelUrl } = await import('@/components/admin/helpers/panelUrl')
+    openTab({ autoOpen: true }, 'atlas__preview_target')
+
+    act(() => {
+      composePanelUrl(
+        panel.resolve,
+        `${window.location.origin}/live-preview-unavailable?reason=atlas-unreachable`,
+      )
+    })
+    openTab({ autoClose: true, unavailable: 'atlas-tab-only' }, 'config__preview_target')
+
+    expect(panel.url).toContain('reason=atlas-tab-only')
+
+    openTab(null)
+
+    expect(panel.url).toBe(DEFAULT_URL)
+  })
+
   it('opens the panel and leaves its URL alone for an autoOpen-only tab', () => {
     openTab({ autoOpen: true })
 
