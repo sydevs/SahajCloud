@@ -85,10 +85,10 @@ const EVENT_URL = 'https://cloud.test/event/1042'
 const regionManager = { name: 'Rohan Patil', email: 'rohan.patil@example.com' }
 
 /**
- * The in-row button gap, which only `BrandButtonRow` applies. Counting it is
- * how a case proves two buttons sit side by side at one size: both take the
- * same base style and the same primary fill, so the gap is the only mark that
- * distinguishes a row from the single stacked button.
+ * The in-row button gap, which `BrandButtonRow` applies to each of its buttons
+ * and nothing else applies at all. Counting it counts the row's buttons: they
+ * take the same base style and the same primary fill, so the gap is the only
+ * mark that tells one apart from the secondary button stacked below.
  */
 const IN_ROW_BUTTON = /margin:0 6px/g
 
@@ -390,7 +390,7 @@ describe('EventVerificationEmail', () => {
         // reply line with a 'your region manager' fallback survived it.
         const absent = await render({ level, regionManager: undefined })
 
-        expect(absent.match(IN_ROW_BUTTON) ?? []).toHaveLength(0)
+        expect(absent.match(IN_ROW_BUTTON) ?? []).toHaveLength(1)
         expect(absent).not.toMatch(/Reply to this email to reach/)
         expect(absent).not.toContain('Ask region manager')
       },
@@ -407,7 +407,7 @@ describe('EventVerificationEmail', () => {
 
       expect(html).not.toContain('Ask region manager')
       expect(html).not.toMatch(/Reply to this email to reach/)
-      expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(0)
+      expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(1)
     })
   })
 

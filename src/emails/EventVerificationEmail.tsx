@@ -667,22 +667,13 @@ export function EventVerificationEmail({
         )
       ) : null}
 
-      {/* A reminder with nobody above the event keeps `BrandButton`, so it
-          renders byte-identical to before (#1193): a one-button row would add
-          the row's own 6px side margins to it. */}
-      {askRegion ? (
-        <BrandButtonRow
-          brand={brand}
-          buttons={[
-            { href: ctaHref, label: variant.cta },
-            { href: askRegion.href, label: COPY.askRegionManager.label },
-          ]}
-        />
-      ) : (
-        <BrandButton href={ctaHref} brand={brand}>
-          {variant.cta}
-        </BrandButton>
-      )}
+      <BrandButtonRow
+        brand={brand}
+        buttons={[
+          { href: ctaHref, label: variant.cta },
+          ...(askRegion ? [{ href: askRegion.href, label: COPY.askRegionManager.label }] : []),
+        ]}
+      />
       {eventUrl ? (
         <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
           View event
