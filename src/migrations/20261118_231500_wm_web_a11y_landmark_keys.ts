@@ -3,25 +3,27 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Data only — no DDL; the `.json` is the prior snapshot re-stamped
 // (`src/migrations/AGENTS.md`).
 //
-// WeMeditate Web is adding a skip link and an accessible name on each `<nav>` (#1212, for
-// sydevs/WeMeditateWeb#162). It ships the three English strings that work reads, which the seed
-// reaches only on a fresh database.
+// WeMeditate Web is adding a skip link, an accessible name on each `<nav>` and a page heading on
+// every page type (#1212, for sydevs/WeMeditateWeb#162). It ships the four English strings that
+// work reads, which the seed reaches only on a fresh database.
 //
 // ⚠ **`up` never overwrites a word somebody chose.** Each key lands only where English lacks it.
 // Of the versions, only the `latest: true` row gets it: a global's update loads the document it
 // changes from that row.
 //
-// ⚠ **`down` drops all three, whatever they hold.** The previous schema declares none of them, and
+// ⚠ **`down` drops all four, whatever they hold.** The previous schema declares none of them, and
 // a stored undeclared key makes `additionalProperties: false` refuse every later save of the
 // global (`src/globals/AGENTS.md`).
 
 const COMMON_GENERAL = { main: 'common_general', version: 'version_common_general' }
 const COMMON_A11Y = { main: 'common_a11y', version: 'version_common_a11y' }
+const LECTURE_A11Y = { main: 'lecture_a11y', version: 'version_lecture_a11y' }
 
 const ADDED = [
   { group: COMMON_GENERAL, key: 'skip_to_main', en: 'Skip to main content' },
   { group: COMMON_A11Y, key: 'primary_navigation', en: 'Main menu' },
   { group: COMMON_A11Y, key: 'footer_navigation', en: 'Footer menu' },
+  { group: LECTURE_A11Y, key: 'untitled_heading', en: 'Untitled talk' },
 ]
 
 type Db = MigrateUpArgs['db']

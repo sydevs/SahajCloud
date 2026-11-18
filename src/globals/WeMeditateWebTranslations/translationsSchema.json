@@ -445,6 +445,10 @@
             "related_meditations_loading": {
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading."
+            },
+            "untitled_heading": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own."
             }
           },
           "additionalProperties": false

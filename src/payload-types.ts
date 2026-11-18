@@ -6015,6 +6015,10 @@ export interface WmWebTranslationsLectureA11YStrings {
    * Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading.
    */
   related_meditations_loading?: string;
+  /**
+   * Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own.
+   */
+  untitled_heading?: string;
 }
 export interface WmWebTranslationsMapGeneralStrings {
   /**
