@@ -34,9 +34,11 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   useEffect(() => {
     // ⚠ Cross-repo contract: a consumer rendering the document re-derives each
     // entry's `index` by counting headings the same way, to anchor its link.
-    // What counts is a top-level heading node with non-empty trimmed text, in
-    // document order, from 0. Changing that moves every anchor on every
-    // consumer site — sydevs/WeMeditateWeb#266 is the first.
+    // The rule this scan implements is published to them in the `describe()` on
+    // the `headings` schema (`@/lib/richEditor/blocks/TableOfContentsBlock`),
+    // which `generate:types` copies into every consumer's own types. Change
+    // both together, or anchors move on every consumer site —
+    // sydevs/WeMeditateWeb#266 is the first.
     const scanHeadings = (editorState: EditorState): TableOfContentsHeadings => {
       const detected: TableOfContentsHeadings = []
       editorState.read(() => {

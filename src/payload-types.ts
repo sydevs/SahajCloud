@@ -739,7 +739,7 @@ export type TableOfContentsHeadings = {
   text: string;
   level: number;
   /**
-   * Position among the document's detected headings, counted from 0 — what tells two headings that slugify alike apart. Optional because Payload validates this schema on every save of the page, so a required key would refuse the next save of every page stored before it existed (#1207). Read its absence as unknown, never as 0.
+   * Position among the document's detected headings, counted from 0 — what tells two headings that slugify alike apart. A detected heading is a top-level heading node whose trimmed text is non-empty, taken in document order; a consumer anchoring these entries counts the same way, so an empty heading it can see is one this ordinal skipped. Optional because Payload validates this schema on every save of the page, so a required key would refuse the next save of every page stored before it existed (#1207). Read its absence as unknown, never as 0.
    */
   index?: number;
   [k: string]: unknown;
