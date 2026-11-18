@@ -36,6 +36,23 @@ One **stored** derived column, recomputed on every write (#603):
     write back-fills a NULL for free. Spread, not deep merge — an
     explicit `null` in the patch (a cleared `recurrenceType`) must win.
 
+### A caller may own the recurrence control
+
+`recurrenceFrom` names a top-level field of the caller's own document as the
+recurrence control. The group then hides its own Repeats select and every
+sub-field condition reads that field instead, so the weekday picker appears as
+soon as an editor chooses Weekly rather than after the next save.
+
+Two things the caller owes, and the factory cannot:
+
+- **A hook that writes `recurrenceType`.** The column is still the stored one;
+  nothing in the form writes it once the select is hidden.
+  `Events.syncScheduleRecurrence` is the worked example, in `beforeValidate` so
+  the schedule's own field hooks see the value on the same save.
+- **Option values that `recurrenceForRepeats` resolves** — the lowercase
+  spelling of `RECURRENCE_OPTIONS`. `EVENT_REPEATS_OPTIONS` derives them from it
+  rather than listing them, which is what keeps the two in step.
+
 ## Why rrule-temporal (not rrule)
 
 Legacy `rrule` (v2.8.1) has a [double-timezone-conversion

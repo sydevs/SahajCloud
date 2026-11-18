@@ -33,8 +33,7 @@ import {
   idOnlySelect,
 } from '../utils/testHelpers'
 
-/** A manager's address, seeded on the event, that no client may read back. */
-/** The seeker-facing address on the same event, which must survive the locks. */
+/** The seeker-facing address on the event, which must survive the locks. */
 const PUBLIC_EMAIL = 'ask-us-anything@example.com'
 /** A manager's address inside the activity log's reminder history. */
 const REMINDER_DESTINATION = 'reminded-manager@example.com'
