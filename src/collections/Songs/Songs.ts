@@ -106,7 +106,7 @@ export const Songs: CollectionConfig = {
       label: 'Duration (seconds)',
       admin: {
         readOnly: true,
-        description: 'Read from the uploaded audio on every save.',
+        description: 'Read from the audio whenever one is uploaded.',
       },
     },
     {

@@ -3125,7 +3125,7 @@ export interface Song {
   album: number | Album;
   tags?: (number | SongTag)[] | null;
   /**
-   * Read from the uploaded audio on every save.
+   * Read from the audio whenever one is uploaded.
    */
   duration?: number | null;
   /**
