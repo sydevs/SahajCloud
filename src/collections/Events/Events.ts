@@ -602,10 +602,10 @@ export const Events: CollectionConfig = {
               name: 'registrationQuestions',
               type: 'group',
               admin: {
-                // A checkbox per question, tightened by `.checkbox-group` in
-                // `custom.scss`: Payload's own field gap frames a section, and
-                // these read as one list.
-                className: 'checkbox-group',
+                // A checkbox per question, tightened by `.sy-checkbox-group`
+                // in `custom.scss`: Payload's own field gap frames a section,
+                // and these read as one list.
+                className: 'sy-checkbox-group',
                 description:
                   'Optional questions to ask registrants — each enabled question appears on the registration form. Email contact@sydevelopers.com to ask for another question option.',
               },

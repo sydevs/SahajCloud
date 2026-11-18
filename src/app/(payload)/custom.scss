@@ -266,8 +266,10 @@ a:focus-visible {
 }
 
 /* A group of checkboxes reads as one list, not a section per answer, so they sit
-   closer than Payload's field gap — the Registration Questions group. */
-.checkbox-group .render-fields > .field-type {
+   closer than Payload's field gap — the Registration Questions group. Prefixed
+   because every other selector here is Payload's, and an unprefixed generic
+   name is one Payload could ship. */
+.sy-checkbox-group .render-fields > .field-type {
   margin-bottom: calc(var(--spacing-field) / 4);
 }
 

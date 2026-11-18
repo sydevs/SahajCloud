@@ -38,9 +38,9 @@ const OUR_VARIABLES = ['--admin-body-size']
 const OUR_CLASSES = [
   'address-search',
   'address-search__toggle',
-  'checkbox-group',
   'notification-preferences',
   'string-select',
+  'sy-checkbox-group',
 ]
 
 /**
