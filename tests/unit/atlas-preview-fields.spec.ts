@@ -21,6 +21,7 @@ import { PALETTE_REPORT_MESSAGE, readSwatch } from '@/components/admin/AtlasPrev
 const stub = vi.hoisted(() => ({
   fields: {} as Record<string, { setValue: (value: unknown) => void; value: null | string }>,
   iframeRef: { current: null as HTMLIFrameElement | null },
+  url: 'https://atlas.example/preview',
 }))
 
 vi.mock('@payloadcms/ui', () => ({
@@ -37,11 +38,18 @@ vi.mock('@payloadcms/ui', () => ({
   }) => createElement('button', { disabled, onClick, type: 'button' }, children),
   FieldLabel: ({ label }: { label: string }) => createElement('label', null, label),
   useField: ({ path }: { path: string }) => stub.fields[path],
-  useLivePreviewContext: () => ({ iframeRef: stub.iframeRef, url: 'x' }),
+  useLivePreviewContext: () => ({
+    iframeRef: stub.iframeRef,
+    setURL: (next: string) => {
+      stub.url = next
+    },
+    url: stub.url,
+  }),
 }))
 
 const { AdjustedColors } = await import('@/components/admin/AtlasPreview/AdjustedColors')
-const { MapPreviewField } = await import('@/components/admin/AtlasPreview/MapPreviewField')
+const { ATLAS_SILENCE_MS, MapPreviewField } =
+  await import('@/components/admin/AtlasPreview/MapPreviewField')
 
 const ATLAS = 'http://localhost:5173'
 
@@ -154,6 +162,7 @@ const button = (name: string) =>
 
 beforeEach(() => {
   stub.iframeRef.current = null
+  stub.url = 'https://atlas.example/preview'
   stub.fields = Object.fromEntries(
     ['color1', 'color2', 'color3'].map((path) => [path, { setValue: vi.fn(), value: null }]),
   )
@@ -166,6 +175,7 @@ beforeEach(() => {
 
 afterEach(() => {
   act(() => root.unmount())
+  vi.useRealTimers()
   document.body.innerHTML = ''
 })
 
@@ -308,5 +318,60 @@ describe('MapPreviewField', () => {
     await post(report({}), frame.contentWindow, 'https://elsewhere.example')
 
     expect(sent).not.toHaveBeenCalled()
+  })
+
+  /**
+   * Only `setTimeout` is faked: `act` resolves through the microtask queue,
+   * which a full fake clock takes over, and the render then never settles.
+   */
+  const fakeClock = () => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  const tick = (ms: number) => act(() => void vi.advanceTimersByTime(ms))
+
+  it('points the panel at the explanation page when nothing arrives from the atlas', async () => {
+    fakeClock()
+    openPreview()
+    await mount(MapPreviewField)
+
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toContain('/live-preview-unavailable?reason=atlas-unreachable')
+    expect(new URL(stub.url).origin).toBe(window.location.origin)
+  })
+
+  it('leaves the panel on the atlas once the atlas has spoken', async () => {
+    fakeClock()
+    const frame = openPreview()
+    await mount(MapPreviewField)
+
+    await post(report({}), frame.contentWindow)
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toBe('https://atlas.example/preview')
+  })
+
+  it('restarts the wait on each load, so a slow atlas is not called blocked', async () => {
+    fakeClock()
+    const frame = openPreview()
+    await mount(MapPreviewField)
+
+    tick(ATLAS_SILENCE_MS - 1)
+    act(() => void frame.dispatchEvent(new Event('load')))
+    tick(ATLAS_SILENCE_MS - 1)
+
+    expect(stub.url).toBe('https://atlas.example/preview')
+  })
+
+  it('adds nothing to a panel that is already explaining itself', async () => {
+    // The document's own refusal: a service with no atlas role never loads a
+    // frame to hear from, and saying the map is blocked would name the wrong
+    // problem.
+    stub.url = `${window.location.origin}/live-preview-unavailable?reason=no-atlas-role`
+    fakeClock()
+    openPreview()
+    await mount(MapPreviewField)
+
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toContain('reason=no-atlas-role')
   })
 })

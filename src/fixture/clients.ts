@@ -9,6 +9,7 @@ export const CLIENT_IDS = {
   mixed: 1_022_005,
   dormant: 1_022_006,
   hosted: 1_022_007,
+  emptyRegion: 1_022_008,
 } as const
 
 export default fixture('clients', [
@@ -250,6 +251,28 @@ export default fixture('clients', [
         domain: 'fixture-blog.example.invalid',
         page: '/atlas',
         track: 'wp-com',
+        embedHeight: 'fixed',
+      },
+      canonical: { owned: false },
+    },
+  },
+  // Set up before its first class: the Atlas tab's preview has nothing to draw.
+  {
+    id: CLIENT_IDS.emptyRegion,
+    data: {
+      label: 'Fixture Wellspring Circle',
+      enabled: true,
+      enableAPIKey: true,
+      roles: ['sahaj-atlas-client'],
+      managers: [ID.managers.regionManager],
+      region: REGION_IDS.cityEmpty,
+      title: 'Wellspring Meditation',
+      color1: '#6B4E9B',
+      language: 'en',
+      site: {
+        domain: 'wellspring-circle.example.invalid',
+        page: '/classes',
+        track: 'custom',
         embedHeight: 'fixed',
       },
       canonical: { owned: false },

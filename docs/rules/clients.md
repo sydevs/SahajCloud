@@ -26,6 +26,20 @@ other field.
   `autoClose` plus `unavailable: 'atlas-tab-only'` on Config, Usage and Diagnostics, which only
   an admin sees. A service without the atlas role gets `no-atlas-role` on every tab, from the URL
   builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
+- **Four things leave the panel with nothing to draw, and each says which.** The tab
+  (`atlas-tab-only`); no atlas role (`no-atlas-role`); a region holding no class a visitor would
+  see (`no-classes`); and a frame that never answers (`atlas-unreachable`). ⚠ **Whether the region
+  is empty is the CMS's own answer, never the widget's** — `atlasPreviewTarget` counts published,
+  unfinished classes across the region's whole subtree, which is the public feed's test rather than
+  a plain count, and the preview session sends no message about it. The last one is the browser's:
+  an extension, a network block or an outage leaves the frame silent, so `MapPreviewField` points
+  the panel at the explanation page after `ATLAS_SILENCE_MS` with nothing heard, restarted by each
+  `load` so a slow atlas is not called blocked. There is no way back from that one inside the tab —
+  the frame has been navigated away — which is what the budget is sized against.
+- ⚠ **Every field that moves the panel composes through `components/admin/helpers/panelUrl`.** It
+  remembers what we pointed the panel at, so the next field does not read our own URL as a freshly
+  resolved default: a bare `setURL` here left the Config tab explaining over the unreachable notice,
+  and the restore putting that notice back in place of the atlas.
 - **The CMS computes no colours.** Any legibility correction is the widget's own. The widget
   reports what it rendered (`sahaj-atlas:palette-report`). The pickers sit in an unnamed
   **Branding Colors** group (Reset beside its title, through `helpers/labelWithAction`), and its

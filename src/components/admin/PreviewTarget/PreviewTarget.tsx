@@ -5,6 +5,11 @@ import type { UIFieldClientComponent } from 'payload'
 import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
+import {
+  composePanelUrl,
+  panelDefaultUrl,
+  trackPanelUrl,
+} from '@/components/admin/helpers/panelUrl'
 import type { PreviewTarget as PreviewTargetDeclaration } from '@/fields/previewTargetField'
 import {
   isLivePreviewUnavailableUrl,
@@ -12,19 +17,6 @@ import {
 } from '@/lib/livePreview/unavailable'
 
 import { composeTargetUrl } from './composeTargetUrl'
-
-/**
- * The panel is one per document view, and so are these. They are module state
- * rather than refs because the fields hand over **between** tabs: switching
- * tabs unmounts one instance and mounts the next, and the mounting one reads
- * the URL from the render it was mounted in — still the old tab's composed URL,
- * since the outgoing instance's restore has not re-rendered the provider yet.
- * A per-instance ref therefore captures that as its "default" and restores a
- * view nobody asked for on the way out. Remembering what we last composed, for
- * all of them, is what tells a URL we set apart from one Payload resolved.
- */
-let lastComposedUrl: null | string = null
-let serverResolvedUrl: null | string = null
 
 /**
  * Points the Live Preview panel at the view its tab describes, and puts it
@@ -37,8 +29,9 @@ let serverResolvedUrl: null | string = null
  *   (`@payloadcms/ui/dist/providers/LivePreview/index.js:84-96`), so a restore
  *   never passes an empty string.
  * - **The provider overwrites `url` whenever the server-resolved URL changes**
- *   (`:100-104`). Any URL this component did not compose is therefore the
- *   current default, and is captured as the value to restore.
+ *   (`:100-104`). Any URL no field of ours composed is therefore the current
+ *   default — `helpers/panelUrl` holds that answer for every field that moves
+ *   the panel, and is where a restore reads it back.
  * - **A data-dependent `livePreview.url` re-resolves mid-edit** and would
  *   clobber the repoint on every save. A targeted global's URL reads `locale`
  *   and never `data` for that reason. ⚠ `clients` cannot avoid it — the preview
@@ -88,26 +81,26 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
     // up on another global's origin.
     if (!isLivePreviewEnabled || !target || !url) return
 
-    if (url !== lastComposedUrl) serverResolvedUrl = url
+    const resolved = trackPanelUrl(url)
     // The document's own refusal outranks a tab's: a service with no atlas is
     // told that on every tab, not that its preview belongs to a tab it lacks.
-    if (!serverResolvedUrl || isLivePreviewUnavailableUrl(serverResolvedUrl)) return
+    if (!resolved || isLivePreviewUnavailableUrl(resolved)) return
 
     const composed = target.unavailable
       ? new URL(livePreviewUnavailableUrl(target.unavailable), window.location.origin).toString()
-      : composeTargetUrl(serverResolvedUrl, target)
+      : composeTargetUrl(resolved, target)
     if (!composed || composed === url) return
 
-    lastComposedUrl = composed
     repointed.current = true
-    setURL(composed)
+    composePanelUrl(setURL, composed)
   }, [isLivePreviewEnabled, setURL, target, url])
 
   useEffect(
     () => () => {
       // Only what this instance moved, and never a falsy URL — `setURL` reads
       // that as "close the panel".
-      if (repointed.current && serverResolvedUrl) setUrlRef.current(serverResolvedUrl)
+      const resolved = panelDefaultUrl()
+      if (repointed.current && resolved) setUrlRef.current(resolved)
     },
     [],
   )

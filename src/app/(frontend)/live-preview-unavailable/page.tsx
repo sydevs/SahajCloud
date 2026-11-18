@@ -30,9 +30,17 @@ const REASONS: Record<string, { title: string; body: string }> = {
     title: 'The preview belongs to the Atlas tab',
     body: 'This panel shows the atlas as visitors see it, so the colours and logo on the Atlas tab can be checked while they are chosen. There is nothing on this tab for it to show.',
   },
+  'atlas-unreachable': {
+    title: 'The map could not be loaded',
+    body: 'This panel opens the atlas inside it, and nothing came back. An ad blocker or a privacy extension in this browser will do that, and so will the atlas being down. Nothing is wrong with the settings on this tab — only the preview is missing.',
+  },
   'no-atlas-role': {
     title: 'This service has no atlas',
     body: 'Live preview opens this service’s own atlas, and this service does not have one. An administrator can give it the Sahaj Atlas role under Access.',
+  },
+  'no-classes': {
+    title: 'This region has no published classes yet',
+    body: 'The preview draws this service’s own region, and nothing is published there yet, so it has nothing to show. Publish a class in the region and the map fills in.',
   },
   'no-key': {
     title: 'Live preview is not configured',
