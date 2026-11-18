@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { repeatsForSchedule } from '@/collections/Events/eventOptions'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import type { LocaleCode } from '@/lib/locales'
 import { withActor } from '@/lib/stateMachine/actor'
@@ -185,8 +185,6 @@ export function createTestLexicalContent(text: string = 'Test content'): Lexical
 }
 
 /** Test data factory functions for creating test entities with payload.create() */
-export { repeatsForSchedule }
-
 export const testData = {
   /** Create an app card with image relationship */
   async createAppCard(

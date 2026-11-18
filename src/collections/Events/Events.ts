@@ -30,6 +30,7 @@ import {
   EVENT_QUALITY_CHECK_METADATA,
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
+import { hasContactRoute } from '@/lib/events/derivedFields'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
@@ -313,11 +314,9 @@ export const Events: CollectionConfig = {
               },
               fields: [
                 {
-                  // Contact details are optional for most classes, and the three
-                  // fields crowded the top of this tab. ⚠ Switching this off
-                  // **clears** all three on that save (`clearContactDetails`): a
-                  // hidden field keeps its value, and the widget reads
-                  // `contactPhone`.
+                  // ⚠ Switching this off **clears** all three on that save
+                  // (`clearContactDetails`): a hidden field keeps its value, and
+                  // the widget reads `contactPhone`.
                   name: 'allowContact',
                   type: 'checkbox',
                   label: 'Allow seekers to contact someone by phone or email',
@@ -416,8 +415,10 @@ export const Events: CollectionConfig = {
                         const base = text(value, options as Parameters<typeof text>[1])
                         if (base !== true) return base
                         return options.data?.repeats === 'inactive' &&
-                          !value &&
-                          !options.data.contactEmail
+                          !hasContactRoute({
+                            contactEmail: options.data.contactEmail,
+                            contactPhone: value,
+                          })
                           ? `Add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
                           : true
                       },
@@ -511,9 +512,7 @@ export const Events: CollectionConfig = {
           label: 'Schedule',
           fields: [
             {
-              // The schedule in a sentence, above the control that shapes it —
-              // or, for an on-demand class, whether a seeker can reach anyone.
-              // Read from live form state, so it follows each change unsaved.
+              // Above the control it describes (`EventScheduleNotice`).
               name: 'scheduleNotice',
               type: 'ui',
               admin: { components: { Field: '@/components/admin/EventScheduleNotice' } },
@@ -573,9 +572,9 @@ export const Events: CollectionConfig = {
           fields: [
             {
               // Signups are read on the Registrations view, a document view of
-              // its own. The `join` that used to list them here rendered empty
-              // for every manager — `user-submissions` is restricted and no
-              // manager role reads a registration row (#1069).
+              // its own: a `join` here renders empty for every manager, since
+              // `user-submissions` is restricted and no manager role reads a
+              // registration row (#1069).
               name: 'registrationsNotice',
               type: 'ui',
               admin: {

@@ -4,7 +4,8 @@ import { useField, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
-import { ScheduleSummaryBanner } from '@/components/admin/ScheduleSummary'
+import { ScheduleSummary } from '@/components/admin/ScheduleSummary'
+import { hasContactRoute } from '@/lib/events/derivedFields'
 
 /**
  * The head of an event's Schedule tab: the schedule in a sentence, or — for an
@@ -16,7 +17,7 @@ import { ScheduleSummaryBanner } from '@/components/admin/ScheduleSummary'
 export function EventScheduleNotice(): React.ReactElement | null {
   const repeats = useFormFields(([fields]) => fields.repeats?.value)
   if (repeats === 'inactive') return <OnDemandContactNotice />
-  return <ScheduleSummaryBanner recurrenceFrom="repeats" schedulePath="schedule" />
+  return <ScheduleSummary path="schedule" recurrenceFrom="repeats" />
 }
 
 function OnDemandContactNotice() {
@@ -24,7 +25,10 @@ function OnDemandContactNotice() {
     path: 'allowContact',
   })
   const reachable = useFormFields(([fields]) =>
-    Boolean(fields.contactPhone?.value || fields.contactEmail?.value),
+    hasContactRoute({
+      contactEmail: fields.contactEmail?.value,
+      contactPhone: fields.contactPhone?.value,
+    }),
   )
   const name = useFormFields(([fields]) => fields.contactName?.value)
 

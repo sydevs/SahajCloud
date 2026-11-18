@@ -5,7 +5,7 @@ import type { NumberFieldClient } from 'payload'
 import { FieldLabel, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
-import { type Recurrence, recurrenceForRepeats } from '@/lib/schedule/recurrence'
+import { type Recurrence, parseRecurrence } from '@/lib/schedule/recurrence'
 
 const UNITS: Record<Recurrence, string> = { DAILY: 'days', WEEKLY: 'weeks', MONTHLY: 'months' }
 
@@ -23,7 +23,7 @@ export function IntervalLabel({
   recurrenceFrom?: string
 }): React.ReactElement {
   const recurrence = useFormFields(([fields]) =>
-    recurrenceForRepeats(
+    parseRecurrence(
       fields[recurrenceFrom ?? `${path.slice(0, path.lastIndexOf('.'))}.recurrenceType`]?.value,
     ),
   )

@@ -13,8 +13,9 @@ vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
 verifyMock.mockResolvedValue({ success: true })
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 
-import { createData, repeatsForSchedule, testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**

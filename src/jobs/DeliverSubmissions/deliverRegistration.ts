@@ -7,7 +7,7 @@ import {
 import { asLog, hasLogEntryType } from '@/fields'
 import type { LocaleCode } from '@/lib/locales'
 import { notificationFrequency } from '@/lib/notifications/preferences'
-import { pickChannel } from '@/lib/notifications/recipients'
+import { managerDisplayName, pickChannel } from '@/lib/notifications/recipients'
 import type { EmailClient } from '@/lib/notifications/sendRegistrationConfirmation'
 import { EMAIL_CLIENT_SELECT } from '@/lib/notifications/sendRegistrationConfirmation'
 import { sendRegistrationConfirmation } from '@/lib/notifications/sendRegistrationConfirmation'
@@ -133,7 +133,7 @@ async function notifyManager(args: {
 
     await sendRegistrationNotification({
       payload: req.payload,
-      recipient: { channel, destination, name: manager.name || manager.email || null },
+      recipient: { channel, destination, name: managerDisplayName(manager) },
       event,
       registrantName,
       registrantEmail,

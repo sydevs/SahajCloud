@@ -8,25 +8,26 @@ import { InfoBanner } from '@/components/admin/InfoBanner'
 
 import { summarizeSchedule } from './summary'
 
-export interface ScheduleSummaryBannerProps {
-  /** The schedule group's own path in the form. */
-  schedulePath: string
-  /** A caller-owned recurrence control (`scheduleFields`' `recurrenceFrom`). */
-  recurrenceFrom?: string
-}
-
 /**
  * The schedule in a sentence, following each edit before it is saved — or,
  * before a first date is set, what to fill in.
+ *
+ * `scheduleFields` registers it as the group's `beforeInput`, which hands it the
+ * group's `path`. A caller owning the recurrence control places it itself.
  */
-export function ScheduleSummaryBanner({
-  schedulePath,
+export function ScheduleSummary({
+  path,
   recurrenceFrom,
-}: ScheduleSummaryBannerProps): React.ReactElement | null {
+}: {
+  /** The schedule group's own path in the form. */
+  path: string
+  /** A caller-owned recurrence control (`scheduleFields`' `recurrenceFrom`). */
+  recurrenceFrom?: string
+}): React.ReactElement | null {
   const [formState] = useAllFormFields()
   const summary = useMemo(
-    () => summarizeSchedule(formState, schedulePath, recurrenceFrom),
-    [formState, schedulePath, recurrenceFrom],
+    () => summarizeSchedule(formState, path, recurrenceFrom),
+    [formState, path, recurrenceFrom],
   )
   if (!summary) return null
   return (
@@ -34,11 +35,6 @@ export function ScheduleSummaryBanner({
       {summary.detail}
     </InfoBanner>
   )
-}
-
-/** The banner heading the schedule group, registered by `scheduleFields` as its `beforeInput`. */
-export function ScheduleSummary({ path }: { path: string }): React.ReactElement {
-  return <ScheduleSummaryBanner schedulePath={path} />
 }
 
 export default ScheduleSummary

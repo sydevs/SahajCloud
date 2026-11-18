@@ -1,10 +1,10 @@
 /**
- * The schedule field's recurrence vocabulary, and the one reader of a caller's
- * own recurrence control.
+ * The schedule field's recurrence vocabulary, and the one reader of it.
  *
  * Its own module, free of Payload and zod, because the admin form reads it in
- * the browser too: the schedule summary and the interval's label both follow the
- * control as the editor changes it, before any save writes `recurrenceType`.
+ * the browser too: where a caller owns the recurrence control, the schedule
+ * summary and the interval's label follow that control as the editor changes
+ * it, since `recurrenceType` is only written on save.
  */
 
 export const RECURRENCE_OPTIONS = [
@@ -16,14 +16,14 @@ export const RECURRENCE_OPTIONS = [
 export type Recurrence = (typeof RECURRENCE_OPTIONS)[number]['value']
 
 /**
- * The recurrence a caller's own control stores, or `undefined` where it names
- * none — a one-off, an on-demand class.
+ * The recurrence a value names, in either case — the stored `recurrenceType`
+ * or a caller's own control, whose options are the lowercase spelling — or
+ * `undefined` where it names none: a one-off, an on-demand class.
  *
- * The one reader of that vocabulary, so the form's conditions and the caller's
- * own write hook cannot answer differently. A caller derives its options from
- * `RECURRENCE_OPTIONS`, which is what makes the lowercase spelling match.
+ * The one reader, so the form's conditions and the caller's own write hook
+ * cannot answer differently.
  */
-export function recurrenceForRepeats(value: unknown): Recurrence | undefined {
+export function parseRecurrence(value: unknown): Recurrence | undefined {
   const recurrence = typeof value === 'string' ? value.toUpperCase() : undefined
   return RECURRENCE_OPTIONS.find((option) => option.value === recurrence)?.value
 }

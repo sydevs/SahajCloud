@@ -10,7 +10,6 @@
 import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
-import { hasContactRoute } from '@/collections/Events/eventOptions'
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { addressFeatureMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
@@ -45,18 +44,16 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
   const languages = [...new Set(splitList(values.languages?.toLowerCase()))]
 
   const data: Record<string, unknown> = {
-    // `newEventDefaults` reads the schedule to derive `repeats`, and the patch
-    // it is handed carries no contact, so `allowContact` is set below.
-    ...newEventDefaults(scheduled, managerId),
+    // `newEventDefaults` reads these only to derive `repeats` and `allowContact`.
+    ...newEventDefaults(
+      { ...scheduled, contactEmail: values.contactEmail, contactPhone: values.contactPhone },
+      managerId,
+    ),
     ...scheduled,
     title: values.title,
     languages: languages.length ? languages : [...args.defaultLanguages],
     description: plainTextToLexical(values.description) ?? null,
     website: values.website || null,
-    allowContact: hasContactRoute({
-      contactEmail: values.contactEmail,
-      contactPhone: values.contactPhone,
-    }),
     contactName: values.contactName || null,
     contactPhone: values.contactPhone || null,
     contactEmail: values.contactEmail || null,

@@ -46,17 +46,10 @@ export const EVENT_REGISTRATION_MODE_OPTIONS = [
  * that seekers arrange by getting in touch. The stored value keeps its old
  * name, because the API publishes `inactive` (see the `inactive` field).
  *
- * The paces are **derived** from the schedule field's own, so a frequency added
- * there reaches this control too, and `recurrenceForRepeats` keeps resolving
- * the lowercase spelling.
- *
  * ⚠ **This list is the `enum_events_repeats` column**, so a frequency added to
  * `RECURRENCE_OPTIONS` moves a pinned Postgres enum and owes a migration. The
  * annotation is what says so: a pace outside `Event['repeats']` fails `tsc`
  * until `generate:types` has run, which is the point at which the column moved.
- * `as const` cannot carry that — `toLowerCase()` answers `string` whatever the
- * literal is, which is also what left the cast in `repeatsForSchedule`
- * unchecked.
  */
 export const EVENT_REPEATS_OPTIONS: readonly { label: string; value: Event['repeats'] }[] = [
   { label: 'One-time', value: 'once' },
@@ -79,31 +72,4 @@ export const EVENT_REPEATS_DESCRIPTIONS: Record<Event['repeats'], string> = {
   monthly: 'Meets once a month, on a set date or weekday.',
   inactive:
     'No fixed schedule. The listing invites seekers to get in touch through the public contact on the Details tab, and a time is arranged with them.',
-}
-
-/**
- * The pace a schedule implies: its recurrence, else a one-off, else dormant —
- * no schedule at all is what a dormant class carries.
- *
- * ⚠ **Every writer of a schedule owes `repeats` with it.**
- * `syncScheduleRecurrence` writes `schedule.recurrenceType` from `repeats`, so
- * a writer naming the recurrence alone has it cleared. The class import and the
- * proposal merge both derive it here.
- */
-export function repeatsForSchedule(schedule: unknown): Event['repeats'] {
-  if (!schedule) return 'inactive'
-  const recurrence = (schedule as { recurrenceType?: string | null }).recurrenceType
-  return recurrence ? (recurrence.toLowerCase() as Event['repeats']) : 'once'
-}
-
-/**
- * Whether a patch carries a contact route, which is what the box allows — a
- * name alone reaches nobody. Every writer of a contact field reads this, so the
- * box and the fields it gates cannot disagree.
- */
-export function hasContactRoute(patch: {
-  contactEmail?: unknown
-  contactPhone?: unknown
-}): boolean {
-  return Boolean(patch.contactPhone || patch.contactEmail)
 }

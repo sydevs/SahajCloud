@@ -75,6 +75,6 @@ export interface RegistrationRecipient {
   /** Email address or messaging handle. */
   destination: string
   /** Display name for the greeting and the logs. */
-  name: string | null
+  name: string
   channel: NotificationChannel
 }

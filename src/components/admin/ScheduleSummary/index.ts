@@ -1,2 +1,2 @@
-export { ScheduleSummary, ScheduleSummaryBanner } from './ScheduleSummary'
+export { ScheduleSummary } from './ScheduleSummary'
 export { default } from './ScheduleSummary'

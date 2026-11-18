@@ -6,12 +6,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, v
 
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { createData, repeatsForSchedule, testData } from '../utils/testData'
+import { createData, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 // `unsubscribeAction` reaches for the app config with `getPayload({ config })`.

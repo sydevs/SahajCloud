@@ -1,6 +1,6 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
-import { recurrenceForRepeats } from '@/lib/schedule/recurrence'
+import { parseRecurrence } from '@/lib/schedule/recurrence'
 import type { Event } from '@/payload-types'
 
 /**
@@ -19,19 +19,15 @@ import type { Event } from '@/payload-types'
  */
 export const syncScheduleRecurrence: CollectionBeforeValidateHook = ({ data, originalDoc }) => {
   if (!data) return data
-  const repeats = (data.repeats ?? originalDoc?.repeats) as Event['repeats'] | null | undefined
+  const repeats: Event['repeats'] | null | undefined = data.repeats ?? originalDoc?.repeats
   if (!repeats || repeats === 'inactive') return data
 
-  const recurrenceType = recurrenceForRepeats(repeats) ?? null
-  // Left alone where it already agrees, so an unrelated save — a bookkeeping
-  // write, a registration recount — patches no schedule column. Merged the way
-  // `mergedSchedule` does next door: a patch naming one sub-field alone leaves
-  // the rest stored.
-  const schedule = { ...(originalDoc?.schedule as object), ...(data.schedule as object) } as Record<
-    string,
-    unknown
-  >
-  if ((schedule.recurrenceType ?? null) === recurrenceType) return data
+  const recurrenceType = parseRecurrence(repeats) ?? null
+  // Left alone where the schedule this save lands on already agrees, so an
+  // unrelated save — a bookkeeping write, a registration recount — patches no
+  // schedule column.
+  const stored = { ...originalDoc?.schedule, ...data.schedule }.recurrenceType ?? null
+  if (stored === recurrenceType) return data
 
-  return { ...data, schedule: { ...((data.schedule ?? {}) as object), recurrenceType } }
+  return { ...data, schedule: { ...data.schedule, recurrenceType } }
 }

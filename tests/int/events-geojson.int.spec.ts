@@ -5,12 +5,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 import { serverEnv } from '@/lib/env'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import type { Event } from '@/payload-types'
 
 import { storeInvalidEvent } from '../utils/storeInvalidEvent'
-import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = {

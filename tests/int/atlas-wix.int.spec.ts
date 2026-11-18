@@ -8,9 +8,10 @@ import { atlasWixRoute } from '@/endpoints/atlas/wix/route'
 import { atlasWixSitemap } from '@/endpoints/atlas/wix/sitemap'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { PROBE_SEGMENT_PREFIX } from '@/lib/clients/verification'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import type { Event } from '@/payload-types'
 
-import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**

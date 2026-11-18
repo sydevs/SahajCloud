@@ -1,4 +1,4 @@
-import { hasContactRoute, repeatsForSchedule } from '@/collections/Events/eventOptions'
+import { hasContactRoute, repeatsForSchedule } from '@/lib/events/derivedFields'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -54,6 +54,7 @@ export function newEventDefaults(
   manager?: unknown,
 ): ProposedPatch {
   const managerId = relationId(manager)
+  const patch = proposed ?? {}
   return {
     languages: ['en'],
     eventType: 'offline',
@@ -63,8 +64,8 @@ export function newEventDefaults(
     // the map as unverified until somebody takes it on.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
-    repeats: repeatsForSchedule((proposed ?? {}).schedule),
-    allowContact: hasContactRoute(proposed ?? {}),
+    repeats: repeatsForSchedule(patch.schedule),
+    allowContact: hasContactRoute(patch),
     _status: 'published',
   }
 }

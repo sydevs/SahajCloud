@@ -3,7 +3,7 @@ import type { FormState } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 import { toText } from 'rrule-temporal/totext'
 
-import { recurrenceForRepeats } from '@/lib/schedule/recurrence'
+import { parseRecurrence } from '@/lib/schedule/recurrence'
 
 /** Extracted schedule sub-field values from form state. */
 interface ScheduleFormValues {
@@ -23,12 +23,12 @@ interface ScheduleFormValues {
 }
 
 /** What the banner says. */
-export interface ScheduleSummary {
+interface Summary {
   title: string
   detail: string
 }
 
-const EMPTY: ScheduleSummary = {
+const EMPTY: Summary = {
   title: 'No schedule yet',
   detail:
     'Set the first date and time below, and how often it repeats. A summary appears here as you fill them in.',
@@ -36,11 +36,8 @@ const EMPTY: ScheduleSummary = {
 
 /**
  * Read the schedule group's values from form state, where its sub-fields sit
- * as flat paths: `{groupPath}.{subField}`.
- *
- * With `recurrenceFrom`, the recurrence is the caller's own control, read
- * through `recurrenceForRepeats` — the stored `recurrenceType` is only written
- * on save, so reading it would leave the summary a save behind.
+ * as flat paths: `{groupPath}.{subField}`. The recurrence is the caller's own
+ * control where it owns one (`scheduleFields`' `recurrenceFrom`).
  */
 function extractScheduleValues(
   formState: FormState,
@@ -52,9 +49,9 @@ function extractScheduleValues(
   return {
     firstDate: get('firstDate') as string | undefined,
     firstDate_tz: get('firstDate_tz') as string | undefined,
-    recurrenceType: recurrenceFrom
-      ? recurrenceForRepeats(formState[recurrenceFrom]?.value)
-      : (get('recurrenceType') as string | undefined),
+    recurrenceType: parseRecurrence(
+      formState[recurrenceFrom ?? `${groupPath}.recurrenceType`]?.value,
+    ),
     interval: get('interval') as number | undefined,
     weekdays: get('weekdays') as string[] | undefined,
     monthlyMode: get('monthlyMode') as string | undefined,
@@ -168,7 +165,7 @@ export function summarizeSchedule(
   formState: FormState,
   groupPath: string,
   recurrenceFrom?: string,
-): ScheduleSummary | null {
+): Summary | null {
   const values = extractScheduleValues(formState, groupPath, recurrenceFrom)
   if (!values.firstDate) return EMPTY
 

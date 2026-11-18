@@ -2,7 +2,7 @@ import type { Condition, Field, GroupField, JSONField } from 'payload'
 
 import { z } from 'zod'
 
-import { RECURRENCE_OPTIONS, recurrenceForRepeats } from '@/lib/schedule/recurrence'
+import { parseRecurrence, RECURRENCE_OPTIONS } from '@/lib/schedule/recurrence'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
@@ -36,10 +36,10 @@ export interface ScheduleFieldsOptions {
    * A caller-owned recurrence control, named as a top-level field of the
    * document, which then replaces this group's own Repeats select: it is
    * hidden, and every sub-field reacts to the control's value instead. Its
-   * values are read through {@link recurrenceForRepeats}.
+   * values are read through {@link parseRecurrence}.
    *
    * The group's summary banner goes with it: the caller places
-   * `ScheduleSummaryBanner` above its own control, so the summary heads the
+   * `ScheduleSummary` above its own control, so the summary heads the
    * whole schedule rather than sitting below the control it describes.
    *
    * ⚠ The stored `recurrenceType` column stays, so the caller owes a hook that
@@ -159,20 +159,13 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
   return groupField
 }
 
-/**
- * The recurrence the sub-fields react to.
- *
- * A caller owning the control writes `recurrenceType` on save, so reading the
- * stored column would leave the form a save behind: choosing Weekly would show
- * the weekday picker only after the save. Its own value is read instead.
- */
+/** The recurrence the sub-fields react to: the caller's control where it owns one. */
 function recurrenceOf(
   recurrenceFrom: string | undefined,
   data: Record<string, unknown> | undefined,
   own: unknown,
 ): string | undefined {
-  if (!recurrenceFrom) return typeof own === 'string' ? own : undefined
-  return recurrenceForRepeats(data?.[recurrenceFrom])
+  return parseRecurrence(recurrenceFrom ? data?.[recurrenceFrom] : own)
 }
 
 /**

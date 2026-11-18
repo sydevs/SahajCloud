@@ -49,15 +49,15 @@ Two things the caller owes, and the factory cannot:
   nothing in the form writes it once the select is hidden.
   `Events.syncScheduleRecurrence` is the worked example, in `beforeValidate` so
   the schedule's own field hooks see the value on the same save.
-- **Option values that `recurrenceForRepeats` resolves** — the lowercase
-  spelling of `RECURRENCE_OPTIONS`. Both live in `@/lib/schedule/recurrence`,
-  free of Payload and zod, because the summary banner and the interval's label
-  read the caller's control in the browser. `EVENT_REPEATS_OPTIONS` derives them from it
-  rather than listing them, which is what keeps the two in step.
+- **Option values that `parseRecurrence` resolves** — `RECURRENCE_OPTIONS` in
+  either case. Both live in `@/lib/schedule/recurrence`, free of Payload and zod,
+  because the summary banner and the interval's label read the caller's control
+  in the browser. `EVENT_REPEATS_OPTIONS` derives them from it rather than
+  listing them, which is what keeps the two in step.
 
 The group's own summary banner goes too, because it would sit below the control
-it describes: the caller places `ScheduleSummaryBanner` above that control
-itself, as Events does through `EventScheduleNotice`.
+it describes: the caller places `ScheduleSummary` above that control itself,
+as Events does through `EventScheduleNotice`.
 
 ⚠ **So a frequency added to `RECURRENCE_OPTIONS` moves `enum_events_repeats`**, a
 pinned Postgres column, and owes a migration. `EVENT_REPEATS_OPTIONS` is annotated

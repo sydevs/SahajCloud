@@ -5,9 +5,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import { atlasSitemap } from '@/endpoints/atlas/sitemap'
 import type { AtlasSeoResponse, AtlasSitemapResponse } from '@/endpoints/responseTypes'
+import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import type { Event } from '@/payload-types'
 
-import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**

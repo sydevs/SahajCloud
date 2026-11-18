@@ -7,6 +7,7 @@ import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { serverEnv } from '@/lib/env'
+import { hasContactRoute, repeatsForSchedule } from '@/lib/events/derivedFields'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import {
   asNotificationLog,
@@ -22,7 +23,7 @@ import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
-import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // The verify page's Server Action reaches for the app config with
@@ -156,7 +157,7 @@ describe('Event verification lifecycle', () => {
     // `recurrenceType` the create names on its own. And a contact only counts
     // where the box is on, which a dormant class is refused without.
     data.repeats ??= repeatsForSchedule(data.schedule)
-    data.allowContact ??= Boolean(data.contactPhone ?? data.contactEmail)
+    data.allowContact ??= hasContactRoute(data)
     return payload.create({
       collection: 'events',
       overrideAccess: true,

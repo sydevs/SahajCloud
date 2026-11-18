@@ -70,7 +70,7 @@ async function hasVisibleClasses(regionId: null | number, req: PayloadRequest): 
     req,
     // The narrowest column, so no field's `afterRead` runs: the value is
     // unused, and the row's own `id` survives any select.
-    select: { inactive: true },
+    select: { repeats: true },
     where: andWhere(subtree, drawnOnMapWhere(new Date())),
   })
 
