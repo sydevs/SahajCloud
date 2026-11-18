@@ -53,6 +53,11 @@ Two things the caller owes, and the factory cannot:
   spelling of `RECURRENCE_OPTIONS`. `EVENT_REPEATS_OPTIONS` derives them from it
   rather than listing them, which is what keeps the two in step.
 
+⚠ **So a frequency added to `RECURRENCE_OPTIONS` moves `enum_events_repeats`**, a
+pinned Postgres column, and owes a migration. `EVENT_REPEATS_OPTIONS` is annotated
+against `Event['repeats']`, so `tsc` fails until `generate:types` has run — which is
+the point at which the column moved.
+
 ## Why rrule-temporal (not rrule)
 
 Legacy `rrule` (v2.8.1) has a [double-timezone-conversion
