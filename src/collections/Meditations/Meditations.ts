@@ -113,7 +113,7 @@ const virtualJoinField = ({ name, on }: { name: string; on: string }): JSONField
  * The longest recording a meditation may carry. The Lemonfox client's request
  * timeout is budgeted against it, so the two move together.
  */
-export const MAX_MEDITATION_MINUTES = 50
+const MAX_MEDITATION_MINUTES = 50
 
 export const Meditations: CollectionConfig = {
   slug: 'meditations',
