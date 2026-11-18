@@ -76,9 +76,11 @@ export abstract class TranslationGlobalsImporter<
 
       try {
         await this.writeGlobal(slug, data, locale, true)
-      } catch {
-        // One locale failing (already reported by `writeGlobal`) must not stop
-        // the rest: each is its own write and its own publish.
+      } catch (error) {
+        // `writeGlobal` reports an `updateGlobal` failure, and the remaining
+        // locales are independent writes. A missing Payload instance is
+        // neither: it fails every locale, and nothing reported it.
+        if (!this.payload && !this.options.dryRun) throw error
         continue
       }
     }
