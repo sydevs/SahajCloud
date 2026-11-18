@@ -377,9 +377,9 @@ as though it were general-purpose.
 This is why a job's supporting code lives in the job folder.
 `SendSessionReminders` owns `sendSessionReminder.ts` and
 `unsubscribeUrl.ts`.
-`recipients` stays in `src/lib/notifications` because both `ExpireEvents`
-and the `DeliverSubmissions` senders also use it. `managerRoles` is there for the same
-reason, with three: the notification-preferences field filters its rows by
+`recipients` stays in `src/lib/notifications` because `ExpireEvents`,
+`deliverRegistration` and `deliverProposal` all use it. `managerRoles` is
+there for the same reason, with three: the notification-preferences field filters its rows by
 role, the digest run sends one email per role, and `dashboardChoiceFor` picks a
 home by role. The **view layer is untouched** —
 email templates stay in `src/emails/`, and a job's sender imports its
