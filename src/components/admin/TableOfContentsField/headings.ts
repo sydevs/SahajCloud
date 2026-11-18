@@ -17,7 +17,7 @@ function withDescendants(detected: TableOfContentsHeadings, position: number): S
   return range
 }
 
-function at(
+function headingsAt(
   detected: TableOfContentsHeadings,
   positions: ReadonlySet<number>,
 ): TableOfContentsHeadings {
@@ -94,7 +94,7 @@ export function rebuildStored(
     if (parent === -1 || kept.has(parent)) kept.add(i)
   }
 
-  return at(detected, kept)
+  return headingsAt(detected, kept)
 }
 
 /** The stored list after enabling or disabling `position`, with its nested headings. */
@@ -112,5 +112,5 @@ export function toggleHeading(
     range.forEach((i) => next.add(i))
   }
 
-  return at(detected, next)
+  return headingsAt(detected, next)
 }
