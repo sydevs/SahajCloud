@@ -17,19 +17,9 @@ export type LivePreviewUnavailableReason =
 
 const UNAVAILABLE_PATH = '/live-preview-unavailable'
 
-/**
- * What a panel URL is resolved against while reading a part off it.
- *
- * A panel URL is absolute by the time Payload hands it back, but the builders
- * here return root-relative ones, so every reader needs a base. One constant,
- * because two readers of the same address that disagree about its origin
- * disagree about the address.
- */
-export const PANEL_URL_BASE = 'http://relative.invalid'
-
 /** Whether a resolved panel URL is already an explanation, absolute or not. */
 export function isLivePreviewUnavailableUrl(url: string): boolean {
-  return URL.parse(url, PANEL_URL_BASE)?.pathname === UNAVAILABLE_PATH
+  return URL.parse(url, 'http://relative.invalid')?.pathname === UNAVAILABLE_PATH
 }
 
 /**
