@@ -44,18 +44,22 @@ describe("the Vitest lanes in 'vitest.config.mts'", () => {
     vi.unstubAllEnvs()
   })
 
+  // Read as the `include` line rather than parsed: that file carries `//`
+  // comments naming this one, so both a whole-file parse and a bare substring
+  // search answer about the prose instead of the entry.
   it('keeps the config in a typecheck program', () => {
-    const { include } = JSON.parse(
-      readFileSync(join(ROOT, 'tsconfig.test.json'), 'utf8').replace(/^\s*\/\/.*$/gm, ''),
-    )
+    const config = readFileSync(join(ROOT, 'tsconfig.test.json'), 'utf8')
 
-    expect(include).toContain('vitest.config.mts')
+    expect(config.match(/"include":\s*\[([^\]]*)\]/)?.[1] ?? '').toContain('"vitest.config.mts"')
   })
 
+  // 7 is outside both branches of the derivation — `min(cores, 4)` on CI and
+  // `max(2, min(cores - 1, 6))` locally — so no core count lets this pass with
+  // the override unread.
   it('bounds the int lane through a key Vitest 5 reads', async () => {
-    vi.stubEnv('VITEST_INT_MAX_FORKS', '2')
+    vi.stubEnv('VITEST_INT_MAX_FORKS', '7')
 
-    expect((await laneNamed('int')).maxWorkers).toBe(2)
+    expect((await laneNamed('int')).maxWorkers).toBe(7)
   })
 
   // Vitest refuses a group whose projects disagree on `maxWorkers`, and `tsc`

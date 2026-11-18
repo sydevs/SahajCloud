@@ -380,6 +380,11 @@ own default would have chosen, so restoring the bound moved nothing on this
 machine. A wider machine is where the two diverge, and where the lane was
 spending connections it was configured not to.
 
+**CI is unmeasured here, and CI is where the number moves.** Its branch of the
+derivation is `min(cores, 4)`, so a 4-core runner now gets 4 workers where the
+unread default gave it 3. Nothing above was taken on a runner. Take it there
+before quoting an int-lane figure for CI.
+
 ## Schema-reuse / clone evaluation (#499 §2)
 
 **Considered**: build the schema once into a template, then clone it per
