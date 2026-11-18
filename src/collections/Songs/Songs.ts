@@ -50,7 +50,6 @@ export const Songs: CollectionConfig = {
   hooks: {
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a song' }),
-      // No cap: a song is an album track, not a meditation.
       extractAudioDuration(),
       autoSetIncludeForMeditationsOnCreate,
     ],
