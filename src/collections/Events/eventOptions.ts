@@ -45,10 +45,21 @@ export const EVENT_REGISTRATION_MODE_OPTIONS = [
  * The paces are **derived** from the schedule field's own, so a frequency added
  * there reaches this control too, and `recurrenceForRepeats` keeps resolving
  * the lowercase spelling.
+ *
+ * ⚠ **This list is the `enum_events_repeats` column**, so a frequency added to
+ * `RECURRENCE_OPTIONS` moves a pinned Postgres enum and owes a migration. The
+ * annotation is what says so: a pace outside `Event['repeats']` fails `tsc`
+ * until `generate:types` has run, which is the point at which the column moved.
+ * `as const` cannot carry that — `toLowerCase()` answers `string` whatever the
+ * literal is, which is also what left the cast in `repeatsForSchedule`
+ * unchecked.
  */
-export const EVENT_REPEATS_OPTIONS = [
+export const EVENT_REPEATS_OPTIONS: readonly { label: string; value: Event['repeats'] }[] = [
   { label: "Doesn't repeat", value: 'once' },
-  ...RECURRENCE_OPTIONS.map(({ label, value }) => ({ label, value: value.toLowerCase() })),
+  ...RECURRENCE_OPTIONS.map(({ label, value }) => ({
+    label,
+    value: value.toLowerCase() as Lowercase<typeof value>,
+  })),
   { label: 'Inactive', value: 'inactive' },
 ]
 
