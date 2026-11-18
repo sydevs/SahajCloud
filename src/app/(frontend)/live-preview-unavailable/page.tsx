@@ -31,8 +31,8 @@ const REASONS: Record<string, { title: string; body: string }> = {
     body: 'This panel shows the atlas as visitors see it, so the colours and logo on the Atlas tab can be checked while they are chosen. There is nothing on this tab for it to show.',
   },
   'atlas-unreachable': {
-    title: 'The map could not be loaded',
-    body: 'This panel opens the atlas inside it, and nothing came back. An ad blocker or a privacy extension in this browser will do that, and so will the atlas being down. Nothing is wrong with the settings on this tab — only the preview is missing.',
+    title: 'The map did not load',
+    body: 'Nothing is wrong with your settings — only the preview is missing. Switch to another tab and back to try again. An ad blocker or privacy extension in this browser is the usual cause.',
   },
   'no-atlas-role': {
     title: 'This service has no atlas',
