@@ -247,8 +247,9 @@ const COPY: {
     body: (eventTitle: string, managerName: string) => string
   }
   /**
-   * The event manager's own escape hatch: hand the listing to the region
-   * manager above them, by button or by replying.
+   * The event manager's own escape hatch: ask the region manager above them
+   * for help, by button or by replying. The ask is a draft they finish — the
+   * changes are theirs to name, not the region manager's to go and find.
    */
   askRegionManager: {
     label: string
@@ -312,7 +313,7 @@ const COPY: {
     label: 'Ask region manager',
     subject: (eventTitle) => `Help with my Sahaja Yoga class: ${eventTitle}`,
     body: (eventTitle, regionManagerName) =>
-      `Hello ${regionManagerName},\n\nI have been asked to verify my class “${eventTitle}”, and I would like you to take a look at it. Could you check the listing and verify it on my behalf, or let me know what you need from me?\n\nThank you.`,
+      `Hello ${regionManagerName},\n\nI have been asked to verify my class “${eventTitle}”, and I need some help with it first.\n\nWhat needs to change:\n\n[describe the changes here]\n\nThank you.`,
     replyLine: (regionManagerName) => (
       <>
         Questions? Reply to this email to reach <strong>{regionManagerName}</strong>, your region

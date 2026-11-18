@@ -376,6 +376,9 @@ describe('EventVerificationEmail', () => {
       // either one's wording would read as written by the wrong person.
       expect(html).toContain(encodeURIComponent('Help with my Sahaja Yoga class'))
       expect(html).not.toContain(encodeURIComponent('Please verify your Sahaja Yoga class'))
+      // The sender names what needs changing. Asking the region manager to go
+      // and find it is the responsibility this ask must not hand over.
+      expect(html).toContain(encodeURIComponent('What needs to change'))
     })
 
     it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
