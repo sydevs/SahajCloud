@@ -40,7 +40,9 @@ server path also passes `event: 'submit'`, so it discriminates nothing.
 ## `inactive` is a computed field, `repeats` is the column
 
 One control stores how often a class meets _and_ whether it is dormant:
-`repeats` — `once` / `daily` / `weekly` / `monthly` / `inactive`. Two things
+`repeats` — `once` / `daily` / `weekly` / `monthly` / `inactive`. An editor
+reads `inactive` as **On-demand**: no fixed schedule, and a time arranged
+through the public contact, which such a class must carry. Two things
 follow from it, and both have a sharp edge.
 
 **`schedule.recurrenceType` is written from it**, by the

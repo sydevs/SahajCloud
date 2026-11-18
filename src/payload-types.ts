@@ -1832,17 +1832,17 @@ export interface Event {
   images?: (number | Image)[] | null;
   allowContact?: boolean | null;
   /**
-   * A phone number that seekers can call to learn more about the program.
+   * Who seekers will reach.
    */
-  contactPhone?: string | null;
+  contactName?: string | null;
   /**
-   * An email address seekers can write to for more information about the program.
+   * An address seekers can write to.
    */
   contactEmail?: string | null;
   /**
-   * The name of the person seekers will reach
+   * A number seekers can call.
    */
-  contactName?: string | null;
+  contactPhone?: string | null;
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
@@ -1870,9 +1870,6 @@ export interface Event {
     latitude?: number | null;
     longitude?: number | null;
   };
-  /**
-   * How often this class meets. Inactive marks it dormant — no schedule to show, so it must carry contact details instead.
-   */
   repeats: 'once' | 'daily' | 'weekly' | 'monthly' | 'inactive';
   inactive?: boolean | null;
   /**
@@ -1886,9 +1883,6 @@ export interface Event {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     monthlyMode?: ('date' | 'weekday') | null;
@@ -4025,9 +4019,6 @@ export interface AppCard {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     /**
@@ -5134,9 +5125,9 @@ export interface EventsSelect<T extends boolean = true> {
   website?: T;
   images?: T;
   allowContact?: T;
-  contactPhone?: T;
-  contactEmail?: T;
   contactName?: T;
+  contactEmail?: T;
+  contactPhone?: T;
   webPath?: T;
   webUrl?: T;
   appUrl?: T;

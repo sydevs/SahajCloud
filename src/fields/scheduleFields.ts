@@ -2,6 +2,7 @@ import type { Condition, Field, GroupField, JSONField } from 'payload'
 
 import { z } from 'zod'
 
+import { RECURRENCE_OPTIONS, recurrenceForRepeats } from '@/lib/schedule/recurrence'
 import {
   cleanupExpiredExclusions,
   computeIcalRule,
@@ -41,6 +42,13 @@ export interface ScheduleFieldsOptions {
    * writes it — nothing in the form does once the select is hidden.
    */
   recurrenceFrom?: string
+  /**
+   * Show the schedule summary banner at the top of the group (default: true).
+   * A caller owning the recurrence control turns it off and places
+   * `ScheduleSummary` above that control itself, so the summary heads the whole
+   * schedule rather than sitting below the control it describes.
+   */
+  hasSummary?: boolean
   /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
@@ -60,13 +68,6 @@ export const WEEKDAY_OPTIONS = [
   { label: 'Fri', value: 'FR' },
   { label: 'Sat', value: 'SA' },
   { label: 'Sun', value: 'SU' },
-] as const
-
-/** Recurrence type options */
-export const RECURRENCE_OPTIONS = [
-  { label: 'Daily', value: 'DAILY' },
-  { label: 'Weekly', value: 'WEEKLY' },
-  { label: 'Monthly', value: 'MONTHLY' },
 ] as const
 
 /** Ending type options */
@@ -90,9 +91,9 @@ const ENDING_OPTIONS = [
  * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
  * field for the timezone.
  *
- * A `ScheduleSummary` beforeInput component displays a human-readable
- * description of the configured recurrence below the group fields,
- * updating in real-time as the user edits sub-fields.
+ * A `ScheduleSummary` beforeInput banner heads the group with a
+ * human-readable description of the configured recurrence, updating in
+ * real time as the user edits sub-fields (`hasSummary`).
  *
  * Feature flags enable additional field groups:
  * - `endTime` — end time field
@@ -130,6 +131,7 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     hasEnding = false,
     hasExclusions = false,
     recurrenceFrom,
+    hasSummary = true,
     admin = {},
   } = options
 
@@ -150,27 +152,20 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
     admin: {
       description: admin.description || 'Configure when this event occurs and repeats',
       condition: admin.condition,
-      components: {
-        beforeInput: ['@/components/admin/ScheduleSummary'],
-      },
+      ...(hasSummary && {
+        components: {
+          beforeInput: [
+            recurrenceFrom
+              ? { path: '@/components/admin/ScheduleSummary', clientProps: { recurrenceFrom } }
+              : '@/components/admin/ScheduleSummary',
+          ],
+        },
+      }),
     },
     fields: subFields,
   }
 
   return groupField
-}
-
-/**
- * The recurrence a caller's own control stores, or `undefined` where it names
- * none — "doesn't repeat", "inactive".
- *
- * The one reader of that vocabulary, so the form's conditions and the caller's
- * own write hook cannot answer differently. A caller derives its options from
- * `RECURRENCE_OPTIONS`, which is what makes the lowercase spelling match.
- */
-export function recurrenceForRepeats(value: unknown): string | undefined {
-  const recurrence = typeof value === 'string' ? value.toUpperCase() : undefined
-  return RECURRENCE_OPTIONS.some((option) => option.value === recurrence) ? recurrence : undefined
 }
 
 /**
@@ -308,7 +303,16 @@ function buildRecurrenceRow(config: SubFieldConfig): Field {
         admin: {
           step: 1,
           condition: whenRecurring(recurrenceFrom),
-          description: 'Repeat every N days/weeks/months',
+          // The unit, faded inside the input — "2 weeks". The control naming
+          // the unit may sit a tab's height away, so "Every" alone said nothing.
+          components: {
+            afterInput: [
+              {
+                path: '@/components/admin/ScheduleSummary/IntervalUnit',
+                clientProps: { recurrenceFrom },
+              },
+            ],
+          },
         },
       },
       ...(config.hasComplexWeekly ? buildComplexWeeklyFields(config) : []),

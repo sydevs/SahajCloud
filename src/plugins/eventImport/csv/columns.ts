@@ -10,7 +10,8 @@
  */
 
 import { EVENT_TYPE_OPTIONS } from '@/collections/Events/eventOptions'
-import { RECURRENCE_OPTIONS, WEEKDAY_OPTIONS } from '@/fields/scheduleFields'
+import { WEEKDAY_OPTIONS } from '@/fields/scheduleFields'
+import { RECURRENCE_OPTIONS } from '@/lib/schedule/recurrence'
 
 /** The values the select columns take, read off the Events fields they write. */
 export const EVENT_TYPES = EVENT_TYPE_OPTIONS.map(({ value }) => value)

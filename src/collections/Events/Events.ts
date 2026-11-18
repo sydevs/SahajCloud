@@ -54,6 +54,7 @@ import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
+  EVENT_REPEATS_DESCRIPTIONS,
   EVENT_REPEATS_OPTIONS,
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_LABELS,
@@ -81,7 +82,7 @@ const CONTACT_EMAIL_MAX = 254
  * ask for one — the box, and the phone field behind it.
  */
 const DORMANT_CONTACT_REASON =
-  'an inactive event has no schedule, so this is the only way a seeker can reach you.'
+  'an on-demand class has no schedule, so this is the only way a seeker can reach you.'
 
 /**
  * Minimal rich-text editor for the event description.
@@ -302,105 +303,42 @@ export const Events: CollectionConfig = {
               admin: { description: 'Photos for this event (up to 7).' },
             },
             {
-              // Contact details are optional for most classes, and the three
-              // fields crowded the top of this tab. ⚠ Switching this off
-              // **clears** all three on that save (`clearContactDetails`): a
-              // hidden field keeps its value, and the widget reads
-              // `contactPhone`.
-              name: 'allowContact',
-              type: 'checkbox',
-              label: 'Allow seekers to contact someone by phone or email',
-              defaultValue: false,
-              // A dormant class has no schedule to show, so a reachable person
-              // is the only way a seeker can learn more. The phone field's own
-              // validator asks for the number; this one asks for the box, which
-              // Payload skips the phone's validation behind.
-              //
-              // Composed with `checkbox` from payload/shared, because supplying
-              // `validate` REPLACES Payload's default. See
-              // src/collections/AGENTS.md.
-              validate: (
-                value: boolean | null | undefined,
-                options: { data?: { repeats?: Event['repeats'] | null } },
-              ) => {
-                const base = checkbox(value, options as Parameters<typeof checkbox>[1])
-                if (base !== true) return base
-                return options.data?.repeats === 'inactive' && !value
-                  ? `Switch this on and add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
-                  : true
+              // Who a seeker can reach about this class, as the public listing
+              // shows it. Unnamed, so the four columns stay top-level.
+              type: 'group',
+              label: 'Public Contact',
+              admin: {
+                description:
+                  'Shown on the public listing, so seekers can ask about this class before they come.',
               },
-            },
-            {
-              type: 'row',
               fields: [
                 {
-                  name: 'contactPhone',
-                  label: 'Contact Phone Number',
-                  type: 'text',
-                  maxLength: CONTACT_TEXT_MAX,
-                  // An inactive event has no schedule, so a *reachable
-                  // person* is the only way a seeker can find out more. An
-                  // inactive event must carry one. A phone or an email
-                  // satisfies this. A website deliberately does not: a page
-                  // is metadata about the event, not a route to someone who
-                  // can answer a question. The same applies to `onlineUrl`, a
-                  // join link for sessions an inactive event is not running.
-                  // A validate function keeps active events optional, and
-                  // `allowContact` carries the same rule for the save where
-                  // this field is hidden and so never validated.
+                  // Contact details are optional for most classes, and the three
+                  // fields crowded the top of this tab. ⚠ Switching this off
+                  // **clears** all three on that save (`clearContactDetails`): a
+                  // hidden field keeps its value, and the widget reads
+                  // `contactPhone`.
+                  name: 'allowContact',
+                  type: 'checkbox',
+                  label: 'Allow seekers to contact someone by phone or email',
+                  defaultValue: false,
+                  // A dormant class has no schedule to show, so a reachable person
+                  // is the only way a seeker can learn more. The phone field's own
+                  // validator asks for the number; this one asks for the box, which
+                  // Payload skips the phone's validation behind.
                   //
-                  // Composed with `text` from payload/shared, because
-                  // supplying `validate` REPLACES Payload's default, which
-                  // would otherwise silently drop `maxLength`. See
+                  // Composed with `checkbox` from payload/shared, because supplying
+                  // `validate` REPLACES Payload's default. See
                   // src/collections/AGENTS.md.
                   validate: (
-                    value: string | null | undefined,
-                    options: {
-                      data?: { repeats?: Event['repeats'] | null; contactEmail?: string | null }
-                    },
+                    value: boolean | null | undefined,
+                    options: { data?: { repeats?: Event['repeats'] | null } },
                   ) => {
-                    const base = text(value, options as Parameters<typeof text>[1])
+                    const base = checkbox(value, options as Parameters<typeof checkbox>[1])
                     if (base !== true) return base
-                    return options.data?.repeats === 'inactive' &&
-                      !value &&
-                      !options.data.contactEmail
-                      ? `Add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
+                    return options.data?.repeats === 'inactive' && !value
+                      ? `Switch this on and add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
                       : true
-                  },
-                  admin: {
-                    condition: (data) => !!data?.allowContact,
-                    description:
-                      'A phone number that seekers can call to learn more about the program.',
-                  },
-                },
-                {
-                  name: 'contactEmail',
-                  type: 'email',
-                  // An `email` field validates format, but takes no
-                  // `maxLength` of its own. Without this, it stays unbounded
-                  // on a public-facing listing. Composed with `email` from
-                  // payload/shared, for the same reason as the phone field
-                  // above: a custom `validate` replaces the built-in check,
-                  // so it must re-run that check before adding the bound.
-                  //
-                  // This deliberately does NOT repeat the inactive-contact
-                  // rule. Either field satisfies that rule, and asserting it
-                  // here too would surface the same complaint on two fields
-                  // at once.
-                  validate: (
-                    value: string | null | undefined,
-                    options: Parameters<typeof email>[1],
-                  ) => {
-                    const base = email(value, options)
-                    if (base !== true) return base
-                    return !value || value.length <= CONTACT_EMAIL_MAX
-                      ? true
-                      : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
-                  },
-                  admin: {
-                    condition: (data) => !!data?.allowContact,
-                    description:
-                      'An email address seekers can write to for more information about the program.',
                   },
                 },
                 {
@@ -414,8 +352,81 @@ export const Events: CollectionConfig = {
                   // nicety, not a necessity.
                   admin: {
                     condition: (data) => !!data?.allowContact,
-                    description: 'The name of the person seekers will reach',
+                    description: 'Who seekers will reach.',
                   },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'contactEmail',
+                      type: 'email',
+                      // An `email` field validates format, but takes no
+                      // `maxLength` of its own. Without this, it stays unbounded
+                      // on a public-facing listing. Composed with `email` from
+                      // payload/shared, for the same reason as the phone field
+                      // below: a custom `validate` replaces the built-in check,
+                      // so it must re-run that check before adding the bound.
+                      //
+                      // This deliberately does NOT repeat the inactive-contact
+                      // rule. Either field satisfies that rule, and asserting it
+                      // here too would surface the same complaint on two fields
+                      // at once.
+                      validate: (
+                        value: string | null | undefined,
+                        options: Parameters<typeof email>[1],
+                      ) => {
+                        const base = email(value, options)
+                        if (base !== true) return base
+                        return !value || value.length <= CONTACT_EMAIL_MAX
+                          ? true
+                          : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
+                      },
+                      admin: {
+                        condition: (data) => !!data?.allowContact,
+                        description: 'An address seekers can write to.',
+                      },
+                    },
+                    {
+                      name: 'contactPhone',
+                      label: 'Contact Phone Number',
+                      type: 'text',
+                      maxLength: CONTACT_TEXT_MAX,
+                      // An inactive event has no schedule, so a *reachable
+                      // person* is the only way a seeker can find out more. An
+                      // inactive event must carry one. A phone or an email
+                      // satisfies this. A website deliberately does not: a page
+                      // is metadata about the event, not a route to someone who
+                      // can answer a question. The same applies to `onlineUrl`, a
+                      // join link for sessions an inactive event is not running.
+                      // A validate function keeps active events optional, and
+                      // `allowContact` carries the same rule for the save where
+                      // this field is hidden and so never validated.
+                      //
+                      // Composed with `text` from payload/shared, because
+                      // supplying `validate` REPLACES Payload's default, which
+                      // would otherwise silently drop `maxLength`. See
+                      // src/collections/AGENTS.md.
+                      validate: (
+                        value: string | null | undefined,
+                        options: {
+                          data?: { repeats?: Event['repeats'] | null; contactEmail?: string | null }
+                        },
+                      ) => {
+                        const base = text(value, options as Parameters<typeof text>[1])
+                        if (base !== true) return base
+                        return options.data?.repeats === 'inactive' &&
+                          !value &&
+                          !options.data.contactEmail
+                          ? `Add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
+                          : true
+                      },
+                      admin: {
+                        condition: (data) => !!data?.allowContact,
+                        description: 'A number seekers can call.',
+                      },
+                    },
+                  ],
                 },
               ],
             },
@@ -500,6 +511,22 @@ export const Events: CollectionConfig = {
           label: 'Schedule',
           fields: [
             {
+              // The schedule in a sentence, above the control that shapes it —
+              // or, for an on-demand class, whether a seeker can reach anyone.
+              // Read from live form state, so it follows each change unsaved.
+              name: 'scheduleNotice',
+              type: 'ui',
+              admin: {
+                components: { Field: '@/components/admin/EventScheduleNotice' },
+                custom: {
+                  schedule: 'schedule',
+                  recurrenceFrom: 'repeats',
+                  contactTab: 'Details',
+                  contactToggle: 'allowContact',
+                },
+              },
+            },
+            {
               // The one control for how often a class meets *and* whether it is
               // dormant, because an editor is choosing one thing. A dormant
               // class still needs verification, and can expire, but never
@@ -510,6 +537,7 @@ export const Events: CollectionConfig = {
               // `syncScheduleRecurrence` writes `schedule.recurrenceType` from
               // this, so the stored pair cannot disagree.
               name: 'repeats',
+              label: 'How often does this class meet?',
               type: 'select',
               required: true,
               defaultValue: 'once',
@@ -518,9 +546,8 @@ export const Events: CollectionConfig = {
               // as `verificationStage` is.
               enumName: 'enum_events_repeats',
               admin: {
-                description:
-                  'How often this class meets. Inactive marks it dormant — no schedule to show, so it must carry contact details instead.',
                 components: { Field: TOGGLE_GROUP_FIELD },
+                custom: { descriptions: EVENT_REPEATS_DESCRIPTIONS },
               },
             },
             {
@@ -545,6 +572,7 @@ export const Events: CollectionConfig = {
               hasEnding: true,
               hasExclusions: true,
               recurrenceFrom: 'repeats',
+              hasSummary: false,
               admin: { condition: (data) => data?.repeats !== 'inactive' },
             }),
           ],
@@ -561,12 +589,7 @@ export const Events: CollectionConfig = {
               type: 'ui',
               admin: {
                 condition: hideUntilCreated,
-                custom: {
-                  title: 'Signups are on the Registrations tab',
-                  text: 'Everyone who has signed up for this class is listed there, with the answers they gave.',
-                  action: { label: 'Open Registrations', path: '/registrations' },
-                },
-                components: { Field: '@/components/admin/InfoBanner' },
+                components: { Field: '@/components/admin/EventRegistrations/RegistrationsNotice' },
               },
             },
             {

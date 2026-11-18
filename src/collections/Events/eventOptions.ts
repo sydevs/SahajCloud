@@ -6,8 +6,8 @@
  * the Phase 3 importer.
  */
 
-import { RECURRENCE_OPTIONS } from '@/fields/scheduleFields'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
+import { RECURRENCE_OPTIONS } from '@/lib/schedule/recurrence'
 import type { Event } from '@/payload-types'
 
 export const EVENT_TYPE_OPTIONS = [
@@ -42,6 +42,10 @@ export const EVENT_REGISTRATION_MODE_OPTIONS = [
  * editor is choosing one thing. `once` stores no recurrence; `inactive` leaves
  * the recurrence alone, so choosing a pace again restores the schedule.
  *
+ * An editor reads `inactive` as **On-demand**: a class with no fixed schedule
+ * that seekers arrange by getting in touch. The stored value keeps its old
+ * name, because the API publishes `inactive` (see the `inactive` field).
+ *
  * The paces are **derived** from the schedule field's own, so a frequency added
  * there reaches this control too, and `recurrenceForRepeats` keeps resolving
  * the lowercase spelling.
@@ -55,13 +59,27 @@ export const EVENT_REGISTRATION_MODE_OPTIONS = [
  * unchecked.
  */
 export const EVENT_REPEATS_OPTIONS: readonly { label: string; value: Event['repeats'] }[] = [
-  { label: "Doesn't repeat", value: 'once' },
+  { label: 'One-time', value: 'once' },
   ...RECURRENCE_OPTIONS.map(({ label, value }) => ({
     label,
     value: value.toLowerCase() as Lowercase<typeof value>,
   })),
-  { label: 'Inactive', value: 'inactive' },
+  { label: 'On-demand', value: 'inactive' },
 ]
+
+/**
+ * What each choice means, shown under the control as it changes
+ * (`SelectDescription`). Keyed by the column's own type, so a pace added to it
+ * is a build error here until it is described.
+ */
+export const EVENT_REPEATS_DESCRIPTIONS: Record<Event['repeats'], string> = {
+  once: 'Meets a single time, on the date below.',
+  daily: 'Meets every day, or every few days.',
+  weekly: 'Meets on the same days each week, or every few weeks.',
+  monthly: 'Meets once a month, on a set date or weekday.',
+  inactive:
+    'No fixed schedule. The listing invites seekers to get in touch through the public contact on the Details tab, and a time is arranged with them.',
+}
 
 /**
  * The pace a schedule implies: its recurrence, else a one-off, else dormant —

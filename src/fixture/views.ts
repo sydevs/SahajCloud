@@ -60,6 +60,9 @@ export const VIEWS: ViewRegistry = {
     doc('events', EVENT_ONLINE, '/registrations'),
     doc('events', EVENT_REMINDED, '/registrations'),
   ),
+  '@/components/admin/EventRegistrations/RegistrationsNotice#default': links(
+    doc('events', EVENT_THURSDAY),
+  ),
   '@/components/admin/EventRegistrations/RegistrationsPill#default': links(
     doc('events', EVENT_THURSDAY),
   ),
@@ -97,10 +100,17 @@ export const VIEWS: ViewRegistry = {
     doc('events', EVENT_THURSDAY),
     doc('app-cards', 1_021_004),
   ),
-  '@/components/admin/ScheduleSummary#default': links(
+  '@/components/admin/ScheduleSummary#default': links(doc('app-cards', 1_021_004)),
+  '@/components/admin/ScheduleSummary/IntervalUnit#default': links(
     doc('events', EVENT_THURSDAY),
     doc('events', EVENT_ONLINE),
     doc('app-cards', 1_021_004),
+  ),
+  '@/components/admin/EventScheduleNotice#default': links(
+    doc('events', EVENT_THURSDAY),
+    doc('events', EVENT_ONLINE),
+    doc('events', 1_025_015),
+    doc('events', 1_025_007),
   ),
   '@/components/admin/EventImport/ImportListMenuItem#default': links(list('events')),
 

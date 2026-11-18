@@ -255,7 +255,13 @@ a:focus-visible {
   border-bottom: 0;
 
   /* Payload doubles a group's vertical gap so the dividers frame their section.
-     With no dividers there is nothing to frame, so one field gap. */
+     With no dividers there is nothing to frame, so one field gap — and none of
+     the padding a top-level group keeps inside its dividers. */
+  &.group-field--top-level {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
   &:not(:first-child) {
     margin-top: var(--spacing-field);
   }

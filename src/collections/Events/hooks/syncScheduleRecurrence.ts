@@ -1,6 +1,6 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
-import { recurrenceForRepeats } from '@/fields/scheduleFields'
+import { recurrenceForRepeats } from '@/lib/schedule/recurrence'
 import type { Event } from '@/payload-types'
 
 /**

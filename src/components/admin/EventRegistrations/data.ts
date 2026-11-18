@@ -286,6 +286,48 @@ export async function countAcceptedRegistrations(
   return event ? countRegistrations(req, event.id, 'accepted') : null
 }
 
+/** Accepted signups over the windows the Registration tab's banner reports. */
+export type RecentRegistrations = { lastWeek: number; lastMonth: number; total: number }
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * How many accepted signups arrived in the last week and month, and in all —
+ * behind the same gate as the view, so a refused caller learns no count.
+ *
+ * ⚠ **That gate is this banner's read gate too** (#1126): it renders on a
+ * `form-state` request that names its own `id`, and `readableEvent` admits only
+ * that event's own manager or an admin.
+ */
+export async function recentRegistrations(
+  req: PayloadRequest,
+  docID: number | string | undefined,
+  now: Date = new Date(),
+): Promise<RecentRegistrations | null> {
+  const event = await readableEvent(req, docID)
+  if (!event) return null
+
+  const since = (days: number): Where => ({
+    createdAt: { greater_than_equal: new Date(now.getTime() - days * DAY_MS).toISOString() },
+  })
+  const count = async (window?: Where) => {
+    const accepted = registrationsOf(event.id, 'accepted')
+    const { totalDocs } = await req.payload.count({
+      collection: 'user-submissions',
+      where: window ? { and: [accepted, window] } : accepted,
+      overrideAccess: true,
+      req: localeIsolatedReq(req),
+    })
+    return totalDocs
+  }
+  const [lastWeek, lastMonth, total] = await Promise.all([
+    count(since(7)),
+    count(since(30)),
+    count(),
+  ])
+  return { lastWeek, lastMonth, total }
+}
+
 /**
  * The accepted registrants as a CSV, or `null` when the caller may not read
  * them. One column per question anyone answered, in the order first seen.

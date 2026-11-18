@@ -1,11 +1,9 @@
-'use client'
-
-import type { FieldClientComponent, FormState, NamedGroupFieldClient } from 'payload'
+import type { FormState } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
-import { useAllFormFields } from '@payloadcms/ui'
-import React, { useMemo } from 'react'
 import { toText } from 'rrule-temporal/totext'
+
+import { recurrenceForRepeats } from '@/lib/schedule/recurrence'
 
 /** Extracted schedule sub-field values from form state. */
 interface ScheduleFormValues {
@@ -21,18 +19,34 @@ interface ScheduleFormValues {
   endingType?: string
   count?: number
   untilDate?: string
+  breaks: number
 }
 
+/** What the banner says: nothing set yet, or the schedule in a sentence. */
+export type ScheduleSummary =
+  { kind: 'empty' } | { kind: 'scheduled'; title: string; detail: string | null }
+
 /**
- * Extract schedule sub-field values from form state using the group name prefix.
- * Form state stores group sub-fields as flat paths: `{groupName}.{subField}`.
+ * Read the schedule group's values from form state, where its sub-fields sit
+ * as flat paths: `{groupPath}.{subField}`.
+ *
+ * With `recurrenceFrom`, the recurrence is the caller's own control, read
+ * through `recurrenceForRepeats` — the stored `recurrenceType` is only written
+ * on save, so reading it would leave the summary a save behind.
  */
-function extractScheduleValues(formState: FormState, groupName: string): ScheduleFormValues {
-  const get = (subField: string) => formState[`${groupName}.${subField}`]?.value
+function extractScheduleValues(
+  formState: FormState,
+  groupPath: string,
+  recurrenceFrom: string | undefined,
+): ScheduleFormValues {
+  const get = (subField: string) => formState[`${groupPath}.${subField}`]?.value
+  const exclusions = formState[`${groupPath}.exclusions`]
   return {
     firstDate: get('firstDate') as string | undefined,
     firstDate_tz: get('firstDate_tz') as string | undefined,
-    recurrenceType: get('recurrenceType') as string | undefined,
+    recurrenceType: recurrenceFrom
+      ? recurrenceForRepeats(formState[recurrenceFrom]?.value)
+      : (get('recurrenceType') as string | undefined),
     interval: get('interval') as number | undefined,
     weekdays: get('weekdays') as string[] | undefined,
     monthlyMode: get('monthlyMode') as string | undefined,
@@ -42,6 +56,7 @@ function extractScheduleValues(formState: FormState, groupName: string): Schedul
     endingType: get('endingType') as string | undefined,
     count: get('count') as number | undefined,
     untilDate: get('untilDate') as string | undefined,
+    breaks: exclusions?.rows?.length ?? 0,
   }
 }
 
@@ -76,10 +91,7 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     return null
   }
 
-  // Build DTSTART line
   const dtstart = `DTSTART;TZID=${timezone}:${formatLocalDateTime(zdt)}`
-
-  // Build RRULE parameters
   const params: string[] = [`FREQ=${values.recurrenceType}`]
 
   const interval = values.interval ?? 1
@@ -87,7 +99,6 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     params.push(`INTERVAL=${interval}`)
   }
 
-  // BYDAY for weekly recurrence
   if (values.recurrenceType === 'WEEKLY' && values.weekdays && values.weekdays.length > 0) {
     params.push(`BYDAY=${values.weekdays.join(',')}`)
   }
@@ -104,7 +115,6 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     }
   }
 
-  // Ending conditions
   if (values.endingType === 'count' && values.count && values.count > 0) {
     params.push(`COUNT=${values.count}`)
   } else if (values.endingType === 'until' && values.untilDate) {
@@ -117,90 +127,65 @@ function buildIcalString(values: ScheduleFormValues): string | null {
     }
   }
 
-  const rrule = `RRULE:${params.join(';')}`
-  return `${dtstart}\n${rrule}`
+  return `${dtstart}\nRRULE:${params.join(';')}`
 }
 
+function formatDate(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatTime(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
+
 /**
- * Format a one-off event date for display.
- * Output: "Once on Mar 15, 2025 at 9:30 AM (America/New_York)"
+ * The schedule as the banner states it: the recurrence in words as its title
+ * (`rrule-temporal`'s `toText`), or the one date of a one-off; and below it,
+ * where the series starts and how many breaks it takes. `empty` until a first
+ * date is set, since nothing can be said before one.
  */
-function formatOneOffDate(firstDate: string, timezone: string): string | null {
+export function summarizeSchedule(
+  formState: FormState,
+  groupPath: string,
+  recurrenceFrom?: string,
+): ScheduleSummary | null {
+  const values = extractScheduleValues(formState, groupPath, recurrenceFrom)
+  if (!values.firstDate) return { kind: 'empty' }
+
+  const timeZone = values.firstDate_tz || 'UTC'
+  const first = new Date(values.firstDate)
+  if (isNaN(first.getTime())) return null
+
   try {
-    const date = new Date(firstDate)
-    if (isNaN(date.getTime())) return null
+    if (!values.recurrenceType) {
+      return {
+        kind: 'scheduled',
+        title: `Once, on ${formatDate(first, timeZone)} at ${formatTime(first, timeZone)}`,
+        detail: `Times are in ${timeZone}.`,
+      }
+    }
 
-    const dateStr = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date)
-
-    const timeStr = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }).format(date)
-
-    return `Once on ${dateStr} at ${timeStr} (${timezone})`
+    const ical = buildIcalString(values)
+    if (!ical) return null
+    const breaks = values.breaks ? `, with ${plural(values.breaks, 'scheduled break')}` : ''
+    return {
+      kind: 'scheduled',
+      title: toText(ical).replace(/^./, (char) => char.toUpperCase()),
+      detail: `Starting ${formatDate(first, timeZone)}${breaks}.`,
+    }
   } catch {
     return null
   }
 }
-
-const bannerStyle: React.CSSProperties = {
-  padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
-  marginBottom: 'calc(var(--base))',
-  backgroundColor: 'var(--theme-elevation-50)',
-  borderRadius: 'var(--style-radius-s)',
-  fontSize: 'var(--admin-body-size)',
-  color: 'var(--theme-elevation-650)',
-  lineHeight: 1.5,
-}
-
-/**
- * ScheduleSummary Component
- *
- * Displays a human-readable description of the configured recurrence rule
- * below the schedule group field. Updates in real-time as the user changes
- * schedule sub-fields.
- *
- * For recurring events, uses rrule-temporal's toText() function.
- * For one-off events, formats the date/time with Intl.DateTimeFormat.
- *
- * Registered as beforeInput on the schedule group field.
- */
-export const ScheduleSummary: FieldClientComponent = ({ field }) => {
-  const groupName = (field as NamedGroupFieldClient).name
-  const [formState] = useAllFormFields()
-
-  const summaryText = useMemo(() => {
-    if (!groupName) return null
-
-    const values = extractScheduleValues(formState, groupName)
-    if (!values.firstDate) return null
-
-    // One-off event: format with Intl.DateTimeFormat
-    if (!values.recurrenceType) {
-      return formatOneOffDate(values.firstDate, values.firstDate_tz || 'UTC')
-    }
-
-    // Recurring event: build iCalendar string and pass to toText()
-    const ical = buildIcalString(values)
-    if (!ical) return null
-
-    try {
-      return toText(ical).replace(/^./, (char) => char.toUpperCase())
-    } catch {
-      return null
-    }
-  }, [formState, groupName])
-
-  if (!summaryText) return null
-
-  return <div style={bannerStyle}>{summaryText}</div>
-}
-
-export default ScheduleSummary
