@@ -7,13 +7,13 @@
  */
 export type LivePreviewUnavailableReason =
   | 'atlas-tab-only'
-  | 'atlas-unreachable'
   | 'no-atlas-role'
   | 'no-classes'
   | 'no-key'
   | 'no-path'
   | 'no-region'
   | 'not-reviewable'
+  | 'preview-unreachable'
 
 const UNAVAILABLE_PATH = '/live-preview-unavailable'
 
