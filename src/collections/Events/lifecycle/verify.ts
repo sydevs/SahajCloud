@@ -81,7 +81,7 @@ export function computeVerifyFields(args: {
   frequency?: string | null
   /** The event's schedule, so the watermark can't outrun its last occurrence. */
   schedule?: Partial<EventSchedule> | null
-  repeats?: string | null
+  repeats?: Event['repeats'] | null
   /** Where this save leaves `_status`: a draft gets no reminders. */
   status?: string | null
   now: Date

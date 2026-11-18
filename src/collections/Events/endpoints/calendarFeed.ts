@@ -115,7 +115,7 @@ export type CalendarFeedAnswer = 'live' | 'cancelled' | 'none'
 export interface CalendarFeedSubject {
   _status?: unknown
   deletedAt?: string | null
-  repeats?: string | null
+  repeats?: Event['repeats'] | null
   schedule?: Partial<EventSchedule> | null
   updatedAt?: string | null
 }

@@ -16,13 +16,14 @@
  * collection hook and a sibling field hook both run too early to see.
  */
 
+import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { lastOccurrenceEnd } from './scheduleHooks'
 
 /** Minimal shape the finished-check reads off an event. */
 export interface FinishCheckInput {
-  repeats?: string | null
+  repeats?: Event['repeats'] | null
   schedule?: Partial<EventSchedule> | null
 }
 

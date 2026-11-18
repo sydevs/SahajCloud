@@ -1,4 +1,5 @@
-import { isRecord } from '@/lib/utilities/isRecord'
+import { repeatsForSchedule } from '@/collections/Events/eventOptions'
+import { hasContactRoute } from '@/collections/Events/hooks/clearContactDetails'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -63,27 +64,10 @@ export function newEventDefaults(
     // the map as unverified until somebody takes it on.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
-    repeats: repeatsFor((proposed ?? {}).schedule),
-    allowContact: hasContact(proposed),
+    repeats: repeatsForSchedule((proposed ?? {}).schedule),
+    allowContact: hasContactRoute(proposed ?? {}),
     _status: 'published',
   }
-}
-
-/**
- * The pace a proposed schedule stores, as an Events `repeats` option.
- *
- * ⚠ **`syncScheduleRecurrence` writes `schedule.recurrenceType` from this**, so
- * a patch's own recurrence has to be read back here or that hook clears it.
- */
-function repeatsFor(schedule: unknown): string {
-  if (schedule == null) return 'inactive'
-  const recurrence = isRecord(schedule) ? schedule.recurrenceType : null
-  return typeof recurrence === 'string' && recurrence ? recurrence.toLowerCase() : 'once'
-}
-
-/** Whether the patch carries a contact route, which the checkbox gates. */
-function hasContact(proposed: ProposedPatch | null | undefined): boolean {
-  return Boolean(proposed?.contactPhone || proposed?.contactEmail)
 }
 
 /**

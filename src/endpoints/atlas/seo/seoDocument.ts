@@ -196,9 +196,9 @@ function addressOf(event: Pick<Event, 'address' | 'eventType'>): AtlasSeoAddress
 }
 
 /** An event's schedule as the response carries it. */
-function scheduleOf(event: Pick<Event, 'schedule' | 'inactive'>): AtlasSeoSchedule {
+function scheduleOf(event: Pick<Event, 'schedule' | 'repeats'>): AtlasSeoSchedule {
   const schedule = event.schedule
-  const inactive = event.inactive === true
+  const inactive = event.repeats === 'inactive'
   // A dormant event's stored schedule is not shown anywhere else either (the
   // admin hides it, the expiry job skips it), so reporting it here would be the
   // one surface claiming a class runs when it does not.
@@ -252,7 +252,7 @@ export function seoImages(docs: readonly unknown[]): AtlasSeoImage[] {
  * listings that can disagree.
  */
 export function eventCard(
-  event: Pick<Event, 'id' | 'title' | 'eventType' | 'address' | 'schedule' | 'inactive'>,
+  event: Pick<Event, 'id' | 'title' | 'eventType' | 'address' | 'schedule' | 'repeats'>,
   links: { route: string | null; url: string | null },
 ): AtlasSeoEventCard {
   const address = addressOf(event)

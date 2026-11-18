@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest'
 import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 const NOW = new Date('2026-06-11T02:00:00.000Z')
@@ -162,7 +163,7 @@ describe('notFinishedWhere agrees with shouldFinish', () => {
 
   const cases: Array<{
     name: string
-    repeats?: string
+    repeats?: Event['repeats']
     schedule: Parameters<typeof lastOccurrenceEnd>[0]
   }> = [
     { name: 'one-off in the past', schedule: ONE_OFF_PAST },

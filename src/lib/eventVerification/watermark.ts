@@ -11,6 +11,7 @@
  */
 
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
+import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { isPreAdoptionStage, stageAction, type VerificationStage } from './stages'
@@ -69,7 +70,7 @@ export interface NextCheckAtInput {
   /** The event's schedule (merged, if this is a partial write). */
   schedule?: Partial<EventSchedule> | null
   /** The class's own pace; `inactive` is the dormant one. */
-  repeats?: string | null
+  repeats?: Event['repeats'] | null
   /** The event's publish state, which decides whether reminders run at all. */
   status?: string | null
   /** Injected clock — the `finished` retention fallback needs a reference point. */

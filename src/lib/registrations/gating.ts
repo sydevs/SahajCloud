@@ -1,12 +1,13 @@
 import type { EventRegistrationErrorCode } from '@/collections/Events/endpoints/responseTypes'
 import { shouldFinish } from '@/lib/schedule/scheduleStatus'
+import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { type EventFullnessInput, isEventFull } from './fullness'
 
 /** The event fields the gate reads — structurally a subset of an Event doc. */
 export interface RegistrationGateInput extends EventFullnessInput {
-  repeats?: string | null
+  repeats?: Event['repeats'] | null
   schedule?: Partial<EventSchedule> | null
 }
 

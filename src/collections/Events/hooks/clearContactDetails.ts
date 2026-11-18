@@ -1,6 +1,18 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
 /**
+ * Whether a patch carries a contact route, which is what the box allows — a
+ * name alone reaches nobody. Every writer of a contact field reads this, so the
+ * box and the fields it gates cannot disagree.
+ */
+export function hasContactRoute(patch: {
+  contactEmail?: unknown
+  contactPhone?: unknown
+}): boolean {
+  return Boolean(patch.contactPhone || patch.contactEmail)
+}
+
+/**
  * Clear the contact details on the save that switches them off.
  *
  * ⚠ **A hidden field keeps its value.** `admin.condition` stops the three

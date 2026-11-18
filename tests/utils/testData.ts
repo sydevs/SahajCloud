@@ -4,6 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
+import { repeatsForSchedule } from '@/collections/Events/eventOptions'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import type { LocaleCode } from '@/lib/locales'
 import { withActor } from '@/lib/stateMachine/actor'
@@ -184,24 +185,7 @@ export function createTestLexicalContent(text: string = 'Test content'): Lexical
 }
 
 /** Test data factory functions for creating test entities with payload.create() */
-/**
- * The `repeats` a schedule implies: its recurrence, else a one-off, else dormant
- * — the default `createEvent` has always had.
- *
- * ⚠ **`repeats` is what stores the recurrence.** `syncScheduleRecurrence` writes
- * `schedule.recurrenceType` from it, so a create naming the recurrence alone
- * has it cleared and the event reads as a finished one-off. Exported for a spec
- * with a create helper of its own.
- */
-export function repeatsForSchedule(
-  schedule: FixtureOverrides<Event>['schedule'] | Record<string, unknown> | null | undefined,
-): Event['repeats'] {
-  if (!schedule) return 'inactive'
-  const recurrence = (schedule as { recurrenceType?: string | null }).recurrenceType
-  // The recurrence vocabulary is the same words in upper case, which the
-  // `RECURRENCE_OPTIONS` / `EVENT_REPEATS_OPTIONS` pair keeps true.
-  return recurrence ? (recurrence.toLowerCase() as Event['repeats']) : 'once'
-}
+export { repeatsForSchedule }
 
 export const testData = {
   /** Create an app card with image relationship */
@@ -1202,13 +1186,8 @@ export const testData = {
     }
 
     // Dormant by default (the simplest case): no schedule required, but it owes
-    // the contact details a dormant class must carry.
-    //
-    // ⚠ **`repeats` is derived from a supplied schedule's own recurrence.**
-    // `syncScheduleRecurrence` writes `schedule.recurrenceType` from `repeats`,
-    // so a case handing over a weekly schedule under the dormant default would
-    // have that recurrence cleared. Verified against
-    // `src/collections/Events/hooks/syncScheduleRecurrence.ts`.
+    // the contact details a dormant class must carry. `repeats` comes off the
+    // schedule the case supplied, through the collection's own derivation.
     const eventData: any = {
       title: overrides.title || `Test Event ${uniqueId}`,
       languages: overrides.languages || ['en'],

@@ -10,6 +10,7 @@
 import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
+import { hasContactRoute } from '@/collections/Events/hooks/clearContactDetails'
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { addressFeatureMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'
@@ -52,7 +53,10 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
     languages: languages.length ? languages : [...args.defaultLanguages],
     description: plainTextToLexical(values.description) ?? null,
     website: values.website || null,
-    allowContact: Boolean(values.contactPhone || values.contactEmail),
+    allowContact: hasContactRoute({
+      contactEmail: values.contactEmail,
+      contactPhone: values.contactPhone,
+    }),
     contactName: values.contactName || null,
     contactPhone: values.contactPhone || null,
     contactEmail: values.contactEmail || null,

@@ -255,8 +255,7 @@ a:focus-visible {
   border-bottom: 0;
 
   /* Payload doubles a group's vertical gap so the dividers frame their section.
-     With no dividers there is nothing to frame, so one field gap — and its own
-     edge rules still win at the ends of a tab. */
+     With no dividers there is nothing to frame, so one field gap. */
   &:not(:first-child) {
     margin-top: var(--spacing-field);
   }

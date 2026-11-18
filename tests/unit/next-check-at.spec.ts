@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { isPreAdoptionStage, STAGES, VERIFICATION_STAGES } from '@/lib/eventVerification/stages'
-import { FINISHED_RETENTION_MONTHS, resolveNextCheckAt } from '@/lib/eventVerification/watermark'
+import {
+  FINISHED_RETENTION_MONTHS,
+  type NextCheckAtInput,
+  resolveNextCheckAt,
+} from '@/lib/eventVerification/watermark'
 import type { EventSchedule } from '@/types/schedule'
 
 /**
@@ -116,12 +120,13 @@ describe('resolveNextCheckAt — finished retention', () => {
     // open-ended recurrences included. Those rows used to keep a null
     // watermark and so could never be trashed.
     const now = new Date('2026-06-15T00:00:00.000Z')
-    for (const input of [
-      { schedule: openEndedSchedule },
-      { schedule: endingSchedule, repeats: 'inactive' },
-      { schedule: null },
-    ]) {
-      const result = resolveNextCheckAt({ stage: 'finished', ...input, now })
+    const inputs: NextCheckAtInput[] = [
+      { stage: 'finished', schedule: openEndedSchedule },
+      { stage: 'finished', schedule: endingSchedule, repeats: 'inactive' },
+      { stage: 'finished', schedule: null },
+    ]
+    for (const input of inputs) {
+      const result = resolveNextCheckAt({ ...input, now })
       expect(result).not.toBeNull()
       expect(result!.slice(0, 7)).toBe('2026-12') // now + 6 months
     }

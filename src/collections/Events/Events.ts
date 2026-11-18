@@ -7,7 +7,7 @@ import {
   LinkFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import { email, text } from 'payload/shared'
+import { checkbox, email, text } from 'payload/shared'
 
 import {
   addressFields,
@@ -37,7 +37,7 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import type { Region } from '@/payload-types'
+import type { Event, Region } from '@/payload-types'
 import {
   adminOnlyCondition,
   eventContactsFieldAccess,
@@ -75,6 +75,13 @@ const MANAGER_CONTACTS = '@/components/admin/ManagerContacts'
 const CONTACT_TEXT_MAX = 100
 /** Bound for a contact email address (the RFC 5321 maximum). */
 const CONTACT_EMAIL_MAX = 254
+
+/**
+ * Why a dormant class owes a contact route, shared by the two validators that
+ * ask for one — the box, and the phone field behind it.
+ */
+const DORMANT_CONTACT_REASON =
+  'an inactive event has no schedule, so this is the only way a seeker can reach you.'
 
 /**
  * Minimal rich-text editor for the event description.
@@ -306,15 +313,22 @@ export const Events: CollectionConfig = {
               defaultValue: false,
               // A dormant class has no schedule to show, so a reachable person
               // is the only way a seeker can learn more. The phone field's own
-              // validator says the same thing, and cannot fire while this box is
-              // unchecked — Payload skips a conditioned field's validation.
+              // validator asks for the number; this one asks for the box, which
+              // Payload skips the phone's validation behind.
+              //
+              // Composed with `checkbox` from payload/shared, because supplying
+              // `validate` REPLACES Payload's default. See
+              // src/collections/AGENTS.md.
               validate: (
                 value: boolean | null | undefined,
-                options: { data?: { repeats?: string | null } },
-              ) =>
-                options.data?.repeats === 'inactive' && !value
-                  ? 'Switch this on and add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
-                  : true,
+                options: { data?: { repeats?: Event['repeats'] | null } },
+              ) => {
+                const base = checkbox(value, options as Parameters<typeof checkbox>[1])
+                if (base !== true) return base
+                return options.data?.repeats === 'inactive' && !value
+                  ? `Switch this on and add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
+                  : true
+              },
             },
             {
               type: 'row',
@@ -341,14 +355,16 @@ export const Events: CollectionConfig = {
                   // src/collections/AGENTS.md.
                   validate: (
                     value: string | null | undefined,
-                    options: { data?: { repeats?: string | null; contactEmail?: string | null } },
+                    options: {
+                      data?: { repeats?: Event['repeats'] | null; contactEmail?: string | null }
+                    },
                   ) => {
                     const base = text(value, options as Parameters<typeof text>[1])
                     if (base !== true) return base
                     return options.data?.repeats === 'inactive' &&
                       !value &&
                       !options.data.contactEmail
-                      ? 'Add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
+                      ? `Add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
                       : true
                   },
                   admin: {
@@ -544,9 +560,8 @@ export const Events: CollectionConfig = {
               name: 'registrationsNotice',
               type: 'ui',
               admin: {
-                condition: (data) => hideUntilCreated(data),
+                condition: hideUntilCreated,
                 custom: {
-                  icon: 'info',
                   title: 'Signups are on the Registrations tab',
                   text: 'Everyone who has signed up for this class is listed there, with the answers they gave.',
                   action: { label: 'Open Registrations', path: '/registrations' },

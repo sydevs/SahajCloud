@@ -6,6 +6,7 @@ import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/water
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { declareActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
+import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle/verify'
@@ -54,7 +55,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   context,
 }) => {
   const schedule = mergedSchedule(data, originalDoc)
-  const repeats = (data.repeats ?? originalDoc?.repeats) as string | null | undefined
+  const repeats = (data.repeats ?? originalDoc?.repeats) as Event['repeats'] | null | undefined
 
   // `data.manager` is the incoming relationship id; fall back to the persisted
   // value when the manager isn't part of this change.

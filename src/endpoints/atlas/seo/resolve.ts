@@ -68,7 +68,7 @@ const EVENT_CARD_SELECT: SelectType = {
   title: true,
   eventType: true,
   address: true,
-  inactive: true,
+  repeats: true,
   schedule: true,
   region: true,
   webPath: true,
