@@ -1,4 +1,9 @@
-import type { EventManagerContact, NotificationChannel, ResolvedRecipient } from './types'
+import type {
+  EventManagerContact,
+  NotificationChannel,
+  RegionManagerContact,
+  ResolvedRecipient,
+} from './types'
 import type { Payload, PayloadRequest } from 'payload'
 
 import { relationId } from '@/lib/utilities/relationId'
@@ -9,6 +14,19 @@ const PLATFORM_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp',
   telegram: 'Telegram',
   wechat: 'WeChat',
+}
+
+/**
+ * How a manager is addressed, with a fallback for the blank-name row. Takes the
+ * three columns rather than a `Manager`, so an authenticated user object
+ * narrowed to them is also an argument.
+ */
+export function managerDisplayName(manager: {
+  id: number
+  name?: string | null
+  email?: string | null
+}): string {
+  return manager.name || manager.email || `#${manager.id}`
 }
 
 /** The manager's name + every contact method (email + messaging handles). */
@@ -23,7 +41,7 @@ export function buildManagerContacts(manager: Manager): EventManagerContact {
       })
     }
   }
-  return { name: manager.name || manager.email || `#${manager.id}`, contacts }
+  return { name: managerDisplayName(manager), contacts }
 }
 
 /**
@@ -123,6 +141,12 @@ export async function findManagerForRegion(
     depth: 1,
     limit: chainIds.length,
     overrideAccess: true,
+    // `Regions` declares four join fields, three of them recursive over every
+    // descendant, and `defaultPopulate` suppresses those only for relationship
+    // hydration — a direct read enables all four. Every reminder pays for this
+    // walk now, a country node's descendant set included.
+    joins: false,
+    select: { name: true, managers: true },
     req,
   })
   const byId = new Map(regions.map((region) => [region.id, region]))
@@ -142,19 +166,23 @@ export async function findManagerForRegion(
 }
 
 /**
- * Resolve who to notify for an event. The event manager is always included
- * (role `manager`). When `includeRegion` is set (from `escalated` onward), a
- * single region manager — the nearest one up the parent chain who is NOT the
- * event manager — is added (role `region`, tagged with the linking region's
- * name). If no distinct region manager exists anywhere up the chain, a warning
- * is sent to Sentry and only the event manager is returned.
+ * Resolve who to notify for an event, plus the region manager to point replies
+ * at. The event manager is always included (role `manager`). When
+ * `includeRegion` is set (from `escalated` onward), the nearest region manager
+ * up the parent chain who is NOT the event manager is added as a recipient too
+ * (role `region`, tagged with the linking region's name), and their absence is
+ * reported to Sentry — at `due` there is nobody to escalate to yet, so an
+ * absence there is ordinary.
+ *
+ * `regionManager` is that same manager at every stage, whether or not they are
+ * a recipient: the event manager's own copy replies to them.
  */
 export async function resolveRecipients(args: {
   payload: Payload
   event: Event
   includeRegion: boolean
   req?: PayloadRequest
-}): Promise<ResolvedRecipient[]> {
+}): Promise<{ recipients: ResolvedRecipient[]; regionManager: RegionManagerContact | null }> {
   const { payload, event, includeRegion, req } = args
   const recipients: ResolvedRecipient[] = []
 
@@ -175,8 +203,11 @@ export async function resolveRecipients(args: {
     recipients.push({ manager: eventManager, role: 'manager', channel, destination })
   }
 
+  // One lookup per event, whatever the stage: every reminder needs the contact,
+  // and only `includeRegion` decides whether they are also sent one themselves.
+  const region = await findRegionRecipient(payload, event, eventManager?.id ?? null, req)
+
   if (includeRegion) {
-    const region = await findRegionRecipient(payload, event, eventManager?.id ?? null, req)
     if (region) {
       const { channel, destination } = pickChannel(region.manager)
       recipients.push({
@@ -200,5 +231,10 @@ export async function resolveRecipients(args: {
     }
   }
 
-  return recipients
+  return {
+    recipients,
+    regionManager: region
+      ? { name: managerDisplayName(region.manager), email: region.manager.email }
+      : null,
+  }
 }

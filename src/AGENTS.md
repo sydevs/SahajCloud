@@ -137,6 +137,8 @@ No loose files at the root — every file lives in a named folder:
   test sets one
 - `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
   `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
+  `mailto` — a pre-filled `mailto:` URL, read by two email templates and the
+  verification page, each of which composes its own subject and body,
   `requestMemo` — collapses a per-request load to one in-flight promise,
   `localeIsolatedReq` — gives a nested read a copy so it can't repoint the
   caller's request, for a cross-locale read and for any read with a

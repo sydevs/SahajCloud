@@ -228,7 +228,7 @@ async function processEvent(args: {
   // Reminder stage. Dedup key = the current (from) stage. Whether advancing
   // unpublishes is derived from the stage it lands on — see the stage config.
   const unpublishes = transitionUnpublishes(stage)
-  const recipients = await resolveRecipients({
+  const { recipients, regionManager } = await resolveRecipients({
     payload,
     event,
     includeRegion: action.includeRegion,
@@ -300,6 +300,8 @@ async function processEvent(args: {
       details,
       listingProgress,
       eventManager: recipient.role === 'region' ? eventManagerCard : undefined,
+      // The region manager's own copy replies nowhere: they are the contact.
+      regionManager: recipient.role === 'manager' ? (regionManager ?? undefined) : undefined,
       deadline,
       sinceLastVerified,
       regionName: recipient.regionName,

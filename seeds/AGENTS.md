@@ -143,6 +143,13 @@ A key a locale has no translation for is **omitted, never blank**: the
 client-read English merge serves English for it, and a blank would defeat
 that merge.
 
+⚠ **Every seed file's `_meta` header is stripped on import.** It is read by
+people, and by `tests/unit/translations-seed-meta.spec.ts`, which derives the
+tab, group and key counts `schema_version` quotes. The prefix before those
+counts names the SahajCloud issue or PR that last changed the shape —
+`post-#<n>`, a number this repo resolves, even when the change was asked for in
+another repo.
+
 ⚠ **`seeds/wm-app-translations/` holds data, not a script.** Its
 `data.en.json` and its `lexicalConverter.ts` — the seed's own Markdown →
 Lexical conversion — are what `translations` reads. A `wm-app-translations`

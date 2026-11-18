@@ -108,6 +108,15 @@ describe('resendAdapter message mapping', () => {
     expect(sendMock.mock.calls[0][0].replyTo).toEqual(['Client Support <support@client.org>'])
   })
 
+  it('quotes a manager-authored name, so a comma cannot split the address', async () => {
+    await buildAdapter().sendEmail({
+      ...baseMessage,
+      replyTo: { address: 'rohan@example.org', name: 'Patil, Rohan' },
+    })
+
+    expect(sendMock.mock.calls[0][0].replyTo).toEqual(['"Patil, Rohan" <rohan@example.org>'])
+  })
+
   // nodemailer 10 made every `Address` field optional, so each of these
   // type-checks. The omitted-key shape is the one a caller actually writes.
   it.each([
