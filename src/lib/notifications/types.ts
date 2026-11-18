@@ -3,6 +3,7 @@ import type {
   EventListingProgress,
   EventManagerContact,
   EventSuggestion,
+  RegionManagerContact,
   ReminderAudience,
   ReminderLevel,
 } from '@/emails/EventVerificationEmail'
@@ -13,6 +14,7 @@ export type {
   EventListingProgress,
   EventManagerContact,
   EventSuggestion,
+  RegionManagerContact,
   ReminderAudience,
   ReminderLevel,
 }
@@ -46,6 +48,11 @@ export interface ReminderPayload {
   regionName?: string
   /** Event manager's contacts — included for region-manager recipients. */
   eventManager?: EventManagerContact
+  /**
+   * The nearest region manager above the event. Set on the event manager's own
+   * copy only, which replies to them — a region manager's copy replies nowhere.
+   */
+  regionManager?: RegionManagerContact
 }
 
 /** A recipient resolved to a concrete channel + destination. */

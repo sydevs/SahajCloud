@@ -54,11 +54,18 @@ export async function sendEmailReminder(
       sinceLastVerified: reminder.sinceLastVerified,
       regionName: reminder.regionName,
       eventManager: reminder.eventManager,
+      regionManager: reminder.regionManager,
     }),
   )
 
   await client.sendEmail({
     to: recipient.destination,
+    // A reply reaches the region manager above the event rather than the admin
+    // inbox. Omitted entirely when there is none: an empty header value is
+    // invalid, and Resend 422s on one.
+    ...(reminder.regionManager && {
+      replyTo: { name: reminder.regionManager.name, address: reminder.regionManager.email },
+    }),
     subject: stripNewlines(subjectFor(reminder.level, reminder.audience, reminder.eventTitle)),
     html,
     text,

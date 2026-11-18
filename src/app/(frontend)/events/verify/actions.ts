@@ -8,6 +8,7 @@ import { APIError, getPayload } from 'payload'
 import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env'
+import { mailtoHref } from '@/lib/utilities/mailto'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 import { readLinkToken } from '@/plugins/login'
 
@@ -120,7 +121,7 @@ export async function verifyEventAction(
       '',
       '(Sent from the event verification page.)',
     ].join('\n')
-    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    const mailto = mailtoHref(CONTACT_EMAIL, subject, body)
     return {
       tone: 'error',
       title: 'Could not verify',
