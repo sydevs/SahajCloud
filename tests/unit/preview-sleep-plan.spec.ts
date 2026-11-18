@@ -31,6 +31,8 @@ describe('planPreviewSleep', () => {
     })
   })
 
+  // The caller reads recovery whenever it reads the Postgres, so recovery-on
+  // with no wake retry is a state it really builds.
   it('leaves Postgres awake behind an app with no wake retry', () => {
     expect(planPreviewSleep(freshPreview({ postgresCanWake: false }))).toEqual({
       actions: [
@@ -92,5 +94,64 @@ describe('planPreviewSleep', () => {
     const state = freshPreview()
     state.app.deployment = null
     expect(planPreviewSleep(state)).toEqual({ skip: 'its app deployment is missing' })
+  })
+
+  // ⚠ Pins the asymmetry: a present-but-failed Postgres is deployed, not
+  // skipped, or the preview's app would stay billed for the life of the PR.
+  it('deploys a Postgres whose deployment failed, rather than skipping the preview', () => {
+    const state = freshPreview()
+    state.postgres.deployment!.status = 'FAILED'
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'postgres' },
+        { kind: 'disable-pitr' },
+        { kind: 'deploy', service: 'postgres' },
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
+  })
+
+  it('leaves a preview with no Postgres deployment alone', () => {
+    const state = freshPreview()
+    state.postgres.deployment = null
+    expect(planPreviewSleep(state)).toEqual({ skip: 'its Postgres deployment is missing' })
+  })
+
+  // The caller reads recovery before the plan runs, so a read that did not
+  // answer must cost Postgres its sleep and nothing else.
+  it('sleeps only the app when the recovery status did not answer', () => {
+    const state = freshPreview()
+    state.postgres.pitrEnabled = null
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
+  })
+
+  it('sleeps the app when recovery did not answer and Postgres has no deployment', () => {
+    const state = freshPreview()
+    state.postgres.pitrEnabled = null
+    state.postgres.deployment = null
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
+  })
+
+  // Where the skip sits is what keeps this preview's app sleeping.
+  it('sleeps the app of a preview with no Postgres deployment and no wake retry', () => {
+    const state = freshPreview({ postgresCanWake: false })
+    state.postgres.deployment = null
+    expect(planPreviewSleep(state)).toEqual({
+      actions: [
+        { kind: 'set-sleep', service: 'app' },
+        { kind: 'deploy', service: 'app', commit: 'abc123' },
+      ],
+    })
   })
 })
