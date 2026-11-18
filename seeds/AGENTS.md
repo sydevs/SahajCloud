@@ -163,10 +163,11 @@ this one.
 `translations` seeds English only for `wm-web-translations`. This script loads
 `seeds/wm-web-translations/data.<locale>.json` for `ru it es fr de pt-BR cs uk bg`
 (`WM_WEB_TRANSLATION_LOCALES` in `lib/dataFiles.ts`) and **publishes each locale
-on its own**, with the same `_status` plus `publishSpecificLocale` pair the atlas
-seed uses. It writes nothing else: no English, no `wm-app-translations`, no
-atlas global. That is why it is a script of its own — `translations` would also
-overwrite the live English copy of the app global and every atlas locale.
+on its own**, through the same `seedLocaleFiles` loop the atlas global is seeded
+with (`lib/TranslationGlobalsImporter.ts`). It writes nothing else: no English,
+no `wm-app-translations`, no atlas global. That is why it is a script of its
+own — `translations` would also overwrite the live English copy of the app
+global and every atlas locale.
 
 Facts a maintainer needs:
 
