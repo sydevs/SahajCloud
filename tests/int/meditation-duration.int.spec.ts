@@ -5,7 +5,7 @@ import path from 'path'
 
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
-import { extractAudioDuration } from '@/collections/Meditations/hooks/extractAudioDuration'
+import { extractAudioDuration } from '@/lib/audio/duration'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -43,6 +43,17 @@ describe('Meditation Duration Extraction', () => {
       expect(meditation.duration).toBeDefined()
       expect(meditation.duration).toBeGreaterThan(40)
       expect(meditation.duration).toBeLessThan(44)
+    })
+
+    it('refuses audio past the 50-minute cap Meditations mounts', async () => {
+      await expect(
+        testData.createMeditation(
+          payload,
+          { narrator: narratorId, thumbnail: thumbnailId },
+          {},
+          'audio-51m.mp3',
+        ),
+      ).rejects.toThrow(/exceeds maximum of 50 minutes/)
     })
 
     it('stores duration as rounded integer seconds', async () => {
@@ -112,7 +123,7 @@ describe('Meditation Duration Extraction', () => {
         payload: { logger: { warn: () => {} } },
       }
 
-      const result = await extractAudioDuration({
+      const result = await extractAudioDuration()({
         data: { label: 'test' },
         req: mockReq,
       } as never)
@@ -125,7 +136,7 @@ describe('Meditation Duration Extraction', () => {
     it('skips extraction when no file is uploaded', async () => {
       const mockReq = { payload: { logger: { warn: () => {} } } }
 
-      const result = await extractAudioDuration({
+      const result = await extractAudioDuration()({
         data: { label: 'test', duration: 100 },
         req: mockReq,
       } as never)

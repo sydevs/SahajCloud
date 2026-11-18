@@ -1,6 +1,7 @@
 import type { CollectionConfig, CollectionBeforeChangeHook } from 'payload'
 
 import { fileMetadataField } from '@/fields'
+import { extractAudioDuration } from '@/lib/audio/duration'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
 
@@ -49,6 +50,8 @@ export const Songs: CollectionConfig = {
   hooks: {
     beforeChange: [
       restrictUploadToAdmin({ label: 'audio file on a song' }),
+      // No cap: a song is an album track, not a meditation.
+      extractAudioDuration(),
       autoSetIncludeForMeditationsOnCreate,
     ],
   },
@@ -95,6 +98,15 @@ export const Songs: CollectionConfig = {
         components: {
           Field: '@/components/admin/TagSelector',
         },
+      },
+    },
+    {
+      name: 'duration',
+      type: 'number',
+      label: 'Duration (seconds)',
+      admin: {
+        readOnly: true,
+        description: 'Read from the uploaded audio on every save.',
       },
     },
     {

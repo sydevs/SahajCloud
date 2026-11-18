@@ -3125,6 +3125,10 @@ export interface Song {
   album: number | Album;
   tags?: (number | SongTag)[] | null;
   /**
+   * Read from the uploaded audio on every save.
+   */
+  duration?: number | null;
+  /**
    * Include this song in random selection in meditations. Auto-set to false on creation when the song has the vocals tag, then manually editable.
    */
   includeForMeditations?: boolean | null;
@@ -4551,6 +4555,7 @@ export interface SongsSelect<T extends boolean = true> {
   title?: T;
   album?: T;
   tags?: T;
+  duration?: T;
   includeForMeditations?: T;
   fileMetadata?: T;
   prefix?: T;

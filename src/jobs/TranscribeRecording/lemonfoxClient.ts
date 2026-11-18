@@ -15,7 +15,7 @@ const LEMONFOX_TRANSCRIPTIONS_URL = 'https://api.lemonfox.ai/v1/audio/transcript
 
 /**
  * Roughly 3× the expected worst case: the longest allowed recording is 50
- * minutes (`extractAudioDuration.ts`) and the vendor claims 30 minutes of audio
+ * minutes (`Meditations.ts`) and the vendor claims 30 minutes of audio
  * in under a minute.
  *
  * ⚠ Not Cloudflare's 125 s proxy read timeout. That bound governs a request

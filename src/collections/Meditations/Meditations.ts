@@ -8,6 +8,7 @@ import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButto
 import { hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
+import { extractAudioDuration } from '@/lib/audio/duration'
 import { deleteChildren } from '@/lib/cascadeDeletion'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl, wmWebLocalePath } from '@/lib/livePreview/url'
@@ -30,7 +31,6 @@ import { meditationLectures } from './endpoints/lectures'
 import { meditationSongs } from './endpoints/songs'
 import { meditationTranscribe } from './endpoints/transcribe'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
-import { extractAudioDuration } from './hooks/extractAudioDuration'
 import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
 
@@ -119,7 +119,7 @@ export const Meditations: CollectionConfig = {
       restrictUploadToAdmin({ label: 'audio file on a meditation' }),
       // After `extractAudioDuration`: the weights are computed against the
       // duration this save is about to store.
-      extractAudioDuration,
+      extractAudioDuration({ maxMinutes: 50 }),
       cacheMeditationNodeWeights,
     ],
     afterChange: [syncTranscriptOnSave('meditations')],

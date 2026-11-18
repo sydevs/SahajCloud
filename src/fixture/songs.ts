@@ -3,6 +3,10 @@ import { ID } from './ids'
 import { fixture } from './types'
 
 const AUDIO = 'fixture-audio.mp3'
+/** Clearly shorter than AUDIO, so two songs cannot share one duration by accident. */
+const SHORT_AUDIO = 'fixture-audio-short.mp3'
+/** Not audio at all: the song that shows a blank duration rather than a failed save. */
+const UNREADABLE_AUDIO = 'fixture-audio-unreadable.mp3'
 
 export default fixture('songs', [
   {
@@ -18,7 +22,7 @@ export default fixture('songs', [
   },
   {
     id: 1_018_002,
-    file: AUDIO,
+    file: SHORT_AUDIO,
     data: {
       title: 'Fixture Held Note',
       album: ALBUM.stillness,
@@ -47,10 +51,10 @@ export default fixture('songs', [
       includeForMeditations: true,
     },
   },
-  // No tags at all.
+  // No tags at all, and audio nothing can read a duration from.
   {
     id: 1_018_005,
-    file: AUDIO,
+    file: UNREADABLE_AUDIO,
     data: {
       title: 'Fixture Untagged Interlude',
       album: ALBUM.morning,
