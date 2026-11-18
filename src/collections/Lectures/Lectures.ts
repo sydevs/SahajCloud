@@ -53,6 +53,12 @@ export const Lectures: CollectionConfig = {
               : null,
         }),
     },
+    // ⚠ **The streaming above is aspirational.** WeMeditateWeb mounts
+    // `LivePreviewDocument` on `pages/[slug]` and `meditations/[id]/embed`
+    // only; `lectures/[id]/(full)` renders `LectureTemplate` bare, so the panel
+    // shows the saved lecture and answers no handshake. The notice must not
+    // call that blocked until the consumer subscribes.
+    custom: { livePreviewSubscribes: false },
   },
   hooks: {
     // resolveClipParent runs first so clip records have their parent resolved

@@ -20,6 +20,12 @@ import { LIVE_PREVIEW_NOTICE, previewNoticePlugin } from '@/plugins/previewNotic
  * in `payload.config.ts` instead.
  */
 
+/** An entity whose consumer mounts no subscriber, declared as such. */
+const silent = (admin: Record<string, unknown>) => ({
+  ...admin,
+  custom: { livePreviewSubscribes: false },
+})
+
 const apply = (config: Partial<Config>): Config =>
   previewNoticePlugin({
     collections: [],
@@ -34,7 +40,7 @@ const onGlobal = (global: GlobalConfig) =>
   global.admin?.components?.elements?.beforeDocumentControls ?? []
 
 describe('previewNoticePlugin', () => {
-  it('leaves every previewing collection in the repo carrying the notice', () => {
+  it('leaves every previewing collection in the repo carrying the notice, bar the silent one', () => {
     const previewing = (
       apply({ collections: collections as CollectionConfig[] }).collections ?? []
     ).filter((c) => c.admin?.livePreview)
@@ -42,18 +48,27 @@ describe('previewNoticePlugin', () => {
     expect(previewing.length).toBeGreaterThan(0)
     expect(
       previewing.filter((c) => !onCollection(c).includes(LIVE_PREVIEW_NOTICE)).map((c) => c.slug),
-    ).toEqual([])
+    ).toEqual(['lectures'])
   })
 
-  it('leaves every previewing global in the repo carrying the notice', () => {
+  it('watches no global in the repo — every previewing one is a scoped session', () => {
     const previewing = (apply({ globals: globals as GlobalConfig[] }).globals ?? []).filter(
       (g) => g.admin?.livePreview,
     )
 
     expect(previewing.length).toBeGreaterThan(0)
-    expect(
-      previewing.filter((g) => !onGlobal(g).includes(LIVE_PREVIEW_NOTICE)).map((g) => g.slug),
-    ).toEqual([])
+    expect(previewing.filter((g) => onGlobal(g).includes(LIVE_PREVIEW_NOTICE))).toEqual([])
+  })
+
+  it('adds nothing to an entity that says its consumer answers no handshake', () => {
+    const declared = { livePreview: { url: () => '' } }
+    const config = apply({
+      collections: [{ slug: 'quiet', fields: [], admin: silent(declared) }],
+      globals: [{ slug: 'quiet-global', fields: [], admin: silent(declared) }],
+    })
+
+    expect(onCollection(config.collections![0]!)).toEqual([])
+    expect(onGlobal(config.globals![0]!)).toEqual([])
   })
 
   it('returns the same object for an entity it does not change', () => {

@@ -6,7 +6,6 @@ import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
 import { composePanelUrl, panelNoticeUrl } from '@/components/admin/helpers/panelUrl'
-import { panelUrlSubscribes } from '@/lib/livePreview/scope'
 import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 
 /**
@@ -18,13 +17,9 @@ import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
  */
 export const PREVIEW_SILENCE_MS = 12_000
 
-/**
- * A panel worth watching: one already explaining itself needs no second
- * explanation, and one whose page runs no subscriber would answer nothing
- * however long it had.
- */
+/** A panel already explaining itself needs no second explanation. */
 const watchable = (url: LivePreviewURLType): boolean =>
-  Boolean(url && !isLivePreviewUnavailableUrl(url) && panelUrlSubscribes(url))
+  Boolean(url && !isLivePreviewUnavailableUrl(url))
 
 /**
  * Says why a live-preview panel is blank, in place of the blank rectangle.

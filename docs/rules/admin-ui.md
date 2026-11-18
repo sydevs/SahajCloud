@@ -50,7 +50,9 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 ⚠ **Both notices mount through `appendDocumentControl` (`src/lib/admin/documentControls.ts`), and a global's slot is not a collection's.** `renderDocumentSlots` reads `edit.beforeDocumentControls` on a collection and `elements.beforeDocumentControls` on a global, so the other spelling type-checks, ships, and mounts nothing. One helper, not a copy per plugin.
 
-`appIsReady` is the signal, and it is per-address only because the component clears it on an address change: Payload clears it in the context's own `setURL`, but a URL the **server** re-resolved — every save — reaches the provider through the raw state setter beside it. A panel whose page does not subscribe is left unwatched, decided from the panel URL's own `scope` (`@/lib/livePreview/scope`); that is the three scoped globals, whose consumers mount no subscriber.
+`appIsReady` is the signal, and it is per-address only because the component clears it on an address change: Payload clears it in the context's own `setURL`, but a URL the **server** re-resolved — every save — reaches the provider through the raw state setter beside it.
+
+⚠ **An entity whose consumer mounts no live-preview subscriber declares `admin.custom.livePreviewSubscribes: false` beside its `livePreview`**, or its working preview is called blocked after the budget. It is an opt-**out**: a new surface is covered by declaring nothing. Four do — the three scoped globals, whose consumers mount a subscriber only for an unscoped session, and `lectures`, whose WeMeditateWeb route renders `LectureTemplate` bare. The panel URL cannot answer this, which is why the entity does.
 
 ### `Drawer` must mount unconditionally, or it won't animate
 

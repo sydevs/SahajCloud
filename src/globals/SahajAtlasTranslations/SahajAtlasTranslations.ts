@@ -57,6 +57,9 @@ export const SahajAtlasTranslations: GlobalConfig = {
       // widget's drawer layout is designed against it.
       breakpoints: [{ label: 'Mobile', name: 'mobile', width: 390, height: 844 }],
     },
+    // The session is scoped, so the consumer mounts no subscriber and answers
+    // no handshake. A watchdog over it would call a working preview blocked.
+    custom: { livePreviewSubscribes: false },
   },
   versions: {
     max: 10,

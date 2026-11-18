@@ -48,6 +48,9 @@ export const WeMeditateWebTranslations: GlobalConfig = {
           scope: PREVIEW_SCOPES.wmWebTranslations,
         }),
     },
+    // The session is scoped, so the consumer mounts no subscriber and answers
+    // no handshake. A watchdog over it would call a working preview blocked.
+    custom: { livePreviewSubscribes: false },
   },
   versions: {
     max: 10,
