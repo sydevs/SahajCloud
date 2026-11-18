@@ -47,10 +47,13 @@ follow from it, and both have a sharp edge.
 
 **`schedule.recurrenceType` is written from it**, by the
 `syncScheduleRecurrence` collection hook, in `beforeValidate` so the schedule's
-own field hooks see the value on the same save. So `repeats` is the authority: a
-writer that sets `recurrenceType` alone has it cleared. The class import and the
-proposal merge both go through `newEventDefaults`, which derives `repeats` from
-the schedule they build, and `testData.createEvent` does the same for a spec.
+own field hooks see the value on the same save. On an update the pace is
+`paceAfter`'s (`@/lib/events/derivedFields`): a changed `repeats` wins, and a
+write that edits the recurrence alone — an update proposal, a REST patch — moves
+a scheduled pace with it. A create has no stored pace to compare, so it owes
+`repeats` with its schedule, or a recurrence named alone is cleared: the class
+import and the proposal merge both go through `newEventDefaults`, which derives
+it, and `testData.createEvent` does the same for a spec.
 
 **`inactive` stays in the API, computed from `repeats`**, because the Atlas
 widget selects it and the We Meditate site reads `schedule.inactive` off

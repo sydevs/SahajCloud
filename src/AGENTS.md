@@ -240,7 +240,10 @@ No loose files at the root — every file lives in a named folder:
   which skips validation so stored data a later validator refuses cannot
   block any of the three; `mapVisibility.ts` — which classes the Atlas map
   draws, read by the geojson feed that returns them and by the Clients
-  preview panel, which only asks whether a region has any), `eventTitle/` (the auto-title
+  preview panel, which only asks whether a region has any; `derivedFields.ts` —
+  the pace and the contact box a writer derives rather than states
+  (`repeatsForSchedule`, `paceAfter`, `hasContactRoute`), read by the Events
+  hooks and validator, the Schedule tab's banner and the proposal merge), `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check
@@ -375,7 +378,7 @@ This is why a job's supporting code lives in the job folder.
 `SendSessionReminders` owns `sendSessionReminder.ts` and
 `unsubscribeUrl.ts`.
 `recipients` stays in `src/lib/notifications` because both `ExpireEvents`
-and `registrationRecipient` also use it. `managerRoles` is there for the same
+and the `DeliverSubmissions` senders also use it. `managerRoles` is there for the same
 reason, with three: the notification-preferences field filters its rows by
 role, the digest run sends one email per role, and `dashboardChoiceFor` picks a
 home by role. The **view layer is untouched** —
