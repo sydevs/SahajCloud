@@ -1,0 +1,236 @@
+{
+  "_meta": {
+    "global": "wm-web-translations",
+    "locale": "bg",
+    "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
+    "schema_version": "post-#1196 (14 tabs, 25 leaf groups, 192 declared keys)",
+    "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
+    "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
+    "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
+  },
+  "common": {
+    "general": {
+      "loading": "Зареждане...",
+      "show_more": "Покажи повече",
+      "site_title": "We Meditate",
+      "site_description": "Открийте безплатни водени медитации, музика и статии, които ще ви помогнат да се научите да медитирате и да задълбочите практиката си."
+    },
+    "a11y": {
+      "dismiss": "Скрий",
+      "close": "Затвори",
+      "previous": "Предишно",
+      "next": "Следващо",
+      "show_more_items_one": "Покажи още %{count} елемент",
+      "show_more_items_other": "Покажи още %{count} елемента",
+      "breadcrumb": "Навигационна пътека",
+      "opens_in_new_tab_suffix": "(отваря се в нов раздел)"
+    }
+  },
+  "navigation": {
+    "about_meditation": "За медитацията",
+    "featured_caption": "Вдъхновението идва от вътре"
+  },
+  "footer": {
+    "info": "Информация",
+    "languages": "Езици",
+    "copyright": "© WeMeditate, %{year}"
+  },
+  "errors": {
+    "general": {
+      "heading": "Грешка",
+      "network_title": "Проблем с връзката",
+      "server_title": "Услугата временно не е достъпна",
+      "not_found_title": "Съдържанието не е намерено",
+      "unknown_title": "Опа! Нещо се обърка",
+      "network_message": "Не може да се осъществи връзка с нашите сървъри. Проверете интернет връзката си и опитайте отново.",
+      "server_message": "Сървърите ни със съдържание имат проблеми. Работим по отстраняването им.",
+      "not_found_message": "Това съдържание не е налично. Възможно е да е преместено или изтрито.",
+      "unknown_message": "Нещо се обърка при зареждането на тази страница. Опитайте отново.",
+      "status_page_hint": "Следете актуалната информация на %{link}.",
+      "status_page_link": "страницата ни за състоянието",
+      "try_again": "Опитайте отново",
+      "back_to_home": "Към началото"
+    },
+    "a11y": {
+      "error_icon": "Грешка"
+    }
+  },
+  "discover": {
+    "general": {
+      "title": "Открийте сами!",
+      "subtitle": "Не ни вярвайте сляпо. Опитайте се да медитирате и вижте как се чувствате!",
+      "meditate_now": "Медитирайте сега",
+      "meditate_now_subtitle": "Гледайте водени медитации",
+      "live_guidance": "Водене на живо",
+      "live_guidance_subtitle": "Безплатни онлайн медитации",
+      "classes_near_me": "Занятия в близост до мен",
+      "classes_near_me_subtitle": "Безплатни присъствени занятия"
+    }
+  },
+  "article": {
+    "general": {
+      "written_by": "Написано от %{name}",
+      "name_with_country": "%{name}, %{country}",
+      "meditating_years_one": "Медитирам от %{count} година",
+      "meditating_years_other": "Медитирам от %{count} години",
+      "reading_time_one": "%{count} минута четено",
+      "reading_time_other": "%{count} минути четено",
+      "about_the_author": "Относно автора",
+      "filter_all": "Всичко",
+      "tag_wisdom": "Мъдрост",
+      "tag_lifestyle": "Начин на живот",
+      "tag_creativity": "Творчество",
+      "tag_event": "Събитие",
+      "tag_technique": "Техника"
+    },
+    "a11y": {
+      "filter_label": "Филтриране на съдържанието по етикет"
+    }
+  },
+  "meditation": {
+    "general": {
+      "label": "Медитация",
+      "founder_name": "Shri Mataji Nirmala Devi",
+      "founder_role": "основателка",
+      "voice": "Глас",
+      "music": "Музика",
+      "change_music": "Смяна на фоновата музика",
+      "untitled": "Медитация без заглавие",
+      "missing_audio": "На тази медитация липсва необходимият аудио адрес.",
+      "related_lectures": "Свързани лекции",
+      "upsell_web": "Още медитации ще намерите на %{link}",
+      "upsell_app": "Интерактивни медитации с музика за медитация ще намерите в нашето %{link}",
+      "upsell_app_link": "безплатно приложение"
+    },
+    "a11y": {
+      "mute_voice": "Заглуши гласа",
+      "unmute_voice": "Озвучи гласа",
+      "mute_music": "Заглуши музиката",
+      "unmute_music": "Озвучи музиката",
+      "voice_volume": "Сила на звука на гласа",
+      "music_volume": "Сила на звука на музиката",
+      "audio_settings": "Настройки на звука",
+      "shuffle_music": "Случаен музикален запис",
+      "related_lectures_loading": "Зареждане на свързаните лекции"
+    }
+  },
+  "lecture": {
+    "general": {
+      "missing_video": "На тази лекция липсва видео, което може да се възпроизведе.",
+      "related_meditations": "Свързани медитации"
+    },
+    "a11y": {
+      "related_meditations_loading": "Зареждане на свързаните медитации"
+    }
+  },
+  "map": {
+    "general": {
+      "online": "Онлайн",
+      "classes_shown_one": "Показани: %{shown} от %{count} занятие.",
+      "classes_shown_other": "Показани: %{shown} от %{count} занятия.",
+      "no_classes": "Тук все още няма занятия по медитация.",
+      "join_online": "Включете се онлайн",
+      "visit_website": "Към уебсайта"
+    },
+    "a11y": {
+      "classes_heading": "Занятия по медитация",
+      "when": "Кога",
+      "where": "Къде",
+      "languages": "Езици"
+    }
+  },
+  "forms": {
+    "general": {
+      "field_required": "Полето „%{field}“ е задължително",
+      "select_placeholder": "Изберете опция",
+      "submit_error": "Възникна неочаквана грешка. Опитайте отново.",
+      "thank_you": "Благодарим ви!",
+      "submitted": "Формулярът ви беше изпратен успешно.",
+      "submit": "Изпрати"
+    },
+    "a11y": {
+      "submitting": "Формулярът се изпраща, моля, изчакайте...",
+      "required_marker": "задължително"
+    }
+  },
+  "media": {
+    "general": {
+      "playlist": "Плейлист",
+      "duration_minutes_one": "%{count} минута",
+      "duration_minutes_other": "%{count} минути",
+      "duration_seconds_one": "%{count} сек.",
+      "duration_seconds_other": "%{count} сек.",
+      "embed": "Вграждане",
+      "embed_title": "Вграждане на „%{title}“",
+      "embed_player": "Вграждане на този плейър",
+      "copy": "Копирай",
+      "copied": "Копирано!"
+    },
+    "a11y": {
+      "play": "Пусни",
+      "pause": "Пауза",
+      "previous_track": "Предишно",
+      "next_track": "Следващо",
+      "toggle_shuffle": "Включване или изключване на разбъркването",
+      "mute": "Заглуши",
+      "unmute": "Озвучи",
+      "volume": "Сила на звука",
+      "play_item": "Пусни, %{title}",
+      "view_image": "Виж изображението",
+      "view_image_alt": "Виж изображението: %{alt}",
+      "embed_code": "Код за вграждане",
+      "zoom_in": "Увеличи",
+      "zoom_out": "Намали"
+    }
+  },
+  "location": {
+    "general": {
+      "search_placeholder": "Търсене на място...",
+      "change": "Промени",
+      "getting_coordinates": "Определяне на координатите...",
+      "searching": "Търсене...",
+      "type_to_search": "Въведете име на място, за да търсите",
+      "no_results": "Няма намерени резултати",
+      "suggestions_failed": "Неуспешно зареждане на предложенията за места",
+      "coordinates_failed": "Неуспешно определяне на координатите на мястото",
+      "nearby": "Наблизо",
+      "getting_location": "Определяне на местоположението...",
+      "current_location": "Текущо местоположение",
+      "geolocation_unsupported": "Браузърът ви не поддържа геолокация",
+      "permission_denied": "Достъпът до местоположението е отказан",
+      "position_unavailable": "Местоположението не е налично",
+      "timed_out": "Времето за заявката за местоположение изтече",
+      "location_failed": "Местоположението не може да бъде определено"
+    },
+    "a11y": {
+      "search_label": "Търсене на място",
+      "selected_label": "Избрано място",
+      "change_label": "Промяна на мястото"
+    }
+  },
+  "blocks": {
+    "general": {
+      "chakras": "Чакри",
+      "channels": "Канали",
+      "learn_more": "Научете повече →",
+      "hours": "Часове",
+      "minutes": "Минути",
+      "seconds": "Секунди"
+    },
+    "a11y": {
+      "enter_fullscreen": "Цял екран",
+      "exit_fullscreen": "Изход от цял екран",
+      "learn_more_about": "Научете повече за „%{title}“",
+      "previous_slide": "Предишен слайд",
+      "next_slide": "Следващ слайд",
+      "previous_column": "Предишно: %{title}",
+      "next_column": "Следващо: %{title}",
+      "go_to_column": "Към колона %{number}: %{title}",
+      "quote": "Цитат",
+      "table_of_contents": "Съдържание",
+      "share_region": "Опции за споделяне в социалните мрежи",
+      "share_group": "Споделяне в социалните мрежи",
+      "share_on": "Споделяне в %{platform}"
+    }
+  }
+}

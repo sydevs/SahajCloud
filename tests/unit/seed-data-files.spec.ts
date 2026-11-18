@@ -15,6 +15,8 @@ import {
   ATLAS_TRANSLATION_LOCALES,
   atlasTranslationsDataFile,
   SCRIPT_DATA_FILES,
+  WM_WEB_TRANSLATION_LOCALES,
+  wmWebTranslationsDataFile,
   WM_APP_TRANSLATIONS_DATA_FILE,
   WM_WEB_TRANSLATIONS_DATA_FILE,
 } from '../../seeds/lib/dataFiles'
@@ -37,6 +39,14 @@ describe('seed data file registry', () => {
       ...ATLAS_TRANSLATION_LOCALES.map(atlasTranslationsDataFile),
     ])
     expect(SCRIPT_DATA_FILES.translations).toHaveLength(12)
+  })
+
+  it('registers every locale file the wm-web-locales script reads, and no English', () => {
+    expect(SCRIPT_DATA_FILES['wm-web-locales']).toEqual(
+      WM_WEB_TRANSLATION_LOCALES.map(wmWebTranslationsDataFile),
+    )
+    expect(SCRIPT_DATA_FILES['wm-web-locales']).toHaveLength(9)
+    expect(SCRIPT_DATA_FILES['wm-web-locales']).not.toContain(WM_WEB_TRANSLATIONS_DATA_FILE)
   })
 })
 

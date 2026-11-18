@@ -118,8 +118,9 @@ type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
 // --- Importer ---
 
 export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
-  protected readonly importName = 'Translations (all three globals; the atlas in ten locales)'
-  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/translations')
+  protected readonly importName: string =
+    'Translations (all three globals; the atlas in ten locales)'
+  protected readonly cacheDir: string = path.resolve(process.cwd(), 'seeds/cache/translations')
 
   protected async import(): Promise<void> {
     await this.seedWmApp()
@@ -276,7 +277,7 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
    * see the header. `tests/int/wm-web-translations-seed.int.spec.ts` holds
    * that line by asserting `wm-app-translations` comes back unpublished.
    */
-  private async writeGlobal(
+  protected async writeGlobal(
     slug: string,
     data: Record<string, unknown>,
     locale: LocaleCode,

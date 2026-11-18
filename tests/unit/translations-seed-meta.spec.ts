@@ -16,6 +16,7 @@ import atlasSchema from '@/globals/SahajAtlasTranslations/translationsSchema.jso
 import appSchema from '@/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import webSchema from '@/globals/WeMeditateWebTranslations/translationsSchema.json' with { type: 'json' }
 
+import { WM_WEB_TRANSLATION_LOCALES, wmWebTranslationsDataFile } from '../../seeds/lib/dataFiles'
 import { expectQuotedShape, schemaShape, type SchemaRoot } from '../utils/translationsSchemaShape'
 
 const ATLAS_LOCALES = ['cs', 'de', 'en', 'es', 'fr', 'hu', 'nl', 'pt-BR', 'ru', 'uk'] as const
@@ -35,6 +36,13 @@ const SEEDS: Array<{ seed: string; schema: SchemaRoot; requiresKeyCount?: boolea
     schema: asRoot(webSchema),
     requiresKeyCount: true,
   },
+  // The nine drafted locales quote English's shape: they omit the `video` tab
+  // but are written against the same schema.
+  ...WM_WEB_TRANSLATION_LOCALES.map((locale) => ({
+    seed: wmWebTranslationsDataFile(locale),
+    schema: asRoot(webSchema),
+    requiresKeyCount: true,
+  })),
   { seed: 'seeds/wm-app-translations/data.en.json', schema: asRoot(appSchema) },
   ...ATLAS_LOCALES.map((locale) => ({
     seed: `seeds/sy-atlas-translations/data.${locale}.json`,
