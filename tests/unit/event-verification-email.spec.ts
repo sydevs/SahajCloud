@@ -82,6 +82,16 @@ const completeProgress: EventListingProgress = {
 
 const EVENT_URL = 'https://cloud.test/event/1042'
 
+const regionManager = { name: 'Rohan Patil', email: 'rohan.patil@example.com' }
+
+/**
+ * The in-row button gap, which `BrandButtonRow` applies to each of its buttons
+ * and nothing else applies at all. Counting it counts the row's buttons: they
+ * take the same base style and the same primary fill, so the gap is the only
+ * mark that tells one apart from the secondary button stacked below.
+ */
+const IN_ROW_BUTTON = /margin:0 6px/g
+
 /**
  * The outlined secondary button, which only the event link uses. Keyed on the
  * variant's own fill and border rather than its label: asserting the absence of
@@ -341,6 +351,63 @@ describe('EventVerificationEmail', () => {
       await expect(render({ ...regionProps, level: 'due' })).rejects.toThrow(
         /not supported for region/,
       )
+    })
+  })
+
+  describe('the region manager a reply reaches', () => {
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'offers the %s reminder an ask button beside verify, at the same size',
+      async (level) => {
+        const html = await render({ level, regionManager })
+
+        expect(html).toMatch(`mailto:${regionManager.email}`)
+        expect(html).toContain(baseProps.verifyUrl)
+        expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(2)
+      },
+    )
+
+    it('labels the button, names the manager, and asks in the ask’s own words', async () => {
+      const html = await render({ level: 'due', regionManager })
+
+      expect(html).toContain('Ask region manager')
+      expect(html).toMatch(/Reply to this email to reach/)
+      expect(html).toContain(regionManager.name)
+      // The ask hands the listing up; the region CTA chases it down. Sending
+      // either one's wording would read as written by the wrong person.
+      expect(html).toContain(encodeURIComponent('Help with my Sahaja Yoga class'))
+      expect(html).not.toContain(encodeURIComponent('Please verify your Sahaja Yoga class'))
+      // The sender names what needs changing. Asking the region manager to go
+      // and find it is the responsibility this ask must not hand over.
+      expect(html).toContain(encodeURIComponent('What needs to change'))
+    })
+
+    it.each(['due', 'escalated', 'urgent', 'expired'] as const)(
+      'leaves the %s reminder one button and no reply line when nobody is above it',
+      async (level) => {
+        // ⚠ Asserted as absences, not as byte-identity against the no-prop
+        // render: both sides of that comparison lack the prop, so anything
+        // rendered unconditionally appears in each and it passes anyway. A
+        // reply line with a 'your region manager' fallback survived it.
+        const absent = await render({ level, regionManager: undefined })
+
+        expect(absent.match(IN_ROW_BUTTON) ?? []).toHaveLength(1)
+        expect(absent).not.toMatch(/Reply to this email to reach/)
+        expect(absent).not.toContain('Ask region manager')
+      },
+    )
+
+    it('keeps it out of a region manager’s own copy, who is the contact', async () => {
+      const html = await render({
+        level: 'escalated',
+        audience: 'region',
+        regionName: 'Maharashtra',
+        eventManager,
+        regionManager,
+      })
+
+      expect(html).not.toContain('Ask region manager')
+      expect(html).not.toMatch(/Reply to this email to reach/)
+      expect(html.match(IN_ROW_BUTTON) ?? []).toHaveLength(1)
     })
   })
 

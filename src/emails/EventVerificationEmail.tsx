@@ -2,11 +2,13 @@ import type { CSSProperties, ReactNode } from 'react'
 
 import { Link, Section, Text } from 'react-email'
 
+import { mailtoHref } from '@/lib/utilities/mailto'
 import type { ProjectSlug } from '@/payload-types'
 import { getEmailBrand } from '@/plugins/email'
 
 import {
   BrandButton,
+  BrandButtonRow,
   DetailRow,
   EmailLayout,
   ProgressBar,
@@ -83,6 +85,15 @@ export interface EventManagerContact {
 }
 
 /**
+ * The region manager the event manager's replies reach — the nearest one above
+ * the event. Just the two fields a `Reply-To` and a `mailto:` need.
+ */
+export interface RegionManagerContact {
+  name: string
+  email: string
+}
+
+/**
  * One open listing-quality recommendation (#609), resolved for display.
  *
  * The wording is resolved before it reaches the template — the check registry
@@ -149,6 +160,11 @@ interface EventVerificationEmailProps {
   regionName?: string
   /** Event manager's contacts — shown to region managers so they can reach out. */
   eventManager?: EventManagerContact
+  /**
+   * The region manager this email replies to (manager audience). Absent renders
+   * the email exactly as it did before: one button, and no reply line.
+   */
+  regionManager?: RegionManagerContact
   /** Project to brand for. Defaults to `sahaj-atlas` (events are Atlas). */
   project?: ProjectSlug
 }
@@ -230,6 +246,18 @@ const COPY: {
     subject: (eventTitle: string) => string
     body: (eventTitle: string, managerName: string) => string
   }
+  /**
+   * The event manager's own escape hatch: ask the region manager above them
+   * for help, by button or by replying. The ask is a draft they finish — the
+   * changes are theirs to name, not the region manager's to go and find.
+   */
+  askRegionManager: {
+    label: string
+    subject: (eventTitle: string) => string
+    body: (eventTitle: string, regionManagerName: string) => string
+    /** The line saying who a reply reaches. */
+    replyLine: (regionManagerName: string) => ReactNode
+  }
   variants: {
     manager: Record<ReminderLevel, VariantCopy>
     // Region managers are first looped in at `escalated`; there is no `due`.
@@ -279,6 +307,19 @@ const COPY: {
     subject: (eventTitle) => `Please verify your Sahaja Yoga class: ${eventTitle}`,
     body: (eventTitle, managerName) =>
       `Hello ${managerName},\n\nYour event “${eventTitle}” is going to be automatically unpublished soon if we don't check it. Could you verify it from your reminder email, or let me know if it is no longer running?\n\nThank you.`,
+  },
+
+  askRegionManager: {
+    label: 'Ask region manager',
+    subject: (eventTitle) => `Help with my Sahaja Yoga class: ${eventTitle}`,
+    body: (eventTitle, regionManagerName) =>
+      `Hello ${regionManagerName},\n\nI have been asked to verify my class “${eventTitle}”, and I need some help with it first.\n\nWhat needs to change:\n\n[describe the changes here]\n\nThank you.`,
+    replyLine: (regionManagerName) => (
+      <>
+        Questions? Reply to this email to reach <strong>{regionManagerName}</strong>, your region
+        manager.
+      </>
+    ),
   },
 
   variants: {
@@ -430,13 +471,6 @@ function renderDoneTicks(
   ))
 }
 
-/** mailto a region manager uses to reach the event manager (the region CTA). */
-function contactManagerHref(email: string, eventTitle: string, managerName: string): string {
-  const subject = COPY.contactManager.subject(eventTitle)
-  const body = COPY.contactManager.body(eventTitle, managerName)
-  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-}
-
 /**
  * Event verification email — the escalating nudge the ExpireEvents job sends as
  * an event ages `verified → reminded → escalated → urgent → expired`. All
@@ -458,6 +492,7 @@ export function EventVerificationEmail({
   listingProgress,
   regionName,
   eventManager,
+  regionManager,
   project = 'sahaj-atlas',
 }: EventVerificationEmailProps) {
   const brand = getEmailBrand(project)
@@ -489,8 +524,27 @@ export function EventVerificationEmail({
   const contactEmail = eventManager?.contacts.find((entry) => entry.label === 'Email')?.value
   const ctaHref =
     audience === 'region' && contactEmail
-      ? contactManagerHref(contactEmail, eventTitle, eventManager?.name ?? 'there')
+      ? mailtoHref(
+          contactEmail,
+          COPY.contactManager.subject(eventTitle),
+          COPY.contactManager.body(eventTitle, eventManager?.name ?? 'there'),
+        )
       : verifyUrl
+
+  // The event manager can ask for help instead of verifying, so the two
+  // actions sit side by side at the same weight. A region manager is the
+  // contact themselves, so theirs stays a single button.
+  const askRegion =
+    audience === 'manager' && regionManager
+      ? {
+          name: regionManager.name,
+          href: mailtoHref(
+            regionManager.email,
+            COPY.askRegionManager.subject(eventTitle),
+            COPY.askRegionManager.body(eventTitle, regionManager.name),
+          ),
+        }
+      : null
 
   return (
     <EmailLayout
@@ -613,9 +667,13 @@ export function EventVerificationEmail({
         )
       ) : null}
 
-      <BrandButton href={ctaHref} brand={brand}>
-        {variant.cta}
-      </BrandButton>
+      <BrandButtonRow
+        brand={brand}
+        buttons={[
+          { href: ctaHref, label: variant.cta },
+          ...(askRegion ? [{ href: askRegion.href, label: COPY.askRegionManager.label }] : []),
+        ]}
+      />
       {eventUrl ? (
         <BrandButton href={eventUrl} brand={brand} variant="secondary" tight>
           View event
@@ -625,6 +683,9 @@ export function EventVerificationEmail({
         <Text style={styles.hint}>
           {audience === 'manager' ? COPY.verifyHint : COPY.signInHint}
         </Text>
+      ) : null}
+      {askRegion ? (
+        <Text style={styles.hint}>{COPY.askRegionManager.replyLine(askRegion.name)}</Text>
       ) : null}
       {audience === 'region' ? null : (
         <Text style={styles.hint}>
