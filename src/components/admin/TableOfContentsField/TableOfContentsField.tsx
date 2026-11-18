@@ -10,6 +10,8 @@ import { $getRoot, type EditorState } from 'lexical'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import slugify from 'slugify'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 import { blockedHeadings, rebuildStored, resolveStored, toggleHeading } from './headings'
 import { TableOfContents } from './TableOfContents'
 
@@ -103,7 +105,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   )
 
   return (
-    <div className="field-type json" id={`field-${name}`}>
+    <div className="field-type json" id={`field-${name}`} style={mergeFieldStyles(field.admin)}>
       <FieldLabel label={label || 'Headings'} path={name} />
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
