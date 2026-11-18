@@ -65,7 +65,10 @@ fi
 
 echo
 echo "--- Running tsc --noEmit on migration ---"
-if (cd "$PROJECT_DIR" && pnpm tsc --noEmit --target es2022 --module esnext --moduleResolution bundler --skipLibCheck "$MIGRATION" 2>&1 | tee /tmp/migration-validator-tsc.log | grep -qE 'error TS'); then
+# --ignoreConfig: TypeScript 6 refuses a file named on the command line beside a
+# tsconfig.json (TS5112). TS <6 has no such flag; it is passed bare because
+# package.json pins `typescript` to an exact 6.x (#1200).
+if (cd "$PROJECT_DIR" && pnpm tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --skipLibCheck "$MIGRATION" 2>&1 | tee /tmp/migration-validator-tsc.log | grep -qE 'error TS'); then
   fail "TypeScript errors in migration (see output above)"
 else
   pass "TypeScript compiles cleanly"
