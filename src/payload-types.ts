@@ -5705,6 +5705,10 @@ export interface WmWebTranslationsCommonA11YStrings {
    * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab, and is read directly after the link's own words. Takes no placeholder, because the link's text is arbitrary. Keep the brackets if the language uses them.
    */
   opens_in_new_tab_suffix?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the button in the top bar that opens the site menu on a phone. The same name is read whether the menu is open or closed.
+   */
+  menu?: string;
 }
 export interface WmWebTranslationsNavigationStrings {
   /**
