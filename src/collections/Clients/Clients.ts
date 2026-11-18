@@ -23,7 +23,6 @@ import {
   VERIFICATION_INCONCLUSIVE_REASONS,
 } from '@/lib/clients/verification'
 import { serverEnv } from '@/lib/env'
-import { PREVIEW_SCOPES } from '@/lib/livePreview/scope'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import type { MailingListProvider } from '@/lib/mailingList/types'
@@ -471,8 +470,7 @@ export const Clients: CollectionConfig = {
       url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
-          params: { locale: locale.code },
-          scope: PREVIEW_SCOPES.clients,
+          params: { locale: locale.code, scope: 'clients' },
           ...(await atlasPreviewTarget({ data: data ?? {}, req })),
         }),
     },
