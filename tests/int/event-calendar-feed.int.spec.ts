@@ -74,7 +74,6 @@ describe('event calendar feed', () => {
 
   const createClass = async (overrides: Record<string, unknown>) =>
     testData.createEvent(payload, {
-      inactive: false,
       manager: managerId,
       region: regionId,
       _status: 'published',
@@ -349,7 +348,7 @@ describe('event calendar feed', () => {
     it('answers 404 even while it carries a schedule', async () => {
       const dormant = await createClass({
         title: 'Dormant With Schedule',
-        inactive: true,
+        repeats: 'inactive',
         eventType: 'online',
         onlineUrl: 'https://example.com/dormant',
         schedule: weekly(17),

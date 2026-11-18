@@ -296,9 +296,10 @@ export const Events: CollectionConfig = {
             },
             {
               // Contact details are optional for most classes, and the three
-              // fields crowded the top of this tab. ⚠ Unchecking this **clears**
-              // all three on save (`clearContactDetails`): a hidden field keeps
-              // its value, and the Atlas widget reads `contactPhone`.
+              // fields crowded the top of this tab. ⚠ Switching this off
+              // **clears** all three on that save (`clearContactDetails`): a
+              // hidden field keeps its value, and the widget reads
+              // `contactPhone`.
               name: 'allowContact',
               type: 'checkbox',
               label: 'Allow seekers to contact someone by phone or email',

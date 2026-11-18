@@ -70,9 +70,9 @@ Declared today in `translationsSchema.json` (a `preview` key beside `screenshot`
 
 `admin.hidden: true` removes a collection from the nav **and** unregisters its routes — `/admin/collections/<slug>/<id>` 404s. It does not make the documents unreachable: a `join` field on another collection still renders its rows and opens each in a document drawer, which never touches the route. Nested drawers work from there too.
 
-That combination is often what you want — reachable where it's explained, absent from the sidebar. An admin opens a registration this way, through the join on an event's Registration tab rather than the collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
+That combination is often what you want — reachable where it's explained, absent from the sidebar. An admin opens a document this way, through a join on the collection that explains it rather than the hidden collection's own list. A 404 on the route is not evidence a field needs surfacing elsewhere — try the surfaces that already embed the document first.
 
-⚠ **A join is not a way around the related collection's access.** `user-submissions` is restricted and no manager role reads it, so that join renders empty for every manager however the field is configured, and `admin.condition` hides the field without stopping its subquery. A manager reads their own event's signups on the Registrations **view** instead — a document view of its own, in `docs/rules/admin-ui.md` (#1069).
+⚠ **A join is not a way around the related collection's access**, and the Events join onto `user-submissions` is the worked example of that costing more than it bought. `user-submissions` is restricted and no manager role reads it, so the join rendered empty for every manager however it was configured, while `admin.condition` hid the field without stopping its subquery (#1069). It is gone: a manager reads their own event's signups on the Registrations **view** — a document view of its own, in `docs/rules/admin-ui.md` — and the Registration tab carries an `InfoBanner` whose action opens it. An admin reaches a single row through the `user-submissions` list.
 
 ## Project visibility (collection sidebar filtering)
 

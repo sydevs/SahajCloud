@@ -11,7 +11,7 @@ import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
 
 import { runTaskHandler } from '../utils/taskRunner'
-import { createData, testData } from '../utils/testData'
+import { createData, repeatsForSchedule, testData } from '../utils/testData'
 import { createTestEnvironmentWithEmail } from '../utils/testHelpers'
 
 // `unsubscribeAction` reaches for the app config with `getPayload({ config })`.
@@ -87,6 +87,7 @@ describe('SendSessionReminders job', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: regionId,
+        repeats: repeatsForSchedule(overrides.schedule ?? SCHEDULE),
         schedule: {
           ...SCHEDULE,
           firstDate: new Date(Date.parse(SCHEDULE.firstDate) + seq * MINUTE_MS).toISOString(),

@@ -1,19 +1,6 @@
 'use client'
 
-import type { UIFieldClientProps } from 'payload'
-
-import {
-  Banner,
-  Button,
-  ErrorIcon,
-  InfoIcon,
-  SuccessIcon,
-  useConfig,
-  useDocumentInfo,
-  WarningIcon,
-} from '@payloadcms/ui'
-import { GraduationCap } from 'lucide-react'
-import { formatAdminURL } from 'payload/shared'
+import { Banner, Button, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from '@payloadcms/ui'
 import React from 'react'
 
 /** The `Banner` types Payload styles: `info` has no rule of its own, so it is `default`. */
@@ -24,39 +11,6 @@ const TYPE_ICONS: Record<InfoBannerType, React.FC> = {
   error: ErrorIcon,
   success: SuccessIcon,
   warning: WarningIcon,
-}
-
-/**
- * The icons a `ui` field can name in `admin.custom`, which is serialized and so
- * holds a string. Payload ships no teaching glyph, so `tutorial` is lucide's,
- * sized to sit beside Payload's own ~24px icons.
- */
-const NAMED_ICONS: Record<string, React.FC> = {
-  tutorial: () => <GraduationCap size={22} aria-hidden />,
-  info: InfoIcon,
-  warning: WarningIcon,
-}
-
-/**
- * A `ui` field's `admin.custom`:
- * `{ icon?: 'tutorial' | 'info' | 'warning', title?, text?, type?, action? }`.
- *
- * `admin.custom` is serialized, so the action is data — a `path` on the document
- * being edited, never a URL or a callback.
- */
-interface InfoBannerConfig {
-  icon?: string
-  title?: string
-  text?: string
-  type?: InfoBannerType | 'info'
-  action?: { label: string; path: string }
-}
-
-/** Where a `ui` field's declared action resolves. */
-interface DocumentTarget {
-  adminRoute: string
-  collectionSlug?: string
-  id?: number | string | null
 }
 
 /**
@@ -75,52 +29,6 @@ export interface InfoBannerProps {
   /** The description, one or two short sentences. */
   children?: React.ReactNode
   action?: InfoBannerAction
-  /** Set when registered as a `ui` field, which configures the banner through `admin.custom`. */
-  field?: UIFieldClientProps['field']
-}
-
-function fromField(
-  field: UIFieldClientProps['field'],
-  target: DocumentTarget,
-): InfoBannerProps | null {
-  const {
-    icon,
-    title,
-    text,
-    type = 'default',
-    action,
-  } = (field?.admin?.custom ?? {}) as InfoBannerConfig
-  if (!title && !text) return null
-  const Icon = icon ? NAMED_ICONS[icon] : undefined
-  return {
-    icon: Icon ? <Icon /> : null,
-    title,
-    children: text,
-    type: type === 'info' ? 'default' : type,
-    action: documentAction(action, target),
-  }
-}
-
-/**
- * The declared action as a link to one of this document's own views.
- *
- * Dropped before the document exists: an unsaved one has no address to open,
- * and a field whose banner needs one carries `hideUntilCreated` as well.
- * `formatAdminURL` is Payload's own joiner, and the route comes from the live
- * config rather than a second copy of `/admin`.
- */
-function documentAction(
-  action: InfoBannerConfig['action'],
-  { adminRoute, collectionSlug, id }: DocumentTarget,
-): InfoBannerAction | undefined {
-  if (!action || !collectionSlug || id == null) return undefined
-  return {
-    label: action.label,
-    href: formatAdminURL({
-      adminRoute,
-      path: `/collections/${collectionSlug}/${id}${action.path}`,
-    }),
-  }
 }
 
 /**
@@ -131,16 +39,13 @@ function documentAction(
  * which is a bare flex row with no gap or alignment: fine beside one line, but
  * beside a title and a sentence it strands a small icon at the top left.
  */
-export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactElement | null {
-  const { collectionSlug, id } = useDocumentInfo()
-  const {
-    config: {
-      routes: { admin: adminRoute },
-    },
-  } = useConfig()
-  const banner = field ? fromField(field, { adminRoute, collectionSlug, id }) : props
-  if (!banner) return null
-  const { type = 'default', icon, title, children, action } = banner
+export function InfoBanner({
+  type = 'default',
+  icon,
+  title,
+  children,
+  action,
+}: InfoBannerProps): React.ReactElement | null {
   const Icon = TYPE_ICONS[type]
   return (
     <Banner type={type}>
@@ -184,5 +89,3 @@ function ActionButton({ action }: { action: InfoBannerAction }) {
     </Button>
   )
 }
-
-export default InfoBanner

@@ -36,3 +36,25 @@ server path also passes `event: 'submit'`, so it discriminates nothing.
 ## The Atlas event feed and registration contract
 
 `GET /api/events/geojson` and `POST /api/user-submissions` back the Sahaj Atlas widget. A finished event stays published but drops off the feeds (#603/#604). `ExpireEvents` marks it `finished` without unpublishing, so `GET /api/events/:id` still renders an "Ended" panel. The public feeds exclude it via `excludeFinishedEvents`, keyed on `schedule.lastDate`. Registration is gated server-side (#599) on the unified intake: a `POST /api/user-submissions` with `type: registration` refuses external-mode, ended, started-course or full events with a `409` and a stable `code` at `errors[].data.code`. A denormalized `registrationsFull` boolean lets the widget show "Full" without a live count, from the `user-submissions` registration rows.
+
+## `inactive` is a computed field, `repeats` is the column
+
+One control stores how often a class meets _and_ whether it is dormant:
+`repeats` — `once` / `daily` / `weekly` / `monthly` / `inactive`. Two things
+follow from it, and both have a sharp edge.
+
+**`schedule.recurrenceType` is written from it**, by the
+`syncScheduleRecurrence` collection hook, in `beforeValidate` so the schedule's
+own field hooks see the value on the same save. So `repeats` is the authority: a
+writer that sets `recurrenceType` alone has it cleared. The class import and the
+proposal merge both go through `newEventDefaults`, which derives `repeats` from
+the schedule they build, and `testData.createEvent` does the same for a spec.
+
+**`inactive` stays in the API, computed from `repeats`**, because the Atlas
+widget selects it and the We Meditate site reads `schedule.inactive` off
+`/api/atlas/seo`. ⚠ **Never query it, and never read it in a hook.** A `where`
+cannot name a virtual field, and Payload runs every field's `afterRead` in one
+`Promise.all` — so a collection hook, and a sibling field's own `afterRead`,
+both run where `inactive` is not computed yet. Read `repeats` there:
+`shouldFinish`, `resolveNextCheckAt`, `calendarFeedAnswer`, `classKey` and
+`notFinishedWhere` all do.

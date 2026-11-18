@@ -14,7 +14,7 @@ verifyMock.mockResolvedValue({ success: true })
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 
-import { createData, testData } from '../utils/testData'
+import { createData, repeatsForSchedule, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -113,6 +113,7 @@ describe('client Origin/Referer enforcement', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: region.id,
+        repeats: repeatsForSchedule(SCHEDULE),
         schedule: SCHEDULE,
         _status: 'published',
       }),

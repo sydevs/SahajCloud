@@ -104,7 +104,6 @@ describe('Event listing quality', () => {
         region: regionId,
         _status: 'published',
         title: '',
-        inactive: false,
         eventType: 'offline',
         address: {
           venueName: 'Sunrise Hall',
@@ -130,7 +129,6 @@ describe('Event listing quality', () => {
         region: region.id,
         _status: 'published',
         title: '',
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://meet.example.org/room',
         schedule: { firstDate: '2030-04-01T18:00:00.000Z', firstDate_tz: 'Europe/Berlin' },
@@ -145,7 +143,6 @@ describe('Event listing quality', () => {
         region: region.id,
         _status: 'published',
         title: '',
-        inactive: false,
         eventType: 'offline',
         address: {
           venueName: 'Sunrise Hall',
@@ -286,7 +283,6 @@ describe('Event listing quality', () => {
       // this has to be tested through a populating relationship.
       const event = await createPublished({
         title: 'Registrable Sitting',
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.org/join',
         schedule: { firstDate: '2030-04-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },

@@ -205,7 +205,6 @@ describe('ExpireEvents job', () => {
 
     it('marks a run-out event finished and arms retention without unpublishing it', async () => {
       const event = await createDueEventAtStage(payload, 'Ran Out', 'verified', {
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/ran-out',
         // A one-off in the recent past — finished, but within the 6-month
@@ -233,7 +232,6 @@ describe('ExpireEvents job', () => {
 
     it('does not finish an event whose recurrence never ends', async () => {
       const event = await createDueEventAtStage(payload, 'Still Running', 'verified', {
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/running',
         schedule: {
@@ -318,7 +316,6 @@ describe('ExpireEvents job', () => {
     }
 
     const RAN_OUT_RECENTLY = {
-      inactive: false,
       eventType: 'online',
       onlineUrl: 'https://example.com/stale',
       // One-off two months back: schedule has run out, within retention.
@@ -329,7 +326,6 @@ describe('ExpireEvents job', () => {
     }
 
     const ONGOING = {
-      inactive: false,
       eventType: 'online',
       onlineUrl: 'https://example.com/ongoing',
       schedule: {
@@ -421,7 +417,6 @@ describe('ExpireEvents job', () => {
 
     it('trashes a finished event once its retention watermark comes due', async () => {
       const event = await createUnmanagedEvent(payload, 'Ancient Finished', 'unverified', {
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/ancient',
         schedule: { firstDate: '2021-02-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
@@ -514,7 +509,6 @@ describe('ExpireEvents job', () => {
     // A schedule that has already run out: an `inactive` event with none is
     // revived by any save, which is a different branch of the same hook.
     const RAN_OUT = {
-      inactive: false,
       eventType: 'online',
       onlineUrl: 'https://example.com/over',
       schedule: {
@@ -614,7 +608,6 @@ describe('ExpireEvents job', () => {
 
     it('finishes one stored with more images than `maxRows` allows', async () => {
       const event = await createDueEvent(payload, 'Invalid Images', {
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/too-many-images',
         // A one-off two months back, so the finished-check claims it.

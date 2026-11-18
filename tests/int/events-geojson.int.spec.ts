@@ -10,7 +10,7 @@ import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import type { Event } from '@/payload-types'
 
 import { storeInvalidEvent } from '../utils/storeInvalidEvent'
-import { createData, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 type TestUser = {
@@ -102,6 +102,7 @@ describe('eventsGeoJson endpoint', () => {
       registrationMode: 'sahaj-atlas',
       manager: managerId,
       region: regionId,
+      repeats: repeatsForSchedule(SCHEDULE),
       schedule: SCHEDULE,
     }
 
@@ -413,6 +414,7 @@ describe('eventsGeoJson endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: city.id,
+          repeats: repeatsForSchedule(SCHEDULE),
           schedule: SCHEDULE,
           address: {
             street: '3 Test St',
@@ -452,6 +454,7 @@ describe('eventsGeoJson endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: regionId,
+          repeats: repeatsForSchedule(schedule),
           schedule,
           _status: 'published',
           ...extra,
@@ -539,7 +542,12 @@ describe('eventsGeoJson endpoint', () => {
       const dormant = await createEvent(
         'Dormant Group',
         { firstDate: '2019-01-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
-        { inactive: true, contactPhone: '+44 20 7000 0000', contactName: 'Dormant Contact' },
+        {
+          repeats: 'inactive',
+          allowContact: true,
+          contactPhone: '+44 20 7000 0000',
+          contactName: 'Dormant Contact',
+        },
       )
 
       expect(await featureIds()).toContain(dormant.id)

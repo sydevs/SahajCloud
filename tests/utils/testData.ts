@@ -185,14 +185,22 @@ export function createTestLexicalContent(text: string = 'Test content'): Lexical
 
 /** Test data factory functions for creating test entities with payload.create() */
 /**
- * The `repeats` a fixture's own schedule implies: its recurrence, else a
- * one-off, else dormant — the default this helper has always had.
+ * The `repeats` a schedule implies: its recurrence, else a one-off, else dormant
+ * — the default `createEvent` has always had.
+ *
+ * ⚠ **`repeats` is what stores the recurrence.** `syncScheduleRecurrence` writes
+ * `schedule.recurrenceType` from it, so a create naming the recurrence alone
+ * has it cleared and the event reads as a finished one-off. Exported for a spec
+ * with a create helper of its own.
  */
-function repeatsFor(overrides: FixtureOverrides<Event>): string {
-  const schedule = overrides.schedule
+export function repeatsForSchedule(
+  schedule: FixtureOverrides<Event>['schedule'] | Record<string, unknown> | null | undefined,
+): Event['repeats'] {
   if (!schedule) return 'inactive'
-  const recurrence = schedule.recurrenceType
-  return recurrence ? recurrence.toLowerCase() : 'once'
+  const recurrence = (schedule as { recurrenceType?: string | null }).recurrenceType
+  // The recurrence vocabulary is the same words in upper case, which the
+  // `RECURRENCE_OPTIONS` / `EVENT_REPEATS_OPTIONS` pair keeps true.
+  return recurrence ? (recurrence.toLowerCase() as Event['repeats']) : 'once'
 }
 
 export const testData = {
@@ -1207,7 +1215,7 @@ export const testData = {
       manager: managerId,
       region: regionId,
       verificationStage: overrides.verificationStage || 'verified',
-      repeats: repeatsFor(overrides),
+      repeats: repeatsForSchedule(overrides.schedule),
       allowContact: true,
       contactPhone: overrides.contactPhone || '+1-555-0100',
       contactName: overrides.contactName || 'Test Contact',

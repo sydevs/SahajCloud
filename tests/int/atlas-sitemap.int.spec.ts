@@ -7,7 +7,7 @@ import { atlasSitemap } from '@/endpoints/atlas/sitemap'
 import type { AtlasSeoResponse, AtlasSitemapResponse } from '@/endpoints/responseTypes'
 import type { Event } from '@/payload-types'
 
-import { createData, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -128,6 +128,7 @@ describe('atlasSitemap endpoint', () => {
           languages: ['en'],
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          repeats: repeatsForSchedule(overrides.schedule ?? SCHEDULE),
           schedule: SCHEDULE,
           eventType: 'offline',
           address: {

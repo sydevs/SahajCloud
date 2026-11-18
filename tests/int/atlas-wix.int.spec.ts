@@ -10,7 +10,7 @@ import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { PROBE_SEGMENT_PREFIX } from '@/lib/clients/verification'
 import type { Event } from '@/payload-types'
 
-import { createData, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 /**
@@ -183,6 +183,7 @@ describe('atlas Wix endpoints', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: region.ontario,
+          repeats: repeatsForSchedule(SCHEDULE),
           schedule: SCHEDULE,
           eventType: 'offline',
           address: {

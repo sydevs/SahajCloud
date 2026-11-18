@@ -22,7 +22,7 @@ import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { expectEventWriteRefused, storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { runTaskHandler } from '../utils/taskRunner'
-import { createData, testData, type FixtureOverrides } from '../utils/testData'
+import { createData, repeatsForSchedule, testData, type FixtureOverrides } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 // The verify page's Server Action reaches for the app config with
@@ -151,6 +151,12 @@ describe('Event verification lifecycle', () => {
         ? { ...scheduleOverride, firstDate: uniqueStart(scheduleOverride.firstDate) }
         : scheduleOverride
     }
+    // `repeats` is what stores the recurrence, so it follows whichever schedule
+    // this fixture ended up with — `syncScheduleRecurrence` clears a
+    // `recurrenceType` the create names on its own. And a contact only counts
+    // where the box is on, which a dormant class is refused without.
+    data.repeats ??= repeatsForSchedule(data.schedule)
+    data.allowContact ??= Boolean(data.contactPhone ?? data.contactEmail)
     return payload.create({
       collection: 'events',
       overrideAccess: true,
@@ -923,8 +929,10 @@ describe('Event verification lifecycle', () => {
           registrationMode: 'sahaj-atlas',
           manager: eventManager.id,
           region: defaultRegion.id,
-          // Dormant, so no schedule is needed; an inactive class owes contacts.
-          inactive: true,
+          // Dormant, so no schedule is needed; an inactive class owes contacts,
+          // and a contact only counts while the box is on.
+          repeats: 'inactive',
+          allowContact: true,
           contactName: 'Opening Contact',
           contactPhone: '+1-555-0101',
           verificationStage: stage,
@@ -1150,7 +1158,7 @@ describe('Event verification lifecycle', () => {
   it('an inactive event expires through the ladder and never finishes', async () => {
     // Inactive events have no schedule, so contact info is required (#479).
     const event = await createEvent({
-      inactive: true,
+      repeats: 'inactive',
       schedule: null,
       contactPhone: '+44 20 7946 0000',
       contactName: 'Event Contact',
@@ -1214,6 +1222,9 @@ describe('Event verification lifecycle', () => {
         id: event.id,
         overrideAccess: true,
         data: {
+          // `repeats` is the authority: a save naming the recurrence alone has
+          // it cleared by `syncScheduleRecurrence`.
+          repeats: 'daily',
           schedule: {
             firstDate: uniqueStart(daysAgo(30)),
             firstDate_tz: 'Europe/London',
@@ -1291,7 +1302,7 @@ describe('Event verification lifecycle', () => {
     /** Inactive, published, and stored with neither contact — the #835 shape. */
     async function createUnverifiableEvent(): Promise<Event> {
       const event = await createEvent({
-        inactive: true,
+        repeats: 'inactive',
         schedule: null,
         contactPhone: '+44 20 7946 0000',
       })

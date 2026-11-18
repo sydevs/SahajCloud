@@ -49,7 +49,6 @@ describe('Events collection', () => {
 
       const finished = await testData.createEvent(payload, {
         title: 'Finished Class',
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/finished',
         // A one-off five years back — long finished.
@@ -60,7 +59,6 @@ describe('Events collection', () => {
 
       const running = await testData.createEvent(payload, {
         title: 'Running Class',
-        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/running',
         // Open-ended daily — never finishes.
@@ -240,6 +238,136 @@ describe('Events collection', () => {
         const fieldErr = (data?.errors ?? []).find((e) => e.path === 'website')
         expect(fieldErr?.message).toBe('Please enter a valid URL')
       }
+    })
+  })
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // One control stores the pace and the dormant state. `inactive` keeps its
+  // place in the API as a computed field, because the widget and the
+  // We Meditate site both read it.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe('repeats', () => {
+    it('writes the schedule’s own recurrence from the chosen pace', async () => {
+      const event = await testData.createEvent(payload, {
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      expect(event.schedule?.recurrenceType).toBe('WEEKLY')
+    })
+
+    it('clears the recurrence for a pace that does not repeat', async () => {
+      const event = await testData.createEvent(payload, {
+        repeats: 'once',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      expect(event.schedule?.recurrenceType ?? null).toBeNull()
+    })
+
+    it('answers the dormant state as `inactive`, selected on its own', async () => {
+      const dormant = await testData.createEvent(payload, { repeats: 'inactive' })
+      const weekly = await testData.createEvent(payload, {
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      expect(dormant.inactive).toBe(true)
+      expect(weekly.inactive).toBe(false)
+
+      // `select` strips the stored input the hook reads, so a field declaring
+      // its own inputs is what keeps this non-null (`@/plugins/virtualFields`).
+      const narrowed = await payload.findByID({
+        collection: 'events',
+        id: dormant.id,
+        select: { inactive: true },
+      })
+      expect(narrowed.inactive).toBe(true)
+
+      // And through a list read, which runs the same hook per row.
+      const { docs } = await payload.find({
+        collection: 'events',
+        where: { id: { in: [dormant.id, weekly.id] } },
+        select: { inactive: true },
+      })
+      expect(docs.map((doc) => [doc.id, doc.inactive])).toEqual(
+        expect.arrayContaining([
+          [dormant.id, true],
+          [weekly.id, false],
+        ]),
+      )
+    })
+  })
+
+  describe('allowContact', () => {
+    it('clears all three contact fields on the save that switches it off', async () => {
+      const event = await testData.createEvent(payload, {
+        allowContact: true,
+        contactEmail: 'reach@example.com',
+        contactName: 'Reachable Person',
+        contactPhone: '+44 20 7000 1000',
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      const closed = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { allowContact: false },
+      })
+
+      expect(closed.allowContact).toBe(false)
+      expect(closed.contactPhone ?? null).toBeNull()
+      expect(closed.contactEmail ?? null).toBeNull()
+      expect(closed.contactName ?? null).toBeNull()
+    })
+
+    // Two refusals, and each has to be provable on its own: a phone the box
+    // hides reaches nobody, and a checked box with nothing in it reaches
+    // nobody either. The phone here is what leaves the box as the only
+    // possible objection.
+    it('refuses a dormant class whose contact box is off', async () => {
+      await expect(
+        testData.createEvent(payload, {
+          repeats: 'inactive',
+          allowContact: false,
+          contactPhone: '+44 20 7000 2000',
+        }),
+      ).rejects.toThrow(/Allow seekers to contact/i)
+    })
+
+    it('refuses a dormant class whose contact box is on but empty', async () => {
+      await expect(
+        testData.createEvent(payload, {
+          repeats: 'inactive',
+          allowContact: true,
+          contactName: null,
+          contactPhone: null,
+          contactEmail: null,
+        }),
+      ).rejects.toThrow(/Contact Phone Number/i)
     })
   })
 })
