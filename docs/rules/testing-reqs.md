@@ -32,7 +32,7 @@ Every test command belongs to one of three tiers, each with one purpose. Tier 1 
 
 **Why `pnpm typecheck` is its own gate step.** Neither ESLint nor Vitest runs `tsc`. A type error can pass lint and the whole test suite, then surface only at the Railway build — after merge. Tier 2 and CI both run `tsc --noEmit` (8 s measured — `tests/PERF.md`) to catch it first.
 
-**Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, 8 s measured). Two separate commands means a failure names its own lane.
+**Why `pnpm typecheck:tests` is a separate command.** The root `tsconfig.json` excludes `tests`, and the Next.js build reads that same config. So `pnpm typecheck` covers only `src/`. Without a second pass, nothing type-checks the specs — esbuild strips their types without checking them. A stale fixture then surfaces as a runtime failure, or never surfaces at all. `tsconfig.test.json` closes that gap over the whole suite (`tests/**`, 8 s measured). It also takes `vitest.config.mts`, which no other program does — the root config's `**/*.ts` glob does not match a `.mts` filename, so the file configuring both lanes went unchecked and a Vitest key removed under it failed open (#1199). Two separate commands means a failure names its own lane.
 
 This gate only works when fixtures are typed against the real schema. See "Typed fixtures" in `tests/AGENTS.md`.
 

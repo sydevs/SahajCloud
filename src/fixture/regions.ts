@@ -6,6 +6,7 @@ export const REGION_IDS = {
   region: 1_002_004,
   citySecond: 1_002_005,
   venueSecond: 1_002_006,
+  cityEmpty: 1_002_007,
   unmanagedCountry: 1_002_010,
   unmanagedRegion: 1_002_011,
   unmanagedCity: 1_002_012,
@@ -101,6 +102,22 @@ export default fixture('regions', [
       latitude: 51.201,
       longitude: 0.301,
       radius: 150,
+    },
+  },
+  // Nothing is published anywhere beneath it: what the Atlas tab's empty-region
+  // notice is shown for.
+  {
+    id: REGION_IDS.cityEmpty,
+    data: {
+      level: 'city',
+      parent: ID.regions.country,
+      mapboxId: manual('wellspring'),
+      name: 'Fixture Wellspring',
+      slug: 'fixture-wellspring',
+      generateSlug: false,
+      latitude: 51.9,
+      longitude: -0.45,
+      radius: 14000,
     },
   },
   // A whole tree with no manager anywhere up its chain.

@@ -2446,6 +2446,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "duration": {
+          "name": "duration",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
         "include_for_meditations": {
           "name": "include_for_meditations",
           "type": "boolean",
@@ -29601,6 +29607,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "76ed0b58-7e58-4684-9510-b0153bd68bc8",
+  "id": "80528828-ae95-406d-85d9-cf6dec314b4e",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

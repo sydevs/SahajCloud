@@ -2,19 +2,23 @@ import os from 'os'
 import path from 'path'
 
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { defineConfig } from 'vitest/config'
 
-import { DEFAULT_TEST_DATABASE_URL } from './tests/utils/postgresTestPool'
+import { DEFAULT_TEST_DATABASE_URL } from './tests/utils/postgresTestPool.ts'
 
+// `import.meta.dirname` and the extension on the import above are what Vite's
+// planned `configLoader: 'native'` needs. The aliases survive `tsconfigPaths`
+// because they bind to this file's directory, not to the tsconfig nearest the
+// importing module.
 const sharedResolve = {
   alias: {
-    '@': path.resolve(__dirname, './src'),
-    tests: path.resolve(__dirname, './tests'),
+    '@': path.resolve(import.meta.dirname, './src'),
+    tests: path.resolve(import.meta.dirname, './tests'),
   },
+  tsconfigPaths: true,
 }
 
-const sharedPlugins = [tsconfigPaths(), react()]
+const sharedPlugins = [react()]
 
 // Shared by both Vitest projects, unit and int. Each project's `env` block
 // used to copy this (see #499 §6). DATABASE_URL falls back to a local
@@ -42,6 +46,13 @@ const sharedTestEnv: Record<string, string> = {
   LEMONFOX_API_KEY: '',
 }
 
+// V8 coverage instruments the whole Payload module graph. This makes the
+// per-suite bootstrap (buildConfig, getPayload, Drizzle push) many times
+// slower, past the normal 60s/120s timeouts. `pnpm test:coverage` is an
+// opt-in run that takes about 20 minutes, so it gets 600s timeouts instead.
+// This flag is read from argv because Vitest does not expose it in config.
+const isCoverage = process.argv.includes('--coverage')
+
 // Upper bound on concurrent integration-suite forks (#499 §2). The int lane
 // is DB-bound. Every suite runs a full-schema Drizzle `push` against the
 // same Postgres, and each Payload instance opens a connection pool (the
@@ -51,13 +62,6 @@ const sharedTestEnv: Record<string, string> = {
 // in docs/rules/testing-reqs.md). CI uses a dedicated service-container
 // Postgres, so it can use the whole (smaller) runner. Override this value
 // with VITEST_INT_MAX_FORKS.
-// V8 coverage instruments the whole Payload module graph. This makes the
-// per-suite bootstrap (buildConfig, getPayload, Drizzle push) many times
-// slower, past the normal 60s/120s timeouts. `pnpm test:coverage` is an
-// opt-in run that takes about 20 minutes, so it gets 600s timeouts instead.
-// This flag is read from argv because Vitest does not expose it in config.
-const isCoverage = process.argv.includes('--coverage')
-
 const cpuCount = os.availableParallelism?.() ?? os.cpus().length
 const envMaxForks = Number(process.env.VITEST_INT_MAX_FORKS)
 const intMaxForks =
@@ -136,16 +140,15 @@ export default defineConfig({
           // files. Vitest defaults to `fileParallelism: true` for the forks
           // pool. This line pins that value so it cannot silently change.
           // It runs suites concurrently across forked workers, bounded by
-          // `poolOptions.forks.maxForks` (see `intMaxForks` above for the
-          // connection-count reason).
+          // `maxWorkers` (see `intMaxForks` above for the connection-count
+          // reason).
           maxConcurrency: 1,
           fileParallelism: true,
-          poolOptions: {
-            forks: {
-              minForks: 1,
-              maxForks: intMaxForks,
-            },
-          },
+          maxWorkers: intMaxForks,
+          // A run covering both projects groups them by `sequence.groupOrder`
+          // and refuses a group whose projects disagree on `maxWorkers`.
+          // Groups run in sequence, so a combined run serializes the lanes.
+          sequence: { groupOrder: 1 },
           // Postgres has real per-operation latency, unlike the old instant
           // in-memory SQLite. Write-heavy integration tests and the
           // per-suite schema push need more time. Coverage instrumentation
