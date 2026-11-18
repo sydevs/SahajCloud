@@ -42,8 +42,15 @@ const MODES: { label: string; value: Mode }[] = [
 export const MapPreviewField: UIFieldClientComponent = () => {
   const { iframeRef, isLivePreviewing, previewWindowType, setURL, url } = useLivePreviewContext()
   const [mode, setMode] = useState<Mode>('light')
-  /** Whether the atlas has answered since the frame last loaded. */
-  const heard = useRef(false)
+  /**
+   * The panel address the atlas has answered from since that address last
+   * loaded.
+   *
+   * ⚠ **The address, not a flag.** A new address has not spoken yet, and the
+   * only other thing that clears the answer is a `load` — which a blocked frame
+   * may never fire, and which is exactly the case the clock below is for.
+   */
+  const heardFrom = useRef<null | string>(null)
 
   // ⚠ Keyed on the panel's `url`, not on the ref alone. `autoOpen` opens the panel
   // after this field has mounted, so an effect depending only on stable values
@@ -94,7 +101,7 @@ export const MapPreviewField: UIFieldClientComponent = () => {
    * ⚠ **Its own effect.** The mode effect above re-runs on every toggle, and a
    * clock restarted there would read a silent atlas as reachable each time.
    *
-   * ⚠ **`heard` outlives the effect, and only a `load` clears it.** Payload
+   * ⚠ **`heardFrom` outlives the effect, and only a `load` clears it.** Payload
    * renders the iframe once and never unmounts it on close — "defer load and
    * never unmount" (`providers/LivePreview/index.js`) — so reopening the panel
    * brings back a frame that has already loaded and already spoken. There is no
@@ -121,19 +128,19 @@ export const MapPreviewField: UIFieldClientComponent = () => {
     let timer: ReturnType<typeof setTimeout> | undefined
     const wait = () => {
       clearTimeout(timer)
-      if (heard.current) return
+      if (heardFrom.current === url) return
       timer = setTimeout(
         () => composePanelUrl(setURL, panelNoticeUrl('atlas-unreachable')),
         ATLAS_SILENCE_MS,
       )
     }
     const onLoad = () => {
-      heard.current = false
+      heardFrom.current = null
       wait()
     }
     const onMessage = (event: MessageEvent) => {
       if (!isFromPreviewFrame(event, frame)) return
-      heard.current = true
+      heardFrom.current = url
       clearTimeout(timer)
     }
 
@@ -147,12 +154,6 @@ export const MapPreviewField: UIFieldClientComponent = () => {
       window.removeEventListener('message', onMessage)
     }
   }, [iframeRef, isLivePreviewing, previewWindowType, setURL, url])
-
-  // A new address in the frame is a page that has not spoken yet. Its own
-  // effect, so re-running the watch above for any other reason keeps the answer.
-  useEffect(() => {
-    heard.current = false
-  }, [url])
 
   return (
     <div className="field-type">

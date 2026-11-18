@@ -397,6 +397,22 @@ describe('MapPreviewField', () => {
     expect(stub.url).toBe('https://atlas.example/preview')
   })
 
+  it('watches a new panel address, even though the old one had spoken', async () => {
+    // A save re-resolves `livePreview.url`, so the frame carries a page that
+    // has not answered yet — and a frame nobody can see into may never fire the
+    // `load` that would otherwise re-arm the clock.
+    fakeClock()
+    const frame = openPreview()
+    await mount(MapPreviewField)
+    await post(report({}), frame.contentWindow)
+
+    stub.url = 'https://atlas.example/preview?region=2'
+    await mount(MapPreviewField)
+    tick(ATLAS_SILENCE_MS)
+
+    expect(stub.url).toContain('/live-preview-unavailable?reason=atlas-unreachable')
+  })
+
   it('watches no frame while the preview is a popup', async () => {
     // The whole window returns null then, so the iframe the clock waits on is
     // detached and the popup's own messages come from another window.
