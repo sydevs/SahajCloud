@@ -341,6 +341,30 @@ describe('Events collection', () => {
       expect(repaced.schedule?.firstDate_tz).toBe('Europe/London')
       expect(repaced.schedule?.interval).toBe(1)
     })
+
+    // An update proposal, or any REST patch, may name the recurrence and not the
+    // pace; Payload fills `repeats` from the stored row before the hook runs.
+    it('moves the pace with a write that edits the recurrence alone', async () => {
+      const event = await testData.createEvent(payload, {
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      const updated = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { schedule: { recurrenceType: 'MONTHLY' } },
+      })
+
+      expect(updated.repeats).toBe('monthly')
+      expect(updated.schedule?.recurrenceType).toBe('MONTHLY')
+    })
   })
 
   describe('allowContact', () => {
