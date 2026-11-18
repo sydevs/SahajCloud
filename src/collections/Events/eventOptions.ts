@@ -66,3 +66,15 @@ export function repeatsForSchedule(schedule: unknown): Event['repeats'] {
   const recurrence = (schedule as { recurrenceType?: string | null }).recurrenceType
   return recurrence ? (recurrence.toLowerCase() as Event['repeats']) : 'once'
 }
+
+/**
+ * Whether a patch carries a contact route, which is what the box allows — a
+ * name alone reaches nobody. Every writer of a contact field reads this, so the
+ * box and the fields it gates cannot disagree.
+ */
+export function hasContactRoute(patch: {
+  contactEmail?: unknown
+  contactPhone?: unknown
+}): boolean {
+  return Boolean(patch.contactPhone || patch.contactEmail)
+}

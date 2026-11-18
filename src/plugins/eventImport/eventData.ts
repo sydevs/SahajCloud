@@ -10,7 +10,7 @@
 import type { RawImportRow } from './csv/columns'
 import type { Temporal } from '@js-temporal/polyfill'
 
-import { hasContactRoute } from '@/collections/Events/hooks/clearContactDetails'
+import { hasContactRoute } from '@/collections/Events/eventOptions'
 import { newEventDefaults } from '@/collections/UserSubmissions/lifecycle/mergeProposal'
 import { addressFeatureMapboxId, type GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { plainTextToLexical } from '@/lib/richEditor/plainTextToLexical'

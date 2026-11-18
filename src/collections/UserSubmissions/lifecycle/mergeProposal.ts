@@ -1,5 +1,4 @@
-import { repeatsForSchedule } from '@/collections/Events/eventOptions'
-import { hasContactRoute } from '@/collections/Events/hooks/clearContactDetails'
+import { hasContactRoute, repeatsForSchedule } from '@/collections/Events/eventOptions'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
