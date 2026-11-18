@@ -20,8 +20,8 @@
  */
 import dotenv from 'dotenv'
 
-import { backfillSongDurations } from '../src/lib/audio/backfillSongDurations'
 import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
+import { backfillSongDurations } from './song-durations'
 
 async function main(): Promise<void> {
   const force = process.argv.includes('--force')

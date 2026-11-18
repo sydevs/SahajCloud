@@ -1,8 +1,7 @@
 import type { Payload } from 'payload'
 
-import { getR2Url } from '@/plugins/storage'
-
-import { readAudioDuration } from './duration'
+import { readAudioDuration } from '../src/lib/audio/duration'
+import { getR2Url } from '../src/plugins/storage'
 
 /** A stalled R2 transfer must not hang an operator's run for ever. */
 const FETCH_TIMEOUT_MS = 60_000
@@ -23,6 +22,8 @@ interface BackfillSongDurationsOptions {
 }
 
 /**
+ * The routine half of `backfill-song-durations.ts` (#1195).
+ *
  * Give every stored song a `duration`, read from the audio it already points
  * at. The upload hook fires on an upload alone, so a song stored before it
  * landed carries none.

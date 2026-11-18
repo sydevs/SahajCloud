@@ -5,9 +5,9 @@ import path from 'path'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { backfillSongDurations } from '@/lib/audio/backfillSongDurations'
+import { backfillSongDurations } from '../../scripts/song-durations'
 
-vi.mock('@/plugins/storage', () => ({
+vi.mock('../../src/plugins/storage', () => ({
   getR2Url: (filename: string) => `https://assets.test/${filename}`,
 }))
 
