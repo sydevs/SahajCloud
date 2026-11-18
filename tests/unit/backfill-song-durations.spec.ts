@@ -101,13 +101,13 @@ describe('backfillSongDurations', () => {
   it('skips a song it cannot read and carries on with the rest', async () => {
     const { payload, update } = stubPayload([
       { id: 1, title: 'Gone', filename: 'gone.mp3' },
-      { id: 2, title: 'Corrupt', filename: 'junk.mp3' },
+      { id: 2, title: 'No duration', filename: 'silent.mp3' },
       { id: 3, title: 'Fileless' },
       { id: 4, title: 'Long', filename: 'long.mp3' },
     ])
     stubFetch({
       'gone.mp3': 404,
-      'junk.mp3': audio('audio-unreadable.mp3'),
+      'silent.mp3': audio('audio-no-duration.mp3'),
       'long.mp3': audio('audio-42s.mp3'),
     })
 
@@ -116,7 +116,7 @@ describe('backfillSongDurations', () => {
     expect(result.written).toEqual([{ id: 4, title: 'Long', duration: 42 }])
     expect(result.skipped).toEqual([
       { id: 1, title: 'Gone', reason: 'fetch failed with 404' },
-      { id: 2, title: 'Corrupt', reason: 'audio states no duration' },
+      { id: 2, title: 'No duration', reason: 'audio states no duration' },
       { id: 3, title: 'Fileless', reason: 'no audio file' },
     ])
     expect(update).toHaveBeenCalledTimes(1)

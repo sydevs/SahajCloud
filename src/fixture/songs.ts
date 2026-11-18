@@ -5,8 +5,8 @@ import { fixture } from './types'
 const AUDIO = 'fixture-audio.mp3'
 /** Clearly shorter than AUDIO, so two songs cannot share one duration by accident. */
 const SHORT_AUDIO = 'fixture-audio-short.mp3'
-/** Not audio at all: the song that shows a blank duration rather than a failed save. */
-const UNREADABLE_AUDIO = 'fixture-audio-unreadable.mp3'
+/** Real MPEG frames stating no duration: the song that shows a blank one rather than a failed save. */
+const NO_DURATION_AUDIO = 'fixture-audio-no-duration.mp3'
 
 export default fixture('songs', [
   {
@@ -54,7 +54,7 @@ export default fixture('songs', [
   // No tags at all, and audio nothing can read a duration from.
   {
     id: 1_018_005,
-    file: UNREADABLE_AUDIO,
+    file: NO_DURATION_AUDIO,
     data: {
       title: 'Fixture Damaged Interlude (no duration)',
       album: ALBUM.morning,

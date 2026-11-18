@@ -14,8 +14,8 @@ import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 const API_KEY = 'app-client-key-for-song-duration-spec'
-/** A real MPEG header with no duration behind it, as a corrupt upload arrives. */
-const UNREADABLE = 'audio-unreadable.mp3'
+/** Real MPEG frames with no duration behind them, as a truncated upload arrives. */
+const NO_DURATION = 'audio-no-duration.mp3'
 
 describe('Song duration extraction', () => {
   let payload: Payload
@@ -64,7 +64,7 @@ describe('Song duration extraction', () => {
   })
 
   it('saves a song whose audio states no duration, with none stored', async () => {
-    const song = await testData.createSong(payload, { album: album.id }, UNREADABLE)
+    const song = await testData.createSong(payload, { album: album.id }, NO_DURATION)
 
     expect(song.id).toBeDefined()
     expect(song.duration).toBeNull()

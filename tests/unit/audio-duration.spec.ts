@@ -31,7 +31,7 @@ describe('readAudioDuration', () => {
 
   it('answers undefined when the container states no duration', async () => {
     await expect(
-      readAudioDuration(read('fixture-audio-unreadable.mp3'), 'audio/mpeg'),
+      readAudioDuration(read('fixture-audio-no-duration.mp3'), 'audio/mpeg'),
     ).resolves.toBeUndefined()
   })
 
@@ -81,7 +81,7 @@ describe('extractAudioDuration', () => {
     const warn = vi.fn()
 
     const result = await extractAudioDuration()(
-      hookArgs({ data: read('fixture-audio-unreadable.mp3'), mimetype: 'audio/mpeg' }, warn),
+      hookArgs({ data: read('fixture-audio-no-duration.mp3'), mimetype: 'audio/mpeg' }, warn),
     )
 
     expect(result).toEqual({})
