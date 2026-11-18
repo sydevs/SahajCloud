@@ -79,9 +79,28 @@ const EVENT_FIELDS = [
 
 describe('mergeProposal', () => {
   it('lays the proposal over the target, field by field', () => {
-    const target = { title: 'Morning Meditation', contactPhone: '+44 700' } as Partial<Event>
-    const merged = mergeProposal({ proposed: { contactPhone: '+44 900' }, target })
-    expect(merged).toEqual({ title: 'Morning Meditation', contactPhone: '+44 900' })
+    const target = { title: 'Morning Meditation', website: 'https://a.test' } as Partial<Event>
+    const merged = mergeProposal({ proposed: { website: 'https://b.test' }, target })
+    expect(merged).toEqual({ title: 'Morning Meditation', website: 'https://b.test' })
+  })
+
+  it('switches the contact box on for an update proposal that carries a contact', () => {
+    // Accept writes `updatePatch` too, so the diff and the write agree.
+    const target = { allowContact: false, contactPhone: null } as Partial<Event>
+    expect(mergeProposal({ proposed: { contactPhone: '+44 900' }, target }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { title: 'Renamed' }, target }).allowContact).toBe(false)
+  })
+
+  it('moves the pace with an update proposal that edits the recurrence alone', () => {
+    // The save's own hook lands the same pace (`syncScheduleRecurrence`).
+    const weekly = {
+      repeats: 'weekly',
+      schedule: { recurrenceType: 'WEEKLY' },
+    } as unknown as Partial<Event>
+    const proposed = { schedule: { recurrenceType: 'MONTHLY' } }
+    expect(mergeProposal({ proposed, target: weekly }).repeats).toBe('monthly')
+    const dormant = { ...weekly, repeats: 'inactive' } as Partial<Event>
+    expect(mergeProposal({ proposed, target: dormant }).repeats).toBe('inactive')
   })
 
   it('merges into a group the way Payload does, keeping untouched sub-fields', () => {

@@ -1,4 +1,4 @@
-import { hasContactRoute, repeatsForSchedule } from '@/lib/events/derivedFields'
+import { hasContactRoute, paceAfter, repeatsForSchedule } from '@/lib/events/derivedFields'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -119,8 +119,21 @@ export function mergeProposal(args: {
   /** New-event submissions only — an update proposal inherits its target's. */
   manager?: unknown
 }): ProposedPatch {
-  const base: ProposedPatch = args.target ?? newEventDefaults(args.proposed, args.manager)
-  return mergeInto(base, args.proposed ?? {})
+  const { target } = args
+  if (!target) return mergeInto(newEventDefaults(args.proposed, args.manager), args.proposed ?? {})
+  // The pace is what the save's own hook will land on (`syncScheduleRecurrence`).
+  const merged = mergeInto(target, updatePatch(args.proposed ?? {}))
+  const repeats = paceAfter(target, merged as Partial<Event>)
+  return repeats === merged.repeats ? merged : { ...merged, repeats }
+}
+
+/**
+ * What Accept writes over an update proposal's target: the patch, with the
+ * contact box switched on when it proposes a contact — the fields behind an
+ * unticked box are hidden, and a dormant class is refused without it.
+ */
+export function updatePatch(proposed: ProposedPatch): ProposedPatch {
+  return hasContactRoute(proposed) ? { ...proposed, allowContact: true } : proposed
 }
 
 /**
