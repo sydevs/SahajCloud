@@ -738,6 +738,7 @@ export type TableOfContentsHeadings = {
   slug: string;
   text: string;
   level: number;
+  index?: number;
   [k: string]: unknown;
 }[];
 /**

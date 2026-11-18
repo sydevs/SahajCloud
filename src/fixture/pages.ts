@@ -131,6 +131,9 @@ export default fixture('pages', [
           credit: 'Fixture Teacher',
           caption: 'From a fixture talk',
         }),
+        // Slugifies to `where-to-begin`, the same as the heading above it: the pair
+        // is what shows that a table-of-contents entry is its position, not its slug.
+        heading('h2', 'Where to begin?'),
         paragraph(
           'Read more in ',
           link('our guide to technique', 'https://example.invalid/technique'),
@@ -142,7 +145,10 @@ export default fixture('pages', [
         }),
         block('table-of-contents', 'welcome-toc', {
           title: 'In this article',
-          headings: [{ slug: 'where-to-begin', text: 'Where to begin', level: 2 }],
+          headings: [
+            { slug: 'where-to-begin', text: 'Where to begin', level: 2, index: 0 },
+            { slug: 'where-to-begin', text: 'Where to begin?', level: 2, index: 1 },
+          ],
         }),
       ),
     },

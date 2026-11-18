@@ -28,9 +28,9 @@ export const TableOfContentsBlock: Block = {
     jsonField({
       name: 'headings',
       // Written only by `TableOfContentsField`, which stores the subset of the
-      // document's detected headings an author ticked. The schema mirrors that
-      // component's `DetectedHeading`, which cannot be imported here — it lives
-      // in a `'use client'` module, and this block config is server-side.
+      // document's detected headings an author ticked. The schema restates that
+      // component's `DetectedHeading` (`src/components/admin/TableOfContentsField/
+      // headings.ts`), because a TypeScript type cannot build a schema.
       // Entries stay open so a heading gaining a field does not make every
       // existing page unsaveable.
       schemaTitle: 'TableOfContentsHeadings',
@@ -39,6 +39,11 @@ export const TableOfContentsBlock: Block = {
           slug: z.string(),
           text: z.string(),
           level: z.int(),
+          // The heading's ordinal among the document's detected headings, which
+          // is what tells two headings that slugify alike apart. Optional, or
+          // the next save of every page stored before it would be refused —
+          // so a consumer reads its absence as unknown, never as 0.
+          index: z.int().optional(),
         }),
       ),
       admin: {
