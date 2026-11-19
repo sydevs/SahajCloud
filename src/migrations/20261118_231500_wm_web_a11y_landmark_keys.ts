@@ -23,7 +23,7 @@ const ADDED = [
   { group: COMMON_GENERAL, key: 'skip_to_main', en: 'Skip to main content' },
   { group: COMMON_A11Y, key: 'primary_navigation', en: 'Main menu' },
   { group: COMMON_A11Y, key: 'footer_navigation', en: 'Footer menu' },
-  { group: LECTURE_A11Y, key: 'untitled_heading', en: 'Untitled talk' },
+  { group: LECTURE_A11Y, key: 'untitled_heading', en: 'Untitled Lecture' },
 ]
 
 type Db = MigrateUpArgs['db']
