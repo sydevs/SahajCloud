@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "bg",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -103,7 +103,12 @@
       "related_lectures": "Свързани лекции",
       "upsell_web": "Още медитации ще намерите на %{link}",
       "upsell_app": "Интерактивни медитации с музика за медитация ще намерите в нашето %{link}",
-      "upsell_app_link": "безплатно приложение"
+      "upsell_app_link": "безплатно приложение",
+      "finder_question": "Как се чувствате?",
+      "finder_unavailable": "В момента не можем да заредим медитациите. Моля, опитайте отново след малко.",
+      "all_meditations": "Всички медитации",
+      "mood_meditation_label_one": "%{mood} · %{count} минута",
+      "mood_meditation_label_other": "%{mood} · %{count} минути"
     },
     "a11y": {
       "mute_voice": "Заглуши гласа",
@@ -114,7 +119,8 @@
       "music_volume": "Сила на звука на музиката",
       "audio_settings": "Настройки на звука",
       "shuffle_music": "Случаен музикален запис",
-      "related_lectures_loading": "Зареждане на свързаните лекции"
+      "related_lectures_loading": "Зареждане на свързаните лекции",
+      "finder_region": "Изберете как се чувствате"
     }
   },
   "lecture": {

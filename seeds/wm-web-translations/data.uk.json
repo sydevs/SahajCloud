@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "uk",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -109,7 +109,14 @@
       "related_lectures": "Схожі лекції",
       "upsell_web": "Більше медитацій шукайте на %{link}",
       "upsell_app": "Інтерактивні медитації з музикою для медитації шукайте в нашому %{link}",
-      "upsell_app_link": "безкоштовному застосунку"
+      "upsell_app_link": "безкоштовному застосунку",
+      "finder_question": "Як ти почуваєшся?",
+      "finder_unavailable": "Не вдається завантажити медитації. Спробуй ще раз трохи пізніше.",
+      "all_meditations": "Усі медитації",
+      "mood_meditation_label_one": "%{mood} · %{count} хв",
+      "mood_meditation_label_few": "%{mood} · %{count} хв",
+      "mood_meditation_label_many": "%{mood} · %{count} хв",
+      "mood_meditation_label_other": "%{mood} · %{count} хв"
     },
     "a11y": {
       "mute_voice": "Вимкнути голос",
@@ -120,7 +127,8 @@
       "music_volume": "Гучність музики",
       "audio_settings": "Налаштування звуку",
       "shuffle_music": "Випадковий музичний трек",
-      "related_lectures_loading": "Завантаження схожих лекцій"
+      "related_lectures_loading": "Завантаження схожих лекцій",
+      "finder_region": "Вибери, як ти почуваєшся"
     }
   },
   "lecture": {

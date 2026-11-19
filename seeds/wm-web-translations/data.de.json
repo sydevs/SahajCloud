@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "de",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -103,7 +103,12 @@
       "related_lectures": "Verwandte Vorträge",
       "upsell_web": "Weitere Meditationen findest du auf %{link}",
       "upsell_app": "Interaktive Meditationen mit Meditationsmusik findest du in unserer %{link}",
-      "upsell_app_link": "kostenlosen App"
+      "upsell_app_link": "kostenlosen App",
+      "finder_question": "Wie fühlst du dich?",
+      "finder_unavailable": "Die Meditationen lassen sich gerade nicht laden. Bitte versuche es gleich noch einmal.",
+      "all_meditations": "Alle Meditationen",
+      "mood_meditation_label_one": "%{mood} · %{count} Min.",
+      "mood_meditation_label_other": "%{mood} · %{count} Min."
     },
     "a11y": {
       "mute_voice": "Stimme stummschalten",
@@ -114,7 +119,8 @@
       "music_volume": "Lautstärke der Musik",
       "audio_settings": "Audio-Einstellungen",
       "shuffle_music": "Zufälliger Musiktitel",
-      "related_lectures_loading": "Verwandte Vorträge werden geladen"
+      "related_lectures_loading": "Verwandte Vorträge werden geladen",
+      "finder_region": "Wähle, wie du dich fühlst"
     }
   },
   "lecture": {

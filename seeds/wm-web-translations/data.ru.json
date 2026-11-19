@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "ru",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -109,7 +109,14 @@
       "related_lectures": "Похожие лекции",
       "upsell_web": "Больше медитаций ищи на %{link}",
       "upsell_app": "Интерактивные медитации с музыкой для медитации ищи в нашем %{link}",
-      "upsell_app_link": "бесплатном приложении"
+      "upsell_app_link": "бесплатном приложении",
+      "finder_question": "Как ты себя чувствуешь?",
+      "finder_unavailable": "Не удаётся загрузить медитации. Попробуй ещё раз чуть позже.",
+      "all_meditations": "Все медитации",
+      "mood_meditation_label_one": "%{mood} · %{count} мин",
+      "mood_meditation_label_few": "%{mood} · %{count} мин",
+      "mood_meditation_label_many": "%{mood} · %{count} мин",
+      "mood_meditation_label_other": "%{mood} · %{count} мин"
     },
     "a11y": {
       "mute_voice": "Выключить голос",
@@ -120,7 +127,8 @@
       "music_volume": "Громкость музыки",
       "audio_settings": "Настройки звука",
       "shuffle_music": "Случайный трек музыки",
-      "related_lectures_loading": "Загрузка похожих лекций"
+      "related_lectures_loading": "Загрузка похожих лекций",
+      "finder_region": "Выбери, как ты себя чувствуешь"
     }
   },
   "lecture": {

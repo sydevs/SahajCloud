@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "cs",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -106,7 +106,13 @@
       "related_lectures": "Související přednášky",
       "upsell_web": "Další meditace najdete na %{link}",
       "upsell_app": "Interaktivní meditace s meditační hudbou najdete v naší %{link}",
-      "upsell_app_link": "bezplatné aplikaci"
+      "upsell_app_link": "bezplatné aplikaci",
+      "finder_question": "Jak se cítíte?",
+      "finder_unavailable": "Meditace se nyní nedaří načíst. Zkuste to prosím za chvíli znovu.",
+      "all_meditations": "Všechny meditace",
+      "mood_meditation_label_one": "%{mood} · %{count} min",
+      "mood_meditation_label_few": "%{mood} · %{count} min",
+      "mood_meditation_label_other": "%{mood} · %{count} min"
     },
     "a11y": {
       "mute_voice": "Ztlumit hlas",
@@ -117,7 +123,8 @@
       "music_volume": "Hlasitost hudby",
       "audio_settings": "Nastavení zvuku",
       "shuffle_music": "Náhodná hudební skladba",
-      "related_lectures_loading": "Načítají se související přednášky"
+      "related_lectures_loading": "Načítají se související přednášky",
+      "finder_region": "Vyberte, jak se cítíte"
     }
   },
   "lecture": {

@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "fr",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "schema_version": "post-#1223 (14 tabs, 25 leaf groups, 201 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
@@ -103,7 +103,12 @@
       "related_lectures": "Conférences associées",
       "upsell_web": "Retrouvez d'autres méditations sur %{link}",
       "upsell_app": "Retrouvez des méditations interactives avec de la musique de méditation dans notre %{link}",
-      "upsell_app_link": "application gratuite"
+      "upsell_app_link": "application gratuite",
+      "finder_question": "Comment vous sentez-vous ?",
+      "finder_unavailable": "Nous ne parvenons pas à charger les méditations pour le moment. Réessayez dans un instant.",
+      "all_meditations": "Toutes les méditations",
+      "mood_meditation_label_one": "%{mood} · %{count} min",
+      "mood_meditation_label_other": "%{mood} · %{count} min"
     },
     "a11y": {
       "mute_voice": "Couper la voix",
@@ -114,7 +119,8 @@
       "music_volume": "Volume de la musique",
       "audio_settings": "Réglages audio",
       "shuffle_music": "Piste musicale aléatoire",
-      "related_lectures_loading": "Chargement des conférences associées"
+      "related_lectures_loading": "Chargement des conférences associées",
+      "finder_region": "Choisissez comment vous vous sentez"
     }
   },
   "lecture": {
