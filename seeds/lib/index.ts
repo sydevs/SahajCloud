@@ -4,7 +4,6 @@ export * from './fileUtils'
 export * from './validationReport'
 export * from './cliParser'
 export * from './BaseImporter'
-export * from './TranslationGlobalsImporter'
 
 // Runtime detection
 export * from './runtime'

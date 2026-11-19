@@ -1,12 +1,12 @@
 /**
  * `seedLocaleFiles`, on the two failures that must not be mistaken for a
- * per-locale one (`seeds/lib/TranslationGlobalsImporter.ts`).
+ * per-locale one (`seeds/translations/import.ts`).
  *
  * The loop swallows a `writeGlobal` throw on purpose: each locale is its own
  * write and its own publish, and `writeGlobal` has already reported the
  * `updateGlobal` failure. The contract violation it raises when no Payload
  * instance was injected is the one throw it reports nowhere — swallowing that
- * one reports a clean run over nine locales nothing was written for.
+ * one reports a clean run over locales nothing was written for.
  *
  * The `_meta.locale` check is the other: a file in the wrong slot would publish
  * one language's words as another's, so it must stop before the write and not
@@ -18,25 +18,20 @@
 
 import type { BaseImportOptions } from '../../seeds/lib'
 
-import * as path from 'path'
-
 import { describe, expect, it, vi } from 'vitest'
 
-import { type WmWebTranslationLocale, wmWebTranslationsDataFile } from '../../seeds/lib/dataFiles'
+import { type AtlasTranslationLocale, atlasTranslationsDataFile } from '../../seeds/lib/dataFiles'
 import { Logger } from '../../seeds/lib/logger'
-import { TranslationGlobalsImporter } from '../../seeds/lib/TranslationGlobalsImporter'
 import { ValidationReport } from '../../seeds/lib/validationReport'
+import { TranslationsImporter } from '../../seeds/translations/import'
 
 /**
  * `run()` is what normally injects the logger and the report. This calls
  * `seedLocaleFiles` directly, so it supplies both and leaves `payload` unset —
  * the state the first case is about.
  */
-class ProbeImporter extends TranslationGlobalsImporter {
+class ProbeImporter extends TranslationsImporter {
   readonly log = new Logger()
-
-  protected readonly importName = 'Probe'
-  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/probe')
 
   constructor(options: BaseImportOptions) {
     super(options)
@@ -45,10 +40,10 @@ class ProbeImporter extends TranslationGlobalsImporter {
   }
 
   seedOne(
-    locale: WmWebTranslationLocale,
-    dataFile: (locale: WmWebTranslationLocale) => string = wmWebTranslationsDataFile,
+    locale: AtlasTranslationLocale,
+    dataFile: (locale: AtlasTranslationLocale) => string = atlasTranslationsDataFile,
   ): Promise<void> {
-    return this.seedLocaleFiles({ slug: 'wm-web-translations', locales: [locale], dataFile })
+    return this.seedLocaleFiles({ slug: 'sy-atlas-translations', locales: [locale], dataFile })
   }
 
   protected async import(): Promise<void> {}
@@ -65,12 +60,12 @@ describe('seedLocaleFiles', () => {
     const importer = new ProbeImporter({ dryRun: false, clearCache: false })
     const logged = vi.spyOn(importer.log, 'error').mockResolvedValue(undefined)
 
-    // Italian wording in Russian's slot: the header is the only thing that says
+    // German wording in Russian's slot: the header is the only thing that says
     // which language a file holds.
     await expect(
-      importer.seedOne('ru', () => wmWebTranslationsDataFile('it')),
+      importer.seedOne('ru', () => atlasTranslationsDataFile('de')),
     ).resolves.toBeUndefined()
 
-    expect(logged).toHaveBeenCalledWith(expect.stringContaining('_meta.locale is "it"'))
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining('_meta.locale is "de"'))
   })
 })
