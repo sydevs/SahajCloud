@@ -30,7 +30,12 @@ import type { ContentSlug } from './types'
 import type { FieldAccess, PayloadRequest, Where } from 'payload'
 
 import { isAdminManager, isManager } from './adminOnly'
-import { getDocManagerFields, relationId, resolveManagedDocIds } from './documentManagers'
+import {
+  getDocManagerFields,
+  relationId,
+  resolveManagedDocIds,
+  userManagesDocument,
+} from './documentManagers'
 
 /** Collections whose writes are scoped to the region manager's owned-region subtree. */
 const REGION_SUBTREE_COLLECTIONS = new Set<ContentSlug>(['regions', 'events'])
@@ -282,3 +287,31 @@ export const regionManagersFieldAccess: FieldAccess = ({ id, req }) => maySetMan
  */
 export const eventManagerFieldAccess: FieldAccess = ({ doc, req }) =>
   maySetManagerOn(req, relationId((doc as { region?: unknown } | undefined)?.region))
+
+/**
+ * Whether a manager already holds a document through what sits above it — its
+ * `parent` chain, or an event's region subtree — so naming them on it grants
+ * nothing new. The invitation queue reads it to stay quiet when a region
+ * manager is named on a class or sub-region they already look after.
+ */
+export async function managesThroughAncestor(
+  req: PayloadRequest,
+  collection: string,
+  doc: Record<string, unknown>,
+  managerId: number | string,
+): Promise<boolean> {
+  const slug = collection as ContentSlug
+  const { parentField } = getDocManagerFields(req.payload, slug)
+  const [above, aboveId] =
+    slug === 'events'
+      ? (['regions', relationId(doc.region)] as const)
+      : ([slug, parentField ? relationId(doc[parentField]) : null] as const)
+  if (aboveId === null) return false
+  return userManagesDocument(
+    req,
+    above,
+    managerId,
+    aboveId,
+    getDocManagerFields(req.payload, above),
+  )
+}

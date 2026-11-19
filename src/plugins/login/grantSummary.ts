@@ -103,6 +103,11 @@ export interface PendingInvitation {
   roles?: Record<string, string[]>
   /** Document ids the manager was named on, per collection slug. */
   managed?: Record<string, (number | string)[]>
+  /**
+   * Document ids the manager held before this window and was taken off, per
+   * collection slug — so putting them back announces nothing. Never listed.
+   */
+  released?: Record<string, (number | string)[]>
   /** The manager whose save assigned the most recent of them. */
   by?: number | string | null
 }
@@ -255,7 +260,9 @@ export async function summarizeGrants({
     part(project).responsibilities.push(responsibility)
   }
 
-  if (parts.size === 0) return empty
+  // A queue whose every entry was undone or released names nothing — not even
+  // an admin's full access, which no queued change granted.
+  if (parts.size === 0) return only ? [] : empty
   return getProjectSlugs().flatMap((project) => {
     const found = parts.get(project)
     if (!found) return []

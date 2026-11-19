@@ -6,7 +6,7 @@ import { runClock } from '@/lib/jobs/runClock'
 import { DEFAULT_LOCALE } from '@/lib/locales'
 import { NEVER_FREQUENCY, notificationFrequency } from '@/lib/notifications/preferences'
 import { relationId } from '@/lib/utilities/relationId'
-import { selfOrAdminFieldAccess } from '@/plugins/access'
+import { managesThroughAncestor, selfOrAdminFieldAccess } from '@/plugins/access'
 import { capture } from '@/plugins/sentry/capture'
 
 import { MANAGERS_COLLECTION } from './grantSummary'
@@ -16,6 +16,10 @@ import { composeInvitations } from './invite'
  * The invitation queue: a manager is invited when they are **assigned
  * something** — a role, or a region, event or page that names them — never
  * when their account is created.
+ *
+ * Only what is new to them. Nothing is queued for their own change, for a
+ * document they already hold through a region or parent above it, or for one
+ * they were taken off and put back on within the same window (`released`).
  *
  * Assignments collect on the manager (`pendingInvitation`) and the send waits
  * until {@link INVITATION_DELAY_MS} after the last one (`invitationDueAt`), so
@@ -71,9 +75,30 @@ const idsOf = (value: unknown): number[] =>
 /** `a ∪ b`, keeping `a`'s order. */
 const union = <T>(a: T[] = [], b: T[] = []) => [...new Set([...a, ...b])]
 
+/** `list` without any of `drop`, comparing ids as strings. */
+const without = <T>(list: T[] = [], drop: unknown[] = []) => {
+  const dropped = new Set(drop.map(String))
+  return list.filter((id) => !dropped.has(String(id)))
+}
+
 /**
- * Add `added` to what is already queued for `managerId`, and push the send out
- * to {@link INVITATION_DELAY_MS} from now.
+ * A change nobody needs telling about: the manager's own — creating an event
+ * they manage, or a sub-region they look after — or a seed import's
+ * (`LoginPluginOptions.invitations`), or the preview fixture's.
+ */
+const isUnannounced = (req: PayloadRequest, managerId: number | string): boolean =>
+  (req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)) ||
+  Boolean(req.context?.seed || req.context?.fixture)
+
+/**
+ * Fold one save's change into what is queued for `managerId`, and push the
+ * send out to {@link INVITATION_DELAY_MS} from now.
+ *
+ * `managed` is what the save named them on and `released` what it took them
+ * off. Each cancels the other within a window: a document put back after
+ * being released was theirs all along, and one released after being newly
+ * named was never theirs. A release still pushes the send out, so the queue
+ * — and what it remembers — is cleared within the window either way.
  *
  * ⚠ **A read-modify-write, and not atomic.** Two saves naming the same manager
  * in the same instant can drop one of the two ids. The admin assigns one thing
@@ -82,14 +107,9 @@ const union = <T>(a: T[] = [], b: T[] = []) => [...new Set([...a, ...b])]
 async function enqueue(
   req: PayloadRequest,
   managerId: number | string,
-  added: Omit<PendingInvitation, 'by'>,
+  change: Omit<PendingInvitation, 'by'>,
 ): Promise<void> {
-  // A manager's own change is not news to them — creating an event they
-  // manage, or a sub-region they look after. Nor is a seed import's
-  // (`LoginPluginOptions.invitations`), or the preview fixture's.
-  const self =
-    req.user?.collection === MANAGERS_COLLECTION && String(req.user.id) === String(managerId)
-  if (self || req.context?.seed || req.context?.fixture) return
+  if (isUnannounced(req, managerId)) return
 
   const { payload } = req
   const manager = await payload
@@ -107,20 +127,31 @@ async function enqueue(
 
   const queued = (manager.pendingInvitation ?? {}) as PendingInvitation
   const managed = { ...queued.managed }
-  for (const [collection, ids] of Object.entries(added.managed ?? {})) {
-    managed[collection] = union(managed[collection], ids)
+  const released = { ...queued.released }
+  for (const [collection, ids] of Object.entries(change.managed ?? {})) {
+    const putBack = (released[collection] ?? []).map(String)
+    released[collection] = without(released[collection], ids)
+    managed[collection] = union(managed[collection], without(ids, putBack))
+  }
+  for (const [collection, ids] of Object.entries(change.released ?? {})) {
+    const newlyNamed = (managed[collection] ?? []).map(String)
+    managed[collection] = without(managed[collection], ids)
+    released[collection] = union(released[collection], without(ids, newlyNamed))
   }
   const roles = { ...queued.roles }
-  for (const [locale, slugs] of Object.entries(added.roles ?? {})) {
+  for (const [locale, slugs] of Object.entries(change.roles ?? {})) {
     roles[locale] = union(roles[locale], slugs)
   }
-  const by = req.user?.collection === MANAGERS_COLLECTION ? req.user.id : null
+  // A release names nobody as the one who asked.
+  const assigns = Boolean(change.managed || change.roles)
+  const actor = req.user?.collection === MANAGERS_COLLECTION ? req.user.id : null
+  const by = assigns ? actor : (queued.by ?? null)
 
   await payload.db.updateOne({
     collection: MANAGERS_COLLECTION,
     id: managerId,
     data: {
-      pendingInvitation: { managed, roles, by } satisfies PendingInvitation,
+      pendingInvitation: { managed, released, roles, by } satisfies PendingInvitation,
       invitationDueAt: new Date(Date.now() + INVITATION_DELAY_MS).toISOString(),
     },
     req,
@@ -130,15 +161,21 @@ async function enqueue(
 
 /**
  * `afterChange` for a collection whose `on` field names managers: queue an
- * invitation for each manager the save newly names. Removing one queues
- * nothing.
+ * invitation for each manager the save newly names, unless a region or parent
+ * above the document already makes it theirs, and remember each one it takes
+ * off.
  */
 export function queueOnManagerField(collection: string, on: string): CollectionAfterChangeHook {
   return async ({ doc, previousDoc, req }) => {
-    const before = new Set(idsOf(previousDoc?.[on]).map(String))
-    for (const managerId of idsOf(doc[on])) {
-      if (before.has(String(managerId))) continue
+    const before = idsOf(previousDoc?.[on])
+    const after = idsOf(doc[on])
+    for (const managerId of without(after, before)) {
+      if (isUnannounced(req, managerId)) continue
+      if (await managesThroughAncestor(req, collection, doc, managerId)) continue
       await enqueue(req, managerId, { managed: { [collection]: [doc.id] } })
+    }
+    for (const managerId of without(before, after)) {
+      await enqueue(req, managerId, { released: { [collection]: [doc.id] } })
     }
     return doc
   }
