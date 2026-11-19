@@ -34,6 +34,8 @@ const CONTENT_TYPE_CONFIG: Record<
   },
   // The featured-mood filter is the whole point of this type: an editor picks no
   // ids, so featuring a mood upstream puts it on the site with no release.
+  // ⚠ WeMeditateWeb/server/moods.ts spells this same filter, because /meditations
+  // renders the moods with no block at all. Nothing ties the two but this line.
   moods: {
     basePath: '/api/user-choices',
     extraParams: 'where[isFeatured][equals]=true&where[type][equals]=mood',
