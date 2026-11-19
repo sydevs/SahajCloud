@@ -5648,6 +5648,10 @@ export interface WmWebTranslation {
 }
 export interface WmWebTranslationsCommonGeneralStrings {
   /**
+   * The link at the very top of every page that jumps past the menus to the page's own content. Hidden until a keyboard reaches it, then shown on screen.
+   */
+  skip_to_main?: string;
+  /**
    * Shown beside a spinner while content is still loading.
    */
   loading?: string;
@@ -5701,6 +5705,14 @@ export interface WmWebTranslationsCommonA11YStrings {
    * Not shown on screen; read by screen readers. Names the trail of parent links above a page title.
    */
   breadcrumb?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the site's main menu, so it can be told apart from the other menus on the page.
+   */
+  primary_navigation?: string;
+  /**
+   * Not shown on screen; read by screen readers. Names the footer's untitled list of links. A footer column that shows its own heading is named by that heading instead.
+   */
+  footer_navigation?: string;
   /**
    * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab, and is read directly after the link's own words. Takes no placeholder, because the link's text is arbitrary. Keep the brackets if the language uses them.
    */
@@ -6003,6 +6015,10 @@ export interface WmWebTranslationsLectureA11YStrings {
    * Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading.
    */
   related_meditations_loading?: string;
+  /**
+   * Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own.
+   */
+  untitled_heading?: string;
 }
 export interface WmWebTranslationsMapGeneralStrings {
   /**
