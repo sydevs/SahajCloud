@@ -79,9 +79,16 @@ const EVENT_FIELDS = [
 
 describe('mergeProposal', () => {
   it('lays the proposal over the target, field by field', () => {
-    const target = { title: 'Morning Meditation', contactPhone: '+44 700' } as Partial<Event>
-    const merged = mergeProposal({ proposed: { contactPhone: '+44 900' }, target })
-    expect(merged).toEqual({ title: 'Morning Meditation', contactPhone: '+44 900' })
+    const target = { title: 'Morning Meditation', website: 'https://a.test' } as Partial<Event>
+    const merged = mergeProposal({ proposed: { website: 'https://b.test' }, target })
+    expect(merged).toEqual({ title: 'Morning Meditation', website: 'https://b.test' })
+  })
+
+  it('switches the contact box on for an update proposal that carries a contact', () => {
+    // Accept writes `updatePatch` too, so the diff and the write agree.
+    const target = { allowContact: false, contactPhone: null } as Partial<Event>
+    expect(mergeProposal({ proposed: { contactPhone: '+44 900' }, target }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { title: 'Renamed' }, target }).allowContact).toBe(false)
   })
 
   it('merges into a group the way Payload does, keeping untouched sub-fields', () => {
@@ -119,6 +126,14 @@ describe('mergeProposal', () => {
     expect(
       mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).inactive,
     ).toBe(false)
+  })
+
+  it('switches the contact box on for a proposal that carries one', () => {
+    // The box governs the read, so an accepted proposal carrying a phone has to
+    // arrive with the box checked or nothing it offered ever reaches a seeker.
+    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { contactEmail: 'a@b.test' } }).allowContact).toBe(true)
+    expect(mergeProposal({ proposed: { title: 'No contact' } }).allowContact).toBe(false)
   })
 
   it('creates an unadopted listing unverified, and an adopted one verified', () => {

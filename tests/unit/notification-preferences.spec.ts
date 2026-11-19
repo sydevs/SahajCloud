@@ -9,7 +9,6 @@ import {
   notificationFrequency,
   notificationMethodLabel,
   notificationTypesFor,
-  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
   validateNotificationPreferences,
 } from '@/lib/notifications/preferences'
 
@@ -105,17 +104,6 @@ describe('notification preferences config', () => {
       expect(buildDefaultNotificationPreferences(types)).toEqual({
         statistics: { frequency: 'Never', method: '' },
       })
-    })
-  })
-
-  /**
-   * The override address sends at once or not at all — `SendDigests` skips any
-   * event carrying one — so a digest pace chosen there would silently do
-   * nothing.
-   */
-  describe('REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS', () => {
-    it('offers no digest pace', () => {
-      expect(REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS).toEqual(['Immediate', 'Never'])
     })
   })
 

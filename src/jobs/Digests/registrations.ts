@@ -13,14 +13,7 @@ import { relationId } from '@/lib/utilities/relationId'
 
 const PAGINATION_LIMIT = 200
 
-/**
- * The events whose registrations route to this manager's digest.
- *
- * ⚠ **An event carrying an override address is left out.** That address gets
- * the notice immediately, at `Immediate` or not at all, so counting its
- * registrations here would send them twice — once to the override and once in
- * the digest.
- */
+/** The events whose registrations route to this manager's digest. */
 async function digestEvents(req: PayloadRequest, managerId: number) {
   const { docs } = await req.payload.find({
     collection: 'events',
@@ -30,12 +23,11 @@ async function digestEvents(req: PayloadRequest, managerId: number) {
     overrideAccess: true,
     req: localeIsolatedReq(req),
     select: {
-      registrationNotificationEmail: true,
       schedule: { firstDate_tz: true },
       title: true,
     },
   })
-  return docs.filter((event) => !event.registrationNotificationEmail?.trim())
+  return docs
 }
 
 /**

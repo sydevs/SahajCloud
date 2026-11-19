@@ -2,6 +2,7 @@
 paths:
   - src/plugins/email/**/*.ts
   - src/emails/**/*.tsx
+  - src/plugins/login/**/*.ts
 ---
 
 # Email Configuration
@@ -207,7 +208,9 @@ pluralize(strings, 'sessions_count', count, locale)
 
 The invitation is sent by a queue (`src/plugins/login/invitations.ts`):
 
-- **An assignment queues it.** A role added to a manager, or a region, event or page newly naming one (each collection a `managers` join points at), is recorded on the manager as `pendingInvitation`, and `invitationDueAt` moves to ten minutes on. `sendInvitations` runs every five minutes on the `invitations` queue and sends what is due — so a region and twelve events assigned together are one email. Removing an assignment queues nothing.
+- **An assignment queues it.** A role added to a manager, or a region, event or page newly naming one (each collection a `managers` join points at), is recorded on the manager as `pendingInvitation`, and `invitationDueAt` moves to ten minutes on. `sendInvitations` runs every five minutes on the `invitations` queue and sends what is due — so a region and twelve events assigned together are one email.
+- **A removal is remembered for the window, not ignored.** Taking a manager off a document records it in `pendingInvitation.released` and pushes `invitationDueAt` out as an assignment does, so putting them back before that window is sent announces nothing — and a removal following a fresh assignment cancels it. The send clears what was remembered, so coming back after it is news again. A removal never overwrites who is credited with the assignment.
+- **A document an ancestor already gave them is not announced.** A manager newly named on a sub-region under a region they look after, or on a class inside it, is told nothing: the listing grants them nothing they did not hold. `managesThroughAncestor` (`src/plugins/access/regionSubtreeAccess.ts`) is that test, and it is the inheritance access control itself runs.
 - ⚠ **Queue writes go through `payload.db.updateOne`**, never `update`. They are bookkeeping on someone else's save: `update` would run the manager's hooks and validate the whole stored document, so an imported manager with legacy data failing a newer validator would roll back the region save that named them.
 - **A manager's own change queues nothing** — creating an event they manage is not news to them. Nor does a seed import, or it would leave production hundreds of invitations to send: `payload.config.ts` passes `invitations: !isSeedScript` for an in-process seed script, and an `/api/seed` import, which runs inside the server, marks every write `context.seed`.
 - **The send names only what was queued, and only what is still held.** Each queued id is re-read, so an assignment undone before the send is not announced, and a finished event is left out. A queue that names nothing sends nothing. The `invitation` notification preference set to Never turns it off.

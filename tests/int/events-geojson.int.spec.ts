@@ -539,7 +539,12 @@ describe('eventsGeoJson endpoint', () => {
       const dormant = await createEvent(
         'Dormant Group',
         { firstDate: '2019-01-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
-        { inactive: true, contactPhone: '+44 20 7000 0000', contactName: 'Dormant Contact' },
+        {
+          inactive: true,
+          allowContact: true,
+          contactPhone: '+44 20 7000 0000',
+          contactName: 'Dormant Contact',
+        },
       )
 
       expect(await featureIds()).toContain(dormant.id)

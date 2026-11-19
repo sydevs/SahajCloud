@@ -1,6 +1,6 @@
 /**
  * A class's schedule in a few words, for the import result's Details column:
- * "Every week on Tuesday at 7 PM GMT", "One-off on 12 Nov · 18:00", "Inactive".
+ * "Every week on Tuesday at 7 PM GMT", "One-off on 12 Nov · 18:00", "On-demand".
  *
  * Two readers, because two sources: a created class's live schedule (which
  * may have been edited since), and a skipped row's CSV cells, which may be
@@ -51,7 +51,7 @@ export function liveScheduleSummary(
   schedule: Partial<EventSchedule> | null | undefined,
   inactive: boolean | null | undefined,
 ): string {
-  if (inactive || !schedule?.firstDate) return 'Inactive'
+  if (inactive || !schedule?.firstDate) return 'On-demand'
   if (!schedule.recurrenceType) {
     const zone = schedule.firstDate_tz ?? 'UTC'
     try {

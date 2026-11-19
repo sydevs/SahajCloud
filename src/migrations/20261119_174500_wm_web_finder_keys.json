@@ -12196,8 +12196,27 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_phone": {
-          "name": "contact_phone",
+        "description": {
+          "name": "description",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allow_contact": {
+          "name": "allow_contact",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "contact_name": {
+          "name": "contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12208,20 +12227,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_name": {
-          "name": "contact_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "website": {
-          "name": "website",
+        "contact_phone": {
+          "name": "contact_phone",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12422,20 +12429,6 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
-        },
-        "registration_notification_email": {
-          "name": "registration_notification_email",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "registration_notification_frequency": {
-          "name": "registration_notification_frequency",
-          "type": "enum_events_registration_notification_frequency",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'Immediate'"
         },
         "registration_questions_experience": {
           "name": "registration_questions_experience",
@@ -13353,8 +13346,27 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_contact_phone": {
-          "name": "version_contact_phone",
+        "version_description": {
+          "name": "version_description",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_website": {
+          "name": "version_website",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_allow_contact": {
+          "name": "version_allow_contact",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "version_contact_name": {
+          "name": "version_contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13365,20 +13377,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_contact_name": {
-          "name": "version_contact_name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_description": {
-          "name": "version_description",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_website": {
-          "name": "version_website",
+        "version_contact_phone": {
+          "name": "version_contact_phone",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13579,20 +13579,6 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
-        },
-        "version_registration_notification_email": {
-          "name": "version_registration_notification_email",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_registration_notification_frequency": {
-          "name": "version_registration_notification_frequency",
-          "type": "enum_events_registration_notification_frequency",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'Immediate'"
         },
         "version_registration_questions_experience": {
           "name": "version_registration_questions_experience",
@@ -27333,14 +27319,6 @@
         "external"
       ]
     },
-    "public.enum_events_registration_notification_frequency": {
-      "name": "enum_events_registration_notification_frequency",
-      "schema": "public",
-      "values": [
-        "Immediate",
-        "Never"
-      ]
-    },
     "public.enum_events_verification_stage": {
       "name": "enum_events_verification_stage",
       "schema": "public",
@@ -29616,6 +29594,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "80528828-ae95-406d-85d9-cf6dec314b4e",
+  "id": "d3337bf9-c886-412b-9fb1-e314bfe5ab65",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

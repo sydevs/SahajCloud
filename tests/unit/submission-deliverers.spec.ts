@@ -80,29 +80,37 @@ describe('deliveredStatus', () => {
 /**
  * The manager notice's wording, decided from the row's own activity log.
  *
- * ⚠ **The fixture event carries `registrationNotificationEmail`**, so
- * `resolveRegistrationRecipient` takes the override-address branch and never
- * reads a manager — the one routing shape reachable with no `managers` row to
- * stub. Verified against `src/collections/Events/Events.ts`, which declares
- * that address beside its `Immediate` cadence.
+ * ⚠ **The notice goes to the event's manager, at their own `event_registration`
+ * pace**, so the fixture manager carries that preference at `Immediate` —
+ * verified against `NOTIFICATION_TYPES` in `src/lib/notifications/preferences.ts`,
+ * which declares the key and `Immediate` among its options.
  *
  * The registrant's confirmation goes out first, so the manager's notice is the
  * last send.
  */
 describe('deliverRegistration', () => {
+  const MANAGER = {
+    id: 9,
+    name: 'Rosa Events',
+    email: 'events-team@example.org',
+    notificationPreferences: { event_registration: { frequency: 'Immediate', method: 'email' } },
+  }
+
   const EVENT = {
     id: 42,
     title: 'Tuesday Evening Meditation',
     eventType: 'offline',
-    registrationNotificationEmail: 'events-team@example.org',
-    registrationNotificationFrequency: 'Immediate',
+    manager: MANAGER.id,
     schedule: { firstDate: '2027-01-06T10:00:00.000Z', firstDate_tz: 'Europe/London' },
   }
 
   const deliver = async (activityLog: unknown[]) => {
     const { payload, sendEmail } = stubEmailPayload()
     const req = {
-      payload: Object.assign(payload, { findByID: async () => EVENT }),
+      payload: Object.assign(payload, {
+        findByID: async ({ collection }: { collection: string }) =>
+          collection === 'managers' ? MANAGER : EVENT,
+      }),
     }
 
     const outcome = await DELIVERERS.registration.deliver({
@@ -121,7 +129,7 @@ describe('deliverRegistration', () => {
 
     expect(outcome).toMatchObject({ ok: true })
     const managerMessage = sendEmail.mock.calls.at(-1)![0]
-    expect(managerMessage.to).toBe(EVENT.registrationNotificationEmail)
+    expect(managerMessage.to).toBe(MANAGER.email)
     return managerMessage
   }
 

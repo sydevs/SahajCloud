@@ -306,6 +306,42 @@ async function userManagesAncestorViaParent(
 }
 
 /**
+ * Whether a loaded document's ancestors list the user — the `breadcrumbs`
+ * trail, or the `parent` walk when there is none. The one implementation of
+ * ancestor inheritance; both exported checks below are a direct listing and
+ * then this.
+ */
+async function ancestorsListUser(
+  req: PayloadRequest,
+  collection: ContentSlug,
+  userId: number,
+  doc: Record<string, unknown>,
+  docId: number,
+  fields: DocManagerFields,
+): Promise<boolean> {
+  if (fields.hasBreadcrumbs) {
+    const ancestorIds = breadcrumbAncestorIds(doc, docId)
+    if (!ancestorIds.length) return false
+    const hit = await req.payload.find({
+      collection: collection as CollectionSlug,
+      where: { and: [{ id: { in: ancestorIds } }, directManagerWhere(userId, fields)] },
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+      select: { id: true } as never,
+      req,
+    })
+    return hit.docs.length > 0
+  }
+
+  if (fields.parentField) {
+    return userManagesAncestorViaParent(req, collection, userId, doc, fields)
+  }
+
+  return false
+}
+
+/**
  * True when the user may read + update a single document — either listed on it
  * directly or on one of its ancestors.
  */
@@ -321,25 +357,25 @@ export async function userManagesDocument(
 
   const uid = Number(userId)
   if (documentListsUser(doc, uid, fields)) return true
+  return ancestorsListUser(req, collection, uid, doc, Number(docId), fields)
+}
 
-  if (fields.hasBreadcrumbs) {
-    const ancestorIds = breadcrumbAncestorIds(doc, Number(docId))
-    if (!ancestorIds.length) return false
-    const hit = await req.payload.find({
-      collection: collection as CollectionSlug,
-      where: { and: [{ id: { in: ancestorIds } }, directManagerWhere(uid, fields)] },
-      depth: 0,
-      limit: 1,
-      overrideAccess: true,
-      select: { id: true } as never,
-      req,
-    })
-    return hit.docs.length > 0
-  }
-
-  if (fields.parentField) {
-    return userManagesAncestorViaParent(req, collection, uid, doc, fields)
-  }
-
-  return false
+/**
+ * True when an **ancestor** of the document lists the user, whether or not the
+ * document itself does. The invitation queue asks this to stay quiet about a
+ * document the manager already held from above (`managesThroughAncestor`).
+ *
+ * The row is re-read rather than taken from the caller, so the trail is the
+ * stored one — a hook's document carries whatever its own save left there.
+ */
+export async function userManagesAncestor(
+  req: PayloadRequest,
+  collection: ContentSlug,
+  userId: number | string,
+  docId: number | string,
+  fields: DocManagerFields,
+): Promise<boolean> {
+  const doc = await loadDoc(req, collection, docId, fields)
+  if (!doc) return false
+  return ancestorsListUser(req, collection, Number(userId), doc, Number(docId), fields)
 }
