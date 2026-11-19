@@ -10,7 +10,6 @@
  *
  * Scripts:
  * - translations: all three translation globals (English seed)
- * - wm-web-locales: the nine non-English locales of wm-web-translations, each published
  * - file-transcripts: a transcript for every recording the target holds without one
  *
  * Authentication: Needs an admin session.
@@ -397,10 +396,6 @@ async function getImporter(
     case 'translations': {
       const { TranslationsImporter } = await import('../../../../../../seeds/translations/import')
       return new TranslationsImporter(options)
-    }
-    case 'wm-web-locales': {
-      const { WmWebLocalesImporter } = await import('../../../../../../seeds/wm-web-locales/import')
-      return new WmWebLocalesImporter(options)
     }
     default:
       return null

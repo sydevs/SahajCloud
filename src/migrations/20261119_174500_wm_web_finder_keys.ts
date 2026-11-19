@@ -37,8 +37,8 @@ const ADDED = [
 ]
 
 // `down` sweeps wider than `up` wrote. `mood_meditation_label` is `plural: true`, so `_few` and
-// `_many` are legal storage keys too — the Russian, Ukrainian and Czech seeds write them, and so
-// does the admin's grouped plural row. The previous schema declares none of the family, and one
+// `_many` are legal storage keys too — a Slavic locale needs them, and the admin's grouped
+// plural row is what writes them. The previous schema declares none of the family, and one
 // stored undeclared key refuses every later save of the global.
 const DROPPED = [
   ...ADDED.map(({ group, key }) => ({ group, key })),

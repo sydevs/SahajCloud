@@ -3,8 +3,7 @@
  * Used by schema-utils and cleanup-orphaned-media integration tests.
  */
 
-import type { DetectedHeading } from '@/components/admin/TableOfContentsField'
-import type { Page } from '@/payload-types'
+import type { Page, TableOfContentsHeadings } from '@/payload-types'
 
 /** Generate unique ID for test entities */
 export function uniqueId(): string {
@@ -206,7 +205,7 @@ export function createLexicalWithRelationshipNode(options: {
  */
 export function createLexicalWithTableOfContentsBlock(options: {
   title?: string
-  headings?: DetectedHeading[] | null
+  headings?: TableOfContentsHeadings | null
 }): Page['content'] {
   return {
     root: {
