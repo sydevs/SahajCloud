@@ -132,7 +132,8 @@ export default fixture('pages', [
           caption: 'From a fixture talk',
         }),
         // Slugifies to `where-to-begin`, the same as the heading above it: the pair
-        // is what shows that a table-of-contents entry is its position, not its slug.
+        // is what shows that a table-of-contents entry names which occurrence of
+        // its slug it is, not just the slug.
         heading('h2', 'Where to begin?'),
         paragraph(
           'Read more in ',
@@ -146,8 +147,8 @@ export default fixture('pages', [
         block('table-of-contents', 'welcome-toc', {
           title: 'In this article',
           headings: [
-            { slug: 'where-to-begin', text: 'Where to begin', level: 2, index: 0 },
-            { slug: 'where-to-begin', text: 'Where to begin?', level: 2, index: 1 },
+            { slug: 'where-to-begin', text: 'Where to begin', level: 2, occurrence: 0 },
+            { slug: 'where-to-begin', text: 'Where to begin?', level: 2, occurrence: 1 },
           ],
         }),
       ),

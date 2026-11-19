@@ -12,7 +12,13 @@ import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { slugifyValue } from '@/fields/slugify'
 import type { TableOfContentsHeadings } from '@/payload-types'
 
-import { blockedHeadings, rebuildStored, resolveStored, toggleHeading } from './headings'
+import {
+  blockedHeadings,
+  rebuildStored,
+  resolveStored,
+  stampOccurrences,
+  toggleHeading,
+} from './headings'
 import { TableOfContents } from './TableOfContents'
 
 export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly }) => {
@@ -32,13 +38,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    // ⚠ Cross-repo contract: a consumer rendering the document re-derives each
-    // entry's `index` by counting headings the same way, to anchor its link.
-    // The rule this scan implements is published to them in the `describe()` on
-    // the `headings` schema (`@/lib/richEditor/blocks/TableOfContentsBlock`),
-    // which `generate:types` copies into every consumer's own types. Change
-    // both together, or anchors move on every consumer site —
-    // sydevs/WeMeditateWeb#266 is the first.
+    // Which nodes count is half of the cross-repo contract `stampOccurrences`
+    // carries: a top-level heading node whose trimmed text is non-empty.
     const scanHeadings = (editorState: EditorState): TableOfContentsHeadings => {
       const detected: TableOfContentsHeadings = []
       editorState.read(() => {
@@ -52,13 +53,12 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
                   slug: slugifyValue(text),
                   text,
                   level: parseInt(node.getTag().slice(1), 10),
-                  index: detected.length,
                 })
               }
             }
           })
       })
-      return detected
+      return stampOccurrences(detected)
     }
 
     const applyUpdate = (detected: TableOfContentsHeadings) => {
@@ -90,8 +90,9 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
     return unregister
   }, [editor, setValue])
 
-  // Resolved against the document rather than read off the stored indexes, so the
-  // ticks are right while a document stored before `index` existed awaits its rebuild.
+  // Resolved against the document rather than read off the stored occurrences, so
+  // the ticks are right while a document stored before the key existed awaits its
+  // rebuild.
   const enabledHeadings = useMemo(
     () => resolveStored(detectedHeadings, storedValue ?? []),
     [detectedHeadings, storedValue],

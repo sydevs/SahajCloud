@@ -25,13 +25,38 @@ function headingsAt(
 }
 
 /**
+ * Each heading's ordinal among the headings sharing its slug, counted from 0.
+ *
+ * ⚠ Cross-repo contract: this count is what a consumer rendering the document
+ * re-derives to anchor a stored entry, and the rule is published to them in the
+ * `describe()` on the `headings` schema
+ * (`@/lib/richEditor/blocks/TableOfContentsBlock`), which `generate:types`
+ * copies into every consumer's own types. Change both together, or anchors move
+ * on every consumer site — sydevs/WeMeditateWeb#266 is the first.
+ */
+export function stampOccurrences(detected: TableOfContentsHeadings): TableOfContentsHeadings {
+  const seen = new Map<string, number>()
+
+  return detected.map((heading) => {
+    const occurrence = seen.get(heading.slug) ?? 0
+    seen.set(heading.slug, occurrence + 1)
+    return { ...heading, occurrence }
+  })
+}
+
+/**
  * Which detected headings a stored list stands for, as positions in `detected`.
  *
- * Each entry claims an unclaimed heading of its own slug, preferring the same
- * text, then the nearest position. Neither tie-break covers the other: text is
- * what survives a heading inserted above, which moves every position, and the
- * position is all that tells two headings apart when their text is identical
- * too.
+ * Each entry claims an unclaimed heading of its own slug: the one at its own
+ * occurrence, else the one whose text still matches, else whatever is left. The
+ * occurrence is exact, and no other heading moving disturbs it. The two
+ * fallbacks place an entry stored before the key existed, and one whose own
+ * occurrence has since been deleted.
+ *
+ * shortcut: a heading inserted above two that slugify alike shifts their
+ * occurrences, so the ticks move with them until the next save. Upgrade when an
+ * editor reports it — a stable id per heading node is the real answer, and only
+ * Lexical can mint one.
  */
 export function resolveStored(
   detected: TableOfContentsHeadings,
@@ -40,21 +65,18 @@ export function resolveStored(
   const claimed = new Set<number>()
 
   for (const entry of stored) {
-    let best: { distance: number; exact: boolean; position: number } | null = null
+    const free = (candidate: TableOfContentsHeadings[number], i: number) =>
+      !claimed.has(i) && candidate.slug === entry.slug
 
-    for (let position = 0; position < detected.length; position++) {
-      const candidate = detected[position]
-      if (claimed.has(position) || candidate.slug !== entry.slug) continue
+    const atOccurrence =
+      entry.occurrence === undefined
+        ? -1
+        : detected.findIndex((c, i) => free(c, i) && c.occurrence === entry.occurrence)
+    const withSameText = detected.findIndex((c, i) => free(c, i) && c.text === entry.text)
+    const anyLeft = detected.findIndex(free)
 
-      const exact = candidate.text === entry.text
-      const distance = entry.index === undefined ? 0 : Math.abs(position - entry.index)
-      const better =
-        !best || (exact && !best.exact) || (exact === best.exact && distance < best.distance)
-
-      if (better) best = { distance, exact, position }
-    }
-
-    if (best) claimed.add(best.position)
+    const position = [atOccurrence, withSameText, anyLeft].find((p) => p !== -1)
+    if (position !== undefined) claimed.add(position)
   }
 
   return claimed
