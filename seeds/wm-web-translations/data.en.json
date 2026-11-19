@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "en",
     "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.a11y.opens_in_new_tab_suffix` replaces no literal: it is a new string sydevs/WeMeditateWeb#238 asked for, and it retired `opens_in_new_tab`, its `%{label}` sentence form. `common.general.skip_to_main`, `common.a11y.primary_navigation` and `common.a11y.footer_navigation` replace no literal either: the site renders no skip link and names none of its menus today, and sydevs/WeMeditateWeb#162 asked for all three. `lecture.a11y.untitled_heading` is a fourth from the same goal: a talk with no title still owes the page one heading. `blocks.general.wisdom_sidetext` replaces a default parameter rather than a literal in the markup: the ornate text box spelled it in English for every locale, and sydevs/WeMeditateWeb#262 asked for it.",
-    "schema_version": "14 tabs, 25 leaf groups, 197 declared keys",
+    "schema_version": "post-#1218 (14 tabs, 25 leaf groups, 197 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
