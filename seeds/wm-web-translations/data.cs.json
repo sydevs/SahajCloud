@@ -3,13 +3,14 @@
     "global": "wm-web-translations",
     "locale": "cs",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1196 (14 tabs, 25 leaf groups, 192 declared keys)",
+    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
   },
   "common": {
     "general": {
+      "skip_to_main": "Přejít k hlavnímu obsahu",
       "loading": "Načítání...",
       "show_more": "Zobrazit více",
       "site_title": "We Meditate",
@@ -24,6 +25,8 @@
       "show_more_items_few": "Zobrazit %{count} další položky",
       "show_more_items_other": "Zobrazit %{count} dalších položek",
       "breadcrumb": "Drobečková navigace",
+      "primary_navigation": "Hlavní nabídka",
+      "footer_navigation": "Nabídka v zápatí",
       "opens_in_new_tab_suffix": "(otevře se na nové kartě)"
     }
   },
@@ -123,7 +126,8 @@
       "related_meditations": "Související meditace"
     },
     "a11y": {
-      "related_meditations_loading": "Načítají se související meditace"
+      "related_meditations_loading": "Načítají se související meditace",
+      "untitled_heading": "Přednáška bez názvu"
     }
   },
   "map": {

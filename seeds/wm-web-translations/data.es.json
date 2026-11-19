@@ -3,13 +3,14 @@
     "global": "wm-web-translations",
     "locale": "es",
     "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
-    "schema_version": "post-#1196 (14 tabs, 25 leaf groups, 192 declared keys)",
+    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
     "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
     "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
   },
   "common": {
     "general": {
+      "skip_to_main": "Ir al contenido principal",
       "loading": "Cargando...",
       "show_more": "Mostrar más",
       "site_title": "We Meditate",
@@ -23,6 +24,8 @@
       "show_more_items_one": "Mostrar %{count} elemento más",
       "show_more_items_other": "Mostrar %{count} elementos más",
       "breadcrumb": "Ruta de navegación",
+      "primary_navigation": "Menú principal",
+      "footer_navigation": "Menú del pie de página",
       "opens_in_new_tab_suffix": "(se abre en una pestaña nueva)"
     }
   },
@@ -120,7 +123,8 @@
       "related_meditations": "Meditaciones relacionadas"
     },
     "a11y": {
-      "related_meditations_loading": "Cargando meditaciones relacionadas"
+      "related_meditations_loading": "Cargando meditaciones relacionadas",
+      "untitled_heading": "Charla sin título"
     }
   },
   "map": {
