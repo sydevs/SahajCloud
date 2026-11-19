@@ -15,7 +15,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Of the versions, only the `latest: true` row gets it: a global's update loads the document it
 // changes from that row.
 //
-// ⚠ **`down` drops all six, whatever they hold.** The previous schema declares none of them, and
+// ⚠ **`down` drops all eight, whatever they hold** — the six `up` writes plus the plural family's
+// `_few` and `_many`, which other locales store. The previous schema declares none of them, and
 // a stored undeclared key makes `additionalProperties: false` refuse every later save of the
 // global (`src/globals/AGENTS.md`).
 
@@ -33,6 +34,16 @@ const ADDED = [
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_one', en: '%{mood} · %{count} min' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_other', en: '%{mood} · %{count} min' },
   { group: MEDITATION_A11Y, key: 'finder_region', en: 'Choose how you feel' },
+]
+
+// `down` sweeps wider than `up` wrote. `mood_meditation_label` is `plural: true`, so `_few` and
+// `_many` are legal storage keys too — the Russian, Ukrainian and Czech seeds write them, and so
+// does the admin's grouped plural row. The previous schema declares none of the family, and one
+// stored undeclared key refuses every later save of the global.
+const DROPPED = [
+  ...ADDED.map(({ group, key }) => ({ group, key })),
+  { group: MEDITATION_GENERAL, key: 'mood_meditation_label_few' },
+  { group: MEDITATION_GENERAL, key: 'mood_meditation_label_many' },
 ]
 
 type Db = MigrateUpArgs['db']
@@ -85,5 +96,5 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
 }
 
 export async function down({ db }: MigrateDownArgs): Promise<void> {
-  for (const { group, key } of ADDED) await dropKey(db, group, key)
+  for (const { group, key } of DROPPED) await dropKey(db, group, key)
 }
