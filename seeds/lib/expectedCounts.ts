@@ -16,7 +16,7 @@ export interface CountTarget {
   where?: Where
 }
 
-export type ScriptName = 'file-transcripts' | 'translations'
+export type ScriptName = 'file-transcripts' | 'translations' | 'wm-web-locales'
 
 export interface ExpectedCounts {
   [collection: string]: number
@@ -52,6 +52,10 @@ export const EXPECTED_COUNTS: Record<ScriptName, ScriptExpectation> = {
   translations: {
     kind: 'not-applicable',
     reason: 'targets three translation globals, so no collection gains a row',
+  },
+  'wm-web-locales': {
+    kind: 'not-applicable',
+    reason: 'targets one translation global, so no collection gains a row',
   },
 }
 
@@ -116,6 +120,8 @@ const COLLECTION_METADATA: Record<ScriptName, CollectionMetadata[]> = {
   // buckets or dependencies — the importer runs once, in bulk. `translations`
   // targets three PayloadCMS globals, not collections.
   translations: [],
+  // One global, nine locale writes; nothing to page.
+  'wm-web-locales': [],
 }
 
 export function getScriptMetadata(script: ScriptName): ScriptMetadata {

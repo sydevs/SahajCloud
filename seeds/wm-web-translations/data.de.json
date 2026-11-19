@@ -1,0 +1,240 @@
+{
+  "_meta": {
+    "global": "wm-web-translations",
+    "locale": "de",
+    "source": "Machine-assisted draft, NOT reviewed by a speaker (owner decision 2026-11-18, sydevs/WeMeditateWeb#163). Priority per key: the old wemeditate.com human UI translations (legacy config/locales), then wording already in seeds/sy-atlas-translations, then machine translation. Per-key provenance is in the review sheet attached to the PR, not in this file.",
+    "schema_version": "post-#1212 (14 tabs, 25 leaf groups, 196 declared keys)",
+    "omitted_keys": "The `video` tab is omitted on purpose: the new video player (sydevs/WeMeditateWeb#242) ships its own labels. A key this locale has no translation for is omitted, never blank; the client-read English merge serves English for it.",
+    "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form.",
+    "plurals": "Plural keys carry this language's CLDR forms (one/few/many/other as Intl.PluralRules selects them), which lib/i18n.ts pluralize() reads."
+  },
+  "common": {
+    "general": {
+      "skip_to_main": "Zum Hauptinhalt springen",
+      "loading": "Laden...",
+      "show_more": "Mehr sehen",
+      "site_title": "We Meditate",
+      "site_description": "Entdecke kostenlose geführte Meditationen, Musik und Artikel, um das Meditieren zu lernen und deine Praxis zu vertiefen."
+    },
+    "a11y": {
+      "dismiss": "Ausblenden",
+      "close": "Schließen",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "show_more_items_one": "%{count} weiteres Element anzeigen",
+      "show_more_items_other": "%{count} weitere Elemente anzeigen",
+      "breadcrumb": "Brotkrumennavigation",
+      "primary_navigation": "Hauptmenü",
+      "footer_navigation": "Fußzeilenmenü",
+      "opens_in_new_tab_suffix": "(öffnet in neuem Tab)"
+    }
+  },
+  "navigation": {
+    "about_meditation": "Über Meditation",
+    "featured_caption": "Inspiration kommt aus dem Inneren"
+  },
+  "footer": {
+    "info": "Info",
+    "languages": "Sprachen",
+    "copyright": "© WeMeditate, %{year}"
+  },
+  "errors": {
+    "general": {
+      "heading": "Fehler",
+      "network_title": "Verbindungsproblem",
+      "server_title": "Dienst vorübergehend nicht verfügbar",
+      "not_found_title": "Inhalt nicht gefunden",
+      "unknown_title": "Hoppla! Etwas ist schiefgelaufen",
+      "network_message": "Die Verbindung zu unseren Inhaltsservern ist fehlgeschlagen. Bitte überprüfe deine Internetverbindung und versuche es erneut.",
+      "server_message": "Bei unseren Inhaltsservern gibt es Probleme. Wir arbeiten an der Behebung.",
+      "not_found_message": "Dieser Inhalt ist nicht verfügbar. Er wurde möglicherweise verschoben oder gelöscht.",
+      "unknown_message": "Beim Laden dieser Seite ist etwas schiefgelaufen. Bitte versuche es erneut.",
+      "status_page_hint": "Aktuelle Informationen findest du auf unserer %{link}.",
+      "status_page_link": "Statusseite",
+      "try_again": "Erneut versuchen",
+      "back_to_home": "Zurück zur Startseite"
+    },
+    "a11y": {
+      "error_icon": "Fehler"
+    }
+  },
+  "discover": {
+    "general": {
+      "title": "Entdecke es selbst",
+      "subtitle": "Glaub uns nicht einfach so, was wir sagen. Versuche zu meditieren und fühle es in dir selbst!",
+      "meditate_now": "Jetzt meditieren",
+      "meditate_now_subtitle": "Geführte Meditationen ansehen",
+      "live_guidance": "Live-Anleitung",
+      "live_guidance_subtitle": "Kostenlose Online-Meditationen",
+      "classes_near_me": "Kurse in meiner Nähe",
+      "classes_near_me_subtitle": "Kostenlose Kurse vor Ort"
+    }
+  },
+  "article": {
+    "general": {
+      "written_by": "Geschrieben von %{name}",
+      "name_with_country": "%{name}, %{country}",
+      "meditating_years_one": "Meditieren für %{count} Jahr",
+      "meditating_years_other": "Meditieren für %{count} Jahre",
+      "reading_time_one": "%{count} Minute zu lesen",
+      "reading_time_other": "%{count} Minuten zu lesen",
+      "about_the_author": "Über den Autor",
+      "filter_all": "Alle",
+      "tag_wisdom": "Weisheit",
+      "tag_lifestyle": "Lebensstil",
+      "tag_creativity": "Kreativität",
+      "tag_event": "Veranstaltung",
+      "tag_technique": "Technik"
+    },
+    "a11y": {
+      "filter_label": "Inhalte nach Tag filtern"
+    }
+  },
+  "meditation": {
+    "general": {
+      "label": "Meditation",
+      "founder_name": "Shri Mataji Nirmala Devi",
+      "founder_role": "Gründerin",
+      "voice": "Stimme",
+      "music": "Musik",
+      "change_music": "Hintergrundmusik wechseln",
+      "untitled": "Unbenannte Meditation",
+      "missing_audio": "Für diese Meditation fehlt die erforderliche Audio-URL.",
+      "related_lectures": "Verwandte Vorträge",
+      "upsell_web": "Weitere Meditationen findest du auf %{link}",
+      "upsell_app": "Interaktive Meditationen mit Meditationsmusik findest du in unserer %{link}",
+      "upsell_app_link": "kostenlosen App"
+    },
+    "a11y": {
+      "mute_voice": "Stimme stummschalten",
+      "unmute_voice": "Stimme einschalten",
+      "mute_music": "Musik stummschalten",
+      "unmute_music": "Musik einschalten",
+      "voice_volume": "Lautstärke der Stimme",
+      "music_volume": "Lautstärke der Musik",
+      "audio_settings": "Audio-Einstellungen",
+      "shuffle_music": "Zufälliger Musiktitel",
+      "related_lectures_loading": "Verwandte Vorträge werden geladen"
+    }
+  },
+  "lecture": {
+    "general": {
+      "missing_video": "Für diesen Vortrag fehlt eine abspielbare Videoquelle.",
+      "related_meditations": "Verwandte Meditationen"
+    },
+    "a11y": {
+      "related_meditations_loading": "Verwandte Meditationen werden geladen",
+      "untitled_heading": "Unbenannter Vortrag"
+    }
+  },
+  "map": {
+    "general": {
+      "online": "Online",
+      "classes_shown_one": "%{shown} von %{count} Kurs angezeigt.",
+      "classes_shown_other": "%{shown} von %{count} Kursen angezeigt.",
+      "no_classes": "Hier sind noch keine Meditationskurse aufgeführt.",
+      "join_online": "Online teilnehmen",
+      "visit_website": "Zur Website"
+    },
+    "a11y": {
+      "classes_heading": "Meditationskurse",
+      "when": "Wann",
+      "where": "Wo",
+      "languages": "Sprachen"
+    }
+  },
+  "forms": {
+    "general": {
+      "field_required": "%{field} ist erforderlich",
+      "select_placeholder": "Option auswählen",
+      "submit_error": "Es ist ein unerwarteter Fehler aufgetreten. Bitte versuche es erneut.",
+      "thank_you": "Vielen Dank!",
+      "submitted": "Dein Formular wurde erfolgreich gesendet.",
+      "submit": "Absenden"
+    },
+    "a11y": {
+      "submitting": "Formular wird gesendet, bitte warten...",
+      "required_marker": "erforderlich"
+    }
+  },
+  "media": {
+    "general": {
+      "playlist": "Wiedergabeliste",
+      "duration_minutes_one": "%{count} Min.",
+      "duration_minutes_other": "%{count} Min.",
+      "duration_seconds_one": "%{count} Sek.",
+      "duration_seconds_other": "%{count} Sek.",
+      "embed": "Einbetten",
+      "embed_title": "„%{title}“ einbetten",
+      "embed_player": "Diesen Player einbetten",
+      "copy": "Kopieren",
+      "copied": "Kopiert!"
+    },
+    "a11y": {
+      "play": "Abspielen",
+      "pause": "Pause",
+      "previous_track": "Vorheriger Track",
+      "next_track": "Nächster Track",
+      "toggle_shuffle": "Zufallswiedergabe umschalten",
+      "mute": "Ton ausschalten",
+      "unmute": "Ton einschalten",
+      "volume": "Lautstärke",
+      "play_item": "%{title} abspielen",
+      "view_image": "Bild ansehen",
+      "view_image_alt": "Bild ansehen: %{alt}",
+      "embed_code": "Einbettungscode",
+      "zoom_in": "Vergrößern",
+      "zoom_out": "Verkleinern"
+    }
+  },
+  "location": {
+    "general": {
+      "search_placeholder": "Nach einem Ort suchen...",
+      "change": "Ändern",
+      "getting_coordinates": "Koordinaten werden abgerufen...",
+      "searching": "Suche läuft...",
+      "type_to_search": "Tippe, um nach einem Ort zu suchen",
+      "no_results": "Keine Ergebnisse gefunden",
+      "suggestions_failed": "Ortsvorschläge konnten nicht geladen werden",
+      "coordinates_failed": "Koordinaten des Ortes konnten nicht abgerufen werden",
+      "nearby": "In der Nähe",
+      "getting_location": "Standort wird ermittelt...",
+      "current_location": "Aktueller Standort",
+      "geolocation_unsupported": "Dein Browser unterstützt keine Standortermittlung",
+      "permission_denied": "Standortzugriff verweigert",
+      "position_unavailable": "Standort nicht verfügbar",
+      "timed_out": "Zeitüberschreitung bei der Standortabfrage",
+      "location_failed": "Standort konnte nicht abgerufen werden"
+    },
+    "a11y": {
+      "search_label": "Nach einem Ort suchen",
+      "selected_label": "Ausgewählter Ort",
+      "change_label": "Ort ändern"
+    }
+  },
+  "blocks": {
+    "general": {
+      "chakras": "Chakren",
+      "channels": "Kanäle",
+      "learn_more": "Mehr erfahren →",
+      "hours": "Stunden",
+      "minutes": "Minuten",
+      "seconds": "Sekunden"
+    },
+    "a11y": {
+      "enter_fullscreen": "Vollbild ein",
+      "exit_fullscreen": "Vollbild beenden",
+      "learn_more_about": "Mehr erfahren über %{title}",
+      "previous_slide": "Vorherige Folie",
+      "next_slide": "Nächste Folie",
+      "previous_column": "Zurück: %{title}",
+      "next_column": "Weiter: %{title}",
+      "go_to_column": "Gehe zu Spalte %{number}: %{title}",
+      "quote": "Zitat",
+      "table_of_contents": "Inhaltsverzeichnis",
+      "share_region": "Optionen zum Teilen in sozialen Medien",
+      "share_group": "In sozialen Medien teilen",
+      "share_on": "Auf %{platform} teilen"
+    }
+  }
+}

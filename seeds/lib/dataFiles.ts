@@ -43,10 +43,36 @@ export type AtlasTranslationLocale = (typeof ATLAS_TRANSLATION_LOCALES)[number]
 export const atlasTranslationsDataFile = (locale: AtlasTranslationLocale): string =>
   `seeds/sy-atlas-translations/data.${locale}.json`
 
+/**
+ * The locales `wm-web-translations` carries a seed file for besides English
+ * (`data.en.json`, which the `translations` script reads). The `wm-web-locales`
+ * script loads and publishes each one on its own.
+ *
+ * The `video` tab is left out of every one: the new video player ships its own
+ * labels (sydevs/WeMeditateWeb#242), so English alone holds that tab.
+ */
+export const WM_WEB_TRANSLATION_LOCALES = [
+  'ru',
+  'it',
+  'es',
+  'fr',
+  'de',
+  'pt-BR',
+  'cs',
+  'uk',
+  'bg',
+] as const satisfies readonly LocaleCode[]
+
+export type WmWebTranslationLocale = (typeof WM_WEB_TRANSLATION_LOCALES)[number]
+
+export const wmWebTranslationsDataFile = (locale: WmWebTranslationLocale): string =>
+  `seeds/wm-web-translations/data.${locale}.json`
+
 export const SCRIPT_DATA_FILES: Partial<Record<ScriptName, string[]>> = {
   translations: [
     WM_APP_TRANSLATIONS_DATA_FILE,
     WM_WEB_TRANSLATIONS_DATA_FILE,
     ...ATLAS_TRANSLATION_LOCALES.map(atlasTranslationsDataFile),
   ],
+  'wm-web-locales': WM_WEB_TRANSLATION_LOCALES.map(wmWebTranslationsDataFile),
 }
