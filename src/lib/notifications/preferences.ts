@@ -146,16 +146,6 @@ function notificationType(key: NotificationKey): NotificationType | undefined {
 }
 
 /**
- * The frequency options for one notification type, from the single source of
- * truth above. Lets other surfaces (the per-event registration-notification
- * fields in `Events.ts`) derive their choices instead of re-listing literals
- * that could drift from `NOTIFICATION_TYPES`.
- */
-export function getFrequencyOptions(key: NotificationKey): readonly string[] {
-  return notificationType(key)?.frequencyOptions ?? []
-}
-
-/**
  * The rows one manager sees, in declaration order.
  *
  * A manager holding no role at all — a fresh account with nothing assigned —
@@ -186,9 +176,7 @@ export function notificationFrequency(
 
 /**
  * Frequencies whose delivery is a scheduled digest run rather than an immediate
- * send (#588, shipped in #589). The per-event override select omits them
- * because `SendDigests` skips any event carrying an override address, so a
- * summary cadence chosen there would silently do nothing.
+ * send (#588, shipped in #589).
  */
 export const SUMMARY_FREQUENCIES = ['Daily', 'Weekly', 'Monthly'] as const
 
@@ -204,23 +192,6 @@ export type SummaryFrequency = (typeof SUMMARY_FREQUENCIES)[number]
 export function isSummaryFrequency(frequency: string): frequency is SummaryFrequency {
   return (SUMMARY_FREQUENCIES as readonly string[]).includes(frequency)
 }
-
-/**
- * Cadence options for the per-event `registrationNotificationEmail` override.
- * Derived from `event_registration` minus the summary cadences, so every
- * selectable option acts immediately and deterministically here: `Immediate`
- * sends now, `Never` never sends.
- */
-export const REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS = getFrequencyOptions(
-  'event_registration',
-).filter((frequency) => !isSummaryFrequency(frequency))
-
-/**
- * Fallback cadence when an override address is set but no frequency is chosen.
- * `Immediate`, the only non-summary pace an override may carry.
- */
-export const DEFAULT_REGISTRATION_FREQUENCY =
-  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS[0] ?? 'Immediate'
 
 /**
  * Seed value for a fresh manager: every row at its own default, with the

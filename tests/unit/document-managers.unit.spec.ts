@@ -6,6 +6,7 @@ import {
   getDocManagerFields,
   hasDocManagerAccess,
   resolveManagedDocIds,
+  userManagesAncestor,
   userManagesDocument,
 } from '@/plugins/access/documentManagers'
 
@@ -164,6 +165,41 @@ describe('resolveManagedDocIds is memoized per request', () => {
 
     // Three distinct keys, two queries each — nothing shared between them.
     expect(find).toHaveBeenCalledTimes(6)
+  })
+})
+
+/**
+ * The ancestor-only half of the same walk, which the invitation queue reads to
+ * decide whether naming a manager on a document tells them anything new
+ * (`managesThroughAncestor`). What it must not do is answer for the document's
+ * own listing — that listing is exactly the news.
+ */
+describe('userManagesAncestor answers for the ancestors alone', () => {
+  const regionFields = {
+    managersField: 'managers',
+    managerField: null,
+    parentField: 'parent',
+    hasBreadcrumbs: true,
+  }
+
+  const reqFor = (doc: Record<string, unknown>, ancestorHits: { id: number }[]) =>
+    ({
+      payload: {
+        findByID: async () => doc,
+        find: async () => ({ docs: ancestorHits }),
+      },
+    }) as unknown as PayloadRequest
+
+  it('finds the user on an ancestor in the breadcrumb trail', async () => {
+    const req = reqFor({ id: 7, breadcrumbs: [{ doc: 6 }, { doc: 7 }], managers: [] }, [{ id: 6 }])
+    await expect(userManagesAncestor(req, 'regions', 99, 7, regionFields)).resolves.toBe(true)
+  })
+
+  it('refuses a document the user is listed on directly', async () => {
+    const req = reqFor({ id: 7, breadcrumbs: [{ doc: 7 }], managers: [99] }, [])
+    await expect(userManagesAncestor(req, 'regions', 99, 7, regionFields)).resolves.toBe(false)
+    // The same row through the full check is managed, by that direct listing.
+    await expect(userManagesDocument(req, 'regions', 99, 7, regionFields)).resolves.toBe(true)
   })
 })
 

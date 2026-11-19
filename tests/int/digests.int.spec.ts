@@ -87,11 +87,7 @@ describe('SendDigests job', () => {
 
   // One region, all online: the duplicate-class rule keys the fixtures apart on
   // start time alone, so each event starts a minute after the last.
-  async function createEvent(
-    managerId: null | number,
-    title: string,
-    overrides: FixtureOverrides<Parameters<typeof createData<'events'>>[0]> = {},
-  ): Promise<number> {
+  async function createEvent(managerId: null | number, title: string): Promise<number> {
     startSlot += 1
     const event = await payload.create({
       collection: 'events',
@@ -108,7 +104,6 @@ describe('SendDigests job', () => {
           firstDate: new Date(Date.parse(SCHEDULE.firstDate) + startSlot * 60_000).toISOString(),
         },
         title,
-        ...overrides,
       }),
       overrideAccess: true,
     })
@@ -302,26 +297,6 @@ describe('SendDigests job', () => {
       // ⚠ The mark still moves: otherwise the first email after a quiet spell
       // would carry everything since the last send.
       expect((await watermarksOf(managerId)).program?.event_registration).toBeTruthy()
-    })
-
-    /**
-     * ⚠ An override address gets the notice at once, so counting its
-     * registrations here would send them twice.
-     */
-    it('leaves out an event carrying an override address', async () => {
-      const managerId = await createManager('override@example.com', {
-        event_registration: { frequency: 'Daily' },
-        open_items: { frequency: 'Never', method: '' },
-        statistics: { frequency: 'Never', method: '' },
-      })
-      const overridden = await createEvent(managerId, 'Overridden Event', {
-        registrationNotificationEmail: 'ops@example.org',
-      })
-      await register(overridden, 'Hank')
-
-      emailAdapter.clearCapturedEmails()
-      await runDigests(payload)
-      expect(emailsTo('override@example.com')).toHaveLength(0)
     })
 
     it('includes a registrant who opted out of their own reminders', async () => {

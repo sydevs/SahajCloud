@@ -355,8 +355,17 @@ describe('TableOfContentsBlock.headings', () => {
   const field = jsonField(TableOfContentsBlock.fields, 'headings')
 
   it('accepts what the field component stores, and refuses a heading with no slug', () => {
-    expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
+    expect(
+      runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2, occurrence: 0 }]),
+    ).toBe(true)
     expect(runSchema(field, [{ text: 'Introduction', level: 2 }])).not.toBe(true)
+  })
+
+  it('still accepts an entry stored before `occurrence` existed', () => {
+    expect(runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2 }])).toBe(true)
+    expect(
+      runSchema(field, [{ slug: 'intro', text: 'Introduction', level: 2, occurrence: '0' }]),
+    ).not.toBe(true)
   })
 })
 

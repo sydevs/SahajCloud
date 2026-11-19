@@ -7,6 +7,7 @@ import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { serverEnv } from '@/lib/env'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import {
   asNotificationLog,
@@ -151,6 +152,8 @@ describe('Event verification lifecycle', () => {
         ? { ...scheduleOverride, firstDate: uniqueStart(scheduleOverride.firstDate) }
         : scheduleOverride
     }
+    // A contact only counts while the box is on, which a dormant class owes.
+    data.allowContact ??= hasContactRoute(data)
     return payload.create({
       collection: 'events',
       overrideAccess: true,
@@ -923,8 +926,10 @@ describe('Event verification lifecycle', () => {
           registrationMode: 'sahaj-atlas',
           manager: eventManager.id,
           region: defaultRegion.id,
-          // Dormant, so no schedule is needed; an inactive class owes contacts.
+          // Dormant, so no schedule is needed; an inactive class owes contacts,
+          // which count only while the box is on.
           inactive: true,
+          allowContact: true,
           contactName: 'Opening Contact',
           contactPhone: '+1-555-0101',
           verificationStage: stage,

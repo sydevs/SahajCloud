@@ -1,3 +1,4 @@
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -35,11 +36,12 @@ export type ProposedPatch = Record<string, unknown>
  * so the preview and the diff can't be optimistic about fields the submitter
  * never supplied.
  *
- * A **function** of the patch, not a constant, because one of those defaults is
+ * A **function** of the patch, not a constant, because two of those defaults are
  * derived from it: a submission proposing no schedule creates a *dormant*
- * listing. As a constant this was invisible to the reviewer, who accepted a
- * complete-looking diff and got an event that never appears on the map until
- * someone gives it a schedule.
+ * listing, and one proposing a contact is created with contact details
+ * switched on. As a constant the first was invisible to the reviewer, who
+ * accepted a complete-looking diff and got an event that never appears on the
+ * map until someone gives it a schedule.
  */
 export function newEventDefaults(
   proposed: ProposedPatch | null | undefined,
@@ -52,6 +54,7 @@ export function newEventDefaults(
   manager?: unknown,
 ): ProposedPatch {
   const managerId = relationId(manager)
+  const patch = proposed ?? {}
   return {
     languages: ['en'],
     eventType: 'offline',
@@ -61,7 +64,8 @@ export function newEventDefaults(
     // the map as unverified until somebody takes it on.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
-    inactive: (proposed ?? {}).schedule == null,
+    inactive: patch.schedule == null,
+    allowContact: hasContactRoute(patch),
     _status: 'published',
   }
 }
@@ -115,8 +119,18 @@ export function mergeProposal(args: {
   /** New-event submissions only — an update proposal inherits its target's. */
   manager?: unknown
 }): ProposedPatch {
-  const base: ProposedPatch = args.target ?? newEventDefaults(args.proposed, args.manager)
-  return mergeInto(base, args.proposed ?? {})
+  const proposed = args.proposed ?? {}
+  if (args.target) return mergeInto(args.target, updatePatch(proposed))
+  return mergeInto(newEventDefaults(proposed, args.manager), proposed)
+}
+
+/**
+ * What Accept writes over an update proposal's target: the patch, with the
+ * contact box switched on when it proposes a contact — the fields behind an
+ * unticked box are hidden, and a dormant class is refused without it.
+ */
+export function updatePatch(proposed: ProposedPatch): ProposedPatch {
+  return hasContactRoute(proposed) ? { ...proposed, allowContact: true } : proposed
 }
 
 /**

@@ -28,17 +28,21 @@ export const TableOfContentsBlock: Block = {
     jsonField({
       name: 'headings',
       // Written only by `TableOfContentsField`, which stores the subset of the
-      // document's detected headings an author ticked. The schema mirrors that
-      // component's `DetectedHeading`, which cannot be imported here — it lives
-      // in a `'use client'` module, and this block config is server-side.
-      // Entries stay open so a heading gaining a field does not make every
-      // existing page unsaveable.
+      // document's detected headings an author ticked. Entries stay open, and
+      // `occurrence` is optional, so a heading gaining a field does not make
+      // every existing page unsaveable (#1207).
       schemaTitle: 'TableOfContentsHeadings',
       schema: z.array(
         z.looseObject({
           slug: z.string(),
           text: z.string(),
           level: z.int(),
+          occurrence: z
+            .int()
+            .optional()
+            .describe(
+              'Which of the headings sharing this slug this one is, counted from 0 in document order over top-level headings with non-empty text. Absent means unknown, never 0.',
+            ),
         }),
       ),
       admin: {

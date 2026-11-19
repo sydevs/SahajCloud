@@ -156,6 +156,13 @@ Lexical conversion — are what `translations` reads. A `wm-app-translations`
 script of its own existed until #1169 and was retired as a strict subset of
 this one.
 
+⚠ **`wm-web-translations` is seeded in English only.** Its nine other locales
+(`ru it es fr de pt-BR cs uk bg`) were loaded into production once, from
+machine-assisted drafts, by a one-off `wm-web-locales` script (#1213), and are
+editor-owned from then on. That script and its data files are gone, so nothing
+can overwrite an editor's wording — and a fresh database or a preview holds
+English alone for this global.
+
 ### `file-transcripts` — the bulk re-request
 
 An audio or video file is transcribed as it is saved since #1016, so this asks

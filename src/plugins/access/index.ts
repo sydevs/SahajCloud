@@ -50,6 +50,7 @@ export { restrictPayloadSystemEntities } from './systemEntities'
 export {
   eventContactsFieldAccess,
   eventManagerFieldAccess,
+  managesThroughAncestor,
   mayReadManagerContacts,
   ownedRegionFilterOptions,
   regionManagersFieldAccess,

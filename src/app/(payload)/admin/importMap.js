@@ -56,6 +56,7 @@ import { default as default_d600b4f81bb40d92e487891c4971de20 } from '@/component
 import { default as default_a86ea17da05fe19d05690105977131bd } from '@/components/admin/InstallGuide/InstallView'
 import { default as default_0a6b8160e35e150007da27e645325d20 } from '@/components/admin/AppCardViewSchedule'
 import { default as default_ea9ef661de0dfca6f36a4b6ccae0182b } from '@/components/admin/VariableInsert'
+import { default as default_5b9f746a67cd7e30e14588fc93c9d03a } from '@/components/admin/ScheduleSummary/IntervalLabel'
 import { default as default_6d9b854e6fdb8fea981b4ce63c2d6380 } from '@/components/admin/FlatArrayField'
 import { default as default_694d4100fd066d11aca6d41604a80bc0 } from '@/components/admin/ScheduleSummary'
 import { default as default_7994614945cfe693dd6db5da6470f962 } from '@/components/admin/RangeSlider'
@@ -67,6 +68,9 @@ import { default as default_f15760648f21b91f3f2a0494c08e91bc } from '@/component
 import { default as default_6ed75a1733b63404e4dd1cd6766b78ef } from '@/components/admin/EventImport/ImportClassesMenuItem'
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
+import { default as default_826f2980c9e1e0e72b25c86307f02534 } from '@/components/admin/EventScheduleNotice'
+import { default as default_e7df6c7ccbfdd5e73d9b4008aaaf0482 } from '@/components/admin/EventFrequencyField'
+import { default as default_c1b589b819e10077292295d97dcd997f } from '@/components/admin/EventRegistrations/RegistrationsNotice'
 import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
@@ -167,6 +171,7 @@ export const importMap = {
   "@/components/admin/InstallGuide/InstallView#default": default_a86ea17da05fe19d05690105977131bd,
   "@/components/admin/AppCardViewSchedule#default": default_0a6b8160e35e150007da27e645325d20,
   "@/components/admin/VariableInsert#default": default_ea9ef661de0dfca6f36a4b6ccae0182b,
+  "@/components/admin/ScheduleSummary/IntervalLabel#default": default_5b9f746a67cd7e30e14588fc93c9d03a,
   "@/components/admin/FlatArrayField#default": default_6d9b854e6fdb8fea981b4ce63c2d6380,
   "@/components/admin/ScheduleSummary#default": default_694d4100fd066d11aca6d41604a80bc0,
   "@/components/admin/RangeSlider#default": default_7994614945cfe693dd6db5da6470f962,
@@ -178,6 +183,9 @@ export const importMap = {
   "@/components/admin/EventImport/ImportClassesMenuItem#default": default_6ed75a1733b63404e4dd1cd6766b78ef,
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
+  "@/components/admin/EventScheduleNotice#default": default_826f2980c9e1e0e72b25c86307f02534,
+  "@/components/admin/EventFrequencyField#default": default_e7df6c7ccbfdd5e73d9b4008aaaf0482,
+  "@/components/admin/EventRegistrations/RegistrationsNotice#default": default_c1b589b819e10077292295d97dcd997f,
   "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,

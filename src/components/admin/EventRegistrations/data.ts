@@ -8,9 +8,11 @@ import {
   registrationAnswers,
 } from '@/collections/UserSubmissions/submissionData'
 import { EVENT_QUALITY_CHECK_METADATA, SKIP_REASON_LABELS } from '@/lib/eventQuality'
+import { addDays } from '@/lib/eventVerification/periods'
 import { formatShortDate } from '@/lib/notifications/eventDetails'
 import type { RegistrationAnswer } from '@/lib/registrations/questions'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { UserSubmission } from '@/payload-types'
 import { isAdminManager, isManager } from '@/plugins/access/adminOnly'
 
@@ -142,20 +144,24 @@ export function parseRegistrationQuery(
 async function readableEvent(req: PayloadRequest, docID: number | string | undefined) {
   if (docID == null) return null
 
-  const event = await req.payload.findByID({
-    collection: 'events',
-    id: docID,
-    depth: 0,
-    disableErrors: true,
-    overrideAccess: true,
-    select: { manager: true, schedule: { firstDate_tz: true } },
-    // An archived class is trashed, and its registrants are still its manager's
-    // to read (src/collections/AGENTS.md).
-    trash: true,
-    // A server-component tree renders concurrently, so every read takes its
-    // own `req` copy (src/collections/AGENTS.md).
-    req: localeIsolatedReq(req),
-  })
+  // One read per request: the tab's pill, the Registration tab's banner and the
+  // view all gate on it. Only the read is shared; the decision below is not.
+  const event = await memoizeOnRequest(req, `registrationsEvent:${docID}`, () =>
+    req.payload.findByID({
+      collection: 'events',
+      id: docID,
+      depth: 0,
+      disableErrors: true,
+      overrideAccess: true,
+      select: { manager: true, schedule: { firstDate_tz: true } },
+      // An archived class is trashed, and its registrants are still its
+      // manager's to read (src/collections/AGENTS.md).
+      trash: true,
+      // A server-component tree renders concurrently, so every read takes its
+      // own `req` copy (src/collections/AGENTS.md).
+      req: localeIsolatedReq(req),
+    }),
+  )
   if (!event) return null
 
   const managerId = event.manager == null ? null : extractID(event.manager)
@@ -167,10 +173,14 @@ async function countRegistrations(
   req: PayloadRequest,
   eventId: number,
   filter: RegistrationFilter,
+  since?: Date,
 ) {
+  const where = registrationsOf(eventId, filter)
   const { totalDocs } = await req.payload.count({
     collection: 'user-submissions',
-    where: registrationsOf(eventId, filter),
+    where: since
+      ? { and: [where, { createdAt: { greater_than_equal: since.toISOString() } }] }
+      : where,
     overrideAccess: true,
     req: localeIsolatedReq(req),
   })
@@ -284,6 +294,31 @@ export async function countAcceptedRegistrations(
 ): Promise<number | null> {
   const event = await readableEvent(req, docID)
   return event ? countRegistrations(req, event.id, 'accepted') : null
+}
+
+/** Accepted signups over the windows the Registration tab's banner reports. */
+export type RecentRegistrations = { lastWeek: number; lastMonth: number }
+
+/**
+ * How many accepted signups arrived in the last week and the last month,
+ * behind the same gate as the view, so a refused caller learns no count.
+ *
+ * ⚠ **That gate is this banner's read gate too** (#1126): it renders on a
+ * `form-state` request that names its own `id`, and `readableEvent` admits only
+ * that event's own manager or an admin.
+ */
+export async function recentRegistrations(
+  req: PayloadRequest,
+  docID: number | string | undefined,
+): Promise<RecentRegistrations | null> {
+  const event = await readableEvent(req, docID)
+  if (!event) return null
+  const now = new Date()
+  const [lastWeek, lastMonth] = await Promise.all([
+    countRegistrations(req, event.id, 'accepted', addDays(now, -7)),
+    countRegistrations(req, event.id, 'accepted', addDays(now, -30)),
+  ])
+  return { lastWeek, lastMonth }
 }
 
 /**

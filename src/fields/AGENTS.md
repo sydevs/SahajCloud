@@ -36,6 +36,18 @@ One **stored** derived column, recomputed on every write (#603):
     write back-fills a NULL for free. Spread, not deep merge — an
     explicit `null` in the patch (a cleared `recurrenceType`) must win.
 
+### A caller may draw its own recurrence control
+
+`hasRecurrenceControl: false` hides the group's Repeats select and leaves out
+its summary banner, for a caller that draws its own control above the group —
+Events, whose one control also sets `inactive` (`src/collections/Events/AGENTS.md`).
+The select stays the stored column, and a hidden field keeps its value in form
+state, so the caller's control writes `recurrenceType` there, and every
+sub-field condition, the summary and the interval's label follow it before a
+save. The caller places `ScheduleSummary` itself. `RECURRENCE_OPTIONS` lives in
+`@/lib/schedule/recurrence`, free of Payload and zod, so such a control can draw
+its choices from it in the browser.
+
 ## Why rrule-temporal (not rrule)
 
 Legacy `rrule` (v2.8.1) has a [double-timezone-conversion

@@ -8,7 +8,12 @@ import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
 import { NO_REGION_MESSAGE, type ReviewAction } from '../machine'
-import { newEventDefaults, type ProposedPatch, submissionRegionId } from './mergeProposal'
+import {
+  newEventDefaults,
+  type ProposedPatch,
+  submissionRegionId,
+  updatePatch,
+} from './mergeProposal'
 
 /**
  * Record a decision, and for an accept write the event it approves.
@@ -128,7 +133,7 @@ export async function applyReview(args: {
     await payload.update({
       collection: 'events',
       id: targetEventId,
-      data: patch,
+      data: updatePatch(patch),
       // Nothing reads the result. Without this, Events' afterRead runs the whole
       // listing-quality registry plus `webUrl` and `upcomingDates` for it.
       depth: 0,
