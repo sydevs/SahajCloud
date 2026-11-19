@@ -52,7 +52,7 @@ Payload publishes the state and renders nothing for it. `Form` holds `processing
 
 `appIsReady` is the signal, and it is per-address only because the component clears it on an address change: Payload clears it in the context's own `setURL`, but a URL the **server** re-resolved — every save — reaches the provider through the raw state setter beside it.
 
-⚠ **An entity whose consumer mounts no live-preview subscriber declares `admin.custom.livePreviewSubscribes: false` beside its `livePreview`**, or its working preview is called blocked after the budget. It is an opt-**out**: a new surface is covered by declaring nothing. Four do — the three scoped globals, whose consumers mount a subscriber only for an unscoped session, and `lectures`, whose WeMeditateWeb route renders `LectureTemplate` bare. The panel URL cannot answer this, which is why the entity does.
+⚠ **An entity whose consumer mounts no live-preview subscriber declares `admin.custom.livePreviewSubscribes: false` beside its `livePreview`**, or its working preview is called blocked after the budget. It is an opt-**out**: a new surface is covered by declaring nothing. Four do — the three scoped globals, whose consumers mount a subscriber only for an unscoped session, and `lectures`, whose WeMeditateWeb route renders `LectureTemplate` bare. The panel URL cannot answer this, which is why the entity does. `lectures` is the one parked entry: sydevs/WeMeditateWeb#287 mounts that subscriber, and the line comes out with it.
 
 ### `Drawer` must mount unconditionally, or it won't animate
 

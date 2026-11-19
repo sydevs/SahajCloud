@@ -58,6 +58,10 @@ export const Lectures: CollectionConfig = {
     // only; `lectures/[id]/(full)` renders `LectureTemplate` bare, so the panel
     // shows the saved lecture and answers no handshake. The notice must not
     // call that blocked until the consumer subscribes.
+    //
+    // shortcut: unwatched while that is true; drop this line, and the
+    // `['lectures']` expectation in tests/unit/preview-notice-coverage.spec.ts,
+    // once sydevs/WeMeditateWeb#287 mounts the subscriber.
     custom: { livePreviewSubscribes: false },
   },
   hooks: {
