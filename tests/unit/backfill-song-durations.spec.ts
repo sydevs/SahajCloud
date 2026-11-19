@@ -6,6 +6,7 @@ import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { backfillSongDurations } from '../../scripts/song-durations'
+import { byteStream, cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
 
 vi.mock('../../src/plugins/storage', () => ({
   getR2Url: (filename: string) => `https://assets.test/${filename}`,
@@ -38,7 +39,10 @@ const stubPayload = (rows: StubSong[]) => {
 
 afterEach(() => vi.unstubAllGlobals())
 
-/** Every fetch answers with `files`' bytes, unless the URL names a status instead. */
+/**
+ * Every fetch answers with `files`' bytes, unless the URL names a status
+ * instead. Each answer states its `content-length`, as R2 does.
+ */
 const stubFetch = (files: Record<string, Buffer | number>) =>
   vi.stubGlobal(
     'fetch',
@@ -49,13 +53,8 @@ const stubFetch = (files: Record<string, Buffer | number>) =>
         // A refusal still carries a body, so only `response.ok` tells it from audio.
         ok: typeof answer !== 'number',
         status: typeof answer === 'number' ? answer : 200,
-        headers: new Headers(),
-        body: new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new Uint8Array(bytes))
-            controller.close()
-          },
-        }),
+        headers: new Headers({ 'content-length': String(bytes.length) }),
+        body: byteStream(bytes),
       } as unknown as Response
     }),
   )
@@ -75,6 +74,15 @@ describe('backfillSongDurations', () => {
       { id: 2, title: 'Short', duration: 6 },
     ])
     expect(update).toHaveBeenCalledTimes(2)
+  })
+
+  it('writes the length of a constant-bitrate MP3 with no Info header', async () => {
+    const { payload } = stubPayload([{ id: 1, title: 'Shloka', filename: 'shloka.mp3' }])
+    stubFetch({ 'shloka.mp3': cbrMp3WithoutInfoHeader(3) })
+
+    const result = await backfillSongDurations(payload)
+
+    expect(result).toEqual({ written: [{ id: 1, title: 'Shloka', duration: 3 }], skipped: [] })
   })
 
   it('writes nothing on a second run', async () => {

@@ -10,6 +10,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { extractAudioDuration, readAudioDuration } from '@/lib/audio/duration'
 
+import { byteStream, cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
+
 const FIXTURE_FILES = path.join(process.cwd(), 'src', 'fixture', 'files')
 const read = (name: string) => fs.readFileSync(path.join(FIXTURE_FILES, name))
 
@@ -32,6 +34,20 @@ describe('readAudioDuration', () => {
   it('answers undefined when the container states no duration', async () => {
     await expect(
       readAudioDuration(read('fixture-audio-no-duration.mp3'), 'audio/mpeg'),
+    ).resolves.toBeUndefined()
+  })
+
+  it('reads a constant-bitrate MP3 with no Info header from a stream told its size', async () => {
+    const bytes = cbrMp3WithoutInfoHeader(3)
+
+    await expect(readAudioDuration(byteStream(bytes), 'audio/mpeg', bytes.length)).resolves.toBe(3)
+    // The same bytes as a buffer, which carries its own size.
+    await expect(readAudioDuration(bytes, 'audio/mpeg')).resolves.toBe(3)
+  })
+
+  it('finds no duration in that stream when its size is not given', async () => {
+    await expect(
+      readAudioDuration(byteStream(cbrMp3WithoutInfoHeader(3)), 'audio/mpeg'),
     ).resolves.toBeUndefined()
   })
 

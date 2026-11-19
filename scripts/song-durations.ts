@@ -66,9 +66,13 @@ export const backfillSongDurations = async (
       const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
       if (!response.ok) throw new Error(`fetch failed with ${response.status}`)
       if (!response.body) throw new Error('fetch answered with no body')
+      // Without it, a constant-bitrate MP3 with no Info header reads as
+      // having no duration (#1210).
+      const size = Number(response.headers.get('content-length')) || undefined
       duration = await readAudioDuration(
         response.body,
         response.headers.get('content-type') ?? undefined,
+        size,
       )
     } catch (error) {
       result.skipped.push({

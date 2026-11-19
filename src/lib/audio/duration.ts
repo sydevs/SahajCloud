@@ -13,14 +13,20 @@ interface ExtractAudioDurationOptions {
  *
  * A stream is read only as far as the format block, so a caller holding a
  * response body never has to download the rest of the track.
+ *
+ * Pass a stream's `size` in bytes whenever it is known. A constant-bitrate MP3
+ * with no Xing or Info header states its length only as size over bitrate, so
+ * a stream read without one answers `undefined` for it (#1210). A buffer
+ * carries its own size.
  */
 export const readAudioDuration = async (
   source: Buffer | ReadableStream<Uint8Array>,
   mimeType?: string,
+  size?: number,
 ): Promise<number | undefined> => {
   const { format } = Buffer.isBuffer(source)
     ? await parseBuffer(source, { mimeType })
-    : await parseWebStream(source, { mimeType })
+    : await parseWebStream(source, { mimeType, size })
   return format.duration == null ? undefined : Math.round(format.duration)
 }
 
