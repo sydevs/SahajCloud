@@ -6,7 +6,6 @@ import { resolveNextCheckAt, retentionFrom } from '@/lib/eventVerification/water
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
 import { declareActor } from '@/lib/stateMachine/actor'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { actorFromUser, computeVerifyFields, managerCadence } from '../lifecycle/verify'
@@ -55,7 +54,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
   context,
 }) => {
   const schedule = mergedSchedule(data, originalDoc)
-  const repeats = (data.repeats ?? originalDoc?.repeats) as Event['repeats'] | null | undefined
+  const inactive = (data.inactive ?? originalDoc?.inactive) as boolean | null | undefined
 
   // `data.manager` is the incoming relationship id; fall back to the persisted
   // value when the manager isn't part of this change.
@@ -64,7 +63,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
 
   // Pre-adoption branch — derived data only, so it ignores `skipVerifyHook`.
   if (!managerId && isPreAdoptionStage(stage)) {
-    return { ...data, nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, repeats }) }
+    return { ...data, nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, inactive }) }
   }
 
   // The preview fixture states each event's stage and watermark itself.
@@ -88,7 +87,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
     return {
       ...data,
       verificationStage: 'unverified',
-      nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, repeats }),
+      nextCheckAt: resolveNextCheckAt({ stage: 'unverified', schedule, inactive }),
     }
   }
 
@@ -113,7 +112,7 @@ export const syncVerificationOnSave: CollectionBeforeChangeHook = async ({
       by: actorFromUser(req.user),
       frequency: managerCadence(manager),
       schedule,
-      repeats,
+      inactive,
       // Adoption publishes; otherwise the manager's own save choice decides,
       // and a draft opens no reminder cycle (#1120 decision 3).
       status: adopted ? 'published' : ((data._status ?? originalDoc?._status) as string | null),

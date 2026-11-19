@@ -72,7 +72,7 @@ function bookkeepingWrite(payload: Payload, req: PayloadRequest, id: number): Tr
 interface ExpireResult {
   /** Due events examined. */
   processed: number
-  /** Marked `finished` (schedule ended, not dormant). */
+  /** Marked `finished` (schedule ended, non-inactive). */
   finished: number
   /** Advanced one reminder stage. */
   advanced: number
@@ -86,7 +86,7 @@ interface ExpireResult {
 
 /**
  * Mark a due event `finished` (terminal, no email). Atlas's `should_finish?` —
- * its schedule ran out and it is not dormant.
+ * its schedule ran out and it isn't inactive.
  *
  * Deliberately leaves `_status` alone (#603): a finished event stays
  * **published** so its Atlas page keeps resolving for a late seeker following an
@@ -111,7 +111,7 @@ async function finishEvent(payload: Payload, req: PayloadRequest, event: Event):
       nextCheckAt: resolveNextCheckAt({
         stage: 'finished',
         schedule: event.schedule,
-        repeats: event.repeats,
+        inactive: event.inactive,
       }),
     },
     write: bookkeepingWrite(payload, req, event.id),
@@ -188,7 +188,7 @@ async function processEvent(args: {
         nextCheckAt: resolveNextCheckAt({
           stage,
           schedule: event.schedule,
-          repeats: event.repeats,
+          inactive: event.inactive,
           status: event._status,
         }),
       },
@@ -218,7 +218,7 @@ async function processEvent(args: {
         nextCheckAt: resolveNextCheckAt({
           stage,
           schedule: event.schedule,
-          repeats: event.repeats,
+          inactive: event.inactive,
         }),
       },
     })
@@ -263,7 +263,7 @@ async function processEvent(args: {
     stage: action.nextStage,
     stageDeadline: addDays(now, action.offsetDays),
     schedule: event.schedule,
-    repeats: event.repeats,
+    inactive: event.inactive,
     status: unpublishes ? 'draft' : event._status,
   })
   const deadline = formatLongDate(unpublishDate(stage, now).toISOString())

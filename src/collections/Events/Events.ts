@@ -30,7 +30,7 @@ import {
   EVENT_QUALITY_CHECK_METADATA,
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
-import { hasContactRoute } from '@/lib/events/derivedFields'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
@@ -38,7 +38,7 @@ import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
-import type { Event, Region } from '@/payload-types'
+import type { Region } from '@/payload-types'
 import {
   adminOnlyCondition,
   eventContactsFieldAccess,
@@ -55,8 +55,6 @@ import { registrationsCsv } from './endpoints/registrationsCsv'
 import { verifyEventAction } from './endpoints/verifyEventAction'
 import {
   EVENT_REGISTRATION_MODE_OPTIONS,
-  EVENT_REPEATS_DESCRIPTIONS,
-  EVENT_REPEATS_OPTIONS,
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_LABELS,
 } from './eventOptions'
@@ -65,7 +63,6 @@ import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
-import { syncScheduleRecurrence } from './hooks/syncScheduleRecurrence'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { clearWithheldContact, withheldUnlessAllowed } from './hooks/withholdContact'
 import { buildEventWebPath } from './webPath'
@@ -198,12 +195,9 @@ export const Events: CollectionConfig = {
     // The `select` repair in front of it is `virtualFieldsPlugin`'s, built from
     // the inputs this collection's own computed fields declare.
     beforeOperation: [excludeFinishedEvents],
-    // `syncScheduleRecurrence` first: the duplicate check reads the schedule's
-    // recurrence, so it must see the one this save lands on.
-    //
     // A class that repeats one already listed is refused before anything else
     // runs, drafts included — see refuseDuplicateClass.
-    beforeValidate: [syncScheduleRecurrence, refuseDuplicateClass],
+    beforeValidate: [refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark, and it
     // names the writer the stage column's own guard then judges. Both stamping
@@ -332,11 +326,11 @@ export const Events: CollectionConfig = {
                   // src/collections/AGENTS.md.
                   validate: (
                     value: boolean | null | undefined,
-                    options: { data?: { repeats?: Event['repeats'] | null } },
+                    options: { data?: { inactive?: boolean | null } },
                   ) => {
                     const base = checkbox(value, options as Parameters<typeof checkbox>[1])
                     if (base !== true) return base
-                    return options.data?.repeats === 'inactive' && !value
+                    return options.data?.inactive && !value
                       ? `Switch this on and add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
                       : true
                   },
@@ -413,12 +407,12 @@ export const Events: CollectionConfig = {
                       validate: (
                         value: string | null | undefined,
                         options: {
-                          data?: { repeats?: Event['repeats'] | null; contactEmail?: string | null }
+                          data?: { inactive?: boolean | null; contactEmail?: string | null }
                         },
                       ) => {
                         const base = text(value, options as Parameters<typeof text>[1])
                         if (base !== true) return base
-                        return options.data?.repeats === 'inactive' &&
+                        return options.data?.inactive &&
                           !hasContactRoute({
                             contactEmail: options.data.contactEmail,
                             contactPhone: value,
@@ -522,41 +516,24 @@ export const Events: CollectionConfig = {
               admin: { components: { Field: '@/components/admin/EventScheduleNotice' } },
             },
             {
-              // The one control for how often a class meets *and* whether it is
-              // dormant, because an editor is choosing one thing. A dormant
-              // class still needs verification, and can expire, but never
-              // auto-finishes: the ExpireEvents finished-check skips it. Hiding
-              // the schedule also drops its `required` validation — Payload
-              // skips `required` and `validate` when a condition is false.
-              //
-              // `syncScheduleRecurrence` writes `schedule.recurrenceType` from
-              // this, so the stored pair cannot disagree.
-              name: 'repeats',
-              label: 'How often does this class meet?',
-              type: 'select',
-              required: true,
-              defaultValue: 'once',
-              options: [...EVENT_REPEATS_OPTIONS],
-              // Pinned so it never collides with the drafts `_status` enum,
-              // as `verificationStage` is.
-              enumName: 'enum_events_repeats',
-              admin: {
-                components: { Field: TOGGLE_GROUP_FIELD },
-                custom: { descriptions: EVENT_REPEATS_DESCRIPTIONS },
-              },
+              // One control for `inactive` and `schedule.recurrenceType`, because
+              // an editor is choosing one thing. It writes both in the form;
+              // each stays the only place its own fact is stored.
+              name: 'frequency',
+              type: 'ui',
+              admin: { components: { Field: '@/components/admin/EventFrequencyField' } },
             },
             {
-              // The dormant flag as the API has always published it. Computed,
-              // because `repeats` now stores the same fact: the Atlas widget
-              // selects `inactive`, and the We Meditate site reads
-              // `schedule.inactive` off `/api/atlas/seo`. ⚠ A `where` cannot
-              // name a virtual field — query `repeats` instead.
+              // Dormant events have no active schedule. They still need
+              // verification, and can expire, but never auto-finish: the
+              // ExpireEvents finished-check skips inactive events. Hiding the
+              // schedule when inactive also drops its `required` validation.
+              // Payload skips `required` and `validate` when a condition is
+              // false. Set through the `frequency` control above.
               name: 'inactive',
               type: 'checkbox',
-              virtual: true,
-              custom: virtualFieldInputs('repeats'),
-              admin: { hidden: true, readOnly: true },
-              hooks: { afterRead: [({ data }) => data?.repeats === 'inactive'] },
+              defaultValue: false,
+              admin: { hidden: true },
             },
             scheduleFields({
               label: false,
@@ -566,8 +543,8 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
-              recurrenceFrom: 'repeats',
-              admin: { condition: (data) => data?.repeats !== 'inactive' },
+              hasRecurrenceControl: false,
+              admin: { condition: (data) => !data?.inactive },
             }),
           ],
         },
@@ -870,7 +847,7 @@ export const Events: CollectionConfig = {
           name: 'calendarFeedUrl',
           type: 'text',
           virtual: true,
-          custom: virtualFieldInputs('_status', 'deletedAt', 'repeats', 'schedule', 'updatedAt'),
+          custom: virtualFieldInputs('_status', 'deletedAt', 'inactive', 'schedule', 'updatedAt'),
           admin: {
             readOnly: true,
             disableListColumn: true,

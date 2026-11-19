@@ -1,4 +1,4 @@
-import { hasContactRoute, paceAfter, repeatsForSchedule } from '@/lib/events/derivedFields'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import { relationId } from '@/lib/utilities/relationId'
 import type { Event } from '@/payload-types'
 
@@ -64,7 +64,7 @@ export function newEventDefaults(
     // the map as unverified until somebody takes it on.
     verificationStage: managerId != null ? 'verified' : 'unverified',
     manager: managerId == null ? null : manager,
-    repeats: repeatsForSchedule(patch.schedule),
+    inactive: patch.schedule == null,
     allowContact: hasContactRoute(patch),
     _status: 'published',
   }
@@ -119,12 +119,9 @@ export function mergeProposal(args: {
   /** New-event submissions only — an update proposal inherits its target's. */
   manager?: unknown
 }): ProposedPatch {
-  const { target } = args
-  if (!target) return mergeInto(newEventDefaults(args.proposed, args.manager), args.proposed ?? {})
-  // The pace is what the save's own hook will land on (`syncScheduleRecurrence`).
-  const merged = mergeInto(target, updatePatch(args.proposed ?? {}))
-  const repeats = paceAfter(target, merged as Partial<Event>)
-  return repeats === merged.repeats ? merged : { ...merged, repeats }
+  const proposed = args.proposed ?? {}
+  if (args.target) return mergeInto(args.target, updatePatch(proposed))
+  return mergeInto(newEventDefaults(proposed, args.manager), proposed)
 }
 
 /**

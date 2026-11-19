@@ -13,7 +13,6 @@ vi.mock('@/lib/turnstile/verifyTurnstile', () => ({
 verifyMock.mockResolvedValue({ success: true })
 
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -114,7 +113,6 @@ describe('client Origin/Referer enforcement', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: region.id,
-        repeats: repeatsForSchedule(SCHEDULE),
         schedule: SCHEDULE,
         _status: 'published',
       }),

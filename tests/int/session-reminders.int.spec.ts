@@ -6,7 +6,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, v
 
 import { SUBMISSION_MACHINE } from '@/collections/UserSubmissions/machine'
 import { SendSessionReminders } from '@/jobs/RegistrationNotifications/SendSessionReminders'
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { signUnsubscribeToken } from '@/lib/registrations/unsubscribeToken'
 import { withActor } from '@/lib/stateMachine/actor'
 import type { UserSubmission } from '@/payload-types'
@@ -88,7 +87,6 @@ describe('SendSessionReminders job', () => {
         registrationMode: 'sahaj-atlas',
         manager: managerId,
         region: regionId,
-        repeats: repeatsForSchedule(overrides.schedule ?? SCHEDULE),
         schedule: {
           ...SCHEDULE,
           firstDate: new Date(Date.parse(SCHEDULE.firstDate) + seq * MINUTE_MS).toISOString(),

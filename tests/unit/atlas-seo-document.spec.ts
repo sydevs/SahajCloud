@@ -49,7 +49,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     title: 'Evening Meditation',
     languages: ['en'],
     eventType: 'offline',
-    repeats: 'weekly',
+    inactive: false,
     address: {
       venueName: 'Friends Meeting House',
       street: '12 Broad Street',
@@ -309,7 +309,7 @@ describe('buildEventSeo', () => {
   // expiry job. Reporting its stored schedule here would make this the one
   // surface claiming it still runs.
   it('reports no schedule for a dormant class', () => {
-    const seo = buildEventSeo({ ...base, event: makeEvent({ repeats: 'inactive' }) })
+    const seo = buildEventSeo({ ...base, event: makeEvent({ inactive: true }) })
     if (seo.type !== 'event') throw new Error('expected an event')
     expect(seo.content.schedule).toMatchObject({ oneLine: '', startDate: null, inactive: true })
     const graph = seo.jsonLdGraph['@graph'] as Record<string, never>[]

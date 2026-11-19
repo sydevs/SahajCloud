@@ -60,7 +60,7 @@ const FEED_SELECT = {
   deletedAt: true,
   description: true,
   eventType: true,
-  repeats: true,
+  inactive: true,
   schedule: true,
   title: true,
   updatedAt: true,
@@ -115,7 +115,7 @@ export type CalendarFeedAnswer = 'live' | 'cancelled' | 'none'
 export interface CalendarFeedSubject {
   _status?: unknown
   deletedAt?: string | null
-  repeats?: Event['repeats'] | null
+  inactive?: boolean | null
   schedule?: Partial<EventSchedule> | null
   updatedAt?: string | null
 }
@@ -148,10 +148,10 @@ export function calendarFeedAnswer(
   }
 
   // A dormant class has no sessions to subscribe to, and a finished one none left
-  // to cancel — the public feeds have already dropped it. Dormancy is checked
+  // to cancel — the public feeds have already dropped it. `inactive` is checked
   // rather than left to the recurrence failing to resolve: a dormant row can
   // still carry a stale `schedule.firstDate`.
-  if (event.repeats === 'inactive' || shouldFinish(event, now)) return 'none'
+  if (event.inactive || shouldFinish(event, now)) return 'none'
   return 'live'
 }
 

@@ -73,7 +73,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
             createdAt: true,
             manager: true,
             verificationStage: true,
-            repeats: true,
+            inactive: true,
             schedule: {
               firstDate: true,
               firstDate_tz: true,
@@ -136,7 +136,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       title: event?.title || result.title,
       city: result.city,
       schedule: event
-        ? liveScheduleSummary(event.schedule, event.repeats === 'inactive')
+        ? liveScheduleSummary(event.schedule, event.inactive)
         : csvScheduleSummary(result.values),
       manager: managerOf(event, result),
       unverified: status === 'published' && isFeedbackOpen(event),

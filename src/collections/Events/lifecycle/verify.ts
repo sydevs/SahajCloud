@@ -82,19 +82,19 @@ export function computeVerifyFields(args: {
   frequency?: string | null
   /** The event's schedule, so the watermark can't outrun its last occurrence. */
   schedule?: Partial<EventSchedule> | null
-  repeats?: Event['repeats'] | null
+  inactive?: boolean | null
   /** Where this save leaves `_status`: a draft gets no reminders. */
   status?: string | null
   now: Date
 }): VerifyFields {
-  const { method, by, frequency, schedule, repeats, status, now } = args
+  const { method, by, frequency, schedule, inactive, status, now } = args
   return {
     verificationStage: 'verified',
     nextCheckAt: resolveNextCheckAt({
       stage: 'verified',
       stageDeadline: addDays(now, verificationPeriodDays(frequency)),
       schedule,
-      repeats,
+      inactive,
       status,
     }),
     activityLog: [toLogRow(buildVerificationEntry(method, by, now.toISOString()))],
@@ -142,7 +142,7 @@ export async function applyVerification(args: {
     by,
     frequency: managerCadence(event.manager),
     schedule: event.schedule,
-    repeats: event.repeats,
+    inactive: event.inactive,
     // The verify action re-publishes, so the cycle it opens is a listed one.
     status: 'published',
     now,

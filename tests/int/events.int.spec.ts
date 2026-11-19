@@ -49,6 +49,7 @@ describe('Events collection', () => {
 
       const finished = await testData.createEvent(payload, {
         title: 'Finished Class',
+        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/finished',
         // A one-off five years back — long finished.
@@ -59,6 +60,7 @@ describe('Events collection', () => {
 
       const running = await testData.createEvent(payload, {
         title: 'Running Class',
+        inactive: false,
         eventType: 'online',
         onlineUrl: 'https://example.com/running',
         // Open-ended daily — never finishes.
@@ -241,132 +243,6 @@ describe('Events collection', () => {
     })
   })
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // One control stores the pace and the dormant state. `inactive` keeps its
-  // place in the API as a computed field, because the widget and the
-  // We Meditate site both read it.
-  // ──────────────────────────────────────────────────────────────────────────
-  describe('repeats', () => {
-    it('writes the schedule’s own recurrence from the chosen pace', async () => {
-      const event = await testData.createEvent(payload, {
-        repeats: 'weekly',
-        schedule: {
-          firstDate: '2026-01-05T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          interval: 1,
-          weekdays: ['MO'],
-        },
-      })
-
-      expect(event.schedule?.recurrenceType).toBe('WEEKLY')
-    })
-
-    it('clears the recurrence for a pace that does not repeat', async () => {
-      const event = await testData.createEvent(payload, {
-        repeats: 'once',
-        schedule: {
-          firstDate: '2026-01-05T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          recurrenceType: 'WEEKLY',
-          interval: 1,
-          weekdays: ['MO'],
-        },
-      })
-
-      expect(event.schedule?.recurrenceType ?? null).toBeNull()
-    })
-
-    it('answers the dormant state as `inactive`, selected on its own', async () => {
-      const dormant = await testData.createEvent(payload, { repeats: 'inactive' })
-      const weekly = await testData.createEvent(payload, {
-        repeats: 'weekly',
-        schedule: {
-          firstDate: '2026-01-05T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          interval: 1,
-          weekdays: ['MO'],
-        },
-      })
-
-      expect(dormant.inactive).toBe(true)
-      expect(weekly.inactive).toBe(false)
-
-      // `select` strips the stored input the hook reads, so a field declaring
-      // its own inputs is what keeps this non-null (`@/plugins/virtualFields`).
-      const narrowed = await payload.findByID({
-        collection: 'events',
-        id: dormant.id,
-        select: { inactive: true },
-      })
-      expect(narrowed.inactive).toBe(true)
-
-      // And through a list read, which runs the same hook per row.
-      const { docs } = await payload.find({
-        collection: 'events',
-        where: { id: { in: [dormant.id, weekly.id] } },
-        select: { inactive: true },
-      })
-      expect(docs.map((doc) => [doc.id, doc.inactive])).toEqual(
-        expect.arrayContaining([
-          [dormant.id, true],
-          [weekly.id, false],
-        ]),
-      )
-    })
-
-    // `syncScheduleRecurrence` patches the group with `recurrenceType` alone,
-    // resting on Payload filling the rest from the stored group. `mergedSchedule`
-    // next door exists because a collection hook gets no such merge on read, so
-    // the claim is pinned here rather than assumed.
-    it('keeps the rest of the schedule when a pace change names no schedule', async () => {
-      const event = await testData.createEvent(payload, {
-        repeats: 'weekly',
-        schedule: {
-          firstDate: '2026-01-05T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          interval: 1,
-          weekdays: ['MO'],
-        },
-      })
-
-      const repaced = await payload.update({
-        collection: 'events',
-        id: event.id,
-        overrideAccess: true,
-        data: { repeats: 'monthly' },
-      })
-
-      expect(repaced.schedule?.recurrenceType).toBe('MONTHLY')
-      expect(repaced.schedule?.firstDate).toBe('2026-01-05T10:00:00.000Z')
-      expect(repaced.schedule?.firstDate_tz).toBe('Europe/London')
-      expect(repaced.schedule?.interval).toBe(1)
-    })
-
-    // An update proposal, or any REST patch, may name the recurrence and not the
-    // pace; Payload fills `repeats` from the stored row before the hook runs.
-    it('moves the pace with a write that edits the recurrence alone', async () => {
-      const event = await testData.createEvent(payload, {
-        repeats: 'weekly',
-        schedule: {
-          firstDate: '2026-01-05T10:00:00.000Z',
-          firstDate_tz: 'Europe/London',
-          interval: 1,
-          weekdays: ['MO'],
-        },
-      })
-
-      const updated = await payload.update({
-        collection: 'events',
-        id: event.id,
-        overrideAccess: true,
-        data: { schedule: { recurrenceType: 'MONTHLY' } },
-      })
-
-      expect(updated.repeats).toBe('monthly')
-      expect(updated.schedule?.recurrenceType).toBe('MONTHLY')
-    })
-  })
-
   describe('allowContact', () => {
     const createReachableEvent = () =>
       testData.createEvent(payload, {
@@ -374,10 +250,11 @@ describe('Events collection', () => {
         contactEmail: 'reach@example.com',
         contactName: 'Reachable Person',
         contactPhone: '+44 20 7000 1000',
-        repeats: 'weekly',
+        inactive: false,
         schedule: {
           firstDate: '2026-01-05T10:00:00.000Z',
           firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
           interval: 1,
           weekdays: ['MO'],
         },
@@ -446,10 +323,11 @@ describe('Events collection', () => {
       const event = await testData.createEvent(payload, {
         allowContact: false,
         contactPhone: '+44 20 7000 3000',
-        repeats: 'weekly',
+        inactive: false,
         schedule: {
           firstDate: '2026-01-05T10:00:00.000Z',
           firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
           interval: 1,
           weekdays: ['MO'],
         },
@@ -491,7 +369,7 @@ describe('Events collection', () => {
     it('refuses a dormant class whose contact box is off', async () => {
       await expect(
         testData.createEvent(payload, {
-          repeats: 'inactive',
+          inactive: true,
           allowContact: false,
           contactPhone: '+44 20 7000 2000',
         }),
@@ -501,7 +379,7 @@ describe('Events collection', () => {
     it('refuses a dormant class whose contact box is on but empty', async () => {
       await expect(
         testData.createEvent(payload, {
-          repeats: 'inactive',
+          inactive: true,
           allowContact: true,
           contactName: null,
           contactPhone: null,

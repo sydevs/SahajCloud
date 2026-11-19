@@ -10,20 +10,17 @@
  * `lastOccurrenceEnd` — is in the past. A `null` `lastDate` means the
  * recurrence never ends, so it never finishes.
  *
- * A dormant class (`repeats: 'inactive'`) is exempt: it carries no schedule by
- * design, so without the guard every one of them would falsely "finish". The
- * stored `repeats` is read rather than the computed `inactive` field, which a
- * collection hook and a sibling field hook both run too early to see.
+ * `inactive` events are exempt: they're dormant by design and carry no
+ * schedule, so without the guard every one of them would falsely "finish".
  */
 
-import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { lastOccurrenceEnd } from './scheduleHooks'
 
 /** Minimal shape the finished-check reads off an event. */
 export interface FinishCheckInput {
-  repeats?: Event['repeats'] | null
+  inactive?: boolean | null
   schedule?: Partial<EventSchedule> | null
 }
 
@@ -41,7 +38,7 @@ export interface FinishCheckInput {
  * `tests/unit/schedule-status.spec.ts` pins the two to the same answers.
  */
 export function shouldFinish(event: FinishCheckInput, now: Date = new Date()): boolean {
-  if (event.repeats === 'inactive') return false
+  if (event.inactive) return false
   const schedule = event.schedule
   if (!schedule?.firstDate) return false
   const lastDate = lastOccurrenceEnd(schedule)

@@ -11,7 +11,6 @@
  */
 
 import { lastOccurrenceEnd } from '@/lib/schedule/scheduleHooks'
-import type { Event } from '@/payload-types'
 import type { EventSchedule } from '@/types/schedule'
 
 import { isPreAdoptionStage, stageAction, type VerificationStage } from './stages'
@@ -69,8 +68,7 @@ export interface NextCheckAtInput {
   stageDeadline?: Date | null
   /** The event's schedule (merged, if this is a partial write). */
   schedule?: Partial<EventSchedule> | null
-  /** The class's own pace; `inactive` is the dormant one. */
-  repeats?: Event['repeats'] | null
+  inactive?: boolean | null
   /** The event's publish state, which decides whether reminders run at all. */
   status?: string | null
   /** Injected clock — the `finished` retention fallback needs a reference point. */
@@ -135,11 +133,11 @@ export interface NextCheckAtInput {
  * writes that column, and an un-backfilled NULL would read as "never ends".
  */
 export function resolveNextCheckAt(input: NextCheckAtInput): string | null {
-  const { stage, stageDeadline, schedule, repeats, status, now = new Date() } = input
+  const { stage, stageDeadline, schedule, inactive, status, now = new Date() } = input
 
   // Dormant events have no schedule to run out — nothing schedule-driven can
   // happen to them, so only a stage deadline can bring them back.
-  const scheduleEnd = repeats === 'inactive' ? null : scheduleEndDate(schedule)
+  const scheduleEnd = inactive ? null : scheduleEndDate(schedule)
 
   if (isPreAdoptionStage(stage)) return scheduleEnd?.toISOString() ?? null
 

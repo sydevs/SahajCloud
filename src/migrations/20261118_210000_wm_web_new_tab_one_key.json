@@ -12196,25 +12196,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "description": {
-          "name": "description",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "website": {
-          "name": "website",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allow_contact": {
-          "name": "allow_contact",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "contact_phone": {
           "name": "contact_phone",
           "type": "varchar",
@@ -12229,6 +12210,18 @@
         },
         "contact_name": {
           "name": "contact_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12313,13 +12306,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "repeats": {
-          "name": "repeats",
-          "type": "enum_events_repeats",
-          "typeSchema": "public",
+        "inactive": {
+          "name": "inactive",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": "'once'"
+          "default": false
         },
         "schedule_first_date": {
           "name": "schedule_first_date",
@@ -12430,6 +12422,20 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
+        },
+        "registration_notification_email": {
+          "name": "registration_notification_email",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_notification_frequency": {
+          "name": "registration_notification_frequency",
+          "type": "enum_events_registration_notification_frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Immediate'"
         },
         "registration_questions_experience": {
           "name": "registration_questions_experience",
@@ -13347,25 +13353,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_description": {
-          "name": "version_description",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_website": {
-          "name": "version_website",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_allow_contact": {
-          "name": "version_allow_contact",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "version_contact_phone": {
           "name": "version_contact_phone",
           "type": "varchar",
@@ -13380,6 +13367,18 @@
         },
         "version_contact_name": {
           "name": "version_contact_name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_description": {
+          "name": "version_description",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_website": {
+          "name": "version_website",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13464,13 +13463,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_repeats": {
-          "name": "version_repeats",
-          "type": "enum_events_repeats",
-          "typeSchema": "public",
+        "version_inactive": {
+          "name": "version_inactive",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": "'once'"
+          "default": false
         },
         "version_schedule_first_date": {
           "name": "version_schedule_first_date",
@@ -13581,6 +13579,20 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
+        },
+        "version_registration_notification_email": {
+          "name": "version_registration_notification_email",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_registration_notification_frequency": {
+          "name": "version_registration_notification_frequency",
+          "type": "enum_events_registration_notification_frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Immediate'"
         },
         "version_registration_questions_experience": {
           "name": "version_registration_questions_experience",
@@ -26677,17 +26689,6 @@
         "online"
       ]
     },
-    "public.enum_events_repeats": {
-      "name": "enum_events_repeats",
-      "schema": "public",
-      "values": [
-        "once",
-        "daily",
-        "weekly",
-        "monthly",
-        "inactive"
-      ]
-    },
     "public.enum_events_schedule_firstdate_tz": {
       "name": "enum_events_schedule_firstdate_tz",
       "schema": "public",
@@ -27330,6 +27331,14 @@
       "values": [
         "sahaj-atlas",
         "external"
+      ]
+    },
+    "public.enum_events_registration_notification_frequency": {
+      "name": "enum_events_registration_notification_frequency",
+      "schema": "public",
+      "values": [
+        "Immediate",
+        "Never"
       ]
     },
     "public.enum_events_verification_stage": {

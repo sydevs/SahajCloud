@@ -8,7 +8,6 @@ import { atlasWixRoute } from '@/endpoints/atlas/wix/route'
 import { atlasWixSitemap } from '@/endpoints/atlas/wix/sitemap'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { PROBE_SEGMENT_PREFIX } from '@/lib/clients/verification'
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import type { Event } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -184,7 +183,6 @@ describe('atlas Wix endpoints', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: region.ontario,
-          repeats: repeatsForSchedule(SCHEDULE),
           schedule: SCHEDULE,
           eventType: 'offline',
           address: {

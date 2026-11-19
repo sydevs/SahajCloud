@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eventsGeoJson } from '@/collections/Events/endpoints/geojson'
 import type { EventFeature } from '@/collections/Events/endpoints/responseTypes'
 import { serverEnv } from '@/lib/env'
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import type { Event } from '@/payload-types'
@@ -103,7 +102,6 @@ describe('eventsGeoJson endpoint', () => {
       registrationMode: 'sahaj-atlas',
       manager: managerId,
       region: regionId,
-      repeats: repeatsForSchedule(SCHEDULE),
       schedule: SCHEDULE,
     }
 
@@ -415,7 +413,6 @@ describe('eventsGeoJson endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: city.id,
-          repeats: repeatsForSchedule(SCHEDULE),
           schedule: SCHEDULE,
           address: {
             street: '3 Test St',
@@ -455,7 +452,6 @@ describe('eventsGeoJson endpoint', () => {
           registrationMode: 'sahaj-atlas',
           manager: managerId,
           region: regionId,
-          repeats: repeatsForSchedule(schedule),
           schedule,
           _status: 'published',
           ...extra,
@@ -544,7 +540,7 @@ describe('eventsGeoJson endpoint', () => {
         'Dormant Group',
         { firstDate: '2019-01-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },
         {
-          repeats: 'inactive',
+          inactive: true,
           allowContact: true,
           contactPhone: '+44 20 7000 0000',
           contactName: 'Dormant Contact',

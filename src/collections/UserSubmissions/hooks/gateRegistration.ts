@@ -68,7 +68,7 @@ export const gateRegistration: CollectionBeforeValidateHook = async ({ data, ope
 
   // ⚠ No `select` here on purpose. `evaluateRegistrationGate` reads
   // `registrationMode`, `registrationLimit`, `schedule` (through `shouldFinish`)
-  // and `repeats`; a narrower projection silently changes the verdict rather
+  // and `inactive`; a narrower projection silently changes the verdict rather
   // than failing.
   const event = docs[0]
 

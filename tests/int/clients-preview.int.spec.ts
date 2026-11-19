@@ -114,7 +114,7 @@ describe('Clients live preview', () => {
       label: 'Finished Classes Service',
       region: await countryWithClass('pastland', {
         eventType: 'online',
-        repeats: 'once',
+        inactive: false,
         onlineUrl: 'https://example.invalid/meet',
         registrationMode: 'sahaj-atlas',
         schedule: { firstDate: '2020-05-01T10:00:00.000Z', firstDate_tz: 'Europe/London' },

@@ -3,8 +3,6 @@ import type { FormState } from 'payload'
 import { Temporal } from '@js-temporal/polyfill'
 import { toText } from 'rrule-temporal/totext'
 
-import { parseRecurrence } from '@/lib/schedule/recurrence'
-
 /** Extracted schedule sub-field values from form state. */
 interface ScheduleFormValues {
   firstDate?: string
@@ -36,22 +34,15 @@ const EMPTY: Summary = {
 
 /**
  * Read the schedule group's values from form state, where its sub-fields sit
- * as flat paths: `{groupPath}.{subField}`. The recurrence is the caller's own
- * control where it owns one (`scheduleFields`' `recurrenceFrom`).
+ * as flat paths: `{groupPath}.{subField}`.
  */
-function extractScheduleValues(
-  formState: FormState,
-  groupPath: string,
-  recurrenceFrom: string | undefined,
-): ScheduleFormValues {
+function extractScheduleValues(formState: FormState, groupPath: string): ScheduleFormValues {
   const get = (subField: string) => formState[`${groupPath}.${subField}`]?.value
   const exclusions = formState[`${groupPath}.exclusions`]
   return {
     firstDate: get('firstDate') as string | undefined,
     firstDate_tz: get('firstDate_tz') as string | undefined,
-    recurrenceType: parseRecurrence(
-      formState[recurrenceFrom ?? `${groupPath}.recurrenceType`]?.value,
-    ),
+    recurrenceType: get('recurrenceType') as string | undefined,
     interval: get('interval') as number | undefined,
     weekdays: get('weekdays') as string[] | undefined,
     monthlyMode: get('monthlyMode') as string | undefined,
@@ -161,12 +152,8 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
  * where the series starts and how many breaks it takes. Until a first date is
  * set, what to fill in.
  */
-export function summarizeSchedule(
-  formState: FormState,
-  groupPath: string,
-  recurrenceFrom?: string,
-): Summary | null {
-  const values = extractScheduleValues(formState, groupPath, recurrenceFrom)
+export function summarizeSchedule(formState: FormState, groupPath: string): Summary | null {
+  const values = extractScheduleValues(formState, groupPath)
   if (!values.firstDate) return EMPTY
 
   const timeZone = values.firstDate_tz || 'UTC'

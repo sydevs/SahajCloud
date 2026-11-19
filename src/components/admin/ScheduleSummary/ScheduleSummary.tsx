@@ -13,22 +13,16 @@ import { summarizeSchedule } from './summary'
  * before a first date is set, what to fill in.
  *
  * `scheduleFields` registers it as the group's `beforeInput`, which hands it the
- * group's `path`. A caller owning the recurrence control places it itself.
+ * group's `path`. A caller rendering its own recurrence control places it itself.
  */
 export function ScheduleSummary({
   path,
-  recurrenceFrom,
 }: {
   /** The schedule group's own path in the form. */
   path: string
-  /** A caller-owned recurrence control (`scheduleFields`' `recurrenceFrom`). */
-  recurrenceFrom?: string
 }): React.ReactElement | null {
   const [formState] = useAllFormFields()
-  const summary = useMemo(
-    () => summarizeSchedule(formState, path, recurrenceFrom),
-    [formState, path, recurrenceFrom],
-  )
+  const summary = useMemo(() => summarizeSchedule(formState, path), [formState, path])
   if (!summary) return null
   return (
     <InfoBanner icon={<CalendarDays aria-hidden size={20} />} title={summary.title}>

@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { atlasSeo } from '@/endpoints/atlas/seo'
 import type { AtlasSeoResponse } from '@/endpoints/responseTypes'
 import { serverEnv } from '@/lib/env'
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import type { Event } from '@/payload-types'
 
 import { createData, testData, type FixtureOverrides } from '../utils/testData'
@@ -111,7 +110,6 @@ describe('atlasSeo endpoint', () => {
           languages: ['en'],
           registrationMode: 'sahaj-atlas',
           manager: managerId,
-          repeats: repeatsForSchedule(overrides.schedule ?? SCHEDULE),
           schedule: SCHEDULE,
           eventType: 'offline',
           address: {

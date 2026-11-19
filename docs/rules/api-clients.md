@@ -221,7 +221,7 @@ A **finished** event (its schedule fully run out) stays `published`, since its A
 | `GET /api/atlas/sitemap`    | Excluded — the page still resolves, but a sitemap shouldn't ask a crawler to index it |
 | Admin / manager / job reads | Unaffected                                                                            |
 
-"Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished — read off the stored `repeats`, since `inactive` is a computed field a `where` cannot name. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
+"Finished" means `schedule.lastDate` (the final occurrence's local end-of-day) is in the past — an event running today stays listed until midnight in its own timezone. A NULL `lastDate` (open-ended recurrence) and an `inactive` event are never finished. One definition, two expressions: `shouldFinish` in memory, `notFinishedWhere` as SQL, pinned to agree by `tests/unit/schedule-status.spec.ts`.
 
 The default is applied by the `excludeFinishedEvents` beforeOperation hook on Events. The opt-out is a `where` naming `schedule.lastDate` by **dotted path only** (Payload rejects the nested-group form). A `type: registration` create on `user-submissions` refuses a finished event with **409** ("This event has ended"), since the published-only access filter no longer catches it.
 

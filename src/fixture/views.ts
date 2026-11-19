@@ -107,6 +107,12 @@ export const VIEWS: ViewRegistry = {
     doc('events', EVENT_ONLINE),
     doc('app-cards', 1_021_004),
   ),
+  '@/components/admin/EventFrequencyField#default': links(
+    doc('events', EVENT_THURSDAY),
+    doc('events', EVENT_ONLINE),
+    doc('events', 1_025_015),
+    doc('events', 1_025_007),
+  ),
   '@/components/admin/EventScheduleNotice#default': links(
     doc('events', EVENT_THURSDAY),
     doc('events', EVENT_ONLINE),

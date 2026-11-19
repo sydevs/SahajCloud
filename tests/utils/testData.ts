@@ -4,7 +4,6 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-import { repeatsForSchedule } from '@/lib/events/derivedFields'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import type { LocaleCode } from '@/lib/locales'
 import { withActor } from '@/lib/stateMachine/actor'
@@ -1183,16 +1182,15 @@ export const testData = {
       regionId = regionId.id
     }
 
-    // Dormant by default (the simplest case): no schedule required, but it owes
-    // the contact details a dormant class must carry. `repeats` comes off the
-    // schedule the case supplied, through the collection's own derivation.
+    // Default to inactive (simplest case): no schedule required, but needs contact info
     const eventData: any = {
       title: overrides.title || `Test Event ${uniqueId}`,
       languages: overrides.languages || ['en'],
       manager: managerId,
       region: regionId,
       verificationStage: overrides.verificationStage || 'verified',
-      repeats: repeatsForSchedule(overrides.schedule),
+      inactive: true, // Default to inactive to avoid schedule complexity
+      // A dormant class owes a contact, which counts only while the box is on.
       allowContact: true,
       contactPhone: overrides.contactPhone || '+1-555-0100',
       contactName: overrides.contactName || 'Test Contact',

@@ -26,7 +26,7 @@ import type { Event } from '@/payload-types'
 
 type Candidate = Pick<
   Event,
-  'id' | 'title' | 'eventType' | 'schedule' | 'address' | 'onlineUrl' | 'repeats'
+  'id' | 'title' | 'eventType' | 'schedule' | 'address' | 'onlineUrl' | 'inactive'
 >
 
 export const refuseDuplicateClass: CollectionBeforeValidateHook = async ({
@@ -92,7 +92,7 @@ export async function findDuplicateClass(
     select: {
       title: true,
       eventType: true,
-      repeats: true,
+      inactive: true,
       onlineUrl: true,
       address: { street: true },
       schedule: {
@@ -124,7 +124,7 @@ function sameIdentity(before: Partial<Event>, after: Partial<Event>): boolean {
 /** The identity of a class with a time, or null for one without. */
 export function classKey(event: Partial<Candidate>): string | null {
   const schedule = event.schedule
-  if (event.repeats === 'inactive' || !schedule?.firstDate || !schedule.firstDate_tz) return null
+  if (event.inactive || !schedule?.firstDate || !schedule.firstDate_tz) return null
   const start = getLocalTimeHHMM(schedule.firstDate, schedule.firstDate_tz)
   const date = getLocalDateISO(schedule.firstDate, schedule.firstDate_tz)
   if (!start || !date) return null

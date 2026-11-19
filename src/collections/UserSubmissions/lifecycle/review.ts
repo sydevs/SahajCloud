@@ -158,7 +158,7 @@ export async function applyReview(args: {
     collection: 'events',
     data: {
       // `newEventDefaults` is the whole contract — including the derived
-      // `repeats` (no schedule proposed → a dormant listing, whose contact
+      // `inactive` (no schedule proposed → a dormant listing, whose contact
       // info the Events validation then requires) and `_status`. The preview
       // and the diff compose from the same function, so what a reviewer
       // approves is what gets written.

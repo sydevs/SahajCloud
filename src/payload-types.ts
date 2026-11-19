@@ -1870,7 +1870,6 @@ export interface Event {
     latitude?: number | null;
     longitude?: number | null;
   };
-  repeats: 'once' | 'daily' | 'weekly' | 'monthly' | 'inactive';
   inactive?: boolean | null;
   /**
    * Configure when this event occurs and repeats
@@ -5153,7 +5152,6 @@ export interface EventsSelect<T extends boolean = true> {
         latitude?: T;
         longitude?: T;
       };
-  repeats?: T;
   inactive?: T;
   schedule?:
     | T

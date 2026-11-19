@@ -5,7 +5,7 @@ import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { ScheduleSummary } from '@/components/admin/ScheduleSummary'
-import { hasContactRoute } from '@/lib/events/derivedFields'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 
 /**
  * The head of an event's Schedule tab: the schedule in a sentence, or — for an
@@ -15,9 +15,9 @@ import { hasContactRoute } from '@/lib/events/derivedFields'
  * Reads live form state, so it answers for the choice just made, unsaved.
  */
 export function EventScheduleNotice(): React.ReactElement | null {
-  const repeats = useFormFields(([fields]) => fields.repeats?.value)
-  if (repeats === 'inactive') return <OnDemandContactNotice />
-  return <ScheduleSummary path="schedule" recurrenceFrom="repeats" />
+  const onDemand = useFormFields(([fields]) => fields.inactive?.value === true)
+  if (onDemand) return <OnDemandContactNotice />
+  return <ScheduleSummary path="schedule" />
 }
 
 function OnDemandContactNotice() {

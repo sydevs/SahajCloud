@@ -91,18 +91,6 @@ describe('mergeProposal', () => {
     expect(mergeProposal({ proposed: { title: 'Renamed' }, target }).allowContact).toBe(false)
   })
 
-  it('moves the pace with an update proposal that edits the recurrence alone', () => {
-    // The save's own hook lands the same pace (`syncScheduleRecurrence`).
-    const weekly = {
-      repeats: 'weekly',
-      schedule: { recurrenceType: 'WEEKLY' },
-    } as unknown as Partial<Event>
-    const proposed = { schedule: { recurrenceType: 'MONTHLY' } }
-    expect(mergeProposal({ proposed, target: weekly }).repeats).toBe('monthly')
-    const dormant = { ...weekly, repeats: 'inactive' } as Partial<Event>
-    expect(mergeProposal({ proposed, target: dormant }).repeats).toBe('inactive')
-  })
-
   it('merges into a group the way Payload does, keeping untouched sub-fields', () => {
     // Verified against the running API: `payload.update` with a partial group
     // changes the named sub-field and leaves its siblings alone. The diff and
@@ -131,16 +119,13 @@ describe('mergeProposal', () => {
   })
 
   it('shows a schedule-less proposal as the dormant listing it would create', () => {
-    // `repeats` is derived from the patch by `applyReview`. As a constant it
+    // `inactive` is derived from the patch by `applyReview`. As a constant it
     // was invisible here, so a reviewer accepted a complete-looking diff and
     // got an event that never appears on the map.
-    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).repeats).toBe('inactive')
+    expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).inactive).toBe(true)
     expect(
-      mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).repeats,
-    ).toBe('once')
-    expect(mergeProposal({ proposed: { schedule: { recurrenceType: 'WEEKLY' } } }).repeats).toBe(
-      'weekly',
-    )
+      mergeProposal({ proposed: { schedule: { firstDate: '2026-09-01T00:00:00.000Z' } } }).inactive,
+    ).toBe(false)
   })
 
   it('switches the contact box on for a proposal that carries one', () => {

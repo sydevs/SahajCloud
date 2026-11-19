@@ -7,7 +7,7 @@ import { verifyEventFromLink } from '@/collections/Events/lifecycle/verify'
 import { toLogRow } from '@/fields'
 import { ExpireEvents } from '@/jobs/ExpireEvents/ExpireEvents'
 import { serverEnv } from '@/lib/env'
-import { hasContactRoute, repeatsForSchedule } from '@/lib/events/derivedFields'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import type { NotificationLogEntry } from '@/lib/eventVerification/log'
 import {
   asNotificationLog,
@@ -152,11 +152,7 @@ describe('Event verification lifecycle', () => {
         ? { ...scheduleOverride, firstDate: uniqueStart(scheduleOverride.firstDate) }
         : scheduleOverride
     }
-    // `repeats` is what stores the recurrence, so it follows whichever schedule
-    // this fixture ended up with — `syncScheduleRecurrence` clears a
-    // `recurrenceType` the create names on its own. And a contact only counts
-    // where the box is on, which a dormant class is refused without.
-    data.repeats ??= repeatsForSchedule(data.schedule)
+    // A contact only counts while the box is on, which a dormant class owes.
     data.allowContact ??= hasContactRoute(data)
     return payload.create({
       collection: 'events',
@@ -931,8 +927,8 @@ describe('Event verification lifecycle', () => {
           manager: eventManager.id,
           region: defaultRegion.id,
           // Dormant, so no schedule is needed; an inactive class owes contacts,
-          // and a contact only counts while the box is on.
-          repeats: 'inactive',
+          // which count only while the box is on.
+          inactive: true,
           allowContact: true,
           contactName: 'Opening Contact',
           contactPhone: '+1-555-0101',
@@ -1159,7 +1155,7 @@ describe('Event verification lifecycle', () => {
   it('an inactive event expires through the ladder and never finishes', async () => {
     // Inactive events have no schedule, so contact info is required (#479).
     const event = await createEvent({
-      repeats: 'inactive',
+      inactive: true,
       schedule: null,
       contactPhone: '+44 20 7946 0000',
       contactName: 'Event Contact',
@@ -1223,9 +1219,6 @@ describe('Event verification lifecycle', () => {
         id: event.id,
         overrideAccess: true,
         data: {
-          // `repeats` is the authority: a save naming the recurrence alone has
-          // it cleared by `syncScheduleRecurrence`.
-          repeats: 'daily',
           schedule: {
             firstDate: uniqueStart(daysAgo(30)),
             firstDate_tz: 'Europe/London',
@@ -1303,7 +1296,7 @@ describe('Event verification lifecycle', () => {
     /** Inactive, published, and stored with neither contact — the #835 shape. */
     async function createUnverifiableEvent(): Promise<Event> {
       const event = await createEvent({
-        repeats: 'inactive',
+        inactive: true,
         schedule: null,
         contactPhone: '+44 20 7946 0000',
       })

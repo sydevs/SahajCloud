@@ -15,7 +15,7 @@ const STARTED = '2026-07-01T10:00:00.000Z' // ~3 weeks before NOW → a run alre
 const openEvent: RegistrationGateInput = {
   registrationMode: 'sahaj-atlas',
   registrationLimit: null,
-  repeats: 'weekly',
+  inactive: false,
   schedule: { firstDate: FUTURE, firstDate_tz: TZ },
 }
 
@@ -43,7 +43,7 @@ describe('evaluateRegistrationGate', () => {
     const startedCourse: RegistrationGateInput = {
       registrationMode: 'sahaj-atlas',
       registrationLimit: null,
-      repeats: 'weekly',
+      inactive: false,
       schedule: {
         // 8 weekly sessions from 3 weeks ago → the final one is still ahead of
         // NOW (not ended), but the run has already begun.
@@ -69,7 +69,7 @@ describe('evaluateRegistrationGate', () => {
     const openEndedClass: RegistrationGateInput = {
       registrationMode: 'sahaj-atlas',
       registrationLimit: null,
-      repeats: 'weekly',
+      inactive: false,
       schedule: {
         // started long ago, but it recurs forever → no lastDate, never closes
         firstDate: PAST,
@@ -86,7 +86,7 @@ describe('evaluateRegistrationGate', () => {
     const futureCourse: RegistrationGateInput = {
       registrationMode: 'sahaj-atlas',
       registrationLimit: null,
-      repeats: 'weekly',
+      inactive: false,
       schedule: {
         firstDate: FUTURE,
         firstDate_tz: TZ,
@@ -109,7 +109,7 @@ describe('evaluateRegistrationGate', () => {
     const finishedCourse: RegistrationGateInput = {
       registrationMode: 'sahaj-atlas',
       registrationLimit: null,
-      repeats: 'weekly',
+      inactive: false,
       schedule: {
         // 8 weekly sessions from PAST → the whole run is behind us: ended.
         firstDate: PAST,

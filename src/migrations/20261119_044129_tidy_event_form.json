@@ -2446,6 +2446,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "duration": {
+          "name": "duration",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
         "include_for_meditations": {
           "name": "include_for_meditations",
           "type": "boolean",
@@ -12209,8 +12215,8 @@
           "notNull": false,
           "default": false
         },
-        "contact_phone": {
-          "name": "contact_phone",
+        "contact_name": {
+          "name": "contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12221,8 +12227,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "contact_name": {
-          "name": "contact_name",
+        "contact_phone": {
+          "name": "contact_phone",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -12307,13 +12313,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "repeats": {
-          "name": "repeats",
-          "type": "enum_events_repeats",
-          "typeSchema": "public",
+        "inactive": {
+          "name": "inactive",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": "'once'"
+          "default": false
         },
         "schedule_first_date": {
           "name": "schedule_first_date",
@@ -13360,8 +13365,8 @@
           "notNull": false,
           "default": false
         },
-        "version_contact_phone": {
-          "name": "version_contact_phone",
+        "version_contact_name": {
+          "name": "version_contact_name",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13372,8 +13377,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_contact_name": {
-          "name": "version_contact_name",
+        "version_contact_phone": {
+          "name": "version_contact_phone",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -13458,13 +13463,12 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_repeats": {
-          "name": "version_repeats",
-          "type": "enum_events_repeats",
-          "typeSchema": "public",
+        "version_inactive": {
+          "name": "version_inactive",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": "'once'"
+          "default": false
         },
         "version_schedule_first_date": {
           "name": "version_schedule_first_date",
@@ -26671,17 +26675,6 @@
         "online"
       ]
     },
-    "public.enum_events_repeats": {
-      "name": "enum_events_repeats",
-      "schema": "public",
-      "values": [
-        "once",
-        "daily",
-        "weekly",
-        "monthly",
-        "inactive"
-      ]
-    },
     "public.enum_events_schedule_firstdate_tz": {
       "name": "enum_events_schedule_firstdate_tz",
       "schema": "public",
@@ -29601,6 +29594,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "76ed0b58-7e58-4684-9510-b0153bd68bc8",
+  "id": "d3337bf9-c886-412b-9fb1-e314bfe5ab65",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

@@ -14,9 +14,7 @@ import type { Where } from 'payload'
  * same three rules, expressed against the stored `schedule.lastDate` column
  * because a `where` can't call a function:
  *
- * - A dormant class is never finished (no schedule by design). The stored
- *   `repeats` carries that, because a `where` cannot name the computed
- *   `inactive` field.
+ * - `inactive` events are never finished (dormant by design, no schedule).
  * - A NULL `lastDate` means the recurrence never ends — or the row predates the
  *   backfill. Both must stay visible, so NULL passes.
  * - Otherwise the final occurrence's local day must not be behind us.
@@ -26,7 +24,7 @@ import type { Where } from 'payload'
 export function notFinishedWhere(now: Date): Where {
   return {
     or: [
-      { repeats: { equals: 'inactive' } },
+      { inactive: { equals: true } },
       { 'schedule.lastDate': { exists: false } },
       { 'schedule.lastDate': { greater_than_equal: now.toISOString() } },
     ],

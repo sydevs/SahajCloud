@@ -158,11 +158,10 @@ describe('registration gate on the unified create (#797)', () => {
   })
 
   it('refuses an ended event with event_ended', async () => {
-    // ⚠ The schedule is load-bearing. `shouldFinish` exempts a dormant listing
-    // by design, and the fixture helper creates one for a case that names no
-    // schedule — so an "ended" event left dormant never finishes and the case
-    // would pass vacuously.
-    const event = await createEvent({ schedule: PAST_ONE_OFF })
+    // ⚠ `inactive: false` is load-bearing. `shouldFinish` exempts a dormant
+    // listing by design, and the shared fixture creates one — so an "ended"
+    // event left inactive never finishes and the case would pass vacuously.
+    const event = await createEvent({ schedule: PAST_ONE_OFF, inactive: false })
     await expect(register({ event: event.id })).rejects.toMatchObject({
       status: 409,
       data: { code: 'event_ended' },
@@ -245,7 +244,7 @@ describe('registration gate on the unified create (#797)', () => {
     // importer (#799) has to get past all four refusals. The "not a client"
     // condition above is the whole of its exemption — there is no context flag
     // to set, and nothing here may manufacture a client user to need one.
-    const event = await createEvent({ schedule: PAST_ONE_OFF })
+    const event = await createEvent({ schedule: PAST_ONE_OFF, inactive: false })
 
     await expect(
       payload.create({

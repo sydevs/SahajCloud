@@ -68,6 +68,7 @@ import { default as default_6ed75a1733b63404e4dd1cd6766b78ef } from '@/component
 import { default as default_ed3b039830992dc45486e37aaf03df7c } from '@/components/admin/EventVerificationNotice'
 import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/components/admin/StringSelectField'
 import { default as default_826f2980c9e1e0e72b25c86307f02534 } from '@/components/admin/EventScheduleNotice'
+import { default as default_e7df6c7ccbfdd5e73d9b4008aaaf0482 } from '@/components/admin/EventFrequencyField'
 import { default as default_c1b589b819e10077292295d97dcd997f } from '@/components/admin/EventRegistrations/RegistrationsNotice'
 import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
@@ -181,6 +182,7 @@ export const importMap = {
   "@/components/admin/EventVerificationNotice#default": default_ed3b039830992dc45486e37aaf03df7c,
   "@/components/admin/StringSelectField#default": default_1dd99abed7767ee797cacf1ad150de88,
   "@/components/admin/EventScheduleNotice#default": default_826f2980c9e1e0e72b25c86307f02534,
+  "@/components/admin/EventFrequencyField#default": default_e7df6c7ccbfdd5e73d9b4008aaaf0482,
   "@/components/admin/EventRegistrations/RegistrationsNotice#default": default_c1b589b819e10077292295d97dcd997f,
   "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
