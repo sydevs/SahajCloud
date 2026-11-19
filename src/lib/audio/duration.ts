@@ -25,11 +25,9 @@ export const extractAudioDuration =
       return data
     }
 
-    const buffer = Buffer.isBuffer(req.file.data) ? req.file.data : Buffer.from(req.file.data)
-
     let duration: number | undefined
     try {
-      const { format } = await parseBuffer(buffer, { mimeType: req.file.mimetype })
+      const { format } = await parseBuffer(req.file.data, { mimeType: req.file.mimetype })
       duration = format.duration == null ? undefined : Math.round(format.duration)
     } catch (error) {
       req.payload.logger.warn({
