@@ -156,14 +156,12 @@ Lexical conversion — are what `translations` reads. A `wm-app-translations`
 script of its own existed until #1169 and was retired as a strict subset of
 this one.
 
-### The website's nine other languages have no seed
-
-`translations` seeds English only for `wm-web-translations`. The other nine
-locales (`ru it es fr de pt-BR cs uk bg`) were loaded into production once, from
+⚠ **`wm-web-translations` is seeded in English only.** Its nine other locales
+(`ru it es fr de pt-BR cs uk bg`) were loaded into production once, from
 machine-assisted drafts, by a one-off `wm-web-locales` script (#1213), and are
-edited in the admin from then on. The script and its data files are gone, so
-nothing can overwrite an editor's wording. A fresh database or a preview has
-English only for this global.
+editor-owned from then on. That script and its data files are gone, so nothing
+can overwrite an editor's wording — and a fresh database or a preview holds
+English alone for this global.
 
 ### `file-transcripts` — the bulk re-request
 
