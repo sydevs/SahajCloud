@@ -31,8 +31,8 @@ describe('shouldRedirectToAdmin', () => {
   it('redirects when the current collection becomes hidden under the new project', () => {
     // meditations is not part of sahaj-atlas.
     expect(shouldRedirectToAdmin('/admin/collections/meditations/12', 'sahaj-atlas')).toBe(true)
-    // events belong only to sahaj-atlas.
-    expect(shouldRedirectToAdmin('/admin/collections/events', 'wemeditate-web')).toBe(true)
+    // app-cards belong only to wemeditate-app.
+    expect(shouldRedirectToAdmin('/admin/collections/app-cards', 'wemeditate-web')).toBe(true)
   })
 
   it('treats globals the same as collections', () => {

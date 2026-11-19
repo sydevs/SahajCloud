@@ -163,6 +163,18 @@ export const responsibilityLabel = (responsibility: Responsibility): string =>
   responsibility.items.length === 1 ? responsibility.singular : responsibility.label
 
 /**
+ * ⚠ Joins whose responsibility belongs to its own role's project, whoever holds
+ * it. A class and a region are managed on the Sahaj Atlas, and an invitation
+ * for one has to carry that brand — they also sit in `wemeditate-web` since
+ * #1228, but only so the site can read the class a page counts down to, and a
+ * project that merely reads a collection is no home for looking after one.
+ *
+ * `managedPages` is deliberately absent: both We Meditate projects own a page,
+ * so a Path Editor's pages go with the App.
+ */
+const JOIN_OWNS_PROJECT: ReadonlySet<string> = new Set(['managedRegions', 'managedEvents'])
+
+/**
  * Name the access a manager holds — roles per locale, and the documents naming
  * them — as one summary per project, in project order. Given `only`, just the
  * part of that listed there.
@@ -253,6 +265,7 @@ export async function summarizeGrants({
     // project of the role its listing derives, so a service is a Sahaj Atlas
     // invitation rather than the default brand's.
     const project =
+      (JOIN_OWNS_PROJECT.has(join) ? getJoinProject(join) : undefined) ??
       candidates.find((candidate) => heldProjects.has(candidate)) ??
       candidates[0] ??
       getJoinProject(join) ??

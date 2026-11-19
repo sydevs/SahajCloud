@@ -26,7 +26,9 @@ describe('implicit read', () => {
         expect(isImplicitlyReadable(slug, project), `${slug} from ${project}`).toBe(true)
       }
     }
-    expect(isImplicitlyReadable('events', 'wemeditate-web')).toBe(false)
+    // `events` and `regions` joined `wemeditate-web` in #1228, so the
+    // out-of-project example is one the web project still does not name.
+    expect(isImplicitlyReadable('app-cards', 'wemeditate-web')).toBe(false)
   })
 
   it('is what hasPermission applies to a published client key', () => {

@@ -130,7 +130,11 @@ describe('a derived role in hasPermission', () => {
     expect(may(listedOnPage, 'pages', 'update', 'en')).toBe(false)
     expect(may(listedOnPage, 'pages', 'create', 'en')).toBe(false)
     expect(may(listedOnPage, 'meditations', 'update', 'en')).toBe(false)
-    expect(may(listedOnPage, 'events', 'read', 'en')).toBe(false)
+    // `events` joined `wemeditate-web` in #1228, so a page editor now reads
+    // classes — read only, and `app-cards` is still out of their project.
+    expect(may(listedOnPage, 'events', 'read', 'en')).toBe(true)
+    expect(may(listedOnPage, 'events', 'update', 'en')).toBe(false)
+    expect(may(listedOnPage, 'app-cards', 'read', 'en')).toBe(false)
   })
 
   it('reaches the Atlas project implicitly, as a stored role would', () => {
