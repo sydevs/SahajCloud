@@ -8,8 +8,6 @@ import { PAGE_TAGS } from '@/lib/pageTags'
  * Configuration for each content type's API endpoint generation.
  * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
  * which evaluates audiences from runtime user context and ignores `where`.
- * `extraParams` carries no leading separator, so a type with no filter field can
- * emit it as the first query param.
  */
 const CONTENT_TYPE_CONFIG: Record<
   string,
@@ -60,6 +58,8 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
       : null
   if (limit === null) return null
 
+  const params: string[] = []
+
   if (config.filterField && config.queryParam) {
     const filters = siblingData?.[config.filterField]
     if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
@@ -68,15 +68,12 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
     const ids = filterValues.map(extractID)
     if (ids.length === 0) return null
 
-    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-    let url = `${config.basePath}?${config.queryParam}=${queryValue}`
-    if (config.extraParams) url = `${url}&${config.extraParams}`
-    return `${url}&limit=${limit}`
+    params.push(`${config.queryParam}=${ids.map((id) => encodeURIComponent(id)).join(',')}`)
   }
+  if (config.extraParams) params.push(config.extraParams)
+  params.push(`limit=${limit}`)
 
-  // No filter field → extraParams, where there are any, lead the query string
-  if (config.extraParams) return `${config.basePath}?${config.extraParams}&limit=${limit}`
-  return `${config.basePath}?limit=${limit}`
+  return `${config.basePath}?${params.join('&')}`
 }
 
 /**
