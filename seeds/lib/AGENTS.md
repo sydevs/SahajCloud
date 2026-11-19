@@ -1,7 +1,6 @@
 # Seed Utilities Library
 
-Shared utilities for import scripts. Every importer extends `BaseImporter`, or
-`TranslationGlobalsImporter` below, which extends it.
+Shared utilities for import scripts. Every importer extends `BaseImporter`.
 
 ## BaseImporter class
 
@@ -64,25 +63,15 @@ this.skip('Skipping item') // Log skip, increment counter
 - `this.report` — ValidationReport instance
 - `this.options.dryRun` — Boolean flag
 
-## TranslationGlobalsImporter
+## Writing a translation global
 
-`TranslationGlobalsImporter` (extends `BaseImporter`) holds `writeGlobal`, and
-`seedLocaleFiles`, the loop that reads one `data.<locale>.json` per locale and
-publishes that locale alone. `translations` extends it for the atlas global's
-ten locales.
+`seeds/translations/import.ts` owns `writeGlobal` and `seedLocaleFiles`, the
+loop that reads one `data.<locale>.json` per locale and publishes that locale
+alone. They sat in a `TranslationGlobalsImporter` base while two scripts shared
+them; `translations` is the only caller now, so they live with it.
 
 A `_meta.locale` that does not match the file's slot is an error, not a
 warning: a file in the wrong slot publishes one language's words as another's.
-
-```typescript
-await this.seedLocaleFiles({
-  slug: 'sy-atlas-translations',
-  locales: ATLAS_TRANSLATION_LOCALES,
-  dataFile: atlasTranslationsDataFile,
-  // prepare?: adds or holds back a group before the write — the atlas seed's
-  // live `emails` and `event.title` groups.
-})
-```
 
 ## Shared utilities
 

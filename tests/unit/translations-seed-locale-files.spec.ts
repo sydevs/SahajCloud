@@ -1,6 +1,6 @@
 /**
  * `seedLocaleFiles`, on the two failures that must not be mistaken for a
- * per-locale one (`seeds/lib/TranslationGlobalsImporter.ts`).
+ * per-locale one (`seeds/translations/import.ts`).
  *
  * The loop swallows a `writeGlobal` throw on purpose: each locale is its own
  * write and its own publish, and `writeGlobal` has already reported the
@@ -18,25 +18,20 @@
 
 import type { BaseImportOptions } from '../../seeds/lib'
 
-import * as path from 'path'
-
 import { describe, expect, it, vi } from 'vitest'
 
 import { type AtlasTranslationLocale, atlasTranslationsDataFile } from '../../seeds/lib/dataFiles'
 import { Logger } from '../../seeds/lib/logger'
-import { TranslationGlobalsImporter } from '../../seeds/lib/TranslationGlobalsImporter'
 import { ValidationReport } from '../../seeds/lib/validationReport'
+import { TranslationsImporter } from '../../seeds/translations/import'
 
 /**
  * `run()` is what normally injects the logger and the report. This calls
  * `seedLocaleFiles` directly, so it supplies both and leaves `payload` unset —
  * the state the first case is about.
  */
-class ProbeImporter extends TranslationGlobalsImporter {
+class ProbeImporter extends TranslationsImporter {
   readonly log = new Logger()
-
-  protected readonly importName = 'Probe'
-  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/probe')
 
   constructor(options: BaseImportOptions) {
     super(options)
