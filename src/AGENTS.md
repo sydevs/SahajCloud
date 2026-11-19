@@ -241,8 +241,8 @@ No loose files at the root — every file lives in a named folder:
   block any of the three; `mapVisibility.ts` — which classes the Atlas map
   draws, read by the geojson feed that returns them and by the Clients
   preview panel, which only asks whether a region has any; `contactRoute.ts` —
-  whether a patch carries a phone or an email, read by the Events validator,
-  the Schedule tab's banner and the proposal merge), `eventTitle/` (the auto-title
+  whether a patch carries a phone or an email, read by the Events validator
+  and contact gate, the Schedule tab's banner and the proposal merge), `eventTitle/` (the auto-title
   composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
   resolves a title against the database and is shared by the Events title
   hook and the proposal merge), `eventQuality/` (the listing-quality check
