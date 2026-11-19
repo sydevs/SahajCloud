@@ -187,7 +187,7 @@ describe('Translations Globals Configuration', () => {
   })
 
   describe('Per-leaf-group JSON fields + richText siblings', () => {
-    // `general` and `a11y` repeat across eleven tabs, so a bare name proves
+    // `general` and `a11y` repeat across ten tabs, so a bare name proves
     // nothing. The pair is what maps to the `<tab>_<sub>` column, and asserting
     // the exact set is what catches a sub-group dropped from the schema.
     // `discover` carries a lone `general` because it owns no screen-reader
