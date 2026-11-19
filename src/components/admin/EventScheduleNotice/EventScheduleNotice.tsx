@@ -32,9 +32,9 @@ function OnDemandContactNotice() {
   )
   const name = useFormFields(([fields]) => fields.contactName?.value)
 
-  const openContact = () => {
+  const openContact = (event: React.MouseEvent<Element>) => {
     if (!allowContact) setAllowContact(true)
-    revealField('Details', 'field-allowContact')
+    revealField(event.currentTarget.closest('form'), 'Details', 'allowContact')
   }
 
   if (!allowContact || !reachable) {
@@ -61,20 +61,25 @@ function OnDemandContactNotice() {
 }
 
 /**
- * Switch to another tab of the form and bring one of its fields into view.
+ * Switch the notice's own form to another tab and bring one of its fields into
+ * view — its own form, since an event opened in a drawer sits over another
+ * document's tabs.
  *
  * shortcut: Payload's `Tabs` field keeps its active tab in component state and
  * exposes no way to set it, so this clicks the tab's own button. Upgrade if
  * Payload ships a tab API or URL-addressable tabs.
  */
-function revealField(tabLabel: string, fieldId: string) {
-  Array.from(document.querySelectorAll<HTMLButtonElement>('.tabs-field__tab-button'))
-    .find((button) => button.textContent?.trim() === tabLabel)
+function revealField(form: HTMLFormElement | null, tabLabel: string, fieldName: string) {
+  if (!form) return
+  // The label is the button's first text: a refused save adds an error count after it.
+  Array.from(form.querySelectorAll<HTMLButtonElement>('.tabs-field__tab-button'))
+    .find((button) => button.firstChild?.textContent?.trim() === tabLabel)
     ?.click()
   // The tab mounts its fields after the click; give them a few frames.
   let attempts = 0
   const scroll = () => {
-    const target = document.getElementById(fieldId)
+    // A drawer suffixes each field id with its depth.
+    const target = form.querySelector<HTMLElement>(`[id^="field-${fieldName}"]`)
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target.focus({ preventScroll: true })

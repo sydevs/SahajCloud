@@ -41,7 +41,8 @@ interface InfoBannerConfig {
  * which a server component can pass; `onClick` needs a client one.
  */
 export type InfoBannerAction =
-  { label: string; href: string } | { label: string; onClick: () => void; disabled?: boolean }
+  | { label: string; href: string }
+  | { label: string; onClick: (event: React.MouseEvent<Element>) => void; disabled?: boolean }
 
 export interface InfoBannerProps {
   type?: InfoBannerType
