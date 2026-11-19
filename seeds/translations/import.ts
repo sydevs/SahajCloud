@@ -42,9 +42,11 @@ import type { LocaleCode } from '../../src/lib/locales'
 
 import * as path from 'path'
 
+import { TRANSLATIONS_TARGETS } from '../../src/globals'
 import appSchema from '../../src/globals/WeMeditateAppTranslations/translationsSchema.json' with { type: 'json' }
 import { EVENT_TITLE_DEFAULTS } from '../../src/lib/eventTitle/compose'
 import { EMAILS_GROUP_DEFAULTS } from '../../src/lib/translations/emailStrings'
+import { withEnglishDefaults } from '../../src/lib/translations/englishDefaults'
 import { BaseImporter, type BaseImportOptions } from '../lib'
 import {
   ATLAS_TRANSLATION_LOCALES as ATLAS_LOCALES,
@@ -278,10 +280,17 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
    */
   private async writeGlobal(
     slug: string,
-    data: Record<string, unknown>,
+    seeded: Record<string, unknown>,
     locale: LocaleCode,
     publish = false,
   ): Promise<void> {
+    // A key whose English lives in `translationsSchema.json` as `default` is
+    // written from there, so the corpus files carry only the keys that predate
+    // that convention (`src/lib/translations/englishDefaults.ts`). Every other
+    // locale is left alone: a default written into `fr` would be a translation
+    // nobody made.
+    const schema = TRANSLATIONS_TARGETS.find((target) => target.slug === slug)?.schema
+    const data = locale === DEFAULT_LOCALE && schema ? withEnglishDefaults(seeded, schema) : seeded
     const fieldNames = Object.keys(data)
 
     if (this.options.dryRun) {

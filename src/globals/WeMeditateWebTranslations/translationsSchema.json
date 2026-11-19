@@ -1004,6 +1004,7 @@
             "wisdom_sidetext": {
               "type": "string",
               "maxLength": 24,
+              "default": "Ancient Wisdom",
               "description": "Ornamental words set on their side along the outer edge of an \u201cAncient Wisdom\u201d text box. Decorative, so an evocative short phrase beats a literal translation \u2014 and it stands vertically in one line, which is what the limit is for."
             }
           },

@@ -322,30 +322,36 @@ write.
   Re-seed it — `pnpm db:migrate` is not the recovery, since an empty
   `payload_migrations` replays the whole chain and fails on its first
   `CREATE TABLE`.
-- **Production's English copy ships as a guarded data migration.** The seed
-  files reach only a fresh database, so a new key is otherwise blank in
-  production until someone types it into the admin.
-  `20261107_225000_atlas_clock_copy` (squashed away, read it at `c70081c0`) is the worked example: a new key lands
-  only where English lacks it, a rewording only where the stored value is still
-  the seeded original, and both the main row and the `latest: true` version row
-  are written. Its `down` is required, not tidy, and it sweeps wider than `up`
-  wrote: the previous schema declares neither new key, so `down` drops both
-  from every locale and every version row, whatever they hold — one spared
-  because an editor reworded it refuses every save of the row holding it. A
-  rewording is the other case: the old schema declares that key, so `down`
-  reverts English alone, and only where the value is still `up`'s.
-  ⚠ **`src/migrations/AGENTS.md` is not contradicted here — this is its
-  carve-out.** Its default is no backfill inside a migration, and
-  `.claude/workflow.json` marks `src/migrations/*.ts` do-not-augment, because
-  hand-editing generated DDL has repeatedly broken foreign keys and
-  versioned-table companions. A copy migration carries no DDL at all: two JSONB
-  columns, and a snapshot that is the previous one re-stamped, so there is no
-  table rebuild to get wrong. Anything touching a column's shape still belongs
-  in a post-deploy job, as that guide says.
+- **A key's English is declared beside it, as `default`.** The seed files reach
+  only a fresh database, so a new key would otherwise be blank in production
+  until someone typed it into the admin — which it was, through one hand-written
+  data migration per key, three of them in the 48 hours before #1218 replaced
+  the convention.
+  `src/lib/translations/englishDefaults.ts` owns both readers: the translations
+  seed merges the declared defaults under its corpus file for a fresh database,
+  and `reconcileEnglishDefaults` fills a database that already holds the global,
+  from `onInit` on every boot, after the migrations have run.
+  ⚠ **It fills an absent key and nothing else.** It runs on every boot, so
+  filling a _blank_ English value would overwrite an operator who emptied one,
+  again at every restart. The seed is the one writer that treats blank as
+  absent, because a seed run is a deliberate act.
+  ⚠ **English only, and never a plural key.** Every other locale resolves
+  through `clientEnglishFallback`, so a default written into `fr` would be a
+  translation nobody made; and a plural key's English is a CLDR family rather
+  than a value, so a `default` beside `plural` is ignored.
+  ⚠ **The corpus file must not carry a key that declares a `default`**, or the
+  two copies are free to disagree. `tests/unit/wm-web-translations-seed.spec.ts`
+  holds both halves of that.
+  ⚠ **A data migration is still what _retires_ a key**, and a rewording is
+  still a migration too: a default lands only where nothing is stored, so it
+  cannot replace copy somebody already has.
 - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
   strict mode, where an unknown keyword throws at _validate_ time, not at
   boot — so `plural`, `preview`, `screenshot` and `strict` must never reach
   the emitted schema. A plural key contributes its expanded CLDR family.
+  `default` is a standard keyword and is still held back: Ajv writes a declared
+  default into the data it validates under `useDefaults`, so emitting it would
+  make a save store copy nobody typed.
 
 ### Sub-groups render as collapsibles
 
