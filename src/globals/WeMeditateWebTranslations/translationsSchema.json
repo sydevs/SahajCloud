@@ -9,6 +9,10 @@
           "type": "object",
           "description": "Visible on screen",
           "properties": {
+            "skip_to_main": {
+              "type": "string",
+              "description": "The link at the very top of every page that jumps past the menus to the page's own content. Hidden until a keyboard reaches it, then shown on screen."
+            },
             "loading": {
               "type": "string",
               "description": "Shown beside a spinner while content is still loading."
@@ -56,6 +60,14 @@
             "breadcrumb": {
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Names the trail of parent links above a page title."
+            },
+            "primary_navigation": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the site's main menu, so it can be told apart from the other menus on the page."
+            },
+            "footer_navigation": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the footer's untitled list of links. A footer column that shows its own heading is named by that heading instead."
             },
             "opens_in_new_tab_suffix": {
               "type": "string",
@@ -433,6 +445,10 @@
             "related_meditations_loading": {
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading."
+            },
+            "untitled_heading": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own."
             }
           },
           "additionalProperties": false
