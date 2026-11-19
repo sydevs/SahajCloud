@@ -6,9 +6,9 @@ import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
 import {
+  composePanelNotice,
   composePanelUrl,
   panelDefaultUrl,
-  panelNoticeUrl,
   trackPanelUrl,
 } from '@/components/admin/helpers/panelUrl'
 import type { PreviewTarget as PreviewTargetDeclaration } from '@/fields/previewTargetField'
@@ -85,9 +85,12 @@ export const PreviewTarget: UIFieldClientComponent = ({ field }) => {
     // told that on every tab, not that its preview belongs to a tab it lacks.
     if (!resolved || isLivePreviewUnavailableUrl(resolved)) return
 
-    const composed = target.unavailable
-      ? panelNoticeUrl(target.unavailable)
-      : composeTargetUrl(resolved, target)
+    if (target.unavailable) {
+      if (composePanelNotice(setURL, target.unavailable, url)) repointed.current = true
+      return
+    }
+
+    const composed = composeTargetUrl(resolved, target)
     if (!composed || composed === url) return
 
     repointed.current = true

@@ -5,7 +5,7 @@ import type { LivePreviewURLType } from 'payload'
 import { useLivePreviewContext } from '@payloadcms/ui'
 import { useEffect, useRef } from 'react'
 
-import { composePanelUrl, panelNoticeUrl } from '@/components/admin/helpers/panelUrl'
+import { composePanelNotice } from '@/components/admin/helpers/panelUrl'
 import { isLivePreviewUnavailableUrl } from '@/lib/livePreview/unavailable'
 
 /**
@@ -75,7 +75,7 @@ export function LivePreviewNotice() {
     const wait = () => {
       clearTimeout(timer)
       timer = setTimeout(
-        () => composePanelUrl(setURL, panelNoticeUrl('preview-unreachable')),
+        () => composePanelNotice(setURL, 'preview-unreachable'),
         PREVIEW_SILENCE_MS,
       )
     }
