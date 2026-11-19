@@ -64,7 +64,11 @@ import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
-import { clearWithheldContact, withheldUnlessAllowed } from './hooks/withholdContact'
+import {
+  clearWithheldContact,
+  refuseContactWithoutBox,
+  withheldUnlessAllowed,
+} from './hooks/withholdContact'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -316,6 +320,7 @@ export const Events: CollectionConfig = {
                   type: 'checkbox',
                   label: 'Allow seekers to contact someone by phone or email',
                   defaultValue: false,
+                  hooks: { beforeValidate: [refuseContactWithoutBox] },
                   // A dormant class has no schedule to show, so a reachable person
                   // is the only way a seeker can learn more. The phone field's own
                   // validator asks for the number; this one asks for the box, which

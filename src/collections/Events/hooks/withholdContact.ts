@@ -1,5 +1,6 @@
-import type { CollectionBeforeChangeHook, FieldHook } from 'payload'
+import { type CollectionBeforeChangeHook, type FieldHook, ValidationError } from 'payload'
 
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 /**
@@ -40,4 +41,33 @@ export function withheldUnlessAllowed() {
 export const clearWithheldContact: CollectionBeforeChangeHook = ({ data, originalDoc }) => {
   if (data.allowContact ?? originalDoc?.allowContact) return data
   return { ...data, contactEmail: null, contactName: null, contactPhone: null }
+}
+
+/**
+ * Refuse a write that sets a phone or an email but leaves the box out, while
+ * the stored box is off — an API `PATCH { contactPhone }` — rather than let the
+ * save-time clear drop it without a word.
+ *
+ * ⚠ **Only a field `beforeValidate` hook can see the box was left out.** Payload
+ * fills an omitted field from the stored row right after that field's own
+ * hooks run, so every later hook reads `allowContact` as though it was sent.
+ * Naming the box `false` is an answer, not an omission: the admin form sends
+ * exactly that, with whatever was typed before the box was unticked.
+ */
+export const refuseContactWithoutBox: FieldHook = ({ previousSiblingDoc, siblingData }) => {
+  if (siblingData.allowContact !== undefined || previousSiblingDoc?.allowContact) return
+  const sent = (key: 'contactEmail' | 'contactPhone') =>
+    siblingData[key] === previousSiblingDoc?.[key] ? undefined : siblingData[key]
+  if (!hasContactRoute({ contactEmail: sent('contactEmail'), contactPhone: sent('contactPhone') }))
+    return
+  throw new ValidationError({
+    collection: 'events',
+    errors: [
+      {
+        path: 'allowContact',
+        message:
+          'Switch this on to set a phone number or an email address. While it is off, the contact fields are emptied on save.',
+      },
+    ],
+  })
 }

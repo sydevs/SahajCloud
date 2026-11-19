@@ -344,6 +344,50 @@ describe('Events collection', () => {
       expect(matched.totalDocs).toBe(0)
     })
 
+    // An API caller that names a phone and leaves the box out would otherwise
+    // lose it to the save-time clear without a word. Naming the box `false`
+    // is an answer, and the case above keeps it.
+    it('refuses a phone written without the box while it is off', async () => {
+      const event = await testData.createEvent(payload, {
+        allowContact: false,
+        contactPhone: null,
+        inactive: false,
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'WEEKLY',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          overrideAccess: true,
+          data: { contactPhone: '+44 20 7000 4000' },
+        }),
+      ).rejects.toMatchObject({
+        data: {
+          errors: [{ path: 'allowContact', message: expect.stringMatching(/^Switch this on/) }],
+        },
+      })
+    })
+
+    it('takes a phone written without the box while it is on', async () => {
+      const event = await createReachableEvent()
+
+      const updated = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { contactPhone: '+44 20 7000 5000' },
+      })
+
+      expect(updated.contactPhone).toBe('+44 20 7000 5000')
+    })
+
     // What the Atlas widget sends: `contactPhone` and `contactName`, never the
     // box. `select` strips what it does not name, so the gate reads the box
     // back through its own `virtualFieldInputs` declaration — without which

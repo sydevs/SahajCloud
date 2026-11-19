@@ -73,3 +73,12 @@ the box already off — an API create, a CSV import — never transitions, so a
 transition-only hook leaves exactly that row queryable. A caller meaning to
 offer a contact sends the box with it, which `newEventDefaults`, `updatePatch`
 and `eventData` all derive.
+
+⚠ **A write that leaves the box out is refused, not cleared.** While the box is
+off, a phone or an email sent without `allowContact` fails with a 400
+(`refuseContactWithoutBox`) rather than vanishing in the clear. Only a field
+`beforeValidate` hook on the box can see the omission: Payload fills an omitted
+field from the stored row right after that field's own hooks, so every later
+hook reads the box as sent. Naming it `false` is an answer — the admin form
+sends that, with whatever was typed before the box was unticked — and the clear
+empties it.
