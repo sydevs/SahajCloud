@@ -1,5 +1,7 @@
 import { Block } from 'payload'
 
+import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
+
 export const SplashBlock: Block = {
   slug: 'splash',
   interfaceName: 'SplashBlock',
@@ -28,6 +30,28 @@ export const SplashBlock: Block = {
       admin: {
         description: 'Select the layout style for this splash section',
       },
+    },
+    {
+      name: 'event',
+      type: 'relationship',
+      relationTo: 'events',
+      admin: {
+        condition: (_, siblingData) => siblingData?.layout === 'countdown',
+        description: 'The online class this splash counts down to.',
+      },
+      // No `validate`: Payload installs `validateFilterOptions` only inside its own
+      // `relationship` validator, and only for a field that supplies none
+      // (`src/collections/AGENTS.md`). One here would narrow the picker and leave an API
+      // `PATCH` naming any event at all unrefused.
+      filterOptions: () => ({
+        and: [
+          { eventType: { equals: 'online' } },
+          // `notFinishedWhere` admits an inactive class by design — one has no schedule to
+          // count down — so this arm is a second rule, not a duplicate of it.
+          { inactive: { not_equals: true } },
+          notFinishedWhere(new Date()),
+        ],
+      }),
     },
     {
       name: 'textColor',

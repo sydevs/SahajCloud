@@ -1004,6 +1004,45 @@
             "seconds": {
               "type": "string",
               "description": "Label under the seconds figure of a countdown."
+            },
+            "days": {
+              "type": "string",
+              "description": "Label under the days figure of a countdown."
+            }
+          },
+          "additionalProperties": false
+        },
+        "live_session": {
+          "type": "object",
+          "description": "The live-meditation panel that counts down to the next online class",
+          "properties": {
+            "next_session": {
+              "type": "string",
+              "description": "Heading above the next online class's day and time."
+            },
+            "starts_in": {
+              "type": "string",
+              "description": "Label above the countdown figures."
+            },
+            "join_now": {
+              "type": "string",
+              "description": "Button that opens the joining link while the class is under way."
+            },
+            "live_now": {
+              "type": "string",
+              "description": "Shown in place of the countdown while the class is under way."
+            },
+            "no_upcoming": {
+              "type": "string",
+              "description": "Shown when the class has no future dates left."
+            },
+            "schedule_line": {
+              "type": "string",
+              "description": "The class's own schedule, shown before the visitor's clock is known — e.g. \"Tuesdays, 7:00 pm London time\". `%{weekday}` = the day, `%{time}` = the start time, `%{zone}` = the class's own time zone, named by the browser."
+            },
+            "a11y_next_session": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. The one sentence giving the next class's day, time and how far away it is. `%{weekday}` = the day, `%{time}` = the start time, `%{relative}` = how far away, e.g. \"in 2 days\"."
             }
           },
           "additionalProperties": false

@@ -1,6 +1,7 @@
 import type { Page } from '@/payload-types'
 
 import { CHOICE, MEDITATION, NODE_PAGES, PAGE } from './content-ids'
+import { EVENT_IDS } from './events'
 import { ID } from './ids'
 import { fixture } from './types'
 
@@ -366,6 +367,12 @@ export default fixture('pages', [
           title: 'Next live session',
           actionText: 'Join',
           actionURL: 'https://example.invalid/live',
+          event: EVENT_IDS.onlineDaily,
+        }),
+        block('class-directory', 'layouts-class-directory', {
+          opensAt: { relationTo: 'regions', value: ID.regions.country },
+          showMap: false,
+          onlineOnly: true,
         }),
         block('splash', 'layouts-splash-app', {
           layout: 'app',

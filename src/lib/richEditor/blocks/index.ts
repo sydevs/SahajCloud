@@ -1,4 +1,5 @@
 import { ButtonBlock } from './ButtonBlock'
+import { ClassDirectoryBlock } from './ClassDirectoryBlock'
 import { ContentIndexBlock } from './ContentIndexBlock'
 import { ImageGalleryBlock } from './ImageGalleryBlock'
 import { LayoutBlock } from './LayoutBlock'
@@ -11,6 +12,7 @@ import { TextBoxBlock } from './TextBoxBlock'
 
 export {
   ButtonBlock,
+  ClassDirectoryBlock,
   ContentIndexBlock,
   ImageGalleryBlock,
   LayoutBlock,
@@ -33,4 +35,5 @@ export const pageBlocks = [
   ContentIndexBlock,
   SubtleSystemBlock,
   SplashBlock,
+  ClassDirectoryBlock,
 ]

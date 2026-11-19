@@ -42,6 +42,12 @@ const PROJECTS = {
       // makes every read of it take an explicit grant (`isImplicitlyReadable`).
       'authors',
       'lectures',
+      // `events` and `regions` are the class directory the site's `splash` countdown and
+      // `class-directory` blocks point at. Read only: no role gains a write grant here, and
+      // `Events.registrationNotificationEmail` and `Events.activityLog` keep their own field
+      // locks, so neither reaches a `wemeditate-web-client` key.
+      'events',
+      'regions',
       'user-choices',
       'subtle-system-nodes',
       'song-tags',
