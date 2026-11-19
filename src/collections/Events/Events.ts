@@ -60,7 +60,6 @@ import {
   EVENT_TYPE_OPTIONS,
   VERIFICATION_STAGE_LABELS,
 } from './eventOptions'
-import { clearContactDetails } from './hooks/clearContactDetails'
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
@@ -68,6 +67,7 @@ import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncScheduleRecurrence } from './hooks/syncScheduleRecurrence'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
+import { clearWithheldContact, withheldUnlessAllowed } from './hooks/withholdContact'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -213,7 +213,7 @@ export const Events: CollectionConfig = {
       syncVerificationOnSave,
       syncEventFullness,
       stampEventQuality,
-      clearContactDetails,
+      clearWithheldContact,
     ],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
@@ -314,9 +314,10 @@ export const Events: CollectionConfig = {
               },
               fields: [
                 {
-                  // ⚠ Switching this off **clears** all three on that save
-                  // (`clearContactDetails`): a hidden field keeps its value, and
-                  // the widget reads `contactPhone`.
+                  // ⚠ While this is off, all three are withheld from every read
+                  // and emptied on every save (`withholdContact.ts`): a hidden
+                  // field keeps its value, the widget reads `contactPhone`, and
+                  // a stored one answers a `where` no read gate sees.
                   name: 'allowContact',
                   type: 'checkbox',
                   label: 'Allow seekers to contact someone by phone or email',
@@ -344,6 +345,7 @@ export const Events: CollectionConfig = {
                   name: 'contactName',
                   type: 'text',
                   maxLength: CONTACT_TEXT_MAX,
+                  ...withheldUnlessAllowed(),
                   // Whoever answers the phone, or reads the inbox. Not
                   // *required*. The Atlas dump holds numbers and addresses
                   // with no name against them, and refusing those would throw
@@ -360,6 +362,7 @@ export const Events: CollectionConfig = {
                     {
                       name: 'contactEmail',
                       type: 'email',
+                      ...withheldUnlessAllowed(),
                       // An `email` field validates format, but takes no
                       // `maxLength` of its own. Without this, it stays unbounded
                       // on a public-facing listing. Composed with `email` from
@@ -391,6 +394,7 @@ export const Events: CollectionConfig = {
                       label: 'Contact Phone Number',
                       type: 'text',
                       maxLength: CONTACT_TEXT_MAX,
+                      ...withheldUnlessAllowed(),
                       // An inactive event has no schedule, so a *reachable
                       // person* is the only way a seeker can find out more. An
                       // inactive event must carry one. A phone or an email

@@ -144,8 +144,8 @@ describe('mergeProposal', () => {
   })
 
   it('switches the contact box on for a proposal that carries one', () => {
-    // A hidden contact field keeps no value, so an accepted proposal carrying a
-    // phone has to arrive with the box checked or `clearContactDetails` wipes it.
+    // The box governs the read, so an accepted proposal carrying a phone has to
+    // arrive with the box checked or nothing it offered ever reaches a seeker.
     expect(mergeProposal({ proposed: { contactPhone: '+1 555' } }).allowContact).toBe(true)
     expect(mergeProposal({ proposed: { contactEmail: 'a@b.test' } }).allowContact).toBe(true)
     expect(mergeProposal({ proposed: { title: 'No contact' } }).allowContact).toBe(false)

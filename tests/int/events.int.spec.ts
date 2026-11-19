@@ -368,8 +368,8 @@ describe('Events collection', () => {
   })
 
   describe('allowContact', () => {
-    it('clears all three contact fields on the save that switches it off', async () => {
-      const event = await testData.createEvent(payload, {
+    const createReachableEvent = () =>
+      testData.createEvent(payload, {
         allowContact: true,
         contactEmail: 'reach@example.com',
         contactName: 'Reachable Person',
@@ -383,6 +383,12 @@ describe('Events collection', () => {
         },
       })
 
+    // The box governs the read, so switching it off has to withhold all three
+    // from the same response — the widget reads `contactPhone` with no gate of
+    // its own.
+    it('withholds all three contact fields while the box is off', async () => {
+      const event = await createReachableEvent()
+
       const closed = await payload.update({
         collection: 'events',
         id: event.id,
@@ -394,6 +400,88 @@ describe('Events collection', () => {
       expect(closed.contactPhone ?? null).toBeNull()
       expect(closed.contactEmail ?? null).toBeNull()
       expect(closed.contactName ?? null).toBeNull()
+    })
+
+    // A read gate governs the value, never the query. With the number still in
+    // the row, `where[contactPhone][contains]` answers one character at a time
+    // to any key holder — and the widget's own is published in every host page.
+    // Re-ticking the box is what proves the column is empty: nothing else can
+    // read it, and a `count` cannot be refused.
+    it('leaves no withheld contact for a where to match', async () => {
+      const event = await createReachableEvent()
+
+      await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { allowContact: false },
+      })
+
+      const matched = await payload.count({
+        collection: 'events',
+        overrideAccess: true,
+        where: {
+          and: [{ id: { equals: event.id } }, { contactPhone: { contains: '+44 20 7' } }],
+        },
+      })
+
+      expect(matched.totalDocs).toBe(0)
+
+      const reopened = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { allowContact: true },
+      })
+
+      expect(reopened.contactPhone ?? null).toBeNull()
+      expect(reopened.contactEmail ?? null).toBeNull()
+      expect(reopened.contactName ?? null).toBeNull()
+    })
+
+    // The transition-only form of the clear left exactly this row queryable: an
+    // API create or a CSV import naming a phone and no box never transitions,
+    // so nothing emptied the column.
+    it('leaves no contact for a where when the box was never on', async () => {
+      const event = await testData.createEvent(payload, {
+        allowContact: false,
+        contactPhone: '+44 20 7000 3000',
+        repeats: 'weekly',
+        schedule: {
+          firstDate: '2026-01-05T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          interval: 1,
+          weekdays: ['MO'],
+        },
+      })
+
+      const matched = await payload.count({
+        collection: 'events',
+        overrideAccess: true,
+        where: {
+          and: [{ id: { equals: event.id } }, { contactPhone: { contains: '+44 20 7' } }],
+        },
+      })
+
+      expect(matched.totalDocs).toBe(0)
+    })
+
+    // What the Atlas widget sends: `contactPhone` and `contactName`, never the
+    // box. `select` strips what it does not name, so the gate reads the box
+    // back through its own `virtualFieldInputs` declaration — without which
+    // this answers null for every event (#1084).
+    it('answers a contact through a select that names no box', async () => {
+      const event = await createReachableEvent()
+
+      const read = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        select: { contactPhone: true, contactName: true },
+      })
+
+      expect(read.contactPhone).toBe('+44 20 7000 1000')
+      expect(read.contactName).toBe('Reachable Person')
     })
 
     // Two refusals, and each has to be provable on its own: a phone the box
