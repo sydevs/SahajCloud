@@ -4,6 +4,7 @@ import * as migration_20261118_210000_wm_web_new_tab_one_key from './20261118_21
 import * as migration_20261118_231500_wm_web_a11y_landmark_keys from './20261118_231500_wm_web_a11y_landmark_keys';
 import * as migration_20261118_233000_wm_web_menu_key from './20261118_233000_wm_web_menu_key';
 import * as migration_20261118_235242_wm_web_drop_video_tab from './20261118_235242_wm_web_drop_video_tab';
+import * as migration_20261119_044129_tidy_event_form from './20261119_044129_tidy_event_form';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20261118_235242_wm_web_drop_video_tab.up,
     down: migration_20261118_235242_wm_web_drop_video_tab.down,
     name: '20261118_235242_wm_web_drop_video_tab',
+  },
+  {
+    up: migration_20261119_044129_tidy_event_form.up,
+    down: migration_20261119_044129_tidy_event_form.down,
+    name: '20261119_044129_tidy_event_form',
   },
 ];

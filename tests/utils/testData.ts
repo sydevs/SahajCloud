@@ -1190,6 +1190,8 @@ export const testData = {
       region: regionId,
       verificationStage: overrides.verificationStage || 'verified',
       inactive: true, // Default to inactive to avoid schedule complexity
+      // A dormant class owes a contact, which counts only while the box is on.
+      allowContact: true,
       contactPhone: overrides.contactPhone || '+1-555-0100',
       contactName: overrides.contactName || 'Test Contact',
       ...overrides,

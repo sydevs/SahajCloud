@@ -66,3 +66,15 @@ export interface ResolvedRecipient {
   /** The region linking a region manager to the event (role `region`). */
   regionName?: string
 }
+
+/**
+ * Who a registration notification goes to: the event's manager, on the channel
+ * their own `event_registration` preference names.
+ */
+export interface RegistrationRecipient {
+  /** Email address or messaging handle. */
+  destination: string
+  /** Display name for the greeting and the logs. */
+  name: string
+  channel: NotificationChannel
+}

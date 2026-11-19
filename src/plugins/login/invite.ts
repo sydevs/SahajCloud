@@ -30,9 +30,18 @@ import { INVITE_TOKEN_TTL_MS } from './token'
 /** How long an invitation lasts, as the recipient is told. Derived from the TTL. */
 export const INVITE_VALID_FOR = `${INVITE_TOKEN_TTL_MS / 86_400_000} days`
 
-/** Whether an invitation has anything to name. One with nothing is not sent. */
-const namesAnything = ({ fullAccess, grants, responsibilities }: GrantSummary): boolean =>
-  fullAccess || grants.length > 0 || responsibilities.length > 0
+/**
+ * Whether an invitation has anything to name. One with nothing is not sent.
+ *
+ * ⚠ **Full access is not news when the email names only what is new.** An
+ * admin held every permission before the save too, so a queued send must leave
+ * it out — and a queue whose every entry cancelled then names nothing at all,
+ * rather than sending a bare "Administrator — full access" email.
+ */
+const namesAnything = (
+  { fullAccess, grants, responsibilities }: GrantSummary,
+  listsOnlyNew: boolean,
+): boolean => (fullAccess && !listsOnlyNew) || grants.length > 0 || responsibilities.length > 0
 
 /**
  * Every invitation for one account — one per project it names, or none when
@@ -88,25 +97,29 @@ export async function composeInvitations({
       )
     : null
 
+  // The queue names what was queued; a resend names everything held.
+  const listsOnlyNew = only !== undefined
+
   return Promise.all(
-    summaries.filter(namesAnything).map(async (summary) => ({
-      from: emailFrom(summary.project),
-      subject: stripNewlines(inviteHeading(summary, getEmailBrand(summary.project).productName)),
-      ...(await renderEmail(
-        createElement(InviteEmail, {
-          name: doc.name || doc.email || '',
-          accepted,
-          actionUrl: settingsUrl ?? (await inviteLinkUrl(config, doc.id, payload.secret, now)),
-          // The queue names what was queued; a resend names everything held.
-          listsOnlyNew: only !== undefined,
-          validFor: INVITE_VALID_FOR,
-          assignedBy,
-          fullAccess: summary.fullAccess,
-          grants: summary.grants,
-          responsibilities: summary.responsibilities,
-          project: summary.project,
-        }),
-      )),
-    })),
+    summaries
+      .filter((summary) => namesAnything(summary, listsOnlyNew))
+      .map(async (summary) => ({
+        from: emailFrom(summary.project),
+        subject: stripNewlines(inviteHeading(summary, getEmailBrand(summary.project).productName)),
+        ...(await renderEmail(
+          createElement(InviteEmail, {
+            name: doc.name || doc.email || '',
+            accepted,
+            actionUrl: settingsUrl ?? (await inviteLinkUrl(config, doc.id, payload.secret, now)),
+            listsOnlyNew,
+            validFor: INVITE_VALID_FOR,
+            assignedBy,
+            fullAccess: summary.fullAccess && !listsOnlyNew,
+            grants: summary.grants,
+            responsibilities: summary.responsibilities,
+            project: summary.project,
+          }),
+        )),
+      })),
   )
 }

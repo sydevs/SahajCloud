@@ -49,7 +49,7 @@ export function buildReplyBody(args: {
 }
 
 interface EventRegistrationEmailProps {
-  /** Recipient display name (the manager); `null`/omitted for a bare override address. */
+  /** Recipient display name (the manager); omitted, the greeting is neutral. */
   recipientName?: string | null
   /** The event's title. */
   eventTitle: string

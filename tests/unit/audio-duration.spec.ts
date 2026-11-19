@@ -10,6 +10,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { extractAudioDuration, readAudioDuration } from '@/lib/audio/duration'
 
+import { cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
+
 const FIXTURE_FILES = path.join(process.cwd(), 'src', 'fixture', 'files')
 const read = (name: string) => fs.readFileSync(path.join(FIXTURE_FILES, name))
 
@@ -22,21 +24,48 @@ const hookArgs = (file: { data: Buffer; mimetype?: string } | undefined, warn = 
 
 describe('readAudioDuration', () => {
   it('reads whole seconds from an MP3', async () => {
-    await expect(readAudioDuration(read('fixture-audio.mp3'), 'audio/mpeg')).resolves.toBe(42)
+    await expect(
+      readAudioDuration({ buffer: read('fixture-audio.mp3'), mimeType: 'audio/mpeg' }),
+    ).resolves.toBe(42)
   })
 
   it('tells two fixture songs apart, so a shared duration cannot pass as extraction', async () => {
-    await expect(readAudioDuration(read('fixture-audio-short.mp3'), 'audio/mpeg')).resolves.toBe(9)
+    await expect(
+      readAudioDuration({ buffer: read('fixture-audio-short.mp3'), mimeType: 'audio/mpeg' }),
+    ).resolves.toBe(9)
   })
 
   it('answers undefined when the container states no duration', async () => {
     await expect(
-      readAudioDuration(read('fixture-audio-no-duration.mp3'), 'audio/mpeg'),
+      readAudioDuration({ buffer: read('fixture-audio-no-duration.mp3'), mimeType: 'audio/mpeg' }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('reads a constant-bitrate MP3 with no Info header from a stream told its size', async () => {
+    const bytes = cbrMp3WithoutInfoHeader(3)
+
+    await expect(
+      readAudioDuration({
+        stream: new Blob([new Uint8Array(bytes)]).stream(),
+        mimeType: 'audio/mpeg',
+        size: bytes.length,
+      }),
+    ).resolves.toBe(3)
+    // The same bytes as a buffer, which carries its own size.
+    await expect(readAudioDuration({ buffer: bytes, mimeType: 'audio/mpeg' })).resolves.toBe(3)
+  })
+
+  it('finds no duration in that stream when its size is not given', async () => {
+    await expect(
+      readAudioDuration({
+        stream: new Blob([new Uint8Array(cbrMp3WithoutInfoHeader(3))]).stream(),
+        mimeType: 'audio/mpeg',
+      }),
     ).resolves.toBeUndefined()
   })
 
   it('throws when the bytes are not audio at all', async () => {
-    await expect(readAudioDuration(Buffer.from('not audio'))).rejects.toThrow()
+    await expect(readAudioDuration({ buffer: Buffer.from('not audio') })).rejects.toThrow()
   })
 })
 

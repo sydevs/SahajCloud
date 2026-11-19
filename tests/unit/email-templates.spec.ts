@@ -310,7 +310,7 @@ describe('EventRegistrationEmail', () => {
     expect(html).toContain(getEmailBrand('sahaj-atlas').productName)
   })
 
-  it('greets neutrally for a bare override address (no recipient name)', async () => {
+  it('greets neutrally with no recipient name', async () => {
     const html = await renderHtml(
       createElement(EventRegistrationEmail, { ...props, recipientName: null }),
     )

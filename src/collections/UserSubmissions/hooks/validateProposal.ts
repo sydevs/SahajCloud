@@ -45,9 +45,7 @@ import { APIError } from 'payload'
  *   data-collection surface, and every field in it is a redirect waiting to
  *   happen: `registrationMode: 'external'` + `externalRegistrationUrl` sends
  *   every would-be registrant to a site of the submitter's choosing, and
- *   `registrationNotificationEmail` forwards registrant names, emails and
- *   answers to an inbox of their choosing — silently, from the moment a
- *   manager accepts.
+ *   `registrationQuestions` decides what a registrant is asked for.
  * - **`images`** — an upload relationship to a shared collection, so a
  *   submitter could dress their listing in another event's photographs.
  *   Attachments are a separate ticket (#627); until then the answer is no.
@@ -67,8 +65,6 @@ const PRIVILEGED_FIELDS = new Set([
   'registrationMode',
   'externalRegistrationUrl',
   'registrationLimit',
-  'registrationNotificationEmail',
-  'registrationNotificationFrequency',
   'registrationQuestions',
   'images',
 ])
