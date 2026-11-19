@@ -12,8 +12,7 @@ interface ExtractAudioDurationOptions {
  * duration, in whole seconds, on `data.duration`.
  *
  * Audio that cannot be parsed leaves the document unchanged and logs a warning
- * — metadata must not fail a save. Audio whose container states no duration
- * leaves it unchanged too, without a warning.
+ * — metadata must not fail a save.
  *
  * The upload is parsed as a buffer, which carries its own size: a
  * constant-bitrate MP3 with no Xing or Info header states its length only as
