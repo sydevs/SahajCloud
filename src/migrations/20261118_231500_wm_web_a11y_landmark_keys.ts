@@ -57,8 +57,9 @@ async function addKey(db: Db, group: Group, key: string, value: string): Promise
 }
 
 /**
- * Drops `key` from both tables, every locale and every version row. `jsonb_typeof` keeps a
- * scalar column out: `-` on one raises `cannot delete from scalar`, aborting the boot migration.
+ * Drops `key` from both tables, every locale and every version row. `? key` is what keeps a
+ * scalar column out — it is false for every scalar, so the delete, which would raise
+ * `cannot delete from scalar` there, never reaches one (`src/globals/AGENTS.md`).
  */
 async function dropKey(db: Db, group: Group, key: string): Promise<void> {
   for (const t of targets(group)) {
@@ -66,8 +67,7 @@ async function dropKey(db: Db, group: Group, key: string): Promise<void> {
     await db.execute(sql`
       UPDATE ${sql.identifier(t.table)}
         SET ${col} = ${col} - ${key}::text
-        WHERE jsonb_typeof(${col}) = 'object'
-          AND ${col} ? ${key}::text`)
+        WHERE ${col} ? ${key}::text`)
   }
 }
 
