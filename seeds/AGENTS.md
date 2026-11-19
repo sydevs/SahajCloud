@@ -84,13 +84,11 @@ Server-Sent Events (SSE) with progress updates.
 | Script           | Command                      | Prerequisites                  | Targets                                             |
 | ---------------- | ---------------------------- | ------------------------------ | --------------------------------------------------- |
 | translations     | `pnpm seed translations`     | None                           | the three translation globals (see below)           |
-| wm-web-locales   | `pnpm seed wm-web-locales`   | None                           | `wm-web-translations`, nine non-English locales     |
 | file-transcripts | `pnpm seed file-transcripts` | ⚠ Paid runs — run only by name | transcripts (one queued run per untranscribed file) |
 
 `translations` is the only one in `SCRIPT_RUN_ORDER`, so a bare `pnpm seed`
 runs it alone. `file-transcripts` is deliberately out of it: every run it
-queues is a paid vendor call. `wm-web-locales` is out of it too: it publishes
-nine languages, which is an operator's decision.
+queues is a paid vendor call.
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
@@ -158,37 +156,12 @@ Lexical conversion — are what `translations` reads. A `wm-app-translations`
 script of its own existed until #1169 and was retired as a strict subset of
 this one.
 
-### `wm-web-locales` — the website's nine other languages
-
-`translations` seeds English only for `wm-web-translations`. This script loads
-`seeds/wm-web-translations/data.<locale>.json` for `ru it es fr de pt-BR cs uk bg`
-(`WM_WEB_TRANSLATION_LOCALES` in `lib/dataFiles.ts`) and **publishes each locale
-on its own**, through the same `seedLocaleFiles` loop the atlas global is seeded
-with (`lib/TranslationGlobalsImporter.ts`). It writes nothing else: no English,
-no `wm-app-translations`, no atlas global. That is why it is a script of its
-own — `translations` would also overwrite the live English copy of the app
-global and every atlas locale.
-
-Facts a maintainer needs:
-
-- **The drafts are machine-assisted and unreviewed by speakers** (owner decision,
-  2026-11-18, sydevs/WeMeditateWeb#163): old wemeditate.com wording where it
-  exists, atlas seed wording next, then the model's own. A native speaker
-  reviews after launch, and an editor's later change in the admin is
-  overwritten by a re-run, so do not re-run it once editors own the wording.
-- **The `video` tab is omitted** from every file (41 keys). The new player ships
-  its own labels (sydevs/WeMeditateWeb#242); English alone holds the tab.
-- **Plural keys carry the language's own CLDR forms**: `few`/`many` for
-  `ru`/`uk`, `few` for `cs`. `pluralize()` in WeMeditateWeb selects with
-  `Intl.PluralRules`, so these are read. Never write a key a locale does not
-  have; omit it so the English merge serves English.
-- **Publishing does not offer a language.** `wm-web-config.availableLocales`
-  does, and refuses a locale whose translations are unpublished, so this run
-  comes first and the widening second (`tests/int/wm-web-locales-seed.int.spec.ts`
-  asserts that order).
-- `tests/unit/wm-web-translations-locales-seed.spec.ts` holds every file to
-  English's key set minus `video`, to every placeholder, and to the strict
-  length limits.
+⚠ **`wm-web-translations` is seeded in English only.** Its nine other locales
+(`ru it es fr de pt-BR cs uk bg`) were loaded into production once, from
+machine-assisted drafts, by a one-off `wm-web-locales` script (#1213), and are
+editor-owned from then on. That script and its data files are gone, so nothing
+can overwrite an editor's wording — and a fresh database or a preview holds
+English alone for this global.
 
 ### `file-transcripts` — the bulk re-request
 
