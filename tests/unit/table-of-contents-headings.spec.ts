@@ -119,4 +119,11 @@ describe('toggleHeading', () => {
     expect(toggleHeading(document, new Set([0, 1, 2, 3]), 2)).toEqual(rows(document, 0, 1))
     expect(toggleHeading(document, new Set([2, 3]), 0)).toEqual(rows(document, 0, 1, 2, 3))
   })
+
+  it('drops an orphan the toggle did not touch', () => {
+    const document = doc('2Begin', '3Detail', '2Begin!', '3Detail')
+    // `Detail` at 1 is enabled while its own parent is not, which a stored list
+    // written before this rule can hold. Emitting it would re-store the orphan.
+    expect(toggleHeading(document, new Set([1]), 2)).toEqual(rows(document, 2, 3))
+  })
 })

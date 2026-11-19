@@ -8,6 +8,29 @@ function parentOf(detected: TableOfContentsHeadings, position: number): number {
   return -1
 }
 
+/**
+ * The stored list for a set of positions, in document order.
+ *
+ * A heading whose own parent is not kept is dropped with it, so a parent
+ * leaving takes its whole subtree. Every list this module emits goes through
+ * here, so that rule is stated once.
+ */
+function storedFrom(
+  detected: TableOfContentsHeadings,
+  positions: ReadonlySet<number>,
+): TableOfContentsHeadings {
+  const kept = new Set<number>()
+
+  for (let i = 0; i < detected.length; i++) {
+    if (!positions.has(i)) continue
+    const parent = parentOf(detected, i)
+    if (parent === -1 || kept.has(parent)) kept.add(i)
+  }
+
+  return detected.filter((_, i) => kept.has(i))
+}
+
+/** Every position from `position` down through the headings nested under it. */
 function withDescendants(detected: TableOfContentsHeadings, position: number): Set<number> {
   const range = new Set([position])
   for (let i = position + 1; i < detected.length; i++) {
@@ -15,13 +38,6 @@ function withDescendants(detected: TableOfContentsHeadings, position: number): S
     range.add(i)
   }
   return range
-}
-
-function headingsAt(
-  detected: TableOfContentsHeadings,
-  positions: ReadonlySet<number>,
-): TableOfContentsHeadings {
-  return detected.filter((_, i) => positions.has(i))
 }
 
 /**
@@ -47,11 +63,10 @@ export function stampOccurrences(detected: TableOfContentsHeadings): TableOfCont
 /**
  * Which detected headings a stored list stands for, as positions in `detected`.
  *
- * Each entry claims an unclaimed heading of its own slug: the one at its own
- * occurrence, else the one whose text still matches, else whatever is left. The
- * occurrence is exact, and no other heading moving disturbs it. The two
- * fallbacks place an entry stored before the key existed, and one whose own
- * occurrence has since been deleted.
+ * Each entry claims an unclaimed heading of its own slug, by the first
+ * preference below that finds one. The occurrence is exact, and no other
+ * heading moving disturbs it. The two fallbacks place an entry stored before
+ * the key existed, and one whose own occurrence has since been deleted.
  *
  * shortcut: a heading inserted above two that slugify alike shifts their
  * occurrences, so the ticks move with them until the next save. Upgrade when an
@@ -65,18 +80,18 @@ export function resolveStored(
   const claimed = new Set<number>()
 
   for (const entry of stored) {
-    const free = (candidate: TableOfContentsHeadings[number], i: number) =>
-      !claimed.has(i) && candidate.slug === entry.slug
+    /** The first heading of this entry's slug that nothing has claimed yet. */
+    const firstFree = (matches: (candidate: TableOfContentsHeadings[number]) => boolean) =>
+      detected.findIndex(
+        (candidate, i) => !claimed.has(i) && candidate.slug === entry.slug && matches(candidate),
+      )
 
-    const atOccurrence =
-      entry.occurrence === undefined
-        ? -1
-        : detected.findIndex((c, i) => free(c, i) && c.occurrence === entry.occurrence)
-    const withSameText = detected.findIndex((c, i) => free(c, i) && c.text === entry.text)
-    const anyLeft = detected.findIndex(free)
+    let position =
+      entry.occurrence === undefined ? -1 : firstFree((c) => c.occurrence === entry.occurrence)
+    if (position === -1) position = firstFree((c) => c.text === entry.text)
+    if (position === -1) position = firstFree(() => true)
 
-    const position = [atOccurrence, withSameText, anyLeft].find((p) => p !== -1)
-    if (position !== undefined) claimed.add(position)
+    if (position !== -1) claimed.add(position)
   }
 
   return claimed
@@ -96,27 +111,12 @@ export function blockedHeadings(
   return blocked
 }
 
-/**
- * The stored list rebuilt against a freshly scanned document.
- *
- * Walked in document order so a heading whose parent dropped out — its text
- * edited, or the heading deleted — is dropped with it rather than left
- * orphaned.
- */
+/** The stored list rebuilt against a freshly scanned document. */
 export function rebuildStored(
   detected: TableOfContentsHeadings,
   stored: TableOfContentsHeadings,
 ): TableOfContentsHeadings {
-  const resolved = resolveStored(detected, stored)
-  const kept = new Set<number>()
-
-  for (let i = 0; i < detected.length; i++) {
-    if (!resolved.has(i)) continue
-    const parent = parentOf(detected, i)
-    if (parent === -1 || kept.has(parent)) kept.add(i)
-  }
-
-  return headingsAt(detected, kept)
+  return storedFrom(detected, resolveStored(detected, stored))
 }
 
 /** The stored list after enabling or disabling `position`, with its nested headings. */
@@ -134,5 +134,5 @@ export function toggleHeading(
     range.forEach((i) => next.add(i))
   }
 
-  return headingsAt(detected, next)
+  return storedFrom(detected, next)
 }
