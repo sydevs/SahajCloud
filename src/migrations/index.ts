@@ -2,6 +2,7 @@ import * as migration_20261116_181127_merge_main_snapshot_10 from './20261116_18
 import * as migration_20261118_181435_add_songs_duration from './20261118_181435_add_songs_duration';
 import * as migration_20261118_210000_wm_web_new_tab_one_key from './20261118_210000_wm_web_new_tab_one_key';
 import * as migration_20261118_231500_wm_web_a11y_landmark_keys from './20261118_231500_wm_web_a11y_landmark_keys';
+import * as migration_20261118_233000_wm_web_menu_key from './20261118_233000_wm_web_menu_key';
 import * as migration_20261118_235242_wm_web_drop_video_tab from './20261118_235242_wm_web_drop_video_tab';
 
 export const migrations = [
@@ -24,6 +25,11 @@ export const migrations = [
     up: migration_20261118_231500_wm_web_a11y_landmark_keys.up,
     down: migration_20261118_231500_wm_web_a11y_landmark_keys.down,
     name: '20261118_231500_wm_web_a11y_landmark_keys',
+  },
+  {
+    up: migration_20261118_233000_wm_web_menu_key.up,
+    down: migration_20261118_233000_wm_web_menu_key.down,
+    name: '20261118_233000_wm_web_menu_key',
   },
   {
     up: migration_20261118_235242_wm_web_drop_video_tab.up,

@@ -63,6 +63,16 @@ this.skip('Skipping item') // Log skip, increment counter
 - `this.report` — ValidationReport instance
 - `this.options.dryRun` — Boolean flag
 
+## Writing a translation global
+
+`seeds/translations/import.ts` owns `writeGlobal` and `seedLocaleFiles`, the
+loop that reads one `data.<locale>.json` per locale and publishes that locale
+alone. They sat in a `TranslationGlobalsImporter` base while two scripts shared
+them; `translations` is the only caller now, so they live with it.
+
+A `_meta.locale` that does not match the file's slot is an error, not a
+warning: a file in the wrong slot publishes one language's words as another's.
+
 ## Shared utilities
 
 ### Logger

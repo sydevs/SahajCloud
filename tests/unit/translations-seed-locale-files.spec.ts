@@ -1,0 +1,71 @@
+/**
+ * `seedLocaleFiles`, on the two failures that must not be mistaken for a
+ * per-locale one (`seeds/translations/import.ts`).
+ *
+ * The loop swallows a `writeGlobal` throw on purpose: each locale is its own
+ * write and its own publish, and `writeGlobal` has already reported the
+ * `updateGlobal` failure. The contract violation it raises when no Payload
+ * instance was injected is the one throw it reports nowhere — swallowing that
+ * one reports a clean run over locales nothing was written for.
+ *
+ * The `_meta.locale` check is the other: a file in the wrong slot would publish
+ * one language's words as another's, so it must stop before the write and not
+ * at it.
+ *
+ * Unit lane: no Payload bootstrap, which is what makes the first case reachable
+ * at all.
+ */
+
+import type { BaseImportOptions } from '../../seeds/lib'
+
+import { describe, expect, it, vi } from 'vitest'
+
+import { type AtlasTranslationLocale, atlasTranslationsDataFile } from '../../seeds/lib/dataFiles'
+import { Logger } from '../../seeds/lib/logger'
+import { ValidationReport } from '../../seeds/lib/validationReport'
+import { TranslationsImporter } from '../../seeds/translations/import'
+
+/**
+ * `run()` is what normally injects the logger and the report. This calls
+ * `seedLocaleFiles` directly, so it supplies both and leaves `payload` unset —
+ * the state the first case is about.
+ */
+class ProbeImporter extends TranslationsImporter {
+  readonly log = new Logger()
+
+  constructor(options: BaseImportOptions) {
+    super(options)
+    this.logger = this.log
+    this.report = new ValidationReport()
+  }
+
+  seedOne(
+    locale: AtlasTranslationLocale,
+    dataFile: (locale: AtlasTranslationLocale) => string = atlasTranslationsDataFile,
+  ): Promise<void> {
+    return this.seedLocaleFiles({ slug: 'sy-atlas-translations', locales: [locale], dataFile })
+  }
+
+  protected async import(): Promise<void> {}
+}
+
+describe('seedLocaleFiles', () => {
+  it('re-throws the missing-Payload contract violation instead of reporting a clean run', async () => {
+    const importer = new ProbeImporter({ dryRun: false, clearCache: false })
+
+    await expect(importer.seedOne('ru')).rejects.toThrow(/Payload instance not initialised/)
+  })
+
+  it('refuses a file whose _meta.locale names another language, before any write', async () => {
+    const importer = new ProbeImporter({ dryRun: false, clearCache: false })
+    const logged = vi.spyOn(importer.log, 'error').mockResolvedValue(undefined)
+
+    // German wording in Russian's slot: the header is the only thing that says
+    // which language a file holds.
+    await expect(
+      importer.seedOne('ru', () => atlasTranslationsDataFile('de')),
+    ).resolves.toBeUndefined()
+
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining('_meta.locale is "de"'))
+  })
+})
