@@ -34,6 +34,7 @@ import {
   getDocManagerFields,
   relationId,
   resolveManagedDocIds,
+  userManagesAncestor,
   userManagesDocument,
 } from './documentManagers'
 
@@ -289,10 +290,17 @@ export const eventManagerFieldAccess: FieldAccess = ({ doc, req }) =>
   maySetManagerOn(req, relationId((doc as { region?: unknown } | undefined)?.region))
 
 /**
- * Whether a manager already holds a document through what sits above it — its
- * `parent` chain, or an event's region subtree — so naming them on it grants
- * nothing new. The invitation queue reads it to stay quiet when a region
- * manager is named on a class or sub-region they already look after.
+ * Whether a manager already holds a document through what sits above it, so
+ * naming them on it grants nothing new. The invitation queue reads it to stay
+ * quiet when a region manager is named on a class or sub-region they already
+ * look after.
+ *
+ * ⚠ **An event's ancestor is its `region`, and only this module may say so.**
+ * `documentManagers.ts` finds ancestors by introspection, which reaches a
+ * self-referential `parent` and nothing else — `events.region` points at
+ * another collection, so no field shape identifies it as inheritance. Every
+ * other collection defers to `userManagesAncestor` there, which is the one
+ * implementation of the walk.
  */
 export async function managesThroughAncestor(
   req: PayloadRequest,
@@ -300,18 +308,20 @@ export async function managesThroughAncestor(
   doc: Record<string, unknown>,
   managerId: number | string,
 ): Promise<boolean> {
+  if (collection === 'events') {
+    const regionId = relationId(doc.region)
+    if (regionId === null) return false
+    // The whole region, ancestors included: an event is below all of them.
+    return userManagesDocument(
+      req,
+      'regions',
+      managerId,
+      regionId,
+      getDocManagerFields(req.payload, 'regions'),
+    )
+  }
   const slug = collection as ContentSlug
-  const { parentField } = getDocManagerFields(req.payload, slug)
-  const [above, aboveId] =
-    slug === 'events'
-      ? (['regions', relationId(doc.region)] as const)
-      : ([slug, parentField ? relationId(doc[parentField]) : null] as const)
-  if (aboveId === null) return false
-  return userManagesDocument(
-    req,
-    above,
-    managerId,
-    aboveId,
-    getDocManagerFields(req.payload, above),
-  )
+  const docId = relationId(doc.id)
+  if (docId === null) return false
+  return userManagesAncestor(req, slug, managerId, docId, getDocManagerFields(req.payload, slug))
 }
