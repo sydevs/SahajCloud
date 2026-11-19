@@ -327,6 +327,34 @@ describe('manager invitation', () => {
       ])
     })
 
+    it('names an admin the assignment, not the full access they already had', async () => {
+      const manager = await bare({ type: 'admin' })
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.subject).toBe(`You've been invited to look after ${region.name}`)
+      expect(sent[0]!.html).not.toContain('Your access')
+    })
+
+    it('sends an admin nothing when every queued entry cancelled', async () => {
+      const manager = await bare({ type: 'admin' })
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await clearQueue(manager.id)
+      emailAdapter.clearCapturedEmails()
+
+      const assign = (managers: number[]) =>
+        payload.update({ collection: 'regions', id: region.id, data: { managers }, user: admin })
+      await assign([])
+      await assign([manager.id])
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
+    })
+
     it('sends one invitation per project, and a second accepted one says so', async () => {
       const manager = await bare()
       emailAdapter.clearCapturedEmails()

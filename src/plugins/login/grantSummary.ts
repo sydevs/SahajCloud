@@ -260,9 +260,7 @@ export async function summarizeGrants({
     part(project).responsibilities.push(responsibility)
   }
 
-  // A queue whose every entry was undone or released names nothing — not even
-  // an admin's full access, which no queued change granted.
-  if (parts.size === 0) return only ? [] : empty
+  if (parts.size === 0) return empty
   return getProjectSlugs().flatMap((project) => {
     const found = parts.get(project)
     if (!found) return []
