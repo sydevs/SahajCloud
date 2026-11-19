@@ -102,6 +102,15 @@ describe('manager invitation', () => {
     return { due: manager.invitationDueAt, pending: manager.pendingInvitation }
   }
 
+  /** Empty a manager's queue, as a send would — what came before is not under test. */
+  const clearQueue = (id: number | string) =>
+    payload.db.updateOne({
+      collection: 'managers',
+      id,
+      data: { pendingInvitation: null, invitationDueAt: null },
+      returning: false,
+    })
+
   /**
    * A manager given a role, invited the way a real one is: the create queues
    * the role, and the queue sends the invitation once the delay has passed.
@@ -254,13 +263,96 @@ describe('manager invitation', () => {
       const manager = await bare()
       emailAdapter.clearCapturedEmails()
 
-      const region = await testData.createRegion(payload, { managers: [manager.id] })
-      await testData.createEvent(payload, { manager: manager.id, region: region.id })
+      // The event sits elsewhere: one inside the region would already be theirs.
+      await testData.createRegion(payload, { managers: [manager.id] })
+      const elsewhere = await testData.createRegion(payload)
+      await testData.createEvent(payload, { manager: manager.id, region: elsewhere.id })
 
       await runQueue()
       const sent = mailTo(manager.email)
       expect(sent).toHaveLength(1)
       expect(sent[0]!.subject).toBe("You've been invited to look after 1 region and 1 event")
+    })
+
+    it('announces nothing a region above already gave them', async () => {
+      // Named on a country, invited for it, and that window closed.
+      const manager = await bare()
+      const country = await testData.createRegionNode(payload, {
+        prefix: `invite-${manager.id}`,
+        slug: 'country',
+        level: 'country',
+      })
+      await payload.update({
+        collection: 'regions',
+        id: country,
+        data: { managers: [manager.id] },
+        user: admin,
+      })
+      await clearQueue(manager.id)
+
+      const city = await testData.createRegion(payload, { parent: country })
+      await payload.update({
+        collection: 'regions',
+        id: city.id,
+        data: { managers: [manager.id] },
+        user: admin,
+      })
+      await testData.createEvent(payload, { manager: manager.id, region: city.id })
+
+      expect((await queueOf(manager.id)).pending).toBeNull()
+    })
+
+    it('announces nothing for an assignment taken off and put back', async () => {
+      const manager = await bare()
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await clearQueue(manager.id)
+      emailAdapter.clearCapturedEmails()
+
+      const assign = (managers: number[]) =>
+        payload.update({ collection: 'regions', id: region.id, data: { managers }, user: admin })
+      await assign([])
+      await assign([manager.id])
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
+      expect(await queueOf(manager.id)).toEqual({ due: null, pending: null })
+
+      // Once that window has been sent, a removal is forgotten: coming back is news.
+      await assign([])
+      await runQueue()
+      await assign([manager.id])
+      await runQueue()
+      expect(mailTo(manager.email).map((email) => email.subject)).toEqual([
+        `You've been invited to look after ${region.name}`,
+      ])
+    })
+
+    it('names an admin the assignment, not the full access they already had', async () => {
+      const manager = await bare({ type: 'admin' })
+      emailAdapter.clearCapturedEmails()
+
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+
+      await runQueue()
+      const sent = mailTo(manager.email)
+      expect(sent).toHaveLength(1)
+      expect(sent[0]!.subject).toBe(`You've been invited to look after ${region.name}`)
+      expect(sent[0]!.html).not.toContain('Your access')
+    })
+
+    it('sends an admin nothing when every queued entry cancelled', async () => {
+      const manager = await bare({ type: 'admin' })
+      const region = await testData.createRegion(payload, { managers: [manager.id] })
+      await clearQueue(manager.id)
+      emailAdapter.clearCapturedEmails()
+
+      const assign = (managers: number[]) =>
+        payload.update({ collection: 'regions', id: region.id, data: { managers }, user: admin })
+      await assign([])
+      await assign([manager.id])
+
+      await runQueue()
+      expect(mailTo(manager.email)).toHaveLength(0)
     })
 
     it('sends one invitation per project, and a second accepted one says so', async () => {
