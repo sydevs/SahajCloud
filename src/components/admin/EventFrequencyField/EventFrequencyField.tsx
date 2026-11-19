@@ -5,6 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { FieldDescription, FieldLabel, useField } from '@payloadcms/ui'
 import React from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { ToggleGroup, type ToggleGroupOption } from '@/components/admin/ToggleGroupField'
 import { RECURRENCE_OPTIONS } from '@/lib/schedule/recurrence'
 
@@ -36,7 +37,7 @@ const LABEL = 'How often does this class meet?'
  * Choosing On-demand leaves the recurrence alone — the schedule is hidden, not
  * cleared — so choosing a pace again restores it.
  */
-export const EventFrequencyField: UIFieldClientComponent = ({ readOnly }) => {
+export const EventFrequencyField: UIFieldClientComponent = ({ field, readOnly }) => {
   const inactive = useField<boolean>({ path: 'inactive' })
   const recurrence = useField<string | null>({ path: 'schedule.recurrenceType' })
   const value = inactive.value ? ON_DEMAND : recurrence.value || ONCE
@@ -47,7 +48,10 @@ export const EventFrequencyField: UIFieldClientComponent = ({ readOnly }) => {
   }
 
   return (
-    <div className="field-type select">
+    <div
+      className={['field-type', 'select', readOnly && 'read-only'].filter(Boolean).join(' ')}
+      style={mergeFieldStyles(field.admin)}
+    >
       <FieldLabel label={LABEL} path="inactive" />
       <div className="field-type__wrap">
         <ToggleGroup

@@ -1000,9 +1000,9 @@ describe('Role-Based Access Control', () => {
       ).toBe(false)
 
       // The grant narrows to the events naming them: their own, and no other
-      // in the same region. `allowContact` rides along because a phone saved
-      // without the box is emptied on the way in (`hooks/withholdContact.ts`),
-      // which would read as a refused write.
+      // in the same region. `allowContact` rides along because a phone sent
+      // without the box is refused (`hooks/withholdContact.ts`), which would
+      // read as a refused grant.
       const nobodys = await createEvent({ region: otherVenueId })
       await expect(
         payload.update({
@@ -1406,7 +1406,7 @@ describe('Role-Based Access Control', () => {
         // Payload STRIPS a field its `access.update` refuses rather than
         // erroring, so the proof is that the save went through and `manager`
         // did not move. Reassigning and disowning are both refused. The phone
-        // needs `allowContact` beside it, or the save empties it again
+        // needs `allowContact` beside it, or the save is refused for it
         // (`hooks/withholdContact.ts`) and proves nothing.
         const reassigned = await payload.update({
           collection: 'events',

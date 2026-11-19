@@ -1,7 +1,6 @@
 'use client'
 
-import { useAllFormFields } from '@payloadcms/ui'
-import { CalendarDays } from 'lucide-react'
+import { CalendarIcon, useAllFormFields } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
@@ -25,7 +24,7 @@ export function ScheduleSummary({
   const summary = useMemo(() => summarizeSchedule(formState, path), [formState, path])
   if (!summary) return null
   return (
-    <InfoBanner icon={<CalendarDays aria-hidden size={20} />} title={summary.title}>
+    <InfoBanner icon={<CalendarIcon />} title={summary.title}>
       {summary.detail}
     </InfoBanner>
   )

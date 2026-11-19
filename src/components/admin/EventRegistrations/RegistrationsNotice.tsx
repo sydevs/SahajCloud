@@ -1,9 +1,9 @@
 import type { UIFieldServerComponent } from 'payload'
 
-import { formatAdminURL } from 'payload/shared'
 import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
+import { adminDocPath } from '@/lib/utilities/adminUrl'
 
 import { type RecentRegistrations, recentRegistrations } from './data'
 
@@ -23,16 +23,15 @@ function headline({ lastWeek, lastMonth }: RecentRegistrations): string {
  * Nothing for an editor who may not read the signups — anyone but the event's
  * own manager or an admin — since the view it points at would refuse them.
  */
-const RegistrationsNotice: UIFieldServerComponent = async ({ id, payload, req }) => {
+const RegistrationsNotice: UIFieldServerComponent = async ({ id, req }) => {
   const recent = await recentRegistrations(req, id ?? undefined)
-  if (!recent) return null
+  if (!recent || id == null) return null
 
-  const href = formatAdminURL({
-    adminRoute: payload.config.routes.admin,
-    path: `/collections/events/${id}/registrations`,
-  })
   return (
-    <InfoBanner action={{ href, label: 'Open Registrations' }} title={headline(recent)}>
+    <InfoBanner
+      action={{ href: adminDocPath('events', id, 'registrations'), label: 'Open Registrations' }}
+      title={headline(recent)}
+    >
       Everyone who signs up is listed on the Registrations tab, with the answers they gave.
     </InfoBanner>
   )

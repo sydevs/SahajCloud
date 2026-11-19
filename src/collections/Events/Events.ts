@@ -24,6 +24,7 @@ import { stateMachineField } from '@/fields/stateMachineField'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import {
   eventQualityReportZodSchema,
@@ -64,11 +65,7 @@ import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
-import {
-  clearWithheldContact,
-  refuseContactWithoutBox,
-  withheldUnlessAllowed,
-} from './hooks/withholdContact'
+import { refuseContactWithoutBox, withheldUnlessAllowed } from './hooks/withholdContact'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -80,8 +77,8 @@ const CONTACT_TEXT_MAX = 100
 const CONTACT_EMAIL_MAX = 254
 
 /**
- * Why a dormant class owes a contact route, shared by the two validators that
- * ask for one — the box, and the phone field behind it.
+ * Why a dormant class owes a phone or an email: with no schedule to show, a
+ * reachable person is the only way a seeker can learn more.
  */
 const DORMANT_CONTACT_REASON =
   'an on-demand class has no schedule, so this is the only way a seeker can reach you.'
@@ -207,12 +204,7 @@ export const Events: CollectionConfig = {
     // names the writer the stage column's own guard then judges. Both stamping
     // hooks must run after it. `syncEventFullness` writes `registrationsFull`,
     // and `stampEventQuality`'s skip rules read `verificationStage`.
-    beforeChange: [
-      syncVerificationOnSave,
-      syncEventFullness,
-      stampEventQuality,
-      clearWithheldContact,
-    ],
+    beforeChange: [syncVerificationOnSave, syncEventFullness, stampEventQuality],
     // Clear the Atlas manager sidebar cache (event list and region counts)
     // whenever an event changes, or is trashed or restored.
     afterChange: [revalidateAtlasSidebarHook],
@@ -312,23 +304,18 @@ export const Events: CollectionConfig = {
               },
               fields: [
                 {
-                  // ⚠ While this is off, all three are withheld from every read
-                  // and emptied on every save (`withholdContact.ts`): a hidden
-                  // field keeps its value, the widget reads `contactPhone`, and
-                  // a stored one answers a `where` no read gate sees.
+                  // ⚠ While this is off, the three fields behind it are withheld
+                  // from every read and emptied on every save, and a contact sent
+                  // without it is refused (`hooks/withholdContact.ts`).
                   name: 'allowContact',
                   type: 'checkbox',
                   label: 'Allow seekers to contact someone by phone or email',
                   defaultValue: false,
                   hooks: { beforeValidate: [refuseContactWithoutBox] },
-                  // A dormant class has no schedule to show, so a reachable person
-                  // is the only way a seeker can learn more. The phone field's own
-                  // validator asks for the number; this one asks for the box, which
-                  // Payload skips the phone's validation behind.
-                  //
-                  // Composed with `checkbox` from payload/shared, because supplying
-                  // `validate` REPLACES Payload's default. See
-                  // src/collections/AGENTS.md.
+                  // Payload never validates the phone while this hides it, so the
+                  // dormant-class rule asks for the box here. Composed with
+                  // `checkbox` from payload/shared, because supplying `validate`
+                  // REPLACES Payload's default (src/collections/AGENTS.md).
                   validate: (
                     value: boolean | null | undefined,
                     options: { data?: { inactive?: boolean | null } },
@@ -394,16 +381,11 @@ export const Events: CollectionConfig = {
                       type: 'text',
                       maxLength: CONTACT_TEXT_MAX,
                       ...withheldUnlessAllowed(),
-                      // An inactive event has no schedule, so a *reachable
-                      // person* is the only way a seeker can find out more. An
-                      // inactive event must carry one. A phone or an email
-                      // satisfies this. A website deliberately does not: a page
-                      // is metadata about the event, not a route to someone who
-                      // can answer a question. The same applies to `onlineUrl`, a
-                      // join link for sessions an inactive event is not running.
-                      // A validate function keeps active events optional, and
-                      // `allowContact` carries the same rule for the save where
-                      // this field is hidden and so never validated.
+                      // A phone or an email satisfies the dormant-class rule. A
+                      // website deliberately does not: a page is metadata about
+                      // the event, not a route to someone who can answer a
+                      // question, and `onlineUrl` is a join link for sessions a
+                      // dormant class is not running.
                       //
                       // Composed with `text` from payload/shared, because
                       // supplying `validate` REPLACES Payload's default, which
@@ -605,8 +587,7 @@ export const Events: CollectionConfig = {
                 // in `custom.scss`: Payload's own field gap frames a section,
                 // and these read as one list.
                 className: 'sy-checkbox-group',
-                description:
-                  'Optional questions to ask registrants — each enabled question appears on the registration form. Email contact@sydevelopers.com to ask for another question option.',
+                description: `Optional questions to ask registrants — each enabled question appears on the registration form. Email ${CONTACT_EMAIL} to ask for another question option.`,
               },
               fields: EVENT_REGISTRATION_QUESTIONS.map((question) => ({
                 name: question.name,

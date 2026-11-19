@@ -50,7 +50,6 @@ const managerRecipient: RegistrationRecipient = {
 interface Scenario {
   label: string
   note: string
-  recipient: RegistrationRecipient
   event: Pick<Event, 'id' | 'title'>
   registrantName: string
   registrantEmail: string
@@ -68,7 +67,6 @@ interface Scenario {
 const fullManager: Scenario = {
   label: 'manager · full',
   note: 'named manager — every row, forwarded answers, and the Reply CTA; greeting by name',
-  recipient: managerRecipient,
   event: { id: 1042, title: 'Tuesday Evening Meditation' },
   registrantName: 'Jo Smith',
   registrantEmail: 'jo.smith@example.com',
@@ -91,7 +89,6 @@ const SCENARIOS: Scenario[] = [
   {
     label: 'manager · minimal',
     note: 'no start date and no answers → the Start date row and answers section both collapse',
-    recipient: managerRecipient,
     event: { id: 1044, title: 'Introduction to Meditation — Open Day' },
     registrantName: 'Lukas Bauer',
     registrantEmail: 'lukas.bauer@example.com',
@@ -100,7 +97,6 @@ const SCENARIOS: Scenario[] = [
   {
     label: 'manager · long title',
     note: 'long title + sensitive answers forwarded — checks Subject/heading wrap and the answers block',
-    recipient: managerRecipient,
     event: {
       id: 1045,
       title: 'Weekly Sahaja Yoga Meditation & Self-Realisation Workshop for Complete Beginners',
@@ -150,7 +146,7 @@ async function main() {
     await sendRegistrationNotification({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       payload: payload as any,
-      recipient: scenario.recipient,
+      recipient: managerRecipient,
       event: scenario.event,
       registrantName: scenario.registrantName,
       registrantEmail: scenario.registrantEmail,

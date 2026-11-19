@@ -5,8 +5,7 @@
  * is stub-logged exactly as the verification reminders' stub does — no new
  * channel work (#588). Deliberately *throws* on a real send failure so the
  * "a failed send must still return 201" policy stays at the call site, matching
- * `sendRegistrationConfirmation`. The future digest run can choose a different
- * policy (retry) from the same recipient seam.
+ * `sendRegistrationConfirmation`.
  */
 
 import type { RegistrationRecipient } from './types'

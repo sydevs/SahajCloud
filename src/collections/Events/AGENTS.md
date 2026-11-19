@@ -52,12 +52,14 @@ not cleared, so choosing a pace again restores it. `scheduleFields`'
 `hasRecurrenceControl: false` hides the group's own Repeats select and summary,
 which the Schedule tab draws above the control instead (`EventScheduleNotice`).
 
-## `allowContact` takes two halves, and needs both
+## `allowContact` gates the read, the save and the write
 
 The three public contact fields answer `null` on every read while the box is
-off, and the columns are emptied on every save where it is off
-(`hooks/withholdContact.ts`). `admin.condition` hides a field without clearing
-it, and the widget reads `contactPhone` with no gate of its own.
+off, and are emptied on every save where it is off. `withheldUnlessAllowed()`
+(`hooks/withholdContact.ts`) declares both on each field it is spread into, so
+a field cannot take the read gate without the clear. `admin.condition` hides a
+field without clearing it, and the widget reads `contactPhone` with no gate of
+its own.
 
 ⚠ **A read gate cannot withhold a column from a `where`.** A field
 `afterRead` hook governs the value returned, never the query, and nothing
@@ -65,8 +67,7 @@ bounds a client's `where` — `validateClientQueryParamsHook` reads `select` and
 the range bounds alone, and returns before any of it for a `count`. A stored
 number therefore answers `where[contactPhone][contains]` one character at a
 time, to any key holder, and the widget's key is published in every host page.
-Emptying the column is the only answer; the read gate covers the window between
-a partial write and the next save.
+Emptying the column is the only answer.
 
 ⚠ **Clear on the resolved state, never the transition.** A row written with
 the box already off — an API create, a CSV import — never transitions, so a

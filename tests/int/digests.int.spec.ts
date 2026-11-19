@@ -87,11 +87,7 @@ describe('SendDigests job', () => {
 
   // One region, all online: the duplicate-class rule keys the fixtures apart on
   // start time alone, so each event starts a minute after the last.
-  async function createEvent(
-    managerId: null | number,
-    title: string,
-    overrides: FixtureOverrides<Parameters<typeof createData<'events'>>[0]> = {},
-  ): Promise<number> {
+  async function createEvent(managerId: null | number, title: string): Promise<number> {
     startSlot += 1
     const event = await payload.create({
       collection: 'events',
@@ -108,7 +104,6 @@ describe('SendDigests job', () => {
           firstDate: new Date(Date.parse(SCHEDULE.firstDate) + startSlot * 60_000).toISOString(),
         },
         title,
-        ...overrides,
       }),
       overrideAccess: true,
     })

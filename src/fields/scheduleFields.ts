@@ -212,7 +212,7 @@ function buildEndTimeField(): Field {
   }
 }
 
-/** Row 2: recurrenceType + interval + optional complex weekly/monthly fields. */
+/** recurrenceType, then a row of interval + the optional complex weekly/monthly fields. */
 function buildRecurrenceFields(config: SubFieldConfig): Field[] {
   const recurrenceType: Field = {
     name: 'recurrenceType',
@@ -221,11 +221,11 @@ function buildRecurrenceFields(config: SubFieldConfig): Field[] {
     options: [...RECURRENCE_OPTIONS],
     admin: {
       // Hidden, not dropped: a caller's own control writes it.
-      hidden: config.hasRecurrenceControl === false,
+      hidden: !config.hasRecurrenceControl,
       placeholder: 'Does not repeat',
     },
   }
-  const pace: Field[] = [
+  const paceFields: Field[] = [
     {
       name: 'interval',
       type: 'number',
@@ -243,15 +243,14 @@ function buildRecurrenceFields(config: SubFieldConfig): Field[] {
     ...(config.hasComplexWeekly ? buildComplexWeeklyFields(config) : []),
     ...(config.hasComplexMonthly ? buildComplexMonthlyFields(config) : []),
   ]
-  if (config.hasRecurrenceControl !== false)
-    return [{ type: 'row', fields: [recurrenceType, ...pace] }]
+  if (config.hasRecurrenceControl) return [{ type: 'row', fields: [recurrenceType, ...paceFields] }]
   // An empty row still takes a gap, so a one-time schedule would open on blank space.
   return [
     recurrenceType,
     {
       type: 'row',
       admin: { condition: (_data, siblingData) => !!siblingData?.recurrenceType },
-      fields: pace,
+      fields: paceFields,
     },
   ]
 }
