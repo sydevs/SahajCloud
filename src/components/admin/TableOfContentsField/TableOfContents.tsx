@@ -2,18 +2,15 @@
 
 import React from 'react'
 
-export interface DetectedHeading {
-  slug: string
-  text: string
-  level: number
-}
+import type { TableOfContentsHeadings } from '@/payload-types'
 
 interface TableOfContentsProps {
-  detected: DetectedHeading[]
-  enabled: DetectedHeading[]
-  onToggle: (slug: string) => void
+  detected: TableOfContentsHeadings
+  /** Positions in `detected`, which is what identifies a heading — two may slugify alike. */
+  enabled: ReadonlySet<number>
+  onToggle: (position: number) => void
   readOnly?: boolean
-  blockedSlugs?: ReadonlySet<string>
+  blocked: ReadonlySet<number>
 }
 
 export const TableOfContents: React.FC<TableOfContentsProps> = ({
@@ -21,10 +18,8 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
   enabled,
   onToggle,
   readOnly = false,
-  blockedSlugs,
+  blocked,
 }) => {
-  const enabledSlugs = new Set(enabled.map((h) => h.slug))
-
   if (detected.length === 0) {
     return (
       <div
@@ -50,15 +45,15 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
         padding: 'calc(var(--base) * 0.5) 0',
       }}
     >
-      {detected.map((heading) => {
-        const isEnabled = enabledSlugs.has(heading.slug)
-        const isBlocked = !isEnabled && !!blockedSlugs?.has(heading.slug)
+      {detected.map((heading, position) => {
+        const isEnabled = enabled.has(position)
+        const isBlocked = blocked.has(position)
         const indentLevel = heading.level - 1
         const buttonCursor = readOnly ? 'default' : isBlocked ? 'not-allowed' : 'pointer'
 
         return (
           <div
-            key={heading.slug}
+            key={position}
             role="listitem"
             style={{
               display: 'flex',
@@ -72,7 +67,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
             <button
               type="button"
               disabled={readOnly || isBlocked}
-              onClick={() => onToggle(heading.slug)}
+              onClick={() => onToggle(position)}
               aria-label={`${isEnabled ? 'Disable' : 'Enable'} heading: ${heading.text}`}
               aria-pressed={isEnabled}
               style={{
@@ -109,7 +104,7 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
             </button>
 
             <span
-              onClick={readOnly || isBlocked ? undefined : () => onToggle(heading.slug)}
+              onClick={readOnly || isBlocked ? undefined : () => onToggle(position)}
               style={{
                 flex: 1,
                 minWidth: 0,

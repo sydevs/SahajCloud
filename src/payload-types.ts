@@ -738,6 +738,10 @@ export type TableOfContentsHeadings = {
   slug: string;
   text: string;
   level: number;
+  /**
+   * Which of the headings sharing this slug this one is, counted from 0 in document order over top-level headings with non-empty text. Absent means unknown, never 0.
+   */
+  occurrence?: number;
   [k: string]: unknown;
 }[];
 /**
