@@ -739,7 +739,7 @@ export type TableOfContentsHeadings = {
   text: string;
   level: number;
   /**
-   * How many earlier headings in the document carry this same slug, counted from 0 — what tells two headings that slugify alike apart. Counted over top-level heading nodes whose trimmed text is non-empty, in document order, so a consumer anchoring these entries counts within one slug and never has to agree on what the whole document scan detected. Optional because Payload validates this schema on every save of the page, so a required key would refuse the next save of every page stored before it existed (#1207). Read its absence as unknown, never as 0.
+   * Which of the headings sharing this slug this one is, counted from 0 in document order over top-level headings with non-empty text. Absent means unknown, never 0.
    */
   occurrence?: number;
   [k: string]: unknown;
