@@ -44,8 +44,11 @@ export function eventCreateData(args: EventDataArgs): EventDataResult {
   const languages = [...new Set(splitList(values.languages?.toLowerCase()))]
 
   const data: Record<string, unknown> = {
-    // `newEventDefaults` reads the schedule only to derive `inactive`.
-    ...newEventDefaults(scheduled, managerId),
+    // `newEventDefaults` reads these only to derive `inactive` and `allowContact`.
+    ...newEventDefaults(
+      { ...scheduled, contactEmail: values.contactEmail, contactPhone: values.contactPhone },
+      managerId,
+    ),
     ...scheduled,
     title: values.title,
     languages: languages.length ? languages : [...args.defaultLanguages],

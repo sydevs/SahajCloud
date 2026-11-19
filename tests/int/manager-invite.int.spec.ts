@@ -404,6 +404,7 @@ describe('manager invitation', () => {
           region: region.id,
           verificationStage: 'verified',
           inactive: true,
+          allowContact: true,
           contactPhone: '+1-555-0100',
           contactName: 'Test Contact',
         } as never,
