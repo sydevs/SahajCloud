@@ -63,3 +63,25 @@ cannot name a virtual field, and Payload runs every field's `afterRead` in one
 both run where `inactive` is not computed yet. Read `repeats` there:
 `shouldFinish`, `resolveNextCheckAt`, `calendarFeedAnswer`, `classKey` and
 `notFinishedWhere` all do.
+
+## `allowContact` takes two halves, and needs both
+
+The three public contact fields answer `null` on every read while the box is
+off, and the columns are emptied on every save where it is off
+(`hooks/withholdContact.ts`). `admin.condition` hides a field without clearing
+it, and the widget reads `contactPhone` with no gate of its own.
+
+⚠ **A read gate cannot withhold a column from a `where`.** A field
+`afterRead` hook governs the value returned, never the query, and nothing
+bounds a client's `where` — `validateClientQueryParamsHook` reads `select` and
+the range bounds alone, and returns before any of it for a `count`. A stored
+number therefore answers `where[contactPhone][contains]` one character at a
+time, to any key holder, and the widget's key is published in every host page.
+Emptying the column is the only answer; the read gate covers the window between
+a partial write and the next save.
+
+⚠ **Clear on the resolved state, never the transition.** A row written with
+the box already off — an API create, a CSV import — never transitions, so a
+transition-only hook leaves exactly that row queryable. A caller meaning to
+offer a contact sends the box with it, which `newEventDefaults`, `updatePatch`
+and `eventData` all derive.
