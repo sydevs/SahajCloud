@@ -99,12 +99,6 @@ function fillBlanks(
 const DEFAULT_LOCALE: LocaleCode = 'en'
 
 /**
- * Shape of a `seeds/sy-atlas-translations/data.<locale>.json` file: the
- * global's own data shape, plus a `_meta` header the writer strips.
- */
-type AtlasSeedFile = Record<string, unknown> & { _meta?: unknown }
-
-/**
  * The wm-web seed file, minus its `_meta` header, IS the `updateGlobal` data:
  * `<tab>.<sub-group>.<key>` for a nested tab, `<tab>.<key>` for a flat one.
  * Nothing transforms it, which is the point — a key the schema does not
@@ -116,6 +110,12 @@ type AtlasSeedFile = Record<string, unknown> & { _meta?: unknown }
  * the file's own contents is `tests/unit/wm-web-translations-seed.spec.ts`.
  */
 type WmWebSeedFile = { _meta?: unknown } & Record<string, unknown>
+
+/**
+ * An atlas `data.<locale>.json` seed file: the global's own data shape, plus a
+ * `_meta` header the writer strips.
+ */
+type LocaleSeedFile = { _meta?: { locale?: unknown } } & Record<string, unknown>
 
 // --- Importer ---
 
@@ -171,37 +171,13 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
 
   // --- sy-atlas-translations: the widget's own copy, ten locales, each published ---
 
-  /**
-   * Seeds one file per locale and publishes that locale on its own.
-   *
-   * Per-locale publish is what makes the ten selectable in
-   * `sy-atlas-config.availableLocales`, whose validator rejects a locale whose
-   * translations are not published (#705). `publishSpecificLocale` takes
-   * Payload's single-locale branch, merging the incoming locale over the stored
-   * global and marking only that locale published. `publishAllLocales` cannot
-   * be used here: it scopes itself through `filterAvailableLocales`, which
-   * answers `['en']` for a request with no user — every seed request.
-   */
   private async seedAtlas(): Promise<void> {
     const slug = 'sy-atlas-translations'
-    const { loadJsonData } = await import('../lib/dataLoader')
 
-    for (const locale of ATLAS_LOCALES) {
-      const localPath = atlasTranslationsDataFile(locale)
-
-      let seed: AtlasSeedFile
-      try {
-        seed = await loadJsonData<AtlasSeedFile>({
-          localPath,
-          inlineContent: this.options.inlineData?.[localPath],
-        })
-      } catch (error) {
-        this.addError(`Loading ${localPath}`, error instanceof Error ? error : String(error))
-        continue
-      }
-
-      const { _meta: _ignored, ...data } = seed
-
+    await this.seedLocaleFiles({
+      slug,
+      locales: ATLAS_LOCALES,
+      dataFile: atlasTranslationsDataFile,
       // English alone carries the two live groups, and only to fill a key that
       // is blank today. A translated value already in the CMS always wins, and
       // no other locale sends these groups at all.
@@ -210,23 +186,22 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
       // defaults on a failure would write English over an editor's own copy,
       // wholesale — so a failed read omits both groups instead, exactly as
       // every other locale does.
-      if (locale === DEFAULT_LOCALE) {
+      prepare: async (data, locale) => {
+        if (locale !== DEFAULT_LOCALE) return
+
         const stored = await this.readAtlasGlobal(slug, locale)
+        if (!stored.ok) return
 
-        if (stored.ok) {
-          const emails = fillBlanks(stored.doc?.emails, EMAILS_GROUP_DEFAULTS)
-          if (emails) data.emails = emails
+        const emails = fillBlanks(stored.doc?.emails, EMAILS_GROUP_DEFAULTS)
+        if (emails) data.emails = emails
 
-          const storedEvent = asRecord(stored.doc?.event)
-          const title = fillBlanks(storedEvent?.title, EVENT_TITLE_DEFAULTS)
-          if (title) {
-            data.event = { ...(asRecord(data.event) ?? {}), title }
-          }
+        const storedEvent = asRecord(stored.doc?.event)
+        const title = fillBlanks(storedEvent?.title, EVENT_TITLE_DEFAULTS)
+        if (title) {
+          data.event = { ...(asRecord(data.event) ?? {}), title }
         }
-      }
-
-      await this.writeGlobal(slug, data, locale, true)
-    }
+      },
+    })
   }
 
   /**
@@ -263,7 +238,73 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
     }
   }
 
-  // --- Shared write helper ---
+  // --- The per-locale loop and the publishing write ---
+
+  /**
+   * Seeds one `data.<locale>.json` per locale and publishes that locale alone.
+   *
+   * Per-locale publish is what makes a language selectable in the matching
+   * config global's `availableLocales`, whose validator rejects a locale whose
+   * translations are not published (#705). `publishSpecificLocale` takes
+   * Payload's single-locale branch, merging the incoming locale over the stored
+   * global and marking only that locale published. `publishAllLocales` cannot
+   * be used here: it scopes itself through `filterAvailableLocales`, which
+   * answers `['en']` for a request with no user — every seed request.
+   *
+   * `prepare` runs after `_meta` is stripped, for a caller that has to add or
+   * hold back a group before the write.
+   */
+  protected async seedLocaleFiles<L extends LocaleCode>({
+    slug,
+    locales,
+    dataFile,
+    prepare,
+  }: {
+    slug: string
+    locales: readonly L[]
+    dataFile: (locale: L) => string
+    prepare?: (data: Record<string, unknown>, locale: L) => Promise<void>
+  }): Promise<void> {
+    const { loadJsonData } = await import('../lib/dataLoader')
+
+    for (const locale of locales) {
+      const localPath = dataFile(locale)
+
+      let seed: LocaleSeedFile
+      try {
+        seed = await loadJsonData<LocaleSeedFile>({
+          localPath,
+          inlineContent: this.options.inlineData?.[localPath],
+        })
+      } catch (error) {
+        this.addError(`Loading ${localPath}`, error instanceof Error ? error : String(error))
+        continue
+      }
+
+      // A file in the wrong slot would publish one language's words as
+      // another's. The header is the only thing that says which it is.
+      if (seed._meta?.locale !== locale) {
+        this.addError(
+          `Loading ${localPath}`,
+          `_meta.locale is ${JSON.stringify(seed._meta?.locale)}, expected "${locale}"`,
+        )
+        continue
+      }
+
+      const { _meta: _ignored, ...data } = seed
+      await prepare?.(data, locale)
+
+      try {
+        await this.writeGlobal(slug, data, locale, true)
+      } catch (error) {
+        // `writeGlobal` reports an `updateGlobal` failure, and the remaining
+        // locales are independent writes. A missing Payload instance is
+        // neither: it fails every locale, and nothing reported it.
+        if (!this.payload && !this.options.dryRun) throw error
+        continue
+      }
+    }
+  }
 
   /**
    * `publish` publishes the one locale being written, and nothing else.
@@ -274,11 +315,11 @@ export class TranslationsImporter extends BaseImporter<BaseImportOptions> {
    * refuse an untranslated language.
    *
    * Only a global whose `_status` is localized may be published here. On one
-   * with a single `_status`, this would mark every locale published at once —
-   * see the header. `tests/int/wm-web-translations-seed.int.spec.ts` holds
-   * that line by asserting `wm-app-translations` comes back unpublished.
+   * with a single `_status`, this would mark every locale published at once.
+   * `tests/int/wm-web-translations-seed.int.spec.ts` holds that line by
+   * asserting `wm-app-translations` comes back unpublished.
    */
-  private async writeGlobal(
+  protected async writeGlobal(
     slug: string,
     seeded: Record<string, unknown>,
     locale: LocaleCode,
