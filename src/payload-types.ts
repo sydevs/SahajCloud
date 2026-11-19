@@ -11458,7 +11458,7 @@ export interface TableOfContentsBlock {
 export interface ContentIndexBlock {
   type: 'meditations' | 'pages' | 'songs' | 'lectures' | 'moods';
   /**
-   * Maximum number of items to return (1–100). A Moods index must cover every featured mood — about 14 today — so set it to at least 20.
+   * Maximum number of items to return (1–100). A Moods index shows only the moods for the visitor's time of day.
    */
   limit: number;
   /**
