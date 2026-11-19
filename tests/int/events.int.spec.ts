@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Event } from '@/payload-types'
 
-import { testData } from '../utils/testData'
+import { type FixtureOverrides, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
 describe('Events collection', () => {
@@ -240,6 +240,148 @@ describe('Events collection', () => {
         const fieldErr = (data?.errors ?? []).find((e) => e.path === 'website')
         expect(fieldErr?.message).toBe('Please enter a valid URL')
       }
+    })
+  })
+
+  describe('allowContact', () => {
+    const WEEKLY: FixtureOverrides<Event> = {
+      inactive: false,
+      schedule: {
+        firstDate: '2026-01-05T10:00:00.000Z',
+        firstDate_tz: 'Europe/London',
+        recurrenceType: 'WEEKLY',
+        interval: 1,
+        weekdays: ['MO'],
+      },
+    }
+    const createReachableEvent = () =>
+      testData.createEvent(payload, {
+        ...WEEKLY,
+        allowContact: true,
+        contactEmail: 'reach@example.com',
+        contactName: 'Reachable Person',
+        contactPhone: '+44 20 7000 1000',
+      })
+    const setBox = (id: number, allowContact: boolean) =>
+      payload.update({ collection: 'events', id, overrideAccess: true, data: { allowContact } })
+    const phoneMatches = async (id: number) =>
+      (
+        await payload.count({
+          collection: 'events',
+          overrideAccess: true,
+          where: { and: [{ id: { equals: id } }, { contactPhone: { contains: '+44 20 7' } }] },
+        })
+      ).totalDocs
+
+    // A read gate governs the value, never the query: with the number still in
+    // the row, `where[contactPhone][contains]` answers one character at a time
+    // to any key holder. Re-ticking the box is what proves the column is empty,
+    // since nothing else can read it and a `count` cannot be refused.
+    it('withholds and empties all three contact fields while the box is off', async () => {
+      const event = await createReachableEvent()
+
+      const closed = await setBox(event.id, false)
+      expect(closed.contactPhone ?? null).toBeNull()
+      expect(closed.contactEmail ?? null).toBeNull()
+      expect(closed.contactName ?? null).toBeNull()
+      expect(await phoneMatches(event.id)).toBe(0)
+
+      const reopened = await setBox(event.id, true)
+      expect(reopened.contactPhone ?? null).toBeNull()
+      expect(reopened.contactEmail ?? null).toBeNull()
+      expect(reopened.contactName ?? null).toBeNull()
+    })
+
+    // A row written with the box already off never transitions, which is the
+    // row a transition-only clear left queryable.
+    it('leaves no contact for a where when the box was never on', async () => {
+      const event = await testData.createEvent(payload, {
+        ...WEEKLY,
+        allowContact: false,
+        contactPhone: '+44 20 7000 3000',
+      })
+
+      expect(await phoneMatches(event.id)).toBe(0)
+    })
+
+    // Naming the box `false` is an answer, as above. Leaving it out would lose
+    // the phone to the clear without a word.
+    it('refuses a phone written without the box while it is off', async () => {
+      const event = await testData.createEvent(payload, {
+        ...WEEKLY,
+        allowContact: false,
+        contactPhone: null,
+      })
+
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: event.id,
+          overrideAccess: true,
+          data: { contactPhone: '+44 20 7000 4000' },
+        }),
+      ).rejects.toMatchObject({
+        data: {
+          errors: [{ path: 'allowContact', message: expect.stringMatching(/^Switch this on/) }],
+        },
+      })
+    })
+
+    it('takes a phone written without the box while it is on', async () => {
+      const event = await createReachableEvent()
+
+      const updated = await payload.update({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        data: { contactPhone: '+44 20 7000 5000' },
+      })
+
+      expect(updated.contactPhone).toBe('+44 20 7000 5000')
+    })
+
+    // What the Atlas widget sends: `contactPhone` and `contactName`, never the
+    // box. `select` strips what it does not name, so the gate reads the box
+    // back through its own `virtualFieldInputs` declaration — without which
+    // this answers null for every event (#1084).
+    it('answers a contact through a select that names no box', async () => {
+      const event = await createReachableEvent()
+
+      const read = await payload.findByID({
+        collection: 'events',
+        id: event.id,
+        overrideAccess: true,
+        select: { contactPhone: true, contactName: true },
+      })
+
+      expect(read.contactPhone).toBe('+44 20 7000 1000')
+      expect(read.contactName).toBe('Reachable Person')
+    })
+
+    // Two refusals, and each has to be provable on its own: a phone the box
+    // hides reaches nobody, and a checked box with nothing in it reaches
+    // nobody either. The phone here is what leaves the box as the only
+    // possible objection.
+    it('refuses a dormant class whose contact box is off', async () => {
+      await expect(
+        testData.createEvent(payload, {
+          inactive: true,
+          allowContact: false,
+          contactPhone: '+44 20 7000 2000',
+        }),
+      ).rejects.toThrow(/Allow seekers to contact/i)
+    })
+
+    it('refuses a dormant class whose contact box is on but empty', async () => {
+      await expect(
+        testData.createEvent(payload, {
+          inactive: true,
+          allowContact: true,
+          contactName: null,
+          contactPhone: null,
+          contactEmail: null,
+        }),
+      ).rejects.toThrow(/Contact Phone Number/i)
     })
   })
 })

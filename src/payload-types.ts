@@ -845,9 +845,6 @@ export interface Config {
       childrenCities: 'regions';
       childrenVenues: 'regions';
     };
-    events: {
-      registrations: 'user-submissions';
-    };
     users: {
       submissions: 'user-submissions';
       submittedEvents: 'events';
@@ -1814,18 +1811,6 @@ export interface Event {
     | 'za'
     | 'zu'
   )[];
-  /**
-   * A phone number that seekers can call to learn more about the program.
-   */
-  contactPhone?: string | null;
-  /**
-   * An email address seekers can write to for more information about the program.
-   */
-  contactEmail?: string | null;
-  /**
-   * The name of the person seekers will reach
-   */
-  contactName?: string | null;
   description?: {
     root: {
       type: string;
@@ -1849,6 +1834,19 @@ export interface Event {
    * Photos for this event (up to 7).
    */
   images?: (number | Image)[] | null;
+  allowContact?: boolean | null;
+  /**
+   * Who seekers will reach.
+   */
+  contactName?: string | null;
+  /**
+   * An address seekers can write to.
+   */
+  contactEmail?: string | null;
+  /**
+   * A number seekers can call.
+   */
+  contactPhone?: string | null;
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
@@ -1876,9 +1874,6 @@ export interface Event {
     latitude?: number | null;
     longitude?: number | null;
   };
-  /**
-   * Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.
-   */
   inactive?: boolean | null;
   /**
    * Configure when this event occurs and repeats
@@ -1891,9 +1886,6 @@ export interface Event {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     monthlyMode?: ('date' | 'weekday') | null;
@@ -1928,23 +1920,13 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
-   * Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.
-   */
-  registrationNotificationEmail?: string | null;
-  registrationNotificationFrequency?: ('Immediate' | 'Never') | null;
-  /**
-   * Optional questions to ask registrants — each enabled question appears on the registration form.
+   * Optional questions to ask registrants — each enabled question appears on the registration form. Email contact@sydevelopers.com to ask for another question option.
    */
   registrationQuestions?: {
     experience?: boolean | null;
     referral?: boolean | null;
     aspirations?: boolean | null;
     questions?: boolean | null;
-  };
-  registrations?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
   };
   /**
    * Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.
@@ -2244,6 +2226,45 @@ export interface Import {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  /**
+   * Set by the Block button. Nothing this sender submits is delivered while set.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
+   */
+  blockedReason?: string | null;
+  submissions?: {
+    docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "user-submissions".
  */
 export interface UserSubmission {
@@ -2364,45 +2385,6 @@ export interface SubmissionScreeningResult {
    * When screening reached this verdict (ISO 8601).
    */
   screenedAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  /**
-   * Set by the Block button. Nothing this sender submits is delivered while set.
-   */
-  blockedAt?: string | null;
-  /**
-   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
-   */
-  blockedReason?: string | null;
-  submissions?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  submittedEvents?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4044,9 +4026,6 @@ export interface AppCard {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     /**
@@ -5150,12 +5129,13 @@ export interface EventsSelect<T extends boolean = true> {
   importBatch?: T;
   title?: T;
   languages?: T;
-  contactPhone?: T;
-  contactEmail?: T;
-  contactName?: T;
   description?: T;
   website?: T;
   images?: T;
+  allowContact?: T;
+  contactName?: T;
+  contactEmail?: T;
+  contactPhone?: T;
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
@@ -5208,8 +5188,6 @@ export interface EventsSelect<T extends boolean = true> {
   registrationMode?: T;
   externalRegistrationUrl?: T;
   registrationLimit?: T;
-  registrationNotificationEmail?: T;
-  registrationNotificationFrequency?: T;
   registrationQuestions?:
     | T
     | {
@@ -5218,7 +5196,6 @@ export interface EventsSelect<T extends boolean = true> {
         aspirations?: T;
         questions?: T;
       };
-  registrations?: T;
   manager?: T;
   verificationStage?: T;
   activityLog?:

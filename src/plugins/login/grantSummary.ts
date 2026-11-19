@@ -103,6 +103,11 @@ export interface PendingInvitation {
   roles?: Record<string, string[]>
   /** Document ids the manager was named on, per collection slug. */
   managed?: Record<string, (number | string)[]>
+  /**
+   * Document ids the manager held before this window and was taken off, per
+   * collection slug — so putting them back announces nothing. Never listed.
+   */
+  released?: Record<string, (number | string)[]>
   /** The manager whose save assigned the most recent of them. */
   by?: number | string | null
 }

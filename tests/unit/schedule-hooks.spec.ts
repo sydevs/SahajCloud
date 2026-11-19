@@ -1434,6 +1434,15 @@ describe('Schedule Field Hooks', () => {
       expect(field.admin?.components?.beforeInput).toEqual(['@/components/admin/ScheduleSummary'])
     })
 
+    it('leaves the Repeats select and the summary to a caller with its own control', () => {
+      const owned = scheduleFields({ hasRecurrenceControl: false }) as NamedGroupField
+      expect(owned.admin?.components).toBeUndefined()
+      const recurrenceType = owned.fields.find(
+        (field) => 'name' in field && field.name === 'recurrenceType',
+      ) as { admin?: { hidden?: boolean } } | undefined
+      expect(recurrenceType?.admin?.hidden).toBe(true)
+    })
+
     it('exposes lastDate as a stored, indexed, hidden column driven by computeLastDate', () => {
       const group = scheduleFields() as NamedGroupField
       const lastDate = group.fields.find(

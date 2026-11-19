@@ -7,7 +7,7 @@ import {
   LinkFeature,
   lexicalEditor,
 } from '@payloadcms/richtext-lexical'
-import { email, text } from 'payload/shared'
+import { checkbox, email, text } from 'payload/shared'
 
 import {
   addressFields,
@@ -24,21 +24,19 @@ import { stateMachineField } from '@/fields/stateMachineField'
 import { mailingListClientFor } from '@/lib/atlas/mailingListOwners'
 import { getCanonicalUrlBase } from '@/lib/atlas/regionOwners'
 import { revalidateAtlasSidebarHook } from '@/lib/atlasSidebar/cache'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv } from '@/lib/env/server'
 import {
   eventQualityReportZodSchema,
   EVENT_QUALITY_CHECK_METADATA,
   SKIP_REASON_LABELS,
 } from '@/lib/eventQuality'
+import { hasContactRoute } from '@/lib/events/contactRoute'
 import { communityFeedbackJsonSchema } from '@/lib/eventVerification/communityFeedback'
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { isPreAdoptionStage, isUnmanagedStage } from '@/lib/eventVerification/stages'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { getLanguageOptions } from '@/lib/locales'
-import {
-  DEFAULT_REGISTRATION_FREQUENCY,
-  REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS,
-} from '@/lib/notifications/preferences'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { getServerUrl } from '@/lib/utilities/serverUrl'
 import type { Region } from '@/payload-types'
@@ -46,8 +44,6 @@ import {
   adminOnlyCondition,
   eventContactsFieldAccess,
   eventManagerFieldAccess,
-  isAdminManager,
-  managersOnlyFieldAccess,
   ownedRegionFilterOptions,
 } from '@/plugins/access'
 import { relationId } from '@/plugins/access/documentManagers'
@@ -69,6 +65,7 @@ import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
+import { refuseContactWithoutBox, withheldUnlessAllowed } from './hooks/withholdContact'
 import { buildEventWebPath } from './webPath'
 
 const TOGGLE_GROUP_FIELD = '@/components/admin/ToggleGroupField'
@@ -78,6 +75,13 @@ const MANAGER_CONTACTS = '@/components/admin/ManagerContacts'
 const CONTACT_TEXT_MAX = 100
 /** Bound for a contact email address (the RFC 5321 maximum). */
 const CONTACT_EMAIL_MAX = 254
+
+/**
+ * Why a dormant class owes a phone or an email: with no schedule to show, a
+ * reachable person is the only way a seeker can learn more.
+ */
+const DORMANT_CONTACT_REASON =
+  'an on-demand class has no schedule, so this is the only way a seeker can reach you.'
 
 /**
  * Minimal rich-text editor for the event description.
@@ -270,90 +274,6 @@ export const Events: CollectionConfig = {
               admin: { description: 'Language(s) this event is conducted in.' },
             },
             {
-              type: 'row',
-              fields: [
-                {
-                  name: 'contactPhone',
-                  label: 'Contact Phone Number',
-                  type: 'text',
-                  maxLength: CONTACT_TEXT_MAX,
-                  // An inactive event has no schedule, so a *reachable
-                  // person* is the only way a seeker can find out more. An
-                  // inactive event must carry one. A phone or an email
-                  // satisfies this. A website deliberately does not: a page
-                  // is metadata about the event, not a route to someone who
-                  // can answer a question. The same applies to `onlineUrl`, a
-                  // join link for sessions an inactive event is not running.
-                  // This field is always visible, so it cannot gate on an
-                  // `admin.condition`. A validate function keeps active
-                  // events optional instead.
-                  //
-                  // Composed with `text` from payload/shared, because
-                  // supplying `validate` REPLACES Payload's default, which
-                  // would otherwise silently drop `maxLength`. See
-                  // src/collections/AGENTS.md.
-                  validate: (
-                    value: string | null | undefined,
-                    options: { data?: { inactive?: boolean; contactEmail?: string | null } },
-                  ) => {
-                    const base = text(value, options as Parameters<typeof text>[1])
-                    if (base !== true) return base
-                    return options.data?.inactive && !value && !options.data.contactEmail
-                      ? 'Add a phone number or an email address — an inactive event has no schedule, so this is the only way a seeker can reach you.'
-                      : true
-                  },
-                  admin: {
-                    description:
-                      'A phone number that seekers can call to learn more about the program.',
-                  },
-                },
-                {
-                  name: 'contactEmail',
-                  type: 'email',
-                  // An `email` field validates format, but takes no
-                  // `maxLength` of its own. Without this, it stays unbounded
-                  // on a public-facing listing. Composed with `email` from
-                  // payload/shared, for the same reason as the phone field
-                  // above: a custom `validate` replaces the built-in check,
-                  // so it must re-run that check before adding the bound.
-                  //
-                  // This deliberately does NOT repeat the inactive-contact
-                  // rule. Either field satisfies that rule, and asserting it
-                  // here too would surface the same complaint on two fields
-                  // at once.
-                  validate: (
-                    value: string | null | undefined,
-                    options: Parameters<typeof email>[1],
-                  ) => {
-                    const base = email(value, options)
-                    if (base !== true) return base
-                    return !value || value.length <= CONTACT_EMAIL_MAX
-                      ? true
-                      : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
-                  },
-                  admin: {
-                    description:
-                      'An email address seekers can write to for more information about the program.',
-                  },
-                },
-                {
-                  name: 'contactName',
-                  type: 'text',
-                  maxLength: CONTACT_TEXT_MAX,
-                  // Shown once there is a contact route to put a name to:
-                  // whoever answers the phone, or reads the inbox. Not
-                  // *required*. The Atlas dump holds numbers and addresses
-                  // with no name against them, and refusing those would throw
-                  // away the only contact route a dormant listing had. A
-                  // nicety, not a necessity.
-                  admin: {
-                    condition: (data) => !!data?.contactPhone || !!data?.contactEmail,
-                    description: 'The name of the person seekers will reach',
-                  },
-                },
-              ],
-            },
-            {
               name: 'description',
               type: 'richText',
               editor: eventDescriptionEditor,
@@ -372,6 +292,129 @@ export const Events: CollectionConfig = {
               hasMany: true,
               maxRows: 7,
               admin: { description: 'Photos for this event (up to 7).' },
+            },
+            {
+              // Who a seeker can reach about this class, as the public listing
+              // shows it. Unnamed, so the four columns stay top-level.
+              type: 'group',
+              label: 'Public Contact',
+              admin: {
+                description:
+                  'Shown on the public listing, so seekers can ask about this class before they come.',
+              },
+              fields: [
+                {
+                  // ⚠ While this is off, the three fields behind it are withheld
+                  // from every read and emptied on every save, and a contact sent
+                  // without it is refused (`hooks/withholdContact.ts`).
+                  name: 'allowContact',
+                  type: 'checkbox',
+                  label: 'Allow seekers to contact someone by phone or email',
+                  defaultValue: false,
+                  hooks: { beforeValidate: [refuseContactWithoutBox] },
+                  // Payload never validates the phone while this hides it, so the
+                  // dormant-class rule asks for the box here. Composed with
+                  // `checkbox` from payload/shared, because supplying `validate`
+                  // REPLACES Payload's default (src/collections/AGENTS.md).
+                  validate: (
+                    value: boolean | null | undefined,
+                    options: { data?: { inactive?: boolean | null } },
+                  ) => {
+                    const base = checkbox(value, options as Parameters<typeof checkbox>[1])
+                    if (base !== true) return base
+                    return options.data?.inactive && !value
+                      ? `Switch this on and add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
+                      : true
+                  },
+                },
+                {
+                  name: 'contactName',
+                  type: 'text',
+                  maxLength: CONTACT_TEXT_MAX,
+                  ...withheldUnlessAllowed(),
+                  // Whoever answers the phone, or reads the inbox. Not
+                  // *required*. The Atlas dump holds numbers and addresses
+                  // with no name against them, and refusing those would throw
+                  // away the only contact route a dormant listing had. A
+                  // nicety, not a necessity.
+                  admin: {
+                    condition: (data) => !!data?.allowContact,
+                    description: 'Who seekers will reach.',
+                  },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'contactEmail',
+                      type: 'email',
+                      ...withheldUnlessAllowed(),
+                      // An `email` field validates format, but takes no
+                      // `maxLength` of its own. Without this, it stays unbounded
+                      // on a public-facing listing. Composed with `email` from
+                      // payload/shared, for the same reason as the phone field
+                      // below: a custom `validate` replaces the built-in check,
+                      // so it must re-run that check before adding the bound.
+                      //
+                      // This deliberately does NOT repeat the inactive-contact
+                      // rule. Either field satisfies that rule, and asserting it
+                      // here too would surface the same complaint on two fields
+                      // at once.
+                      validate: (
+                        value: string | null | undefined,
+                        options: Parameters<typeof email>[1],
+                      ) => {
+                        const base = email(value, options)
+                        if (base !== true) return base
+                        return !value || value.length <= CONTACT_EMAIL_MAX
+                          ? true
+                          : `Keep the email address under ${CONTACT_EMAIL_MAX} characters.`
+                      },
+                      admin: {
+                        condition: (data) => !!data?.allowContact,
+                        description: 'An address seekers can write to.',
+                      },
+                    },
+                    {
+                      name: 'contactPhone',
+                      label: 'Contact Phone Number',
+                      type: 'text',
+                      maxLength: CONTACT_TEXT_MAX,
+                      ...withheldUnlessAllowed(),
+                      // A phone or an email satisfies the dormant-class rule. A
+                      // website deliberately does not: a page is metadata about
+                      // the event, not a route to someone who can answer a
+                      // question, and `onlineUrl` is a join link for sessions a
+                      // dormant class is not running.
+                      //
+                      // Composed with `text` from payload/shared, because
+                      // supplying `validate` REPLACES Payload's default, which
+                      // would otherwise silently drop `maxLength`. See
+                      // src/collections/AGENTS.md.
+                      validate: (
+                        value: string | null | undefined,
+                        options: {
+                          data?: { inactive?: boolean | null; contactEmail?: string | null }
+                        },
+                      ) => {
+                        const base = text(value, options as Parameters<typeof text>[1])
+                        if (base !== true) return base
+                        return options.data?.inactive &&
+                          !hasContactRoute({
+                            contactEmail: options.data.contactEmail,
+                            contactPhone: value,
+                          })
+                          ? `Add a phone number or an email address — ${DORMANT_CONTACT_REASON}`
+                          : true
+                      },
+                      admin: {
+                        condition: (data) => !!data?.allowContact,
+                        description: 'A number seekers can call.',
+                      },
+                    },
+                  ],
+                },
+              ],
             },
             // Canonical Atlas web path and URL: the event's region path, plus
             // `/<id>` (for example `/belgium/flanders/antwerp/downtown-hall/12345`).
@@ -454,19 +497,30 @@ export const Events: CollectionConfig = {
           label: 'Schedule',
           fields: [
             {
+              // Above the control it describes (`EventScheduleNotice`).
+              name: 'scheduleNotice',
+              type: 'ui',
+              admin: { components: { Field: '@/components/admin/EventScheduleNotice' } },
+            },
+            {
+              // One control for `inactive` and `schedule.recurrenceType`, because
+              // an editor is choosing one thing. It writes both in the form;
+              // each stays the only place its own fact is stored.
+              name: 'frequency',
+              type: 'ui',
+              admin: { components: { Field: '@/components/admin/EventFrequencyField' } },
+            },
+            {
               // Dormant events have no active schedule. They still need
               // verification, and can expire, but never auto-finish: the
               // ExpireEvents finished-check skips inactive events. Hiding the
               // schedule when inactive also drops its `required` validation.
               // Payload skips `required` and `validate` when a condition is
-              // false.
+              // false. Set through the `frequency` control above.
               name: 'inactive',
               type: 'checkbox',
               defaultValue: false,
-              admin: {
-                description:
-                  'Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.',
-              },
+              admin: { hidden: true },
             },
             scheduleFields({
               label: false,
@@ -476,6 +530,7 @@ export const Events: CollectionConfig = {
               hasEndTime: true,
               hasEnding: true,
               hasExclusions: true,
+              hasRecurrenceControl: false,
               admin: { condition: (data) => !data?.inactive },
             }),
           ],
@@ -483,6 +538,18 @@ export const Events: CollectionConfig = {
         {
           label: 'Registration',
           fields: [
+            {
+              // Signups are read on the Registrations view, a document view of
+              // its own: a `join` here renders empty for every manager, since
+              // `user-submissions` is restricted and no manager role reads a
+              // registration row (#1069).
+              name: 'registrationsNotice',
+              type: 'ui',
+              admin: {
+                condition: hideUntilCreated,
+                components: { Field: '@/components/admin/EventRegistrations/RegistrationsNotice' },
+              },
+            },
             {
               type: 'row',
               fields: [
@@ -513,93 +580,20 @@ export const Events: CollectionConfig = {
               ],
             },
             {
-              type: 'row',
-              fields: [
-                {
-                  name: 'registrationNotificationEmail',
-                  label: 'Send Registration Updates To',
-                  // Built-in email format validation. No hand-rolled validator.
-                  type: 'email',
-                  // ⚠ A copy of a manager's email address, sitting on a collection
-                  // the `sahaj-atlas` project can read. Hiding the `managers`
-                  // collection hides linked manager records, never a copy like this
-                  // one, so this field carries its own lock (#821).
-                  access: {
-                    read: managersOnlyFieldAccess,
-                    create: managersOnlyFieldAccess,
-                    update: managersOnlyFieldAccess,
-                  },
-                  admin: {
-                    // Hidden pre-adoption. An unverified or denied event has
-                    // no manager, and its registrations are recorded, but
-                    // forwarded to nobody until a manager adopts the event.
-                    condition: (data) =>
-                      data?.registrationMode === 'sahaj-atlas' &&
-                      !isPreAdoptionStage(data?.verificationStage),
-                    placeholder: 'Event Manager',
-                    description:
-                      'Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.',
-                  },
-                },
-                {
-                  name: 'registrationNotificationFrequency',
-                  label: 'How Often',
-                  type: 'select',
-                  // These options come from NOTIFICATION_TYPES'
-                  // `event_registration` entry, so the two surfaces cannot
-                  // drift. Summary cadences are omitted until the digest run
-                  // exists (see #588 §4). Immediate is the default, matching
-                  // buildDefaultNotificationPreferences.
-                  defaultValue: DEFAULT_REGISTRATION_FREQUENCY,
-                  options: [...REGISTRATION_OVERRIDE_FREQUENCY_OPTIONS],
-                  // Pin the enum name so it stays stable across migrations.
-                  // This mirrors `verificationStage`, and never collides with
-                  // the drafts `_status` enum.
-                  enumName: 'enum_events_registration_notification_frequency',
-                  admin: {
-                    condition: (data) => Boolean(data?.registrationNotificationEmail),
-                  },
-                },
-              ],
-            },
-            {
               name: 'registrationQuestions',
               type: 'group',
               admin: {
-                description:
-                  'Optional questions to ask registrants — each enabled question appears on the registration form.',
+                // A checkbox per question, tightened by `.sy-checkbox-group`
+                // in `custom.scss`: Payload's own field gap frames a section,
+                // and these read as one list.
+                className: 'sy-checkbox-group',
+                description: `Optional questions to ask registrants — each enabled question appears on the registration form. Email ${CONTACT_EMAIL} to ask for another question option.`,
               },
               fields: EVENT_REGISTRATION_QUESTIONS.map((question) => ({
                 name: question.name,
                 type: 'checkbox' as const,
                 label: question.label,
               })),
-            },
-            {
-              // ⚠ The `type` predicate is load-bearing. One table now holds
-              // four intakes and three of them can name an event, so without it
-              // this tab would list the event's proposals and its spawned
-              // subscribe rows alongside its registrants.
-              //
-              // Deliberately the bare type, not `activeRegistrationWhere`: a
-              // manager needs to see the row they flagged `spam`.
-              //
-              // ⚠ The condition hides the field; it does not stop the read.
-              // `user-submissions` is restricted and no manager role reads a
-              // `registration` row, so this rendered empty for every manager —
-              // the drawer it opens is an admin's way into a row, and a manager
-              // reads their own event's signups on the Registrations tab
-              // instead (#1069). The join's subquery still runs for them, which
-              // is the cost of keeping that drawer.
-              name: 'registrations',
-              type: 'join',
-              collection: 'user-submissions',
-              on: 'event',
-              where: { type: { equals: 'registration' } },
-              admin: {
-                condition: (data, _siblingData, { user }) =>
-                  hideUntilCreated(data) && isAdminManager(user),
-              },
             },
           ],
         },
