@@ -105,7 +105,6 @@ describe('validatePaginationParam', () => {
 const NO_FLOOR_REASONS: Partial<Record<ScriptName, RegExp>> = {
   'file-transcripts': /without a transcript/,
   translations: /global/,
-  'wm-web-locales': /global/,
 }
 
 describe('a script that can state no floor says so', () => {

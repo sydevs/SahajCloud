@@ -11,7 +11,6 @@
  *
  * Scripts:
  *   translations      - Seed English copy into the three translation globals
- *   wm-web-locales    - Seed and publish the nine non-English wm-web-translations locales
  *   file-transcripts  - Transcribe every audio and video file that has no transcript
  *
  * Options:
@@ -43,8 +42,6 @@ import { accessTokenHeaders, PREVIEW_ADMIN_ADDRESS } from '../src/lib/preview/pr
 
 const VALID_SCRIPTS: ScriptName[] = [
   'translations',
-  // Never in SCRIPT_RUN_ORDER: it publishes nine languages, which is an operator's call.
-  'wm-web-locales',
   // Never in SCRIPT_RUN_ORDER: every run it queues is a paid vendor call.
   'file-transcripts',
 ]
@@ -53,7 +50,6 @@ const SCRIPT_RUN_ORDER: ScriptName[] = ['translations']
 
 const SCRIPT_DESCRIPTIONS: Record<ScriptName, string> = {
   translations: 'Seed English copy for all three translation globals',
-  'wm-web-locales': 'Seed and publish the nine non-English wm-web-translations locales',
   'file-transcripts': 'Transcribe every audio and video file that has no transcript (paid runs)',
 }
 

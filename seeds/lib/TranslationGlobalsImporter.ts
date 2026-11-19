@@ -1,11 +1,8 @@
 /**
- * Shared base for the importers that write a translation global.
- *
- * Two scripts run the same per-locale loop — `translations` for the atlas
- * global's ten locales, `wm-web-locales` for the website's nine — so the loop
- * and the write live here rather than in either of them. Neither script is the
- * other's parent: a subclass of one inherits seed methods it then has to
- * forbid.
+ * Base for the importers that write a translation global: the per-locale loop
+ * and the publishing write. `translations` is the one user today, for the atlas
+ * global's ten locales. It stays apart from that script so the loop can be
+ * tested with no Payload instance (`tests/unit/translation-globals-importer.spec.ts`).
  */
 import type { LocaleCode } from '../../src/lib/locales'
 

@@ -66,23 +66,21 @@ this.skip('Skipping item') // Log skip, increment counter
 
 ## TranslationGlobalsImporter
 
-`TranslationGlobalsImporter` (extends `BaseImporter`) holds what the two
-translation-global scripts share: `writeGlobal`, and `seedLocaleFiles`, the loop
-that reads one `data.<locale>.json` per locale and publishes that locale alone.
-`translations` and `wm-web-locales` both extend it, so neither is the other's
-parent — a script subclassing a sibling script inherits seed methods it then
-has to forbid.
+`TranslationGlobalsImporter` (extends `BaseImporter`) holds `writeGlobal`, and
+`seedLocaleFiles`, the loop that reads one `data.<locale>.json` per locale and
+publishes that locale alone. `translations` extends it for the atlas global's
+ten locales.
 
 A `_meta.locale` that does not match the file's slot is an error, not a
 warning: a file in the wrong slot publishes one language's words as another's.
 
 ```typescript
 await this.seedLocaleFiles({
-  slug: 'wm-web-translations',
-  locales: WM_WEB_TRANSLATION_LOCALES,
-  dataFile: wmWebTranslationsDataFile,
+  slug: 'sy-atlas-translations',
+  locales: ATLAS_TRANSLATION_LOCALES,
+  dataFile: atlasTranslationsDataFile,
   // prepare?: adds or holds back a group before the write — the atlas seed's
-  // live `emails` and `event.title` groups are the only caller.
+  // live `emails` and `event.title` groups.
 })
 ```
 
