@@ -227,6 +227,8 @@ export default fixture('pages', [
           songFilters: [ID.songTags.first],
         }),
         block('content-index', 'landing-index-lectures', { type: 'lectures', limit: 3 }),
+        // 20 rather than the field's default 10: a moods index has to cover every featured mood.
+        block('content-index', 'landing-index-moods', { type: 'moods', limit: 20 }),
       ),
     },
   },

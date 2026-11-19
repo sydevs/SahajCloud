@@ -8,6 +8,8 @@ import { PAGE_TAGS } from '@/lib/pageTags'
  * Configuration for each content type's API endpoint generation.
  * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
  * which evaluates audiences from runtime user context and ignores `where`.
+ * `extraParams` carries no leading separator, so a type with no filter field can
+ * emit it as the first query param.
  */
 const CONTENT_TYPE_CONFIG: Record<
   string,
@@ -17,7 +19,7 @@ const CONTENT_TYPE_CONFIG: Record<
     basePath: '/api/user-choices',
     filterField: 'userChoiceFilters',
     queryParam: 'where[id][in]',
-    extraParams: '&depth=1',
+    extraParams: 'depth=1',
   },
   pages: {
     basePath: '/api/pages',
@@ -31,6 +33,12 @@ const CONTENT_TYPE_CONFIG: Record<
   },
   lectures: {
     basePath: '/api/lectures/for-audience',
+  },
+  // The featured-mood filter is the whole point of this type: an editor picks no
+  // ids, so featuring a mood upstream puts it on the site with no release.
+  moods: {
+    basePath: '/api/user-choices',
+    extraParams: 'where[isFeatured][equals]=true&where[type][equals]=mood',
   },
 }
 
@@ -62,11 +70,12 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
 
     const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
     let url = `${config.basePath}?${config.queryParam}=${queryValue}`
-    if (config.extraParams) url = `${url}${config.extraParams}`
+    if (config.extraParams) url = `${url}&${config.extraParams}`
     return `${url}&limit=${limit}`
   }
 
-  // No filter field → limit is the first query param
+  // No filter field → extraParams, where there are any, lead the query string
+  if (config.extraParams) return `${config.basePath}?${config.extraParams}&limit=${limit}`
   return `${config.basePath}?limit=${limit}`
 }
 
@@ -110,6 +119,7 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
+        { label: 'Moods', value: 'moods' },
       ],
       admin: {
         components: {
@@ -125,7 +135,8 @@ export const ContentIndexBlock: Block = {
       min: 1,
       max: 100,
       admin: {
-        description: 'Maximum number of items to return (1–100)',
+        description:
+          'Maximum number of items to return (1–100). A Moods index must cover every featured mood — about 14 today — so set it to at least 20.',
       },
     },
     {
