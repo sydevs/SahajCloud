@@ -11,12 +11,3 @@ export const cbrMp3WithoutInfoHeader = (seconds: number): Buffer => {
   frame.writeUInt32BE(0xfffb1400, 0)
   return Buffer.concat(Array<Buffer>(Math.round(seconds / 0.024)).fill(frame))
 }
-
-/** `bytes` as the body of a fetch response. */
-export const byteStream = (bytes: Buffer): ReadableStream<Uint8Array> =>
-  new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new Uint8Array(bytes))
-      controller.close()
-    },
-  })

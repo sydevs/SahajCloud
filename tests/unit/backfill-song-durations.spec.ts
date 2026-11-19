@@ -6,7 +6,7 @@ import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { backfillSongDurations } from '../../scripts/song-durations'
-import { byteStream, cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
+import { cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
 
 vi.mock('../../src/plugins/storage', () => ({
   getR2Url: (filename: string) => `https://assets.test/${filename}`,
@@ -54,7 +54,7 @@ const stubFetch = (files: Record<string, Buffer | number>) =>
         ok: typeof answer !== 'number',
         status: typeof answer === 'number' ? answer : 200,
         headers: new Headers({ 'content-length': String(bytes.length) }),
-        body: byteStream(bytes),
+        body: new Blob([new Uint8Array(bytes)]).stream(),
       } as unknown as Response
     }),
   )

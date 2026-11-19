@@ -10,7 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { extractAudioDuration, readAudioDuration } from '@/lib/audio/duration'
 
-import { byteStream, cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
+import { cbrMp3WithoutInfoHeader } from '../utils/audioBytes'
 
 const FIXTURE_FILES = path.join(process.cwd(), 'src', 'fixture', 'files')
 const read = (name: string) => fs.readFileSync(path.join(FIXTURE_FILES, name))
@@ -45,7 +45,11 @@ describe('readAudioDuration', () => {
     const bytes = cbrMp3WithoutInfoHeader(3)
 
     await expect(
-      readAudioDuration({ stream: byteStream(bytes), mimeType: 'audio/mpeg', size: bytes.length }),
+      readAudioDuration({
+        stream: new Blob([new Uint8Array(bytes)]).stream(),
+        mimeType: 'audio/mpeg',
+        size: bytes.length,
+      }),
     ).resolves.toBe(3)
     // The same bytes as a buffer, which carries its own size.
     await expect(readAudioDuration({ buffer: bytes, mimeType: 'audio/mpeg' })).resolves.toBe(3)
@@ -53,7 +57,10 @@ describe('readAudioDuration', () => {
 
   it('finds no duration in that stream when its size is not given', async () => {
     await expect(
-      readAudioDuration({ stream: byteStream(cbrMp3WithoutInfoHeader(3)), mimeType: 'audio/mpeg' }),
+      readAudioDuration({
+        stream: new Blob([new Uint8Array(cbrMp3WithoutInfoHeader(3))]).stream(),
+        mimeType: 'audio/mpeg',
+      }),
     ).resolves.toBeUndefined()
   })
 
