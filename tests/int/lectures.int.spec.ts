@@ -343,14 +343,19 @@ describe('Lectures Collection', () => {
       })
       const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
 
+      const own = await payload.findByID({
+        collection: 'lectures',
+        id: clip.id,
+        select: { date: true },
+      })
+      expect(own.date).toBeNull()
+
       const read = await payload.findByID({
         collection: 'lectures',
         id: clip.id,
         depth: 1,
         select: { fullLecture: true },
       })
-
-      expect(read.date).toBeUndefined()
       expect((read.fullLecture as Lecture).date).toBe('1983-07-02T00:00:00.000Z')
     })
   })
