@@ -14,11 +14,11 @@
  * is the reliable source. This script reads it with the built-in
  * GITHUB_TOKEN. It needs no Railway API token.
  *
- * The description carries a host only while the base environment's
- * `SahajCloud` service holds a Railway-provided domain. Railway gives a
- * PR service a domain only when the base service has one, so removing it
- * from `production` silently strips every future PR of its preview URL,
- * leaving a bare `"Success"` (#661). See RAILWAY_RUNBOOK.md.
+ * The description carries a host only while the PR's own service holds a
+ * Railway-provided domain. Without one it reads a bare `"Success"` — a
+ * missing domain, not an absent preview, and reading it as one hid a dead
+ * smoke lane for weeks (#661). Which domain, and what clears it:
+ * RAILWAY_RUNBOOK.md.
  *
  * Env:
  *   GITHUB_TOKEN         - GitHub token (CI default), workflow needs `statuses: read`
@@ -124,12 +124,17 @@ async function main(): Promise<void> {
   if (outcome.kind === 'unpublished') {
     // Fail closed, and do not restate the remediation here — the runbook
     // owns it, and a copy in this string is the one that goes stale.
-    // Re-running will not help: the deploy already succeeded.
+    // Two missing domains produce this status byte for byte. Asserting one
+    // sent a reader to production while the gap was the PR environment's
+    // own missing domain (#1230).
     console.error(
       '::error title=Railway preview has no URL::The Railway deploy succeeded but published no ' +
-        'host, so the smoke lane has nothing to test. This is base-environment configuration, ' +
-        'not a transient failure — re-running produces the same result. Fix: RAILWAY_RUNBOOK.md, ' +
-        '"PR previews inherit their domain from production".',
+        'host, so the smoke lane has nothing to test. Either production lost its ' +
+        'Railway-provided domain, or this PR environment alone has none. Compare the Railway ' +
+        'status on another PR whose preview deployed around the same time: a host there means ' +
+        'production is intact and only this environment lacks a domain. Re-running this job ' +
+        'alone reads the same status, which Railway wrote at deploy time. What clears it ' +
+        'differs by cause. Fix: RAILWAY_RUNBOOK.md, "CI & Preview Environments".',
     )
     exportUrl('')
     process.exit(1)
