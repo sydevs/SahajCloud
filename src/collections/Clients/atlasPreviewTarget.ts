@@ -4,7 +4,7 @@ import { andWhere } from '@/collections/Events/lifecycle/finished'
 import { buildRegionWebPath } from '@/collections/Regions/webPath'
 import { descendantRegionIds, getRegionTree } from '@/lib/atlas/regionTree'
 import { drawnOnMapWhere } from '@/lib/events/mapVisibility'
-import type { LivePreviewUnavailableReason } from '@/lib/livePreview/unavailable'
+import type { ServerResolvedReason } from '@/lib/livePreview/unavailable'
 import { relationId } from '@/lib/utilities/relationId'
 
 import { isAtlasClient } from './access'
@@ -22,7 +22,7 @@ import { isAtlasClient } from './access'
 export async function atlasPreviewTarget(opts: {
   data: { region?: unknown; roles?: unknown }
   req: PayloadRequest
-}): Promise<{ path: null | string; reason?: LivePreviewUnavailableReason }> {
+}): Promise<{ path: null | string; reason?: ServerResolvedReason }> {
   if (!isAtlasClient(opts.data)) return { path: null, reason: 'no-atlas-role' }
 
   // Worldwide, or a region with no path of its own, is the atlas root — and

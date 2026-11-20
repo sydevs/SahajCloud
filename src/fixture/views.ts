@@ -304,6 +304,14 @@ export const VIEWS: ViewRegistry = {
     doc('files', 1_005_001),
     doc('videos', 1_013_001),
   ),
+  // Mounted on every entity declaring `admin.livePreview`, one watched surface
+  // of each kind here.
+  '@/components/admin/LivePreviewNotice#default': links(
+    doc('clients', CLIENT_FIRST),
+    doc('regions', REGION_CITY),
+    doc('pages', 1_014_001),
+    doc('user-submissions', 1_026_040),
+  ),
 
   // List cells.
   '@/components/admin/RelationshipCountCell#default': links(
