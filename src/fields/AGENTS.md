@@ -61,7 +61,7 @@ class of bugs entirely.
 
 `secretField()` (`src/fields/secretField/`) is a stored credential and the control that sets it.
 It returns **two fields, spread into `fields`**, and the collection also spreads
-`secretFieldEndpoints(slug)` into `endpoints`. `Clients.mailingList.apiKey` is its one consumer today.
+`secretFieldEndpoints(slug)` into `endpoints`.
 
 - **The stored field**: `read: () => false`, `admin.disabled: true`, never `required`, and
   encrypted at rest through `req.payload.encrypt` / `decrypt`. Nothing ever reads it back.

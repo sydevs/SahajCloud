@@ -29,7 +29,7 @@ const PAYLOAD_VARS = join(PAYLOAD_SCSS, 'vars.scss')
 const PAYLOAD_APP = join(PAYLOAD_SCSS, 'app.scss')
 
 /** Variables this repo declares for itself, rather than overriding Payload's. */
-const OUR_VARIABLES = ['--admin-body-size', '--need-help-width']
+const OUR_VARIABLES = ['--admin-body-size']
 
 /**
  * Classes this repo renders itself — from a component, or from an
@@ -38,7 +38,6 @@ const OUR_VARIABLES = ['--admin-body-size', '--need-help-width']
 const OUR_CLASSES = [
   'address-search',
   'address-search__toggle',
-  'need-help',
   'notification-preferences',
   'string-select',
   'sy-checkbox-group',

@@ -26,8 +26,7 @@ export function ManagerEditNotice(): React.ReactElement | null {
       title="You can’t edit this manager"
       type="warning"
     >
-      Only an admin or the manager themself can edit a manager. If you need help, write to{' '}
-      {CONTACT_EMAIL}.
+      An admin, or the manager themself, can make this change.
     </InfoBanner>
   )
 }
