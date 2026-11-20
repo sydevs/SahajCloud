@@ -51,6 +51,11 @@ export const Managers: CollectionConfig = {
     // four join subqueries per page. With this on, that batch selects `name`
     // alone.
     enableListViewSelectAPI: true,
+    components: {
+      // Not a `ui` field: Payload renders the auth block (Email, Verified)
+      // above every field, and the drawer renders this above that.
+      Description: '@/components/admin/ManagerEditNotice',
+    },
   },
   // NOTE: `roles` below is `localized`, and this collection is an auth collection.
   // accessPlugin detects that pair and attaches the auth strategy and the three
