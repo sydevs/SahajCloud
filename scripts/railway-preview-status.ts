@@ -12,8 +12,9 @@
  * re-read the identical status every 15s for 12 minutes, then skip the
  * smoke lane and exit 0 — so `Lint, Test & Smoke: pass` meant "unit +
  * integration passed" on every PR for weeks (#661). A deploy that
- * succeeds without a host is a base-environment misconfiguration, not an
- * absent preview, and it is terminal on the first poll.
+ * succeeds without a host is a missing domain — production's, or that one
+ * PR environment's own — not an absent preview, and it is terminal on the
+ * first poll.
  */
 
 import { isRecord } from '../src/lib/utilities/isRecord'
