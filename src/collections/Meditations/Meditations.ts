@@ -555,6 +555,14 @@ export const Meditations: CollectionConfig = {
                                 // Payload's redundant `count(*)` (the total is never used).
                                 // See #534 Sentry analysis (frames select/count pairs).
                                 pagination: false,
+                                // A JSON field takes no `select` or `depth` from the caller,
+                                // so this read alone bounds what every keyframe carries. At
+                                // the default depth each chakra frame brought its node's whole
+                                // `page`. ⚠ Not `depth: 0`: the installed mobile app and the
+                                // FrameEditor read `subtleSystemNode.slug` off a populated
+                                // object, and a bare id would leave them no slug.
+                                depth: 1,
+                                populate: { 'subtle-system-nodes': { slug: true } },
                               })
 
                               // Create map of relevant frame data
