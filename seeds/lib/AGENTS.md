@@ -38,8 +38,9 @@ skipped (or updated, in `--update` mode). Permanently delete it to force recreat
 
 **A locale-filtered collection needs the `locale` argument.** Omit it and Payload resolves the
 default (`en`), so a collection whose `beforeOperation` hook appends a locale filter caches that
-one locale and every other reads as absent. `meditations` is such a collection. State the code even
-when it is the default, so a reader is not left deriving which rows a cache holds.
+one locale and every other reads as absent. `meditations` is such a collection, through
+`filterMeditationsByLocale` (`src/collections/Meditations/hooks/`). State the code even when it is
+the default, so a reader is not left deriving which rows a cache holds.
 
 Getting this wrong is quiet, not loud: a cache miss on a preloaded collection takes the same
 no-fallback-find path as a trashed row above, so a key that is not `unique` gets a second row
