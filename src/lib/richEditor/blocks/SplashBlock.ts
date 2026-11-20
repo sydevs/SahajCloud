@@ -1,7 +1,34 @@
-import { Block } from 'payload'
+import { Block, RelationshipFieldSingleValidation } from 'payload'
 import { relationship } from 'payload/shared'
 
 import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
+
+/**
+ * ⚠ **Composes `relationship` WITHOUT `filterOptions`, which deliberately disarms
+ * the save-time refusal `src/collections/AGENTS.md` warns about losing.** Here the
+ * refusal is what breaks, because the filter varies with the clock and
+ * `validateFilterOptions` re-runs on every save with no exemption for a value that
+ * did not change. Measured: the day a chosen class holds its last session, every
+ * later save of the page — a typo, a translation, a republish — answers 400 against
+ * a collapsed block, for an admin too, and deleting the block is the only way out.
+ * Lexical also composes its own filter that answers `false` for a collection
+ * `admin.hidden` hides from the caller, so with the refusal armed a web-translator
+ * could not save such a page at all.
+ *
+ * Nothing is left unguarded: the consumer already degrades a class that is
+ * unpublished, offline or dormant to that language's online classes, and reports it
+ * (sydevs/WeMeditateWeb#309).
+ *
+ * What the id-shape check still buys: a block's fields live in a rich-text JSONB
+ * column with no foreign key, so `isValidID` is the only thing between a mistyped
+ * `PATCH` and an id nothing can ever resolve, stored verbatim.
+ *
+ * ⚠ `filterOptions: undefined` is the whole mechanism. Payload spreads the field's
+ * own config into a validator's options, so composing `relationship` without
+ * clearing it re-arms the very check this field declines.
+ */
+const validateEventShape: RelationshipFieldSingleValidation = (value, options) =>
+  relationship(value, { ...options, filterOptions: undefined })
 
 export const SplashBlock: Block = {
   slug: 'splash',
@@ -50,32 +77,7 @@ export const SplashBlock: Block = {
           notFinishedWhere(new Date()),
         ],
       }),
-      // ⚠ **A `validate` that composes `relationship` WITHOUT `filterOptions`, which
-      // deliberately disarms the save-time refusal `src/collections/AGENTS.md` warns about
-      // losing.** Here the refusal is what breaks, because the filter varies with the
-      // clock and `validateFilterOptions` re-runs on every save with no exemption for a
-      // value that did not change. Measured: the day a chosen class holds its last
-      // session, every later save of the page — a typo, a translation, a republish —
-      // answers 400 against a collapsed block, for an admin too, and deleting the block
-      // is the only way out. Lexical also composes its own filter that answers `false`
-      // for a collection `admin.hidden` hides from the caller, so with the refusal armed
-      // a web-translator could not save such a page at all.
-      //
-      // Nothing is left unguarded: the consumer already degrades a class that is
-      // unpublished, offline or dormant to that language's online classes, and reports it
-      // (sydevs/WeMeditateWeb#309). This keeps the id's own shape check.
-      // ⚠ `filterOptions: undefined` is the whole mechanism. Payload spreads the field's
-      // own config into a validator's options, so composing `relationship` without
-      // clearing it re-arms the very check this field declines.
-      validate: async (value: unknown, options: unknown) =>
-        relationship(
-          value as never,
-          {
-            ...(options as object),
-            filterOptions: undefined,
-            relationTo: 'events',
-          } as never,
-        ),
+      validate: validateEventShape,
     },
     {
       name: 'textColor',
