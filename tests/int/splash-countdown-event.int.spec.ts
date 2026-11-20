@@ -217,6 +217,18 @@ describe('splash countdown · the class it may name', () => {
     expect(savedEventId(response.body.doc as Page)).toBe(finished)
   })
 
+  it('refuses a value that is no class id at all', async () => {
+    // What disarming the filter leaves armed. A block's fields sit in a rich-text
+    // JSONB column with no foreign key, so this is the only thing between a
+    // mistyped `PATCH` and an id nothing can ever resolve, stored verbatim.
+    const response = await asAdmin(`/api/pages/${pageId}`, {
+      method: 'PATCH',
+      json: { content: splashPage('tomorrow' as unknown as number) },
+    })
+
+    expect(response.status).toBe(400)
+  })
+
   it('stays saveable after the class it names holds its last session', async () => {
     const expiring = await testData.createEvent(payload, {
       title: 'Countdown Expiring Class',
