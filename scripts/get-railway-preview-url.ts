@@ -124,12 +124,17 @@ async function main(): Promise<void> {
   if (outcome.kind === 'unpublished') {
     // Fail closed, and do not restate the remediation here — the runbook
     // owns it, and a copy in this string is the one that goes stale.
-    // Re-running will not help: the deploy already succeeded.
+    // Two configurations produce this status byte for byte, so the message
+    // names both: asserting one sent a reader to production while the gap
+    // was the PR environment's own missing domain (#1230).
     console.error(
       '::error title=Railway preview has no URL::The Railway deploy succeeded but published no ' +
-        'host, so the smoke lane has nothing to test. This is base-environment configuration, ' +
-        'not a transient failure — re-running produces the same result. Fix: RAILWAY_RUNBOOK.md, ' +
-        '"PR previews inherit their domain from production".',
+        'host, so the smoke lane has nothing to test. Either production lost its ' +
+        'Railway-provided domain, or this PR environment alone has none. Compare the Railway ' +
+        'status on another PR whose preview deployed around the same time: a host there means ' +
+        'production is intact and only this environment lacks a domain. Re-running alone reads ' +
+        'this same status, which Railway wrote at deploy time, so deploy again once the domain ' +
+        'is fixed. Fix: RAILWAY_RUNBOOK.md, "CI & Preview Environments".',
     )
     exportUrl('')
     process.exit(1)

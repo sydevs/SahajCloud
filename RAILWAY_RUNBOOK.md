@@ -213,8 +213,9 @@ curl -I https://cloud.sydevelopers.com/admin                # Cache-Control: no-
 GitHub commit status via `scripts/get-railway-preview-url.ts` (no Railway API token needed) and
 runs `pnpm test:smoke` against it. When a PR genuinely has no preview environment, the smoke step
 skips and the job stays green — treat that skip as "unit and integration passed," not "smoke
-passed." **When a deploy succeeds but publishes no URL, the job now fails instead** (#661); see the
-warning below for why those two cases must not look alike.
+passed." **When a deploy succeeds but publishes no URL, the job fails instead** (#661); see the
+warnings below for why those two cases must not look alike, and for the two configurations that
+produce an identical status.
 
 PR environments are switched on under **Project Settings → Environments**. Each one copies the
 production service's settings when Railway creates it.
@@ -233,10 +234,30 @@ That happened, and it cost the smoke lane weeks of PRs (#661). The symptoms, non
 - The `railway-app` bot comment's **Web** column is empty for `SahajCloud`.
 - `Run smoke specs against the Railway preview` reports `skipped`, and the job stays green.
 
-`scripts/get-railway-preview-url.ts` now **fails the job** on that exact shape, with an `::error`
-naming this section, so the next occurrence is visible on the first PR rather than after weeks.
-Re-running will not help — fix the domain on production. Existing PR environments do not backfill,
-so only PRs opened after the fix get a URL.
+`scripts/get-railway-preview-url.ts` **fails the job** on that shape, with an `::error` naming both
+causes of a bare `Success` and the observation that separates them, so the next occurrence is
+visible on the first PR rather than after weeks. For this cause, fix the domain on production.
+Existing PR environments do not backfill, so only PRs opened after the fix get a URL.
+
+### ⚠ One PR environment can lack a domain while production is fine
+
+A bare `Success` has a second cause, and its commit status is byte-identical: production keeps its
+Railway-provided domain, but the `SahajCloud` service in this one `pr-<n>` environment has none of
+its own. That happened on #1227 — its status read `Success` with no host, while #1229's read
+`Success - sahajcloud-sahajcloud-pr-1229.up.railway.app` seven minutes later, so production held
+its domain throughout.
+
+**What to look at**: the Railway commit status on another PR whose preview deployed around the same
+time. A host there rules production out and leaves this environment. No host on either points back
+at the production cause above.
+
+**What to change**: give the `SahajCloud` service in that PR environment its own Railway-provided
+domain — service → **Settings → Domains → + Add Domain**, target port 8080 — or delete the PR
+environment and let Railway recreate it from production.
+
+**Then deploy it again.** Railway writes the host into the commit status at deploy time, so adding a
+domain does not rewrite the status CI already read: a bare re-run of the job reads the same bare
+`Success`. Push a commit, or redeploy that environment, and the next status carries the host.
 
 ---
 
