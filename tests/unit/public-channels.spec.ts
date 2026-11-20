@@ -11,6 +11,12 @@ import type { PayloadRequest } from 'payload'
 
 import { describe, expect, it } from 'vitest'
 
+import {
+  getProjectSlugs,
+  getRoleProject,
+  getRoleSlugs,
+  isImplicitlyReadable,
+} from '@/plugins/access/config'
 import { publicChannelClause } from '@/plugins/access/publicChannels'
 
 const clientReq = (roles: string[]): PayloadRequest =>
@@ -59,6 +65,22 @@ describe('publicChannelClause', () => {
       publishedToWeb: { equals: true },
     })
   })
+
+  /**
+   * The fail-open the project keying leaves one level up: a project that names
+   * `pages` in its `collections` is granted implicit read of the collection, so
+   * one with no channel column would read every page. Derived from `PROJECTS`
+   * rather than listed, so adding such a project reds this case instead of
+   * shipping an unnarrowed key.
+   */
+  it.each(getProjectSlugs().filter((project) => isImplicitlyReadable('pages', project)))(
+    'narrows a client in %s, a project that grants implicit read of pages',
+    (project) => {
+      const role = getRoleSlugs().find((slug) => getRoleProject(slug) === project)
+      expect(role, `no role belongs to ${project}`).toBeDefined()
+      expect(publicChannelClause(clientReq([role!]), 'pages')).not.toBeNull()
+    },
+  )
 
   /**
    * `null` means "add nothing", never "allow nothing". Each of these callers
