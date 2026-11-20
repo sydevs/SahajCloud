@@ -1084,11 +1084,11 @@ export interface Page {
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   /**
-   * Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages.
+   * Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages — so check first that no menu, index or website setting still points here.
    */
   publishedToWeb: boolean;
   /**
-   * Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages.
+   * Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages. Released app versions cannot be corrected, so untick it only for a page the app never opens.
    */
   publishedToApp: boolean;
   /**

@@ -103,11 +103,10 @@ const nodePage = (slug: (typeof NODE_PAGES)[number]['slug']): number =>
 const plainTextToLexical = (value: string): Lexical =>
   doc(...value.split('\n').map((line) => paragraph(line)))
 
+// The three channel states are deliberate: `PAGE.landing` is website only,
+// `PAGE.technique` app only, `PAGE.welcome` both — so a reviewer can see the read
+// clause (`src/plugins/access/publicChannels.ts`) narrow either way.
 export default fixture('pages', [
-  // The three channel states are deliberate: `PAGE.landing` is website only,
-  // `PAGE.technique` app only, `PAGE.welcome` both — so a reviewer can see the
-  // read clause (`src/plugins/access/publicChannels.ts`) narrow either way.
-  //
   // Published in English and German: the two locales show independent publish state.
   {
     id: PAGE.welcome,
@@ -428,8 +427,7 @@ export default fixture('pages', [
       _status: 'published' as const,
       title: node.title,
       slug: `fixture-node-${node.slug}`,
-      // Both channels, standing for the production subtle-system pages: every
-      // `subtle-system-nodes.page` is read by the app and by the website.
+      // Both channels, as every production `subtle-system-nodes.page` is.
       publishedToWeb: true,
       publishedToApp: true,
       tags: ['wisdom' as const],

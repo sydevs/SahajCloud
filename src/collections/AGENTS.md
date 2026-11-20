@@ -654,17 +654,14 @@ Live preview integrates with the We Meditate Web frontend
 ### Publish state is per service too (#783)
 
 `publishedToWeb` and `publishedToApp` say which services publish the page. Both
-are indexed, **not** localized — a page's channel is a property of the document,
-not of one language — so they sit on `pages` and `_pages_v` while `_status` stays
-in `pages_locales`. `publicChannelClause`
-(`src/plugins/access/publicChannels.ts`) narrows every client read of `pages` to
-the boxes the caller's roles name, ANDed with the published-only clause above.
+are indexed and **not** localized — a page's channel is a property of the
+document, not of one language — so they sit on `pages` and `_pages_v` while
+`_status` stays in `pages_locales`.
 
-⚠ **A page the reading service does not publish is not readable by it at all** —
-a `findByID` 404s, and a populate hands back a bare id. That is the only
-mechanism that can hide a page from an installed app release, which is why the
-filter is here rather than in each consumer. `docs/rules/access.md` carries the
-rule; `docs/rules/api-clients.md` the consumer contract.
+⚠ **An unticked box makes the page unreadable by that service, not merely
+unlinked.** `publicChannelClause` narrows the read itself:
+`docs/rules/access.md` carries the rule, `docs/rules/api-clients.md` the
+consumer contract.
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 

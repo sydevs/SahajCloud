@@ -119,11 +119,8 @@ export const Pages: CollectionConfig = {
         position: 'sidebar',
       },
     },
-    // Which services publish this page. `publicChannelClause`
-    // (src/plugins/access/publicChannels.ts) narrows every client read of
-    // `pages` to the boxes its own roles name, so an unticked box hides the
-    // page from that service — the installed app included, which ships
-    // compiled and cannot be updated.
+    // Narrowed by `publicChannelClause` (src/plugins/access/publicChannels.ts);
+    // `docs/rules/access.md` carries the rule.
     //
     // ⚠ Not localized: a page's channel is a property of the document, not of
     // one language. `_status` is the only per-locale state here.
@@ -137,7 +134,7 @@ export const Pages: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description:
-          'Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages.',
+          'Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages — so check first that no menu, index or website setting still points here.',
       },
     },
     {
@@ -150,7 +147,7 @@ export const Pages: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description:
-          'Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages.',
+          'Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages. Released app versions cannot be corrected, so untick it only for a page the app never opens.',
       },
     },
     {

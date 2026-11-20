@@ -249,13 +249,13 @@ Five things to know:
 
 ## Client read contract: which pages each service reads (#783)
 
-A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the boxes the caller's own roles name: `wemeditate-web-client` reads pages published to the website, `wemeditate-app-client` pages published to the app, and a key holding both roles the union. The clause is `publicChannelClause` (`src/plugins/access/publicChannels.ts`), ANDed with the published-only one above.
+A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the services the caller's roles name, ANDed with the published-only clause above. `docs/rules/access.md` owns the mechanism; this section is only what a consumer observes.
 
 What a consumer observes:
 
 - **A direct `find` returns fewer documents**, and a `findByID` naming a page the caller's services do not publish answers **404**.
 - **A populated relationship arrives as a bare id**, not as an object and not as an error — the same shape an unpublished page already has, which is why WeMeditateWeb's `partitionPublishedPages` needs no change.
-- ⚠ **A page named only from another page's rich text is not covered.** `SubtleSystemBlock` and `ShowcaseBlock` keep their references inside the Lexical JSON, not in `pages_rels`, so no `Where` reaches them: a showcase card aimed at a page the reading service does not publish arrives as a bare id. The fix is editorial — tick the box — not a consumer workaround.
+- ⚠ **A page named only from another page's rich text is not covered**, so a block can hand a consumer a bare id for a page nothing else refused (`docs/rules/access.md`). The fix is editorial — tick the box — never a consumer workaround.
 - **An admin, a manager, a job and any `overrideAccess` read are unaffected**, as is a live-preview request: the preview panel frames the website, so an App-only page must still open in it.
 - ⚠ **A key's roles decide what it reads.** Whichever key the mobile app sends has to carry `wemeditate-app-client`, or it reads `pages` as a web client and gets the wrong set (#789).
 
