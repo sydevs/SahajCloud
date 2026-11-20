@@ -47,6 +47,20 @@ describe('publicChannelClause', () => {
   })
 
   /**
+   * The clause keys on the role's **project**, not on the two client roles, so
+   * a role added to `wemeditate-web` later narrows without being listed in
+   * `CHANNEL_BY_PROJECT`. `web-translator` stands in for that role: it is in
+   * the web project and is not a client role, so this case fails the moment the
+   * mapping goes back to naming roles — which is the fail-open direction, since
+   * implicit read of `pages` is project-keyed too.
+   */
+  it('narrows any role whose project is the website, not just the client role', () => {
+    expect(publicChannelClause(clientReq(['web-translator']), 'pages')).toEqual({
+      publishedToWeb: { equals: true },
+    })
+  })
+
+  /**
    * `null` means "add nothing", never "allow nothing". Each of these callers
    * reaches `pages` under the rules that already govern it — the atlas client
    * through a refusal `hasPermission` has already made, since `sahaj-atlas`
