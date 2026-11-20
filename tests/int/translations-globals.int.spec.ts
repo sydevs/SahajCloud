@@ -140,7 +140,7 @@ describe('Translations Globals Configuration', () => {
   describe('Tab structure', () => {
     // The order is the reading order of the site, not an accident of the
     // schema file — a translator works down the page, not down a data model.
-    it('wm-web-translations has the #707 tabs plus Video and Discover, in order', () => {
+    it('wm-web-translations has the #707 tabs plus Discover, in order', () => {
       const tabsField = findGlobal('wm-web-translations').fields[0] as TabsField
       const labels = tabsField.tabs.map((t) => t.label)
       expect(labels).toEqual([
@@ -155,7 +155,6 @@ describe('Translations Globals Configuration', () => {
         'Map',
         'Forms',
         'Media',
-        'Video',
         'Location',
         'Blocks',
       ])
@@ -188,7 +187,7 @@ describe('Translations Globals Configuration', () => {
   })
 
   describe('Per-leaf-group JSON fields + richText siblings', () => {
-    // `general` and `a11y` repeat across eleven tabs, so a bare name proves
+    // `general` and `a11y` repeat across ten tabs, so a bare name proves
     // nothing. The pair is what maps to the `<tab>_<sub>` column, and asserting
     // the exact set is what catches a sub-group dropped from the schema.
     // `discover` carries a lone `general` because it owns no screen-reader
@@ -214,8 +213,6 @@ describe('Translations Globals Configuration', () => {
         'forms.a11y',
         'media.general',
         'media.a11y',
-        'video.general',
-        'video.a11y',
         'location.general',
         'location.a11y',
         'blocks.general',
