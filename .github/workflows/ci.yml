@@ -68,10 +68,9 @@ jobs:
       # preview environment exists — for example, a PR whose own branch is
       # a deployed environment.
       # It FAILS, rather than skipping, when a deploy succeeds but publishes
-      # no host. Two configurations do that — production's domain, or that one
-      # PR environment's — and neither is an absent preview, which hid a dead
-      # smoke lane for weeks (#661). A bare re-run clears neither — see
-      # RAILWAY_RUNBOOK.md.
+      # no host. That is a missing Railway domain, not an absent preview, and
+      # reading it as one hid a dead smoke lane for weeks (#661). A bare
+      # re-run does not clear it — see RAILWAY_RUNBOOK.md.
       - name: Discover Railway preview URL
         id: preview
         env:
