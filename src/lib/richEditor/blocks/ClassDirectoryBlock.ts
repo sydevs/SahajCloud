@@ -20,6 +20,10 @@ export const ClassDirectoryBlock: Block = {
       name: 'opensAt',
       type: 'relationship',
       relationTo: ['regions', 'events'],
+      // No `filterOptions`, unlike `SplashBlock.event`: this is a starting point, not a
+      // session to count down to. A finished or dormant class is still somewhere to open
+      // the directory at, and what the directory then shows is the directory's own
+      // business.
       admin: {
         description: 'Where the directory opens. Leave blank for its usual starting point.',
       },

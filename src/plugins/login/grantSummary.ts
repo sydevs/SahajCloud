@@ -163,16 +163,19 @@ export const responsibilityLabel = (responsibility: Responsibility): string =>
   responsibility.items.length === 1 ? responsibility.singular : responsibility.label
 
 /**
- * ⚠ Joins whose responsibility belongs to its own role's project, whoever holds
- * it. A class and a region are managed on the Sahaj Atlas, and an invitation
- * for one has to carry that brand — they also sit in `wemeditate-web` since
+ * ⚠ The one join whose collection both We Meditate projects genuinely own, so
+ * a Path Editor's pages go with the App.
+ *
+ * Every other responsibility belongs to its own role's project, whoever holds
+ * it: a class and a region are managed on the Sahaj Atlas, and an invitation
+ * for one has to carry that brand. They also sit in `wemeditate-web` since
  * #1228, but only so the site can read the class a page counts down to, and a
  * project that merely reads a collection is no home for looking after one.
  *
- * `managedPages` is deliberately absent: both We Meditate projects own a page,
- * so a Path Editor's pages go with the App.
+ * Stated as the single exception rather than as the three normal cases, so the
+ * next join added onto a collection in two projects is right by default.
  */
-const JOIN_OWNS_PROJECT: ReadonlySet<string> = new Set(['managedRegions', 'managedEvents'])
+const JOIN_TAKES_HELD_PROJECT: ReadonlySet<string> = new Set(['managedPages'])
 
 /**
  * Name the access a manager holds — roles per locale, and the documents naming
@@ -264,12 +267,13 @@ export async function summarizeGrants({
     // A collection in no project — `clients` is restricted — goes with the
     // project of the role its listing derives, so a service is a Sahaj Atlas
     // invitation rather than the default brand's.
-    const project =
-      (JOIN_OWNS_PROJECT.has(join) ? getJoinProject(join) : undefined) ??
-      candidates.find((candidate) => heldProjects.has(candidate)) ??
-      candidates[0] ??
-      getJoinProject(join) ??
-      DEFAULT_EMAIL_PROJECT
+    const own = getJoinProject(join)
+    const project = JOIN_TAKES_HELD_PROJECT.has(join)
+      ? (candidates.find((candidate) => heldProjects.has(candidate)) ??
+        candidates[0] ??
+        own ??
+        DEFAULT_EMAIL_PROJECT)
+      : (own ?? candidates[0] ?? DEFAULT_EMAIL_PROJECT)
     part(project).responsibilities.push(responsibility)
   }
 

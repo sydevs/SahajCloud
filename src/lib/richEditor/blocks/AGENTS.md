@@ -90,3 +90,14 @@ can tell what the icon shows without decoding the base64.
 - `TextBoxBlock.wisdomStyle` shows for the side layouts and hides for `overlay`. Its condition
   reads `imagePosition`; `position` is the legacy EditorJS name, live only inside `importData`
   (#989).
+- ⚠ **A relationship here narrows its picker and must not refuse a save.** `SplashBlock.event`
+  declares `filterOptions` **and** a `validate` composing `relationship` with
+  `filterOptions: undefined`, which deliberately disarms the save-time check
+  `src/collections/AGENTS.md` warns about losing. Two measured reasons (#1228): the filter varies
+  with the clock, and `validateFilterOptions` re-runs on every save with no exemption for a value
+  that did not change — so the day a chosen class holds its last session, every later save of the
+  page answers 400 against a collapsed block, for an admin too. And the Lexical adapter composes
+  a filter of its own that answers `false` for a collection `admin.hidden` hides from the caller,
+  so with the check armed a `web-translator` could not save such a page at all. A block
+  relationship whose narrowing must also bind a write needs a hook on the owning collection, not
+  a field validator.

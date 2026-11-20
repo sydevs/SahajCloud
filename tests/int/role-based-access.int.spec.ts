@@ -1691,9 +1691,11 @@ describe('Role-Based Access Control', () => {
 
   // `events` and `regions` joined the `wemeditate-web` project so the site's
   // countdown and class-directory blocks can read the class they name (#1228).
-  // The grant is read-only, and the two columns that carry personal data keep
-  // their own field locks — which is what this block pins, by reading them back
-  // rather than by asking `hasPermission`.
+  // Two things to pin: the key can read a class and a region at all, and what
+  // comes back is read back rather than asked of `hasPermission`. The manager
+  // side of the grant is the unit lane's (`tests/unit/virtual-roles.spec.ts`),
+  // which builds a page editor from its listing rather than from a stored role
+  // nothing can hold.
   describe('the WeMeditate Web client reads classes and regions', () => {
     let webClient: Awaited<ReturnType<typeof testData.createClient>>
     let eventId: number
@@ -1781,31 +1783,11 @@ describe('Role-Based Access Control', () => {
         id: 77,
         roles: ['wemeditate-web-client'],
       })
-      const editorUser = testData.dummyUser('managers', {
-        id: 78,
-        roles: { en: ['page-editor'] },
-      })
 
       for (const collection of ['events', 'regions'] as const) {
-        expect(
-          hasPermission({ user: clientUser, collection, operation: 'read' }, bypassPermissions),
-        ).toBe(true)
-        expect(
-          hasPermission(
-            { user: editorUser, locale: 'en', collection, operation: 'read' },
-            bypassPermissions,
-          ),
-        ).toBe(true)
-
         for (const operation of ['create', 'update', 'delete'] as const) {
           expect(
             hasPermission({ user: clientUser, collection, operation }, bypassPermissions),
-          ).toBe(false)
-          expect(
-            hasPermission(
-              { user: editorUser, locale: 'en', collection, operation },
-              bypassPermissions,
-            ),
           ).toBe(false)
         }
       }

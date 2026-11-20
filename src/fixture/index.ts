@@ -43,6 +43,7 @@ export const FIXTURES = [
   subtleSystemNodes,
   frames,
   videos,
+  pages,
   meditations,
   transcripts,
   albums,
@@ -54,10 +55,6 @@ export const FIXTURES = [
   forms,
   imports,
   events,
-  // `pages` sits after `events` because a page's `splash` countdown names one. The
-  // topological sort cannot see that: `relationTargets` walks a `blocks` field, never a
-  // relationship inside a rich-text field's editor blocks.
-  pages,
   userSubmissions,
   payloadJobs,
 ] as CollectionFixture[]
