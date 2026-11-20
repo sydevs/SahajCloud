@@ -20,12 +20,19 @@ import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMedita
 import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER, resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
-import type { Page } from '@/payload-types'
+import type { Client, Page } from '@/payload-types'
 
 import { testData } from '../utils/testData'
-import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
+import {
+  createClientAuthenticatedRequest,
+  createTestEnvironment,
+  idOnlySelect,
+} from '../utils/testHelpers'
 
-type Channels = { publishedToWeb: boolean; publishedToApp: boolean }
+type Channels = Pick<Page, 'publishedToWeb' | 'publishedToApp'>
+
+/** The client roles `Clients.roles` accepts. */
+type ClientRole = NonNullable<Client['roles']>[number]
 
 describe('page publishing channels', () => {
   let payload: Awaited<ReturnType<typeof createTestEnvironment>>['payload']
@@ -43,14 +50,14 @@ describe('page publishing channels', () => {
   /**
    * A client request carrying `roles`.
    *
-   * The roles have to sit on the `req.user` object: access runs off that, not
-   * off a fresh read of the client row, so a req without them is denied
-   * outright and every case here would pass for the wrong reason.
+   * ⚠ The roles have to sit on the `req.user` object, which is the helper's
+   * third argument: access runs off that object, not off a fresh read of the
+   * client row, so a req without them is denied outright and every case here
+   * would pass for the wrong reason.
    */
-  const asClient = async (roles: string[]): Promise<Partial<PayloadRequest>> => {
-    const client = await testData.createClient(payload, adminId, { roles } as never)
-    const base = createClientAuthenticatedRequest(client.id, 'unused-in-local-api')
-    return { ...base, user: { ...base.user, roles } as PayloadRequest['user'] }
+  const asClient = async (roles: ClientRole[]): Promise<Partial<PayloadRequest>> => {
+    const client = await testData.createClient(payload, adminId, { roles })
+    return createClientAuthenticatedRequest(client.id, 'unused-in-local-api', roles)
   }
 
   /** A page published in English, with the channels stated. */
@@ -66,15 +73,23 @@ describe('page publishing channels', () => {
     })
   }
 
-  /** The ids this request can see, out of the three pages the suite built. */
-  const visibleIds = async (req: Partial<PayloadRequest>): Promise<number[]> => {
+  /**
+   * The ids this request can see, out of the three pages the suite built.
+   *
+   * `overrideAccess` is a parameter so the cases that assert the clause does
+   * **not** narrow read the same way as the ones that assert it does.
+   */
+  const visibleIds = async (
+    req: Partial<PayloadRequest>,
+    { overrideAccess = false } = {},
+  ): Promise<number[]> => {
     const found = await payload.find({
       collection: 'pages',
       depth: 0,
       limit: 100,
       where: { id: { in: [webPage.id, appPage.id, bothPage.id] } },
-      select: { id: true } as never,
-      overrideAccess: false,
+      select: idOnlySelect(),
+      overrideAccess,
       req: { ...req } as never,
     })
     return found.docs.map((doc) => (doc as { id: number }).id).sort((a, b) => a - b)
@@ -137,7 +152,7 @@ describe('page publishing channels', () => {
           collection: 'pages',
           id: appPage.id,
           depth: 0,
-          select: { id: true } as never,
+          select: idOnlySelect(),
           overrideAccess: false,
           req: { ...webReq } as never,
         }),
@@ -149,7 +164,7 @@ describe('page publishing channels', () => {
         collection: 'pages',
         id: appPage.id,
         depth: 0,
-        select: { id: true } as never,
+        select: idOnlySelect(),
         overrideAccess: false,
         req: { ...appReq } as never,
       })
@@ -234,7 +249,7 @@ describe('page publishing channels', () => {
           locale,
           depth: 0,
           where: { id: { equals: page.id } },
-          select: { id: true } as never,
+          select: idOnlySelect(),
           overrideAccess: false,
           req: { ...webReq } as never,
         })
@@ -254,7 +269,7 @@ describe('page publishing channels', () => {
         collection: 'pages',
         depth: 0,
         where: { id: { equals: draft.id } },
-        select: { id: true } as never,
+        select: idOnlySelect(),
         overrideAccess: false,
         req: { ...webReq } as never,
       })
@@ -269,18 +284,8 @@ describe('page publishing channels', () => {
         type: 'admin' as const,
       })
 
-      const found = await payload.find({
-        collection: 'pages',
-        depth: 0,
-        limit: 100,
-        where: { id: { in: [webPage.id, appPage.id, bothPage.id] } },
-        select: { id: true } as never,
-        overrideAccess: false,
-        req: { user: { ...manager, collection: 'managers' } } as never,
-      })
-      expect(found.docs.map((d) => (d as { id: number }).id).sort((a, b) => a - b)).toEqual(
-        sorted(webPage.id, appPage.id, bothPage.id),
-      )
+      const asManager = { user: { ...manager, collection: 'managers' } } as Partial<PayloadRequest>
+      expect(await visibleIds(asManager)).toEqual(sorted(webPage.id, appPage.id, bothPage.id))
     })
 
     /**
@@ -290,15 +295,7 @@ describe('page publishing channels', () => {
      * this way, and a reader needs to know the clause never reaches them.
      */
     it('shows an overrideAccess read every page', async () => {
-      const found = await payload.find({
-        collection: 'pages',
-        depth: 0,
-        limit: 100,
-        where: { id: { in: [webPage.id, appPage.id, bothPage.id] } },
-        select: { id: true } as never,
-        overrideAccess: true,
-      })
-      expect(found.docs.map((d) => (d as { id: number }).id).sort((a, b) => a - b)).toEqual(
+      expect(await visibleIds({}, { overrideAccess: true })).toEqual(
         sorted(webPage.id, appPage.id, bothPage.id),
       )
     })
@@ -330,7 +327,7 @@ describe('page publishing channels', () => {
         depth: 0,
         draft: true,
         where: { id: { equals: appPage.id } },
-        select: { id: true } as never,
+        select: idOnlySelect(),
         overrideAccess: false,
         req: previewReq as never,
       })
