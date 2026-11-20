@@ -34,6 +34,7 @@ import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { retryWhilePostgresWakes } from '@/plugins/postgresWake'
 import { managersLoginHere, seedPreviewAdmin } from '@/plugins/previewAdmin'
+import { previewNoticePlugin } from '@/plugins/previewNotice'
 import { sentryPlugin } from '@/plugins/sentry'
 import {
   UPLOAD_FILE_SIZE_LIMIT,
@@ -396,6 +397,10 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // a declaring field a plugin above added is collected too; it only
       // appends a `beforeOperation` hook, so nothing after it is affected.
       virtualFieldsPlugin,
+      // Say why a live-preview panel is blank, on every entity declaring
+      // `admin.livePreview` (#1204). After `formsPlugin`, which declares
+      // `user-submissions`' own preview, and before `accessPlugin`.
+      previewNoticePlugin,
       // Passwordless sign-in (#837): the magic-link field plus the request and
       // consume endpoints, for every collection the option names. Before
       // accessPlugin, which must stay last.

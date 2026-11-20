@@ -30,7 +30,10 @@ interface InviteEmailProps {
   validFor: string
   /** Who assigned it, when a person did — named in the opening line. */
   assignedBy?: string
-  /** An admin holds every permission in every locale, so no role list applies. */
+  /**
+   * Announce full access instead of a role list: an admin, except where the
+   * email names only what is new — their access is not what changed.
+   */
   fullAccess: boolean
   /** Role labels per locale, most roles first. */
   grants: LocaleGrant[]

@@ -253,6 +253,30 @@ a:focus-visible {
 .group-field:not(:has(> * > .group-field__header > header)) {
   border-top: 0;
   border-bottom: 0;
+
+  /* Payload doubles a group's vertical gap so the dividers frame their section.
+     With no dividers there is nothing to frame, so one field gap — and none of
+     the padding a top-level group keeps inside its dividers. */
+  &.group-field--top-level {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  &:not(:first-child) {
+    margin-top: var(--spacing-field);
+  }
+
+  &:not(:last-child) {
+    margin-bottom: var(--spacing-field);
+  }
+}
+
+/* A group of checkboxes reads as one list, not a section per answer, so they sit
+   closer than Payload's field gap — the Registration Questions group. Prefixed
+   because every other selector here is Payload's, and an unprefixed generic
+   name is one Payload could ship. */
+.sy-checkbox-group .render-fields > .field-type {
+  margin-bottom: calc(var(--spacing-field) / 4);
 }
 
 /* ============================================================================

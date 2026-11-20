@@ -1,7 +1,7 @@
 import { serverEnv } from '@/lib/env'
 
 import { mintLivePreviewToken } from './token'
-import { livePreviewUnavailableUrl, type LivePreviewUnavailableReason } from './unavailable'
+import { livePreviewUnavailableUrl, type ServerResolvedReason } from './unavailable'
 
 /**
  * Prefixes a WeMeditate Web path with its locale.
@@ -62,7 +62,7 @@ export async function livePreviewUrl(opts: {
   /** Extra query parameters — `locale`, `scope`, or a document reference. */
   params?: Record<string, string>
   /** Which explanation to show when `path` is null. */
-  reason?: LivePreviewUnavailableReason
+  reason?: ServerResolvedReason
 }): Promise<string> {
   if (opts.path === null) {
     return livePreviewUnavailableUrl(opts.reason ?? 'no-path')

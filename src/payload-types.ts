@@ -738,6 +738,10 @@ export type TableOfContentsHeadings = {
   slug: string;
   text: string;
   level: number;
+  /**
+   * Which of the headings sharing this slug this one is, counted from 0 in document order over top-level headings with non-empty text. Absent means unknown, never 0.
+   */
+  occurrence?: number;
   [k: string]: unknown;
 }[];
 /**
@@ -840,9 +844,6 @@ export interface Config {
       childrenRegions: 'regions';
       childrenCities: 'regions';
       childrenVenues: 'regions';
-    };
-    events: {
-      registrations: 'user-submissions';
     };
     users: {
       submissions: 'user-submissions';
@@ -1810,18 +1811,6 @@ export interface Event {
     | 'za'
     | 'zu'
   )[];
-  /**
-   * A phone number that seekers can call to learn more about the program.
-   */
-  contactPhone?: string | null;
-  /**
-   * An email address seekers can write to for more information about the program.
-   */
-  contactEmail?: string | null;
-  /**
-   * The name of the person seekers will reach
-   */
-  contactName?: string | null;
   description?: {
     root: {
       type: string;
@@ -1845,6 +1834,19 @@ export interface Event {
    * Photos for this event (up to 7).
    */
   images?: (number | Image)[] | null;
+  allowContact?: boolean | null;
+  /**
+   * Who seekers will reach.
+   */
+  contactName?: string | null;
+  /**
+   * An address seekers can write to.
+   */
+  contactEmail?: string | null;
+  /**
+   * A number seekers can call.
+   */
+  contactPhone?: string | null;
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
@@ -1872,9 +1874,6 @@ export interface Event {
     latitude?: number | null;
     longitude?: number | null;
   };
-  /**
-   * Mark this event dormant — it has no active schedule. With no schedule to show, you must provide contact info (phone + name) so seekers can reach out and find out more. Inactive events still need verification but never auto-finish.
-   */
   inactive?: boolean | null;
   /**
    * Configure when this event occurs and repeats
@@ -1887,9 +1886,6 @@ export interface Event {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     monthlyMode?: ('date' | 'weekday') | null;
@@ -1924,23 +1920,13 @@ export interface Event {
    */
   registrationLimit?: number | null;
   /**
-   * Enter an email to redirect updates about new seeker registrations to. Leave blank to send registration updates to the event manager.
-   */
-  registrationNotificationEmail?: string | null;
-  registrationNotificationFrequency?: ('Immediate' | 'Never') | null;
-  /**
-   * Optional questions to ask registrants — each enabled question appears on the registration form.
+   * Optional questions to ask registrants — each enabled question appears on the registration form. Email contact@sydevelopers.com to ask for another question option.
    */
   registrationQuestions?: {
     experience?: boolean | null;
     referral?: boolean | null;
     aspirations?: boolean | null;
     questions?: boolean | null;
-  };
-  registrations?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
   };
   /**
    * Manager responsible for verifying this event. Assigning one to an unverified or denied event adopts it: that verifies the listing and publishes it.
@@ -2240,6 +2226,45 @@ export interface Import {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  /**
+   * Set by the Block button. Nothing this sender submits is delivered while set.
+   */
+  blockedAt?: string | null;
+  /**
+   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
+   */
+  blockedReason?: string | null;
+  submissions?: {
+    docs?: (number | UserSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  submittedEvents?: {
+    docs?: (number | Event)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  legacyId?: number | null;
+  legacyData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "user-submissions".
  */
 export interface UserSubmission {
@@ -2360,45 +2385,6 @@ export interface SubmissionScreeningResult {
    * When screening reached this verdict (ISO 8601).
    */
   screenedAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  /**
-   * Set by the Block button. Nothing this sender submits is delivered while set.
-   */
-  blockedAt?: string | null;
-  /**
-   * Why this sender was blocked — for whoever reads the record next. Kept when the block is lifted.
-   */
-  blockedReason?: string | null;
-  submissions?: {
-    docs?: (number | UserSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  submittedEvents?: {
-    docs?: (number | Event)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  legacyId?: number | null;
-  legacyData?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -4040,9 +4026,6 @@ export interface AppCard {
      */
     endTime?: string | null;
     recurrenceType?: ('DAILY' | 'WEEKLY' | 'MONTHLY') | null;
-    /**
-     * Repeat every N days/weeks/months
-     */
     interval?: number | null;
     weekdays?: ('MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU')[] | null;
     /**
@@ -5146,12 +5129,13 @@ export interface EventsSelect<T extends boolean = true> {
   importBatch?: T;
   title?: T;
   languages?: T;
-  contactPhone?: T;
-  contactEmail?: T;
-  contactName?: T;
   description?: T;
   website?: T;
   images?: T;
+  allowContact?: T;
+  contactName?: T;
+  contactEmail?: T;
+  contactPhone?: T;
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
@@ -5204,8 +5188,6 @@ export interface EventsSelect<T extends boolean = true> {
   registrationMode?: T;
   externalRegistrationUrl?: T;
   registrationLimit?: T;
-  registrationNotificationEmail?: T;
-  registrationNotificationFrequency?: T;
   registrationQuestions?:
     | T
     | {
@@ -5214,7 +5196,6 @@ export interface EventsSelect<T extends boolean = true> {
         aspirations?: T;
         questions?: T;
       };
-  registrations?: T;
   manager?: T;
   verificationStage?: T;
   activityLog?:
@@ -5629,10 +5610,6 @@ export interface WmWebTranslation {
   media?: {
     general?: WmWebTranslationsMediaGeneralStrings;
     a11y?: WmWebTranslationsMediaA11YStrings;
-  };
-  video?: {
-    general?: WmWebTranslationsVideoGeneralStrings;
-    a11y?: WmWebTranslationsVideoA11YStrings;
   };
   location?: {
     general?: WmWebTranslationsLocationGeneralStrings;
@@ -6227,174 +6204,6 @@ export interface WmWebTranslationsMediaA11YStrings {
    * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
    */
   zoom_out?: string;
-}
-export interface WmWebTranslationsVideoGeneralStrings {
-  /**
-   * Tooltip on the video player's play button while the video is paused. It also names that button for screen readers.
-   */
-  play?: string;
-  /**
-   * Tooltip on the same button while the video is playing.
-   */
-  pause?: string;
-  /**
-   * Tooltip on the video player's sound button while the video can be heard. It also names that button for screen readers.
-   */
-  mute?: string;
-  /**
-   * Tooltip on the same button while the video is silenced.
-   */
-  unmute?: string;
-  /**
-   * Tooltip on the video player's settings button, which opens the gear menu.
-   */
-  settings?: string;
-  /**
-   * Tooltip on the video player's subtitles button while subtitles are showing.
-   */
-  closed_captions_on?: string;
-  /**
-   * Tooltip on the same button while subtitles are hidden.
-   */
-  closed_captions_off?: string;
-  /**
-   * Tooltip on the video player's button that jumps forward a few seconds.
-   */
-  seek_forward?: string;
-  /**
-   * Tooltip on the video player's button that jumps back a few seconds.
-   */
-  seek_backward?: string;
-  /**
-   * Tooltip on the video player's button that pops the video out into a small floating window.
-   */
-  enter_pip?: string;
-  /**
-   * Tooltip on the same button while the video already plays in that floating window.
-   */
-  exit_pip?: string;
-  /**
-   * Tooltip on the video player's button that makes the video fill the screen.
-   */
-  enter_fullscreen?: string;
-  /**
-   * Tooltip on the same button while the video already fills the screen.
-   */
-  exit_fullscreen?: string;
-  /**
-   * Video settings menu: the row that lists the subtitle tracks this video offers.
-   */
-  captions?: string;
-  /**
-   * Video settings menu: the row that lists the picture qualities this video offers.
-   */
-  quality?: string;
-  /**
-   * Video settings menu: the row that sets how fast the video plays.
-   */
-  speed?: string;
-  /**
-   * Video settings menu: the row holding the sound options.
-   */
-  audio?: string;
-  /**
-   * Video settings menu: the row that lists the audio tracks this video offers.
-   */
-  track?: string;
-  /**
-   * Video settings menu: the slider that raises the volume past its normal maximum.
-   */
-  boost?: string;
-  /**
-   * Video settings menu: the row holding the screen-reader and keyboard options.
-   */
-  accessibility?: string;
-  /**
-   * Video settings menu: the switch that lets a screen reader announce playback changes.
-   */
-  announcements?: string;
-  /**
-   * Video settings menu: the switch that flashes an icon when a keyboard shortcut fires.
-   */
-  keyboard_animations?: string;
-  /**
-   * Video settings menu: the quality option that lets the player choose for itself.
-   */
-  auto?: string;
-  /**
-   * Video settings menu: the audio track the video ships with.
-   */
-  default?: string;
-  /**
-   * Video settings menu: the speed option that plays the video as recorded.
-   */
-  normal?: string;
-  /**
-   * Video settings menu: the subtitle option that shows no subtitles.
-   */
-  off?: string;
-  /**
-   * Video settings menu: the row that opens the subtitle appearance options.
-   */
-  caption_styles?: string;
-  /**
-   * Sample sentence in the subtitle appearance options, so the viewer sees each choice applied.
-   */
-  captions_look_like_this?: string;
-  /**
-   * Subtitle appearance options: the heading above the lettering choices.
-   */
-  font?: string;
-  /**
-   * Subtitle appearance options: the typeface the subtitles use.
-   */
-  family?: string;
-  /**
-   * Subtitle appearance options: how large the subtitle lettering is.
-   */
-  size?: string;
-  /**
-   * Subtitle appearance options: the heading above the subtitle lettering's own colour and opacity.
-   */
-  text?: string;
-  /**
-   * Subtitle appearance options: the heading above the band drawn behind the lettering.
-   */
-  text_background?: string;
-  /**
-   * Subtitle appearance options: the heading above the panel drawn behind the whole subtitle area.
-   */
-  display_background?: string;
-  /**
-   * Subtitle appearance options: the colour of the part its heading names. It appears under three headings.
-   */
-  color?: string;
-  /**
-   * Subtitle appearance options: how see-through the part its heading names is. It appears under three headings.
-   */
-  opacity?: string;
-  /**
-   * Subtitle appearance options: the shadow drawn behind the subtitle lettering.
-   */
-  shadow?: string;
-  /**
-   * Button that puts every subtitle appearance option back to its starting value.
-   */
-  reset?: string;
-}
-export interface WmWebTranslationsVideoA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the video player's fullscreen button.
-   */
-  fullscreen?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the video player's button that pops the video into a small floating window.
-   */
-  pip?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the video player's progress bar, which scrubs through the video.
-   */
-  seek?: string;
 }
 export interface WmWebTranslationsLocationGeneralStrings {
   /**
@@ -10733,12 +10542,6 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
         a11y?: T;
       };
   media?:
-    | T
-    | {
-        general?: T;
-        a11y?: T;
-      };
-  video?:
     | T
     | {
         general?: T;

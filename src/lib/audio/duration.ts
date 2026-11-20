@@ -1,27 +1,10 @@
 import type { CollectionBeforeChangeHook } from 'payload'
 
-import { parseBuffer, parseWebStream } from 'music-metadata'
+import { parseBuffer } from 'music-metadata'
 
 interface ExtractAudioDurationOptions {
   /** Refuse audio longer than this. Omitted, any length is accepted. */
   maxMinutes?: number
-}
-
-/**
- * The length of `source` in whole seconds, or `undefined` when the container
- * states none. Throws when the bytes cannot be parsed as audio.
- *
- * A stream is read only as far as the format block, so a caller holding a
- * response body never has to download the rest of the track.
- */
-export const readAudioDuration = async (
-  source: Buffer | ReadableStream<Uint8Array>,
-  mimeType?: string,
-): Promise<number | undefined> => {
-  const { format } = Buffer.isBuffer(source)
-    ? await parseBuffer(source, { mimeType })
-    : await parseWebStream(source, { mimeType })
-  return format.duration == null ? undefined : Math.round(format.duration)
 }
 
 /**
@@ -30,6 +13,10 @@ export const readAudioDuration = async (
  *
  * Audio that cannot be parsed leaves the document unchanged and logs a warning
  * — metadata must not fail a save.
+ *
+ * The upload is parsed as a buffer, which carries its own size: a
+ * constant-bitrate MP3 with no Xing or Info header states its length only as
+ * size over bitrate, so a stream read without its size finds none (#1210).
  */
 export const extractAudioDuration =
   ({ maxMinutes }: ExtractAudioDurationOptions = {}): CollectionBeforeChangeHook =>
@@ -38,11 +25,10 @@ export const extractAudioDuration =
       return data
     }
 
-    const buffer = Buffer.isBuffer(req.file.data) ? req.file.data : Buffer.from(req.file.data)
-
     let duration: number | undefined
     try {
-      duration = await readAudioDuration(buffer, req.file.mimetype)
+      const { format } = await parseBuffer(req.file.data, { mimeType: req.file.mimetype })
+      duration = format.duration == null ? undefined : Math.round(format.duration)
     } catch (error) {
       req.payload.logger.warn({
         msg: 'Failed to extract audio duration',
