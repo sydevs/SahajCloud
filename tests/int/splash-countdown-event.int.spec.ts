@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SplashBlock } from '@/lib/richEditor/blocks'
 import type { Manager, Page } from '@/payload-types'
 
+import { createRestClientAs, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -26,6 +27,7 @@ describe('splash countdown · the class it may name', () => {
   let cleanup: () => Promise<void>
   let admin: Manager & { collection: 'managers' }
   let translator: Manager & { collection: 'managers' }
+  let asAdmin: RestClient
 
   let onlineRunning: number
   let offline: number
@@ -68,6 +70,13 @@ describe('splash countdown · the class it may name', () => {
       overrideAccess: false,
     })
 
+  const savedEventId = (page: Page) => {
+    const block = page.content?.root.children[0] as unknown as { fields: { event: unknown } }
+    const event = block.fields.event
+
+    return typeof event === 'object' ? (event as { id: number }).id : event
+  }
+
   /**
    * The ids the editor's picker offers.
    *
@@ -99,6 +108,7 @@ describe('splash countdown · the class it may name', () => {
     payload = env.payload
     cleanup = env.cleanup
     admin = { ...env.adminUser, collection: 'managers' }
+    asAdmin = await createRestClientAs(env, env.adminUser)
 
     const member = await testData.createManager(payload, {
       name: 'Web Translator',
@@ -179,10 +189,8 @@ describe('splash countdown · the class it may name', () => {
 
   it('saves a countdown naming an online, running, active class', async () => {
     const saved = await saveSplash(onlineRunning)
-    const block = saved.content?.root.children[0] as unknown as { fields: { event: unknown } }
-    const event = block.fields.event
 
-    expect(typeof event === 'object' ? (event as { id: number }).id : event).toBe(onlineRunning)
+    expect(savedEventId(saved)).toBe(onlineRunning)
   })
 
   // Each of these three is a state the picker refuses and a class can reach on
@@ -194,6 +202,19 @@ describe('splash countdown · the class it may name', () => {
     ['a dormant class', () => inactive],
   ])('keeps the page saveable with %s', async (_label, id) => {
     await expect(saveSplash(id())).resolves.toBeTruthy()
+  })
+
+  it('saves a countdown naming a finished class through PATCH /api/pages/:id', async () => {
+    // ⚠ REST is the path the admin panel itself saves on, so it is where the
+    // armed refusal's 400 reached an editor. The Local API cases above cannot
+    // see it: `payload.update` throws straight past `routeError`.
+    const response = await asAdmin(`/api/pages/${pageId}`, {
+      method: 'PATCH',
+      json: { content: splashPage(finished) },
+    })
+
+    expect(response.status).toBe(200)
+    expect(savedEventId(response.body.doc as Page)).toBe(finished)
   })
 
   it('stays saveable after the class it names holds its last session', async () => {
