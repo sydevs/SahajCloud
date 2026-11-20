@@ -3468,6 +3468,10 @@ export interface Lecture {
   nirmalVidyaVimeoUrl?: string | null;
   title?: string | null;
   /**
+   * The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.
+   */
+  date?: string | null;
+  /**
    * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
    */
   thumbnail?: (number | null) | Image;
@@ -4631,6 +4635,7 @@ export interface LecturesSelect<T extends boolean = true> {
   type?: T;
   nirmalVidyaVimeoUrl?: T;
   title?: T;
+  date?: T;
   thumbnail?: T;
   startTime?: T;
   stopTime?: T;

@@ -27,6 +27,7 @@ export default fixture('lectures', [
       type: 'full',
       nirmalVidyaVimeoUrl: 'https://vimeo.com/990000001',
       title: 'An introduction to meditation',
+      date: '1979-03-18T00:00:00.000Z',
       metadata: metadata(1, 'An introduction to meditation', 1820),
       audiences: [ID.audiences.first, ID.audiences.second],
       userChoices: [CHOICE.calm, CHOICE.deepen],
@@ -41,6 +42,7 @@ export default fixture('lectures', [
       type: 'full',
       nirmalVidyaVimeoUrl: 'https://vimeo.com/990000002',
       title: 'The energy within',
+      date: '1983-07-02T00:00:00.000Z',
       thumbnail: ID.images.landscape,
       metadata: metadata(2, 'The energy within', 2410),
       audiences: [ID.audiences.first],
@@ -49,7 +51,8 @@ export default fixture('lectures', [
       priority: 0,
     },
   },
-  // No audience, so it appears only where something names it.
+  // No audience, so it appears only where something names it. No date either:
+  // an unknown one stays blank and publishes no upload date.
   {
     id: LECTURE.forgiveness,
     data: {

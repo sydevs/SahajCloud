@@ -117,6 +117,17 @@ export const Lectures: CollectionConfig = {
         condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field for full lectures
       },
     },
+    {
+      name: 'date',
+      type: 'date',
+      admin: {
+        date: { pickerAppearance: 'dayOnly' },
+        description:
+          'The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.',
+        // A clip reads its parent's date, as it reads the parent's `metadata`.
+        condition: (data) => !!data?.id && data?.type === 'full',
+      },
+    },
     mediaField({
       name: 'thumbnail',
       required: false,
