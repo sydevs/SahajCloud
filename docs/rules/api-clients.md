@@ -247,6 +247,18 @@ Five things to know:
 - ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
 - ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
+## Client read contract: which pages each service reads (#783)
+
+A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the boxes the caller's own roles name: `wemeditate-web-client` reads pages published to the website, `wemeditate-app-client` pages published to the app, and a key holding both roles the union. The clause is `publicChannelClause` (`src/plugins/access/publicChannels.ts`), ANDed with the published-only one above.
+
+What a consumer observes:
+
+- **A direct `find` returns fewer documents**, and a `findByID` naming a page the caller's services do not publish answers **404**.
+- **A populated relationship arrives as a bare id**, not as an object and not as an error — the same shape an unpublished page already has, which is why WeMeditateWeb's `partitionPublishedPages` needs no change.
+- ⚠ **A page named only from another page's rich text is not covered.** `SubtleSystemBlock` and `ShowcaseBlock` keep their references inside the Lexical JSON, not in `pages_rels`, so no `Where` reaches them: a showcase card aimed at a page the reading service does not publish arrives as a bare id. The fix is editorial — tick the box — not a consumer workaround.
+- **An admin, a manager, a job and any `overrideAccess` read are unaffected**, as is a live-preview request: the preview panel frames the website, so an App-only page must still open in it.
+- ⚠ **A key's roles decide what it reads.** Whichever key the mobile app sends has to carry `wemeditate-app-client`, or it reads `pages` as a web client and gets the wrong set (#789).
+
 ## Origin / Referer enforcement
 
 `validateClientOriginHook` is the usage plugin's second beforeOperation gate, run **first** on every non-excluded collection, ahead of the query-param gate and rate accounting. It covers standard client reads and the custom Atlas endpoints, whose internal `payload.find`/`create` calls forward the client `req`.
