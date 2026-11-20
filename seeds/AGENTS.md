@@ -81,25 +81,18 @@ Server-Sent Events (SSE) with progress updates.
 
 ## Available scripts
 
-| Script           | Command                      | Prerequisites                  | Targets                                             |
-| ---------------- | ---------------------------- | ------------------------------ | --------------------------------------------------- |
-| translations     | `pnpm seed translations`     | None                           | the three translation globals (see below)           |
-| file-transcripts | `pnpm seed file-transcripts` | ⚠ Paid runs — run only by name | transcripts (one queued run per untranscribed file) |
-
-`translations` is the only one in `SCRIPT_RUN_ORDER`, so a bare `pnpm seed`
-runs it alone. `file-transcripts` is deliberately out of it: every run it
-queues is a paid vendor call.
+`pnpm seed --help` lists them (`VALID_SCRIPTS` and `SCRIPT_DESCRIPTIONS` in [run.ts](run.ts)).
+A bare `pnpm seed` runs only what is in `SCRIPT_RUN_ORDER`. ⚠ `file-transcripts` is deliberately
+out of it: every run it queues is a paid vendor call, so it runs only by name.
 
 ### `translations` — real copy everywhere, and the locales it publishes
 
 One script, three globals, and no generated strings left in any of them.
 `wm-app-translations` and `wm-web-translations` both get real English copy
-from their own `data.en.json`. #706 and #707 replaced the last two callers
-of `generateExampleData`, so that generator is gone.
+from their own `data.en.json`.
 
 `sy-atlas-translations` reads one file per widget locale from
-`seeds/sy-atlas-translations/data.<locale>.json` — `cs de en es fr hu nl
-pt-BR ru uk` — and **publishes each locale on its own**. That is the point
+`seeds/sy-atlas-translations/data.<locale>.json` and **publishes each locale on its own**. That is the point
 of the script, not a side effect: `sy-atlas-config.availableLocales` refuses
 a locale whose translations are not published (#705), so nothing an operator
 does in the admin can offer a language until this has run.
@@ -156,8 +149,7 @@ Lexical conversion — are what `translations` reads. A `wm-app-translations`
 script of its own existed until #1169 and was retired as a strict subset of
 this one.
 
-⚠ **`wm-web-translations` is seeded in English only.** Its nine other locales
-(`ru it es fr de pt-BR cs uk bg`) were loaded into production once, from
+⚠ **`wm-web-translations` is seeded in English only.** Its other locales were loaded into production once, from
 machine-assisted drafts, by a one-off `wm-web-locales` script (#1213), and are
 editor-owned from then on. That script and its data files are gone, so nothing
 can overwrite an editor's wording — and a fresh database or a preview holds
@@ -191,17 +183,13 @@ paginates every collection with `requiresPagination: true`.
 3. Collections import in dependency order.
 4. Each request is stateless — ID maps rebuild from the database.
 
-**Batch sizes**: 100 without file uploads, 10 with.
-
 Each script's collection metadata lives in `seeds/lib/expectedCounts.ts`. No
 surviving script declares a collection there, so nothing paginates today. The
 mechanism stays because the request shape above is public — the route's and the
 CLI's, not a per-script feature.
 
-The completion event on a paginated request carries a `pagination` block
-(`offset`, `limit`, `processedCount`, `hasMore`, `nextOffset`,
-`collection`) beside the summary. The CLI reads it to drive the next batch
-automatically — printing per-batch progress as it goes.
+The completion event on a paginated request carries a `pagination` block the CLI reads to drive
+the next batch.
 
 ## Common flags
 
@@ -223,28 +211,7 @@ and speeds up imports of new content. Pass `--update` for **update mode**
 | Skip (default)      | Skip existing docs, only create new | Minimal (bulk preload + creates)     | Adding new content, resuming failed imports |
 | Update (`--update`) | Update existing + create new        | Bulk preload + update/create per doc | Content has changed, fixing data issues     |
 
-On startup, each importer preloads the relevant collections into memory
-with only the fields needed to validate existence (id + natural key). In
-skip mode, a cache hit skips the document entirely. In update mode, it
-updates using the cached ID. Either way, a cache miss creates.
-
-## Environment variables
-
-For local development, add to `.env.local` (gitignored):
-
-```bash
-# CLI Authentication — only for seeding a REMOTE target; auto-login covers
-# localhost, so this can be left blank for local development.
-ADMIN_TOKEN=
-PAYLOAD_SECRET=your-secret-key
-```
-
-For production, hand a sign-in link to the run. The target is the server the
-link came from:
-
-```bash
-pnpm tsx scripts/redeem-signin-link.ts '<sign-in link>' --seed <script>
-```
+The preload that makes both modes cheap, and its traps, are in `seeds/lib/AGENTS.md`.
 
 ## Design principles
 
@@ -294,24 +261,6 @@ a new importer picks one of them up again.`
 use `--clear-cache` to re-download files, and check console output for
 details.
 
-## Summary output format
-
-```
-============================================================
-IMPORT SUMMARY
-============================================================
-
-Records Created:
-  Lessons:             18
-  Media Files:         45
-
-Warnings (2):
-  1. Missing image for lesson step-3...
-
-No errors - import completed successfully!
-============================================================
-```
-
 ## Creating a new seed script
 
 1. Create `seeds/<script-name>/import.ts`, extending `BaseImporter`.
@@ -327,58 +276,14 @@ No errors - import completed successfully!
 4. Register it in `getImporter()` in
    `src/app/(payload)/api/seed/[script]/route.ts`, and in `VALID_SCRIPTS` and
    `SCRIPT_DESCRIPTIONS` in [run.ts](run.ts).
-5. Add it to the "Available scripts" table above.
-6. **Does it read a committed data file?** Export its path from
+5. **Does it read a committed data file?** Export its path from
    `seeds/lib/dataFiles.ts` and register it under the script's key in
    `SCRIPT_DATA_FILES`. An unregistered file is never uploaded, so the
    importer falls back to a disk read that the production build trace
    excludes — the script works locally and fails on every deployed target.
    Import the exported constant; never spell the path twice.
 
-```typescript
-import path from 'path'
-import { BaseImporter, type BaseImportOptions } from '../lib'
-import { MY_SCRIPT_DATA_FILE } from '../lib/dataFiles'
-
-export interface MyScriptOptions extends BaseImportOptions {
-  // Add any script-specific options here
-}
-
-export class MyScriptImporter extends BaseImporter<MyScriptOptions> {
-  protected readonly importName = 'My Script'
-  protected readonly cacheDir = path.resolve(process.cwd(), 'seeds/cache/my-script')
-
-  protected async setup(): Promise<void> {
-    // Preload for skip/update optimization — see lib/AGENTS.md's Preload Pattern
-    await this.preloadCollection('target-collection', 'slug')
-  }
-
-  protected async import(): Promise<void> {
-    const items = await this.loadData()
-
-    for (const item of items) {
-      try {
-        await this.upsert(
-          'target-collection',
-          { slug: { equals: item.slug } },
-          { title: item.title, slug: item.slug /* ...other fields */ },
-          { identifier: item.slug }, // Always pass an explicit identifier
-        )
-      } catch (error) {
-        this.addError(`Item ${item.id}`, error) // Resilient — keep processing
-        continue
-      }
-    }
-  }
-
-  private async loadData(): Promise<MyDataType[]> {
-    const { loadJsonData } = await import('../lib/dataLoader')
-    return loadJsonData<MyDataType[]>({
-      localPath: MY_SCRIPT_DATA_FILE,
-      inlineContent: this.options.inlineData?.[MY_SCRIPT_DATA_FILE],
-    })
-  }
-}
-
-export default MyScriptImporter
-```
+Copy the shape of an existing importer — `seeds/translations/import.ts` reads committed data
+files, `seeds/file-transcripts/import.ts` reads what the target holds. Two things every importer
+keeps: pass an explicit `identifier` to `upsert()`, and `addError` and continue rather than throw,
+so one bad row never stops the run.
