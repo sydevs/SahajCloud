@@ -6,7 +6,15 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Existing pages start Web-on / App-off from the column defaults
 // (20261120_002235_add_pages_public_channels), so this moves only the
 // exceptions: every page the app reads goes App-on, and the four pages the app
-// alone reads go Web-off.
+// alone reads go App-on and Web-off.
+//
+// ⚠ **Those four take App-on as well as Web-off, and the slug list is the only
+// thing that can give it to them.** Three of them — `path`,
+// `let-the-app-find-your-city`, `live-meditations-reminder` — are named by none
+// of the three stored sources below, so Web-off alone would leave them readable
+// by no service at all. The app reaches them by a route of its own, and it
+// ships compiled: App-off there is unrecoverable, while App-on costs an editor
+// one unticked box.
 //
 // ⚠ **The app's read set is wider than the fourteen `wm_app_config` slots.**
 // All twelve `subtle-system-nodes.page` ids sit outside them, and that
@@ -52,8 +60,8 @@ const APP_CONFIG_PAGE_COLUMNS = [
 /** An app card's three page destinations (`AppCards.ts`). */
 const APP_CARD_PAGE_COLUMNS = ['default_page_id', 'starting_soon_page_id', 'live_now_page_id']
 
-/** The pages the app alone reads, so the website stops seeing them. */
-const WEB_ONLY_OFF_SLUGS = ['explore', 'path', 'let-the-app-find-your-city', 'live-meditations-reminder']
+/** The pages the app alone reads: App-on, and the website stops seeing them. */
+const APP_ONLY_SLUGS = ['explore', 'path', 'let-the-app-find-your-city', 'live-meditations-reminder']
 
 type Db = MigrateUpArgs['db']
 
@@ -78,8 +86,8 @@ const appPageIds = sql.join(
  * an array parameter into a parenthesised tuple, which Postgres refuses with
  * "op ANY/ALL (array) requires array on right side" (measured).
  */
-const webOffPageIds = sql`SELECT "id" FROM "pages" WHERE "slug" IN (${sql.join(
-  WEB_ONLY_OFF_SLUGS.map((slug) => sql`${slug}`),
+const appOnlyPageIds = sql`SELECT "id" FROM "pages" WHERE "slug" IN (${sql.join(
+  APP_ONLY_SLUGS.map((slug) => sql`${slug}`),
   sql`, `,
 )})`
 
@@ -108,7 +116,8 @@ const APP = { main: 'published_to_app', version: 'version_published_to_app' }
 
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await setChannel(db, APP, true, appPageIds)
-  await setChannel(db, WEB, false, webOffPageIds)
+  await setChannel(db, APP, true, appOnlyPageIds)
+  await setChannel(db, WEB, false, appOnlyPageIds)
 }
 
 /**
@@ -118,5 +127,6 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
  */
 export async function down({ db }: MigrateDownArgs): Promise<void> {
   await setChannel(db, APP, false, appPageIds)
-  await setChannel(db, WEB, true, webOffPageIds)
+  await setChannel(db, APP, false, appOnlyPageIds)
+  await setChannel(db, WEB, true, appOnlyPageIds)
 }
