@@ -98,6 +98,9 @@ jobs:
           JOB: 'Lint, Test & Smoke'
         run: |
           deployed() { echo "deployed=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          # The compare API rather than `git diff`: this job checks out the PR's merge
+          # ref at depth 1, so neither SHA is an object here, and a diff would cost
+          # `fetch-depth: 0` on every run to lift a cap that only a 300-file push meets.
           diff=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE...$HEAD" \
             --jq '"\(.files | length)", .files[].filename') || deployed
           count=$(head -n 1 <<< "$diff")
