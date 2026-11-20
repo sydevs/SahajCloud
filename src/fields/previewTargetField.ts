@@ -1,6 +1,6 @@
 import type { UIField } from 'payload'
 
-import type { LivePreviewUnavailableReason } from '@/lib/livePreview/unavailable'
+import type { PanelComposedReason } from '@/lib/livePreview/unavailable'
 
 /**
  * Where the Live Preview panel should point while one tab is open.
@@ -50,7 +50,7 @@ export interface PreviewTarget {
    * origin and no credential, and it lands on the admin's own origin.
    * `composeTargetUrl` itself stays strict and refuses every cross-origin path.
    */
-  unavailable?: LivePreviewUnavailableReason
+  unavailable?: PanelComposedReason
 }
 
 /**
