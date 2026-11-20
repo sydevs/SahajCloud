@@ -124,7 +124,7 @@ async function main(): Promise<void> {
   if (outcome.kind === 'unpublished') {
     // Fail closed, and do not restate the remediation here — the runbook
     // owns it, and a copy in this string is the one that goes stale.
-    // Two configurations produce this status byte for byte. Asserting one
+    // Two missing domains produce this status byte for byte. Asserting one
     // sent a reader to production while the gap was the PR environment's
     // own missing domain (#1230).
     console.error(
