@@ -119,6 +119,40 @@ export const Pages: CollectionConfig = {
         position: 'sidebar',
       },
     },
+    // Which services publish this page. `publicChannelClause`
+    // (src/plugins/access/publicChannels.ts) narrows every client read of
+    // `pages` to the boxes its own roles name, so an unticked box hides the
+    // page from that service — the installed app included, which ships
+    // compiled and cannot be updated.
+    //
+    // ⚠ Not localized: a page's channel is a property of the document, not of
+    // one language. `_status` is the only per-locale state here.
+    {
+      name: 'publishedToWeb',
+      type: 'checkbox',
+      label: 'Published to Website',
+      required: true,
+      defaultValue: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages.',
+      },
+    },
+    {
+      name: 'publishedToApp',
+      type: 'checkbox',
+      label: 'Published to App',
+      required: true,
+      defaultValue: false,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages.',
+      },
+    },
     {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).

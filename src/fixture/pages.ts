@@ -104,6 +104,10 @@ const plainTextToLexical = (value: string): Lexical =>
   doc(...value.split('\n').map((line) => paragraph(line)))
 
 export default fixture('pages', [
+  // The three channel states are deliberate: `PAGE.landing` is website only,
+  // `PAGE.technique` app only, `PAGE.welcome` both — so a reviewer can see the
+  // read clause (`src/plugins/access/publicChannels.ts`) narrow either way.
+  //
   // Published in English and German: the two locales show independent publish state.
   {
     id: PAGE.welcome,
@@ -111,6 +115,8 @@ export default fixture('pages', [
       _status: 'published',
       title: 'Welcome to meditation',
       slug: 'fixture-welcome-to-meditation',
+      publishedToWeb: true,
+      publishedToApp: true,
       tags: ['wisdom', 'lifestyle'],
       author: ID.authors.first,
       featuredVideo: ID.videos.first,
@@ -173,6 +179,8 @@ export default fixture('pages', [
       _status: 'published',
       title: 'Find your practice',
       slug: 'fixture-find-your-practice',
+      publishedToWeb: true,
+      publishedToApp: false,
       tags: ['lifestyle'],
       content: doc(
         block('splash', 'landing-splash', {
@@ -262,6 +270,8 @@ export default fixture('pages', [
       _status: 'published',
       title: 'Hands on the earth',
       slug: 'fixture-hands-on-the-earth',
+      publishedToWeb: false,
+      publishedToApp: true,
       tags: ['technique', 'wisdom'],
       author: ID.authors.third,
       content: plainTextToLexical(
@@ -418,6 +428,10 @@ export default fixture('pages', [
       _status: 'published' as const,
       title: node.title,
       slug: `fixture-node-${node.slug}`,
+      // Both channels, standing for the production subtle-system pages: every
+      // `subtle-system-nodes.page` is read by the app and by the website.
+      publishedToWeb: true,
+      publishedToApp: true,
       tags: ['wisdom' as const],
       content: plainTextToLexical(`A short description of ${node.title.toLowerCase()}.`),
     },

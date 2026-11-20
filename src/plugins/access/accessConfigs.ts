@@ -34,6 +34,7 @@ import {
 import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
+import { publicChannelClause } from './publicChannels'
 import {
   isRegionSubtreeCollection,
   resolveOwnedRegionIds,
@@ -180,9 +181,14 @@ export function createAccessConfig(
         if (
           operation === 'read' &&
           req.user?.collection === 'clients' &&
-          entityHasDrafts(req, collection) &&
           !isLivePreviewRequest(req)
         ) {
+          // Every narrowing a client's read carries, ANDed. Both are exempt
+          // from live preview: the preview panel frames one service's site and
+          // would otherwise 404 on a draft, or on a page that service does not
+          // publish.
+          const clauses: Where[] = []
+
           // Restrict to published only unless all requirements are met.
           //
           // ⚠ On `pages` and `app-cards` this clause is now **per locale**:
@@ -193,7 +199,17 @@ export function createAccessConfig(
           // locale the editor unpublished (measured, #718). It also means a
           // page published in English alone returns nothing at `?locale=de`,
           // which is the point rather than a regression.
-          return { _status: { equals: 'published' } }
+          if (entityHasDrafts(req, collection)) clauses.push({ _status: { equals: 'published' } })
+
+          // ⚠ The channel columns sit on `pages` while `_status` sits on
+          // `pages_locales`, so this `and` is one base-table predicate beside
+          // the locale-scoped one — the published clause's behaviour above is
+          // unchanged by it.
+          const channels = publicChannelClause(req, collection)
+          if (channels) clauses.push(channels)
+
+          if (clauses.length === 1) return clauses[0]
+          if (clauses.length > 1) return { and: clauses }
         }
 
         // The Atlas roles grant create/update/delete on regions/events, but

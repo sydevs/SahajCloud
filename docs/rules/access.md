@@ -105,6 +105,17 @@ A bypass function returns `'allow'`, `'deny'`, or `'continue'`.
 
 Managers and API clients both read their role's project plus every shared collection.
 
+### Which pages a service reads: the channel clause (#783)
+
+`pages` sits in both `wemeditate-web` and `wemeditate-app`, so implicit read hands every page to both services. Two checkboxes on the page narrow that — `publishedToWeb` and `publishedToApp` — and `publicChannelClause` (`publicChannels.ts`) is what applies them: `wemeditate-web-client` reads pages published to the website, `wemeditate-app-client` pages published to the app, and a client holding both roles the `or` of the two. `createAccessConfig` ANDs it with the published-only clause, so **both narrowings are now collected rather than returned one at a time** — a change to either has to keep the `and`.
+
+- **It lives here rather than in each consumer** because this is the only place that reaches every surface a page arrives through: a `find`, a `findByID` that carries no `where`, a populated relationship and the content-index block's own fetch. It is also the only mechanism that can hide a page from an **installed** app release, which ships compiled and cannot be updated.
+- **A refused page arrives as a bare id**, not as an error, wherever it is reached through a populate — which is what WeMeditateWeb's `partitionPublishedPages` already discards. A direct `find` returns fewer documents; a `findByID` 404s.
+- **A caller that is not a client is untouched.** The branch is gated on `req.user?.collection === 'clients'`, so managers, the admin panel, the seeds, the jobs and every `overrideAccess` read see every page whatever its channels.
+- **Live preview is exempt**, exactly as the published-only clause is: `Pages.admin.livePreview` always frames the website, so an App-only page would otherwise 404 in the one preview panel an editor has for it.
+- ⚠ **`null` from the clause means "add nothing", never "allow nothing".** A client holding neither channel role gets `null` — `sahaj-atlas-client` is the only one, and its project does not name `pages`, so `hasPermission` has already refused it.
+- ⚠ **A page named only from another page's rich text is not covered.** `SubtleSystemBlock` and `ShowcaseBlock` keep their references inside the Lexical JSON, not in `pages_rels`, so no `Where` reaches them: a showcase card aimed at a page the reading service does not publish arrives as a bare id. That is the clause working as designed — the editor ticks the box — and both field descriptions say so.
+
 ### Document-level manager access
 
 A `managers` (hasMany) or `manager` relationship to `managers` on any collection grants those managers **read and update** on its documents, with no role needed. A self-referential `parent` field lets a document inherit managers from its ancestors, via the nested-docs `breadcrumbs` trail. Fields are found by introspecting `flattenedFields` (`documentManagers.ts`) — no slug is hardcoded. Any collection that adds such a field is covered (today: Pages via "Page Editors", Regions, Clients). Read and update only, never create or delete — and only after the query-free check has failed.

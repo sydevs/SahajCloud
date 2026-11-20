@@ -1084,6 +1084,14 @@ export interface Page {
   featuredVideo?: (number | null) | Video;
   tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   /**
+   * Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages.
+   */
+  publishedToWeb: boolean;
+  /**
+   * Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages.
+   */
+  publishedToApp: boolean;
+  /**
    * Managers who can edit this page without broader permissions.
    */
   managers?: (number | Manager)[] | null;
@@ -4464,6 +4472,8 @@ export interface PagesSelect<T extends boolean = true> {
   author?: T;
   featuredVideo?: T;
   tags?: T;
+  publishedToWeb?: T;
+  publishedToApp?: T;
   managers?: T;
   webPath?: T;
   webUrl?: T;
