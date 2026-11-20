@@ -16,6 +16,7 @@ import { bypassPermissions, hasAnyPermission, hasPermission, virtualRoles } from
 import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
 import { filterAvailableLocales } from '@/plugins/access/filterAvailableLocales'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
+import { publicChannelClause } from '@/plugins/access/publicChannels'
 import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
 
@@ -218,6 +219,31 @@ describe('Role-Based Access Control', () => {
           bypassPermissions,
         ),
       ).toBe(false)
+    })
+
+    /**
+     * The invariant the channel clause exists for (#783): `pages` sits in both
+     * the website's project and the app's, so implicit read alone hands every
+     * page to both services. Drop the collection from either project and that
+     * role's branch of `publicChannelClause` becomes dead code — narrowing a
+     * read nothing grants in the first place.
+     */
+    it.each([
+      ['wemeditate-web-client', 'publishedToWeb'],
+      ['wemeditate-app-client', 'publishedToApp'],
+    ] as const)('gives %s implicit read of pages, which %s then narrows', (role, column) => {
+      const clientUser = testData.dummyUser('clients', { id: 70, roles: [role] })
+
+      expect(
+        hasPermission(
+          { user: clientUser, collection: 'pages', operation: 'read' },
+          bypassPermissions,
+        ),
+      ).toBe(true)
+
+      expect(
+        publicChannelClause({ user: clientUser } as unknown as PayloadRequest, 'pages'),
+      ).toEqual({ [column]: { equals: true } })
     })
 
     it('blocks inactive users', () => {

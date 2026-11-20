@@ -8,8 +8,9 @@
  * fetch. It is also the only mechanism that can hide a page from an
  * **installed** app release, which ships compiled.
  */
-import type { Page, RoleSlug } from '@/payload-types'
 import type { PayloadRequest, Where } from 'payload'
+
+import type { Page, RoleSlug } from '@/payload-types'
 
 /**
  * One client role, and the `pages` column that answers it.
