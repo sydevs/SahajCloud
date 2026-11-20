@@ -153,7 +153,9 @@ this one.
 machine-assisted drafts, by a one-off `wm-web-locales` script (#1213), and are
 editor-owned from then on. That script and its data files are gone, so nothing
 can overwrite an editor's wording — and a fresh database or a preview holds
-English alone for this global.
+English alone for this global. **Which locales production holds is now only in the
+database**: read them off the global in the admin, never off `LOCALES`, which is
+every locale the CMS supports.
 
 ### `file-transcripts` — the bulk re-request
 
