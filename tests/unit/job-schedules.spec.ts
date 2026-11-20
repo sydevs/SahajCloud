@@ -311,14 +311,14 @@ describe('Job schedules', () => {
       })
 
     /**
-     * ⚠ The driven-queue scan below matches `queue: '<literal>'`, and the two
-     * shapes it cannot see both enqueue onto a queue nothing drives. No `queue:`
-     * key at all takes `default`, which no `autoRun` entry names — so the
-     * easiest call to write is the one whose row waits forever. And
-     * `queue: CONSTANT`, the shape `plugins/login/invitations.ts` uses for its
-     * own name, reads as no queue at all. So a literal is the contract at an
-     * enqueue site: widen both this case and that scan before spelling one any
-     * other way.
+     * ⚠ The driven-queue scan below matches `queue: '<literal>'`, and neither
+     * shape it cannot see is checked at all. No `queue:` key takes `default`,
+     * whose one `autoRun` entry is the class import's safety net — so such a
+     * row rides a tick kept for another job, and nothing here would notice if
+     * that tick went. And `queue: CONSTANT`, the shape
+     * `plugins/login/invitations.ts` uses for its own name, reads as no queue at
+     * all. So a literal is the contract at an enqueue site: widen both this case
+     * and that scan before spelling one any other way.
      */
     it('names its queue with a literal at every call', () => {
       const unnamed: string[] = []

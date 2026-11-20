@@ -1,8 +1,8 @@
 # Project Structure
 
-How `src/` is organized, and where new code belongs. Established by #442 /
-PR #443 (per-collection colocation) and #444 / this rule (the `src/lib/`
-split into `plugins/`, `jobs/`, and shared utilities).
+How `src/` is organized, and where new code belongs. The rules come from #442 / PR #443
+(per-collection colocation) and #444 (the `src/lib/` split into `plugins/`, `jobs/`, and shared
+utilities).
 
 ## `src/` layout
 
@@ -22,370 +22,148 @@ split into `plugins/`, `jobs/`, and shared utilities).
 
 ### `src/plugins/`
 
-One self-contained folder per plugin/adapter, with a public API via an
-`index.ts` barrel: `access/`, `storage/`, `usage/`, `openapi/`, `email/`,
-`virtualFields/` (a computed field declares the stored fields its `afterRead`
-reads with `virtualFieldInputs(...)` on its own `custom`, and the plugin mounts
-the `beforeOperation` hook that puts them back into an include-mode `select`,
-which strips them first. The declaration is on the **field** because a
-per-collection one is a thing to forget: that is how #1084 happened, and it is
-what retires the `url`→`filename` co-select on the eight upload collections),
-`eventImport/` (the bulk class import: the `imports` collection, the job that
-turns its CSV rows into draft classes, and the Events hooks that keep an
-import's status current),
-`sentry/`, `login/`. Consumers (including `payload.config.ts`) import from
-`@/plugins/<name>`.
+One self-contained folder per plugin or adapter, with its public API in an `index.ts` barrel.
+Consumers (including `payload.config.ts`) import from `@/plugins/<name>`. Work with two callers
+inside a plugin gets its own module beside them, not a home in one caller's wiring file (#1113).
 
-⚠ **`login/` owns its endpoints** (`src/plugins/login/endpoints/`), unlike every
-other plugin here, which wires definitions kept beside their collection. They are
-factories, built once per collection the plugin's `collections` option names, so
-there is no one collection to park them beside. What stays with a collection is
-its `LoginCollectionConfig` — its eligibility predicate and the project its mail
-is branded for (`src/collections/Managers/login.ts`). The plugin renders and
-sends that mail itself, from `src/plugins/login/mail.ts` and, for the invitation,
-`invite.ts`; neither has a per-collection override. The invitation is
-sent when a manager is assigned something (`invitations.ts`), never on create. The barrel deliberately stops short of the
-factories: `loginPlugin` is their only caller.
-
-Work with two callers gets its own module beside them rather than living in one
-of their wiring files — `session.ts`; `magicLinks.ts` for the throttle
-and send that the request endpoint and the manager sign-in page both run; and
-`preflight.ts` for the checks a delivered link passes, which the redeem route
-and that same page must agree on (#1113).
+⚠ **`login/` owns its endpoints** (`src/plugins/login/endpoints/`), unlike every other plugin
+here, which wires definitions kept beside their collection. They are factories, built once per
+collection the plugin's `collections` option names, so no single collection can hold them. What
+stays with a collection is its `LoginCollectionConfig` (`src/collections/Managers/login.ts`). The
+barrel deliberately stops short of the factories: `loginPlugin` is their only caller.
 
 ### `src/jobs/<JobName>/`
 
-One folder per scheduled job (`CleanupOrphanedMedia/`,
-`SyncLectureMetadata/`). Job-specific supporting code lives inside the job
-folder (e.g. `CleanupOrphanedMedia/schemaUtils.ts`) and nothing outside it
-imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
-re-exports **only** the task definitions for `payload.config.ts`'s
-`jobs.tasks`. Each job's schedule and queue, and the traps in both, are in
+One folder per scheduled job. Job-specific supporting code lives inside the job folder, and
+nothing outside it imports that code (tests may reach a folder's internals). `src/jobs/index.ts`
+re-exports **only** the task definitions. The traps in a job's schedule and queue are in
 `src/jobs/AGENTS.md`.
 
-**A task's failure reaches Sentry once, on its final attempt**
-(`src/plugins/sentry/jobCapture.ts`), at `error`. When the task cannot do its
-work for a reason that is an answer rather than an incident — already shown to
-whoever needs it, or needing no one — throw `ExpectedJobFailure`
-(`@/lib/jobs/expectedFailure`) with the message the job row should carry. It is
-still reported, at `warning`. Leave an outage, such as a vendor down or a query
-failing, a plain `Error` — and a missing key or bucket URL too, in production
-(`isProductionDeployment()`), where it must alert. `TranscribeRecording` and the `importEvents` task
-(`src/plugins/eventImport/task.ts`) show both.
+**A task's failure reaches Sentry once, on its final attempt**, at `error`. When the task cannot
+do its work for a reason that is an answer rather than an incident — already shown to whoever
+needs it, or needing no one — throw `ExpectedJobFailure` (`@/lib/jobs/expectedFailure`) with the
+message the job row should carry. It is still reported, at `warning`. Leave an outage, such as a
+vendor down or a query failing, a plain `Error` — and a missing key or bucket URL too, in
+production, where it must alert.
 
-`CleanupCollections/` holds no collection list at all: a collection joins
-retention by declaring windows inline on its own config's `custom.retention`,
-and the job reads the built config at run time (#987). Each config carries its
-windows and why each is the length it is, beside the fields they age; a
-collection that declares none is not swept. The discovery and the sweep live in
-the job folder, and only the vocabulary every declaring config needs is shared
-— `@/types/retention`. `payload-jobs` is Payload's own collection and reaches
-`custom` through `jobs.jobsCollectionOverrides`, which is the whole of
+`CleanupCollections/` holds no collection list at all: a collection joins retention by declaring
+windows on its own config's `custom.retention`, beside the fields they age, and the job reads the
+built config at run time (#987). A collection that declares none is not swept. Only the vocabulary
+every declaring config needs is shared — `@/types/retention`. `payload-jobs` is Payload's own
+collection and reaches `custom` through `jobs.jobsCollectionOverrides`, which is the whole of
 `src/collections/PayloadJobs/`.
 
 ### `src/endpoints/`
 
-Custom endpoints registered on the **config root** (`config.endpoints`)
-rather than on a collection, for a resource no collection owns. One handler
-per file, plus a self-contained `responseTypes.ts` that client repos sync by
-raw GitHub URL (same shape as `Events/endpoints/responseTypes.ts`).
+Custom endpoints registered on the **config root** (`config.endpoints`), for a resource no
+collection owns. One handler per file, plus a self-contained `responseTypes.ts` that client repos
+sync by raw GitHub URL.
 
-**The layout mirrors the URL**: a single-file endpoint is
-`src/endpoints/<name>.ts`. One with supporting modules is a folder whose
-path _is_ the URL path, handler in `index.ts` (`src/endpoints/atlas/seo/` →
-`GET /api/atlas/seo`, #645. `src/endpoints/atlas/sitemap/` → `GET
-/api/atlas/sitemap`, #650. `src/endpoints/atlas/challenge/` → `GET
-/api/atlas/challenge`, #1072. `src/endpoints/atlas/wix/route/` and
-`.../wix/sitemap/` → the Wix-shaped serializers over those same two
-resolutions, #1055, with their shared shaping modules one level up at
-`src/endpoints/atlas/wix/`). #632 turned another into a collection once its
-resource needed storing — the intake `user-submissions` now carries. Those supporting modules are
-single-owner code and stay in the folder — putting them in `src/lib/` fails
-the one-consumer check below.
+**The layout mirrors the URL**: a single-file endpoint is `src/endpoints/<name>.ts`. One with
+supporting modules is a folder whose path _is_ the URL path, handler in `index.ts`
+(`src/endpoints/atlas/seo/` → `GET /api/atlas/seo`, #645). Those supporting modules are
+single-owner code and stay in the folder. A root endpoint whose resource comes to need storing
+becomes a collection (#632).
 
-This folder is the **exception, not a second home for endpoints** — anything
-a collection plausibly owns stays colocated under
-`src/collections/<Name>/endpoints/`. Leaving the collection seam costs you
-the usage plugin's beforeOperation hooks (origin enforcement, usage
-tracking), which a root handler must then compensate for — `requireClientAccess`
-is the first two, `countClientRead` the third, see `docs/rules/endpoints.md`.
+This folder is the **exception, not a second home for endpoints** — anything a collection
+plausibly owns stays under `src/collections/<Name>/endpoints/`. Leaving the collection seam costs
+the usage plugin's `beforeOperation` hooks (origin enforcement, usage tracking), which a root
+handler must then compensate for — see `docs/rules/endpoints.md`.
 
 ### `src/lib/`
 
-No loose files at the root — every file lives in a named folder:
+No loose files at the root — every file lives in a named folder, and each folder holds code with
+two or more owners (enforced — see "One consumer ⇒ it isn't shared" below). What a module is for
+is in its own header comment; what follows is only what no single file can say.
 
-- `env/` — environment-variable validation (broadly imported config), plus
-  `deploymentEnvironment.ts`, which names the deployment (Railway environment
-  name, falling back to `NODE_ENV`. Its `clientDeploymentEnvironment()` twin
-  reads the name `next.config.ts` inlines for the browser, which reads no
-  environment at runtime). That one is deliberately **outside** the
-  `@/lib/env` barrel and imported by its deep path: the barrel pulls in the
-  validated `serverEnv` parse, and Sentry reads it during
-  `instrumentation.register()`, before that parse is safe to depend on.
-  `logLevels.ts` sits outside the barrel for that reason and one more: it is
-  zod-free, so `clientLogger` takes the `NEXT_PUBLIC_LOG_LEVEL` vocabulary
-  without pulling the schema module into every browser chunk that carries it
-- `logger/` — `clientLogger`, `workerSafeLogger`
-- `jobs/` — `ExpectedJobFailure`, the error a task throws for an answer
-  rather than an incident (the job capture sends it at `warning`), and
-  `runQueueSoon`, which runs a queue now rather than at the next
-  sweep, and a beat later when the caller queued its row inside a
-  transaction. The only part of the jobs system that is not one job's own: a
-  row queued with `req` cannot run until that transaction commits, and every
-  queue with an `autoRun` entry wants the same best-effort kick. And
-  `runClock`, the time a task run treats as now — `req.context.now` when a
-  test sets one
-- `utilities/` — purposeful cross-boundary helpers (`serverUrl`,
-  `previewSecret`, `gender`, `subtitles`, `weightedSample`, `isRecord`,
-  `mailto` — a pre-filled `mailto:` URL, read by two email templates and the
-  verification page, each of which composes its own subject and body,
-  `requestMemo` — collapses a per-request load to one in-flight promise,
-  `localeIsolatedReq` — gives a nested read a copy so it can't repoint the
-  caller's request, for a cross-locale read and for any read with a
-  concurrent sibling, `versionsRead` — tells a `beforeOperation`
-  hook whether its `read` is a versions read, which cannot carry a document
-  `where`, `eventImages` — an event's photos as documents, in the order the
-  editor arranged them, with the `url` co-select that stops them arriving
-  blank (the atlas SEO endpoint and the proposal preview both read them),
-  `url` — `originOf` for code deciding whether to trust a URL someone
-  else handed it, where an opaque origin reads as none. Parsing itself
-  is `URL.parse`, the built-in that returns `null` rather than throwing —
-  do not re-wrap it)
-- `locales/` — locale config (`@/lib/locales` resolves to `locales/index.ts`)
-- `richEditor/` — Lexical editor presets + `blocks/` (the editor's block
-  set) + `lexicalHooks`, plus the two conversions either way:
-  `plainTextToLexical` (what the class import writes in) and
-  `lexicalToPlainText`. Never re-export either from the barrel — that is the
-  editor presets, so a caller reaching one through it would pull the whole
-  Lexical config. Nothing else may flatten Lexical: a second spelling under
-  `eventQuality/` cost three silently missing quality findings (#961)
-- `endpoints/` — shared client-endpoint helpers (`requireActiveClient`,
-  `requireClientAccess` — that guard plus the origin check a root endpoint
-  owes, `parseQuery`, `emptyPaginatedResponse`). `antiSpamGuard` lived here for
-  the `contactAdmin` endpoint. Once that became a collection (#632), its
-  consumers were the write-guard plugin and two jobs — no endpoint at all —
-  so it moved to `antiSpam/`
-- `antiSpam/` — the transport-agnostic public-write checks (`checkNoUrls`,
-  `checkEmailAllowed`, `verifyTurnstileOrFail`), shared by the write-guard
-  plugin and both screening jobs, plus `proposalLeaves` — which leaves of a
-  client-authored field patch owe which of those checks, with the exemptions
-  read off the target collection's live config. Two owners by construction:
-  the write guard refuses a link at create and the screening job bins one it
-  finds later, and a hand-listed path set in either left a free-text column
-  scanned by neither (#948)
-- external-service clients, alongside `mapbox/`: `turnstile/` (Cloudflare
-  captcha siteverify) — single-consumer today, but an integration seam
-  rather than one endpoint's private helper, and unit-testable without
-  booting it. Lemonfox is not here: its HTTP client, its two response readers
-  and the cue grouper they feed all sit in `src/jobs/TranscribeRecording/`,
-  because that queued run is their one caller (#1016)
-- `atomicWrites/` — the two writes a background worker owes a row it read
-  before doing slow work (#1116). `updateIfUnchanged` ANDs what the caller read
-  into the write's own `where`; `appendLogEntry` inserts one `activityLog` row
-  with bound parameters, on the caller's own connection, reading no entry, so
-  two writers keep each other's — into the log's own table and, where the
-  collection carries drafts, into the version table beside it, which is what a
-  `draft: true` read serves and what `updateByID` writes the next save back
-  from.
-  Neither knows a stage, a status or a verdict — the Payload
-  flags `updateIfUnchanged` forwards are its caller's, not a vocabulary of its
-  own. No barrel: import each module by its own path
-- `stateMachine/` — one lifecycle declared once with `defineStateMachine`:
-  its states, where a row may open (`opensAt`, which is the column's own
-  `defaultValue` and stands for every writer, plus an `opens` row per other
-  state and the writers that may author one), the `(from, to, by)` moves that
-  exist (a move may carry a pure
-  `when` condition on the document, a `name` for the decision it is, and the
-  `refusal` a person outside `by` reads), who may name themselves as a writer,
-  and how a request's person resolves. Then `can` (the table alone, for button
-  maps and pre-checks), `judgeTransition` (the table plus conditions),
-  `judgeOpening` (a create, which has no `from` to match), `transition` (the
-  claim), and the guard `stateMachineField`
-  (`src/fields/stateMachineField.ts`) mounts on the column as a field
-  `beforeChange`, so it runs after every collection hook (#1121). Two machines
-  use it: the event verification stage (`lib/eventVerification/machine.ts`) and
-  the submission status (`collections/UserSubmissions/machine.ts`), which is
-  why the machinery is here and each table is with its owner. ⚠ **A table, its
-  conditions, its openings, a lookup and a claim — nothing else.** No actions, no
-  side-effect registry, no nested states, no timers: what a move _does_ stays
-  in the owner's own hook, keyed on the move's name. A machine that needs more
-  wants XState instead of a bigger version of this. No barrel: import each
-  module by its own path
-- `atlasOverview/` — what is open on the Sahaj Atlas, for one role, read by
-  the three admin homes' loaders and by the nightly digest. Its `status.ts`
-  owns **every word a reader sees about an open item** — the pill, the line,
-  the rank, the filter, whether it counts against progress, and the next step
-  — because four surfaces show the same list. No barrel: import each module
-  by its own path
-- `transcripts/` — a recording's transcript, wherever the recording lives
-  (#1016): `schema.ts` the stored cue shape and the status and provider
-  vocabularies, `bounds.ts` the two time bounds and the phase they decide —
-  kept out of `schema.ts` so the client Transcript tab reads them without
-  pulling zod into the browser, `sync.ts` starts a run when a recording or
-  its language is saved or, for a video, when Stream has made it,
-  `request.ts` is a re-request, gated on those bounds, `read.ts` the row
-  lookup, a file's cues (batched per request), which files' rows are
-  finished, and which column each kind of recording states its language in,
-  `language.ts` whether a recording's language is the one being read, and
-  `media.ts` which files carry one at all. Meditations, files, lessons, the
-  job and `seeds/file-transcripts` all read it; deep imports, no barrel,
-  because `media.ts` and `bounds.ts` are also read in the browser
-- domain folders shared across 2+ owners (**2+ is enforced** — see "One
-  consumer ⇒ it isn't shared" below): `audiences/`, `meditations/`,
-  `branding/`, `status/`, `lectures/`, `schedule/`, `subtleSystem/`,
-  `pageTags/`, `cascadeDeletion/`, `events/` (what more than one
-  reader or writer of a class must agree on:
-  `updateEventWithoutValidation.ts` — the bookkeeping write shared by the
-  expiry job, the registration-fullness recount and the feedback hook,
-  which skips validation so stored data a later validator refuses cannot
-  block any of the three; `mapVisibility.ts` — which classes the Atlas map
-  draws, read by the geojson feed that returns them and by the Clients
-  preview panel, which only asks whether a region has any; `contactRoute.ts` —
-  whether a patch carries a phone or an email, read by the Events validator
-  and contact gate, the Schedule tab's banner and the proposal merge), `eventTitle/` (the auto-title
-  composition, split by purity: `compose.ts` is pure. `autoTitle.ts`
-  resolves a title against the database and is shared by the Events title
-  hook and the proposal merge), `eventQuality/` (the listing-quality check
-  registry + report builder, consumed by Events, the admin panel, and the
-  ExpireEvents reminder emails — barrelled, with all user-facing wording in
-  its `copy.ts`), `registrations/` (the `EVENT_REGISTRATION_QUESTIONS`
-  contract + `questions` validation, shared by Events, `user-submissions`,
-  and the notification email, plus the `unsubscribeToken`/`unsubscribeUrl`
-  helpers. It owns the question vocabulary and how an answer is
-  **labelled**; which `submissionData` keys are answers at all is
-  `user-submissions`' own `registrationAnswers`, because that is derived
-  from the key declarations on the collection), `submissions/`
-  (`CLIENT_CONTEXT_KEYS` — the `submissionData`
-  keys the client writes about itself, rather than answers a visitor typed.
-  `user-submissions` derives its URL-scan exemption from them and `Forms`
-  refuses a field named after one, so the list belongs to neither collection)
+- **`richEditor/`** — never re-export `plainTextToLexical` or `lexicalToPlainText` from the
+  barrel: the barrel is the editor presets, so a caller reaching a conversion through it pulls the
+  whole Lexical config. Nothing else may flatten Lexical (#961).
+- **`antiSpam/`** — two owners by construction: the write guard refuses a link at create, and the
+  screening job bins one it finds later. Both must read one derivation of which fields to check
+  (#948).
+- **`atomicWrites/`** — the writes a background worker owes a row it read before doing slow work
+  (#1116). They know no stage, status or verdict. No barrel.
+- **`stateMachine/`** — the machinery is here and each machine's table is with its owner. ⚠ **A
+  table, its conditions, its openings, a lookup and a claim — nothing else.** No actions, no
+  side-effect registry, no nested states, no timers: what a move _does_ stays in the owner's own
+  hook, keyed on the move's name. A machine that needs more wants XState. No barrel.
+- **`submissions/`** — `CLIENT_CONTEXT_KEYS` lives here because two collections read it
+  (`user-submissions`' URL-scan exemption, `Forms`' field-name refusal), so it belongs to neither.
 
-**Barrels.** A folder gets an `index.ts` barrel only when it presents one
-cohesive public surface imported as a unit (`@/lib/locales`,
-`@/lib/status`, `@/lib/endpoints`, `@/lib/subtleSystem`,
-`@/lib/pageTags`, `@/lib/cascadeDeletion`). Grab-bag and per-owner helper
-folders whose modules are cherry-picked individually use deep imports and
-have **no** barrel: `utilities/`, `logger/`, `lectures/`, `meditations/`,
-`audiences/`, `mapbox/`, `turnstile/`, `schedule/`
-(`@/lib/schedule/scheduleHooks`). Don't add a barrel that re-exports
-unrelated modules just for symmetry — it can pull server-only code into
-client bundles, hurts tree-shaking, and invites import cycles.
+**Barrels.** A folder gets an `index.ts` barrel only when it presents one cohesive public surface
+imported as a unit. A grab-bag or per-owner helper folder whose modules are cherry-picked uses
+deep imports and has **no** barrel. Don't add a barrel that re-exports unrelated modules for
+symmetry — it can pull server-only code into client bundles, hurts tree-shaking, and invites
+import cycles.
 
-**That barrel hazard is not hypothetical, and CI cannot see it.** GitHub
-Actions does not build this app — Railway does — so a client component that
-reaches server-only code type-checks, passes every test, then fails the
-_deploy_ with `Module not found: Can't resolve 'dns'`. It happened in #633:
-the canonical picker imported `@/lib/clients/canonical`, which imported the
-`@/plugins/usage` barrel, which re-exports the pg-pool seam, which pulls
-`pg` into the browser bundle. The fix was a deep import
-(`@/plugins/usage/originEnforcement`). The guard is
-`tests/unit/client-bundle-safety.spec.ts`, which walks the real import
-graph from every browser entry. Nothing to add when you write a client
-component — it is covered on the first run.
+**That barrel hazard is not hypothetical, and CI cannot see it.** GitHub Actions does not build
+this app — Railway does — so a client component that reaches server-only code type-checks, passes
+every test, then fails the _deploy_ with `Module not found: Can't resolve 'dns'`. It happened in
+#633: a client picker reached the `pg` pool through the `@/plugins/usage` barrel, and the fix was
+a deep import. The guard is `tests/unit/client-bundle-safety.spec.ts`, which walks the real import
+graph from every browser entry. Nothing to add when you write a client component — it is covered
+on the first run.
 
-⚠ **From client code, import `@/plugins/access/config`, `/adminOnly` or
-`/types` — never the `@/plugins/access` barrel.** The barrel re-exports those
-pure leaves, but it also pulls `accessPlugin`, `fieldAccess`, `accessConfigs`
-and `permissions`, and through them `@/lib/env/server`. Server code keeps
-using the barrel.
+⚠ **From client code, import `@/plugins/access/config`, `/adminOnly` or `/types` — never the
+`@/plugins/access` barrel.** The barrel also pulls the plugin itself and, through it,
+`@/lib/env/server`. Server code keeps using the barrel.
 
-**That rule is enforced, and was not for four months.** The guard's entries
-were a hand-written list of four, and it matched the import **specifier** a
-caller wrote — but the edge into `@/lib/env/server` is `@/lib/env`'s own
-`./server`, which no caller ever writes. So it was green from #633 to #770
-with 14 browser entries reaching it, 12 through that barrel. #770 fixed both
-halves, and both matter: derived entries alone still miss the edge, and file
-matching alone still misses the entry. The barrel is also a `SERVER_ONLY` row
-in its own right, so the rule above holds even if the barrel stops reaching
-`@/lib/env/server` — the weight is the cost, not just the Node dependency. The
-walk also stops at a `'use server'` module, because Next compiles one to a
-client reference and never bundles its body. `@/lib/status` is the same barrel
-shape, not yet cut — `ReadinessGroup` pulls nine modules through it for one
-function.
+**That rule is enforced, and was not for four months.** The guard once read a hand-written list of
+entries and matched the import **specifier** a caller wrote, but the edge into `@/lib/env/server`
+is `@/lib/env`'s own `./server`, which no caller writes. It was green from #633 to #770 with 14
+browser entries reaching it. #770 fixed both halves, and both matter: derived entries alone still
+miss the edge, and file matching alone still misses the entry.
 
 **A second guard walks the same graph for a different rule.**
-`tests/unit/public-env-substitution.spec.ts` checks that browser code reads
-`process.env` only as a literal `process.env.<KEY>` member expression — the
-one form Next substitutes. `clientEnv` did not, so every `NEXT_PUBLIC_*`
-value was `undefined` in the browser and client Sentry never initialized
-(#760). It derives its entries the same way, from `clientEntries()` in
-`tests/utils/importGraph.ts`, which both specs share.
+`tests/unit/public-env-substitution.spec.ts` checks that browser code reads `process.env` only as
+a literal `process.env.<KEY>` member expression — the one form Next substitutes. `clientEnv` did
+not, so every `NEXT_PUBLIC_*` value was `undefined` in the browser and client Sentry never
+initialized (#760). Both specs share their entry derivation (`tests/utils/importGraph.ts`).
 
-**This is the one home for that story.** The code sites carry a one-line
-pointer here, so there is nothing to update in six places when it changes.
-And do not restore a `clientEnv`-shaped accessor in another form: the
-enumerated `runtimeEnv` object t3-env uses would work, but its enumeration
-can drift from `ClientEnvSchema` silently, and that drift looks exactly like
-working config — the same failure, re-armed. `ServerEnvSchema` extends the
-client schema, so the server still validates all four variables and reads
-them as `serverEnv.NEXT_PUBLIC_*`.
+**This is the one home for that story.** The code sites carry a one-line pointer here. Do not
+restore a `clientEnv`-shaped accessor in another form: the enumerated `runtimeEnv` object t3-env
+uses would work, but its enumeration can drift from `ClientEnvSchema` silently, and that drift
+looks exactly like working config — the same failure, re-armed.
 
-⚠ **Import Sentry from `@sentry/nextjs`, never `@sentry/react`.** Sentry
-keys its global client by SDK version (`__SENTRY__[SDK_VERSION]`), and
-`@sentry/nextjs` carries its own pinned `@sentry/react`. A second top-level
-copy resolves to a different version, so a capture through it reads an empty
-carrier and is dropped without error. That is why `@sentry/react` is not a
-direct dependency.
+⚠ **Import Sentry from `@sentry/nextjs`, never `@sentry/react`.** Sentry keys its global client by
+SDK version, and `@sentry/nextjs` carries its own pinned `@sentry/react`. A second top-level copy
+resolves to a different version, so a capture through it is dropped without error. That is why
+`@sentry/react` is not a direct dependency.
 
-**Every server report goes through one body, by deep path**: `capture`
-(`src/plugins/sentry/capture.ts`), which takes an exception, a message, or
-both, and owns the never-throw guard, the tags, the level default and the
-optional log mirror. Two seams sit above it, one per way a failure arrives:
-`captureFailure` classifies a **routed** failure from a `CaptureSource`, and
-`reportHandlerFailure` (`./handlerFailure`) reports one a handler answers by
-**returning** a response, deciding from that response's status whether it is an
-incident at all (#1182). Both report through the same body, so no site
-reaching past them to it can report under a policy of its own. None takes the SDK's own
-export name, so a reader cannot mistake one for `Sentry.captureMessage` sitting
-beside it. `src/plugins/sentry/index.ts` says why none is in the barrel.
+**Every server report goes through one body**, `capture` (`src/plugins/sentry/capture.ts`),
+reached through its two seams (#1182). `src/plugins/sentry/AGENTS.md` has the seams.
 
-⚠ **No server site reaches the SDK itself** — `tests/unit/sentry-capture.spec.ts`
-fails a second spelling of either entry point. The three browser reporters
-(`clientLogger`, `ErrorBoundary`, `global-error`) are its only exceptions, and
-are listed there: each carries a console mirror and a `getClient()` check the
-server body does not have, and `clientLogger` is the browser's own equivalent of
-that body rather than one of its callers.
+⚠ **No server site reaches the SDK itself** — `tests/unit/sentry-capture.spec.ts` fails a second
+spelling of either entry point, and lists the browser reporters that are its only exceptions.
 
 ## Organization rules
 
-1. **`src/plugins/`** holds every module registered in `payload.config.ts`.
-   One self-contained folder per plugin, public API via `index.ts`.
-2. **`src/jobs/<JobName>/`** holds one folder per scheduled job. The
-   `src/jobs/index.ts` barrel exports **only** task definitions.
-   Job-specific supporting code lives inside the job folder, and nothing
-   outside it imports that code (tests excepted).
-3. **`src/lib/`** holds only code shared across 2+ consumers, that is
-   neither a registered plugin nor owned by one collection/global/job.
-   Group it into named folders — no loose files at the `src/lib/` root.
-4. **Single-owner code goes in its owner's folder** (collection/global/job).
-   **Cross-boundary code goes in `src/lib/`.** Never colocate shared code
-   in one owner's folder — that forces a cross-owner internal import
-   (the violation #442 criterion 8 prohibits).
-5. **Exception path** (inherited from #442): raise it before merging if you
-   believe a function must be exported from an owner folder or a plugin's
-   internals — the likely resolution is generalizing it into `src/lib/`.
+1. **`src/plugins/`** holds every module registered in `payload.config.ts`. One self-contained
+   folder per plugin, public API via `index.ts`.
+2. **`src/jobs/<JobName>/`** holds one folder per scheduled job. The `src/jobs/index.ts` barrel
+   exports **only** task definitions. Job-specific supporting code lives inside the job folder,
+   and nothing outside it imports that code (tests excepted).
+3. **`src/lib/`** holds only code shared across 2+ consumers, that is neither a registered plugin
+   nor owned by one collection/global/job. Group it into named folders — no loose files at the
+   `src/lib/` root.
+4. **Single-owner code goes in its owner's folder** (collection/global/job). **Cross-boundary code
+   goes in `src/lib/`.** Never colocate shared code in one owner's folder — that forces a
+   cross-owner internal import (the violation #442 criterion 8 prohibits).
+5. **Exception path** (inherited from #442): raise it before merging if you believe a function
+   must be exported from an owner folder or a plugin's internals — the likely resolution is
+   generalizing it into `src/lib/`.
 
 ### One consumer ⇒ it isn't shared — enforced by a test
 
-Rule 4 is checked by `tests/unit/lib-boundary.spec.ts`: a module under
-`src/lib/` whose only consumer lives outside `src/lib` **fails the unit
-lane**. Such a module is not shared code — it is one owner's private helper
-sitting in the commons, importable by anything and read by the next person
-as though it were general-purpose.
+Rule 4 is checked by `tests/unit/lib-boundary.spec.ts`: a module under `src/lib/` whose only
+consumer lives outside `src/lib` **fails the unit lane**. Such a module is not shared code — it is
+one owner's private helper sitting in the commons, importable by anything and read by the next
+person as though it were general-purpose. The **view layer is untouched** — email templates stay
+in `src/emails/`, and a job's sender imports its template from there.
 
-This is why a job's supporting code lives in the job folder.
-`SendSessionReminders` owns `sendSessionReminder.ts` and
-`unsubscribeUrl.ts`.
-`recipients` stays in `src/lib/notifications` because `ExpireEvents`,
-`deliverRegistration` and `deliverProposal` all use it. `managerRoles` is
-there for the same reason, with three: the notification-preferences field filters its rows by
-role, the digest run sends one email per role, and `dashboardChoiceFor` picks a
-home by role. The **view layer is untouched** —
-email templates stay in `src/emails/`, and a job's sender imports its
-template from there.
-
-**Counting consumers has three traps**, each of which gave a wrong answer
-while this was written, so let the test do it rather than grepping:
+**Counting consumers has three traps**, each of which gave a wrong answer while this was written,
+so let the test do it rather than grepping:
 
 | Trap                     | Example                                                                                                                   |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -395,14 +173,12 @@ while this was written, so let the test do it rather than grepping:
 
 Two exemptions are built in:
 
-- **Consumed only from inside `src/lib`** — a shared module decomposed into
-  parts (a barrel and its members. An integration seam like `turnstile/`
-  kept separate so it unit-tests without booting its caller). The folder is
-  the unit. Whether it's shared is answered by its entry point.
-- **Consumed only by `scripts/`** — operator scripts are thin CLI wrappers
-  whose routine lives in lib precisely so it can be unit-tested without
-  running the script (see `scripts/AGENTS.md`).
+- **Consumed only from inside `src/lib`** — a shared module decomposed into parts (a barrel and
+  its members, or an integration seam like `turnstile/` kept separate so it unit-tests without
+  booting its caller). The folder is the unit. Whether it's shared is answered by its entry point.
+- **Consumed only by `scripts/`** — operator scripts are thin CLI wrappers whose routine lives in
+  lib precisely so it can be unit-tested without running the script (see `scripts/AGENTS.md`).
 
-`KNOWN_SINGLE_CONSUMER` in that spec records what already had one consumer
-when the check landed. It's a backlog, not an approval, and should only
-shrink — a new entry needs a reason that outlives the next reader.
+`KNOWN_SINGLE_CONSUMER` in that spec records what already had one consumer when the check landed.
+It's a backlog, not an approval, and should only shrink — a new entry needs a reason that outlives
+the next reader.

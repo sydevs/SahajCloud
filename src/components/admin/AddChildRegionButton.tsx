@@ -34,8 +34,11 @@ export const AddChildRegionButton: UIFieldClientComponent = ({ field }) => {
   return (
     // Payload's Button has no `style` prop, so position via a wrapper (per the
     // admin-ui rule). Absolute + no margin lifts the action out of flow so the
-    // descendant table can sit flush at the top of the tab.
-    <div style={{ position: 'absolute' }}>
+    // descendant table can sit flush at the top of the tab. ⚠ Keep the
+    // z-index: `.relationship-table` is `position: relative` and later in the
+    // DOM, so its full-width header otherwise paints over the button and
+    // swallows the click.
+    <div style={{ position: 'absolute', zIndex: 1 }}>
       <Button
         buttonStyle="secondary"
         el="link"
