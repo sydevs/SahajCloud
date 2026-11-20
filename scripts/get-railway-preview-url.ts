@@ -15,11 +15,10 @@
  * GITHUB_TOKEN. It needs no Railway API token.
  *
  * The description carries a host only while the PR's own service holds a
- * Railway-provided domain, which Railway grants it from the base
- * environment's `SahajCloud` service. So removing that domain from
- * `production` strips every future PR of its preview URL (#661), and one
- * PR environment can lack a domain while production is intact. Both leave
- * a bare `"Success"`. See RAILWAY_RUNBOOK.md.
+ * Railway-provided domain. Without one it reads a bare `"Success"` — a
+ * missing domain, not an absent preview, and reading it as one hid a dead
+ * smoke lane for weeks (#661). Which domain, and what clears it:
+ * RAILWAY_RUNBOOK.md.
  *
  * Env:
  *   GITHUB_TOKEN         - GitHub token (CI default), workflow needs `statuses: read`
