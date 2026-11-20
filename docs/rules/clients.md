@@ -28,16 +28,15 @@ other field.
   builder. Both land on the same explanation page (`livePreviewUnavailableUrl`), one reason each.
 - **Four things leave the panel with nothing to draw, and each says which.** The tab
   (`atlas-tab-only`); no atlas role (`no-atlas-role`); a region holding no class a visitor would
-  see (`no-classes`); and a frame that never answers (`atlas-unreachable`). ⚠ **Whether the region
+  see (`no-classes`); and a frame that never answers (`preview-unreachable`). ⚠ **Whether the region
   is empty is the CMS's own answer, never the widget's** — `atlasPreviewTarget` asks the map feed's
   own predicate (`drawnOnMapWhere`, `@/lib/events/mapVisibility`) across the region's whole
   subtree, and the preview session sends no message about it. A clause in one and not the other is
-  this notice over a map with a pin on it. The last one is the browser's:
-  an extension, a network block or an outage leaves the frame silent, so `MapPreviewField` points
-  the panel at the explanation page after `ATLAS_SILENCE_MS` with nothing heard. The clock restarts
-  on each `load`, so a slow atlas is not called blocked, and on each new panel address, which no
-  `load` is guaranteed to announce. There is no way back from that one inside the tab —
-  the frame has been navigated away — which is what the budget is sized against.
+  this notice over a map with a pin on it. The last one is the browser's — an extension, a network
+  block or an outage leaves the frame silent — and it is **not this tab's**: `LivePreviewNotice`
+  watches every live-preview panel whose page answers Payload's handshake (#1204), this one among
+  them. There is no way back from it inside the tab, the frame having been navigated away, which is
+  what `PREVIEW_SILENCE_MS` is sized against.
 - ⚠ **Every field that moves the panel composes through `components/admin/helpers/panelUrl`.** It
   remembers what we pointed the panel at, so the next field does not read our own URL as a freshly
   resolved default: a bare `setURL` here left the Config tab explaining over the unreachable notice,

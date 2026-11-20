@@ -26,6 +26,9 @@ export const WeMeditateWebConfig: GlobalConfig = {
           params: { scope: 'wm-web-config' },
         }),
     },
+    // The session is scoped, so the consumer mounts no subscriber and answers
+    // no handshake. A watchdog over it would call a working preview blocked.
+    custom: { livePreviewSubscribes: false },
   },
   label: 'Configuration',
   fields: [
