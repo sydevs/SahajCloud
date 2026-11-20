@@ -52,6 +52,24 @@ repository:
 | Healthcheck path    | `/api/health`         |
 | Healthcheck timeout | 300 s                 |
 | Restart policy      | On failure, 3 retries |
+| Watch paths         | See below             |
+
+**Watch paths** keep a docs-only push from deploying, and so a docs-only PR from getting a preview
+(Railway's Focused PR Environments, switched on under Project Settings → Environments, then skip
+the app and the Postgres it references):
+
+```
+**
+!**/*.md
+!docs/**
+!.claude/**
+!.agents/**
+```
+
+⚠ `DOCS` in the `Did Railway deploy this push?` step of `.github/workflows/ci.yml` mirrors this
+list. Change both together. If the CI list is wider, a push that deploys goes untested; if it is
+narrower, CI waits 12 minutes for a deploy that never comes. Never add `tests/` or `.github/`: a
+smoke-spec or CI change needs a preview to run against.
 
 ⚠ **Change them on production.** A PR environment copies production's settings when Railway
 creates it, and keeps that copy for its life. Without the healthcheck, Railway routes traffic to
