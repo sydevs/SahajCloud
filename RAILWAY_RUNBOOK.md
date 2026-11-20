@@ -220,9 +220,7 @@ PR environments are switched on under **Project Settings → Environments**. Eac
 production service's settings when Railway creates it.
 
 A docs-only push deploys nothing: the service's watch paths leave docs out (DEPLOYMENT.md, "Watch
-paths"). CI checks the same list first and skips the preview steps, so it does not wait for a
-deploy that never comes. It skips only when the commit before the push passed this job, so a red
-smoke run is never turned green by a README fix.
+paths"), and CI skips the preview steps with it rather than waiting out discovery's timeout.
 
 ### ⚠ PR previews inherit their domain from production
 
