@@ -1,19 +1,33 @@
 /**
- * Why a document could not be given a live-preview URL.
+ * Why a live-preview panel has no page to show.
  *
  * Each value is explained by `src/app/(frontend)/live-preview-unavailable`.
  * Adding one here without adding it there falls back to a generic message
  * rather than breaking, which is the right way round for a panel.
+ *
+ * Three things point a panel at that page, and the two halves below are which
+ * one did it: the server resolves a {@link ServerResolvedReason} into
+ * `admin.livePreview.url`, while a `previewTargetField` declaration and the
+ * `LivePreviewNotice` watchdog compose a {@link PanelComposedReason} in the
+ * browser.
+ *
+ * ⚠ **The halves must stay disjoint**, which is what the split states and
+ * `live-preview-unavailable.spec.ts` pins. `helpers/panelUrl` tells a URL a
+ * component composed from one the server resolved by comparing the URL text
+ * alone, so a reason emitted from both sides makes the two byte-identical: the
+ * server's explanation is then taken for ours, the recorded default stays the
+ * *previous* document's, and a tab's repoint composes against that document's
+ * origin.
  */
-export type LivePreviewUnavailableReason =
-  | 'atlas-tab-only'
-  | 'atlas-unreachable'
-  | 'no-atlas-role'
-  | 'no-classes'
-  | 'no-key'
-  | 'no-path'
-  | 'no-region'
-  | 'not-reviewable'
+
+/** Resolved on the server, where `livePreviewUrl` has no page to point at. */
+export type ServerResolvedReason =
+  'no-atlas-role' | 'no-classes' | 'no-key' | 'no-path' | 'no-region' | 'not-reviewable'
+
+/** Composed in the browser, by a tab's declaration or by the watchdog. */
+export type PanelComposedReason = 'atlas-tab-only' | 'preview-unreachable'
+
+export type LivePreviewUnavailableReason = PanelComposedReason | ServerResolvedReason
 
 const UNAVAILABLE_PATH = '/live-preview-unavailable'
 

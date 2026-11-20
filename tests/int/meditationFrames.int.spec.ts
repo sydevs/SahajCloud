@@ -634,6 +634,36 @@ describe('Meditation Frames Field', () => {
     })
   })
 
+  describe('Keyframe enrichment', () => {
+    it("carries a chakra frame's node as its slug alone, not the node's page", async () => {
+      const node = await testData.createSubtleSystemNode(payload)
+      const frame = await testData.createFrame(payload, {
+        imageSet: 'male',
+        subtleSystemNode: node.id,
+      })
+      const created = await testData.createMeditation(payload, {
+        narrator: testNarrator.id,
+        thumbnail: testImageMedia.id,
+      })
+      await payload.update({
+        collection: 'meditations',
+        id: created.id,
+        data: { frames: [{ id: frameId(frame), timestamp: 0 }] },
+      })
+
+      // At the default depth, which is where the node's whole page used to ride along.
+      const read = (await payload.findByID({
+        collection: 'meditations',
+        id: created.id,
+      })) as Meditation
+      const [keyframe] = read.frames as Array<Record<string, unknown>>
+
+      // The installed app and the FrameEditor read the slug off a populated node.
+      expect(keyframe.subtleSystemNode).toEqual({ id: node.id, slug: node.slug })
+      expect(keyframe).toMatchObject({ imageSet: 'male', mimeType: frame.mimeType, url: frame.url })
+    })
+  })
+
   describe('Frames Cascade Cache Persistence', () => {
     // A dedicated node + frame per case: repointing a shared frame's node would
     // rewrite the weights every other case in this file asserts on.
