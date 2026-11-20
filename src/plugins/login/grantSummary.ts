@@ -163,21 +163,6 @@ export const responsibilityLabel = (responsibility: Responsibility): string =>
   responsibility.items.length === 1 ? responsibility.singular : responsibility.label
 
 /**
- * ⚠ The one join whose collection both We Meditate projects genuinely own, so
- * a Path Editor's pages go with the App.
- *
- * Every other responsibility belongs to its own role's project, whoever holds
- * it: a class and a region are managed on the Sahaj Atlas, and an invitation
- * for one has to carry that brand. They also sit in `wemeditate-web` since
- * #1228, but only so the site can read the class a page counts down to, and a
- * project that merely reads a collection is no home for looking after one.
- *
- * Stated as the single exception rather than as the three normal cases, so the
- * next join added onto a collection in two projects is right by default.
- */
-const JOIN_TAKES_HELD_PROJECT: ReadonlySet<string> = new Set(['managedPages'])
-
-/**
  * Name the access a manager holds — roles per locale, and the documents naming
  * them — as one summary per project, in project order. Given `only`, just the
  * part of that listed there.
@@ -268,12 +253,21 @@ export async function summarizeGrants({
     // project of the role its listing derives, so a service is a Sahaj Atlas
     // invitation rather than the default brand's.
     const own = getJoinProject(join)
-    const project = JOIN_TAKES_HELD_PROJECT.has(join)
-      ? (candidates.find((candidate) => heldProjects.has(candidate)) ??
-        candidates[0] ??
-        own ??
-        DEFAULT_EMAIL_PROJECT)
-      : (own ?? candidates[0] ?? DEFAULT_EMAIL_PROJECT)
+    // ⚠ `managedPages` is the one join whose collection both We Meditate projects
+    // genuinely own, so a Path Editor's pages go with the App. Every other
+    // responsibility belongs to its own role's project, whoever holds it: a class and
+    // a region are managed on the Sahaj Atlas, and an invitation for one has to carry
+    // that brand. They also sit in `wemeditate-web` since #1228, but only so the site
+    // can read the class a page counts down to, and a project that merely reads a
+    // collection is no home for looking after one. Written as the single exception, so
+    // the next join onto a collection in two projects is right by default.
+    const project =
+      join === 'managedPages'
+        ? (candidates.find((candidate) => heldProjects.has(candidate)) ??
+          candidates[0] ??
+          own ??
+          DEFAULT_EMAIL_PROJECT)
+        : (own ?? candidates[0] ?? DEFAULT_EMAIL_PROJECT)
     part(project).responsibilities.push(responsibility)
   }
 
