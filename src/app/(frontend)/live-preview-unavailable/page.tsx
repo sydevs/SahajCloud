@@ -30,10 +30,6 @@ const REASONS: Record<string, { title: string; body: string }> = {
     title: 'The preview belongs to the Atlas tab',
     body: 'There is nothing on this tab for it to show. Open the Atlas tab to see the map, and the colours and logo as a visitor will.',
   },
-  'atlas-unreachable': {
-    title: 'The map did not load',
-    body: 'Nothing is wrong with your settings — only the preview is missing. Switch to another tab and back to try again. An ad blocker or privacy extension in this browser is the usual cause.',
-  },
   'no-atlas-role': {
     title: 'This service has no atlas',
     body: 'An administrator can give this service the Sahaj Atlas role under Access. The map appears here once it has one.',
@@ -57,6 +53,10 @@ const REASONS: Record<string, { title: string; body: string }> = {
   'not-reviewable': {
     title: 'There is nothing to preview here',
     body: 'This submission is not a proposal, so there is no event for the preview to show.',
+  },
+  'preview-unreachable': {
+    title: 'The preview did not load',
+    body: 'Nothing is wrong with your settings — only the preview is missing. Reload this page to try again. An ad blocker or privacy extension in this browser is the usual cause.',
   },
 }
 

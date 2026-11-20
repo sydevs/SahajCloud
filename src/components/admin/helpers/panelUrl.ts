@@ -10,17 +10,14 @@
  * nobody asked for on the way out. Remembering what we last composed, for all of
  * them, is what tells a URL we set apart from one Payload resolved.
  *
- * ⚠ **Every field that moves the panel composes through {@link composePanelUrl},
+ * ⚠ **Everything that moves the panel composes through {@link composePanelUrl},
  * not through `setURL` directly.** `PreviewTarget` repoints per tab and
- * `MapPreviewField` repoints when the atlas never answers; a bare `setURL` from
+ * `LivePreviewNotice` repoints when the page never answers; a bare `setURL` from
  * either is read as a freshly resolved default by the other, which then restores
  * an explanation page in place of the site.
  */
 
-import {
-  livePreviewUnavailableUrl,
-  type LivePreviewUnavailableReason,
-} from '@/lib/livePreview/unavailable'
+import { livePreviewUnavailableUrl, type PanelComposedReason } from '@/lib/livePreview/unavailable'
 
 let lastComposedUrl: null | string = null
 let serverResolvedUrl: null | string = null
@@ -50,7 +47,7 @@ export function panelDefaultUrl(): null | string {
  * could resolve the same reason against different origins and stop recognising
  * each other's output.
  */
-export function panelNoticeUrl(reason: LivePreviewUnavailableReason): string {
+function panelNoticeUrl(reason: PanelComposedReason): string {
   return new URL(livePreviewUnavailableUrl(reason), window.location.origin).toString()
 }
 
@@ -58,4 +55,25 @@ export function panelNoticeUrl(reason: LivePreviewUnavailableReason): string {
 export function composePanelUrl(setURL: (url: string) => void, url: string): void {
   lastComposedUrl = url
   setURL(url)
+}
+
+/**
+ * Points the panel at an explanation, unless it is showing that one already.
+ * Answers whether it moved, which is what a caller owing a restore records.
+ *
+ * ⚠ **The one way a browser puts an explanation in the panel.** The watchdog
+ * and a tab's `unavailable` declaration both arrive here, so neither can
+ * resolve the page against an origin the other would not recognise, and
+ * neither can reach `setURL` without {@link composePanelUrl} recording it.
+ */
+export function composePanelNotice(
+  setURL: (url: string) => void,
+  reason: PanelComposedReason,
+  currentUrl?: null | string,
+): boolean {
+  const url = panelNoticeUrl(reason)
+  if (url === currentUrl) return false
+
+  composePanelUrl(setURL, url)
+  return true
 }
