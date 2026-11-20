@@ -36,6 +36,9 @@ import schemaJson from '../../src/globals/WeMeditateWebTranslations/translations
  */
 const ENGLISH_PLURAL_CATEGORIES = ['one', 'other'] as const
 
+/** Opens every `a11y` description (`src/globals/AGENTS.md`). */
+const A11Y_CONVENTION = 'Not shown on screen; read by screen readers.'
+
 type LeafProp = {
   type: 'string' | 'richText'
   plural?: boolean
@@ -179,6 +182,19 @@ describe('seeds/wm-web-translations/data.en.json', () => {
       }
     }
     expect(unexplained).toEqual([])
+  })
+
+  // The sentence is the only cue a translator has that nobody will ever see
+  // the string, and the register that follows from it is different — a screen
+  // reader wants "Playback position", a visible control wants a verb.
+  it('opens every a11y description with the screen-reader sentence', () => {
+    const a11y = keys.filter(({ seeded }) => seeded[0].path.includes('.a11y.'))
+    expect(a11y.length, 'a11y keys found').toBeGreaterThan(0)
+
+    const offenders = a11y
+      .filter(({ prop }) => !(prop.description ?? '').startsWith(A11Y_CONVENTION))
+      .map(({ seeded }) => seeded[0].path)
+    expect(offenders).toEqual([])
   })
 
   // `strict` turns a limit into a save gate, measured on the RAW string —
