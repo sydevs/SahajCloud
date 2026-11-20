@@ -143,34 +143,6 @@ label.field-label {
   }
 }
 
-/* "Need help?" (`NeedHelpButton`) takes the spot Payload pins the language
-   button to, and moves that button and its hidden spacer in by its own width
-   plus a gap, so the order reads language, help, account picture. */
-.need-help {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  inset-inline-end: calc(var(--gutter-h) + 25px + var(--base) / 2);
-}
-
-.app-header:has(.need-help) {
-  .app-header__localizer.localizer {
-    right: unset;
-    inset-inline-end: calc(var(--gutter-h) + 25px + var(--base) + var(--need-help-width, 0px));
-  }
-
-  .app-header__localizer-spacing {
-    margin-inline-end: calc(var(--base) + var(--need-help-width, 0px));
-  }
-}
-
-/* Payload hides the language button under an open phone nav; hide its neighbour too. */
-@media (max-width: 768px) {
-  .app-header--nav-open .need-help {
-    display: none;
-  }
-}
-
 /* ============================================================================
    6. TABLES (every list view and `Table`)
    ============================================================================ */
