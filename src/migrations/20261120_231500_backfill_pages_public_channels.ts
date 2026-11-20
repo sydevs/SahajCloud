@@ -3,10 +3,8 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Data only — no DDL; the `.json` is the prior snapshot re-stamped
 // (`src/migrations/AGENTS.md`).
 //
-// Existing pages start Web-on / App-off from the column defaults
-// (20261120_002235_add_pages_public_channels), so this moves only the
-// exceptions: every page the app reads goes App-on, and the four pages the app
-// alone reads go App-on and Web-off.
+// Existing pages arrive Web-on / App-off from the column defaults
+// (20261120_231045_add_pages_public_channels), so only the exceptions move.
 //
 // ⚠ **Those four take App-on as well as Web-off, and the slug list is the only
 // thing that can give it to them.** Three of them — `path`,
@@ -32,6 +30,12 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // `pages` autosaves a draft every 60s and a publish loads the document it
 // writes from the `latest` version row, so a row left at the column default
 // there writes that default back over the main table.
+//
+// ⚠ **The Web-off half excepts any page `wm_web_config` names.** The slug list
+// was measured against one database, and the website's required `homePage` —
+// or any of its five page lists — answering `null` 404s the site. So the same
+// rule the App half follows applies in reverse: read the stored sources, never
+// trust the list.
 //
 // ⚠ **A page named only from another page's rich text is not reachable here.**
 // `SubtleSystemBlock` and `ShowcaseBlock` keep their references inside the
@@ -59,6 +63,10 @@ const APP_CONFIG_PAGE_COLUMNS = [
 
 /** An app card's three page destinations (`AppCards.ts`). */
 const APP_CARD_PAGE_COLUMNS = ['default_page_id', 'starting_soon_page_id', 'live_now_page_id']
+
+/** Where the website stores a page reference (`WeMeditateWebConfig.ts`). */
+const WEB_CONFIG_PAGE_IDS = sql`SELECT "home_page_id" AS "id" FROM "wm_web_config"
+  UNION SELECT "pages_id" AS "id" FROM "wm_web_config_rels"`
 
 /** The pages the app alone reads: App-on, and the website stops seeing them. */
 const APP_ONLY_SLUGS = ['explore', 'path', 'let-the-app-find-your-city', 'live-meditations-reminder']
@@ -91,6 +99,10 @@ const appOnlyPageIds = sql`SELECT "id" FROM "pages" WHERE "slug" IN (${sql.join(
   sql`, `,
 )})`
 
+/** Those pages, less any the website's own configuration still names. */
+const webOffPageIds = sql`SELECT "id" FROM (${appOnlyPageIds}) AS "appOnly"
+  WHERE "id" NOT IN (SELECT "id" FROM (${WEB_CONFIG_PAGE_IDS}) AS "webConfig" WHERE "id" IS NOT NULL)`
+
 /**
  * Writes one channel column on `pages` and on its `latest` version row, for the
  * page ids the subquery answers.
@@ -114,10 +126,12 @@ async function setChannel(
 const WEB = { main: 'published_to_web', version: 'version_published_to_web' }
 const APP = { main: 'published_to_app', version: 'version_published_to_app' }
 
+/** Every page that goes App-on: the stored references, plus the app-only slugs. */
+const appOnIds = sql.join([appPageIds, appOnlyPageIds], sql` UNION `)
+
 export async function up({ db }: MigrateUpArgs): Promise<void> {
-  await setChannel(db, APP, true, appPageIds)
-  await setChannel(db, APP, true, appOnlyPageIds)
-  await setChannel(db, WEB, false, appOnlyPageIds)
+  await setChannel(db, APP, true, appOnIds)
+  await setChannel(db, WEB, false, webOffPageIds)
 }
 
 /**
@@ -126,7 +140,6 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
  * held the default.
  */
 export async function down({ db }: MigrateDownArgs): Promise<void> {
-  await setChannel(db, APP, false, appPageIds)
-  await setChannel(db, APP, false, appOnlyPageIds)
-  await setChannel(db, WEB, true, appOnlyPageIds)
+  await setChannel(db, APP, false, appOnIds)
+  await setChannel(db, WEB, true, webOffPageIds)
 }
