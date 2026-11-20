@@ -6181,6 +6181,10 @@ export interface WmWebTranslationsMediaA11YStrings {
    */
   volume?: string;
   /**
+   * Not shown on screen; read by screen readers. Names the player's progress slider, which moves playback within the track.
+   */
+  progress?: string;
+  /**
    * Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title.
    */
   play_item?: string;

@@ -659,6 +659,10 @@
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Names the player's volume slider."
             },
+            "progress": {
+              "type": "string",
+              "description": "Not shown on screen; read by screen readers. Names the player's progress slider, which moves playback within the track."
+            },
             "play_item": {
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title."
