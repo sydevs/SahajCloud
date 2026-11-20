@@ -81,9 +81,10 @@ jobs:
       # open.
       #
       # ⚠ A docs-only push skips only when the commit before it passed this
-      # job. Otherwise a red smoke run followed by a README fix would read
-      # green, though the code under it never passed. When that commit did not
-      # pass, or was cancelled by a newer push, the step falls back to waiting.
+      # job, so a red or cancelled run is never turned green by a README fix.
+      # That is the whole claim: a green run does not prove smoke ran — the
+      # lane skips and the job stays green when no preview was discovered (the
+      # warning below) — so a skip is exactly as un-smoked as the run it follows.
       - name: Did Railway deploy this push?
         id: scope
         if: ${{ github.event_name == 'pull_request' }}
