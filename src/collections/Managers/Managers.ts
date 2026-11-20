@@ -51,11 +51,6 @@ export const Managers: CollectionConfig = {
     // four join subqueries per page. With this on, that batch selects `name`
     // alone.
     enableListViewSelectAPI: true,
-    components: {
-      // Not a `ui` field: Payload renders the auth block (Email, Verified)
-      // above every field, and the drawer renders this above that.
-      Description: '@/components/admin/ManagerEditNotice',
-    },
   },
   // NOTE: `roles` below is `localized`, and this collection is an auth collection.
   // accessPlugin detects that pair and attaches the auth strategy and the three
@@ -63,6 +58,14 @@ export const Managers: CollectionConfig = {
   // see `src/plugins/access/localizedRolesAuth.ts` (#665). Nothing to wire here.
   // Every field but `name` is locked to the row's holder and to admins (#908).
   fields: lockManagerFieldReads([
+    {
+      // Why the form is read-only, for a reader who cannot save this manager.
+      // ⚠ Payload draws the auth block (Email, Verified) above every field and
+      // offers no slot ahead of it, so this is the first thing after it.
+      name: 'editAccessNotice',
+      type: 'ui',
+      admin: { components: { Field: '@/components/admin/ManagerEditNotice' } },
+    },
     {
       name: 'name',
       type: 'text',

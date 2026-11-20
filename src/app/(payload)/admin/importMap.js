@@ -41,10 +41,10 @@ import { RecordingLanguageWarning as RecordingLanguageWarning_e05896606e83681ced
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
+import { default as default_f121f461cebbcfa61ef84b5a0960a270 } from '@/components/admin/ManagerEditNotice'
 import { default as default_8dd17cb8528b516d825f8fb6a794fe97 } from '@/components/admin/RolesField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
-import { default as default_f121f461cebbcfa61ef84b5a0960a270 } from '@/components/admin/ManagerEditNotice'
 import { default as default_d498427cbe3f9e971622125cc691d73d } from '@/components/admin/InstallGuide/InstallBanner'
 import { default as default_177ca2347588afbf7bf1219542d02c7f } from '@/components/admin/InstallGuide/InstallSummary'
 import { default as default_fe6b8e8df9811fdf0af5e78483956a33 } from '@/components/admin/AtlasPreview/AdjustedColors'
@@ -158,10 +158,10 @@ export const importMap = {
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
+  "@/components/admin/ManagerEditNotice#default": default_f121f461cebbcfa61ef84b5a0960a270,
   "@/components/admin/RolesField#default": default_8dd17cb8528b516d825f8fb6a794fe97,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
-  "@/components/admin/ManagerEditNotice#default": default_f121f461cebbcfa61ef84b5a0960a270,
   "@/components/admin/InstallGuide/InstallBanner#default": default_d498427cbe3f9e971622125cc691d73d,
   "@/components/admin/InstallGuide/InstallSummary#default": default_177ca2347588afbf7bf1219542d02c7f,
   "@/components/admin/AtlasPreview/AdjustedColors#default": default_fe6b8e8df9811fdf0af5e78483956a33,

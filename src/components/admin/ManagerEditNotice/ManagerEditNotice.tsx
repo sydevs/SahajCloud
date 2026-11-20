@@ -12,12 +12,9 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  * per-document `update` answer, so it follows the rule in `accessPlugin`
  * rather than restating it.
  *
- * ⚠ Mounted as `Managers`' `admin.components.Description`, which Payload draws
- * at the top of a document drawer and not on the full-page edit view. The
- * drawer is the one place a non-admin opens another manager — from an event's
- * or a region's manager picker — because `managers` is hidden from them, and
- * Payload answers a hidden collection's document route with a 404. The list
- * view draws the slot too, outside any document, where `id` is absent.
+ * Non-admins reach another manager only through a document drawer — from an
+ * event's or a region's manager picker — because `managers` is hidden from
+ * them, and Payload answers a hidden collection's document route with a 404.
  */
 export function ManagerEditNotice(): React.ReactElement | null {
   const { id, hasSavePermission } = useDocumentInfo()
@@ -27,6 +24,7 @@ export function ManagerEditNotice(): React.ReactElement | null {
     <InfoBanner
       action={{ label: 'Email support', href: `mailto:${CONTACT_EMAIL}` }}
       title="You can’t edit this manager"
+      type="warning"
     >
       Only an admin or the manager themself can edit a manager. If you need help, write to{' '}
       {CONTACT_EMAIL}.
