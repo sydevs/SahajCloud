@@ -157,6 +157,29 @@ describe('shapeLecture returns userChoices', () => {
   })
 })
 
+describe('shapeLecture returns the lecture date', () => {
+  it("carries a full lecture's own date onto the feed record", () => {
+    const shaped = shapeLecture(playableLecture({ date: '1979-03-18T00:00:00.000Z' }))
+    expect(shaped?.date).toBe('1979-03-18T00:00:00.000Z')
+  })
+
+  it('reports null when nobody has recorded when the talk was given', () => {
+    expect(shapeLecture(playableLecture())?.date).toBeNull()
+  })
+
+  it("reports a clip's parent date, since the clip carries none of its own", () => {
+    const parent = playableLecture({ id: 2, date: '1983-07-02T00:00:00.000Z' })
+    const clip = shapeLecture({
+      id: 3,
+      type: 'clip',
+      title: 'A clip',
+      metadata: null,
+      fullLecture: parent,
+    } as unknown as Lecture)
+    expect(clip?.date).toBe('1983-07-02T00:00:00.000Z')
+  })
+})
+
 // The two read bounds — `LECTURE_FEED_SELECT.userChoices` and
 // `LECTURE_FEED_POPULATE` — are deliberately NOT asserted here. Restating a
 // constant's literal value only fails when someone edits the constant, and the

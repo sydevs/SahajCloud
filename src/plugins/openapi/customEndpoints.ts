@@ -1100,6 +1100,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     additionalProperties: false,
     required: [
       'id',
+      'date',
       'hlsUrl',
       'thumbnailUrl',
       'subtitles',
@@ -1112,6 +1113,13 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
     properties: {
       id: { type: 'integer' },
       title: { type: ['string', 'null'] },
+      date: {
+        type: ['string', 'null'],
+        format: 'date-time',
+        description:
+          'The day the talk was given or published, for a video’s upload date. ' +
+          'A clip reports its parent lecture’s. Null while nobody has recorded one.',
+      },
       hlsUrl: { type: 'string' },
       thumbnailUrl: { type: ['string', 'null'] },
       subtitles: lectureSubtitleUrlsSchema,

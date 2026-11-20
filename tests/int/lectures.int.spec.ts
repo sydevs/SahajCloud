@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Image, LectureMetadata } from '@/payload-types'
+import type { Image, Lecture, LectureMetadata } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
@@ -303,6 +303,55 @@ describe('Lectures Collection', () => {
           : updated.thumbnail
 
       expect(thumbnailId).toBe(newThumbnail.id)
+    })
+  })
+
+  describe('date (#1236)', () => {
+    it('is readable on a bounded /api/lectures-shaped read', async () => {
+      const lecture = await testData.createLecture(payload, undefined, {
+        date: '1979-03-18T00:00:00.000Z',
+      })
+
+      const read = await payload.findByID({
+        collection: 'lectures',
+        id: lecture.id,
+        select: { title: true, date: true },
+      })
+
+      expect(read.date).toBe('1979-03-18T00:00:00.000Z')
+    })
+
+    it('is null on a lecture nobody has dated, and the save still succeeds', async () => {
+      const lecture = await testData.createLecture(payload)
+      expect(lecture.date).toBeNull()
+
+      const updated = await payload.update({
+        collection: 'lectures',
+        id: lecture.id,
+        data: { title: 'Still undated' },
+      })
+
+      expect(updated.title).toBe('Still undated')
+      expect(updated.date).toBeNull()
+    })
+
+    it("reaches a clip as its parent's date, the path the website reads", async () => {
+      // A clip stores no date of its own, as it stores no `metadata`: the
+      // consumer selects `fullLecture` and reads the parent (#338).
+      const parent = await testData.createLecture(payload, undefined, {
+        date: '1983-07-02T00:00:00.000Z',
+      })
+      const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
+
+      const read = await payload.findByID({
+        collection: 'lectures',
+        id: clip.id,
+        depth: 1,
+        select: { fullLecture: true },
+      })
+
+      expect(read.date).toBeUndefined()
+      expect((read.fullLecture as Lecture).date).toBe('1983-07-02T00:00:00.000Z')
     })
   })
 

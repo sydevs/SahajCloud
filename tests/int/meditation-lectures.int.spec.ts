@@ -599,6 +599,7 @@ describe('meditationLectures endpoint', () => {
     const docs = (body as { docs: LecturePlayerData[] }).docs
     expect(docs.length).toBe(1)
     const expectedKeys = [
+      'date',
       'duration',
       'fullLectureId',
       'hlsUrl',
