@@ -120,20 +120,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "published_to_web": {
-          "name": "published_to_web",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "published_to_app": {
-          "name": "published_to_app",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp(3) with time zone",
@@ -191,36 +177,6 @@
           "columns": [
             {
               "expression": "featured_video_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pages_published_to_web_idx": {
-          "name": "pages_published_to_web_idx",
-          "columns": [
-            {
-              "expression": "published_to_web",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pages_published_to_app_idx": {
-          "name": "pages_published_to_app_idx",
-          "columns": [
-            {
-              "expression": "published_to_app",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -742,20 +698,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_published_to_web": {
-          "name": "version_published_to_web",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "version_published_to_app": {
-          "name": "version_published_to_app",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "version_updated_at": {
           "name": "version_updated_at",
           "type": "timestamp(3) with time zone",
@@ -865,36 +807,6 @@
           "columns": [
             {
               "expression": "version_featured_video_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "_pages_v_version_version_published_to_web_idx": {
-          "name": "_pages_v_version_version_published_to_web_idx",
-          "columns": [
-            {
-              "expression": "version_published_to_web",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "_pages_v_version_version_published_to_app_idx": {
-          "name": "_pages_v_version_version_published_to_app_idx",
-          "columns": [
-            {
-              "expression": "version_published_to_app",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -20000,18 +19912,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "video_general": {
-          "name": "video_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "video_a11y": {
-          "name": "video_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "location_general": {
           "name": "location_general",
           "type": "jsonb",
@@ -20398,18 +20298,6 @@
         },
         "version_media_a11y": {
           "name": "version_media_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_video_general": {
-          "name": "version_video_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_video_a11y": {
-          "name": "version_video_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -29682,6 +29570,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "405b3129-66a6-468d-a1dc-e2e0d8a82867",
+  "id": "447549e7-2737-478e-be04-89542216e8f6",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

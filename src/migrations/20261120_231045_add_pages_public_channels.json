@@ -20000,18 +20000,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "video_general": {
-          "name": "video_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "video_a11y": {
-          "name": "video_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "location_general": {
           "name": "location_general",
           "type": "jsonb",
@@ -20398,18 +20386,6 @@
         },
         "version_media_a11y": {
           "name": "version_media_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_video_general": {
-          "name": "version_video_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_video_a11y": {
-          "name": "version_video_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -29682,6 +29658,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "405b3129-66a6-468d-a1dc-e2e0d8a82867",
+  "id": "afd0ae54-aa29-4406-ba07-3c86172bc53b",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

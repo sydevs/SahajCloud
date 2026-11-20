@@ -534,7 +534,7 @@ Four things worth knowing before you touch `Managers`:
 - The plugin **appends** to `endpoints` and `fields`. Replacing either array
   would delete `setProject` — the project switcher — silently.
 
-## Localization (19 locales)
+## Localization
 
 ### Admin locale filtering (`filterAvailableLocales`)
 
