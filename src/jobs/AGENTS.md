@@ -4,7 +4,7 @@ Payload's `autoRun` job system runs background tasks in the same long-lived Node
 
 ⚠ **A `schedule` is dead without an `autoRun` entry for its own queue.** Payload calls `handleSchedules({ queue })` only from that queue's `autoRun` cron, so a schedule on a queue nothing ticks is never consulted — no error, no log line, no job row. The `monthly` queue was in that state from the day it was introduced until #878, so neither job on it had ever run anywhere. The pairing, and the one deliberate exception, live in `src/jobs/queues.ts`; `tests/unit/job-schedules.spec.ts` fails on the next dead schedule.
 
-⚠ **A `payload.jobs.queue` call picks a queue the same way, and nothing drives `default`.** A row enqueued onto a queue with no `autoRun` entry — including the one an omitted `queue:` key chooses — is written for real and then waits forever, as silently as a dead schedule. The same spec reads every `jobs.queue(` call under `src/`, which is why an enqueue site names its queue with a string literal: a constant reads as no queue at all.
+⚠ **A `payload.jobs.queue` call picks a queue the same way.** A row enqueued onto a queue with no `autoRun` entry is written for real and then waits forever, as silently as a dead schedule. `default`, which an omitted `queue:` key chooses, is driven — but by the class import's own safety-net cron, so an enqueue that inherits it rides a tick kept for another job. The same spec reads every `jobs.queue(` call under `src/`, which is why an enqueue site names its queue with a string literal: a constant reads as no queue at all.
 
 ⚠ **A Railway PR preview has no `autoRun` at all** (`jobAutoRun()` in `src/jobs/queues.ts`). Every tick queries the database, which kept every idle preview's app and Postgres awake and billed around the clock — most of the Railway bill in Oct–Nov 2026. A queue a write kicks through `runQueueSoon` still runs there; a schedule never fires and a lost kick is never retried. To exercise a scheduled job on a preview, sign in and open `/api/payload-jobs/run?queue=<queue>`, which enqueues what is due and runs it.
 
@@ -65,7 +65,8 @@ monthly` only drains a row already past its `waitUntil`.
   subscription while keeping every decided one for ever: a refused sign-up records neither an
   attendance nor a consent.
 - **CSV class import** — `importEvents` (#907, `src/plugins/eventImport/task.ts`), queued by the
-  upload and kicked at once by `runQueueSoon`. Each row becomes one draft class, created as the
+  upload and kicked at once by `runQueueSoon`; the five-minute cron on the `default` queue is the
+  safety net for a kick lost to a restart. Each row becomes one draft class, created as the
   uploader in its own transaction.
 - **`TranscribeRecording`** — its slug stays `transcribeMeditation` because it is a Postgres enum
   value. **Every request is this queued job**, including the re-request endpoints (#984, #1016),
