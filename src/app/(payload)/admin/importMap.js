@@ -34,6 +34,7 @@ import { default as default_f6674fb37b8a49317525e4fb8838a78c } from '@/component
 import { default as default_7647a475a77f95462c70b2b16fe92239 } from '@/components/admin/WorkflowButtons'
 import { default as default_277d6fd41e8d1febac87b7e86938523f } from '@/components/admin/AudioUpload'
 import { default as default_aa1cbd65eb0b3cec4fc40542c104a1d5 } from '@/components/admin/JobStageView/JobStageView'
+import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_0d7144728a6a15ce62edc7c88eaf2e1a } from '@/components/admin/RelationshipCountCell'
 import { default as default_f90b1f00bd5c69345510453a62d36e0a } from '@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell'
 import { FileTranscriptField as FileTranscriptField_e05896606e83681ced05ad0143aa8348 } from '@/components/admin/TranscriptPanel'
@@ -71,7 +72,6 @@ import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/component
 import { default as default_826f2980c9e1e0e72b25c86307f02534 } from '@/components/admin/EventScheduleNotice'
 import { default as default_e7df6c7ccbfdd5e73d9b4008aaaf0482 } from '@/components/admin/EventFrequencyField'
 import { default as default_c1b589b819e10077292295d97dcd997f } from '@/components/admin/EventRegistrations/RegistrationsNotice'
-import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
@@ -149,6 +149,7 @@ export const importMap = {
   "@/components/admin/WorkflowButtons#default": default_7647a475a77f95462c70b2b16fe92239,
   "@/components/admin/AudioUpload#default": default_277d6fd41e8d1febac87b7e86938523f,
   "@/components/admin/JobStageView/JobStageView#default": default_aa1cbd65eb0b3cec4fc40542c104a1d5,
+  "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/RelationshipCountCell#default": default_0d7144728a6a15ce62edc7c88eaf2e1a,
   "@/components/admin/ThumbnailCell/PreviewUrlThumbnailCell#default": default_f90b1f00bd5c69345510453a62d36e0a,
   "@/components/admin/TranscriptPanel#FileTranscriptField": FileTranscriptField_e05896606e83681ced05ad0143aa8348,
@@ -186,7 +187,6 @@ export const importMap = {
   "@/components/admin/EventScheduleNotice#default": default_826f2980c9e1e0e72b25c86307f02534,
   "@/components/admin/EventFrequencyField#default": default_e7df6c7ccbfdd5e73d9b4008aaaf0482,
   "@/components/admin/EventRegistrations/RegistrationsNotice#default": default_c1b589b819e10077292295d97dcd997f,
-  "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,

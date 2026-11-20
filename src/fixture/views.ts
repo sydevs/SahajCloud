@@ -28,6 +28,9 @@ const REGION_COUNTRY = 1_002_001
 const REGION_CITY = 1_002_002
 const REGION_REGION = 1_002_004
 
+// Songs.
+const SONG_NO_DURATION = 1_018_005 // audio stating no length, so the duration warning shows
+
 // Clients.
 const CLIENT_FIRST = 1_022_001 // atlas, mailchimp, own colours
 const CLIENT_SECOND = 1_022_002
@@ -82,7 +85,10 @@ export const VIEWS: ViewRegistry = {
     doc('events', EVENT_REMINDED),
     doc('events', EVENT_URGENT),
   ),
-  '@/components/admin/InfoBanner#default': links(doc('events', EVENT_THURSDAY)),
+  '@/components/admin/InfoBanner#default': links(
+    doc('events', EVENT_THURSDAY),
+    doc('songs', SONG_NO_DURATION),
+  ),
   '@/components/admin/ManagerContacts#default': links(
     doc('events', EVENT_THURSDAY),
     doc('regions', REGION_CITY),
