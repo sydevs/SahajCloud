@@ -306,37 +306,57 @@ describe('Lectures Collection', () => {
     })
   })
 
-  describe('date (#1236)', () => {
-    // Optional, so an unknown date must not block the save the monthly sync
-    // makes — and the website reads it off the same bounded select it already
-    // sends for `metadata`.
-    it('is optional, and reads back on a bounded select', async () => {
-      const dated = await testData.createLecture(payload, undefined, {
-        date: '1979-03-18T00:00:00.000Z',
+  describe('date, read from the Nirmala Vidya title (#1236)', () => {
+    const datedLecture = async (nvTitle: string, overrides = {}) => {
+      const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
+      vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce({
+        title: nvTitle,
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        hlsUrl: 'https://example.com/stream.m3u8',
+        subtitles: [],
+        duration: 1820,
       })
-      const undated = await testData.createLecture(payload)
+      return testData.createLecture(payload, undefined, overrides)
+    }
+
+    it('fills the column from the title, and reads back on a bounded select', async () => {
+      const lecture = await datedLecture('An introduction to meditation (1979-03-18)')
 
       const read = await payload.findByID({
         collection: 'lectures',
-        id: dated.id,
+        id: lecture.id,
         select: { title: true, date: true },
       })
-      expect(read.date).toBe('1979-03-18T00:00:00.000Z')
+      expect(read.date).toBe('1979-03-18T12:00:00.000Z')
+    })
+
+    // Optional, so a title stating no date must not block the save — which is
+    // also every save the monthly sync makes.
+    it('saves with no date when the title states none', async () => {
+      const lecture = await datedLecture('A talk nobody dated')
+      expect(lecture.date).toBeNull()
 
       const resaved = await payload.update({
         collection: 'lectures',
-        id: undated.id,
+        id: lecture.id,
         data: { title: 'Still undated' },
       })
       expect(resaved.date).toBeNull()
     })
 
+    // The column is a projection of the NV title, so a submitted value is not
+    // a second source of truth for it.
+    it('overwrites a date submitted with the create', async () => {
+      const lecture = await datedLecture('The energy within (1983-07-02)', {
+        date: '2001-01-01T12:00:00.000Z',
+      })
+      expect(lecture.date).toBe('1983-07-02T12:00:00.000Z')
+    })
+
     it("reaches a clip as its parent's date, the path the website reads", async () => {
       // A clip stores no date of its own, as it stores no `metadata`: the
       // consumer selects `fullLecture` and reads the parent (#338).
-      const parent = await testData.createLecture(payload, undefined, {
-        date: '1983-07-02T00:00:00.000Z',
-      })
+      const parent = await datedLecture('The energy within (1983-07-02)')
       const clip = await testData.createLectureExcerpt(payload, { fullLecture: parent.id })
 
       const own = await payload.findByID({
@@ -352,7 +372,7 @@ describe('Lectures Collection', () => {
         depth: 1,
         select: { fullLecture: true },
       })
-      expect((read.fullLecture as Lecture).date).toBe('1983-07-02T00:00:00.000Z')
+      expect((read.fullLecture as Lecture).date).toBe('1983-07-02T12:00:00.000Z')
     })
   })
 

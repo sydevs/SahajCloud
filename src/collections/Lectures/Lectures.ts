@@ -121,11 +121,15 @@ export const Lectures: CollectionConfig = {
       name: 'date',
       type: 'date',
       access: {
-        // As `metadata` below: a clip takes its parent's, so an API write that
-        // would diverge the two is stripped.
-        update: ({ doc }) => doc?.type === 'full',
+        // Nobody writes this: `lectureDateFromTitle` derives it from the
+        // NV-owned title, at create and on every monthly sync. Both writers
+        // run past field access — a collection `beforeChange` hook runs after
+        // it, and the sync's Local API overrides it.
+        create: () => false,
+        update: () => false,
       },
       admin: {
+        readOnly: true,
         // A talk's year is the point, and the dayOnly default hides it.
         // ⚠ A dayOnly pick stores noon UTC, whatever the editor's timezone, so the day
         // picked is the value's UTC date part — what a consumer publishing `uploadDate`
@@ -133,7 +137,7 @@ export const Lectures: CollectionConfig = {
         // 4.0 breaking change.
         date: { pickerAppearance: 'dayOnly', displayFormat: 'MMM d, yyyy' },
         description:
-          'The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.',
+          'The day this talk was given, read from the Nirmala Vidya title and refreshed monthly. Blank when that title states none.',
         // A clip reads its parent's date, as it reads the parent's `metadata`.
         condition: (data) => !!data?.id && data?.type === 'full',
       },

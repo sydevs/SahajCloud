@@ -3,6 +3,7 @@ import { ID } from './ids'
 import { fixture, type FixtureData } from './types'
 
 // A full lecture's metadata is what the Nirmala Vidya fetch would have filled.
+// Its title is where NV states the day of the talk, which `date` mirrors.
 const metadata = (
   n: number,
   title: string,
@@ -27,8 +28,9 @@ export default fixture('lectures', [
       type: 'full',
       nirmalVidyaVimeoUrl: 'https://vimeo.com/990000001',
       title: 'An introduction to meditation',
-      date: '1979-03-18T00:00:00.000Z',
-      metadata: metadata(1, 'An introduction to meditation', 1820),
+      // Derived from the NV title below, as a synced row's is.
+      date: '1979-03-18T12:00:00.000Z',
+      metadata: metadata(1, 'An introduction to meditation (1979-03-18)', 1820),
       audiences: [ID.audiences.first, ID.audiences.second],
       userChoices: [CHOICE.calm, CHOICE.deepen],
       subtleSystemNodes: [NODE.anahat, NODE.sahasrara],
@@ -42,16 +44,18 @@ export default fixture('lectures', [
       type: 'full',
       nirmalVidyaVimeoUrl: 'https://vimeo.com/990000002',
       title: 'The energy within',
-      date: '1983-07-02T00:00:00.000Z',
+      date: '1983-07-02T12:00:00.000Z',
       thumbnail: ID.images.landscape,
-      metadata: metadata(2, 'The energy within', 2410),
+      metadata: metadata(2, 'The energy within (1983-07-02)', 2410),
       audiences: [ID.audiences.first],
       userChoices: [CHOICE.energised],
       subtleSystemNodes: [NODE.kundalini, NODE.ida, NODE.pingala, NODE.sushumna],
       priority: 0,
     },
   },
-  // No audience, so it appears only where something names it. No date either.
+  // No audience, so it appears only where something names it. Its NV title
+  // states no date, so the column is empty — the one production row in that
+  // state is an upstream typo.
   {
     id: LECTURE.forgiveness,
     data: {

@@ -3,7 +3,7 @@ import type { TaskConfig, Where } from 'payload'
 import pMap from 'p-map'
 import pRetry from 'p-retry'
 
-import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
+import { buildLectureMetadata, lectureDateFromTitle } from '@/lib/lectures/nirmalaVidya'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
 type SyncResult = {
@@ -23,7 +23,8 @@ const FETCH_RETRIES = 2
  *
  * - Iterates non-trashed lectures (optionally filtered by `input.lectureIds`).
  * - For each lecture with a valid Vimeo URL, fetches NV data and writes the
- *   full metadata JSON (title, hlsUrl, thumbnailUrl, subtitles, lastSyncedAt).
+ *   full metadata JSON (title, hlsUrl, thumbnailUrl, subtitles, lastSyncedAt), plus
+ *   the `date` that title states.
  * - Per-lecture API failures are logged and counted; the batch continues.
  * - DB / config errors propagate, triggering the task-level retry.
  *
@@ -129,7 +130,10 @@ export const SyncLectureMetadata: TaskConfig<'syncLectureMetadata'> = {
             await req.payload.update({
               collection: 'lectures',
               id: lecture.id,
-              data: { metadata },
+              // `date` is a projection of the title NV states now, so a title
+              // that stops stating one clears it rather than keeping a value
+              // nothing upstream still backs.
+              data: { metadata, date: lectureDateFromTitle(metadata.title) },
             })
 
             result.synced++

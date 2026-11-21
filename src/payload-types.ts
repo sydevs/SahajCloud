@@ -3468,7 +3468,7 @@ export interface Lecture {
   nirmalVidyaVimeoUrl?: string | null;
   title?: string | null;
   /**
-   * The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.
+   * The day this talk was given, read from the Nirmala Vidya title and refreshed monthly. Blank when that title states none.
    */
   date?: string | null;
   /**
