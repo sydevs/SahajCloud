@@ -4,10 +4,10 @@
  * carve-out: the seed files reach only a fresh database, so a new key stays
  * blank in production until somebody types it into the admin.
  *
- * ⚠ **The migrations already on `main` keep their own hand copies, and must.**
- * A database that ran one holds its `payload_migrations` row and never re-runs
- * it, so rewriting them to call this changes nothing any database will see.
- * The first caller is the next such migration (#1242).
+ * ⚠ **The migrations already on `main` keep their own hand copies, and must** —
+ * a name with a `payload_migrations` row never runs again
+ * (`src/migrations/AGENTS.md`), so rewriting them changes nothing. First
+ * caller: the next such migration (#1242).
  */
 
 import type { MigrateUpArgs } from '@payloadcms/db-postgres'
