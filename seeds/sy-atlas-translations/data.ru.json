@@ -12,14 +12,11 @@
       "back": "Назад",
       "back_to": "Назад к %{title}",
       "close": "Закрыть",
-      "explore": "Обзор",
-      "loading": "Загрузка…",
       "cancel": "Отмена",
       "widget_label": "Бесплатные занятия медитацией",
       "all_classes_free": "Все занятия бесплатны"
     },
     "settings": {
-      "title": "Настройки",
       "theme_auto": "Системная (авто)",
       "theme_dark": "Тёмная тема",
       "theme_light": "Светлая тема"
@@ -87,7 +84,6 @@
     "results": {
       "more": "Показать ещё",
       "farther": "Показать удалённые события",
-      "showing": "Показано %{shown} из %{total} событий",
       "no_nearby": "Нет событий в радиусе %{km} км."
     },
     "sort": {
@@ -101,8 +97,7 @@
       "cta": "Перейти на сайт %{country}"
     },
     "nearby_prompt": {
-      "title": "Ищете занятия рядом: %{city}?",
-      "dismiss": "Скрыть"
+      "title": "Ищете занятия рядом: %{city}?"
     }
   },
   "filters": {
@@ -111,7 +106,6 @@
       "apply": "Применить",
       "clear": "Сбросить все",
       "clear_one": "Сбросить",
-      "remove": "Удалить %{label}",
       "any_time": "Любое время",
       "no_results": "Нет событий, соответствующих вашим фильтрам."
     },
@@ -207,9 +201,7 @@
       "website": "Сайт",
       "share": "Поделиться",
       "add_calendar": "В календарь",
-      "download_ics": "Скачать файл .ics",
-      "view_photo": "Посмотреть фото",
-      "pause_slideshow": "Приостановить слайд-шоу"
+      "download_ics": "Скачать файл .ics"
     },
     "recurrence": {
       "daily": "Каждый день",
@@ -228,9 +220,6 @@
   },
   "calendar": {
     "title": "Календарь",
-    "previous": "Назад",
-    "next": "Вперёд",
-    "pick_date": "Выбрать дату",
     "view_month": "Месяц",
     "view_week": "Неделя",
     "view_list": "Список"
@@ -264,9 +253,7 @@
     }
   },
   "share": {
-    "share_on": "Поделиться в %{platform}",
     "native": "Поделиться…",
-    "copy_link": "Копировать ссылку",
     "copied": "Скопировано"
   },
   "compact": {
