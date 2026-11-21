@@ -7,7 +7,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // sydevs/WeMeditateWeb#272). It ships the English strings that work reads, which the seed reaches
 // only on a fresh database.
 //
-// ⚠ **Six rows for five declared keys.** `mood_meditation_label` is `plural: true`, and the
+// ⚠ **Five rows for four declared keys.** `mood_meditation_label` is `plural: true`, and the
 // column holds the expanded CLDR family — nothing expands it at migration time, so English's
 // `_one` and `_other` are written out.
 //
@@ -15,13 +15,12 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Of the versions, only the `latest: true` row gets it: a global's update loads the document it
 // changes from that row.
 //
-// ⚠ **`down` drops all eight, whatever they hold** — the six `up` writes plus the plural family's
+// ⚠ **`down` drops all seven, whatever they hold** — the five `up` writes plus the plural family's
 // `_few` and `_many`, which other locales store. The previous schema declares none of them, and
 // a stored undeclared key makes `additionalProperties: false` refuse every later save of the
 // global (`src/globals/AGENTS.md`).
 
 const MEDITATION_GENERAL = { main: 'meditation_general', version: 'version_meditation_general' }
-const MEDITATION_A11Y = { main: 'meditation_a11y', version: 'version_meditation_a11y' }
 
 const ADDED = [
   { group: MEDITATION_GENERAL, key: 'finder_question', en: 'How are you feeling?' },
@@ -33,7 +32,6 @@ const ADDED = [
   { group: MEDITATION_GENERAL, key: 'all_meditations', en: 'All meditations' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_one', en: '%{mood} · %{count} min' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_other', en: '%{mood} · %{count} min' },
-  { group: MEDITATION_A11Y, key: 'finder_region', en: 'Choose how you feel' },
 ]
 
 // `down` sweeps wider than `up` wrote. `mood_meditation_label` is `plural: true`, so `_few` and

@@ -435,10 +435,6 @@
             "related_lectures_loading": {
               "type": "string",
               "description": "Not shown on screen; read by screen readers. Announced while the suggested talks are still loading."
-            },
-            "finder_region": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the region of the page holding the mood picker."
             }
           },
           "additionalProperties": false

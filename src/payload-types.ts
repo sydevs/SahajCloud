@@ -6008,10 +6008,6 @@ export interface WmWebTranslationsMeditationA11YStrings {
    * Not shown on screen; read by screen readers. Announced while the suggested talks are still loading.
    */
   related_lectures_loading?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the region of the page holding the mood picker.
-   */
-  finder_region?: string;
 }
 export interface WmWebTranslationsLectureGeneralStrings {
   /**
