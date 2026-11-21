@@ -120,6 +120,11 @@ export const Lectures: CollectionConfig = {
     {
       name: 'date',
       type: 'date',
+      access: {
+        // As `metadata` below: a clip takes its parent's, so reject an API
+        // write that would diverge the two.
+        update: ({ doc }) => doc?.type === 'full',
+      },
       admin: {
         date: { pickerAppearance: 'dayOnly' },
         description:
