@@ -101,12 +101,11 @@ export const Songs: CollectionConfig = {
     },
     {
       // Audio that states no length leaves `duration` unset, and a read-only
-      // blank says nothing (#1236). Above the field it is about.
+      // blank says nothing (#1236).
       name: 'durationNotice',
       type: 'ui',
       admin: {
         custom: {
-          icon: 'warning',
           type: 'warning',
           title: 'This track has no duration',
           text: 'Its audio states no length, so nothing can show how long the track runs. Re-export the file with a duration and upload it again.',

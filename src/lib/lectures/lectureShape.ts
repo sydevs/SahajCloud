@@ -97,8 +97,7 @@ export const LECTURE_FEED_POPULATE = {
  *
  * `title` is nullable (localized + hook-populated). `stopTime` and `duration`
  * may be `null` when neither an explicit value nor `metadata.duration` is
- * available. `date` follows the same source as `metadata` — the parent's for a
- * clip — and is `null` while nobody has recorded when the talk was given.
+ * available. `date` follows `metadata`'s source — the parent's for a clip.
  *
  * `userChoices` carries this lecture's own user-choice membership, so a consumer
  * that SSR-loads the feed once can render filter pills and match each card to

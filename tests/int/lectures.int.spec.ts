@@ -307,32 +307,28 @@ describe('Lectures Collection', () => {
   })
 
   describe('date (#1236)', () => {
-    it('is readable on a bounded /api/lectures-shaped read', async () => {
-      const lecture = await testData.createLecture(payload, undefined, {
+    // Optional, so an unknown date must not block the save the monthly sync
+    // makes — and the website reads it off the same bounded select it already
+    // sends for `metadata`.
+    it('is optional, and reads back on a bounded select', async () => {
+      const dated = await testData.createLecture(payload, undefined, {
         date: '1979-03-18T00:00:00.000Z',
       })
+      const undated = await testData.createLecture(payload)
 
       const read = await payload.findByID({
         collection: 'lectures',
-        id: lecture.id,
+        id: dated.id,
         select: { title: true, date: true },
       })
-
       expect(read.date).toBe('1979-03-18T00:00:00.000Z')
-    })
 
-    it('is null on a lecture nobody has dated, and the save still succeeds', async () => {
-      const lecture = await testData.createLecture(payload)
-      expect(lecture.date).toBeNull()
-
-      const updated = await payload.update({
+      const resaved = await payload.update({
         collection: 'lectures',
-        id: lecture.id,
+        id: undated.id,
         data: { title: 'Still undated' },
       })
-
-      expect(updated.title).toBe('Still undated')
-      expect(updated.date).toBeNull()
+      expect(resaved.date).toBeNull()
     })
 
     it("reaches a clip as its parent's date, the path the website reads", async () => {

@@ -39,6 +39,25 @@ const playableLecture = (overrides: Partial<Lecture> = {}): Lecture =>
     ...overrides,
   }) as Lecture
 
+/**
+ * A clip of `parent`, as a read at `depth ≥ 2` hands it over.
+ *
+ * Fixture assumption: a clip carries `metadata: null` and a populated
+ * `fullLecture`, which is the only shape `shapeLecture` can source playback
+ * from (#338). Verified against `src/collections/Lectures/Lectures.ts` (the
+ * `metadata` and `date` conditions, `fullLecture`'s `relationTo`) and
+ * `src/lib/lectures/lectureShape.ts` (`metadataSource`).
+ */
+const clipOf = (parent: Lecture, overrides: Partial<Lecture> = {}): Lecture =>
+  ({
+    id: 3,
+    type: 'clip',
+    title: 'A clip',
+    metadata: null,
+    fullLecture: parent,
+    ...overrides,
+  }) as unknown as Lecture
+
 describe('mergeSubtitles', () => {
   it('returns the base map unchanged when there are no overrides', () => {
     const base = { en: 'base-en', es: 'base-es' }
@@ -145,14 +164,7 @@ describe('shapeLecture returns userChoices', () => {
       id: 2,
       userChoices: [populatedChoice(99, 'Parent only')],
     })
-    const clip = shapeLecture({
-      id: 3,
-      type: 'clip',
-      title: 'A clip',
-      metadata: null,
-      fullLecture: parent,
-      userChoices: [populatedChoice(12, 'Clip only')],
-    } as unknown as Lecture)
+    const clip = shapeLecture(clipOf(parent, { userChoices: [populatedChoice(12, 'Clip only')] }))
     expect(clip?.userChoices).toEqual([{ id: 12, title: 'Clip only' }])
   })
 })
@@ -169,14 +181,7 @@ describe('shapeLecture returns the lecture date', () => {
 
   it("reports a clip's parent date, since the clip carries none of its own", () => {
     const parent = playableLecture({ id: 2, date: '1983-07-02T00:00:00.000Z' })
-    const clip = shapeLecture({
-      id: 3,
-      type: 'clip',
-      title: 'A clip',
-      metadata: null,
-      fullLecture: parent,
-    } as unknown as Lecture)
-    expect(clip?.date).toBe('1983-07-02T00:00:00.000Z')
+    expect(shapeLecture(clipOf(parent))?.date).toBe('1983-07-02T00:00:00.000Z')
   })
 })
 

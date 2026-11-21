@@ -51,8 +51,7 @@ export default fixture('lectures', [
       priority: 0,
     },
   },
-  // No audience, so it appears only where something names it. No date either:
-  // an unknown one stays blank and publishes no upload date.
+  // No audience, so it appears only where something names it. No date either.
   {
     id: LECTURE.forgiveness,
     data: {

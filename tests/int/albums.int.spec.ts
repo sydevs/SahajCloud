@@ -20,49 +20,19 @@ describe('Albums Collection', () => {
   })
 
   describe('artistUrl (#1236)', () => {
-    /**
-     * The per-field message off a rejected write. Payload's ValidationError
-     * keeps a generic summary on `.message` and the message a human reads on
-     * `.data.errors[]`.
-     */
-    const fieldErrorMessage = async (write: Promise<unknown>): Promise<string> => {
+    // Proves the urlField() validator is actually wired onto this field — a
+    // plain `type: 'text'` field would accept this, and the website then drops
+    // the value at its own isSafeHttpUrl gate with the row left wrong.
+    // tests/unit/url-field.spec.ts covers the validator's own logic.
+    it('rejects a value that is not an http(s) URL', async () => {
       try {
-        await write
-        throw new Error('expected the write to be rejected on "artistUrl"')
-      } catch (error) {
-        const data = (error as { data?: { errors?: Array<{ path: string; message: string }> } })
-          .data
-        const match = (data?.errors ?? []).find((entry) => entry.path === 'artistUrl')
-        if (!match) throw error
-        return match.message
+        await testData.createAlbum(payload, { artistUrl: 'not a url' })
+        throw new Error('expected create to throw — an invalid URL should be rejected')
+      } catch (err) {
+        const data = (err as { data?: { errors?: Array<{ path: string; message: string }> } }).data
+        const fieldErr = (data?.errors ?? []).find((e) => e.path === 'artistUrl')
+        expect(fieldErr?.message).toBe('Please enter a valid URL')
       }
-    }
-
-    // The website publishes it as a MusicRecording's `byArtist` URL and drops
-    // anything its own `isSafeHttpUrl` gate refuses, so a malformed value is
-    // refused here instead of travelling and being dropped there.
-    it('refuses a value that is not a URL', async () => {
-      const message = await fieldErrorMessage(
-        testData.createAlbum(payload, { artistUrl: 'not a url' }),
-      )
-      expect(message).toMatch(/valid URL/i)
-    })
-
-    it('refuses a URL on another scheme', async () => {
-      const message = await fieldErrorMessage(
-        testData.createAlbum(payload, { artistUrl: 'javascript:alert(1)' }),
-      )
-      expect(message).toMatch(/http/i)
-    })
-
-    it('accepts an https URL and leaves it blank when unset', async () => {
-      const named = await testData.createAlbum(payload, {
-        artistUrl: 'https://example.invalid/artist',
-      })
-      expect(named.artistUrl).toBe('https://example.invalid/artist')
-
-      const bare = await testData.createAlbum(payload)
-      expect(bare.artistUrl).toBeNull()
     })
   })
 

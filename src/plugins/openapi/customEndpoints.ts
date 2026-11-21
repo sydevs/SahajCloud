@@ -1117,8 +1117,7 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
         type: ['string', 'null'],
         format: 'date-time',
         description:
-          'The day the talk was given or published, for a video’s upload date. ' +
-          'A clip reports its parent lecture’s. Null while nobody has recorded one.',
+          'The day the talk was given or published, for a video’s upload date. A clip reports its parent lecture’s.',
       },
       hlsUrl: { type: 'string' },
       thumbnailUrl: { type: ['string', 'null'] },
