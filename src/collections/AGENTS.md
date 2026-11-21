@@ -651,6 +651,18 @@ Three consequences, each of which has already bitten:
 Live preview integrates with the We Meditate Web frontend
 (`WEMEDITATE_WEB_URL` env var).
 
+### Publish state is per service too (#783)
+
+`publishedToWeb` and `publishedToApp` say which services publish the page. Both
+are indexed and **not** localized — a page's channel is a property of the
+document, not of one language — so they sit on `pages` and `_pages_v` while
+`_status` stays in `pages_locales`.
+
+⚠ **An unticked box makes the page unreadable by that service, not merely
+unlinked.** `publicChannelClause` narrows the read itself:
+`docs/rules/access.md` carries the rule, `docs/rules/api-clients.md` the
+consumer contract.
+
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
 Field notes and custom block icons → `src/lib/richEditor/blocks/AGENTS.md`.

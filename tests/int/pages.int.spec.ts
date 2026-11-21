@@ -363,6 +363,10 @@ describe('Pages Collection', () => {
       const page = await testData.createPage(payload, {
         title: 'Published Page with Client App Card Relationship',
         _status: 'published',
+        // The channel clause narrows every client read of `pages` to the
+        // services the page names (#783), so an app client reaches this one
+        // only once it is published to the app.
+        publishedToApp: true,
         content,
       })
       const trustedClientReq = {

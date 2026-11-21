@@ -247,6 +247,14 @@ Five things to know:
 - ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
 - ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
+## Client read contract: which pages each service reads (#783)
+
+A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the services the caller's roles name, ANDed with the published-only clause above. **Which reads are narrowed, which callers are exempt, and what shape a refused page comes back as are all in `docs/rules/access.md`, under "Which pages a service reads".** Three things are the consumer's own:
+
+- **No consumer change was needed.** A refused page arrives through a populate as a bare id, which is the shape an unpublished page already has, so WeMeditateWeb's `partitionPublishedPages` discards it unchanged.
+- ⚠ **A bare id can still arrive for a page nothing else refused**, from a block that names it only in rich text. The fix is editorial — tick the box — never a consumer workaround.
+- ⚠ **A key's roles decide what it reads.** Whichever key the mobile app sends has to carry `wemeditate-app-client`, or it reads `pages` as a web client and gets the wrong set (#789).
+
 ## Origin / Referer enforcement
 
 `validateClientOriginHook` is the usage plugin's second beforeOperation gate, run **first** on every non-excluded collection, ahead of the query-param gate and rate accounting. It covers standard client reads and the custom Atlas endpoints, whose internal `payload.find`/`create` calls forward the client `req`.

@@ -6,6 +6,8 @@ import * as migration_20261118_233000_wm_web_menu_key from './20261118_233000_wm
 import * as migration_20261118_235242_wm_web_drop_video_tab from './20261118_235242_wm_web_drop_video_tab';
 import * as migration_20261119_044129_tidy_event_form from './20261119_044129_tidy_event_form';
 import * as migration_20261119_223756_merge_snapshot_heal from './20261119_223756_merge_snapshot_heal';
+import * as migration_20261120_231045_add_pages_public_channels from './20261120_231045_add_pages_public_channels';
+import * as migration_20261120_231500_backfill_pages_public_channels from './20261120_231500_backfill_pages_public_channels';
 
 export const migrations = [
   {
@@ -46,6 +48,16 @@ export const migrations = [
   {
     up: migration_20261119_223756_merge_snapshot_heal.up,
     down: migration_20261119_223756_merge_snapshot_heal.down,
-    name: '20261119_223756_merge_snapshot_heal'
+    name: '20261119_223756_merge_snapshot_heal',
+  },
+  {
+    up: migration_20261120_231045_add_pages_public_channels.up,
+    down: migration_20261120_231045_add_pages_public_channels.down,
+    name: '20261120_231045_add_pages_public_channels'
+  },
+  {
+    up: migration_20261120_231500_backfill_pages_public_channels.up,
+    down: migration_20261120_231500_backfill_pages_public_channels.down,
+    name: '20261120_231500_backfill_pages_public_channels'
   },
 ];

@@ -119,6 +119,37 @@ export const Pages: CollectionConfig = {
         position: 'sidebar',
       },
     },
+    // Narrowed by `publicChannelClause` (src/plugins/access/publicChannels.ts);
+    // `docs/rules/access.md` carries the rule.
+    //
+    // ⚠ Not localized: a page's channel is a property of the document, not of
+    // one language. `_status` is the only per-locale state here.
+    {
+      name: 'publishedToWeb',
+      type: 'checkbox',
+      label: 'Published to Website',
+      required: true,
+      defaultValue: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages — so check first that no menu, index or website setting still points here.',
+      },
+    },
+    {
+      name: 'publishedToApp',
+      type: 'checkbox',
+      label: 'Published to App',
+      required: true,
+      defaultValue: false,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages. Released app versions cannot be corrected, so untick it only for a page the app never opens.',
+      },
+    },
     {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).
