@@ -2,8 +2,8 @@
   "_meta": {
     "global": "wm-web-translations",
     "locale": "en",
-    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.a11y.opens_in_new_tab_suffix` replaces no literal: it is a new string sydevs/WeMeditateWeb#238 asked for, and it retired `opens_in_new_tab`, its `%{label}` sentence form. `common.general.skip_to_main`, `common.a11y.primary_navigation` and `common.a11y.footer_navigation` replace no literal either: the site renders no skip link and names none of its menus today, and sydevs/WeMeditateWeb#162 asked for all three. `lecture.a11y.untitled_heading` is a fourth from the same goal: a talk with no title still owes the page one heading. `common.a11y.menu` replaces no literal either: sydevs/WeMeditateWeb#234 adds the phone menu button that reads it, and no code ever held that wording.",
-    "schema_version": "post-#1214 (13 tabs, 23 leaf groups, 156 declared keys)",
+    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.a11y.opens_in_new_tab_suffix` replaces no literal: it is a new string sydevs/WeMeditateWeb#238 asked for, and it retired `opens_in_new_tab`, its `%{label}` sentence form. `common.general.skip_to_main`, `common.a11y.primary_navigation` and `common.a11y.footer_navigation` replace no literal either: the site renders no skip link and names none of its menus today, and sydevs/WeMeditateWeb#162 asked for all three. `lecture.a11y.untitled_heading` is a fourth from the same goal: a talk with no title still owes the page one heading. `common.a11y.menu` replaces no literal either: sydevs/WeMeditateWeb#234 adds the phone menu button that reads it, and no code ever held that wording. `meditation.general.finder_question`, `finder_unavailable`, `all_meditations` and `mood_meditation_label` replace no literal: they are the mood finder sydevs/WeMeditateWeb#272 asked for, which the site has never had.",
+    "schema_version": "post-#1223 (13 tabs, 23 leaf groups, 160 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
@@ -110,7 +110,12 @@
       "related_lectures": "Related lectures",
       "upsell_web": "Find more meditations on %{link}",
       "upsell_app": "Find interactive meditations with meditation music in our %{link}",
-      "upsell_app_link": "free app"
+      "upsell_app_link": "free app",
+      "finder_question": "How are you feeling?",
+      "finder_unavailable": "We can't load the meditations just now. Please try again shortly.",
+      "all_meditations": "All meditations",
+      "mood_meditation_label_one": "%{mood} · %{count} min",
+      "mood_meditation_label_other": "%{mood} · %{count} min"
     },
     "a11y": {
       "mute_voice": "Mute voice",

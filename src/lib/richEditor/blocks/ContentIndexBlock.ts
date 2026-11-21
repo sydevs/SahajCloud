@@ -17,7 +17,7 @@ const CONTENT_TYPE_CONFIG: Record<
     basePath: '/api/user-choices',
     filterField: 'userChoiceFilters',
     queryParam: 'where[id][in]',
-    extraParams: '&depth=1',
+    extraParams: 'depth=1',
   },
   pages: {
     basePath: '/api/pages',
@@ -31,6 +31,14 @@ const CONTENT_TYPE_CONFIG: Record<
   },
   lectures: {
     basePath: '/api/lectures/for-audience',
+  },
+  // The featured-mood filter is the whole point of this type: an editor picks no
+  // ids, so featuring a mood upstream puts it on the site with no release.
+  // ⚠ WeMeditateWeb/server/moods.ts spells this same filter, because /meditations
+  // renders the moods with no block at all. Nothing ties the two but this line.
+  moods: {
+    basePath: '/api/user-choices',
+    extraParams: 'where[isFeatured][equals]=true&where[type][equals]=mood',
   },
 }
 
@@ -52,6 +60,8 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
       : null
   if (limit === null) return null
 
+  const params: string[] = []
+
   if (config.filterField && config.queryParam) {
     const filters = siblingData?.[config.filterField]
     if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
@@ -60,14 +70,12 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
     const ids = filterValues.map(extractID)
     if (ids.length === 0) return null
 
-    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-    let url = `${config.basePath}?${config.queryParam}=${queryValue}`
-    if (config.extraParams) url = `${url}${config.extraParams}`
-    return `${url}&limit=${limit}`
+    params.push(`${config.queryParam}=${ids.map((id) => encodeURIComponent(id)).join(',')}`)
   }
+  if (config.extraParams) params.push(config.extraParams)
+  params.push(`limit=${limit}`)
 
-  // No filter field → limit is the first query param
-  return `${config.basePath}?limit=${limit}`
+  return `${config.basePath}?${params.join('&')}`
 }
 
 /**
@@ -110,6 +118,7 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
+        { label: 'Moods', value: 'moods' },
       ],
       admin: {
         components: {
@@ -125,7 +134,8 @@ export const ContentIndexBlock: Block = {
       min: 1,
       max: 100,
       admin: {
-        description: 'Maximum number of items to return (1–100)',
+        description:
+          "Maximum number of items to return (1–100). A Moods index shows only the moods for the visitor's time of day.",
       },
     },
     {

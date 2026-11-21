@@ -110,6 +110,26 @@ describe('computeApiEndpoint hook (pure)', () => {
     })
   })
 
+  describe('moods type', () => {
+    it('emits the featured-mood filter ahead of limit, with no editor-picked ids', () => {
+      expect(callHook({ type: 'moods', limit: 20 })).toBe(
+        '/api/user-choices?where[isFeatured][equals]=true&where[type][equals]=mood&limit=20',
+      )
+    })
+
+    it('ignores filter data left over from another type', () => {
+      const result = callHook({ type: 'moods', limit: 20, userChoiceFilters: [1, 2] })
+      expect(result).toBe(
+        '/api/user-choices?where[isFeatured][equals]=true&where[type][equals]=mood&limit=20',
+      )
+      expect(result).not.toContain('where[id][in]')
+    })
+
+    it('returns null when limit is invalid', () => {
+      expect(callHook({ type: 'moods', limit: 0 })).toBeNull()
+    })
+  })
+
   describe('limit field coverage', () => {
     it('threads limit=100 through a filtered type', () => {
       const result = callHook({
@@ -300,6 +320,31 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     })
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
     expect(getBlockFields(fetched).apiEndpoint).toBe('/api/lectures/for-audience?limit=10')
+  })
+
+  it('computes apiEndpoint for moods — the featured-mood filter, no editor-picked ids', async () => {
+    const page = await createPageWithBlock({ type: 'moods', limit: 20 })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    expect(getBlockFields(fetched).apiEndpoint).toBe(
+      '/api/user-choices?where[isFeatured][equals]=true&where[type][equals]=mood&limit=20',
+    )
+  })
+
+  it('stores and returns no filter field on a moods block', async () => {
+    const userChoice = await testData.createUserChoice(payload)
+    const page = await createPageWithBlock({
+      type: 'moods',
+      limit: 20,
+      // Stale state from a type the editor toggled away from.
+      userChoiceFilters: [userChoice.id],
+      pageFilters: ['wisdom'],
+    })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    const fields = getBlockFields(fetched)
+
+    expect(fields).not.toHaveProperty('userChoiceFilters')
+    expect(fields).not.toHaveProperty('pageFilters')
+    expect(fields).not.toHaveProperty('songFilters')
   })
 
   it('returns null apiEndpoint when no filters are set for a filtered type', async () => {
