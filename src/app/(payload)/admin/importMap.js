@@ -41,6 +41,7 @@ import { RecordingLanguageWarning as RecordingLanguageWarning_e05896606e83681ced
 import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/components/admin/TimestampInput'
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
+import { default as default_f121f461cebbcfa61ef84b5a0960a270 } from '@/components/admin/ManagerEditNotice'
 import { default as default_8dd17cb8528b516d825f8fb6a794fe97 } from '@/components/admin/RolesField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
@@ -102,6 +103,7 @@ import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/component
 import { default as default_fec9a646cfc358f70245d2d0e360935e } from '@/components/admin/AtlasNav/AtlasNav'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
+import { default as default_61e2128a563ccbf90798aeb2bc90aa02 } from '@/components/admin/NeedHelpButton'
 import { default as default_b4b93444e002b46abfd0c5006e1279a0 } from '@/components/admin/ProjectSelector'
 import { default as default_f5da5fa50c48fc2ef14afcb84f969fcf } from '@/components/admin/AdminNavLinks'
 import { default as default_70d6a18357c47b1a9d8a541fcd53f95f } from '@/components/AdminProvider.tsx'
@@ -156,6 +158,7 @@ export const importMap = {
   "@/components/admin/TimestampInput#default": default_216b4fefb509fb8787bce46ede901332,
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
+  "@/components/admin/ManagerEditNotice#default": default_f121f461cebbcfa61ef84b5a0960a270,
   "@/components/admin/RolesField#default": default_8dd17cb8528b516d825f8fb6a794fe97,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
@@ -217,6 +220,7 @@ export const importMap = {
   "@/components/admin/AtlasNav/AtlasNav#default": default_fec9a646cfc358f70245d2d0e360935e,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
+  "@/components/admin/NeedHelpButton#default": default_61e2128a563ccbf90798aeb2bc90aa02,
   "@/components/admin/ProjectSelector#default": default_b4b93444e002b46abfd0c5006e1279a0,
   "@/components/admin/AdminNavLinks#default": default_f5da5fa50c48fc2ef14afcb84f969fcf,
   "@/components/AdminProvider.tsx#default": default_70d6a18357c47b1a9d8a541fcd53f95f,

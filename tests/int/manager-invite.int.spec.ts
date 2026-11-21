@@ -487,7 +487,7 @@ describe('manager invitation', () => {
       })
       // The shape the admin itself writes when the Contact tab is clicked: the
       // tabs field's position among the top-level fields, and the tab's index.
-      expect(docs[0]?.value).toEqual({ fields: { '_index-2': { tabIndex: 1 } } })
+      expect(docs[0]?.value).toEqual({ fields: { '_index-3': { tabIndex: 1 } } })
     })
   })
 
