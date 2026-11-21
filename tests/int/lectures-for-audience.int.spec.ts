@@ -372,6 +372,7 @@ describe('lecturesForAudience endpoint', () => {
 
       expect(docs.length).toBeGreaterThan(0)
       const expectedKeys = [
+        'date',
         'duration',
         'fullLectureId',
         'hlsUrl',

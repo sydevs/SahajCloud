@@ -147,6 +147,37 @@ describe('Meditation Duration Extraction', () => {
       expect(updated.duration).toBeLessThan(44)
     })
 
+    // `cacheMeditationNodeWeights` runs after the extraction so the weights
+    // describe the duration this save stores. An unreadable length stores none,
+    // so there is no length to weight the frames against and the map empties —
+    // rather than keeping weights derived from the replaced file's length
+    // (#1236).
+    it('empties the node weights when a replacement audio states no length', async () => {
+      const meditation = await testData.createMeditation(payload, {
+        narrator: narratorId,
+        thumbnail: thumbnailId,
+      })
+      const admin = await testData.createManager(payload, { type: 'admin' })
+      const noLength = fs.readFileSync(path.join(__dirname, '../files/audio-no-duration.mp3'))
+
+      const updated = await payload.update({
+        collection: 'meditations',
+        id: meditation.id,
+        data: { frames: [{ id: frameId, timestamp: 5 }] },
+        file: {
+          data: noLength,
+          mimetype: 'audio/mpeg',
+          name: 'audio-no-duration.mp3',
+          size: noLength.length,
+        },
+        user: admin,
+        overrideAccess: true,
+      })
+
+      expect(updated.duration).toBeNull()
+      expect(updated.subtleSystemNodeWeights).toEqual({})
+    })
+
     it('blocks a non-admin manager from replacing the audio (403)', async () => {
       const meditation = await testData.createMeditation(payload, {
         narrator: narratorId,

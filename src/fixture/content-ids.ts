@@ -54,6 +54,7 @@ export const MEDITATION = {
   justUploaded: 1_015_012,
   dailyEnglish: 1_015_013,
   dailySpanish: 1_015_010,
+  noDuration: 1_015_014,
 } as const
 
 export const CHOICE = {

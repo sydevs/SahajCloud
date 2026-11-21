@@ -113,6 +113,7 @@ describe('LecturePlayerData schema (OpenAPI)', () => {
     // The same list `lectures-for-audience` and `meditation-lectures` pin
     // against a real response.
     expect(Object.keys(schema.properties ?? {}).sort()).toEqual([
+      'date',
       'duration',
       'fullLectureId',
       'hlsUrl',

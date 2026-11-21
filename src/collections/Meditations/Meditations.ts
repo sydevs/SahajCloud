@@ -5,7 +5,7 @@ import { z } from 'zod'
 
 import type { WorkflowButtonsProps } from '@/components/admin/WorkflowButtons/stages'
 import { CREATE_STAGE, WORKFLOW_BUTTONS } from '@/components/admin/WorkflowButtons/stages'
-import { hideUntilCreated, mediaField } from '@/fields'
+import { audioDurationField, hideUntilCreated, mediaField } from '@/fields'
 import { jsonField } from '@/fields/jsonField'
 import { previewTargetField } from '@/fields/previewTargetField'
 import { extractAudioDuration } from '@/lib/audio/duration'
@@ -305,15 +305,14 @@ export const Meditations: CollectionConfig = {
                 },
               },
             },
-            {
-              name: 'duration',
-              type: 'number',
-              label: 'Duration (seconds)',
-              admin: {
-                readOnly: true,
-                hidden: true,
-              },
-            },
+            ...audioDurationField({
+              noun: 'meditation',
+              // `cacheMeditationNodeWeights` is mounted after the extraction, so
+              // a cleared duration empties the weights that rank related lectures.
+              consequence:
+                'the frames carry no on-screen time and related lectures stop being ranked',
+              hideValue: true,
+            }),
             jsonField({
               // Cached `{ slug → on-screen seconds }` map for the meditation's
               // frames. Drives the topical-overlap ranking in

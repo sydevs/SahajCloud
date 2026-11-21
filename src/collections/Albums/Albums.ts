@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { hideUntilCreated, mediaField } from '@/fields'
+import { hideUntilCreated, mediaField, urlField } from '@/fields'
 import { deleteChildren } from '@/lib/cascadeDeletion'
 
 export const Albums: CollectionConfig = {
@@ -40,13 +40,12 @@ export const Albums: CollectionConfig = {
       required: true,
       localized: true,
     },
-    {
+    urlField({
       name: 'artistUrl',
-      type: 'text',
       admin: {
         description: 'Artist website or profile URL',
       },
-    },
+    }),
     {
       name: 'songs',
       type: 'join',

@@ -117,6 +117,31 @@ export const Lectures: CollectionConfig = {
         condition: (data) => !!data?.id, // Hidden during create — the hook auto-populates this field for full lectures
       },
     },
+    {
+      name: 'date',
+      type: 'date',
+      access: {
+        // Nobody writes this: `lectureDateFromTitle` derives it from the
+        // NV-owned title, at create and on every monthly sync. Both writers
+        // run past field access — a collection `beforeChange` hook runs after
+        // it, and the sync's Local API overrides it.
+        create: () => false,
+        update: () => false,
+      },
+      admin: {
+        readOnly: true,
+        // A talk's year is the point, and the dayOnly default hides it.
+        // ⚠ A dayOnly pick stores noon UTC, whatever the editor's timezone, so the day
+        // picked is the value's UTC date part — what a consumer publishing `uploadDate`
+        // must read. Payload pins that hour in DatePicker, and calls dropping the pin a
+        // 4.0 breaking change.
+        date: { pickerAppearance: 'dayOnly', displayFormat: 'MMM d, yyyy' },
+        description:
+          'The day this talk was given, read from the Nirmala Vidya title and refreshed monthly. Blank when that title states none.',
+        // A clip reads its parent's date, as it reads the parent's `metadata`.
+        condition: (data) => !!data?.id && data?.type === 'full',
+      },
+    },
     mediaField({
       name: 'thumbnail',
       required: false,

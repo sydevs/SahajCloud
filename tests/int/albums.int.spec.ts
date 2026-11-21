@@ -19,6 +19,23 @@ describe('Albums Collection', () => {
     await cleanup()
   })
 
+  describe('artistUrl (#1236)', () => {
+    // Proves the urlField() validator is actually wired onto this field — a
+    // plain `type: 'text'` field would accept this, and the website then drops
+    // the value at its own isSafeHttpUrl gate with the row left wrong.
+    // tests/unit/url-field.spec.ts covers the validator's own logic.
+    it('rejects a value that is not an http(s) URL', async () => {
+      try {
+        await testData.createAlbum(payload, { artistUrl: 'not a url' })
+        throw new Error('expected create to throw — an invalid URL should be rejected')
+      } catch (err) {
+        const data = (err as { data?: { errors?: Array<{ path: string; message: string }> } }).data
+        const fieldErr = (data?.errors ?? []).find((e) => e.path === 'artistUrl')
+        expect(fieldErr?.message).toBe('Please enter a valid URL')
+      }
+    })
+  })
+
   describe('Parent deletion cascade', () => {
     it('deletes child songs when the album is deleted', async () => {
       const album = await testData.createAlbum(payload)

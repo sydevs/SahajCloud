@@ -21,6 +21,10 @@ export type {
 // File metadata - the shared sidebar column on the four upload collections
 export { fileMetadataField } from './fileMetadataField'
 
+// Audio duration - the stored seconds plus the warning when the audio stated none
+export { audioDurationField } from './audioDurationField'
+export type { AudioDurationFieldOptions } from './audioDurationField'
+
 // jsonField is deliberately NOT re-exported here. Importing it via this
 // barrel would drag translationsField (and the lexical editor with it) into
 // every light module that declares a JSON column. Use the deep path
