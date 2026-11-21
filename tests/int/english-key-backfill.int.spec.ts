@@ -143,9 +143,10 @@ describe('English key backfill', () => {
     expect((await versionValues('cs')).filter((row) => CHOSEN in row.value)).toEqual([])
   })
 
-  // Each case adds or deletes a key the stored value does not equal, because
-  // `? key` would otherwise skip the row on its own and leave the guard under
-  // test doing nothing.
+  // `?` answers yes to `menu` for a string scalar and for an array alike, so
+  // each path needs the key that still reaches the row: one the value does not
+  // hold for the write's `NOT col ? key`, and one it does for the delete's
+  // `col ? key`. Either way `jsonb_typeof` is the only thing left refusing it.
   describe.each([
     { shape: 'a string scalar', stored: '"menu"' },
     { shape: 'an array', stored: '["menu"]' },

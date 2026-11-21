@@ -312,8 +312,10 @@ write.
   in for that**: it is true for a string scalar equal to the key, and true for
   an array holding one, so it excludes neither shape.
   `20261118_231500_wm_web_a11y_landmark_keys.ts`'s `dropKey` still documents
-  `?` as the guard and omits `jsonb_typeof`, and it is wrong — it is left as it
-  deployed, since nothing will run it again. Copy
+  `?` as the guard and omits `jsonb_typeof`, and it is wrong. It is left as it
+  deployed, because its `up` is applied everywhere it will ever run — but its
+  `down` still reaches that delete, so a `migrate:down` can abort on a column
+  holding the string scalar equal to the key. Copy
   `@/lib/translations/englishKeyBackfill`, which carries both guards, rather
   than the nearest predecessor.
   `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057; squashed away, read it at `c70081c0`), and
