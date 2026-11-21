@@ -471,12 +471,12 @@ plus 5 min for health, so a slow Railway build can consume most of the job
 on its own.
 
 **A deploy that publishes no URL fails the job instead** (#661). Railway
-can report `success` while the service has no domain, and that is broken
-configuration, not an absent preview — so it must not skip quietly. The
-script exits non-zero on the first such poll, and CI fails. Fix it on the
-base environment, not the PR: `RAILWAY_RUNBOOK.md`. Discovery also returns
-as soon as the status is terminal, so a healthy PR costs seconds, and only
-a genuinely absent status still spends the full budget.
+can report `success` while the service has no domain, and that is a missing
+domain, not an absent preview — so it must not skip quietly. The script
+exits non-zero on the first such poll, and CI fails. `RAILWAY_RUNBOOK.md`
+names which domain can be missing and what clears each. Discovery also
+returns as soon as the status is terminal, so a healthy PR costs seconds,
+and only a genuinely absent status still spends the full budget.
 
 Records are namespaced by `runId()` (`SMOKE_RUN_ID` in CI). A preview
 database is per-PR, but successive runs — and Playwright's own retries —
