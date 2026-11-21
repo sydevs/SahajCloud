@@ -136,8 +136,13 @@ the site that renders it, machine-translated there and read at
 `<tab>.a11y.<key>`: WeMeditate Web's `lib/i18n/a11y/`, Sahaj Atlas's
 `src/config/a11y/`. Both mount their own copy over any `a11y` group this API
 serves, so one declared here would cost translators a row nobody sees, and
-change nothing. `tests/unit/translations-no-a11y.spec.ts` holds it. A string
-both seen and spoken stays here.
+change nothing. A string both seen and spoken stays here.
+
+`tests/unit/translations-no-a11y.spec.ts` holds that, by group name and by
+description, so **describe a spoken-only string "Not shown on screen."** The
+description is the only one of the two checks that sees a spoken-only key
+under a group named for its view, which is the shape `sy-atlas-translations`
+had.
 
 **`%{count}` is reserved for the number that selects the plural form.** A
 string needing a second number uses its own name — `map.classes_shown` is
