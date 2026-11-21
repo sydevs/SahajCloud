@@ -305,8 +305,14 @@ write.
   it, which is why the retired key's own tab is the one place that looks fine.
   Sweep both `<global>_locales` and `_<global>_v_locales` — a global's update
   loads the document from the `latest: true` version row, so a key left there
-  returns on the next save. Guard the delete with `? '<key>'`: `jsonb - text`
-  raises `cannot delete from scalar`, which would abort the boot migration.
+  returns on the next save. Guard the delete with
+  `jsonb_typeof(<col>) = 'object'`: `jsonb - text` raises
+  `cannot delete from scalar`, which would abort the boot migration, and on an
+  array it removes the matching element instead. ⚠ **`? '<key>'` does not stand
+  in for that**, though a migration once documented it as the guard: it is true
+  for a string scalar equal to the key, and true for an array holding one.
+  `@/lib/translations/englishKeyBackfill` carries both guards for the next such
+  migration to call.
   `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057; squashed away, read it at `c70081c0`), and
   this holds for all three translations globals — `stringsSchema` sets
   `additionalProperties` from the group, and every leaf group in all three
