@@ -23,17 +23,18 @@ import { createTestEnvironment } from '../utils/testHelpers'
 import { withSchema } from '../utils/withSchema'
 
 /**
- * The real column pair for `common.a11y` on `wm-web-translations`: a sub-grouped
- * tab stores one jsonb column per leaf group, named `<tab>_<sub>` and prefixed
- * `version_` in the versions table. Verified against that global's
- * `translationsSchema.json`, whose `common` tab declares `general` + `a11y`.
+ * `common.a11y` on `wm-web-translations`, with the three table names spelled
+ * out rather than derived: they are what the module's own derivation has to
+ * produce, so re-deriving them here would let both sides be wrong together.
+ * Read off that global's `translationsSchema.json`, whose `common` tab declares
+ * `general` + `a11y`.
  */
 const TABLE = 'wm_web_translations'
 const GROUP = { main: 'common_a11y', version: 'version_common_a11y' }
 
-const MAIN_TABLE = `${TABLE}_locales`
-const VERSION_TABLE = `_${TABLE}_v_locales`
-const VERSIONS_TABLE = `_${TABLE}_v`
+const MAIN_LOCALES = 'wm_web_translations_locales'
+const VERSION_LOCALES = '_wm_web_translations_v_locales'
+const VERSIONS = '_wm_web_translations_v'
 
 /** A key the seeded group holds, and one it does not. */
 const CHOSEN = 'close'
@@ -42,52 +43,50 @@ const ADDED = 'dismiss'
 describe('English key backfill', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let schema: string
-
-  const qualified = (table: string) => sql`${sql.identifier(schema)}.${sql.identifier(table)}`
 
   /** The leaf column of every row for one locale in the main locales table. */
-  const mainValues = async (locale: string) => {
-    const { rows } = await payload.db.drizzle.execute(sql`
-      SELECT ${sql.identifier(GROUP.main)} AS value
-        FROM ${qualified(MAIN_TABLE)}
-        WHERE "_locale" = ${locale}`)
-    return rows.map((row) => (row as { value: unknown }).value)
-  }
+  const mainValues = (locale: string) =>
+    withSchema(payload, async (tx) => {
+      const { rows } = await tx.execute(sql`
+        SELECT ${sql.identifier(GROUP.main)} AS value
+          FROM ${sql.identifier(MAIN_LOCALES)}
+          WHERE "_locale" = ${locale}`)
+      return (rows as { value: Record<string, unknown> }[]).map((row) => row.value)
+    })
 
   /**
    * Every version row for one locale, each carrying its version's `latest`
    * flag. How many Payload writes per save is Payload's business, so nothing
    * below counts them.
    */
-  const versionValues = async (locale: string) => {
-    const { rows } = await payload.db.drizzle.execute(sql`
-      SELECT parent."latest" AS latest, row.${sql.identifier(GROUP.version)} AS value
-        FROM ${qualified(VERSION_TABLE)} row
-        JOIN ${qualified(VERSIONS_TABLE)} parent ON parent."id" = row."_parent_id"
-        WHERE row."_locale" = ${locale}`)
-    return rows as { latest: boolean | null; value: Record<string, unknown> }[]
-  }
+  const versionValues = (locale: string) =>
+    withSchema(payload, async (tx) => {
+      const { rows } = await tx.execute(sql`
+        SELECT parent."latest" AS latest, row.${sql.identifier(GROUP.version)} AS value
+          FROM ${sql.identifier(VERSION_LOCALES)} row
+          JOIN ${sql.identifier(VERSIONS)} parent ON parent."id" = row."_parent_id"
+          WHERE row."_locale" = ${locale}`)
+      return rows as { latest: boolean | null; value: Record<string, unknown> }[]
+    })
 
-  /** Stores a raw jsonb value in the leaf column, past the field's own validator. */
-  const store = async (locale: string, value: string) => {
-    for (const [table, column] of [
-      [MAIN_TABLE, GROUP.main],
-      [VERSION_TABLE, GROUP.version],
-    ]) {
-      await payload.db.drizzle.execute(sql`
-        UPDATE ${qualified(table!)}
-          SET ${sql.identifier(column!)} = ${value}::jsonb
-          WHERE "_locale" = ${locale}`)
-    }
-  }
+  /** Stores a raw jsonb value in English's leaf column, past the field's own validator. */
+  const store = (value: string) =>
+    withSchema(payload, async (tx) => {
+      for (const [table, column] of [
+        [MAIN_LOCALES, GROUP.main],
+        [VERSION_LOCALES, GROUP.version],
+      ]) {
+        await tx.execute(sql`
+          UPDATE ${sql.identifier(table)}
+            SET ${sql.identifier(column)} = ${value}::jsonb
+            WHERE "_locale" = 'en'`)
+      }
+    })
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-    if (!payload.db.schemaName) throw new Error('the suite has no isolated schema to target')
-    schema = payload.db.schemaName
 
     // Two saves, so the versions table holds a superseded row as well as the
     // latest one — which is the only thing that can show `latestOnly` working.
@@ -144,16 +143,15 @@ describe('English key backfill', () => {
     expect((await versionValues('cs')).filter((row) => CHOSEN in row.value)).toEqual([])
   })
 
-  // Both guards are `jsonb_typeof(col) = 'object'`. `? key` cannot stand in for
-  // it: it is true for a string scalar equal to the key, and true for an array
-  // holding it, so each case below uses a key the stored value does not equal
-  // where that is what the guard has to decide.
+  // Each case adds or deletes a key the stored value does not equal, because
+  // `? key` would otherwise skip the row on its own and leave the guard under
+  // test doing nothing.
   describe.each([
     { shape: 'a string scalar', stored: '"menu"' },
     { shape: 'an array', stored: '["menu"]' },
   ])('with $shape in the column', ({ stored }) => {
     it('writes nothing, rather than replacing the group with an array', async () => {
-      await store('en', stored)
+      await store(stored)
 
       await withSchema(payload, (tx) =>
         addEnglishKey(tx, { table: TABLE, group: GROUP, key: ADDED, en: 'Dismiss' }),
@@ -164,13 +162,11 @@ describe('English key backfill', () => {
     })
 
     it('deletes nothing, and raises no error', async () => {
-      await store('en', stored)
+      await store(stored)
 
-      await expect(
-        withSchema(payload, (tx) =>
-          dropEnglishKey(tx, { table: TABLE, group: GROUP, key: 'menu' }),
-        ),
-      ).resolves.toBeUndefined()
+      await withSchema(payload, (tx) =>
+        dropEnglishKey(tx, { table: TABLE, group: GROUP, key: 'menu' }),
+      )
 
       expect(await mainValues('en')).toEqual([JSON.parse(stored)])
       expect((await versionValues('en')).map((row) => row.value)).toContainEqual(JSON.parse(stored))

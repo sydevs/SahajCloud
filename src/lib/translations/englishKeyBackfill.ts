@@ -18,34 +18,30 @@ import { sql } from '@payloadcms/db-postgres'
 type Executor = Pick<MigrateUpArgs['db'], 'execute'>
 
 /** A leaf group's jsonb column, in the main locales table and in the versions one. */
-export type LeafGroup = { main: string; version: string }
-
-type Target = { table: string; column: string; latestOnly: boolean }
+type LeafGroup = { main: string; version: string }
 
 /**
  * Both rows a key has to reach, from the global's table base — Payload names a
  * localized global's value table `<base>_locales` and its versions'
  * `_<base>_v_locales`.
  */
-const targets = (table: string, group: LeafGroup): Target[] => [
-  { table: `${table}_locales`, column: group.main, latestOnly: false },
-  { table: `_${table}_v_locales`, column: group.version, latestOnly: true },
+const targets = (table: string, group: LeafGroup) => [
+  { table: `${table}_locales`, column: group.main, latestOnly: sql`` },
+  {
+    table: `_${table}_v_locales`,
+    column: group.version,
+    // Of the versions, the one row a global's own update loads its document from.
+    latestOnly: sql`AND "_parent_id" IN (SELECT "id" FROM ${sql.identifier(`_${table}_v`)} WHERE "latest")`,
+  },
 ]
-
-/** Of the versions, the one row a global's own update loads its document from. */
-const latestOnly = (table: string, on: boolean) =>
-  on
-    ? sql`AND "_parent_id" IN (SELECT "id" FROM ${sql.identifier(`_${table}_v`)} WHERE "latest")`
-    : sql``
 
 /**
  * Adds `key` to a leaf group where English lacks it, never overwriting a word
  * somebody chose.
  *
  * ⚠ `jsonb_typeof` is what keeps a non-object column out: `||` on a scalar
- * builds an array, which would void the whole group. `? key` does not stand in
- * for it — it is true for a string scalar equal to the key, and true for an
- * array holding it.
+ * builds an array, which would void the whole group. `src/globals/AGENTS.md`
+ * carries why the shorter `? key` does not stand in for it.
  */
 export async function addEnglishKey(
   db: Executor,
@@ -59,7 +55,7 @@ export async function addEnglishKey(
         WHERE "_locale" = 'en'
           AND jsonb_typeof(coalesce(${col}, '{}'::jsonb)) = 'object'
           AND NOT coalesce(${col}, '{}'::jsonb) ? ${key}::text
-          ${latestOnly(table, target.latestOnly)}`)
+          ${target.latestOnly}`)
   }
 }
 
@@ -69,7 +65,8 @@ export async function addEnglishKey(
  *
  * ⚠ `jsonb_typeof` is what keeps a non-object column out: `-` on a scalar
  * raises `cannot delete from scalar`, which aborts the boot migration, and on
- * an array it removes the matching element instead.
+ * an array it removes the matching element instead. `src/globals/AGENTS.md`
+ * carries why the shorter `? key` does not stand in for it.
  */
 export async function dropEnglishKey(
   db: Executor,
