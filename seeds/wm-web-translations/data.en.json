@@ -7,6 +7,7 @@
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
+
   "common": {
     "general": {
       "skip_to_main": "Skip to main content",
@@ -16,15 +17,18 @@
       "site_description": "Discover free guided meditations, music, and articles to learn and deepen your meditation practice."
     }
   },
+
   "navigation": {
     "about_meditation": "About Meditation",
     "featured_caption": "Inspiration comes from within"
   },
+
   "footer": {
     "info": "Info",
     "languages": "Languages",
     "copyright": "© WeMeditate, %{year}"
   },
+
   "errors": {
     "general": {
       "heading": "Error",
@@ -42,6 +46,7 @@
       "back_to_home": "Back to Home"
     }
   },
+
   "discover": {
     "general": {
       "title": "Discover it for yourself!",
@@ -54,6 +59,7 @@
       "classes_near_me_subtitle": "Free in-person classes"
     }
   },
+
   "article": {
     "general": {
       "written_by": "Written by %{name}",
@@ -71,6 +77,7 @@
       "tag_technique": "Technique"
     }
   },
+
   "meditation": {
     "general": {
       "label": "Meditation",
@@ -87,12 +94,14 @@
       "upsell_app_link": "free app"
     }
   },
+
   "lecture": {
     "general": {
       "missing_video": "This lecture is missing a playable video source.",
       "related_meditations": "Related meditations"
     }
   },
+
   "map": {
     "general": {
       "online": "Online",
@@ -103,6 +112,7 @@
       "visit_website": "Visit the website"
     }
   },
+
   "forms": {
     "general": {
       "field_required": "%{field} is required",
@@ -113,6 +123,7 @@
       "submit": "Submit"
     }
   },
+
   "media": {
     "general": {
       "playlist": "Playlist",
@@ -127,6 +138,7 @@
       "copied": "Copied!"
     }
   },
+
   "location": {
     "general": {
       "search_placeholder": "Search for a location...",
@@ -147,6 +159,7 @@
       "location_failed": "Unable to retrieve location"
     }
   },
+
   "blocks": {
     "general": {
       "chakras": "Chakras",
