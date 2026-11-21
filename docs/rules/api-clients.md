@@ -249,14 +249,10 @@ Five things to know:
 
 ## Client read contract: which pages each service reads (#783)
 
-A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the services the caller's roles name, ANDed with the published-only clause above. `docs/rules/access.md` owns the mechanism; this section is only what a consumer observes.
+A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the services the caller's roles name, ANDed with the published-only clause above. **Which reads are narrowed, which callers are exempt, and what shape a refused page comes back as are all in `docs/rules/access.md`, under "Which pages a service reads".** Three things are the consumer's own:
 
-What a consumer observes:
-
-- **A direct `find` returns fewer documents**, and a `findByID` naming a page the caller's services do not publish answers **404**.
-- **A populated relationship arrives as a bare id**, not as an object and not as an error — the same shape an unpublished page already has, which is why WeMeditateWeb's `partitionPublishedPages` needs no change.
-- ⚠ **A page named only from another page's rich text is not covered**, so a block can hand a consumer a bare id for a page nothing else refused (`docs/rules/access.md`). The fix is editorial — tick the box — never a consumer workaround.
-- **An admin, a manager, a job and any `overrideAccess` read are unaffected**, as is a live-preview request: the preview panel frames the website, so an App-only page must still open in it.
+- **No consumer change was needed.** A refused page arrives through a populate as a bare id, which is the shape an unpublished page already has, so WeMeditateWeb's `partitionPublishedPages` discards it unchanged.
+- ⚠ **A bare id can still arrive for a page nothing else refused**, from a block that names it only in rich text. The fix is editorial — tick the box — never a consumer workaround.
 - ⚠ **A key's roles decide what it reads.** Whichever key the mobile app sends has to carry `wemeditate-app-client`, or it reads `pages` as a web client and gets the wrong set (#789).
 
 ## Origin / Referer enforcement
