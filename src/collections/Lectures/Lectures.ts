@@ -121,12 +121,13 @@ export const Lectures: CollectionConfig = {
       name: 'date',
       type: 'date',
       access: {
-        // As `metadata` below: a clip takes its parent's, so reject an API
-        // write that would diverge the two.
+        // As `metadata` below: a clip takes its parent's, so an API write that
+        // would diverge the two is stripped.
         update: ({ doc }) => doc?.type === 'full',
       },
       admin: {
-        date: { pickerAppearance: 'dayOnly' },
+        // A talk's year is the point, and the dayOnly default hides it.
+        date: { pickerAppearance: 'dayOnly', displayFormat: 'MMM d, yyyy' },
         description:
           'The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.',
         // A clip reads its parent's date, as it reads the parent's `metadata`.
