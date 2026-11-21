@@ -1,6 +1,6 @@
 import type { CollectionConfig, CollectionBeforeChangeHook } from 'payload'
 
-import { fileMetadataField } from '@/fields'
+import { audioDurationField, fileMetadataField } from '@/fields'
 import { extractAudioDuration } from '@/lib/audio/duration'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
@@ -99,30 +99,10 @@ export const Songs: CollectionConfig = {
         },
       },
     },
-    {
-      // Audio that states no length leaves `duration` unset, and a read-only
-      // blank says nothing (#1236).
-      name: 'durationNotice',
-      type: 'ui',
-      admin: {
-        custom: {
-          type: 'warning',
-          title: 'This track has no duration',
-          text: 'Its audio states no length, so nothing can show how long the track runs. Re-export the file with a duration and upload it again.',
-        },
-        components: { Field: '@/components/admin/InfoBanner' },
-        condition: (data) => !!data?.id && data?.duration == null,
-      },
-    },
-    {
-      name: 'duration',
-      type: 'number',
-      label: 'Duration (seconds)',
-      admin: {
-        readOnly: true,
-        description: 'Read from the audio whenever one is uploaded.',
-      },
-    },
+    ...audioDurationField({
+      noun: 'track',
+      consequence: 'nothing can show how long the track runs',
+    }),
     {
       name: 'includeForMeditations',
       type: 'checkbox',
