@@ -126,25 +126,22 @@ reads either. `Seo` is the atlas landing page's `<head>` copy, read by
 needs a server consumer, not a widget one.
 
 The Web tabs are in the site's **reading order**, not grouped by data type —
-a translator works down a page. Every tab that carries screen-reader-only
-copy declares explicit `general` + `a11y` sub-groups (#707), so the visible
-strings stay together and the invisible ones start collapsed. `navigation`
-and `footer` have none, so they stay flat.
+a translator works down a page. Most declare a single `general` sub-group;
+`navigation` and `footer` stay flat. The `general` level is kept because
+flattening it would rename every column (`<tab>_general`).
 
-A third shape exists: `discover` declares `general` alone (#917). A tab with
-no screen-reader copy may take either form, and nesting buys the later
-`a11y` group for free — promoting a flat `discover` to `discover_general`
-would be a column rename.
+⚠ **No translations global declares a screen-reader-only string.** A string
+only a screen reader speaks — an `aria-label`, an `sr-only` span — lives in
+the site that renders it, machine-translated there and read at
+`<tab>.a11y.<key>`: WeMeditate Web's `lib/i18n/a11y/`, Sahaj Atlas's
+`src/config/a11y/`. Both mount their own copy over any `a11y` group this API
+serves, so one declared here would cost translators a row nobody sees, and
+change nothing. `tests/unit/translations-no-a11y.spec.ts` holds it. A string
+both seen and spoken stays here.
 
-Two conventions hold across that schema, and adding a key means honouring
-both:
-
-- **An `a11y` key's description begins "Not shown on screen; read by screen
-  readers."** It is the only cue a translator has that nobody will ever see
-  the string, and the tone that follows from it is different.
-- **`%{count}` is reserved for the number that selects the plural form.** A
-  string needing a second number uses its own name — `map.classes_shown` is
-  `%{shown}` of `%{count}`, and only `%{count}` picks one/other.
+**`%{count}` is reserved for the number that selects the plural form.** A
+string needing a second number uses its own name — `map.classes_shown` is
+`%{shown}` of `%{count}`, and only `%{count}` picks one/other.
 
 Three things are true of **all three** translations globals — #705 brought
 them to `sy-atlas-translations` and `wm-web-translations`, #709 to
@@ -347,22 +344,13 @@ write.
 A tab with sub-groups still wraps them in a Payload `group` named after the
 tab (API path `tab.sub.key`, column `<tab>_<sub>`), but each sub-group is a
 `collapsible`, not an inner tab. Tabs inside tabs hide every sub-group but
-one. A sub-group named `a11y` starts collapsed; everything else opens. This
-is presentational only — the data path and column name are unchanged, so no
-migration is involved. Mixing leaf keys and sub-groups at one level is
-deliberately unsupported: declare explicit `general` + `a11y` sub-groups.
+one. Every collapsible starts open. This is presentational only — the data
+path and column name are unchanged, so no migration is involved. Mixing leaf
+keys and sub-groups at one level is deliberately unsupported: declare an
+explicit `general` sub-group.
 
-A sub-group's label is its slug in title case, which reads correctly for a
-slug made of words (`page_tags` → "Page Tags") and badly for one that is not
-(`a11y` → "A11y"). **`SUBGROUP_PRESENTATION`** in `translationsField.ts` is
-the one place that overrides it, and it carries the collapse rule beside the
-label so both facts about a slug stay together — `a11y` renders as
-"Accessibility" and starts closed. Only sub-groups read that table: a tab's
-label is always its slug in title case, whatever the slug. Add an entry there, never a label in a
-schema: a schema-side label would be re-declared in every global that used
-the slug, with nothing pinning the copies equal, and would leave the collapse
-rule stranded on the other side. Presentational only — the field name, data
-path, and column still come from the slug.
+A sub-group's label, like a tab's, is its slug in title case (`page_tags` →
+"Page Tags"), so name a slug in words.
 
 ### Per-key character limit (`maxLength`, and `strict`)
 
