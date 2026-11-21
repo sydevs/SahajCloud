@@ -1,4 +1,34 @@
-import { Block } from 'payload'
+import { Block, RelationshipFieldSingleValidation } from 'payload'
+import { relationship } from 'payload/shared'
+
+import { notFinishedWhere } from '@/collections/Events/lifecycle/finished'
+
+/**
+ * ⚠ **Composes `relationship` WITHOUT `filterOptions`, which deliberately disarms
+ * the save-time refusal `src/collections/AGENTS.md` warns about losing.** Here the
+ * refusal is what breaks, because the filter varies with the clock and
+ * `validateFilterOptions` re-runs on every save with no exemption for a value that
+ * did not change. Measured: the day a chosen class holds its last session, every
+ * later save of the page — a typo, a translation, a republish — answers 400 against
+ * a collapsed block, for an admin too, and deleting the block is the only way out.
+ * Lexical also composes its own filter that answers `false` for a collection
+ * `admin.hidden` hides from the caller, so with the refusal armed a web-translator
+ * could not save such a page at all.
+ *
+ * Nothing is left unguarded: the consumer already degrades a class that is
+ * unpublished, offline or dormant to that language's online classes, and reports it
+ * (sydevs/WeMeditateWeb#309).
+ *
+ * What the id-shape check still buys: a block's fields live in a rich-text JSONB
+ * column with no foreign key, so `isValidID` is the only thing between a mistyped
+ * `PATCH` and an id nothing can ever resolve, stored verbatim.
+ *
+ * ⚠ `filterOptions: undefined` is the whole mechanism. Payload spreads the field's
+ * own config into a validator's options, so composing `relationship` without
+ * clearing it re-arms the very check this field declines.
+ */
+const validateEventShape: RelationshipFieldSingleValidation = (value, options) =>
+  relationship(value, { ...options, filterOptions: undefined })
 
 export const SplashBlock: Block = {
   slug: 'splash',
@@ -28,6 +58,26 @@ export const SplashBlock: Block = {
       admin: {
         description: 'Select the layout style for this splash section',
       },
+    },
+    {
+      name: 'event',
+      type: 'relationship',
+      relationTo: 'events',
+      admin: {
+        condition: (_, siblingData) => siblingData?.layout === 'countdown',
+        description: 'The online class this splash counts down to.',
+      },
+      // Narrows the picker, so there is nothing broken to choose.
+      filterOptions: () => ({
+        and: [
+          { eventType: { equals: 'online' } },
+          // `notFinishedWhere` admits an inactive class by design — one has no schedule to
+          // count down — so this arm is a second rule, not a duplicate of it.
+          { inactive: { not_equals: true } },
+          notFinishedWhere(new Date()),
+        ],
+      }),
+      validate: validateEventShape,
     },
     {
       name: 'textColor',

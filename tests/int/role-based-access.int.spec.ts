@@ -1689,6 +1689,111 @@ describe('Role-Based Access Control', () => {
     })
   })
 
+  // `events` and `regions` joined the `wemeditate-web` project so the site's
+  // countdown and class-directory blocks can read the class they name (#1228).
+  // Two things to pin: the key can read a class and a region at all, and what
+  // comes back is read back rather than asked of `hasPermission`. The manager
+  // side of the grant is the unit lane's (`tests/unit/virtual-roles.spec.ts`),
+  // which builds a page editor from its listing rather than from a stored role
+  // nothing can hold.
+  describe('the WeMeditate Web client reads classes and regions', () => {
+    let webClient: Awaited<ReturnType<typeof testData.createClient>>
+    let eventId: number
+    let regionId: number
+
+    beforeAll(async () => {
+      const admin = await testData.createManager(payload, {
+        name: 'Admin for Atlas Grant Test',
+        type: 'admin' as const,
+      })
+      webClient = await testData.createClient(payload, admin.id, {
+        label: 'WeMeditate Web Key',
+        roles: ['wemeditate-web-client'],
+        enabled: true,
+      })
+
+      const region = await testData.createRegion(payload, { name: 'Grant Test Country' })
+      regionId = region.id
+
+      const event = await testData.createEvent(payload, {
+        title: 'Grant Test Online Class',
+        inactive: false,
+        eventType: 'online',
+        onlineUrl: 'https://example.invalid/grant-test',
+        region: regionId,
+        activityLog: [{ at: new Date().toISOString(), type: 'reminder', key: 'grant-test-1' }],
+        schedule: {
+          firstDate: '2021-04-01T10:00:00.000Z',
+          firstDate_tz: 'Europe/London',
+          recurrenceType: 'DAILY',
+          interval: 1,
+        },
+        _status: 'published',
+      } as never)
+      eventId = event.id
+    })
+
+    it('reads a class and a region at all', async () => {
+      const event = await payload.findByID({
+        collection: 'events',
+        id: eventId,
+        select: { title: true, onlineUrl: true },
+        depth: 0,
+        user: webClient,
+        overrideAccess: false,
+      })
+      expect(event.id).toBe(eventId)
+
+      const region = await payload.findByID({
+        collection: 'regions',
+        id: regionId,
+        select: { slug: true },
+        depth: 0,
+        user: webClient,
+        overrideAccess: false,
+      })
+      expect(region.id).toBe(regionId)
+    })
+
+    // Both selected explicitly: a `select` that left them out would pass
+    // whatever the locks did. `activityLog` needs `region` and `manager` beside
+    // it, or `eventContactsFieldAccess` refuses the read rather than stripping
+    // the column.
+    it('gets neither the activity log nor the manager behind it', async () => {
+      const event = await payload.findByID({
+        collection: 'events',
+        id: eventId,
+        select: { title: true, region: true, manager: true, activityLog: true },
+        depth: 1,
+        user: webClient,
+        overrideAccess: false,
+      })
+
+      // A denied array is re-assigned empty rather than deleted
+      // (`docs/rules/access.md`), so `toBeUndefined()` would fail on a correct
+      // implementation.
+      expect(event.activityLog).toEqual([])
+      // `managers` sits in no project (#821), so the populate falls back to the
+      // bare id. This grant must not change that.
+      expect(typeof event.manager).toBe('number')
+    })
+
+    it('gains no write on either collection', () => {
+      const clientUser = testData.dummyUser('clients', {
+        id: 77,
+        roles: ['wemeditate-web-client'],
+      })
+
+      for (const collection of ['events', 'regions'] as const) {
+        for (const operation of ['create', 'update', 'delete'] as const) {
+          expect(
+            hasPermission({ user: clientUser, collection, operation }, bypassPermissions),
+          ).toBe(false)
+        }
+      }
+    })
+  })
+
   describe('Concurrent Permission Checks', () => {
     it('handles concurrent permission checks without race conditions', async () => {
       // Permissions are computed from roles dynamically

@@ -90,3 +90,9 @@ can tell what the icon shows without decoding the base64.
 - `TextBoxBlock.wisdomStyle` shows for the side layouts and hides for `overlay`. Its condition
   reads `imagePosition`; `position` is the legacy EditorJS name, live only inside `importData`
   (#989).
+- ⚠ **A relationship here narrows its picker and must not refuse a save.** `SplashBlock.event`
+  is the worked case: `filterOptions` **and** a `validate` composing `relationship` with
+  `filterOptions: undefined`, which deliberately disarms the save-time check
+  `src/collections/AGENTS.md` warns about losing. The two measurements behind that choice (#1228)
+  are on `validateEventShape`, beside the field. A block relationship whose narrowing must also
+  bind a write needs a hook on the owning collection, not a field validator.

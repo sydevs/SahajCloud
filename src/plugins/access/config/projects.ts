@@ -42,6 +42,18 @@ const PROJECTS = {
       // makes every read of it take an explicit grant (`isImplicitlyReadable`).
       'authors',
       'lectures',
+      // `events` and `regions` are the class directory the site's `splash` countdown and
+      // `class-directory` blocks point at. Read only: no role gains a write grant here, and
+      // `Events.activityLog` keeps its own field lock while `manager` and `submitter` are
+      // relationships, so a populate of either falls back to a bare id.
+      //
+      // ⚠ `legacyData` on both collections — the verbatim imported Atlas row, contact
+      // details included — carries no field lock and is now readable by one more key and
+      // two more manager roles. It was already readable by `sahaj-atlas-client`, the
+      // widget's browser-published key, so this widens the audience rather than opening
+      // the column; #1231 is where closing it is weighed.
+      'events',
+      'regions',
       'user-choices',
       'subtle-system-nodes',
       'song-tags',

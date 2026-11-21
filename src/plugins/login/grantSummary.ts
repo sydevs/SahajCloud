@@ -252,11 +252,22 @@ export async function summarizeGrants({
     // A collection in no project — `clients` is restricted — goes with the
     // project of the role its listing derives, so a service is a Sahaj Atlas
     // invitation rather than the default brand's.
+    const own = getJoinProject(join)
+    // ⚠ `managedPages` is the one join whose collection both We Meditate projects
+    // genuinely own, so a Path Editor's pages go with the App. Every other
+    // responsibility belongs to its own role's project, whoever holds it: a class and
+    // a region are managed on the Sahaj Atlas, and an invitation for one has to carry
+    // that brand. They also sit in `wemeditate-web` since #1228, but only so the site
+    // can read the class a page counts down to, and a project that merely reads a
+    // collection is no home for looking after one. Written as the single exception, so
+    // the next join onto a collection in two projects is right by default.
     const project =
-      candidates.find((candidate) => heldProjects.has(candidate)) ??
-      candidates[0] ??
-      getJoinProject(join) ??
-      DEFAULT_EMAIL_PROJECT
+      join === 'managedPages'
+        ? (candidates.find((candidate) => heldProjects.has(candidate)) ??
+          candidates[0] ??
+          own ??
+          DEFAULT_EMAIL_PROJECT)
+        : (own ?? candidates[0] ?? DEFAULT_EMAIL_PROJECT)
     part(project).responsibilities.push(responsibility)
   }
 

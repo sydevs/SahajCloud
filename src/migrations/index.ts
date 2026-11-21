@@ -6,6 +6,9 @@ import * as migration_20261118_233000_wm_web_menu_key from './20261118_233000_wm
 import * as migration_20261118_235242_wm_web_drop_video_tab from './20261118_235242_wm_web_drop_video_tab';
 import * as migration_20261119_044129_tidy_event_form from './20261119_044129_tidy_event_form';
 import * as migration_20261119_223756_merge_snapshot_heal from './20261119_223756_merge_snapshot_heal';
+import * as migration_20261119_230234_wm_web_live_session_keys from './20261119_230234_wm_web_live_session_keys';
+import * as migration_20261119_231000_wm_web_live_session_copy from './20261119_231000_wm_web_live_session_copy';
+import * as migration_20261120_222115_merge_snapshot_heal_live_session from './20261120_222115_merge_snapshot_heal_live_session';
 
 export const migrations = [
   {
@@ -46,6 +49,21 @@ export const migrations = [
   {
     up: migration_20261119_223756_merge_snapshot_heal.up,
     down: migration_20261119_223756_merge_snapshot_heal.down,
-    name: '20261119_223756_merge_snapshot_heal'
+    name: '20261119_223756_merge_snapshot_heal',
+  },
+  {
+    up: migration_20261119_230234_wm_web_live_session_keys.up,
+    down: migration_20261119_230234_wm_web_live_session_keys.down,
+    name: '20261119_230234_wm_web_live_session_keys',
+  },
+  {
+    up: migration_20261119_231000_wm_web_live_session_copy.up,
+    down: migration_20261119_231000_wm_web_live_session_copy.down,
+    name: '20261119_231000_wm_web_live_session_copy',
+  },
+  {
+    up: migration_20261120_222115_merge_snapshot_heal_live_session.up,
+    down: migration_20261120_222115_merge_snapshot_heal_live_session.down,
+    name: '20261120_222115_merge_snapshot_heal_live_session'
   },
 ];
