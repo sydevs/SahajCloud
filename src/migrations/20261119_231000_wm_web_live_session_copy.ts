@@ -5,7 +5,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // the many-keys precedent beside it.
 //
 // WeMeditate Web is adding a live-meditation panel that counts down to the next online class
-// (#1228, for sydevs/WeMeditateWeb#271). It ships the eight English strings that work reads,
+// (#1228, for sydevs/WeMeditateWeb#271). It ships the seven English strings that work reads,
 // which the seed reaches only on a fresh database. `blocks_live_session` is created by the
 // migration before this one.
 //
@@ -13,7 +13,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Of the versions, only the `latest: true` row gets it: a global's update loads the document it
 // changes from that row.
 //
-// ⚠ **`down` drops all eight, whatever they hold.** The previous schema declares none of them,
+// ⚠ **`down` drops all seven, whatever they hold.** The previous schema declares none of them,
 // and a stored undeclared key makes `additionalProperties: false` refuse every later save of the
 // global (`src/globals/AGENTS.md`).
 
@@ -28,11 +28,6 @@ const ADDED = [
   { group: BLOCKS_LIVE_SESSION, key: 'live_now', en: 'Happening now' },
   { group: BLOCKS_LIVE_SESSION, key: 'no_upcoming', en: 'No upcoming session' },
   { group: BLOCKS_LIVE_SESSION, key: 'schedule_line', en: '%{weekday}, %{time} %{zone}' },
-  {
-    group: BLOCKS_LIVE_SESSION,
-    key: 'a11y_next_session',
-    en: 'The next session is %{weekday} at %{time}, %{relative}.',
-  },
 ]
 
 type Db = MigrateUpArgs['db']

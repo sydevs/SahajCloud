@@ -6341,10 +6341,6 @@ export interface WmWebTranslationsBlocksLiveSessionStrings {
    * The class's own schedule, shown before the visitor's clock is known — e.g. "Tuesdays, 7:00 pm London time". `%{weekday}` = the day, `%{time}` = the start time, `%{zone}` = the class's own time zone, named by the browser.
    */
   schedule_line?: string;
-  /**
-   * Not shown on screen; read by screen readers. The one sentence giving the next class's day, time and how far away it is. `%{weekday}` = the day, `%{time}` = the start time, `%{relative}` = how far away, e.g. "in 2 days".
-   */
-  a11y_next_session?: string;
 }
 export interface WmWebTranslationsBlocksA11YStrings {
   /**
