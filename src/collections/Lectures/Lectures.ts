@@ -127,6 +127,10 @@ export const Lectures: CollectionConfig = {
       },
       admin: {
         // A talk's year is the point, and the dayOnly default hides it.
+        // ⚠ A dayOnly pick stores noon UTC, whatever the editor's timezone, so the day
+        // picked is the value's UTC date part — what a consumer publishing `uploadDate`
+        // must read. Payload pins that hour in DatePicker, and calls dropping the pin a
+        // 4.0 breaking change.
         date: { pickerAppearance: 'dayOnly', displayFormat: 'MMM d, yyyy' },
         description:
           'The day this talk was given or published. Published as the video’s upload date, which Google requires. Leave blank when it is unknown.',
