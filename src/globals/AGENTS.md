@@ -108,13 +108,8 @@ translated.
 
 All translations globals share a tab-based structure, built by
 `buildTranslationTabs()` from a `translationsSchema.json` co-located with
-the global. Versions: max 10.
-
-- WeMeditate Web tabs: Common, Navigation, Footer, Errors, Discover,
-  Article, Meditation, Lecture, Map, Forms, Media, Location, Blocks
-- WeMeditate App tabs: Daily, Path, Explore, Profile, Meditation
-- Sahaj Atlas tabs: Common, Countries, Search, Filters, Online, Event,
-  Calendar, Registration, Share, Compact, Seo, Emails
+the global. Versions: max 10. A global's tabs are the top-level keys of its
+own `translationsSchema.json`.
 
 The Atlas set is **one tab per widget view** (#706), and the key inside it
 belongs to the component that owns it, not to whichever view reads it
