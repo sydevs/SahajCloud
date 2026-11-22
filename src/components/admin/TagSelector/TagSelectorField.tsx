@@ -6,6 +6,7 @@ import { FieldDescription, FieldError, FieldLabel, useField, usePayloadAPI } fro
 import React, { useMemo } from 'react'
 
 import { fieldId } from '@/components/admin/helpers/fieldId'
+import { labelText } from '@/components/admin/helpers/labelText'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 import { TagSelector, type TagOption, type TagSelectorSize } from './TagSelector'
@@ -137,13 +138,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  // Generate aria-label for accessibility
-  const ariaLabel =
-    typeof label === 'string'
-      ? label
-      : typeof label === 'object' && label !== null
-        ? label['en'] || Object.values(label)[0] || name
-        : name
+  const ariaLabel = labelText(label, name)
 
   return (
     <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>

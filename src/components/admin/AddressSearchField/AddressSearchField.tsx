@@ -15,6 +15,7 @@ import {
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
+import { labelText } from '@/components/admin/helpers/labelText'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { MapboxFeature } from '@/lib/mapbox/feature'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
@@ -205,8 +206,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   // Dead end: nothing can fill the field — no search box and no manual entry.
   const showNoInputBanner = !value && !token && !manualAllowed && !readOnly
 
-  const ariaLabel =
-    typeof label === 'string' ? label : label?.['en'] || Object.values(label ?? {})[0] || path
+  const ariaLabel = labelText(label, path)
 
   return (
     <div className={fieldClasses} style={mergeFieldStyles(admin)}>

@@ -6,6 +6,7 @@ import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/
 import React from 'react'
 
 import { fieldId } from '@/components/admin/helpers/fieldId'
+import { labelText } from '@/components/admin/helpers/labelText'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 import { RangeSlider } from './RangeSlider'
@@ -67,12 +68,7 @@ export const RangeSliderField: NumberFieldClientComponent = ({ field, readOnly }
     .join(' ')
 
   // Generate aria-label for accessibility (StaticLabel handling)
-  const ariaLabel =
-    typeof label === 'string'
-      ? label
-      : typeof label === 'object' && label !== null
-        ? label['en'] || Object.values(label)[0] || name
-        : name
+  const ariaLabel = labelText(label, name)
 
   return (
     <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
