@@ -12,14 +12,11 @@
       "back": "Retour",
       "back_to": "Retour à %{title}",
       "close": "Fermer",
-      "explore": "Explorer",
-      "loading": "Chargement…",
       "cancel": "Annuler",
       "widget_label": "Cours de méditation gratuits",
       "all_classes_free": "Tous les cours sont gratuits"
     },
     "settings": {
-      "title": "Paramètres",
       "theme_auto": "Système (auto)",
       "theme_dark": "Thème sombre",
       "theme_light": "Thème clair"
@@ -87,7 +84,6 @@
     "results": {
       "more": "Afficher plus",
       "farther": "Afficher les événements éloignés",
-      "showing": "%{shown} sur %{total} événements affichés",
       "no_nearby": "Aucun événement dans un rayon de %{km} km."
     },
     "sort": {
@@ -101,8 +97,7 @@
       "cta": "Voir le site de %{country}"
     },
     "nearby_prompt": {
-      "title": "Vous cherchez des cours près de %{city} ?",
-      "dismiss": "Ignorer"
+      "title": "Vous cherchez des cours près de %{city} ?"
     }
   },
   "filters": {
@@ -111,7 +106,6 @@
       "apply": "Appliquer",
       "clear": "Tout effacer",
       "clear_one": "Effacer",
-      "remove": "Supprimer %{label}",
       "any_time": "À toute heure",
       "no_results": "Aucun événement ne correspond à vos filtres."
     },
@@ -205,9 +199,7 @@
       "website": "Site web",
       "share": "Partager",
       "add_calendar": "Ajouter à l'agenda",
-      "download_ics": "Télécharger le fichier .ics",
-      "view_photo": "Voir la photo",
-      "pause_slideshow": "Mettre le diaporama en pause"
+      "download_ics": "Télécharger le fichier .ics"
     },
     "recurrence": {
       "daily": "Tous les jours",
@@ -226,9 +218,6 @@
   },
   "calendar": {
     "title": "Calendrier",
-    "previous": "Précédent",
-    "next": "Suivant",
-    "pick_date": "Choisir une date",
     "view_month": "Mois",
     "view_week": "Semaine",
     "view_list": "Liste"
@@ -262,9 +251,7 @@
     }
   },
   "share": {
-    "share_on": "Partager sur %{platform}",
     "native": "Partager…",
-    "copy_link": "Copier le lien",
     "copied": "Copié"
   },
   "compact": {
