@@ -45,7 +45,6 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onRemove,
   onSeek,
 }) => {
-  const [isHovered, setIsHovered] = useState(false)
   const categoryLabel = getFrameDisplayLabel(frame)
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -57,10 +56,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
 
   return (
     <div
-      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}${isHovered && !isActive ? ` ${styles['frame-item_hover']}` : ''}`}
+      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}`}
       onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* The row holds an input and a button, so it cannot be a control itself. */}
       <button
