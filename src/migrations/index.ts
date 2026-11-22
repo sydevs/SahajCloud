@@ -8,6 +8,9 @@ import * as migration_20261119_044129_tidy_event_form from './20261119_044129_ti
 import * as migration_20261119_223756_merge_snapshot_heal from './20261119_223756_merge_snapshot_heal';
 import * as migration_20261120_231045_add_pages_public_channels from './20261120_231045_add_pages_public_channels';
 import * as migration_20261120_231500_backfill_pages_public_channels from './20261120_231500_backfill_pages_public_channels';
+import * as migration_20261121_035055_wm_web_drop_a11y_groups from './20261121_035055_wm_web_drop_a11y_groups';
+import * as migration_20261121_035100_atlas_drop_a11y_keys from './20261121_035100_atlas_drop_a11y_keys';
+import * as migration_20261122_182415_merge_snapshot_heal from './20261122_182415_merge_snapshot_heal';
 
 export const migrations = [
   {
@@ -53,11 +56,26 @@ export const migrations = [
   {
     up: migration_20261120_231045_add_pages_public_channels.up,
     down: migration_20261120_231045_add_pages_public_channels.down,
-    name: '20261120_231045_add_pages_public_channels'
+    name: '20261120_231045_add_pages_public_channels',
   },
   {
     up: migration_20261120_231500_backfill_pages_public_channels.up,
     down: migration_20261120_231500_backfill_pages_public_channels.down,
-    name: '20261120_231500_backfill_pages_public_channels'
+    name: '20261120_231500_backfill_pages_public_channels',
+  },
+  {
+    up: migration_20261121_035055_wm_web_drop_a11y_groups.up,
+    down: migration_20261121_035055_wm_web_drop_a11y_groups.down,
+    name: '20261121_035055_wm_web_drop_a11y_groups',
+  },
+  {
+    up: migration_20261121_035100_atlas_drop_a11y_keys.up,
+    down: migration_20261121_035100_atlas_drop_a11y_keys.down,
+    name: '20261121_035100_atlas_drop_a11y_keys',
+  },
+  {
+    up: migration_20261122_182415_merge_snapshot_heal.up,
+    down: migration_20261122_182415_merge_snapshot_heal.down,
+    name: '20261122_182415_merge_snapshot_heal'
   },
 ];

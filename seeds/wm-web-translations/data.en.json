@@ -2,8 +2,8 @@
   "_meta": {
     "global": "wm-web-translations",
     "locale": "en",
-    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. Screen-reader-only strings come from the inventory in sydevs/WeMeditateWeb#56. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.a11y.opens_in_new_tab_suffix` replaces no literal: it is a new string sydevs/WeMeditateWeb#238 asked for, and it retired `opens_in_new_tab`, its `%{label}` sentence form. `common.general.skip_to_main`, `common.a11y.primary_navigation` and `common.a11y.footer_navigation` replace no literal either: the site renders no skip link and names none of its menus today, and sydevs/WeMeditateWeb#162 asked for all three. `lecture.a11y.untitled_heading` is a fourth from the same goal: a talk with no title still owes the page one heading. `common.a11y.menu` replaces no literal either: sydevs/WeMeditateWeb#234 adds the phone menu button that reads it, and no code ever held that wording.",
-    "schema_version": "post-#1214 (13 tabs, 23 leaf groups, 156 declared keys)",
+    "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.general.skip_to_main` replaces no literal: the site renders no skip link today, and sydevs/WeMeditateWeb#162 asked for it. No screen-reader-only string lives here: WeMeditate Web owns those itself, machine-translated, in lib/i18n/a11y/.",
+    "schema_version": "post-#1246 (13 tabs, 13 leaf groups, 97 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },
@@ -15,19 +15,6 @@
       "show_more": "Show More",
       "site_title": "We Meditate",
       "site_description": "Discover free guided meditations, music, and articles to learn and deepen your meditation practice."
-    },
-    "a11y": {
-      "dismiss": "Dismiss",
-      "close": "Close",
-      "previous": "Previous",
-      "next": "Next",
-      "show_more_items_one": "Show %{count} more item",
-      "show_more_items_other": "Show %{count} more items",
-      "breadcrumb": "Breadcrumb",
-      "primary_navigation": "Main menu",
-      "footer_navigation": "Footer menu",
-      "opens_in_new_tab_suffix": "(opens in new tab)",
-      "menu": "Menu"
     }
   },
 
@@ -57,9 +44,6 @@
       "status_page_link": "status page",
       "try_again": "Try Again",
       "back_to_home": "Back to Home"
-    },
-    "a11y": {
-      "error_icon": "Error"
     }
   },
 
@@ -91,9 +75,6 @@
       "tag_creativity": "Creativity",
       "tag_event": "Event",
       "tag_technique": "Technique"
-    },
-    "a11y": {
-      "filter_label": "Filter content by tag"
     }
   },
 
@@ -111,17 +92,6 @@
       "upsell_web": "Find more meditations on %{link}",
       "upsell_app": "Find interactive meditations with meditation music in our %{link}",
       "upsell_app_link": "free app"
-    },
-    "a11y": {
-      "mute_voice": "Mute voice",
-      "unmute_voice": "Unmute voice",
-      "mute_music": "Mute music",
-      "unmute_music": "Unmute music",
-      "voice_volume": "Voice volume",
-      "music_volume": "Music volume",
-      "audio_settings": "Audio settings",
-      "shuffle_music": "Shuffle music track",
-      "related_lectures_loading": "Loading related lectures"
     }
   },
 
@@ -129,10 +99,6 @@
     "general": {
       "missing_video": "This lecture is missing a playable video source.",
       "related_meditations": "Related meditations"
-    },
-    "a11y": {
-      "related_meditations_loading": "Loading related meditations",
-      "untitled_heading": "Untitled Lecture"
     }
   },
 
@@ -144,12 +110,6 @@
       "no_classes": "No meditation classes are listed here yet.",
       "join_online": "Join online",
       "visit_website": "Visit the website"
-    },
-    "a11y": {
-      "classes_heading": "Meditation classes",
-      "when": "When",
-      "where": "Where",
-      "languages": "Languages"
     }
   },
 
@@ -161,10 +121,6 @@
       "thank_you": "Thank You!",
       "submitted": "Your form has been submitted successfully.",
       "submit": "Submit"
-    },
-    "a11y": {
-      "submitting": "Submitting form, please wait...",
-      "required_marker": "required"
     }
   },
 
@@ -180,22 +136,6 @@
       "embed_player": "Embed this player",
       "copy": "Copy",
       "copied": "Copied!"
-    },
-    "a11y": {
-      "play": "Play",
-      "pause": "Pause",
-      "previous_track": "Previous track",
-      "next_track": "Next track",
-      "toggle_shuffle": "Toggle shuffle",
-      "mute": "Mute",
-      "unmute": "Unmute",
-      "volume": "Volume",
-      "play_item": "Play %{title}",
-      "view_image": "View image",
-      "view_image_alt": "View image: %{alt}",
-      "embed_code": "Embed code",
-      "zoom_in": "Zoom in",
-      "zoom_out": "Zoom out"
     }
   },
 
@@ -217,11 +157,6 @@
       "position_unavailable": "Location unavailable",
       "timed_out": "Location request timed out",
       "location_failed": "Unable to retrieve location"
-    },
-    "a11y": {
-      "search_label": "Search for a location",
-      "selected_label": "Selected location",
-      "change_label": "Change location"
     }
   },
 
@@ -233,21 +168,6 @@
       "hours": "Hours",
       "minutes": "Minutes",
       "seconds": "Seconds"
-    },
-    "a11y": {
-      "enter_fullscreen": "Enter fullscreen",
-      "exit_fullscreen": "Exit fullscreen",
-      "learn_more_about": "Learn more about %{title}",
-      "previous_slide": "Previous slide",
-      "next_slide": "Next slide",
-      "previous_column": "Previous: %{title}",
-      "next_column": "Next: %{title}",
-      "go_to_column": "Go to column %{number}: %{title}",
-      "quote": "Quote",
-      "table_of_contents": "Table of contents",
-      "share_region": "Social media sharing options",
-      "share_group": "Share on social media",
-      "share_on": "Share on %{platform}"
     }
   }
 }
