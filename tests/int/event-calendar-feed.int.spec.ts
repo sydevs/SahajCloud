@@ -21,6 +21,7 @@ import { withActor } from '@/lib/stateMachine/actor'
 import { createAnonRestClient, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { withSchema } from '../utils/withSchema'
 
 const JOIN_URL = 'https://meet.example.com/private-room-7f3a'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -85,15 +86,12 @@ describe('event calendar feed', () => {
    * Moves a row's `updated_at` back. Payload owns that column, and it is what dates an
    * *unpublished* class's 90-day window, so nothing reachable through the API can age one.
    */
-  const backdateUpdatedAt = async (eventId: number, days: number) => {
-    const schema = payload.db.schemaName
-    const table = schema ? `"${schema}"."events"` : '"events"'
-    await payload.db.drizzle.execute(
-      sql.raw(
-        `UPDATE ${table} SET updated_at = now() - interval '${days} days' WHERE id = ${eventId}`,
-      ),
-    )
-  }
+  const backdateUpdatedAt = (eventId: number, days: number) =>
+    withSchema(payload, async (tx) => {
+      await tx.execute(
+        sql`UPDATE "events" SET updated_at = now() - make_interval(days => ${days}) WHERE id = ${eventId}`,
+      )
+    })
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()

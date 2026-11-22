@@ -169,6 +169,11 @@ describe('src/lib holds shared code only', () => {
       // (`scripts/AGENTS.md` records this per backfill). The script is
       // the wrapper, not the owner.
       if (only!.startsWith('scripts/')) continue
+      // `src/lib/migrations/` is the one folder a migration may import from
+      // (`src/AGENTS.md`), so "move it beside its consumer" has no answer: that
+      // consumer is frozen generated output, and the second one is a migration
+      // nobody has written yet.
+      if (specifier.startsWith('@/lib/migrations/') && only!.startsWith('src/migrations/')) continue
       offenders.push(`${specifier} → only ${only}`)
     }
     // Move it beside its consumer. A barrel that re-exports it counts as a

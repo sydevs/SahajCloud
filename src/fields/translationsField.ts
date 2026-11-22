@@ -48,6 +48,17 @@ interface StringPropertySchema {
    * see `docs/rules/email.md`.
    */
   plural?: boolean
+  /**
+   * The key's English copy, declared beside the key itself.
+   *
+   * This is where a new key's English goes. The seed importer merges it under
+   * `data.en.json` for a fresh database, and `reconcileEnglishDefaults`
+   * (`src/lib/translations/englishDefaults.ts`) fills it into one that already
+   * exists — which is what a per-key data migration used to do, once each.
+   *
+   * Never on a `plural` key: its English is a family, not a value.
+   */
+  default?: string
 }
 
 interface RichTextPropertySchema {
@@ -76,6 +87,8 @@ type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
  *   character limit surfaced as a reference + non-blocking over-length warning.
  * - `plural` (string-key level, see `StringPropertySchema`): expands one key
  *   into the CLDR plural family and renders a grouped per-category row.
+ * - `default` (string-key level, see `StringPropertySchema`): the key's English
+ *   copy, which the seed importer and the boot-time reconciliation both read.
  */
 interface GroupSchema {
   type: 'object'
@@ -184,6 +197,11 @@ function pascalCase(...segments: (string | undefined)[]): string {
  *   strict mode, where an unknown keyword throws at validate time rather than
  *   at boot — so `plural`, `screenshot` and `strict` must never leak in.
  *   A plural key contributes its expanded CLDR family instead of itself.
+ * - **`default` stays out too, though it is a standard keyword.** Ajv writes a
+ *   declared default into the data it validates under `useDefaults`, so
+ *   emitting it would make a save store copy nobody typed. A default reaches a
+ *   database through `reconcileEnglishDefaults` instead, which fills English
+ *   alone.
  */
 export function stringsSchema({
   allowAdditional,

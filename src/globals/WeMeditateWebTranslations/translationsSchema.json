@@ -542,7 +542,7 @@
     },
     "blocks": {
       "type": "object",
-      "description": "Blocks an editor drops into a page: the subtle-system diagram, countdowns, carousels, quotes, contents lists, and sharing",
+      "description": "Blocks an editor drops into a page: the subtle-system diagram, countdowns, carousels, quotes, contents lists, sharing, and the ornate \u201cAncient Wisdom\u201d text box",
       "properties": {
         "general": {
           "type": "object",
@@ -577,6 +577,12 @@
             "days": {
               "type": "string",
               "description": "Label under the days figure of a countdown."
+            },
+            "wisdom_sidetext": {
+              "type": "string",
+              "maxLength": 24,
+              "default": "Ancient Wisdom",
+              "description": "Ornamental words set on their side along the outer edge of an \u201cAncient Wisdom\u201d text box. Decorative, so an evocative short phrase beats a literal translation \u2014 and it stands vertically in one line, which is what the limit is for."
             }
           },
           "additionalProperties": false
