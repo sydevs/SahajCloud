@@ -37,10 +37,16 @@ const TALK_DATE = /\b((?:19|20)\d{2})-(\d{2})-(\d{2})\b/
 /**
  * The day a talk was given, read out of the Nirmala Vidya title.
  *
- * NV states it nowhere else: the `/hls` response carries `name`, and 76 of the
- * 77 full lectures on production spell the date inside it, as `(1990-03-16)` or
- * as a `1989-08-01 ` prefix. The one miss is an upstream typo (`1980-0421`),
- * which this refuses rather than guess at.
+ * Not from the `/hls` route's own dates: `created_time` and `modified_time` are
+ * Vimeo's, decades off the talk — video 393387855 was uploaded in 2020 under
+ * the title `(1990-03-16)`. NV does hold the day, on the event `/hls` names in
+ * `event_id`, but that route takes an account bearer token where `/hls` takes
+ * an API key. Both are declared at
+ * https://mapi.nirmalavidya.org/api/v2/openapi.json.
+ *
+ * 76 of the 77 full lectures on production spell the date in the title, as
+ * `(1990-03-16)` or as a `1989-08-01 ` prefix. The one miss is an upstream
+ * typo (`1980-0421`), which this refuses rather than guess at.
  *
  * Read the NV-owned `metadata.title`, never the editor's localized `title` —
  * the two differ on 31 of those 77, because an editor retitles freely.
