@@ -480,6 +480,10 @@ hand-written data-only migration**, since the seed files reach only a fresh
 database. It carries no DDL, so none of the above applies to it.
 `src/globals/AGENTS.md` owns that rule and its guards.
 
+⚠ **A hand-written migration imports from `@/lib/migrations/` and nowhere else
+in `src/`.** A file here is frozen once it merges, so shared SQL cannot live
+beside the first migration that needed it. `src/AGENTS.md` owns that rule.
+
 ⚠ **No backtick may appear inside the SQL, a `--` comment included.** The whole
 statement block is a JavaScript template literal, so one backtick closes it and
 `tsc` reports `TS1005: ',' expected` on a line that reads as valid SQL. Name a

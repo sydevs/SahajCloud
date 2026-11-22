@@ -12,7 +12,7 @@ import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameListManager.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
-import { baseStyles, listManagerStyles } from './styles'
+import shared from './shared.module.css'
 import { formatTime, getFrameDisplayLabel, parseTime, validateTimestamp } from './utils'
 
 // --- FrameItem Subcomponent ---
@@ -46,43 +46,38 @@ const FrameItem: React.FC<FrameItemProps> = ({
   onRemove,
   onSeek,
 }) => {
-  const [isHovered, setIsHovered] = useState(false)
   const categoryLabel = getFrameDisplayLabel(frame)
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only seek if click wasn't on input or button
-    const target = e.target as HTMLElement
-    if (target.tagName !== 'INPUT' && target.tagName !== 'BUTTON' && !target.closest('button')) {
+    // The row's own controls answer their own clicks.
+    if (!(e.target as HTMLElement).closest('input, button')) {
       onSeek(frame.timestamp)
     }
   }
 
   return (
-    // The row's own click is a mouse convenience over the whole row, and the
-    // row holds an input and a button, so it cannot become a control itself.
-    // The keyboard path is the seek button below.
+    // The row's click is a mouse convenience over its whole width, and it holds
+    // an input and a button, so it cannot be a control itself. The keyboard
+    // path is the seek button below.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
-      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}${isHovered && !isActive ? ` ${styles['frame-item_hover']}` : ''}`}
+      className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}`}
       onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Thumbnail — the row's seek, for a keyboard */}
       <button
-        type="button"
+        aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
         className={styles['frame-item_seek']}
         onClick={() => onSeek(frame.timestamp)}
-        aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
+        type="button"
       >
-        <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
+        <FrameThumbnail className={styles.thumbnail} frame={frame} />
       </button>
 
       {/* Frame Info */}
-      <div style={listManagerStyles.frameInfo}>
-        <div style={baseStyles.frameCategory}>{categoryLabel}</div>
+      <div className={styles['frame-info']}>
+        <div className={styles['frame-category']}>{categoryLabel}</div>
         {frame.tags && frame.tags.length > 0 && (
-          <div style={listManagerStyles.frameTags}>{frame.tags.join(', ')}</div>
+          <div className={styles['frame-tags']}>{frame.tags.join(', ')}</div>
         )}
       </div>
 
@@ -95,7 +90,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
         onBlur={() => onTimestampCommit(index)}
         onKeyDown={(e) => onTimestampKeyDown(e, index)}
         disabled={readOnly}
-        style={listManagerStyles.timestampInput}
+        className={styles['timestamp-input']}
         title="Frame timestamp (MM:SS). Press Enter to save, Escape to cancel."
       />
 
@@ -239,29 +234,23 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
-        <div style={baseStyles.container}>
+        <div className={styles.container}>
           {frames.length > 0 && (
-            <div
-              style={{
-                fontSize: 'calc(var(--admin-body-size) * 0.85)',
-                color: 'var(--theme-elevation-500)',
-                marginTop: 'calc(var(--base) * 0.25)',
-              }}
-            >
+            <div className={styles['playback-status']}>
               Current playback: {formatTime(currentPlaybackTime)} | {frames.length} frame
               {frames.length !== 1 ? 's' : ''}
             </div>
           )}
 
           {frames.length === 0 ? (
-            <div style={baseStyles.emptyState}>
-              <p style={{ margin: 0, marginBottom: '8px', fontWeight: 500 }}>No frames added yet</p>
-              <p style={{ margin: 0, fontSize: 'calc(var(--admin-body-size) * 0.9)' }}>
+            <div className={shared['empty-state']}>
+              <p className={shared['empty-state-title']}>No frames added yet</p>
+              <p className={shared['empty-state-hint']}>
                 Switch to the &quot;Insert&quot; tab to add frames from the library.
               </p>
             </div>
           ) : (
-            <div style={listManagerStyles.frameList}>
+            <div className={styles['frame-list']}>
               {frames.map((frame, index) => (
                 <FrameItem
                   key={`${frame.id}-${frame.timestamp}`}

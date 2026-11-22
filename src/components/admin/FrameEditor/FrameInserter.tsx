@@ -13,7 +13,7 @@ import type { KeyframeData } from '@/types/frames'
 import styles from './FrameInserter.module.css'
 import { FrameThumbnail } from './FrameThumbnail'
 import { useAvailableFrames } from './hooks'
-import { baseStyles, inserterStyles } from './styles'
+import shared from './shared.module.css'
 import {
   formatTime,
   getFrameDisplayLabel,
@@ -27,6 +27,7 @@ interface FrameCardProps {
   frame: Frame
   isClicked: boolean
   insertionTimestamp: number
+  readOnly?: boolean
   onInsert: (frame: Frame) => void
 }
 
@@ -34,28 +35,35 @@ const FrameCard: React.FC<FrameCardProps> = ({
   frame,
   isClicked,
   insertionTimestamp,
+  readOnly,
   onInsert,
 }) => {
   const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   const pillLabel = nodeLabel || frame.label
+  // The name stays off the playhead: `insertionTimestamp` moves every second,
+  // and a screen reader re-reads a focused control whose name has changed. The
+  // grid states the insertion point once instead.
+  const name = `Insert ${getFrameDisplayLabel(frame)}`
   return (
     <button
-      type="button"
+      aria-label={name}
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
+      disabled={readOnly}
       onClick={() => onInsert(frame)}
-      title={`Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`}
+      title={`${name} at ${formatTime(insertionTimestamp)}`}
+      type="button"
     >
       {/* Thumbnail with category pill overlay */}
-      <div style={inserterStyles.thumbnailContainer}>
-        <FrameThumbnail frame={frame} style={inserterStyles.frameThumbnail} />
-        {pillLabel ? <div style={inserterStyles.categoryPill}>{pillLabel}</div> : null}
+      <div className={styles['thumbnail-wrap']}>
+        <FrameThumbnail className={styles['card-thumbnail']} frame={frame} />
+        {pillLabel ? <div className={styles['category-pill']}>{pillLabel}</div> : null}
       </div>
 
       {/* Tags below thumbnail */}
       {frame.tags && frame.tags.length > 0 && (
-        <div style={inserterStyles.frameInfo}>
-          <div style={inserterStyles.frameTags}>{frame.tags.join(', ')}</div>
+        <div className={styles['frame-info']}>
+          <div className={styles['frame-tags']}>{frame.tags.join(', ')}</div>
         </div>
       )}
     </button>
@@ -75,7 +83,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
  * - First-frame rule: insert at 0s if no frames exist
  * - Replace behavior: replaces existing frame at same timestamp
  */
-export const FrameInserter: UIFieldClientComponent = () => {
+export const FrameInserter: UIFieldClientComponent = ({ readOnly }) => {
   // Access sibling fields
   const { value: frames, setValue: setFrames } = useField<KeyframeData[]>({ path: 'frames' })
   const { value: narratorId } = useField<string>({ path: 'narrator' })
@@ -152,34 +160,27 @@ export const FrameInserter: UIFieldClientComponent = () => {
 
   // Loading state
   if (isLoading) {
-    return <div style={baseStyles.loadingState}>Loading frames...</div>
+    return <div className={styles['loading-state']}>Loading frames...</div>
   }
 
   // Error state
   if (isError) {
-    return <div style={baseStyles.errorState}>{error || 'Error loading frames'}</div>
+    return <div className={styles['error-state']}>{error || 'Error loading frames'}</div>
   }
 
   return (
-    <div style={inserterStyles.container}>
+    <div className={styles.container}>
       {/* Category Filters */}
-      <div
-        className="doc-controls"
-        style={{
-          top: 66,
-          marginLeft: 'calc(var(--gutter-h) * -1)',
-          width: 'calc(100% + var(--gutter-h) * 2)',
-          padding: '0 var(--gutter-h)',
-        }}
-      >
-        <div style={inserterStyles.categoryFilters}>
+      <div className={`doc-controls ${styles['filters-bar']}`}>
+        <div className={styles['category-filters']}>
           {SUBTLE_SYSTEM_NODE_OPTIONS.map(({ value, label }) => (
             <Pill
               key={value}
               size="small"
               pillStyle={selectedCategory === value ? 'success' : 'warning'}
               onClick={() => handleCategoryToggle(value)}
-              elementProps={{ ref: () => {}, style: inserterStyles.filterPillElement }}
+              className={styles['filter-pill']}
+              elementProps={{ ref: () => {} }}
             >
               {label}
             </Pill>
@@ -187,21 +188,24 @@ export const FrameInserter: UIFieldClientComponent = () => {
         </div>
       </div>
 
+      <div className={styles['insertion-point']}>Inserting at {formatTime(insertionTimestamp)}</div>
+
       {/* Frames Grid */}
       {filteredFrames.length === 0 ? (
-        <div style={baseStyles.emptyState}>
+        <div className={shared['empty-state']}>
           {selectedCategory
             ? `No frames in ${getSubtleSystemNodeLabel(selectedCategory)}.`
             : 'No frames available.'}
         </div>
       ) : (
-        <div style={inserterStyles.framesGrid}>
+        <div className={styles['frames-grid']}>
           {filteredFrames.map((frame) => (
             <FrameCard
               key={frame.id}
               frame={frame}
               isClicked={clickedFrameId === frame.id}
               insertionTimestamp={insertionTimestamp}
+              readOnly={readOnly}
               onInsert={handleFrameInsert}
             />
           ))}

@@ -77,15 +77,9 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
           value={shown}
           onChange={handleChange}
           disabled={readOnly}
-          style={{
-            width: '100%',
-            height: '40px',
-            padding: '4px',
-            border: '1px solid var(--theme-elevation-150)',
-            borderRadius: 'var(--style-radius-s)',
-            cursor: readOnly ? 'not-allowed' : 'pointer',
-            backgroundColor: 'var(--theme-input-bg)',
-          }}
+          // `formInput` sizes and paints it, focus and error affordances
+          // included. A swatch only needs the room its padding takes back.
+          style={{ padding: '4px', cursor: readOnly ? 'not-allowed' : 'pointer' }}
         />
       </div>
 

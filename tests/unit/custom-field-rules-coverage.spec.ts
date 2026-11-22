@@ -9,7 +9,8 @@
  * ⚠ **This measures text, not behaviour.** It cannot tell which element an
  * attribute sits on beyond the one opening tag it reads, so each rule is
  * written to fail on the *shape* the defect takes rather than on the defect
- * itself.
+ * itself. `admin-field-markup.spec.ts` is the behavioural half for the two
+ * fields it covers, where `label.control` is the browser's own resolution.
  */
 import { readFileSync } from 'node:fs'
 import { join, relative as relativeTo } from 'node:path'

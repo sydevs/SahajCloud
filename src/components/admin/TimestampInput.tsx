@@ -72,6 +72,7 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
+        {/* Unstyled on purpose — `formInput` paints it (docs/rules/admin-ui.md). */}
         <input
           id={fieldId(name)}
           type="text"
@@ -80,15 +81,6 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
           onBlur={handleBlur}
           placeholder="HH:MM:SS"
           disabled={readOnly}
-          style={{
-            width: '100%',
-            padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.5)',
-            fontSize: 'var(--admin-body-size)',
-            backgroundColor: 'var(--theme-input-bg)',
-            color: 'var(--theme-text)',
-            border: '1px solid var(--theme-elevation-150)',
-            borderRadius: 'var(--style-radius-s)',
-          }}
         />
       </div>
 

@@ -13,7 +13,7 @@
   cursor: pointer;
 }
 
-.frame-item_hover {
+.frame-item:hover {
   background-color: var(--theme-elevation-100);
 }
 
@@ -22,17 +22,30 @@
   background-color: var(--theme-elevation-100);
 }
 
+/* The row's two controls. `border-radius` is load-bearing: the focus ring
+   follows it, and the thumbnail's own corners are rounded to the same value.
+   `cursor` is stated rather than inherited from the row, which may stop
+   declaring it once the row is no longer the seek. */
+.frame-item_seek,
 .frame-item_remove {
-  padding: calc(var(--base) * 0.25);
+  display: flex;
+  padding: 0;
   background-color: transparent;
   border: none;
   border-radius: var(--style-radius-s);
   cursor: pointer;
+}
+
+.frame-item_seek {
+  flex-shrink: 0;
+}
+
+.frame-item_remove {
+  padding: calc(var(--base) * 0.25);
   color: var(--theme-elevation-400);
   transition:
     color 0.15s ease,
     background-color 0.15s ease;
-  display: flex;
   align-items: center;
   justify-content: center;
 }
@@ -42,13 +55,64 @@
   background-color: var(--theme-error-100);
 }
 
-/* The thumbnail is the row's keyboard path to its seek, so it is a button with
-   nothing of a button's own box. */
-.frame-item_seek {
-  display: block;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.5);
+}
+
+.playback-status {
+  margin-top: calc(var(--base) * 0.25);
+  font-size: calc(var(--admin-body-size) * 0.85);
+  color: var(--theme-elevation-500);
+}
+
+.frame-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.25);
+}
+
+.thumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--style-radius-s);
+}
+
+.frame-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.frame-category {
+  font-size: var(--admin-body-size);
+  font-weight: 500;
+  color: var(--theme-elevation-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frame-tags {
+  font-size: calc(var(--admin-body-size) * 0.85);
+  color: var(--theme-elevation-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Not a `field-type text` control, so `formInput` never reaches it and the
+   box is this rule's to draw (docs/rules/admin-ui.md). */
+.timestamp-input {
+  width: 70px;
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.5);
+  font-size: var(--admin-body-size);
+  text-align: center;
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  background-color: var(--theme-input-bg);
+  color: var(--theme-elevation-800);
 }
