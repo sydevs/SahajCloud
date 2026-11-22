@@ -1,5 +1,6 @@
 import type { JSONFieldServerComponent } from 'payload'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
@@ -187,6 +188,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       importId={stored.id}
       targetId={relationId(stored.targetRegion)}
       label={clientField.label}
+      style={mergeFieldStyles(clientField.admin)}
       path={path}
       rows={rows}
     />

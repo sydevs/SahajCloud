@@ -62,7 +62,9 @@ beforeEach(async () => {
 
   const { EmailPreviewField } = await import('@/components/admin/AtlasPreview/EmailPreviewField')
   await act(async () => {
-    root.render(createElement(EmailPreviewField, {} as never))
+    root.render(
+      createElement(EmailPreviewField, { field: { name: 'preview', type: 'ui' } } as never),
+    )
   })
 })
 

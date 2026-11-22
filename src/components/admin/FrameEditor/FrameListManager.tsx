@@ -56,11 +56,14 @@ const FrameItem: React.FC<FrameItemProps> = ({
   }
 
   return (
+    // The row's click is a mouse convenience over its whole width, and it holds
+    // an input and a button, so it cannot be a control itself. The keyboard
+    // path is the seek button below.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}`}
       onClick={handleClick}
     >
-      {/* The row holds an input and a button, so it cannot be a control itself. */}
       <button
         aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
         className={styles['frame-item_seek']}

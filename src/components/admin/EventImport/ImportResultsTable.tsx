@@ -1,6 +1,7 @@
 'use client'
 
 import type { StaticLabel } from 'payload'
+import type { CSSProperties } from 'react'
 
 import {
   Button,
@@ -99,8 +100,10 @@ export const ImportResultsTable: React.FC<{
   rows: ResultRow[]
   /** The skipped rows as a file to fix and upload again, or null for none. */
   skippedCsv: null | string
+  /** The field's merged styles: this component owns the `field-type` root. */
+  style: CSSProperties
   targetId: null | number
-}> = ({ description, importId, label, path, rows, skippedCsv, targetId }) => {
+}> = ({ description, importId, label, path, rows, skippedCsv, style, targetId }) => {
   const { config } = useConfig()
   const locale = useLocale()
   const { i18n } = useTranslation()
@@ -235,9 +238,9 @@ export const ImportResultsTable: React.FC<{
   )
 
   return (
-    <div className="field-type event-import__results">
+    <div className="field-type event-import__results" style={style}>
       <div className="event-import__results-header">
-        <FieldLabel label={label} path={path} />
+        <FieldLabel label={label} />
         <div className="event-import__results-actions">
           {allDrafts.length > 0 && (
             <>

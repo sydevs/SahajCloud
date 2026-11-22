@@ -103,6 +103,9 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({
               )}
             </button>
 
+            {/* A mouse convenience for the toggle button beside it, which is
+                the row's one tab stop — a second would repeat its action. */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
             <span
               onClick={readOnly || isBlocked ? undefined : () => onToggle(position)}
               style={{

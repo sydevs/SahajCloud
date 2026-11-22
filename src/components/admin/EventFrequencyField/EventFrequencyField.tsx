@@ -52,7 +52,7 @@ export const EventFrequencyField: UIFieldClientComponent = ({ field, readOnly })
       className={['field-type', 'select', readOnly && 'read-only'].filter(Boolean).join(' ')}
       style={mergeFieldStyles(field.admin)}
     >
-      <FieldLabel label={LABEL} path="inactive" />
+      <FieldLabel label={LABEL} />
       <div className="field-type__wrap">
         <ToggleGroup
           aria-label={LABEL}

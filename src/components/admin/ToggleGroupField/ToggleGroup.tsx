@@ -3,6 +3,8 @@
 import { Button } from '@payloadcms/ui'
 import React, { useRef } from 'react'
 
+import styles from './ToggleGroup.module.css'
+
 export interface ToggleGroupOption {
   label: string
   value: string
@@ -196,6 +198,7 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
             <button
               key={option.value}
               type="button"
+              className={styles.option}
               role={isMulti ? 'checkbox' : 'radio'}
               aria-checked={isSelected}
               aria-label={option.label}
@@ -221,7 +224,6 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 fontWeight: isSelected ? 600 : 400,
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s ease, color 0.15s ease',
-                outline: 'none',
                 whiteSpace: 'nowrap',
                 opacity: isDisabled ? 0.5 : 1,
                 // An even share of whatever the group was given, never less
@@ -255,14 +257,6 @@ export const ToggleGroup: React.FC<ToggleGroupProps> = (props) => {
                 if (!isDisabled && !isSelected) {
                   e.currentTarget.style.backgroundColor = 'transparent'
                 }
-              }}
-              onFocus={(e) => {
-                // The text colour, so the ring reads on a chosen segment's
-                // accent fill and on an unchosen one's alike.
-                e.currentTarget.style.boxShadow = 'inset 0 0 0 2px var(--theme-text)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.boxShadow = 'none'
               }}
             >
               {option.label}

@@ -5,6 +5,9 @@ import type { JoinFieldClient, Where } from 'payload'
 import { RelationshipTable } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 import { ImportClassesLabel } from '../EventImport/ImportClassesLabel'
 
 /**
@@ -32,7 +35,7 @@ export function RegionEventsTable({
   const filterOptions = useMemo<Where>(() => ({ region: { in: regionIds } }), [regionIds])
 
   return (
-    <div className="field-type join" id={`field-${path.replace(/\./g, '__')}`}>
+    <div className="field-type join" id={fieldId(path)} style={mergeFieldStyles(field.admin)}>
       <RelationshipTable
         allowCreate={allowCreate}
         field={field}
