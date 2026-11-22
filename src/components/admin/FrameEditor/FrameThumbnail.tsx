@@ -1,26 +1,16 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import type { FC } from 'react'
 
 import type { Frame } from '@/payload-types'
 
+import styles from './FrameThumbnail.module.css'
+
 interface FrameThumbnailProps {
   frame: Partial<Pick<Frame, 'previewUrl' | 'mp4Url' | 'hlsUrl' | 'mimeType'>>
-  style: CSSProperties
+  /** Sizes the thumbnail. Its own module draws everything inside the box. */
+  className?: string
   lazyLoad?: boolean
-}
-
-const videoIndicatorStyle: CSSProperties = {
-  position: 'absolute',
-  top: '4px',
-  left: '4px',
-  backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  borderRadius: '50%',
-  width: '20px',
-  height: '20px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
 }
 
 /**
@@ -30,18 +20,16 @@ const videoIndicatorStyle: CSSProperties = {
  * - Videos without thumbnail (dev): Renders <video> with preload="metadata"
  * - Shows play button indicator for video content
  */
-export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
-  frame,
-  style,
-  lazyLoad = true,
-}) => {
+export const FrameThumbnail: FC<FrameThumbnailProps> = ({ frame, className, lazyLoad = true }) => {
   const { previewUrl, mp4Url, hlsUrl, mimeType } = frame
   const isVideo = mimeType?.startsWith('video/')
   const alt = 'Frame'
 
+  const box = `${styles['frame-thumbnail']}${className ? ` ${className}` : ''}`
+
   // Video indicator overlay
   const videoIndicator = isVideo ? (
-    <div style={videoIndicatorStyle}>
+    <div className={styles['video-indicator']}>
       <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
         <polygon points="5,3 19,12 5,21" />
       </svg>
@@ -50,8 +38,8 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
 
   if (previewUrl) {
     return (
-      <div style={{ position: 'relative', ...style }}>
-        <img src={previewUrl} alt={alt} style={style} loading={lazyLoad ? 'lazy' : undefined} />
+      <div className={box}>
+        <img src={previewUrl} alt={alt} loading={lazyLoad ? 'lazy' : undefined} />
         {videoIndicator}
       </div>
     )
@@ -59,9 +47,8 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
 
   if (isVideo && (mp4Url || hlsUrl)) {
     return (
-      <div style={{ position: 'relative', ...style }}>
+      <div className={box}>
         <video
-          style={{ ...style, pointerEvents: 'none' }}
           muted
           preload="metadata"
           playsInline
@@ -82,7 +69,7 @@ export const FrameThumbnail: React.FC<FrameThumbnailProps> = ({
     )
   }
 
-  return <div style={style} />
+  return <div className={box} />
 }
 
 export default FrameThumbnail
