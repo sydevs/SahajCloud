@@ -48,9 +48,8 @@ const FrameItem: React.FC<FrameItemProps> = ({
   const categoryLabel = getFrameDisplayLabel(frame)
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Only seek if click wasn't on input or button
-    const target = e.target as HTMLElement
-    if (target.tagName !== 'INPUT' && target.tagName !== 'BUTTON' && !target.closest('button')) {
+    // The row's own controls answer their own clicks.
+    if (!(e.target as HTMLElement).closest('input, button')) {
       onSeek(frame.timestamp)
     }
   }
@@ -62,8 +61,7 @@ const FrameItem: React.FC<FrameItemProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* The row's own click seeks too, but it holds an input and a button, so
-          it cannot be one itself — this is the seek a keyboard can reach. */}
+      {/* The row holds an input and a button, so it cannot be a control itself. */}
       <button
         aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
         className={styles['frame-item_seek']}

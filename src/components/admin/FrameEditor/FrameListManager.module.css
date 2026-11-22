@@ -22,10 +22,13 @@
   background-color: var(--theme-elevation-100);
 }
 
-/* The row's thumbnail, made a control so the seek is keyboard-reachable. */
-.frame-item_seek {
+/* The row's two controls. `border-radius` is load-bearing: the focus ring
+   follows it, and the thumbnail's own corners are rounded to the same value.
+   `cursor` is stated rather than inherited from the row, which may stop
+   declaring it once the row is no longer the seek. */
+.frame-item_seek,
+.frame-item_remove {
   display: flex;
-  flex-shrink: 0;
   padding: 0;
   background-color: transparent;
   border: none;
@@ -33,17 +36,16 @@
   cursor: pointer;
 }
 
+.frame-item_seek {
+  flex-shrink: 0;
+}
+
 .frame-item_remove {
   padding: calc(var(--base) * 0.25);
-  background-color: transparent;
-  border: none;
-  border-radius: var(--style-radius-s);
-  cursor: pointer;
   color: var(--theme-elevation-400);
   transition:
     color 0.15s ease,
     background-color 0.15s ease;
-  display: flex;
   align-items: center;
   justify-content: center;
 }

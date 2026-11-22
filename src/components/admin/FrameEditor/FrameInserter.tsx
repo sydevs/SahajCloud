@@ -27,6 +27,7 @@ interface FrameCardProps {
   frame: Frame
   isClicked: boolean
   insertionTimestamp: number
+  readOnly?: boolean
   onInsert: (frame: Frame) => void
 }
 
@@ -34,18 +35,19 @@ const FrameCard: React.FC<FrameCardProps> = ({
   frame,
   isClicked,
   insertionTimestamp,
+  readOnly,
   onInsert,
 }) => {
   const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   const pillLabel = nodeLabel || frame.label
-  // The thumbnail carries no words, and the pill and tags name the frame rather
-  // than the insertion, so the name is stated instead of read off the content.
+  // The card's content carries no words a name could be built from.
   const action = `Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`
   return (
     <button
       aria-label={action}
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
+      disabled={readOnly}
       onClick={() => onInsert(frame)}
       title={action}
       type="button"
@@ -79,7 +81,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
  * - First-frame rule: insert at 0s if no frames exist
  * - Replace behavior: replaces existing frame at same timestamp
  */
-export const FrameInserter: UIFieldClientComponent = () => {
+export const FrameInserter: UIFieldClientComponent = ({ readOnly }) => {
   // Access sibling fields
   const { value: frames, setValue: setFrames } = useField<KeyframeData[]>({ path: 'frames' })
   const { value: narratorId } = useField<string>({ path: 'narrator' })
@@ -206,6 +208,7 @@ export const FrameInserter: UIFieldClientComponent = () => {
               frame={frame}
               isClicked={clickedFrameId === frame.id}
               insertionTimestamp={insertionTimestamp}
+              readOnly={readOnly}
               onInsert={handleFrameInsert}
             />
           ))}

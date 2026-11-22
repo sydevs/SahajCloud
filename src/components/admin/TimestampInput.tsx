@@ -74,8 +74,7 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
-        {/* Unstyled on purpose: `.field-type.text input` is Payload's own
-            `formInput`, whose focus affordance an inline border would defeat. */}
+        {/* Unstyled on purpose — `formInput` paints it (docs/rules/admin-ui.md). */}
         <input
           id={fieldId}
           type="text"

@@ -41,13 +41,6 @@ export const baseStyles = {
     flexShrink: 0,
   } satisfies CSSProperties,
 
-  thumbnailContainer: {
-    position: 'relative' as const,
-    width: '60px',
-    height: '60px',
-    flexShrink: 0,
-  } satisfies CSSProperties,
-
   frameCategory: {
     fontSize: 'var(--admin-body-size)',
     fontWeight: 500,

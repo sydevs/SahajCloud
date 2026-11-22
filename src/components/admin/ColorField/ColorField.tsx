@@ -73,13 +73,9 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
           value={shown}
           onChange={handleChange}
           disabled={readOnly}
-          // The rest, focus affordance included, comes from Payload's own
-          // `.field-type.text input`; a swatch just needs more room than a line.
-          style={{
-            height: '40px',
-            padding: '4px',
-            cursor: readOnly ? 'not-allowed' : 'pointer',
-          }}
+          // `formInput` sizes and paints it, focus and error affordances
+          // included. A swatch only needs the room its padding takes back.
+          style={{ padding: '4px', cursor: readOnly ? 'not-allowed' : 'pointer' }}
         />
       </div>
 
