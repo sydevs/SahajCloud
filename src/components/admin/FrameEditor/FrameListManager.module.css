@@ -54,3 +54,65 @@
   color: var(--theme-error-500);
   background-color: var(--theme-error-100);
 }
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.5);
+}
+
+.playback-status {
+  margin-top: calc(var(--base) * 0.25);
+  font-size: calc(var(--admin-body-size) * 0.85);
+  color: var(--theme-elevation-500);
+}
+
+.frame-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base) * 0.25);
+}
+
+.thumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--style-radius-s);
+}
+
+.frame-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.frame-category {
+  font-size: var(--admin-body-size);
+  font-weight: 500;
+  color: var(--theme-elevation-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frame-tags {
+  font-size: calc(var(--admin-body-size) * 0.85);
+  color: var(--theme-elevation-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Not a `field-type text` control, so `formInput` never reaches it and the
+   box is this rule's to draw (docs/rules/admin-ui.md). */
+.timestamp-input {
+  width: 70px;
+  padding: calc(var(--base) * 0.25) calc(var(--base) * 0.5);
+  font-size: var(--admin-body-size);
+  text-align: center;
+  border: 1px solid var(--theme-elevation-200);
+  border-radius: var(--style-radius-s);
+  background-color: var(--theme-input-bg);
+  color: var(--theme-elevation-800);
+}
