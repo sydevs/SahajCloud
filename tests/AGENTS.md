@@ -44,18 +44,11 @@ unify-index-blocks migration transforms.
 ### Walking a convention over the admin components
 
 A spec that enforces a convention across every registered `Cell:` or `Field:`
-component takes its population and its module resolution from
-`tests/utils/adminRegistrations.ts` — `registeredComponents`, `resolveModule`
-and `reaches`. ⚠ **Assert its `unresolved` is empty.** A registration that
-resolves nowhere leaves the population silently, and still satisfies any floor
-placed under the population's size: four custom fields sat outside a guard that
-claimed to walk all of them, because the resolver knew neither `index.tsx` nor
-the `#Export` suffix (#1247).
-
-⚠ **Not `tests/utils/importGraph.ts`.** It follows `@/` and dynamic imports, so
-a convention walk through it reaches unrelated modules and passes by accident.
-Naming it also widens the per-edit hook's selection for it, and that selection
-is already the widest in the tree — the one `select-unit-specs.spec.ts` bounds.
+component takes `registeredComponents`, `resolveSpec` and `reaches` from
+`tests/utils/adminRegistrations.ts` — from there, never from `importGraph`,
+whose header carries both reasons. ⚠ **Assert the walk's `unresolved` is
+empty**: a registration that resolves nowhere leaves the population silently
+and still satisfies any floor placed under its size (#1247).
 
 ### Mounting an admin component in the unit lane
 
