@@ -5,6 +5,7 @@ import type { JSONFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { usePlaybackTime, useSeekToTime } from '@/components/admin/helpers/livePreviewPlayback'
 import type { KeyframeData } from '@/types/frames'
 
@@ -227,10 +228,8 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     .filter(Boolean)
     .join(' ')
 
-  const fieldId = `field-${name.replace(/\./g, '__')}`
-
   return (
-    <div className={fieldClasses} id={fieldId}>
+    <div className={fieldClasses} id={fieldId(name)}>
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 

@@ -5,6 +5,7 @@ import type { NumberFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useState } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 function secondsToHHMMSS(totalSeconds: number): string {
@@ -65,9 +66,6 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
     .filter(Boolean)
     .join(' ')
 
-  // `FieldLabel` derives `htmlFor` from the path, so only the input may carry this.
-  const fieldId = `field-${name.replace(/\./g, '__')}`
-
   return (
     <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
       <FieldLabel label={label} localized={localized} path={name} required={required} />
@@ -76,7 +74,7 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
         <FieldError path={name} showError={showError} />
         {/* Unstyled on purpose — `formInput` paints it (docs/rules/admin-ui.md). */}
         <input
-          id={fieldId}
+          id={fieldId(name)}
           type="text"
           value={displayValue}
           onChange={handleChange}

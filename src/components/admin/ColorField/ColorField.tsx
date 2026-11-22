@@ -5,6 +5,7 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isBrandColor } from '@/lib/clients/appearance'
 
@@ -52,8 +53,6 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  // `FieldLabel` derives `htmlFor` from the path, so only the input may carry this.
-  const fieldId = `field-${name.replace(/\./g, '__')}`
   const unset = Boolean(fallback) && !isBrandColor(value)
   const shown = unset && fallback ? fallback : value || '#000000'
 
@@ -68,7 +67,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         <FieldError path={name} showError={showError} />
 
         <input
-          id={fieldId}
+          id={fieldId(name)}
           type="color"
           value={shown}
           onChange={handleChange}

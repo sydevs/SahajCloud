@@ -16,9 +16,9 @@
  * `dist/fields/FieldLabel/index.js` and `dist/utilities/generateFieldID.js`:
  * `FieldLabel` renders `<label htmlFor={generateFieldID(path, editDepth, uuid)}>`,
  * which on a document form is `field-<path>` — `editDepth` is 1 there, and the
- * form `uuid` only the drawers pass. Both components also double each `.` to
- * `__`, as Payload does; no collection nests either field today, so the paths
- * below are flat and that substitution is exercised by nothing here.
+ * form `uuid` only the drawers pass. Both components take their own id from
+ * `fieldId`, whose spec owns the `.` → `__` substitution; no collection nests
+ * either field today, so the paths below are flat.
  */
 import type { ComponentType } from 'react'
 
