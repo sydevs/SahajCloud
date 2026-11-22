@@ -157,6 +157,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
           },
         ],
         beforeNavLinks: ['@/components/admin/ProjectSelector', '@/components/admin/AdminNavLinks'],
+        actions: ['@/components/admin/NeedHelpButton'],
         // Non-admin Atlas managers get a custom sidebar; everyone else falls
         // back to DefaultNav inside the component itself. See AtlasNav.
         Nav: '@/components/admin/AtlasNav/AtlasNav',

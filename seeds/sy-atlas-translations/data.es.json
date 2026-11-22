@@ -12,14 +12,11 @@
       "back": "Atrás",
       "back_to": "Volver a %{title}",
       "close": "Cerrar",
-      "explore": "Explorar",
-      "loading": "Cargando…",
       "cancel": "Cancelar",
       "widget_label": "Clases de meditación gratuitas",
       "all_classes_free": "Todas las clases son gratuitas"
     },
     "settings": {
-      "title": "Ajustes",
       "theme_auto": "Sistema (automático)",
       "theme_dark": "Tema oscuro",
       "theme_light": "Tema claro"
@@ -87,7 +84,6 @@
     "results": {
       "more": "Mostrar más",
       "farther": "Mostrar eventos distantes",
-      "showing": "Mostrando %{shown} de %{total} eventos",
       "no_nearby": "Ningún evento en un radio de %{km} km."
     },
     "sort": {
@@ -101,8 +97,7 @@
       "cta": "Visitar el sitio web de %{country}"
     },
     "nearby_prompt": {
-      "title": "¿Buscas clases cerca de %{city}?",
-      "dismiss": "Descartar"
+      "title": "¿Buscas clases cerca de %{city}?"
     }
   },
   "filters": {
@@ -111,7 +106,6 @@
       "apply": "Aplicar",
       "clear": "Borrar todo",
       "clear_one": "Borrar",
-      "remove": "Quitar %{label}",
       "any_time": "Cualquier hora",
       "no_results": "Ningún evento coincide con tus filtros."
     },
@@ -205,9 +199,7 @@
       "website": "Sitio web",
       "share": "Compartir",
       "add_calendar": "Añadir al calendario",
-      "download_ics": "Descargar archivo .ics",
-      "view_photo": "Ver foto",
-      "pause_slideshow": "Pausar la presentación"
+      "download_ics": "Descargar archivo .ics"
     },
     "recurrence": {
       "daily": "Cada día",
@@ -226,9 +218,6 @@
   },
   "calendar": {
     "title": "Calendario",
-    "previous": "Anterior",
-    "next": "Siguiente",
-    "pick_date": "Elegir fecha",
     "view_month": "Mes",
     "view_week": "Semana",
     "view_list": "Lista"
@@ -262,9 +251,7 @@
     }
   },
   "share": {
-    "share_on": "Compartir en %{platform}",
     "native": "Compartir…",
-    "copy_link": "Copiar enlace",
     "copied": "Copiado"
   },
   "compact": {

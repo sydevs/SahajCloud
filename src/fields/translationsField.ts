@@ -163,38 +163,9 @@ function createScreenshotField(
   }
 }
 
-/**
- * Sub-group slugs the builder presents on its own terms, because the slug is a
- * shorthand rather than words.
- *
- * Everything a sub-group's slug decides about its presentation lives in this
- * one table. `toWords('a11y')` is "A11y", which tells a translator nothing —
- * and accessibility strings are long, rarely edited, and would push the
- * visible copy off the screen, so the group also starts closed. Splitting
- * those two facts (a label in the schema, a collapse rule here) would leave a
- * reader checking two places to learn how one group behaves, and every schema
- * declaring the label again with nothing pinning the copies equal.
- *
- * Presentational only: the field name, data path, and column all still come
- * from the slug.
- */
-const SUBGROUP_PRESENTATION: Record<string, { initCollapsed: boolean; label: string }> = {
-  a11y: { initCollapsed: true, label: 'Accessibility' },
-}
-
 /** A slug in title case (`page_tags` -> `Page Tags`). Every tab's label. */
 function slugLabel(slug: string): string {
   return toWords(slug.replace(/_/g, '-'))
-}
-
-/**
- * A sub-group's presented name, else `slugLabel`.
- *
- * Only sub-groups read the table, so a tab that one day shares a slug with an
- * entry keeps its own title-case label and its own open state.
- */
-function subGroupLabel(slug: string): string {
-  return SUBGROUP_PRESENTATION[slug]?.label ?? slugLabel(slug)
 }
 
 /** `sy-atlas-translations` + `emails` -> `SyAtlasTranslationsEmails`. */
@@ -455,11 +426,10 @@ export function buildTranslationTabs(
         // exactly as before and no migration is involved.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
-          label: subGroupLabel(subSlug),
+          label: slugLabel(subSlug),
           admin: {
             ...(subSchema.description ? { description: subSchema.description } : {}),
-            // Everything not named in SUBGROUP_PRESENTATION opens.
-            initCollapsed: SUBGROUP_PRESENTATION[subSlug]?.initCollapsed ?? false,
+            initCollapsed: false,
           },
           fields: createLeafFields(subSlug, subSchema, globalSlug, groupSlug),
         }))

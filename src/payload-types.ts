@@ -5576,48 +5576,38 @@ export interface WmWebTranslation {
   id: number;
   common?: {
     general?: WmWebTranslationsCommonGeneralStrings;
-    a11y?: WmWebTranslationsCommonA11YStrings;
   };
   navigation?: WmWebTranslationsNavigationStrings;
   footer?: WmWebTranslationsFooterStrings;
   errors?: {
     general?: WmWebTranslationsErrorsGeneralStrings;
-    a11y?: WmWebTranslationsErrorsA11YStrings;
   };
   discover?: {
     general?: WmWebTranslationsDiscoverGeneralStrings;
   };
   article?: {
     general?: WmWebTranslationsArticleGeneralStrings;
-    a11y?: WmWebTranslationsArticleA11YStrings;
   };
   meditation?: {
     general?: WmWebTranslationsMeditationGeneralStrings;
-    a11y?: WmWebTranslationsMeditationA11YStrings;
   };
   lecture?: {
     general?: WmWebTranslationsLectureGeneralStrings;
-    a11y?: WmWebTranslationsLectureA11YStrings;
   };
   map?: {
     general?: WmWebTranslationsMapGeneralStrings;
-    a11y?: WmWebTranslationsMapA11YStrings;
   };
   forms?: {
     general?: WmWebTranslationsFormsGeneralStrings;
-    a11y?: WmWebTranslationsFormsA11YStrings;
   };
   media?: {
     general?: WmWebTranslationsMediaGeneralStrings;
-    a11y?: WmWebTranslationsMediaA11YStrings;
   };
   location?: {
     general?: WmWebTranslationsLocationGeneralStrings;
-    a11y?: WmWebTranslationsLocationA11YStrings;
   };
   blocks?: {
     general?: WmWebTranslationsBlocksGeneralStrings;
-    a11y?: WmWebTranslationsBlocksA11YStrings;
   };
   _status?: ('draft' | 'published') | null;
   updatedAt?: string | null;
@@ -5644,60 +5634,6 @@ export interface WmWebTranslationsCommonGeneralStrings {
    * The search-result and social-preview summary for any page that carries no description of its own. Around 160 characters reads best.
    */
   site_description?: string;
-}
-export interface WmWebTranslationsCommonA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the button that closes a notification banner.
-   */
-  dismiss?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that closes the full-screen image viewer.
-   */
-  close?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that moves back one item in a carousel or image viewer.
-   */
-  previous?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that moves forward one item in a carousel or image viewer.
-   */
-  next?: string;
-  /**
-   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
-   */
-  show_more_items_one?: string;
-  /**
-   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
-   */
-  show_more_items_few?: string;
-  /**
-   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
-   */
-  show_more_items_many?: string;
-  /**
-   * Not shown on screen; read by screen readers. Describes the "Show More" button. `%{count}` = how many further items it reveals, and selects the plural form.
-   */
-  show_more_items_other?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the trail of parent links above a page title.
-   */
-  breadcrumb?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the site's main menu, so it can be told apart from the other menus on the page.
-   */
-  primary_navigation?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the footer's untitled list of links. A footer column that shows its own heading is named by that heading instead.
-   */
-  footer_navigation?: string;
-  /**
-   * Not shown on screen; read by screen readers. Warns that a link opens a new browser tab, and is read directly after the link's own words. Takes no placeholder, because the link's text is arbitrary. Keep the brackets if the language uses them.
-   */
-  opens_in_new_tab_suffix?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button in the top bar that opens the site menu on a phone. The same name is read whether the menu is open or closed.
-   */
-  menu?: string;
 }
 export interface WmWebTranslationsNavigationStrings {
   /**
@@ -5776,12 +5712,6 @@ export interface WmWebTranslationsErrorsGeneralStrings {
    * Button that leaves an error page for the home page.
    */
   back_to_home?: string;
-}
-export interface WmWebTranslationsErrorsA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the warning icon above an error message.
-   */
-  error_icon?: string;
 }
 export interface WmWebTranslationsDiscoverGeneralStrings {
   /**
@@ -5887,12 +5817,6 @@ export interface WmWebTranslationsArticleGeneralStrings {
    */
   tag_technique?: string;
 }
-export interface WmWebTranslationsArticleA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the row of tag filter chips above an article index.
-   */
-  filter_label?: string;
-}
 export interface WmWebTranslationsMeditationGeneralStrings {
   /**
    * Word marking the current track as a guided meditation, shown above its title.
@@ -5943,44 +5867,6 @@ export interface WmWebTranslationsMeditationGeneralStrings {
    */
   upsell_app_link?: string;
 }
-export interface WmWebTranslationsMeditationA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the button that silences the spoken guidance.
-   */
-  mute_voice?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the same button once the guidance is silenced.
-   */
-  unmute_voice?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that silences the background music.
-   */
-  mute_music?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the same button once the music is silenced.
-   */
-  unmute_music?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the slider controlling the spoken guidance.
-   */
-  voice_volume?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the slider controlling the background music.
-   */
-  music_volume?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the panel holding the volume sliders.
-   */
-  audio_settings?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that picks a different background track at random.
-   */
-  shuffle_music?: string;
-  /**
-   * Not shown on screen; read by screen readers. Announced while the suggested talks are still loading.
-   */
-  related_lectures_loading?: string;
-}
 export interface WmWebTranslationsLectureGeneralStrings {
   /**
    * Shown in place of the video player when a talk has no video to play.
@@ -5990,16 +5876,6 @@ export interface WmWebTranslationsLectureGeneralStrings {
    * Heading above the meditations suggested at the end of a talk.
    */
   related_meditations?: string;
-}
-export interface WmWebTranslationsLectureA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading.
-   */
-  related_meditations_loading?: string;
-  /**
-   * Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own.
-   */
-  untitled_heading?: string;
 }
 export interface WmWebTranslationsMapGeneralStrings {
   /**
@@ -6035,24 +5911,6 @@ export interface WmWebTranslationsMapGeneralStrings {
    */
   visit_website?: string;
 }
-export interface WmWebTranslationsMapA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the list of classes on a region page.
-   */
-  classes_heading?: string;
-  /**
-   * Not shown on screen; read by screen readers. Introduces a class's day and time.
-   */
-  when?: string;
-  /**
-   * Not shown on screen; read by screen readers. Introduces a class's address.
-   */
-  where?: string;
-  /**
-   * Not shown on screen; read by screen readers. Introduces the languages a class is taught in.
-   */
-  languages?: string;
-}
 export interface WmWebTranslationsFormsGeneralStrings {
   /**
    * Validation message under a mandatory field left empty. `%{field}` = that field's own label, which the editor writes and which is translated separately.
@@ -6078,16 +5936,6 @@ export interface WmWebTranslationsFormsGeneralStrings {
    * The button that sends a form, unless the editor gave it its own label.
    */
   submit?: string;
-}
-export interface WmWebTranslationsFormsA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Announced while a form is being sent.
-   */
-  submitting?: string;
-  /**
-   * Not shown on screen; read by screen readers. Replaces the asterisk marking a mandatory field. One word.
-   */
-  required_marker?: string;
 }
 export interface WmWebTranslationsMediaGeneralStrings {
   /**
@@ -6146,64 +5994,6 @@ export interface WmWebTranslationsMediaGeneralStrings {
    * Replaces `copy` for a moment after the code is copied.
    */
   copied?: string;
-}
-export interface WmWebTranslationsMediaA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the button that starts playback.
-   */
-  play?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the same button during playback.
-   */
-  pause?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that goes back to the previous track.
-   */
-  previous_track?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that skips to the next track.
-   */
-  next_track?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that turns random order on or off.
-   */
-  toggle_shuffle?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that silences the player.
-   */
-  mute?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the same button once the player is silenced.
-   */
-  unmute?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the player's volume slider.
-   */
-  volume?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title.
-   */
-  play_item?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that opens an image full screen, when the image has no caption.
-   */
-  view_image?: string;
-  /**
-   * Not shown on screen; read by screen readers. The same button when the image has a caption. `%{alt}` = that caption, which the editor writes.
-   */
-  view_image_alt?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the box holding the embed code.
-   */
-  embed_code?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that enlarges an image in the full-screen viewer.
-   */
-  zoom_in?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer.
-   */
-  zoom_out?: string;
 }
 export interface WmWebTranslationsLocationGeneralStrings {
   /**
@@ -6271,20 +6061,6 @@ export interface WmWebTranslationsLocationGeneralStrings {
    */
   location_failed?: string;
 }
-export interface WmWebTranslationsLocationA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the place-search input.
-   */
-  search_label?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the box showing the place already chosen.
-   */
-  selected_label?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that changes the chosen place.
-   */
-  change_label?: string;
-}
 export interface WmWebTranslationsBlocksGeneralStrings {
   /**
    * Tab of the subtle-system diagram showing the energy centres. A Sanskrit term — keep it if your language uses it.
@@ -6314,60 +6090,6 @@ export interface WmWebTranslationsBlocksGeneralStrings {
    * Ornamental words set on their side along the outer edge of an “Ancient Wisdom” text box. Decorative, so an evocative short phrase beats a literal translation — and it stands vertically in one line, which is what the limit is for.
    */
   wisdom_sidetext?: string;
-}
-export interface WmWebTranslationsBlocksA11YStrings {
-  /**
-   * Not shown on screen; read by screen readers. Names the button that opens the subtle-system diagram full screen.
-   */
-  enter_fullscreen?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the same button while the diagram fills the screen.
-   */
-  exit_fullscreen?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the "Learn More" link. `%{title}` = the chakra or channel it leads to.
-   */
-  learn_more_about?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that goes back one slide in a carousel.
-   */
-  previous_slide?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that advances one slide in a carousel.
-   */
-  next_slide?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that scrolls to the previous column. `%{title}` = that column's heading.
-   */
-  previous_column?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the button that scrolls to the next column. `%{title}` = that column's heading.
-   */
-  next_column?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names a dot that jumps to one column. `%{number}` = its position, `%{title}` = its heading.
-   */
-  go_to_column?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names a pull-quote block that carries no heading.
-   */
-  quote?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the in-page contents list when it carries no heading.
-   */
-  table_of_contents?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the whole sharing area at the end of a page.
-   */
-  share_region?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names the row of sharing buttons inside that area.
-   */
-  share_group?: string;
-  /**
-   * Not shown on screen; read by screen readers. Names one sharing button. `%{platform}` = the network's own name, untranslated.
-   */
-  share_on?: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -9160,14 +8882,6 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    */
   close?: string;
   /**
-   * Accessible label (aria-label) of the collapsed base drawer’s toggle.
-   */
-  explore?: string;
-  /**
-   * Screen-reader label of every loading spinner.
-   */
-  loading?: string;
-  /**
    * Cancel button, shared by the registration form and the report form.
    */
   cancel?: string;
@@ -9181,10 +8895,6 @@ export interface SyAtlasTranslationsCommonChromeStrings {
   all_classes_free?: string;
 }
 export interface SyAtlasTranslationsCommonSettingsStrings {
-  /**
-   * Accessible label (aria-label) of the settings cog, and the settings drawer heading.
-   */
-  title?: string;
   /**
    * Theme row: follow the operating system’s light/dark setting.
    */
@@ -9402,10 +9112,6 @@ export interface SyAtlasTranslationsSearchResultsStrings {
    */
   farther?: string;
   /**
-   * Result-count line. `%{shown}` = results rendered, `%{total}` = results found.
-   */
-  showing?: string;
-  /**
    * Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres.
    */
   no_nearby?: string;
@@ -9443,10 +9149,6 @@ export interface SyAtlasTranslationsSearchNearbyPromptStrings {
    * Prompt question. `%{city}` = detected city name.
    */
   title?: string;
-  /**
-   * Control that hides the prompt for this visit.
-   */
-  dismiss?: string;
 }
 export interface SyAtlasTranslationsFiltersChromeStrings {
   /**
@@ -9465,10 +9167,6 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    * Action that clears a single filter section.
    */
   clear_one?: string;
-  /**
-   * Accessible label of an active-filter chip’s remove button. `%{label}` = the filter’s own label.
-   */
-  remove?: string;
   /**
    * Chip text when no time-of-day filter is set.
    */
@@ -9801,14 +9499,6 @@ export interface SyAtlasTranslationsEventActionsStrings {
    * Add-to-calendar menu item that downloads an .ics file.
    */
   download_ics?: string;
-  /**
-   * Image carousel: open the photo full size.
-   */
-  view_photo?: string;
-  /**
-   * Image carousel: stop it advancing on its own.
-   */
-  pause_slideshow?: string;
 }
 export interface SyAtlasTranslationsEventRecurrenceStrings {
   /**
@@ -9883,18 +9573,6 @@ export interface SyAtlasTranslationsCalendarStrings {
    * Calendar view heading, and its peek-strip name.
    */
   title?: string;
-  /**
-   * Control that steps back one month, week, or page.
-   */
-  previous?: string;
-  /**
-   * Control that steps forward one month, week, or page.
-   */
-  next?: string;
-  /**
-   * Control that opens the date picker.
-   */
-  pick_date?: string;
   /**
    * View switch: the month grid.
    */
@@ -10274,17 +9952,9 @@ export interface SyAtlasTranslationsShareStrings {
    */
   title?: string;
   /**
-   * Label of one share target. `%{platform}` = the platform’s name.
-   */
-  share_on?: string;
-  /**
    * Label of the device’s own share sheet.
    */
   native?: string;
-  /**
-   * Action that copies the event link to the clipboard.
-   */
-  copy_link?: string;
   /**
    * Confirmation shown after the link is copied.
    */
@@ -10496,7 +10166,6 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   navigation?: T;
   footer?: T;
@@ -10504,7 +10173,6 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   discover?:
     | T
@@ -10515,49 +10183,41 @@ export interface WmWebTranslationsSelect<T extends boolean = true> {
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   meditation?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   lecture?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   map?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   forms?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   media?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   location?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   blocks?:
     | T
     | {
         general?: T;
-        a11y?: T;
       };
   _status?: T;
   updatedAt?: T;

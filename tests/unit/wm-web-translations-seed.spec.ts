@@ -65,7 +65,7 @@ interface DeclaredKey {
   allowed: string[]
 }
 
-/** `common.a11y.dismiss`, or `navigation.about_meditation` for a flat tab. */
+/** `common.general.loading`, or `navigation.about_meditation` for a flat tab. */
 function seedPath(groupField: string | null, fieldName: string, innerKey: string): string {
   return [groupField, fieldName, innerKey].filter((part) => part !== null).join('.')
 }
@@ -120,7 +120,7 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   it('declares at least one key (the walker found the schema)', () => {
     // A walker that silently returned nothing would make every assertion
     // below pass over an empty list.
-    expect(keys.length).toBeGreaterThan(100)
+    expect(keys.length).toBeGreaterThan(50)
   })
 
   // Collected rather than one case per key: a single failure then names every

@@ -5,7 +5,7 @@
 Meditations don't use field-level localization — each meditation **is** a
 single-locale document:
 
-- A `locale` select field with all 19 options, default `en`.
+- A `locale` select field offering every locale, default `en`.
 - `filterMeditationsByLocale` (a beforeOperation hook in
   `src/collections/Meditations/hooks/`) adds `{ locale: { equals:
 req.locale } }` to `find`/`count` operations.
