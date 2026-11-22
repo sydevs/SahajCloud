@@ -88,6 +88,8 @@ export const LogTable: ArrayFieldClientComponent = ({ field, path }) => {
         {entries.length === 0 ? (
           <div style={emptyStyle}>Nothing recorded yet.</div>
         ) : (
+          // Not a control: the row's one tab stop is the focusable cell below,
+          // which this listener reads the row from.
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions
           <div
             className="log-table"

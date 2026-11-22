@@ -6,6 +6,7 @@ import { FieldLabel, useDocumentInfo, useFieldPath, useFormFields, useLocale } f
 import React from 'react'
 import useSWR from 'swr'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { payloadListFetcher } from '@/components/admin/helpers/payloadListFetcher'
 import { transcribableMedia } from '@/lib/transcripts/media'
 import { relationId } from '@/lib/utilities/relationId'
@@ -75,6 +76,7 @@ export function FileTranscript({
  * Nothing renders for a file with no transcript to have, or none chosen.
  */
 export function FileTranscriptField({
+  field,
   fileField,
   path,
 }: UIFieldClientProps & { fileField?: string }) {
@@ -84,7 +86,10 @@ export function FileTranscriptField({
   if (!file || !transcribableMedia(file.mimeType)) return null
 
   return (
-    <div className="field-type" style={{ marginBottom: 'var(--spacing-field)' }}>
+    <div
+      className="field-type"
+      style={{ ...mergeFieldStyles(field.admin), marginBottom: 'var(--spacing-field)' }}
+    >
       {!fileField && <FieldLabel label="Transcript" />}
       {/* Keyed, so a swapped file starts its player and playhead afresh. */}
       <FileTranscript collapsible={Boolean(fileField)} file={file} key={file.id} />

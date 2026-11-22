@@ -59,7 +59,12 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
   return (
     <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
       <div style={{ alignItems: 'baseline', display: 'flex', gap: 'calc(var(--base) / 3)' }}>
-        <FieldLabel label={label} localized={localized} path={name} required={required} />
+        <FieldLabel
+          htmlFor={fieldId(name)}
+          label={label}
+          localized={localized}
+          required={required}
+        />
         {unset ? <span style={{ color: 'var(--theme-elevation-500)' }}>Default</span> : null}
       </div>
 

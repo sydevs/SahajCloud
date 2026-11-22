@@ -103,8 +103,6 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  // Generate field ID from path (replace dots with double underscores)
-
   // Generate aria-label for accessibility
   const ariaLabel =
     typeof label === 'string'

@@ -69,7 +69,7 @@ export const StringSelectField: TextFieldClientComponent = ({ field, path, readO
 
   return (
     <div className={fieldClasses} style={styles}>
-      <FieldLabel label={label} localized={localized} path={path} required={required} />
+      <FieldLabel htmlFor={fieldId(path)} label={label} localized={localized} required={required} />
       <div className="field-type__wrap">
         <FieldError path={path} showError={showError} />
         <ReactSelect

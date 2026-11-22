@@ -137,8 +137,6 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  // Generate field ID from path
-
   // Generate aria-label for accessibility
   const ariaLabel =
     typeof label === 'string'
