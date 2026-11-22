@@ -41,15 +41,17 @@ const FrameCard: React.FC<FrameCardProps> = ({
   const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   const pillLabel = nodeLabel || frame.label
-  // The card's content carries no words a name could be built from.
-  const action = `Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`
+  // The name stays off the playhead: `insertionTimestamp` moves every second,
+  // and a screen reader re-reads a focused control whose name has changed. The
+  // grid states the insertion point once instead.
+  const name = `Insert ${getFrameDisplayLabel(frame)}`
   return (
     <button
-      aria-label={action}
+      aria-label={name}
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       disabled={readOnly}
       onClick={() => onInsert(frame)}
-      title={action}
+      title={`${name} at ${formatTime(insertionTimestamp)}`}
       type="button"
     >
       {/* Thumbnail with category pill overlay */}
@@ -191,6 +193,10 @@ export const FrameInserter: UIFieldClientComponent = ({ readOnly }) => {
             </Pill>
           ))}
         </div>
+      </div>
+
+      <div className={styles['insertion-point']}>
+        Inserting at {formatTime(insertionTimestamp)}
       </div>
 
       {/* Frames Grid */}

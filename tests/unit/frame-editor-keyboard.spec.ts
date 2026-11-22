@@ -108,7 +108,15 @@ describe('FrameInserter', () => {
   it('offers each frame as a named button', () => {
     mount()
     expect(button('Insert').type).toBe('button')
-    expect(button('Insert').ariaLabel).toBe('Insert Bandhan at 1:30')
+    expect(button('Insert').ariaLabel).toBe('Insert Bandhan')
+  })
+
+  it('states the insertion point once, off every card name', () => {
+    // `insertionTimestamp` moves on every playback tick, so a name carrying it
+    // is re-announced each second to whoever has the card focused.
+    mount()
+    expect(button('Insert').ariaLabel).not.toContain('1:30')
+    expect(container.textContent).toContain('Inserting at 1:30')
   })
 
   it('still inserts the frame at the playhead when that button is activated', () => {

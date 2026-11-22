@@ -31,3 +31,10 @@
   border-color: var(--theme-success-500);
   transform: scale(1.05);
 }
+
+/* Where a card inserts, stated once for the grid — each card's own name must
+   not carry it, or a focused card is re-announced every second of playback. */
+.insertion-point {
+  font-size: calc(var(--admin-body-size) * 0.85);
+  color: var(--theme-elevation-500);
+}
