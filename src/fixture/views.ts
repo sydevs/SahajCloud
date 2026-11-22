@@ -46,6 +46,7 @@ export const VIEWS: ViewRegistry = {
   '@/components/branding/Logo#default': links('/admin'),
   '@/components/branding/Icon#default': links('/admin'),
   '@/components/admin/SignIn#default': { none: 'the sign-in view, unreachable once signed in' },
+  '@/components/admin/NeedHelpButton#default': links('/admin'),
 
   // Root views.
   '@/components/admin/Dashboard/DashboardView#default': links(
@@ -172,6 +173,9 @@ export const VIEWS: ViewRegistry = {
     doc('managers', 1_001_002),
     doc('clients', CLIENT_FIRST),
   ),
+  // Shows only to a non-admin, in the manager drawer an event's Manager field
+  // opens — sign in as 1001002 and open its manager, 1001006.
+  '@/components/admin/ManagerEditNotice#default': links(doc('events', EVENT_ESCALATED)),
   '@/components/admin/NotificationPreferences#default': links(
     doc('managers', 1_001_002),
     doc('managers', 1_001_003),

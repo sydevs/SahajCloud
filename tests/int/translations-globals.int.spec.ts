@@ -10,10 +10,9 @@
  *   {…} } }` instead of `{ onboarding_welcome: {…} }`.
  * - Sy-atlas and wm-web both mix leaf tabs with nested ones. Sy-atlas's leaf
  *   tabs are Countries, Online, Calendar, Share, Compact, Seo and Emails;
- *   Common, Search, Filters, Event and Registration nest (#706). Since #707
- *   every wm-web tab carrying screen-reader-only copy declares `general` +
- *   `a11y` sub-groups, so its field names repeat across tabs and only the
- *   `<group>.<field>` PAIR identifies a leaf group.
+ *   Common, Search, Filters, Event and Registration nest (#706). Every nested
+ *   wm-web tab declares a `general` sub-group, so its field names repeat
+ *   across tabs and only the `<group>.<field>` PAIR identifies a leaf group.
  * - richText fields inside nested tabs keep the sub-slug prefix (the group
  *   wrapper supplies the tab namespace), so the field name is
  *   `welcome_legal_disclaimer` and the API path is
@@ -187,38 +186,27 @@ describe('Translations Globals Configuration', () => {
   })
 
   describe('Per-leaf-group JSON fields + richText siblings', () => {
-    // `general` and `a11y` repeat across ten tabs, so a bare name proves
-    // nothing. The pair is what maps to the `<tab>_<sub>` column, and asserting
-    // the exact set is what catches a sub-group dropped from the schema.
-    // Two entries here are not half of a pair: `discover` carries a lone
-    // `general` because it owns no screen-reader copy, and `blocks` carries a
-    // third sub-group for the live-session block's own copy.
+    // `general` repeats across eleven tabs, so a bare name proves nothing. The
+    // pair is what maps to the `<tab>_<sub>` column, and asserting the exact
+    // set is what catches a sub-group dropped from the schema. No tab carries
+    // an `a11y` group: WeMeditate Web owns its screen-reader strings. `blocks`
+    // is the one tab with a second sub-group, for the live-session block.
     it('wm-web-translations emits one JSON field per leaf group, namespaced by tab', () => {
       expect(jsonFieldPaths('wm-web-translations')).toEqual([
         'common.general',
-        'common.a11y',
         'navigation',
         'footer',
         'errors.general',
-        'errors.a11y',
         'discover.general',
         'article.general',
-        'article.a11y',
         'meditation.general',
-        'meditation.a11y',
         'lecture.general',
-        'lecture.a11y',
         'map.general',
-        'map.a11y',
         'forms.general',
-        'forms.a11y',
         'media.general',
-        'media.a11y',
         'location.general',
-        'location.a11y',
         'blocks.general',
         'blocks.live_session',
-        'blocks.a11y',
       ])
     })
 
@@ -326,32 +314,17 @@ describe('Translations Globals Configuration', () => {
       }
     })
 
-    // `a11y` is long, rarely edited, and would push the visible copy off the
-    // screen. It is the one sub-group that starts closed.
-    it('wm-web closes Accessibility and opens every other sub-group', () => {
+    it('wm-web opens every sub-group collapsible', () => {
       const groups = collapsibles('wm-web-translations')
 
-      // Derived, not a hand-maintained 20: one collapsible per nested leaf
-      // group, and its only job is to prove the walk found something to
-      // assert on.
+      // Derived, not hand-maintained: one collapsible per nested leaf group,
+      // and its only job is to prove the walk found something to assert on.
       const nestedTabs = jsonFieldPaths('wm-web-translations').filter((path) => path.includes('.'))
       expect(groups.length).toBe(nestedTabs.length)
       expect(groups.length).toBeGreaterThan(0)
 
-      // "Accessibility", not the slug — `toWords('a11y')` gives "A11y", which
-      // is a shorthand a translator should not have to decode. Both
-      // directions: the renamed label reaches the real schema, and the slug
-      // never does.
-      const labels = groups.map((group) => String(group.label))
-      expect(labels).toContain('Accessibility')
-      expect(labels).not.toContain('A11y')
-
       for (const group of groups) {
-        const label = String(group.label)
-        // SUBGROUP_PRESENTATION names `a11y` alone, so a sub-group added
-        // later opens. Pinning the label set instead would send every such
-        // addition through this spec.
-        expect(group.admin?.initCollapsed, label).toBe(label === 'Accessibility')
+        expect(group.admin?.initCollapsed, String(group.label)).toBe(false)
       }
     })
 

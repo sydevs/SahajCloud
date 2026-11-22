@@ -31,54 +31,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "dismiss": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that closes a notification banner."
-            },
-            "close": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that closes the full-screen image viewer."
-            },
-            "previous": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that moves back one item in a carousel or image viewer."
-            },
-            "next": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that moves forward one item in a carousel or image viewer."
-            },
-            "show_more_items": {
-              "type": "string",
-              "plural": true,
-              "description": "Not shown on screen; read by screen readers. Describes the \"Show More\" button. `%{count}` = how many further items it reveals, and selects the plural form."
-            },
-            "breadcrumb": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the trail of parent links above a page title."
-            },
-            "primary_navigation": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the site's main menu, so it can be told apart from the other menus on the page."
-            },
-            "footer_navigation": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the footer's untitled list of links. A footer column that shows its own heading is named by that heading instead."
-            },
-            "opens_in_new_tab_suffix": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Warns that a link opens a new browser tab, and is read directly after the link's own words. Takes no placeholder, because the link's text is arbitrary. Keep the brackets if the language uses them."
-            },
-            "menu": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button in the top bar that opens the site menu on a phone. The same name is read whether the menu is open or closed."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -177,17 +129,6 @@
             "back_to_home": {
               "type": "string",
               "description": "Button that leaves an error page for the home page."
-            }
-          },
-          "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "error_icon": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the warning icon above an error message."
             }
           },
           "additionalProperties": false
@@ -302,17 +243,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "filter_label": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the row of tag filter chips above an article index."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -376,49 +306,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "mute_voice": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that silences the spoken guidance."
-            },
-            "unmute_voice": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the same button once the guidance is silenced."
-            },
-            "mute_music": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that silences the background music."
-            },
-            "unmute_music": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the same button once the music is silenced."
-            },
-            "voice_volume": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the slider controlling the spoken guidance."
-            },
-            "music_volume": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the slider controlling the background music."
-            },
-            "audio_settings": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the panel holding the volume sliders."
-            },
-            "shuffle_music": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that picks a different background track at random."
-            },
-            "related_lectures_loading": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Announced while the suggested talks are still loading."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -441,21 +328,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "related_meditations_loading": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Announced while the suggested meditations are still loading."
-            },
-            "untitled_heading": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Stands in as the page heading for a talk that carries no title of its own."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -463,7 +335,9 @@
     "map": {
       "type": "object",
       "description": "The class listings under /map, which crawlers and visitors without JavaScript read",
-      "preview": { "path": "map" },
+      "preview": {
+        "path": "map"
+      },
       "properties": {
         "general": {
           "type": "object",
@@ -491,29 +365,6 @@
             "visit_website": {
               "type": "string",
               "description": "Link that takes a visitor to a class's own website."
-            }
-          },
-          "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "classes_heading": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the list of classes on a region page."
-            },
-            "when": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Introduces a class's day and time."
-            },
-            "where": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Introduces a class's address."
-            },
-            "languages": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Introduces the languages a class is taught in."
             }
           },
           "additionalProperties": false
@@ -552,21 +403,6 @@
             "submit": {
               "type": "string",
               "description": "The button that sends a form, unless the editor gave it its own label."
-            }
-          },
-          "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "submitting": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Announced while a form is being sent."
-            },
-            "required_marker": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Replaces the asterisk marking a mandatory field. One word."
             }
           },
           "additionalProperties": false
@@ -619,69 +455,6 @@
             "copied": {
               "type": "string",
               "description": "Replaces `copy` for a moment after the code is copied."
-            }
-          },
-          "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "play": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that starts playback."
-            },
-            "pause": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the same button during playback."
-            },
-            "previous_track": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that goes back to the previous track."
-            },
-            "next_track": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that skips to the next track."
-            },
-            "toggle_shuffle": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that turns random order on or off."
-            },
-            "mute": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that silences the player."
-            },
-            "unmute": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the same button once the player is silenced."
-            },
-            "volume": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the player's volume slider."
-            },
-            "play_item": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the play button on a card. `%{title}` = that item's own title."
-            },
-            "view_image": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that opens an image full screen, when the image has no caption."
-            },
-            "view_image_alt": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. The same button when the image has a caption. `%{alt}` = that caption, which the editor writes."
-            },
-            "embed_code": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the box holding the embed code."
-            },
-            "zoom_in": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that enlarges an image in the full-screen viewer."
-            },
-            "zoom_out": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that shrinks an image in the full-screen viewer."
             }
           },
           "additionalProperties": false
@@ -763,25 +536,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "search_label": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the place-search input."
-            },
-            "selected_label": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the box showing the place already chosen."
-            },
-            "change_label": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that changes the chosen place."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -854,65 +608,6 @@
             "schedule_line": {
               "type": "string",
               "description": "The class's own schedule, shown before the visitor's clock is known — e.g. \"Tuesdays, 7:00 pm London time\". `%{weekday}` = the day, `%{time}` = the start time, `%{zone}` = the class's own time zone, named by the browser."
-            }
-          },
-          "additionalProperties": false
-        },
-        "a11y": {
-          "type": "object",
-          "description": "Not shown on screen; read by screen readers",
-          "properties": {
-            "enter_fullscreen": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that opens the subtle-system diagram full screen."
-            },
-            "exit_fullscreen": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the same button while the diagram fills the screen."
-            },
-            "learn_more_about": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the \"Learn More\" link. `%{title}` = the chakra or channel it leads to."
-            },
-            "previous_slide": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that goes back one slide in a carousel."
-            },
-            "next_slide": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that advances one slide in a carousel."
-            },
-            "previous_column": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that scrolls to the previous column. `%{title}` = that column's heading."
-            },
-            "next_column": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the button that scrolls to the next column. `%{title}` = that column's heading."
-            },
-            "go_to_column": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names a dot that jumps to one column. `%{number}` = its position, `%{title}` = its heading."
-            },
-            "quote": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names a pull-quote block that carries no heading."
-            },
-            "table_of_contents": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the in-page contents list when it carries no heading."
-            },
-            "share_region": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the whole sharing area at the end of a page."
-            },
-            "share_group": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names the row of sharing buttons inside that area."
-            },
-            "share_on": {
-              "type": "string",
-              "description": "Not shown on screen; read by screen readers. Names one sharing button. `%{platform}` = the network's own name, untranslated."
             }
           },
           "additionalProperties": false
