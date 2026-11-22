@@ -23,15 +23,17 @@ import { createTestEnvironment } from '../utils/testHelpers'
 import { withSchema } from '../utils/withSchema'
 
 /**
- * `common.general` on `wm-web-translations`, with the three table names spelled
- * out rather than derived: they are what the module's own derivation has to
- * produce, so re-deriving them here would let both sides be wrong together.
- * Read off that global's `translationsSchema.json`, whose `common` tab declares
- * `general` alone.
+ * `common.general` on `wm-web-translations`, with the three table names and the
+ * versions column spelled out rather than derived: they are what the module's
+ * own derivation has to produce, so re-deriving them here would let both sides
+ * be wrong together. Read off that global's `translationsSchema.json`, whose
+ * `common` tab declares `general` alone.
  */
 const TABLE = 'wm_web_translations'
-const GROUP = { main: 'common_general', version: 'version_common_general' }
+const GROUP = 'common_general'
 
+const MAIN_COLUMN = 'common_general'
+const VERSION_COLUMN = 'version_common_general'
 const MAIN_LOCALES = 'wm_web_translations_locales'
 const VERSION_LOCALES = '_wm_web_translations_v_locales'
 const VERSIONS = '_wm_web_translations_v'
@@ -51,7 +53,7 @@ describe('English key backfill', () => {
   const mainValues = (locale: string) =>
     withSchema(payload, async (tx) => {
       const { rows } = await tx.execute(sql`
-        SELECT ${sql.identifier(GROUP.main)} AS value
+        SELECT ${sql.identifier(MAIN_COLUMN)} AS value
           FROM ${sql.identifier(MAIN_LOCALES)}
           WHERE "_locale" = ${locale}`)
       return (rows as { value: Record<string, unknown> }[]).map((row) => row.value)
@@ -65,7 +67,7 @@ describe('English key backfill', () => {
   const versionValues = (locale: string) =>
     withSchema(payload, async (tx) => {
       const { rows } = await tx.execute(sql`
-        SELECT parent."latest" AS latest, row.${sql.identifier(GROUP.version)} AS value
+        SELECT parent."latest" AS latest, row.${sql.identifier(VERSION_COLUMN)} AS value
           FROM ${sql.identifier(VERSION_LOCALES)} row
           JOIN ${sql.identifier(VERSIONS)} parent ON parent."id" = row."_parent_id"
           WHERE row."_locale" = ${locale}`)
@@ -76,8 +78,8 @@ describe('English key backfill', () => {
   const store = (value: string) =>
     withSchema(payload, async (tx) => {
       for (const [table, column] of [
-        [MAIN_LOCALES, GROUP.main],
-        [VERSION_LOCALES, GROUP.version],
+        [MAIN_LOCALES, MAIN_COLUMN],
+        [VERSION_LOCALES, VERSION_COLUMN],
       ]) {
         await tx.execute(sql`
           UPDATE ${sql.identifier(table)}

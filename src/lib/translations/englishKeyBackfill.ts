@@ -17,19 +17,17 @@ import { sql } from '@payloadcms/db-postgres'
 /** A migration's own `db`, or a transaction a spec pins to one schema. */
 type Executor = Pick<MigrateUpArgs['db'], 'execute'>
 
-/** A leaf group's jsonb column, in the main locales table and in the versions one. */
-type LeafGroup = { main: string; version: string }
-
 /**
- * Both rows a key has to reach, from the global's table base — Payload names a
- * localized global's value table `<base>_locales` and its versions'
- * `_<base>_v_locales`.
+ * Both rows a key has to reach, from the global's table base and the leaf
+ * group's column — Payload names a localized global's value table
+ * `<base>_locales` and its versions' `_<base>_v_locales`, and prefixes the
+ * versions' copy of every column with `version_`.
  */
-const targets = (table: string, group: LeafGroup) => [
-  { table: `${table}_locales`, column: group.main, latestOnly: sql`` },
+const targets = (table: string, group: string) => [
+  { table: `${table}_locales`, column: group, latestOnly: sql`` },
   {
     table: `_${table}_v_locales`,
-    column: group.version,
+    column: `version_${group}`,
     // Of the versions, the one row a global's own update loads its document from.
     latestOnly: sql`AND "_parent_id" IN (SELECT "id" FROM ${sql.identifier(`_${table}_v`)} WHERE "latest")`,
   },
@@ -45,7 +43,7 @@ const targets = (table: string, group: LeafGroup) => [
  */
 export async function addEnglishKey(
   db: Executor,
-  { table, group, key, en }: { table: string; group: LeafGroup; key: string; en: string },
+  { table, group, key, en }: { table: string; group: string; key: string; en: string },
 ): Promise<void> {
   for (const target of targets(table, group)) {
     const col = sql.identifier(target.column)
@@ -70,7 +68,7 @@ export async function addEnglishKey(
  */
 export async function dropEnglishKey(
   db: Executor,
-  { table, group, key }: { table: string; group: LeafGroup; key: string },
+  { table, group, key }: { table: string; group: string; key: string },
 ): Promise<void> {
   for (const target of targets(table, group)) {
     const col = sql.identifier(target.column)
