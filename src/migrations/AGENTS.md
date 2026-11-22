@@ -475,10 +475,15 @@ migration, surface the trade-off to the user rather than deciding it
 yourself — backfills-in-migration have historically caused FK issues. A
 post-deploy sync/job is often safer.
 
-One carve-out is settled: **English translation copy for a global ships as a
-hand-written data-only migration**, since the seed files reach only a fresh
-database. It carries no DDL, so none of the above applies to it.
-`src/globals/AGENTS.md` owns that rule and its guards.
+⚠ **A new translation key needs no migration at all.** Its English is declared
+as `default` beside the key in `translationsSchema.json`, and
+`reconcileEnglishDefaults` puts it into a database that predates it, on every
+boot. Writing one by hand is the convention #1218 retired — three
+near-identical copies in 48 hours were what retired it.
+`src/globals/AGENTS.md` owns that rule and its guards. **Retiring** a key is
+still a migration, and so is rewording stored copy: a default lands only where
+nothing is stored. Such a migration carries no DDL, so none of the above
+applies to it.
 
 ⚠ **A hand-written migration imports from `@/lib/migrations/` and nowhere else
 in `src/`.** A file here is frozen once it merges, so shared SQL cannot live

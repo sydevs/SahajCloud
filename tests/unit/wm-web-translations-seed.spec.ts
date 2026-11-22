@@ -42,6 +42,7 @@ type LeafProp = {
   description?: string
   maxLength?: number
   strict?: boolean
+  default?: string
 }
 
 const schema = schemaJson as unknown as { properties: Record<string, SchemaNode> }
@@ -124,12 +125,25 @@ describe('seeds/wm-web-translations/data.en.json', () => {
 
   // Collected rather than one case per key: a single failure then names every
   // missing path at once, instead of the first of 140.
-  it('covers every key the schema declares', () => {
+  it('covers every key the schema declares, bar the ones declaring their own', () => {
     const missing = keys
+      .filter((entry) => entry.prop.default === undefined)
       .flatMap((entry) => entry.seeded)
       .filter((entry) => typeof entry.value !== 'string')
       .map((entry) => entry.path)
     expect(missing).toEqual([])
+  })
+
+  // One home per key. A `default` in `translationsSchema.json` is what reaches
+  // a database that predates the key, and a second copy here would be free to
+  // disagree with it — in the file the admin and the seed actually write from.
+  it('leaves a key declaring a schema default out of the corpus', () => {
+    const duplicated = keys
+      .filter((entry) => entry.prop.default !== undefined)
+      .flatMap((entry) => entry.seeded)
+      .filter((entry) => entry.value !== undefined)
+      .map((entry) => entry.path)
+    expect(duplicated).toEqual([])
   })
 
   it('carries no key the schema does not declare', () => {
