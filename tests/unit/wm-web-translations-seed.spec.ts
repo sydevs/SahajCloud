@@ -21,7 +21,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { PAGE_TAGS } from '@/lib/pageTags'
+import { PAGE_TAGS, PLACEMENT_ONLY_PAGE_TAGS } from '@/lib/pageTags'
 import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
 import { collectLeafLookups, type SchemaNode } from '@/lib/translations/schemaWalker'
 
@@ -222,6 +222,7 @@ describe('seeds/wm-web-translations/data.en.json', () => {
       .filter((key) => key.startsWith('tag_'))
       .map((key) => key.slice('tag_'.length))
 
-    expect([...declared].sort()).toEqual([...PAGE_TAGS].sort())
+    const facets = PAGE_TAGS.filter((tag) => !PLACEMENT_ONLY_PAGE_TAGS.includes(tag))
+    expect([...declared].sort()).toEqual(facets.sort())
   })
 })

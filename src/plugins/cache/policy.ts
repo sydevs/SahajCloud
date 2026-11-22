@@ -74,6 +74,20 @@ export const CACHE_TTLS = {
 } satisfies { collections: Record<string, number>; globals: Record<string, number> }
 
 /**
+ * A global whose write changes what a cached read of these collections answers,
+ * so it purges their tags too. A page's place on the website and in the app is
+ * read off the two configuration globals (`src/lib/pageServices`): saving one
+ * changes which pages a website key reads, and every page's `webUrl` and
+ * `appUrl`, with no page row written.
+ */
+export const GLOBAL_DEPENDENT_TAGS: Partial<
+  Record<keyof typeof CACHE_TTLS.globals, CacheableSlug[]>
+> = {
+  'wm-web-config': ['pages'],
+  'wm-app-config': ['pages'],
+}
+
+/**
  * A collection slug known to {@link CACHE_TTLS} — the only slugs a cacheable read
  * may tag. Typing the {@link publicReadCacheHeaders} `tags` param to this catches
  * typo'd slugs at compile time and enforces that a custom endpoint only tags

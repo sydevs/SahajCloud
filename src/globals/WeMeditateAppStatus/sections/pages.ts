@@ -26,10 +26,6 @@ function reportForPage(
     label: labelOf(page as { id: number | string; title?: unknown }),
     checks: [
       { key: 'published', passed: page._status === 'published' },
-      // ⚠ Publishing is no longer the app's whole question (#783): an
-      // unticked box hides the page from an installed release, which cannot
-      // be corrected.
-      { key: 'published-to-app', passed: page.publishedToApp === true },
       { key: 'content-localized', passed: richTextHasContent(page.content) },
     ],
   }
@@ -38,17 +34,12 @@ function reportForPage(
 export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   key: 'pages',
   label: 'Pages',
-  description: 'All required core and subtle-system pages are published to the app and localized.',
+  description: 'All required core and subtle-system pages are published and localized.',
   tutorialLink: 'https://example.com/tutorials/pages',
   checks: {
     published: {
       label: 'Published',
       description: 'The document is published for this locale.',
-    },
-    'published-to-app': {
-      label: 'Published to app',
-      description:
-        'The page\'s "Published to App" box is ticked, so the app may read it. Not per locale — the channel is a property of the document.',
     },
     'content-localized': {
       label: 'Content translated',
@@ -113,15 +104,14 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
     {
       key: 'core-pages',
       label: 'Core app pages',
-      description: 'Every app-required page is published to the app with localized content.',
+      description: 'Every app-required page is published with localized content.',
       type: 'documents',
       evaluate: async ({ coreDocs }) => coreDocs,
     },
     {
       key: 'subtle-system-pages',
       label: 'Subtle system pages',
-      description:
-        'All twelve subtle-system-node pages are published to the app with localized content.',
+      description: 'All twelve subtle-system-node pages are published with localized content.',
       type: 'documents',
       evaluate: async ({ nodeDocs }) => nodeDocs,
     },

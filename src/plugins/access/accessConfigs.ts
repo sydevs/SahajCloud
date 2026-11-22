@@ -34,12 +34,12 @@ import {
 import { isLocaleScopedCollection, scopeLocaleWrite } from './localeScopedWrites'
 import { roleScopeFromLocale } from './localizedRoles'
 import { hasPermission } from './permissions'
-import { publicChannelClause } from './publicChannels'
 import {
   isRegionSubtreeCollection,
   resolveOwnedRegionIds,
   scopeRegionSubtreeWrite,
 } from './regionSubtreeAccess'
+import { websitePagesClause } from './websitePages'
 
 /**
  * True when the entity named by `slug` has drafts enabled — collection **or**
@@ -184,9 +184,8 @@ export function createAccessConfig(
           !isLivePreviewRequest(req)
         ) {
           // Every narrowing a client's read carries, ANDed. Both are exempt
-          // from live preview: the preview panel frames one service's site and
-          // would otherwise 404 on a draft, or on a page that service does not
-          // publish.
+          // from live preview: the panel frames a draft, and frames it on the
+          // website whichever service the page is placed in.
           const clauses: Where[] = []
 
           // Restrict to published only unless all requirements are met.
@@ -201,12 +200,8 @@ export function createAccessConfig(
           // which is the point rather than a regression.
           if (entityHasDrafts(req, collection)) clauses.push({ _status: { equals: 'published' } })
 
-          // ⚠ The channel columns sit on `pages` while `_status` sits on
-          // `pages_locales`, so this `and` is one base-table predicate beside
-          // the locale-scoped one — the published clause's behaviour above is
-          // unchanged by it.
-          const channels = publicChannelClause(req, collection)
-          if (channels) clauses.push(channels)
+          const websitePages = await websitePagesClause(req, collection)
+          if (websitePages) clauses.push(websitePages)
 
           if (clauses.length === 1) return clauses[0]
           if (clauses.length > 1) return { and: clauses }

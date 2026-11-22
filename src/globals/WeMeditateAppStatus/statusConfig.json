@@ -22,7 +22,7 @@
     },
     "pages": {
       "label": "Pages",
-      "description": "All required core and subtle-system pages are published to the app and localized.",
+      "description": "All required core and subtle-system pages are published and localized.",
       "tutorialLink": "https://example.com/tutorials/pages"
     },
     "translations": {
@@ -43,7 +43,7 @@
     },
     "core-pages": {
       "label": "Core app pages",
-      "description": "Every app-required page is published to the app with localized content."
+      "description": "Every app-required page is published with localized content."
     },
     "duration": {
       "label": "Duration user choices",
@@ -95,7 +95,7 @@
     },
     "subtle-system-pages": {
       "label": "Subtle system pages",
-      "description": "All twelve subtle-system-node pages are published to the app with localized content."
+      "description": "All twelve subtle-system-node pages are published with localized content."
     },
     "translations-auth": {
       "label": "Auth strings",
@@ -250,10 +250,6 @@
     "published": {
       "label": "Published",
       "description": "The document is published for this locale."
-    },
-    "published-to-app": {
-      "label": "Published to app",
-      "description": "The page's \"Published to App\" box is ticked, so the app may read it. Not per locale — the channel is a property of the document."
     },
     "relationship-published": {
       "label": "Relationship published",

@@ -21,6 +21,7 @@ import { createSession } from '@/plugins/login'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
+import { placePages } from '../utils/servicePages'
 import {
   createData,
   createTestLexicalContent,
@@ -219,28 +220,6 @@ describe('Role-Based Access Control', () => {
         ),
       ).toBe(false)
     })
-
-    /**
-     * The invariant the channel clause exists for (#783): `pages` sits in both
-     * the website's project and the app's, so implicit read alone hands every
-     * page to both services. Drop the collection from either project and
-     * `publicChannelClause` becomes dead code — narrowing a read nothing grants
-     * in the first place. The clause's own matrix lives in
-     * `tests/unit/public-channels.spec.ts`, not here.
-     */
-    it.each(['wemeditate-web-client', 'wemeditate-app-client'] as const)(
-      'gives %s implicit read of pages, which the channel clause then narrows',
-      (role) => {
-        const clientUser = testData.dummyUser('clients', { id: 70, roles: [role] })
-
-        expect(
-          hasPermission(
-            { user: clientUser, collection: 'pages', operation: 'read' },
-            bypassPermissions,
-          ),
-        ).toBe(true)
-      },
-    )
 
     it('blocks inactive users', () => {
       const inactiveUser = testData.dummyUser('managers', {
@@ -1978,10 +1957,13 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: createData<'pages'>({
           title: 'Page to Publish',
+          // A website key reads only the pages the website places.
+          tags: ['wisdom'],
           content: createTestLexicalContent('Published content'),
         }),
         user: { ...admin, collection: 'managers' },
       })
+      await placePages(payload, 'web', { tags: ['wisdom'] })
 
       // Publish the page
       const publishedPage = await payload.update({

@@ -99,9 +99,12 @@ describe('WeMeditateAppConfig Global', () => {
         expect(tabLabels).toContain('First Meditation')
         expect(tabLabels).toContain('Misc')
 
-        // All required page relationships live in the single "Pages" tab.
+        // All required page relationships live in the single "Pages" tab,
+        // beside the app's Page tags.
         const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
-        const pageFieldNames = pagesTab.fields.map((f) => ('name' in f ? f.name : undefined))
+        const pageFieldNames = pagesTab.fields
+          .filter((f) => f.type === 'relationship')
+          .map((f) => ('name' in f ? f.name : undefined))
         expect(pageFieldNames).toHaveLength(APP_REQUIRED_PAGE_FIELDS.length)
         expect(pageFieldNames).toEqual(expect.arrayContaining([...APP_REQUIRED_PAGE_FIELDS]))
 

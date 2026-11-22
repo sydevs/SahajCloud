@@ -107,7 +107,7 @@ For a client, that means three behaviour changes:
 
 ### ⚠ The global surface's `overrideAccess` exemption
 
-A collection hook skips an internal read through the numeric `currentDepth` payload attaches to relationship population. **A global read has no such signal**, and this codebase makes several internal global reads that forward the caller's `req` — `clientEnglishFallback` re-reads its own global in English, `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the atlas endpoints read `sy-atlas-config`. Ungated, each would be metered twice, and the ones passing no `select` would be refused 400 — which for the fallback is caught and logged at debug, silently blanking every untranslated key for every client.
+A collection hook skips an internal read through the numeric `currentDepth` payload attaches to relationship population. **A global read has no such signal**, and this codebase makes several internal global reads that forward the caller's `req` — `clientEnglishFallback` re-reads its own global in English, and the atlas endpoints read `sy-atlas-config`. Ungated, each would be metered twice, and the ones passing no `select` would be refused 400 — which for the fallback is caught and logged at debug, silently blanking every untranslated key for every client.
 
 `overrideAccess` separates the two exactly. Payload's REST handler for a global never passes it, so a client's own read arrives `false`; the local API defaults it to `true`, so every `payload.findGlobal()` in our server code arrives `true`. It cannot be set by a caller over REST, which is what makes it sound for the origin gate as well as the meter.
 
@@ -247,13 +247,12 @@ Five things to know:
 - ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
 - ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
-## Client read contract: which pages each service reads (#783)
+## Client read contract: which pages a website key reads
 
-A page says which services publish it — `publishedToWeb`, `publishedToApp`, two non-localized booleans an editor ticks. Every client read of `pages` is narrowed to the services the caller's roles name, ANDed with the published-only clause above. **Which reads are narrowed, which callers are exempt, and what shape a refused page comes back as are all in `docs/rules/access.md`, under "Which pages a service reads".** Three things are the consumer's own:
-
-- **No consumer change was needed.** A refused page arrives through a populate as a bare id, which is the shape an unpublished page already has, so WeMeditateWeb's `partitionPublishedPages` discards it unchanged.
-- ⚠ **A bare id can still arrive for a page nothing else refused**, from a block that names it only in rich text. The fix is editorial — tick the box — never a consumer workaround.
-- ⚠ **A key's roles decide what it reads.** Whichever key the mobile app sends has to carry `wemeditate-app-client`, or it reads `pages` as a web client and gets the wrong set (#789).
+A website key reads only the pages `wm-web-config` names or tags — a missing page answers 404, and
+arrives through a relationship as its bare id. The rule, and what it exempts, is "Which pages a
+website key reads" in `docs/rules/access.md`. To put a page on the website, name it in that
+configuration or give it one of its Page tags; never filter downstream.
 
 ## Origin / Referer enforcement
 

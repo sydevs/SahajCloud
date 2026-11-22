@@ -120,20 +120,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "published_to_web": {
-          "name": "published_to_web",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "published_to_app": {
-          "name": "published_to_app",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp(3) with time zone",
@@ -191,36 +177,6 @@
           "columns": [
             {
               "expression": "featured_video_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pages_published_to_web_idx": {
-          "name": "pages_published_to_web_idx",
-          "columns": [
-            {
-              "expression": "published_to_web",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pages_published_to_app_idx": {
-          "name": "pages_published_to_app_idx",
-          "columns": [
-            {
-              "expression": "published_to_app",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -742,20 +698,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_published_to_web": {
-          "name": "version_published_to_web",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
-        "version_published_to_app": {
-          "name": "version_published_to_app",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "version_updated_at": {
           "name": "version_updated_at",
           "type": "timestamp(3) with time zone",
@@ -865,36 +807,6 @@
           "columns": [
             {
               "expression": "version_featured_video_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "_pages_v_version_version_published_to_web_idx": {
-          "name": "_pages_v_version_version_published_to_web_idx",
-          "columns": [
-            {
-              "expression": "version_published_to_web",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "_pages_v_version_version_published_to_app_idx": {
-          "name": "_pages_v_version_version_published_to_app_idx",
-          "columns": [
-            {
-              "expression": "version_published_to_app",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -19619,6 +19531,89 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.wm_web_config_page_tags": {
+      "name": "wm_web_config_page_tags",
+      "schema": "",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "enum_wm_web_config_page_tags",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "wm_web_config_page_tags_order_idx": {
+          "name": "wm_web_config_page_tags_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "wm_web_config_page_tags_parent_idx": {
+          "name": "wm_web_config_page_tags_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wm_web_config_page_tags_parent_fk": {
+          "name": "wm_web_config_page_tags_parent_fk",
+          "tableFrom": "wm_web_config_page_tags",
+          "tableTo": "wm_web_config",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.wm_web_config": {
       "name": "wm_web_config",
       "schema": "",
@@ -19892,12 +19887,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "common_a11y": {
-          "name": "common_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "navigation": {
           "name": "navigation",
           "type": "jsonb",
@@ -19916,12 +19905,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "errors_a11y": {
-          "name": "errors_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "discover_general": {
           "name": "discover_general",
           "type": "jsonb",
@@ -19934,20 +19917,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "article_a11y": {
-          "name": "article_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "meditation_general": {
           "name": "meditation_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "meditation_a11y": {
-          "name": "meditation_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -19958,20 +19929,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "lecture_a11y": {
-          "name": "lecture_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "map_general": {
           "name": "map_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "map_a11y": {
-          "name": "map_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -19982,20 +19941,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "forms_a11y": {
-          "name": "forms_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "media_general": {
           "name": "media_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "media_a11y": {
-          "name": "media_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20006,20 +19953,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "location_a11y": {
-          "name": "location_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "blocks_general": {
           "name": "blocks_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blocks_a11y": {
-          "name": "blocks_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20282,12 +20217,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_common_a11y": {
-          "name": "version_common_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_navigation": {
           "name": "version_navigation",
           "type": "jsonb",
@@ -20306,12 +20235,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_errors_a11y": {
-          "name": "version_errors_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_discover_general": {
           "name": "version_discover_general",
           "type": "jsonb",
@@ -20324,20 +20247,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_article_a11y": {
-          "name": "version_article_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_meditation_general": {
           "name": "version_meditation_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_meditation_a11y": {
-          "name": "version_meditation_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20348,20 +20259,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_lecture_a11y": {
-          "name": "version_lecture_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_map_general": {
           "name": "version_map_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_map_a11y": {
-          "name": "version_map_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20372,20 +20271,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_forms_a11y": {
-          "name": "version_forms_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_media_general": {
           "name": "version_media_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_media_a11y": {
-          "name": "version_media_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20396,20 +20283,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "version_location_a11y": {
-          "name": "version_location_a11y",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "version_blocks_general": {
           "name": "version_blocks_general",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_blocks_a11y": {
-          "name": "version_blocks_a11y",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -20588,6 +20463,89 @@
         "wm_app_config_available_locales_parent_fk": {
           "name": "wm_app_config_available_locales_parent_fk",
           "tableFrom": "wm_app_config_available_locales",
+          "tableTo": "wm_app_config",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.wm_app_config_page_tags": {
+      "name": "wm_app_config_page_tags",
+      "schema": "",
+      "columns": {
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "enum_wm_app_config_page_tags",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "wm_app_config_page_tags_order_idx": {
+          "name": "wm_app_config_page_tags_order_idx",
+          "columns": [
+            {
+              "expression": "order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "wm_app_config_page_tags_parent_idx": {
+          "name": "wm_app_config_page_tags_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "wm_app_config_page_tags_parent_fk": {
+          "name": "wm_app_config_page_tags_parent_fk",
+          "tableFrom": "wm_app_config_page_tags",
           "tableTo": "wm_app_config",
           "columnsFrom": [
             "parent_id"
@@ -23932,7 +23890,8 @@
         "lifestyle",
         "creativity",
         "event",
-        "technique"
+        "technique",
+        "subtle-system"
       ]
     },
     "public.enum_pages_status": {
@@ -23951,7 +23910,8 @@
         "lifestyle",
         "creativity",
         "event",
-        "technique"
+        "technique",
+        "subtle-system"
       ]
     },
     "public.enum__pages_v_published_locale": {
@@ -29205,6 +29165,18 @@
         "nl"
       ]
     },
+    "public.enum_wm_web_config_page_tags": {
+      "name": "enum_wm_web_config_page_tags",
+      "schema": "public",
+      "values": [
+        "wisdom",
+        "lifestyle",
+        "creativity",
+        "event",
+        "technique",
+        "subtle-system"
+      ]
+    },
     "public.enum_wm_web_translations_status": {
       "name": "enum_wm_web_translations_status",
       "schema": "public",
@@ -29269,6 +29241,18 @@
         "en-AU",
         "hu",
         "nl"
+      ]
+    },
+    "public.enum_wm_app_config_page_tags": {
+      "name": "enum_wm_app_config_page_tags",
+      "schema": "public",
+      "values": [
+        "wisdom",
+        "lifestyle",
+        "creativity",
+        "event",
+        "technique",
+        "subtle-system"
       ]
     },
     "public.enum_wm_app_config_vibe_check_tracks_identifier": {
@@ -29658,6 +29642,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "afd0ae54-aa29-4406-ba07-3c86172bc53b",
+  "id": "15f21ee6-020d-4a80-b65c-26370d8b6a31",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

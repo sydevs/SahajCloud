@@ -1082,15 +1082,7 @@ export interface Page {
    * Featured video displayed on this page
    */
   featuredVideo?: (number | null) | Video;
-  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
-  /**
-   * Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages — so check first that no menu, index or website setting still points here.
-   */
-  publishedToWeb: boolean;
-  /**
-   * Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages. Released app versions cannot be corrected, so untick it only for a page the app never opens.
-   */
-  publishedToApp: boolean;
+  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**
    * Managers who can edit this page without broader permissions.
    */
@@ -1098,6 +1090,8 @@ export interface Page {
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
+  onWebsite?: string | null;
+  inApp?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -4472,12 +4466,12 @@ export interface PagesSelect<T extends boolean = true> {
   author?: T;
   featuredVideo?: T;
   tags?: T;
-  publishedToWeb?: T;
-  publishedToApp?: T;
   managers?: T;
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
+  onWebsite?: T;
+  inApp?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -5575,6 +5569,10 @@ export interface WmWebConfig {
    * Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.
    */
   infoPages?: (number | Page)[] | null;
+  /**
+   * Published pages carrying any of these tags belong to the website, as well as every page this configuration names. Each page's sidebar says which services it belongs to, and why.
+   */
+  pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -6171,6 +6169,10 @@ export interface WmAppConfig {
   subtleSystemPage: number | Page;
   privacyPage: number | Page;
   termsPage: number | Page;
+  /**
+   * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page's sidebar says which services it belongs to, and why.
+   */
+  pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**
    * Self-realization meditation for new users.
    */
@@ -10159,6 +10161,7 @@ export interface WmWebConfigSelect<T extends boolean = true> {
   classPages?: T;
   knowledgePages?: T;
   infoPages?: T;
+  pageTags?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -10250,6 +10253,7 @@ export interface WmAppConfigSelect<T extends boolean = true> {
   subtleSystemPage?: T;
   privacyPage?: T;
   termsPage?: T;
+  pageTags?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
   vibeCheckTracks?:
@@ -10901,7 +10905,7 @@ export interface ContentIndexBlock {
   /**
    * Select page tags to use as filters for this index grid
    */
-  pageFilters?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  pageFilters?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**
    * Select user choices to use as filters for this index grid
    */

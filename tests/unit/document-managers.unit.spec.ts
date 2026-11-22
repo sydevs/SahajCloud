@@ -108,7 +108,7 @@ describe('getDocManagerFields', () => {
 /**
  * `memoizeOnRequest`'s own contract — sequential reuse, failure eviction, no
  * sharing across requests — is pinned once against a single consumer in
- * `pages-app-config-cache.spec.ts`. These two cases cover only what this module
+ * `page-services.spec.ts`. These two cases cover only what this module
  * contributes: that the resolution is memoized at all, and that its key is
  * complete. A wrong key here is an access-control leak, not a slow page.
  */

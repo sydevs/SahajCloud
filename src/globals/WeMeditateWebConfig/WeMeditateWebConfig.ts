@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
+import { servicePageTagsField } from '@/fields/servicePageTagsField'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 
@@ -116,5 +117,9 @@ export const WeMeditateWebConfig: GlobalConfig = {
           'Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.',
       },
     },
+    // ⚠ Every page field above also places its pages on the website, beside
+    // these tags: an API key in the website's project reads no other page
+    // (`src/lib/pageServices`, `docs/rules/access.md`).
+    servicePageTagsField({ service: 'website' }),
   ],
 }

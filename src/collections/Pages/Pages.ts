@@ -3,16 +3,16 @@ import type { CollectionConfig } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { slugField, publicUrlFields } from '@/fields'
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
+import { loadServicePages, pageServiceReasons } from '@/lib/pageServices'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
-import { loadAppConfigOnce } from './appConfigCache'
+import { serviceFields } from './serviceFields'
 import { buildPageWebPath } from './webPath'
 
 export const Pages: CollectionConfig = {
@@ -119,37 +119,6 @@ export const Pages: CollectionConfig = {
         position: 'sidebar',
       },
     },
-    // Narrowed by `publicChannelClause` (src/plugins/access/publicChannels.ts);
-    // `docs/rules/access.md` carries the rule.
-    //
-    // ⚠ Not localized: a page's channel is a property of the document, not of
-    // one language. `_status` is the only per-locale state here.
-    {
-      name: 'publishedToWeb',
-      type: 'checkbox',
-      label: 'Published to Website',
-      required: true,
-      defaultValue: true,
-      index: true,
-      admin: {
-        position: 'sidebar',
-        description:
-          'Show this page on wemeditate.com. Untick it and the website stops reading the page at all, including links to it from other pages — so check first that no menu, index or website setting still points here.',
-      },
-    },
-    {
-      name: 'publishedToApp',
-      type: 'checkbox',
-      label: 'Published to App',
-      required: true,
-      defaultValue: false,
-      index: true,
-      admin: {
-        position: 'sidebar',
-        description:
-          'Show this page in the We Meditate app. Untick it and the app stops reading the page at all, including links to it from other pages. Released app versions cannot be corrected, so untick it only for a page the app never opens.',
-      },
-    },
     {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).
@@ -193,8 +162,9 @@ export const Pages: CollectionConfig = {
       // All three deep links read `slug`, and an include-mode `select` strips
       // it before the afterRead field hooks run — so `?select[webUrl]=true`
       // answered null for every published page (#1084). The publish gate's own
-      // `_status` is added by the factory.
-      inputs: ['slug'],
+      // `_status` is added by the factory; `tags` is what places a page in a
+      // service beside its configuration (`exposeWhen`).
+      inputs: ['slug', 'tags'],
       buildPath: ({ platform, data, req }) => {
         // The app deep-links by bare slug; the web path is shared with the
         // live-preview panel through `buildPageWebPath`, so the two cannot
@@ -204,25 +174,15 @@ export const Pages: CollectionConfig = {
         }
         return buildPageWebPath({ slug: data?.slug, locale: req.locale })
       },
-      // Both links already require published (publicUrlFields' built-in gate).
-      // Beyond that, the web link needs no extra condition; the app link is
-      // additionally gated to pages registered in the WeMeditate app config.
+      // Beyond the factory's publish gate, each link needs its page placed in
+      // that service by the service's own configuration — a `webUrl` for a page
+      // the website never reads is an address that 404s. The configuration is
+      // loaded once per request, not once per doc (`loadServiceConfigOnce`).
       exposeWhen: async ({ platform, data, req }) => {
-        if (platform === 'web') return true
-        const id = data?.id
-        if (!id) return false
-
-        // Load wm-app-config once per request (memoized), not once per doc — a
-        // bulk publish fans this afterRead across every page concurrently. See
-        // loadAppConfigOnce for why the cache holds the promise, not the value.
-        const config = await loadAppConfigOnce(req)
-
-        return APP_REQUIRED_PAGE_FIELDS.some((field) => {
-          const val = config[field]
-          if (val === id) return true
-          return typeof val === 'object' && val !== null && (val as { id: unknown }).id === id
-        })
+        const pages = await loadServicePages(req, platform)
+        return pageServiceReasons(data ?? {}, pages).length > 0
       },
     }),
+    ...serviceFields(),
   ],
 }

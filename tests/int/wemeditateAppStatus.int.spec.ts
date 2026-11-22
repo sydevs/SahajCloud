@@ -332,23 +332,15 @@ describe('WeMeditateAppStatus Global', () => {
   describe('Section 4 — Pages', () => {
     let publishedCorePage: Page
     let draftCorePage: Page
-    let webOnlyCorePage: Page
 
     beforeAll(async () => {
       publishedCorePage = await testData.createPage(payload, {
         title: 'Classes',
         _status: 'published',
-        publishedToApp: true,
       } as Partial<Page>)
       draftCorePage = await testData.createPage(payload, {
         title: 'Lectures Page',
         _status: 'draft',
-      } as Partial<Page>)
-      // Published, and unreadable by the app anyway (#783).
-      webOnlyCorePage = await testData.createPage(payload, {
-        title: 'Music Page',
-        _status: 'published',
-        publishedToApp: false,
       } as Partial<Page>)
 
       await payload.updateGlobal({
@@ -357,7 +349,6 @@ describe('WeMeditateAppStatus Global', () => {
           ...requiredAppConfig,
           classesPage: publishedCorePage.id,
           lecturesPage: draftCorePage.id,
-          musicPage: webOnlyCorePage.id,
         },
       })
     })
@@ -376,20 +367,6 @@ describe('WeMeditateAppStatus Global', () => {
       expect(publishedReport.checks.find((c) => c.key === 'published')?.passed).toBe(true)
       const draftReport = core.documents.find((d) => d.id === draftCorePage.id)!
       expect(draftReport.checks.find((c) => c.key === 'published')?.passed).toBe(false)
-    })
-
-    it('fails published-to-app for a page the app may not read, published or not', async () => {
-      const report = await run(pagesSection, payload)
-      const core = report.groups.find((g) => g.key === 'core-pages')
-      if (core?.type !== 'documents') throw new Error('expected a documents group')
-
-      const check = (id: number | string) =>
-        core.documents.find((d) => d.id === id)!.checks.find((c) => c.key === 'published-to-app')
-          ?.passed
-
-      expect(check(publishedCorePage.id)).toBe(true)
-      expect(check(webOnlyCorePage.id)).toBe(false)
-      expect(check(draftCorePage.id)).toBe(false)
     })
   })
 

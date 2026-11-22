@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
+import { servicePageTagsField } from '@/fields/servicePageTagsField'
 
 export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
@@ -60,14 +61,20 @@ export const WeMeditateAppConfig: GlobalConfig = {
           label: 'Pages',
           description:
             'App-required pages. The same page is used for every locale; the localized content on each page is sourced at read time.',
-          fields: APP_PAGE_FIELDS.map((page) => ({
-            name: page.name,
-            ...(page.label ? { label: page.label } : {}),
-            type: 'relationship' as const,
-            relationTo: 'pages' as const,
-            required: true,
-            ...(page.description ? { admin: { description: page.description } } : {}),
-          })),
+          fields: [
+            ...APP_PAGE_FIELDS.map((page) => ({
+              name: page.name,
+              ...(page.label ? { label: page.label } : {}),
+              type: 'relationship' as const,
+              relationTo: 'pages' as const,
+              required: true,
+              ...(page.description ? { admin: { description: page.description } } : {}),
+            })),
+            // The app's page set is these slots plus these tags
+            // (`src/lib/pageServices`). Nothing narrows the app's own key to it
+            // yet: released builds still fetch pages by hardcoded id.
+            servicePageTagsField({ service: 'app' }),
+          ],
         },
         {
           label: 'First Meditation',

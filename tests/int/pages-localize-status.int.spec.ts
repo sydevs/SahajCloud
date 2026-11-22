@@ -25,8 +25,10 @@ import { serverEnv } from '@/lib/env'
 import { mintLivePreviewToken } from '@/lib/livePreview/token'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { resolveLivePreviewHook } from '@/lib/utilities/previewSecret'
+import type { Page } from '@/payload-types'
 
-import { testData } from '../utils/testData'
+import { placePages } from '../utils/servicePages'
+import { testData, type FixtureOverrides } from '../utils/testData'
 import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
 
 /** The per-locale `_status` map, read the way a consumer reads it. */
@@ -80,11 +82,18 @@ describe('per-locale publish status', () => {
       ...base,
       user: { ...base.user, roles: ['wemeditate-web-client'] } as PayloadRequest['user'],
     }
+
+    // A website key reads only the pages its configuration places, so every
+    // page here carries the tag it lists.
+    await placePages(payload, 'web', { tags: ['wisdom'] })
   })
 
   afterAll(async () => {
     await cleanup()
   })
+
+  const createPage = (overrides: FixtureOverrides<Page> = {}) =>
+    testData.createPage(payload, { tags: ['wisdom'], ...overrides })
 
   /** Publish `locale` on a page, optionally setting that locale's title. */
   const publish = (id: number | string, locale: 'en' | 'de', title?: string) =>
@@ -109,7 +118,7 @@ describe('per-locale publish status', () => {
 
   describe('the status map (criteria 4 and 5)', () => {
     it('reports one status per locale, not one for the document', async () => {
-      const page = await testData.createPage(payload, { title: 'Mapped' })
+      const page = await createPage({ title: 'Mapped' })
       await publish(page.id, 'en')
       await publish(page.id, 'de', 'Kartiert')
 
@@ -122,7 +131,7 @@ describe('per-locale publish status', () => {
     })
 
     it('reports only the locales actually published, whatever the fallback renders', async () => {
-      const page = await testData.createPage(payload, { title: 'English only' })
+      const page = await createPage({ title: 'English only' })
       await publish(page.id, 'en')
 
       expect(publishedLocales(await statusMap(payload, page.id))).toEqual(['en'])
@@ -141,7 +150,7 @@ describe('per-locale publish status', () => {
     })
 
     it('drops a locale back to unpublished on its own, leaving the others alone', async () => {
-      const page = await testData.createPage(payload, { title: 'Both' })
+      const page = await createPage({ title: 'Both' })
       await publish(page.id, 'en')
       await publish(page.id, 'de', 'Beide')
       await unpublish(page.id, 'de')
@@ -188,7 +197,7 @@ describe('per-locale publish status', () => {
      * prevents, not a formality.
      */
     it('refuses a client the content of a locale it unpublished', async () => {
-      const page = await testData.createPage(payload, { title: 'Secret EN' })
+      const page = await createPage({ title: 'Secret EN' })
       await publish(page.id, 'en')
       await publish(page.id, 'de', 'Geheim DE')
       await unpublish(page.id, 'de')
@@ -234,7 +243,7 @@ describe('per-locale publish status', () => {
      * time and an unpublished locale is unreachable.
      */
     it('hands a client every locale on a cross-locale read, unpublished included', async () => {
-      const page = await testData.createPage(payload, { title: 'Visible EN' })
+      const page = await createPage({ title: 'Visible EN' })
       await publish(page.id, 'en')
       await publish(page.id, 'de', 'Zurueckgezogen DE')
       await unpublish(page.id, 'de')
@@ -282,7 +291,7 @@ describe('per-locale publish status', () => {
      * English one returns the page.
      */
     it('serves a never-translated locale to nobody, published elsewhere or not', async () => {
-      const page = await testData.createPage(payload, { title: 'English only, untranslated' })
+      const page = await createPage({ title: 'English only, untranslated' })
       await publish(page.id, 'en')
 
       // German was never written, so it is absent from the map — not 'draft'.
@@ -314,7 +323,7 @@ describe('per-locale publish status', () => {
     })
 
     it('never serves a page no locale has published', async () => {
-      const page = await testData.createPage(payload, { title: 'Unpublished' })
+      const page = await createPage({ title: 'Unpublished' })
 
       const asClient = await payload.find({
         collection: 'pages',
@@ -331,7 +340,7 @@ describe('per-locale publish status', () => {
 
   describe('the contract a consumer reads (criterion 6)', () => {
     it('gives an API client the map through the ordinary select, with no extra permission', async () => {
-      const page = await testData.createPage(payload, { title: 'Consumer' })
+      const page = await createPage({ title: 'Consumer' })
       await publish(page.id, 'en')
 
       const result = await payload.find({
@@ -362,7 +371,7 @@ describe('per-locale publish status', () => {
      */
     it('answers a 25-row list in a single query', async () => {
       for (let i = 0; i < 25; i++) {
-        const page = await testData.createPage(payload)
+        const page = await createPage()
         await publish(page.id, 'en')
       }
 
@@ -399,7 +408,7 @@ describe('per-locale publish status', () => {
 
   describe('live preview keeps its draft unlock (criterion 9)', () => {
     it('serves an unpublished locale to a request carrying the preview secret', async () => {
-      const page = await testData.createPage(payload, { title: 'Preview EN' })
+      const page = await createPage({ title: 'Preview EN' })
       await publish(page.id, 'en')
       await payload.update({
         collection: 'pages',

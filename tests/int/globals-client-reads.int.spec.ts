@@ -274,8 +274,7 @@ describe('client reads of a global (#710)', () => {
     it('is neither metered nor refused for passing no select', async () => {
       // The shape every internal caller uses: `payload.findGlobal({ …, req })`,
       // where `overrideAccess` defaults to true. `clientEnglishFallback`
-      // re-reads its own global this way while serving a client read, and
-      // `loadAppConfigOnce` reads `wm-app-config` while serving a page.
+      // re-reads its own global this way while serving a client read.
       //
       // Left ungated, this read would be refused 400 for carrying no select —
       // which for the fallback is caught and logged at debug, silently blanking
