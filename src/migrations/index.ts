@@ -12,7 +12,6 @@ import * as migration_20261120_222115_merge_snapshot_heal_live_session from './2
 import * as migration_20261121_035055_wm_web_drop_a11y_groups from './20261121_035055_wm_web_drop_a11y_groups';
 import * as migration_20261121_035100_atlas_drop_a11y_keys from './20261121_035100_atlas_drop_a11y_keys';
 import * as migration_20261122_182623_merge_snapshot_heal_a11y_live_session from './20261122_182623_merge_snapshot_heal_a11y_live_session';
-import * as migration_20261122_182623_merge_snapshot_heal_a11y_live_session from './20261122_182623_merge_snapshot_heal_a11y_live_session';
 
 export const migrations = [
   {
@@ -84,10 +83,5 @@ export const migrations = [
     up: migration_20261122_182623_merge_snapshot_heal_a11y_live_session.up,
     down: migration_20261122_182623_merge_snapshot_heal_a11y_live_session.down,
     name: '20261122_182623_merge_snapshot_heal_a11y_live_session',
-  },
-  {
-    up: migration_20261122_182623_merge_snapshot_heal_a11y_live_session.up,
-    down: migration_20261122_182623_merge_snapshot_heal_a11y_live_session.down,
-    name: '20261122_182623_merge_snapshot_heal_a11y_live_session'
   },
 ];
