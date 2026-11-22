@@ -29,8 +29,16 @@ const ADMIN = join(SRC, 'components/admin')
 
 const relative = (path: string) => relativeTo(SRC, path)
 
-/** A declaration, never a comment: the rule forbids the one, not talk of it. */
-const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '')
+/**
+ * A declaration, never a comment: the rule forbids the one, not talk of it.
+ *
+ * Both forms — a `//` note explaining why a ring must not be suppressed is the
+ * likeliest place for the forbidden text to appear under
+ * `src/components/admin/`. The strip takes a `//` inside a string with it, a
+ * URL's included, which can hide a suppression on that line, never invent one.
+ */
+const withoutComments = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '')
 
 const fields = registeredComponents('Field')
 
