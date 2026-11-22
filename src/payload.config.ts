@@ -15,6 +15,7 @@ import { serverEnv, weMeditatePreviewUrl } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
 import { SUPPORTED_TIMEZONES } from '@/lib/timezones'
+import { reconcileEnglishDefaults } from '@/lib/translations/englishDefaults'
 import { TURNSTILE_TOKEN_HEADER } from '@/lib/turnstile/header'
 import { PREVIEW_SECRET_HEADER } from '@/lib/utilities/previewSecret'
 import { getServerUrl, ownOrigins } from '@/lib/utilities/serverUrl'
@@ -50,7 +51,7 @@ import { writeGuardPlugin } from '@/plugins/writeGuard'
 import { collections, Managers } from './collections'
 import { payloadJobsOverrides } from './collections/PayloadJobs/PayloadJobs'
 import { rootEndpoints } from './endpoints'
-import { globals } from './globals'
+import { globals, TRANSLATIONS_TARGETS } from './globals'
 import { tasks } from './jobs'
 import { jobAutoRun } from './jobs/queues'
 import { migrations } from './migrations'
@@ -249,10 +250,21 @@ const payloadConfig = (overrides?: Partial<Config>) => {
     // two conditions is there, and why production is detected by Railway's
     // environment name rather than NODE_ENV.
     //
+    // Then put each translations global's declared English into a database that
+    // predates the key — the step that replaced one hand-written data migration
+    // per key (`@/lib/translations/englishDefaults`). It never throws: a
+    // database missing a word is a far better outcome than a CMS that will not
+    // boot.
+    //
     // Then start the preview fixture's load, unawaited: `/api/health` reports
     // its progress, and CI waits for `loaded` (`src/fixture/AGENTS.md`).
     onInit: async (payload) => {
       await seedPreviewAdmin(payload)
+      try {
+        await reconcileEnglishDefaults(payload, TRANSLATIONS_TARGETS)
+      } catch (error) {
+        payload.logger.error({ err: error }, 'English translation defaults not reconciled')
+      }
       startFixtureLoad(payload)
     },
     jobs: {
