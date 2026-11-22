@@ -3,10 +3,9 @@
  *
  * A string only a screen reader speaks lives in the site that renders it —
  * WeMeditate Web's `lib/i18n/a11y/`, Sahaj Atlas's `src/config/a11y/` —
- * machine-translated there, and read at `<tab>.a11y.<key>`. Declared here it
- * would cost every translator a row nobody sees, and a migration per key; and
- * an `a11y` group here would be silently ignored, since both consumers mount
- * their own over it.
+ * machine-translated there, and read at `<tab>.a11y.<key>`. Neither site reads
+ * one from here, so declared here it would cost every translator a row no site
+ * renders, and a migration per key.
  */
 
 import { describe, expect, it } from 'vitest'

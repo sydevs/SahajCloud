@@ -134,9 +134,9 @@ flattening it would rename every column (`<tab>_general`).
 only a screen reader speaks — an `aria-label`, an `sr-only` span — lives in
 the site that renders it, machine-translated there and read at
 `<tab>.a11y.<key>`: WeMeditate Web's `lib/i18n/a11y/`, Sahaj Atlas's
-`src/config/a11y/`. Both mount their own copy over any `a11y` group this API
-serves, so one declared here would cost translators a row nobody sees, and
-change nothing. A string both seen and spoken stays here.
+`src/config/a11y/`. Neither reads one from this API, so one declared here
+would cost translators a row no site renders. A string both seen and spoken
+stays here.
 
 `tests/unit/translations-no-a11y.spec.ts` holds that, by group name and by
 description, so **describe a spoken-only string "Not shown on screen."** The

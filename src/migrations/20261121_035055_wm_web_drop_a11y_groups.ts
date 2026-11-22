@@ -1,8 +1,7 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 // WeMeditate Web's ten "a11y" sub-groups go: the strings only a screen reader speaks now live in
-// the site itself (sydevs/WeMeditateWeb lib/i18n/a11y/), machine-translated there, and the site
-// mounts its own copy over anything this global still serves.
+// the site itself (sydevs/WeMeditateWeb lib/i18n/a11y/), machine-translated there.
 //
 // ⚠ **The stored values are discarded, and nothing restores them.** Dropping a column takes its
 // values with it, and the down migration re-adds the columns empty. Nothing reads them any more.
