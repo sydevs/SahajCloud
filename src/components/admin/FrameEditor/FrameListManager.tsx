@@ -62,8 +62,16 @@ const FrameItem: React.FC<FrameItemProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Thumbnail */}
-      <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
+      {/* The row's own click seeks too, but it holds an input and a button, so
+          it cannot be one itself — this is the seek a keyboard can reach. */}
+      <button
+        aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
+        className={styles['frame-item_seek']}
+        onClick={() => onSeek(frame.timestamp)}
+        type="button"
+      >
+        <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
+      </button>
 
       {/* Frame Info */}
       <div style={listManagerStyles.frameInfo}>

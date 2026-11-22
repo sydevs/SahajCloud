@@ -1,5 +1,12 @@
+/* A button, so the card is keyboard-reachable — it is the only way to add a
+   frame to a meditation. The first five declarations undo the button. */
 .frame-card {
   position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  color: inherit;
   border-radius: var(--style-radius-s);
   overflow: hidden;
   border: 2px solid var(--theme-elevation-100);

@@ -48,16 +48,6 @@ export const baseStyles = {
     flexShrink: 0,
   } satisfies CSSProperties,
 
-  videoIndicator: {
-    position: 'absolute' as const,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: '4px',
-    padding: '2px 6px',
-    fontSize: '10px',
-    color: 'white',
-    fontWeight: 500,
-  } satisfies CSSProperties,
-
   frameCategory: {
     fontSize: 'var(--admin-body-size)',
     fontWeight: 500,
@@ -75,25 +65,6 @@ export const listManagerStyles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 'calc(var(--base) * 0.25)',
-  } satisfies CSSProperties,
-
-  frameItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 'calc(var(--base) * 0.5)',
-    padding: 'calc(var(--base) * 0.5)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    borderRadius: 'var(--style-radius-s)',
-    borderTop: '1px solid var(--theme-elevation-100)',
-    borderRight: '1px solid var(--theme-elevation-100)',
-    borderBottom: '1px solid var(--theme-elevation-100)',
-    borderLeft: '3px solid transparent',
-    transition: 'border-color 0.15s ease, background-color 0.15s ease',
-  } satisfies CSSProperties,
-
-  frameItemActive: {
-    borderLeftColor: 'var(--theme-success-500)',
-    backgroundColor: 'var(--theme-elevation-100)',
   } satisfies CSSProperties,
 
   frameInfo: {
@@ -121,28 +92,6 @@ export const listManagerStyles = {
     borderRadius: 'var(--style-radius-s)',
     backgroundColor: 'var(--theme-input-bg)',
     color: 'var(--theme-elevation-800)',
-  } satisfies CSSProperties,
-
-  removeButton: {
-    padding: 'calc(var(--base) * 0.25)',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: 'var(--style-radius-s)',
-    cursor: 'pointer',
-    color: 'var(--theme-elevation-400)',
-    transition: 'color 0.15s ease, background-color 0.15s ease',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } satisfies CSSProperties,
-
-  videoIndicator: {
-    ...baseStyles.videoIndicator,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    borderRadius: '50%',
-    padding: '6px',
   } satisfies CSSProperties,
 }
 
@@ -176,26 +125,6 @@ export const inserterStyles = {
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 'calc(var(--base) * 0.35)',
     padding: '2px',
-  } satisfies CSSProperties,
-
-  frameCard: {
-    position: 'relative' as const,
-    borderRadius: 'var(--style-radius-s)',
-    overflow: 'hidden',
-    border: '2px solid var(--theme-elevation-100)',
-    backgroundColor: 'var(--theme-elevation-50)',
-    cursor: 'pointer',
-    transition: 'border-color 0.15s ease, transform 0.15s ease',
-  } satisfies CSSProperties,
-
-  frameCardHover: {
-    borderColor: 'var(--theme-success-400)',
-    transform: 'scale(1.02)',
-  } satisfies CSSProperties,
-
-  frameCardSelected: {
-    borderColor: 'var(--theme-success-500)',
-    transform: 'scale(1.05)',
   } satisfies CSSProperties,
 
   thumbnailContainer: {
@@ -234,11 +163,5 @@ export const inserterStyles = {
     fontSize: 'calc(var(--admin-body-size) * 0.8)',
     fontWeight: 500,
     color: 'var(--theme-elevation-700)',
-  } satisfies CSSProperties,
-
-  videoIndicator: {
-    ...baseStyles.videoIndicator,
-    top: '8px',
-    right: '8px',
   } satisfies CSSProperties,
 }

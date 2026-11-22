@@ -39,11 +39,16 @@ const FrameCard: React.FC<FrameCardProps> = ({
   const nodeSlug = getFrameSubtleSystemNodeSlug(frame)
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   const pillLabel = nodeLabel || frame.label
+  // The thumbnail carries no words, and the pill and tags name the frame rather
+  // than the insertion, so the name is stated instead of read off the content.
+  const action = `Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`
   return (
-    <div
+    <button
+      aria-label={action}
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       onClick={() => onInsert(frame)}
-      title={`Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`}
+      title={action}
+      type="button"
     >
       {/* Thumbnail with category pill overlay */}
       <div style={inserterStyles.thumbnailContainer}>
@@ -57,7 +62,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
           <div style={inserterStyles.frameTags}>{frame.tags.join(', ')}</div>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 

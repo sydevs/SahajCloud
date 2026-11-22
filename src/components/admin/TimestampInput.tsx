@@ -5,6 +5,8 @@ import type { NumberFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 function secondsToHHMMSS(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
@@ -19,7 +21,7 @@ function hhmmssToSeconds(time: string): number | null {
 }
 
 export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) => {
-  const { name, label, localized, required, admin: { description, className, style } = {} } = field
+  const { name, label, localized, required, admin: { description, className } = {} } = field
 
   const { value, setValue, showError } = useField<number | null>()
 
@@ -63,32 +65,25 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
     .filter(Boolean)
     .join(' ')
 
+  // `FieldLabel` derives `htmlFor` from the path, so only the input may carry this.
   const fieldId = `field-${name.replace(/\./g, '__')}`
 
   return (
-    <div className={fieldClasses} id={fieldId} style={style}>
+    <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
       <FieldLabel label={label} localized={localized} path={name} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
+        {/* Unstyled on purpose: `.field-type.text input` is Payload's own
+            `formInput`, whose focus affordance an inline border would defeat. */}
         <input
-          id={`${fieldId}-input`}
+          id={fieldId}
           type="text"
           value={displayValue}
           onChange={handleChange}
           onBlur={handleBlur}
           placeholder="HH:MM:SS"
           disabled={readOnly}
-          style={{
-            width: '100%',
-            padding: 'calc(var(--base) * 0.4) calc(var(--base) * 0.5)',
-            fontSize: 'var(--admin-body-size)',
-            backgroundColor: 'var(--theme-input-bg)',
-            color: 'var(--theme-text)',
-            border: '1px solid var(--theme-elevation-150)',
-            borderRadius: 'var(--style-radius-s)',
-            outline: 'none',
-          }}
         />
       </div>
 
