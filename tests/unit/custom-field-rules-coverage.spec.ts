@@ -168,4 +168,17 @@ describe('the shared registration walk', () => {
       join(ADMIN, 'TranscriptPanel/index.ts'),
     )
   })
+
+  it('reads a registration written as a constant', () => {
+    // These three are registered no other way, so a walk that reads quoted
+    // paths alone leaves them out — and out of `unresolved` too, where the
+    // assertion above would have caught them.
+    expect(fields.resolved).toEqual(
+      expect.arrayContaining([
+        join(ADMIN, 'StringSelectField/index.ts'),
+        join(ADMIN, 'ReadinessField/index.ts'),
+        join(ADMIN, 'SubmissionReview/SubmissionData.tsx'),
+      ]),
+    )
+  })
 })

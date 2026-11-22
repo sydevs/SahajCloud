@@ -19,13 +19,36 @@ export { resolveSpec, sourceFiles, SRC }
 
 /**
  * Both shapes a registration takes: the bare path, and `{ path, serverProps }`.
+ * Either may be written as a constant, which `pathFor` resolves.
  * ⚠ The leading `\b` is load-bearing — without it `searchTypesField: 'level'`
  * reads as a registration, and seven config values did.
  */
 const registrationPattern = (kind: 'Cell' | 'Field') =>
-  new RegExp(`\\b${kind}:\\s*(?:'([^']+)'|\\{[\\s\\S]{0,200}?path:\\s*'([^']+)')`, 'g')
+  new RegExp(
+    `\\b${kind}:\\s*(?:'([^']+)'|(\\w+)|\\{[\\s\\S]{0,200}?path:\\s*(?:'([^']+)'|(\\w+)))`,
+    'g',
+  )
 
 const RELATIVE_IMPORT = /from\s+'(\.[^']+)'/g
+
+/**
+ * A registration's specifier, with an identifier resolved against the `const`
+ * that declares it in the same file.
+ *
+ * ⚠ **A constant-valued registration is invisible without this**, and lands in
+ * no `unresolved` list either, so the assertion that guards the population's
+ * size cannot see it. Six registrations are written that way, and two of their
+ * components — `StringSelectField`, `SubmissionData` — are registered no other
+ * way, so both sat outside every rule a walk here enforced (#1247).
+ */
+function pathFor(match: RegExpMatchArray, source: string): string | null {
+  const literal = match[1] ?? match[3]
+  if (literal) return literal
+
+  const identifier = match[2] ?? match[4]!
+  const declaration = new RegExp(`\\b${identifier}\\s*(?::[^=]+)?=\\s*'([^']+)'`).exec(source)
+  return declaration?.[1] ?? null
+}
 
 /**
  * Every `<kind>:` registration in `src/`, as `{ resolved, unresolved }`.
@@ -42,11 +65,12 @@ export function registeredComponents(kind: 'Cell' | 'Field'): {
   const resolved = new Set<string>()
   const unresolved = new Set<string>()
   for (const file of sourceFiles(SRC)) {
-    for (const match of readFileSync(file, 'utf8').matchAll(registrationPattern(kind))) {
-      const specifier = match[1] ?? match[2]!
-      const found = resolveSpec(specifier, file)
+    const source = readFileSync(file, 'utf8')
+    for (const match of source.matchAll(registrationPattern(kind))) {
+      const specifier = pathFor(match, source)
+      const found = specifier && resolveSpec(specifier, file)
       if (found) resolved.add(found)
-      else unresolved.add(specifier)
+      else unresolved.add(specifier ?? match[0])
     }
   }
   return { resolved: [...resolved].sort(), unresolved: [...unresolved].sort() }
