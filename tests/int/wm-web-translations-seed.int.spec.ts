@@ -75,13 +75,10 @@ describe('seeding wm-web-translations', () => {
 
   it('writes the English copy at its declared path', async () => {
     const doc = await readWeb('en')
-    // One key per shape the schema produces: a nested tab's visible group, its
-    // screen-reader group, a flat tab, and an expanded plural form.
+    // One key per shape the schema produces: a nested tab's group, a flat tab,
+    // and an expanded plural form.
     expect((doc.common as Record<string, Record<string, string>>).general.loading).toBe(
       'Loading...',
-    )
-    expect((doc.common as Record<string, Record<string, string>>).a11y.breadcrumb).toBe(
-      'Breadcrumb',
     )
     expect((doc.navigation as unknown as Record<string, string>).about_meditation).toBe(
       'About Meditation',

@@ -21,14 +21,6 @@
               "type": "string",
               "description": "Close control on every drawer, the report modal, the compact dialog, and the feedback banner."
             },
-            "explore": {
-              "type": "string",
-              "description": "Accessible label (aria-label) of the collapsed base drawer’s toggle."
-            },
-            "loading": {
-              "type": "string",
-              "description": "Screen-reader label of every loading spinner."
-            },
             "cancel": {
               "type": "string",
               "description": "Cancel button, shared by the registration form and the report form."
@@ -48,10 +40,6 @@
           "type": "object",
           "description": "The settings drawer: theme choice.",
           "properties": {
-            "title": {
-              "type": "string",
-              "description": "Accessible label (aria-label) of the settings cog, and the settings drawer heading."
-            },
             "theme_auto": {
               "type": "string",
               "description": "Theme row: follow the operating system’s light/dark setting."
@@ -291,7 +279,9 @@
     "search": {
       "type": "object",
       "description": "The Search view: the geocoder, the paged result list, and the sort menu.",
-      "preview": { "path": "/search" },
+      "preview": {
+        "path": "/search"
+      },
       "properties": {
         "chrome": {
           "type": "object",
@@ -319,10 +309,6 @@
             "farther": {
               "type": "string",
               "description": "Button that widens the search radius beyond the nearby band."
-            },
-            "showing": {
-              "type": "string",
-              "description": "Result-count line. `%{shown}` = results rendered, `%{total}` = results found."
             },
             "no_nearby": {
               "type": "string",
@@ -376,10 +362,6 @@
             "title": {
               "type": "string",
               "description": "Prompt question. `%{city}` = detected city name."
-            },
-            "dismiss": {
-              "type": "string",
-              "description": "Control that hides the prompt for this visit."
             }
           },
           "additionalProperties": false
@@ -390,7 +372,9 @@
     "filters": {
       "type": "object",
       "description": "The Filter view: its chrome, and one sub-group per filter control.",
-      "preview": { "path": "/filters" },
+      "preview": {
+        "path": "/filters"
+      },
       "properties": {
         "chrome": {
           "type": "object",
@@ -411,10 +395,6 @@
             "clear_one": {
               "type": "string",
               "description": "Action that clears a single filter section."
-            },
-            "remove": {
-              "type": "string",
-              "description": "Accessible label of an active-filter chip’s remove button. `%{label}` = the filter’s own label."
             },
             "any_time": {
               "type": "string",
@@ -803,14 +783,6 @@
             "download_ics": {
               "type": "string",
               "description": "Add-to-calendar menu item that downloads an .ics file."
-            },
-            "view_photo": {
-              "type": "string",
-              "description": "Image carousel: open the photo full size."
-            },
-            "pause_slideshow": {
-              "type": "string",
-              "description": "Image carousel: stop it advancing on its own."
             }
           },
           "additionalProperties": false
@@ -903,23 +875,13 @@
     "calendar": {
       "type": "object",
       "description": "The Calendar view’s own header. The grid’s dates and day names come from the browser.",
-      "preview": { "path": "/calendar" },
+      "preview": {
+        "path": "/calendar"
+      },
       "properties": {
         "title": {
           "type": "string",
           "description": "Calendar view heading, and its peek-strip name."
-        },
-        "previous": {
-          "type": "string",
-          "description": "Control that steps back one month, week, or page."
-        },
-        "next": {
-          "type": "string",
-          "description": "Control that steps forward one month, week, or page."
-        },
-        "pick_date": {
-          "type": "string",
-          "description": "Control that opens the date picker."
         },
         "view_month": {
           "type": "string",
@@ -1378,17 +1340,9 @@
           "type": "string",
           "description": "Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
         },
-        "share_on": {
-          "type": "string",
-          "description": "Label of one share target. `%{platform}` = the platform’s name."
-        },
         "native": {
           "type": "string",
           "description": "Label of the device’s own share sheet."
-        },
-        "copy_link": {
-          "type": "string",
-          "description": "Action that copies the event link to the clipboard."
         },
         "copied": {
           "type": "string",
