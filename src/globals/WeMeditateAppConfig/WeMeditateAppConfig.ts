@@ -71,9 +71,9 @@ export const WeMeditateAppConfig: GlobalConfig = {
               ...(page.description ? { admin: { description: page.description } } : {}),
             })),
             // The app's page set is these slots plus these tags
-            // (`src/lib/pageServices`). Nothing narrows the app's own key to it
-            // yet: released builds still fetch pages by hardcoded id.
-            servicePageTagsField({ service: 'app' }),
+            // (`src/lib/pageServices`); `docs/rules/access.md` says why the
+            // app's own key is not narrowed to it yet.
+            servicePageTagsField('app'),
           ],
         },
         {

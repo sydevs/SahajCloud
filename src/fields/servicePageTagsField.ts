@@ -1,6 +1,6 @@
 import type { SelectField } from 'payload'
 
-import { SERVICE_PAGE_TAGS_FIELD } from '@/lib/pageServices'
+import { PAGE_SERVICES, SERVICE_PAGE_TAGS_FIELD, type PageService } from '@/lib/pageServices'
 import { PAGE_TAGS } from '@/lib/pageTags'
 
 /**
@@ -8,7 +8,8 @@ import { PAGE_TAGS } from '@/lib/pageTags'
  * page carrying one of these tags belongs to the service, beside the pages the
  * configuration names in its own page fields (`src/lib/pageServices`).
  */
-export function servicePageTagsField({ service }: { service: string }): SelectField {
+export function servicePageTagsField(service: PageService): SelectField {
+  const { noun } = PAGE_SERVICES[service]
   return {
     name: SERVICE_PAGE_TAGS_FIELD,
     label: 'Page tags',
@@ -17,7 +18,7 @@ export function servicePageTagsField({ service }: { service: string }): SelectFi
     options: PAGE_TAGS,
     admin: {
       description:
-        `Published pages carrying any of these tags belong to the ${service}, as well as every ` +
+        `Published pages carrying any of these tags belong to the ${noun}, as well as every ` +
         "page this configuration names. Each page's sidebar says which services it belongs " +
         'to, and why.',
     },

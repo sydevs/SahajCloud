@@ -2,7 +2,7 @@ import type { Block, FieldHook } from 'payload'
 
 import { extractID } from 'payload/shared'
 
-import { PAGE_TAGS } from '@/lib/pageTags'
+import { FACET_PAGE_TAGS } from '@/lib/pageTags'
 
 /**
  * Configuration for each content type's API endpoint generation.
@@ -133,7 +133,7 @@ export const ContentIndexBlock: Block = {
       type: 'select',
       hasMany: true,
       required: true,
-      options: PAGE_TAGS,
+      options: FACET_PAGE_TAGS,
       hooks: clearWhenTypeNot('pages'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'pages',

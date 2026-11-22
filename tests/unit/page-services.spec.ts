@@ -3,17 +3,22 @@ import type { FlattenedField, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
-  loadServiceConfigOnce,
+  loadServicePages,
+  PAGE_SERVICES,
   pageServiceReasons,
   servicePagesFromConfig,
   servicePagesWhere,
+  type ServicePages,
 } from '@/lib/pageServices'
+import { GLOBAL_DEPENDENT_TAGS } from '@/plugins/cache/policy'
 
 /** Only the keys `servicePagesFromConfig` reads off a sanitized field. */
 const field = (f: Record<string, unknown>) => f as unknown as FlattenedField
 
 const FIELDS: FlattenedField[] = [
   field({ name: 'homePage', label: 'Home Page', type: 'relationship', relationTo: 'pages' }),
+  // Unlabelled, as no sanitized field is: the walk falls back to Payload's own
+  // `toWords`.
   field({ name: 'classPages', type: 'relationship', relationTo: 'pages', hasMany: true }),
   field({ name: 'audiences', type: 'relationship', relationTo: 'audiences', hasMany: true }),
   field({
@@ -112,12 +117,21 @@ describe('servicePagesWhere', () => {
  * consumer (#542: a bulk publish fans the page's afterRead hooks across every
  * document concurrently).
  */
-describe('loadServiceConfigOnce', () => {
+describe('loadServicePages', () => {
   function makeReq(impl: () => Promise<Record<string, unknown>>) {
     const findGlobal = vi.fn((_args: { slug: string; depth?: number; req?: unknown }) => impl())
-    const req = { context: {}, payload: { findGlobal } } as unknown as PayloadRequest
+    const globals = ['wm-web-config', 'wm-app-config'].map((slug) => ({
+      slug,
+      flattenedFields: FIELDS,
+    }))
+    const req = {
+      context: {},
+      payload: { findGlobal, config: { globals } },
+    } as unknown as PayloadRequest
     return { req, findGlobal }
   }
+
+  const tagsOf = (pages: ServicePages) => pages.tags
 
   it('issues a single findGlobal when many callers race before it resolves', async () => {
     let resolve!: (v: Record<string, unknown>) => void
@@ -126,30 +140,31 @@ describe('loadServiceConfigOnce', () => {
     })
     const { req, findGlobal } = makeReq(() => pending)
 
-    const inflight = Array.from({ length: 8 }, () => loadServiceConfigOnce(req, 'app'))
-    resolve({ homePage: 1 })
+    const inflight = Array.from({ length: 8 }, () => loadServicePages(req, 'app'))
+    resolve({ homePage: 1, pageTags: ['technique'] })
     const results = await Promise.all(inflight)
 
     expect(findGlobal).toHaveBeenCalledTimes(1)
     expect(findGlobal).toHaveBeenCalledWith(
       expect.objectContaining({ slug: 'wm-app-config', depth: 0 }),
     )
-    results.forEach((r) => expect(r).toEqual({ homePage: 1 }))
+    results.forEach((r) => expect(r).toBe(results[0]))
+    expect(Object.fromEntries(results[0]!.named)).toEqual({ 1: ['Home Page'] })
   })
 
   // ⚠ The hooks run on a write's response inside its open transaction, and a
   // nested read that joins it can roll the write back.
   it('does not forward the caller’s req into the read', async () => {
     const { req, findGlobal } = makeReq(async () => ({}))
-    await loadServiceConfigOnce(req, 'web')
+    await loadServicePages(req, 'web')
     expect(findGlobal.mock.calls[0]?.[0]).not.toHaveProperty('req')
   })
 
   it('keeps each service’s load apart within one request', async () => {
     const { req, findGlobal } = makeReq(async () => ({}))
-    await loadServiceConfigOnce(req, 'web')
-    await loadServiceConfigOnce(req, 'web')
-    await loadServiceConfigOnce(req, 'app')
+    await loadServicePages(req, 'web')
+    await loadServicePages(req, 'web')
+    await loadServicePages(req, 'app')
     expect(findGlobal.mock.calls.map(([args]) => args.slug)).toEqual([
       'wm-web-config',
       'wm-app-config',
@@ -160,21 +175,31 @@ describe('loadServiceConfigOnce', () => {
     let calls = 0
     const { req, findGlobal } = makeReq(() => {
       calls += 1
-      return calls === 1 ? Promise.reject(new Error('boom')) : Promise.resolve({ ok: true })
+      return calls === 1
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve({ pageTags: ['wisdom'] })
     })
 
-    await expect(loadServiceConfigOnce(req, 'web')).rejects.toThrow('boom')
-    await expect(loadServiceConfigOnce(req, 'web')).resolves.toEqual({ ok: true })
+    await expect(loadServicePages(req, 'web')).rejects.toThrow('boom')
+    expect(tagsOf(await loadServicePages(req, 'web'))).toEqual(['wisdom'])
     expect(findGlobal).toHaveBeenCalledTimes(2)
   })
 
   it('does not share the load across requests', async () => {
-    const a = makeReq(async () => ({ n: 'a' }))
-    const b = makeReq(async () => ({ n: 'b' }))
+    const a = makeReq(async () => ({ pageTags: ['wisdom'] }))
+    const b = makeReq(async () => ({ pageTags: ['event'] }))
 
-    expect(await loadServiceConfigOnce(a.req, 'web')).toEqual({ n: 'a' })
-    expect(await loadServiceConfigOnce(b.req, 'web')).toEqual({ n: 'b' })
+    expect(tagsOf(await loadServicePages(a.req, 'web'))).toEqual(['wisdom'])
+    expect(tagsOf(await loadServicePages(b.req, 'web'))).toEqual(['event'])
     expect(a.findGlobal).toHaveBeenCalledTimes(1)
     expect(b.findGlobal).toHaveBeenCalledTimes(1)
   })
+})
+
+// A page's place moves when its configuration is saved, with no page row
+// written, so each configuration's save must purge the cached page reads.
+it('purges cached page reads on every placing configuration’s save', () => {
+  for (const { slug } of Object.values(PAGE_SERVICES)) {
+    expect(GLOBAL_DEPENDENT_TAGS[slug]).toContain('pages')
+  }
 })

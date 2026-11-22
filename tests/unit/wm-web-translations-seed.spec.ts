@@ -21,7 +21,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { PAGE_TAGS, PLACEMENT_ONLY_PAGE_TAGS } from '@/lib/pageTags'
+import { FACET_PAGE_TAGS } from '@/lib/pageTags'
 import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
 import { collectLeafLookups, type SchemaNode } from '@/lib/translations/schemaWalker'
 
@@ -209,20 +209,19 @@ describe('seeds/wm-web-translations/data.en.json', () => {
   })
 
   /**
-   * `article.general.tag_*` is one filter chip per `PAGE_TAGS` entry
+   * `article.general.tag_*` is one filter chip per `FACET_PAGE_TAGS` entry
    * (`src/lib/pageTags/index.ts`), which `Pages` and `ContentIndexBlock` both
-   * read. The two lists are coupled and nothing joins them, so a sixth tag
+   * read. The two lists are coupled and nothing joins them, so a sixth facet
    * would give pages a facet with no translatable label — and nothing would
-   * fail, here or in WeMeditateWeb.
+   * fail, here or in WeMeditateWeb. A placement-only tag is no facet.
    */
-  it('declares one article tag key per PAGE_TAGS entry', () => {
+  it('declares one article tag key per FACET_PAGE_TAGS entry', () => {
     const general = (schema.properties.article?.properties ?? {})['general'] as
       SchemaNode | undefined
     const declared = Object.keys(general?.properties ?? {})
       .filter((key) => key.startsWith('tag_'))
       .map((key) => key.slice('tag_'.length))
 
-    const facets = PAGE_TAGS.filter((tag) => !PLACEMENT_ONLY_PAGE_TAGS.includes(tag))
-    expect([...declared].sort()).toEqual(facets.sort())
+    expect([...declared].sort()).toEqual([...FACET_PAGE_TAGS].sort())
   })
 })

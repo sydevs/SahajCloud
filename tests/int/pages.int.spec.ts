@@ -560,7 +560,7 @@ describe('Pages Collection', () => {
       expect(result.docs).toHaveLength(ids.length)
       result.docs.forEach((doc) => {
         expect(doc._status).toBe('published')
-        // Proves the appUrl afterRead — and thus loadServiceConfigOnce — actually ran
+        // Proves the appUrl afterRead — and thus loadServicePages — actually ran
         // through the real bulk path: webPath computes from the published gate,
         // the website's tag and the slug, and appUrl is gated off (the app
         // places no page by that tag).

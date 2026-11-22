@@ -10,21 +10,39 @@
  *
  * The page fields are read off the global's built config rather than listed
  * here, so a page field added to either configuration places its pages with no
- * change in this file.
- *
- * Two owners: the website key's read clause (`src/plugins/access/`), and the
- * page's `webUrl`, `appUrl` and sidebar lines (`src/collections/Pages/`).
- * `docs/rules/access.md` carries the rule.
+ * change in this file. `docs/rules/access.md` carries the rule.
  */
 import type { FlattenedField, PayloadRequest, Where } from 'payload'
 
+import { toWords, valueIsValueWithRelation } from 'payload/shared'
+
+import { isRecord } from '@/lib/utilities/isRecord'
+import { relationId } from '@/lib/utilities/relationId'
 import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 import type { Page } from '@/payload-types'
 
-/** A service that places pages, and the configuration global that does it. */
+/**
+ * Each service that places pages: its configuration global, the name of the
+ * page's sidebar line answering for it, and the words that line and the
+ * configuration's tag list use.
+ */
 export const PAGE_SERVICES = {
-  web: { slug: 'wm-web-config', label: 'Website' },
-  app: { slug: 'wm-app-config', label: 'App' },
+  web: {
+    slug: 'wm-web-config',
+    sidebarField: 'onWebsite',
+    sidebarLabel: 'On the website',
+    noun: 'website',
+    notPlaced:
+      'Not on the website. Name it in We Meditate Web › Configuration, or give it one of the page tags listed there.',
+  },
+  app: {
+    slug: 'wm-app-config',
+    sidebarField: 'inApp',
+    sidebarLabel: 'In the app',
+    noun: 'app',
+    notPlaced:
+      'Not in the app. Name it in We Meditate App › Configuration, or give it one of the page tags listed there.',
+  },
 } as const
 
 export type PageService = keyof typeof PAGE_SERVICES
@@ -41,9 +59,9 @@ export interface ServicePages {
 }
 
 /**
- * Load one service's configuration at most once per request: a list read fans
- * the page's afterRead hooks out across every document, and the read clause
- * asks too (`memoizeOnRequest` says why the promise is what is kept).
+ * The pages one service places, derived at most once per request: a list read
+ * fans the page's afterRead hooks out across every document, and the read
+ * clause asks too (`memoizeOnRequest` says why the promise is what is kept).
  *
  * ⚠ **`req` keys the memo and is not forwarded.** The afterRead hooks also run
  * on a write's response while its transaction is open, and a nested read that
@@ -52,30 +70,13 @@ export interface ServicePages {
  * one. The read runs on our authority, so no client `select` gate or usage
  * meter applies, and no access check can ask for this same promise.
  */
-export function loadServiceConfigOnce(
-  req: PayloadRequest,
-  service: PageService,
-): Promise<Record<string, unknown>> {
-  return memoizeOnRequest(
-    req,
-    `pageServiceConfig:${service}`,
-    () =>
-      req.payload.findGlobal({
-        slug: PAGE_SERVICES[service].slug,
-        depth: 0,
-        overrideAccess: true,
-      }) as unknown as Promise<Record<string, unknown>>,
-  )
-}
-
-/** The pages one service places, for this request. */
-export async function loadServicePages(
-  req: PayloadRequest,
-  service: PageService,
-): Promise<ServicePages> {
-  const data = await loadServiceConfigOnce(req, service)
-  const global = req.payload.config.globals.find((g) => g.slug === PAGE_SERVICES[service].slug)
-  return servicePagesFromConfig(global?.flattenedFields ?? [], data)
+export function loadServicePages(req: PayloadRequest, service: PageService): Promise<ServicePages> {
+  const { slug } = PAGE_SERVICES[service]
+  return memoizeOnRequest(req, `pageServices:${service}`, async () => {
+    const data = await req.payload.findGlobal({ slug, depth: 0, overrideAccess: true })
+    const fields = req.payload.config.globals.find((g) => g.slug === slug)?.flattenedFields ?? []
+    return servicePagesFromConfig(fields, data)
+  })
 }
 
 /**
@@ -91,7 +92,7 @@ export function servicePagesFromConfig(
   data: unknown,
 ): ServicePages {
   const named = new Map<number, string[]>()
-  const root = asRecord(data)
+  const root = isRecord(data) ? data : null
 
   const add = (value: unknown, label: string) => {
     const id = pageId(value)
@@ -101,17 +102,19 @@ export function servicePagesFromConfig(
     named.set(id, labels)
   }
 
-  const walk = (level: readonly FlattenedField[], value: Record<string, unknown> | null) => {
-    if (!value) return
+  const walk = (level: readonly FlattenedField[], value: unknown) => {
+    if (!isRecord(value)) return
     for (const field of level) {
       const own = value[field.name]
       if (field.type === 'relationship' && namesPages(field.relationTo)) {
-        const label = fieldLabel(field)
+        // Payload labels every unlabelled field `toWords(name)` while it
+        // sanitizes, so the fallback serves only an unsanitized field.
+        const label = typeof field.label === 'string' ? field.label : toWords(field.name)
         for (const entry of Array.isArray(own) ? own : [own]) add(entry, label)
       } else if (field.type === 'group' || field.type === 'tab') {
-        walk(field.flattenedFields, asRecord(own))
+        walk(field.flattenedFields, own)
       } else if (field.type === 'array' && Array.isArray(own)) {
-        for (const row of own) walk(field.flattenedFields, asRecord(row))
+        for (const row of own) walk(field.flattenedFields, row)
       }
     }
   }
@@ -133,7 +136,7 @@ export function pageServiceReasons(
   page: { id?: unknown; tags?: Page['tags'] },
   pages: ServicePages,
 ): string[] {
-  const id = pageId(page.id)
+  const id = relationId(page.id)
   const reasons = [...((id != null && pages.named.get(id)) || [])]
   for (const tag of page.tags ?? []) {
     if (pages.tags.includes(tag)) reasons.push(`tagged "${tag}"`)
@@ -164,25 +167,10 @@ function namesPages(relationTo: string | string[]): boolean {
   return Array.isArray(relationTo) ? relationTo.includes('pages') : relationTo === 'pages'
 }
 
-/** A relationship value's page id: a bare id, a populated doc, or a polymorphic `{ relationTo, value }`. */
+/** A page field's value as a page id, polymorphic `{ relationTo, value }` included. */
 function pageId(value: unknown): number | null {
-  if (typeof value === 'number') return value
-  const record = asRecord(value)
-  if (!record) return null
-  if ('relationTo' in record) return record.relationTo === 'pages' ? pageId(record.value) : null
-  return typeof record.id === 'number' ? record.id : null
-}
-
-function fieldLabel(field: FlattenedField): string {
-  const label = 'label' in field ? field.label : undefined
-  if (typeof label === 'string' && label) return label
-  if (label && typeof label === 'object' && typeof label.en === 'string') return label.en
-  // `classPages` → "Class Pages", the way Payload titles an unlabelled field.
-  return field.name.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null
+  if (valueIsValueWithRelation(value)) {
+    return value.relationTo === 'pages' ? relationId(value.value) : null
+  }
+  return relationId(value)
 }

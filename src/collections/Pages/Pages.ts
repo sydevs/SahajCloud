@@ -17,7 +17,9 @@ import { buildPageWebPath } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
-  defaultPopulate: { appUrl: false },
+  // The sidebar lines read both configurations and only the edit view shows
+  // them, so a populated page never computes them.
+  defaultPopulate: { appUrl: false, onWebsite: false, inApp: false },
   trash: true,
   admin: {
     group: 'Content',
@@ -137,9 +139,10 @@ export const Pages: CollectionConfig = {
         description: 'Managers who can edit this page without broader permissions.',
       },
     },
-    // Virtual deep links: public web URL + in-app URL (registered app pages
-    // only). Both require the page to be published (gate built into
-    // publicUrlFields). Web path carries the optional locale, then the slug.
+    // Virtual deep links: public web URL + in-app URL, each only for a page its
+    // service places (`exposeWhen`). Both require the page to be published
+    // (gate built into publicUrlFields). Web path carries the optional locale,
+    // then the slug.
     //
     // ⚠ **No tag segment.** This used to emit `[locale, tag, slug]`, which no
     // site has ever served. WeMeditateWeb routes a page at one segment —
@@ -176,8 +179,7 @@ export const Pages: CollectionConfig = {
       },
       // Beyond the factory's publish gate, each link needs its page placed in
       // that service by the service's own configuration — a `webUrl` for a page
-      // the website never reads is an address that 404s. The configuration is
-      // loaded once per request, not once per doc (`loadServiceConfigOnce`).
+      // the website never reads is an address that 404s.
       exposeWhen: async ({ platform, data, req }) => {
         const pages = await loadServicePages(req, platform)
         return pageServiceReasons(data ?? {}, pages).length > 0

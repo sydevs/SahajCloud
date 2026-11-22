@@ -10905,7 +10905,7 @@ export interface ContentIndexBlock {
   /**
    * Select page tags to use as filters for this index grid
    */
-  pageFilters?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
+  pageFilters?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
   /**
    * Select user choices to use as filters for this index grid
    */

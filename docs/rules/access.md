@@ -108,7 +108,7 @@ Managers and API clients both read their role's project plus every shared collec
 ### Which pages a website key reads
 
 A client in the `wemeditate-web` project reads only the pages the **website's configuration
-places**: a page that any page field of `wm-web-config` names (the home page, the five menu lists),
+places**: a page that any page field of `wm-web-config` names (the home page and the menu lists, today),
 or one carrying a tag listed in its **Page tags**. `websitePagesClause`
 (`src/plugins/access/websitePages.ts`) ANDs that onto the published-only clause, and
 `src/lib/pageServices` derives the set — reading the page fields off the global's built config, so

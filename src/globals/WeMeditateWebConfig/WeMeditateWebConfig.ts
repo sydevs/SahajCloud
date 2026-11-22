@@ -120,6 +120,6 @@ export const WeMeditateWebConfig: GlobalConfig = {
     // ⚠ Every page field above also places its pages on the website, beside
     // these tags: an API key in the website's project reads no other page
     // (`src/lib/pageServices`, `docs/rules/access.md`).
-    servicePageTagsField({ service: 'website' }),
+    servicePageTagsField('web'),
   ],
 }

@@ -6,12 +6,8 @@ import {
   pageServiceReasons,
   type PageService,
 } from '@/lib/pageServices'
+import { managersOnlyFieldAccess } from '@/plugins/access'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
-
-const NOT_PLACED: Record<PageService, string> = {
-  web: 'Not on the website. Name it in We Meditate Web › Configuration, or give it one of the page tags listed there.',
-  app: 'Not in the app. Name it in We Meditate App › Configuration, or give it one of the page tags listed there.',
-}
 
 /**
  * One sidebar line per service: whether this page is available to it, and
@@ -20,14 +16,14 @@ const NOT_PLACED: Record<PageService, string> = {
  */
 export function serviceFields(): TextField[] {
   return (Object.keys(PAGE_SERVICES) as PageService[]).map((service) => ({
-    name: service === 'web' ? 'onWebsite' : 'inApp',
-    label: service === 'web' ? 'On the website' : 'In the app',
+    name: PAGE_SERVICES[service].sidebarField,
+    label: PAGE_SERVICES[service].sidebarLabel,
     type: 'text',
     virtual: true,
     custom: virtualFieldInputs('tags'),
     // A manager's answer about their own configuration, not part of the
     // page's public contract.
-    access: { read: ({ req }) => req.user?.collection === 'managers' },
+    access: { read: managersOnlyFieldAccess },
     admin: {
       readOnly: true,
       position: 'sidebar',
@@ -39,9 +35,14 @@ export function serviceFields(): TextField[] {
 }
 
 function describeService(service: PageService): FieldHook {
-  return async ({ data, req }) => {
+  return async ({ data, req, findMany, overrideAccess }) => {
+    // Only the edit view shows the line. A list, a populate and a client read
+    // would pay two configuration reads for a value nobody sees: field access
+    // runs after this hook, and strips it from a client anyway.
+    if (findMany || (!overrideAccess && req.user?.collection !== 'managers')) return null
     if (data?.id == null) return null
+
     const reasons = pageServiceReasons(data, await loadServicePages(req, service))
-    return reasons.length ? reasons.join(', ') : NOT_PLACED[service]
+    return reasons.length ? reasons.join(', ') : PAGE_SERVICES[service].notPlaced
   }
 }
