@@ -27,6 +27,16 @@ const FIELDS: FlattenedField[] = [
     flattenedFields: [field({ name: 'target', type: 'relationship', relationTo: 'pages' })],
   }),
   field({
+    name: 'sections',
+    type: 'blocks',
+    blocks: [
+      {
+        slug: 'feature',
+        flattenedFields: [field({ name: 'page', type: 'relationship', relationTo: 'pages' })],
+      },
+    ],
+  }),
+  field({
     name: 'cards',
     type: 'array',
     flattenedFields: [
@@ -42,6 +52,10 @@ describe('servicePagesFromConfig', () => {
     classPages: [2, { id: 3 }],
     audiences: [99],
     promo: { target: 1 },
+    sections: [
+      { blockType: 'feature', page: 6 },
+      { blockType: 'unknown', page: 8 },
+    ],
     cards: [
       { link: { relationTo: 'pages', value: 4 } },
       { link: { relationTo: 'meditations', value: 5 } },
@@ -55,6 +69,7 @@ describe('servicePagesFromConfig', () => {
       2: ['Class Pages'],
       3: ['Class Pages'],
       4: ['Link'],
+      6: ['Page'],
     })
   })
 

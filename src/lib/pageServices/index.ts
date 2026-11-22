@@ -84,8 +84,8 @@ export function loadServicePages(req: PayloadRequest, service: PageService): Pro
  * names, and the tag list.
  *
  * Pure, so the walk is tested without a database. It descends into named
- * groups, named tabs and array rows; unnamed containers are already flattened
- * away by Payload.
+ * groups, named tabs, array rows and blocks; unnamed containers are already
+ * flattened away by Payload.
  */
 export function servicePagesFromConfig(
   fields: readonly FlattenedField[],
@@ -115,6 +115,13 @@ export function servicePagesFromConfig(
         walk(field.flattenedFields, own)
       } else if (field.type === 'array' && Array.isArray(own)) {
         for (const row of own) walk(field.flattenedFields, row)
+      } else if (field.type === 'blocks' && Array.isArray(own)) {
+        // shortcut: a block named by slug from `config.blocks` is not walked;
+        // resolve `blockReferences` here once either configuration uses one.
+        for (const row of own) {
+          const block = isRecord(row) ? field.blocks.find((b) => b.slug === row.blockType) : null
+          if (block) walk(block.flattenedFields, row)
+        }
       }
     }
   }

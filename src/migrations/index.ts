@@ -9,6 +9,7 @@ import * as migration_20261119_223756_merge_snapshot_heal from './20261119_22375
 import * as migration_20261121_035055_wm_web_drop_a11y_groups from './20261121_035055_wm_web_drop_a11y_groups';
 import * as migration_20261121_035100_atlas_drop_a11y_keys from './20261121_035100_atlas_drop_a11y_keys';
 import * as migration_20261122_213242_add_service_page_tags from './20261122_213242_add_service_page_tags';
+import * as migration_20261122_213300_place_service_pages from './20261122_213300_place_service_pages';
 
 export const migrations = [
   {
@@ -65,5 +66,10 @@ export const migrations = [
     up: migration_20261122_213242_add_service_page_tags.up,
     down: migration_20261122_213242_add_service_page_tags.down,
     name: '20261122_213242_add_service_page_tags'
+  },
+  {
+    up: migration_20261122_213300_place_service_pages.up,
+    down: migration_20261122_213300_place_service_pages.down,
+    name: '20261122_213300_place_service_pages',
   },
 ];

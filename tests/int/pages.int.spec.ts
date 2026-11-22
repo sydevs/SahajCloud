@@ -17,6 +17,7 @@ describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let adminId: number
+  let asManager: { user: PayloadRequest['user'] }
 
   // Page tags are now inline enum strings
   const wisdomTag = 'wisdom'
@@ -29,6 +30,8 @@ describe('Pages Collection', () => {
     payload = testEnv.payload
     cleanup = testEnv.cleanup
     adminId = testEnv.adminUser.id
+    // The sidebar lines are computed for a manager's read only.
+    asManager = { user: { ...testEnv.adminUser, collection: 'managers' } as PayloadRequest['user'] }
     // The website takes pages tagged `wisdom`; a case that names a page keeps it.
     await placePages(payload, 'web', { tags: ['wisdom'] })
   })
@@ -601,7 +604,7 @@ describe('Pages Collection', () => {
         _status: 'published',
       })
 
-      const fetched = await payload.findByID({ collection: 'pages', id: page.id })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
       expect(fetched.webPath).toBeNull()
       expect(fetched.webUrl).toBeNull()
       expect(fetched.onWebsite).toMatch(/^Not on the website/)
@@ -615,7 +618,7 @@ describe('Pages Collection', () => {
       })
       await placePages(payload, 'web', { pages: [page.id], tags: ['wisdom'] })
 
-      const fetched = await payload.findByID({ collection: 'pages', id: page.id })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
       expect(fetched.onWebsite).toBe('Featured Pages, tagged "wisdom"')
     })
 
@@ -627,7 +630,7 @@ describe('Pages Collection', () => {
       })
       await placePages(payload, 'app', { tags: ['technique'] })
 
-      const fetched = await payload.findByID({ collection: 'pages', id: page.id })
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
       expect(fetched.appUrl).toBe(`wemeditate://${page.slug}`)
       expect(fetched.inApp).toBe('tagged "technique"')
     })

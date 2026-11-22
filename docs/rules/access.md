@@ -120,6 +120,9 @@ the page itself; its sidebar says where it is placed and why (`onWebsite`, `inAp
   id** — the shape WeMeditateWeb's `partitionPublishedPages` already discards. The page's
   `webPath` and `webUrl` go null by the same rule.
 - **Fails closed.** An unconfigured `wm-web-config` places nothing, so a website key reads no page.
+  `20261122_213300_place_service_pages` seeds both configurations' Page tags, and tags every
+  subtle-system node's page `subtle-system`, so the deploy that ships the clause keeps the tagged
+  pages; a page neither named nor tagged leaves the website on that deploy.
 - **The app is not narrowed.** Released app builds fetch pages by hardcoded id, which a filter
   cannot follow. `wm-app-config` places pages the same way, and decides only `appUrl` and the
   sidebar line until the app reads its pages from that configuration. A key in both projects is

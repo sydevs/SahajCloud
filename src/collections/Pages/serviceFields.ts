@@ -35,11 +35,11 @@ export function serviceFields(): TextField[] {
 }
 
 function describeService(service: PageService): FieldHook {
-  return async ({ data, req, findMany, overrideAccess }) => {
-    // Only the edit view shows the line. A list, a populate and a client read
-    // would pay two configuration reads for a value nobody sees: field access
-    // runs after this hook, and strips it from a client anyway.
-    if (findMany || (!overrideAccess && req.user?.collection !== 'managers')) return null
+  return async ({ data, req, findMany }) => {
+    // Only a manager's edit view shows the line. A list, a populate, a client
+    // read or a job's read would pay two configuration reads for a value nobody
+    // sees: field access runs after this hook, and strips it from a client.
+    if (findMany || req.user?.collection !== 'managers') return null
     if (data?.id == null) return null
 
     const reasons = pageServiceReasons(data, await loadServicePages(req, service))
