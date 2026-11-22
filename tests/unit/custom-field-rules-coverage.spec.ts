@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest'
 import {
   reaches,
   registeredComponents,
-  resolveModule,
+  resolveSpec,
   SRC,
   sourceFiles,
 } from '../utils/adminRegistrations'
@@ -158,13 +158,13 @@ describe('the shared registration walk', () => {
     // The three spellings a registration takes. An earlier resolver dropped
     // the first and the third, taking their components out of every rule above.
     const from = join(SRC, 'collections/Regions/Regions.ts')
-    expect(resolveModule('@/components/admin/RegionEvents', from)).toBe(
+    expect(resolveSpec('@/components/admin/RegionEvents', from)).toBe(
       join(ADMIN, 'RegionEvents/index.tsx'),
     )
-    expect(resolveModule('@/components/admin/TimestampInput', from)).toBe(
+    expect(resolveSpec('@/components/admin/TimestampInput', from)).toBe(
       join(ADMIN, 'TimestampInput.tsx'),
     )
-    expect(resolveModule('@/components/admin/TranscriptPanel#FileTranscriptField', from)).toBe(
+    expect(resolveSpec('@/components/admin/TranscriptPanel#FileTranscriptField', from)).toBe(
       join(ADMIN, 'TranscriptPanel/index.ts'),
     )
   })
