@@ -12,14 +12,11 @@
       "back": "Zpět",
       "back_to": "Zpět na %{title}",
       "close": "Zavřít",
-      "explore": "Prozkoumat",
-      "loading": "Načítání…",
       "cancel": "Zrušit",
       "widget_label": "Bezplatné meditační kurzy",
       "all_classes_free": "Všechny lekce jsou zdarma"
     },
     "settings": {
-      "title": "Nastavení",
       "theme_auto": "Systémový (auto)",
       "theme_dark": "Tmavý motiv",
       "theme_light": "Světlý motiv"
@@ -87,7 +84,6 @@
     "results": {
       "more": "Zobrazit více",
       "farther": "Zobrazit vzdálené události",
-      "showing": "Zobrazeno %{shown} z %{total} událostí",
       "no_nearby": "Žádné události do %{km} km."
     },
     "sort": {
@@ -101,8 +97,7 @@
       "cta": "Přejít na web %{country}"
     },
     "nearby_prompt": {
-      "title": "Hledáte kurzy poblíž: %{city}?",
-      "dismiss": "Skrýt"
+      "title": "Hledáte kurzy poblíž: %{city}?"
     }
   },
   "filters": {
@@ -111,7 +106,6 @@
       "apply": "Použít",
       "clear": "Vymazat vše",
       "clear_one": "Vymazat",
-      "remove": "Odebrat %{label}",
       "any_time": "Kdykoli",
       "no_results": "Žádné události neodpovídají vašim filtrům."
     },
@@ -207,9 +201,7 @@
       "website": "Web",
       "share": "Sdílet",
       "add_calendar": "Přidat do kalendáře",
-      "download_ics": "Stáhnout soubor .ics",
-      "view_photo": "Zobrazit fotku",
-      "pause_slideshow": "Pozastavit prezentaci"
+      "download_ics": "Stáhnout soubor .ics"
     },
     "recurrence": {
       "daily": "Každý den",
@@ -228,9 +220,6 @@
   },
   "calendar": {
     "title": "Kalendář",
-    "previous": "Předchozí",
-    "next": "Další",
-    "pick_date": "Vybrat datum",
     "view_month": "Měsíc",
     "view_week": "Týden",
     "view_list": "Seznam"
@@ -264,9 +253,7 @@
     }
   },
   "share": {
-    "share_on": "Sdílet na %{platform}",
     "native": "Sdílet…",
-    "copy_link": "Kopírovat odkaz",
     "copied": "Zkopírováno"
   },
   "compact": {

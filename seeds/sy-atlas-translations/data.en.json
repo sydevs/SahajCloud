@@ -12,14 +12,11 @@
       "back": "Back",
       "back_to": "Back to %{title}",
       "close": "Close",
-      "explore": "Explore",
-      "loading": "Loading…",
       "cancel": "Cancel",
       "widget_label": "Free meditation classes",
       "all_classes_free": "All classes are free"
     },
     "settings": {
-      "title": "Settings",
       "theme_auto": "System (Auto)",
       "theme_dark": "Dark Theme",
       "theme_light": "Light Theme"
@@ -88,7 +85,6 @@
     "results": {
       "more": "Show more",
       "farther": "Show distant events",
-      "showing": "Showing %{shown} of %{total} events",
       "no_nearby": "No events within %{km} km."
     },
     "sort": {
@@ -102,8 +98,7 @@
       "cta": "Visit the %{country} website"
     },
     "nearby_prompt": {
-      "title": "Looking for classes near %{city}?",
-      "dismiss": "Dismiss"
+      "title": "Looking for classes near %{city}?"
     }
   },
   "filters": {
@@ -112,7 +107,6 @@
       "apply": "Apply",
       "clear": "Clear all",
       "clear_one": "Clear",
-      "remove": "Remove %{label}",
       "any_time": "Any time",
       "no_results": "No events match your filters."
     },
@@ -210,9 +204,7 @@
       "website": "Website",
       "share": "Share",
       "add_calendar": "Add to calendar",
-      "download_ics": "Download .ics file",
-      "view_photo": "View photo",
-      "pause_slideshow": "Pause slideshow"
+      "download_ics": "Download .ics file"
     },
     "recurrence": {
       "daily": "Every Day",
@@ -231,9 +223,6 @@
   },
   "calendar": {
     "title": "Calendar",
-    "previous": "Previous",
-    "next": "Next",
-    "pick_date": "Pick a date",
     "view_month": "Month",
     "view_week": "Week",
     "view_list": "List",
@@ -352,9 +341,7 @@
   },
   "share": {
     "title": "Share Meditation",
-    "share_on": "Share on %{platform}",
     "native": "Share…",
-    "copy_link": "Copy link",
     "copied": "Copied"
   },
   "compact": {
