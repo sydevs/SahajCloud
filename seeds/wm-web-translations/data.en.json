@@ -3,7 +3,7 @@
     "global": "wm-web-translations",
     "locale": "en",
     "source": "Extracted from sydevs/WeMeditateWeb@main — the literal each key replaces is listed in Appendix A of sydevs/SahajCloud#707. The `discover` group and `meditation.general.upsell_*` come from sydevs/SahajCloud#917, which lists the file and line each literal sits on. `common.general.skip_to_main` replaces no literal: the site renders no skip link today, and sydevs/WeMeditateWeb#162 asked for it. `meditation.general.finder_question`, `finder_unavailable`, `all_meditations` and `mood_meditation_label` replace no literal either: they are the mood finder sydevs/WeMeditateWeb#272 asked for, which the site has never had. No screen-reader-only string lives here: WeMeditate Web owns those itself, machine-translated, in lib/i18n/a11y/.",
-    "schema_version": "post-#1223 (13 tabs, 13 leaf groups, 101 declared keys)",
+    "schema_version": "post-#1223 (13 tabs, 13 leaf groups, 102 declared keys)",
     "shape": "Mirrors the global's API response: <tab>.<sub-group>.<key> for a nested tab, <tab>.<key> for a flat one (navigation, footer). A `plural: true` key is stored expanded — English populates `_one` and `_other` only, since English has no `few`/`many` form.",
     "placeholders": "`%{name}` interpolation, resolved by the consuming site. `%{count}` is reserved for the number that selects the plural form."
   },

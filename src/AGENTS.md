@@ -90,6 +90,14 @@ is in its own header comment; what follows is only what no single file can say.
   hook, keyed on the move's name. A machine that needs more wants XState. No barrel.
 - **`submissions/`** — `CLIENT_CONTEXT_KEYS` lives here because two collections read it
   (`user-submissions`' URL-scan exemption, `Forms`' field-name refusal), so it belongs to neither.
+- **`migrations/`** — ⚠ **the one folder a file in `src/migrations/` may import from.** A
+  migration is frozen the moment it merges, so a helper beside one is unreachable by the next,
+  and `src/migrations/*.ts` is do-not-augment generated output besides
+  (`.claude/workflow.json`). Keeping the shared SQL here, and nowhere else, means the import line
+  of a hand-written data migration says whether it reaches code it may reach. Nothing outside
+  `src/migrations/` imports from here — a runtime reader of the same data wants its owner's
+  folder. Exempt from the one-consumer rule below, for the same reason the folder exists. No
+  barrel.
 
 **Barrels.** A folder gets an `index.ts` barrel only when it presents one cohesive public surface
 imported as a unit. A grab-bag or per-owner helper folder whose modules are cherry-picked uses
@@ -171,13 +179,16 @@ so let the test do it rather than grepping:
 | Sibling relative imports | `browserRendering.ts` is imported as `./browserRendering` by `verifyEmbed.ts` next door — invisible to a `@/lib/…` search |
 | `scripts/`               | The email preview scripts import senders directly                                                                         |
 
-Two exemptions are built in:
+Three exemptions are built in:
 
 - **Consumed only from inside `src/lib`** — a shared module decomposed into parts (a barrel and
   its members, or an integration seam like `turnstile/` kept separate so it unit-tests without
   booting its caller). The folder is the unit. Whether it's shared is answered by its entry point.
 - **Consumed only by `scripts/`** — operator scripts are thin CLI wrappers whose routine lives in
   lib precisely so it can be unit-tested without running the script (see `scripts/AGENTS.md`).
+- **`src/lib/migrations/`, consumed only by `src/migrations/`** — "move it beside its consumer"
+  has no answer here: that consumer is frozen generated output, and the second consumer is a
+  migration nobody has written yet. The count only ever grows.
 
 `KNOWN_SINGLE_CONSUMER` in that spec records what already had one consumer when the check landed.
 It's a backlog, not an approval, and should only shrink — a new entry needs a reason that outlives

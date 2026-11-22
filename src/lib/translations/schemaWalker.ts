@@ -11,7 +11,12 @@
 
 import { pluralStorageKeys } from './pluralCategories'
 
-export type LeafProp = { type: 'string' | 'richText'; plural?: boolean }
+export type LeafProp = {
+  type: 'string' | 'richText'
+  plural?: boolean
+  /** The key's English copy, declared beside it. See {@link LeafLookup.englishDefault}. */
+  default?: string
+}
 
 export type SchemaNode = {
   type: 'object'
@@ -34,6 +39,15 @@ export interface LeafLookup {
   groupField: string | null
   fieldName: string
   innerKey: string | null
+  /**
+   * The English copy the schema declares for this key, where it declares one.
+   *
+   * A declared default is what reaches a database without a per-key migration
+   * (`src/lib/translations/englishDefaults.ts`). Only a plain `string` key may
+   * carry one: a plural key's English is a family, not a value, so a `default`
+   * beside `plural` is refused rather than guessed at.
+   */
+  englishDefault?: string
 }
 
 export interface CollectOptions {
@@ -58,7 +72,13 @@ function stringLookups(
   expandPlurals: boolean,
 ): LeafLookup[] {
   const keys = expandPlurals && prop.plural === true ? pluralStorageKeys(key) : [key]
-  return keys.map((innerKey) => ({ groupField, fieldName, innerKey }))
+  const englishDefault = prop.plural === true ? undefined : prop.default
+  return keys.map((innerKey) => ({
+    groupField,
+    fieldName,
+    innerKey,
+    ...(typeof englishDefault === 'string' ? { englishDefault } : {}),
+  }))
 }
 
 export function collectLeafLookups(

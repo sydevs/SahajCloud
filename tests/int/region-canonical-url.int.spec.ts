@@ -1,11 +1,13 @@
 import type { Payload } from 'payload'
 
+import { sql } from '@payloadcms/db-postgres'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { serverEnv } from '@/lib/env'
 
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+import { withSchema } from '../utils/withSchema'
 
 /**
  * Per-region canonical `webUrl` resolution (#634).
@@ -338,10 +340,6 @@ describe('per-region canonical webUrl', () => {
       // the JSON schema's domain check never runs on this path. Going through
       // `payload.update` here would be rejected by that schema and would prove
       // nothing about the state the job can actually leave behind.
-      const db = payload.db as unknown as {
-        pool?: { query: (sql: string, values: unknown[]) => Promise<unknown> }
-        schemaName?: string
-      }
       const verified = {
         verified: {
           domain: `${LONDON_DOMAIN}:8080`,
@@ -352,11 +350,12 @@ describe('per-region canonical webUrl', () => {
         failureCount: 0,
         attempts: [],
       }
-      await db.pool!.query(
-        `UPDATE "${db.schemaName ?? 'public'}".clients
-           SET canonical_verification = $1::jsonb WHERE id = $2`,
-        [JSON.stringify(verified), londonClient.id],
-      )
+      await withSchema(payload, async (tx) => {
+        await tx.execute(
+          sql`UPDATE "clients" SET canonical_verification = ${JSON.stringify(verified)}::jsonb
+                WHERE id = ${londonClient.id}`,
+        )
+      })
 
       const london = await readRegion(region.london)
       expect(london.webUrl).not.toContain('8080')

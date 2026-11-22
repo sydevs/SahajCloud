@@ -5,6 +5,7 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isBrandColor } from '@/lib/clients/appearance'
 
@@ -52,12 +53,11 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  const fieldId = `field-${name.replace(/\./g, '__')}`
   const unset = Boolean(fallback) && !isBrandColor(value)
   const shown = unset && fallback ? fallback : value || '#000000'
 
   return (
-    <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(field.admin)}>
+    <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
       <div style={{ alignItems: 'baseline', display: 'flex', gap: 'calc(var(--base) / 3)' }}>
         <FieldLabel label={label} localized={localized} path={name} required={required} />
         {unset ? <span style={{ color: 'var(--theme-elevation-500)' }}>Default</span> : null}
@@ -67,19 +67,14 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         <FieldError path={name} showError={showError} />
 
         <input
+          id={fieldId(name)}
           type="color"
           value={shown}
           onChange={handleChange}
           disabled={readOnly}
-          style={{
-            width: '100%',
-            height: '40px',
-            padding: '4px',
-            border: '1px solid var(--theme-elevation-150)',
-            borderRadius: 'var(--style-radius-s)',
-            cursor: readOnly ? 'not-allowed' : 'pointer',
-            backgroundColor: 'var(--theme-input-bg)',
-          }}
+          // `formInput` sizes and paints it, focus and error affordances
+          // included. A swatch only needs the room its padding takes back.
+          style={{ padding: '4px', cursor: readOnly ? 'not-allowed' : 'pointer' }}
         />
       </div>
 
