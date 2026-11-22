@@ -5,7 +5,9 @@ import type { JSONFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, toast, useField } from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { usePlaybackTime, useSeekToTime } from '@/components/admin/helpers/livePreviewPlayback'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameListManager.module.css'
@@ -56,14 +58,25 @@ const FrameItem: React.FC<FrameItemProps> = ({
   }
 
   return (
+    // The row's own click is a mouse convenience over the whole row, and the
+    // row holds an input and a button, so it cannot become a control itself.
+    // The keyboard path is the seek button below.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className={`${styles['frame-item']}${isActive ? ` ${styles['frame-item_active']}` : ''}${isHovered && !isActive ? ` ${styles['frame-item_hover']}` : ''}`}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Thumbnail */}
-      <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
+      {/* Thumbnail — the row's seek, for a keyboard */}
+      <button
+        type="button"
+        className={styles['frame-item_seek']}
+        onClick={() => onSeek(frame.timestamp)}
+        aria-label={`Seek preview to ${formatTime(frame.timestamp)}`}
+      >
+        <FrameThumbnail frame={frame} style={baseStyles.thumbnail} />
+      </button>
 
       {/* Frame Info */}
       <div style={listManagerStyles.frameInfo}>
@@ -221,10 +234,8 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     .filter(Boolean)
     .join(' ')
 
-  const fieldId = `field-${name.replace(/\./g, '__')}`
-
   return (
-    <div className={fieldClasses} id={fieldId}>
+    <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 

@@ -6,6 +6,7 @@ import { Drawer, FieldDescription, FieldLabel, useDrawerSlug, useModal } from '@
 import { toWords } from 'payload/shared'
 import React, { useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { LogCell, LogColumn, LogEntry } from '@/fields/logField'
 import { asLog } from '@/fields/logField'
 
@@ -81,12 +82,13 @@ export const LogTable: ArrayFieldClientComponent = ({ field, path }) => {
   }
 
   return (
-    <div className="field-type array-field read-only">
-      <FieldLabel label={label} path={name} />
+    <div className="field-type array-field read-only" style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} />
       <div className="field-type__wrap">
         {entries.length === 0 ? (
           <div style={emptyStyle}>Nothing recorded yet.</div>
         ) : (
+          // eslint-disable-next-line jsx-a11y/no-static-element-interactions
           <div
             className="log-table"
             // One delegated listener rather than per-cell handlers: it covers

@@ -14,6 +14,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { managerRoles } from '@/lib/notifications/managerRoles'
 import type { NotificationKey } from '@/lib/notifications/preferences'
 import {
@@ -152,8 +153,8 @@ export const NotificationPreferencesField: FieldClientComponent = ({ field, read
     .join(' ')
 
   return (
-    <div className={fieldClasses}>
-      <FieldLabel label={label} path={name} />
+    <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />

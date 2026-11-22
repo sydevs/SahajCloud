@@ -6,6 +6,7 @@ import { FieldError, FieldLabel, useField, useLocale } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { SchemaEntry } from '@/fields/translationsField'
 
 import { AutoGrowTextarea } from './AutoGrowTextarea'
@@ -114,8 +115,9 @@ export const TranslationsRowField: JSONFieldClientComponent = ({ field, readOnly
       className={['field-type', 'json', showError && 'error', readOnly && 'read-only']
         .filter(Boolean)
         .join(' ')}
+      style={mergeFieldStyles(field.admin)}
     >
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+      <FieldLabel label={label} localized={localized} required={required} />
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
         {schemaEntries.length === 0 ? (

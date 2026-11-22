@@ -85,7 +85,7 @@ export function FileTranscriptField({
 
   return (
     <div className="field-type" style={{ marginBottom: 'var(--spacing-field)' }}>
-      {!fileField && <FieldLabel label="Transcript" path={fieldPath} />}
+      {!fileField && <FieldLabel label="Transcript" />}
       {/* Keyed, so a swapped file starts its player and playhead afresh. */}
       <FileTranscript collapsible={Boolean(fileField)} file={file} key={file.id} />
     </div>

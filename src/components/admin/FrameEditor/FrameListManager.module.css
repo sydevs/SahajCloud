@@ -41,3 +41,13 @@
   color: var(--theme-error-500);
   background-color: var(--theme-error-100);
 }
+
+/* The thumbnail is the row's keyboard path to its seek, so it is a button with
+   nothing of a button's own box. */
+.frame-item_seek {
+  display: block;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}

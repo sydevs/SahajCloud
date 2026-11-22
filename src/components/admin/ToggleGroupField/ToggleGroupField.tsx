@@ -5,6 +5,7 @@ import type { FieldClientComponent, SelectFieldClient } from 'payload'
 import { FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useEffect, useMemo } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { SelectDescription } from '@/components/admin/SelectDescription'
 
@@ -103,7 +104,6 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     .join(' ')
 
   // Generate field ID from path (replace dots with double underscores)
-  const fieldId = `field-${name.replace(/\./g, '__')}`
 
   // Generate aria-label for accessibility
   const ariaLabel =
@@ -119,8 +119,8 @@ export const ToggleGroupField: FieldClientComponent = ({ field, readOnly }) => {
     : (value as string) || ''
 
   return (
-    <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(selectField.admin)}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+    <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(selectField.admin)}>
+      <FieldLabel label={label} localized={localized} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />

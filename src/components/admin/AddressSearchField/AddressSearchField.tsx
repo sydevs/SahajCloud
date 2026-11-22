@@ -15,6 +15,7 @@ import {
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { MapboxFeature } from '@/lib/mapbox/feature'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
@@ -205,8 +206,8 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   const showNoInputBanner = !value && !token && !manualAllowed && !readOnly
 
   return (
-    <div className={fieldClasses}>
-      <FieldLabel label={label} localized={localized} path={path} required={required} />
+    <div className={fieldClasses} style={mergeFieldStyles(admin)}>
+      <FieldLabel label={label} localized={localized} required={required} />
       <div className="field-type__wrap">
         <FieldError path={path} showError={showError} />
         {/* Selected: the stored id (or the `manual` sentinel) shown as a single

@@ -5,6 +5,9 @@ import type { NumberFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 import { RangeSlider } from './RangeSlider'
 
 /**
@@ -41,7 +44,7 @@ export const RangeSliderField: NumberFieldClientComponent = ({ field, readOnly }
     required,
     min,
     max,
-    admin: { description, className, style, step, custom } = {},
+    admin: { description, className, step, custom } = {},
   } = field
 
   const { value, setValue, showError } = useField<number | null>()
@@ -63,8 +66,6 @@ export const RangeSliderField: NumberFieldClientComponent = ({ field, readOnly }
     .filter(Boolean)
     .join(' ')
 
-  const fieldId = `field-${name.replace(/\./g, '__')}`
-
   // Generate aria-label for accessibility (StaticLabel handling)
   const ariaLabel =
     typeof label === 'string'
@@ -74,8 +75,8 @@ export const RangeSliderField: NumberFieldClientComponent = ({ field, readOnly }
         : name
 
   return (
-    <div className={fieldClasses} id={fieldId} style={style}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+    <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} localized={localized} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />

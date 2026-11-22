@@ -139,9 +139,13 @@ const openPreview = () => {
   return frame
 }
 
+/**
+ * Payload hands a `ui` field's component its own config, which is where the
+ * field's width comes from — so the mount passes one, as `renderField` does.
+ */
 const mount = (component: unknown) =>
   act(async () => {
-    root.render(createElement(component as never, {}))
+    root.render(createElement(component as never, { field: { name: 'preview', type: 'ui' } }))
   })
 
 const post = (data: unknown, source: Window | null, origin = ATLAS) =>

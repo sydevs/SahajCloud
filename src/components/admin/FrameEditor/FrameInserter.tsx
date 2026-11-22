@@ -40,7 +40,8 @@ const FrameCard: React.FC<FrameCardProps> = ({
   const nodeLabel = getSubtleSystemNodeLabel(nodeSlug)
   const pillLabel = nodeLabel || frame.label
   return (
-    <div
+    <button
+      type="button"
       className={`${styles['frame-card']}${isClicked ? ` ${styles['frame-card_clicked']}` : ''}`}
       onClick={() => onInsert(frame)}
       title={`Insert ${getFrameDisplayLabel(frame)} at ${formatTime(insertionTimestamp)}`}
@@ -57,7 +58,7 @@ const FrameCard: React.FC<FrameCardProps> = ({
           <div style={inserterStyles.frameTags}>{frame.tags.join(', ')}</div>
         </div>
       )}
-    </div>
+    </button>
   )
 }
 

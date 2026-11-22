@@ -15,6 +15,7 @@ import {
 } from '@payloadcms/ui'
 import React, { useCallback, useMemo } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { RoleSlug } from '@/payload-types'
 import { getRoleLabel, virtualRoles } from '@/plugins/access/config'
@@ -107,7 +108,7 @@ const RolesFieldComponent: SelectFieldClientComponent = ({ field, readOnly }) =>
   const fieldStyles = useMemo(() => mergeFieldStyles(admin), [admin])
 
   return (
-    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`} style={fieldStyles}>
+    <div className={fieldClasses} style={fieldStyles}>
       <RenderCustomComponent
         CustomComponent={Label}
         Fallback={
@@ -123,6 +124,7 @@ const RolesFieldComponent: SelectFieldClientComponent = ({ field, readOnly }) =>
         <ReactSelect
           {...derivedChipClassNames}
           disabled={isReadOnly}
+          inputId={fieldId(path)}
           // Clearing removes the stored roles alone, so with none there is nothing to clear.
           isClearable={(value?.length ?? 0) > 0}
           isMulti

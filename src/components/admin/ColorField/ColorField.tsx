@@ -5,6 +5,7 @@ import type { TextFieldClientComponent } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/ui'
 import React, { useCallback } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isBrandColor } from '@/lib/clients/appearance'
 
@@ -52,12 +53,11 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  const fieldId = `field-${name.replace(/\./g, '__')}`
   const unset = Boolean(fallback) && !isBrandColor(value)
   const shown = unset && fallback ? fallback : value || '#000000'
 
   return (
-    <div className={fieldClasses} id={fieldId} style={mergeFieldStyles(field.admin)}>
+    <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
       <div style={{ alignItems: 'baseline', display: 'flex', gap: 'calc(var(--base) / 3)' }}>
         <FieldLabel label={label} localized={localized} path={name} required={required} />
         {unset ? <span style={{ color: 'var(--theme-elevation-500)' }}>Default</span> : null}
@@ -67,6 +67,7 @@ export const ColorField: TextFieldClientComponent = ({ field, readOnly }) => {
         <FieldError path={name} showError={showError} />
 
         <input
+          id={fieldId(name)}
           type="color"
           value={shown}
           onChange={handleChange}
