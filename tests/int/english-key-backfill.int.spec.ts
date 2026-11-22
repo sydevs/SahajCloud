@@ -23,22 +23,25 @@ import { createTestEnvironment } from '../utils/testHelpers'
 import { withSchema } from '../utils/withSchema'
 
 /**
- * `common.a11y` on `wm-web-translations`, with the three table names spelled
+ * `common.general` on `wm-web-translations`, with the three table names spelled
  * out rather than derived: they are what the module's own derivation has to
  * produce, so re-deriving them here would let both sides be wrong together.
  * Read off that global's `translationsSchema.json`, whose `common` tab declares
- * `general` + `a11y`.
+ * `general` alone.
  */
 const TABLE = 'wm_web_translations'
-const GROUP = { main: 'common_a11y', version: 'version_common_a11y' }
+const GROUP = { main: 'common_general', version: 'version_common_general' }
 
 const MAIN_LOCALES = 'wm_web_translations_locales'
 const VERSION_LOCALES = '_wm_web_translations_v_locales'
 const VERSIONS = '_wm_web_translations_v'
 
-/** A key the seeded group holds, and one it does not. */
-const CHOSEN = 'close'
-const ADDED = 'dismiss'
+/**
+ * A key the seeded group holds, and one it does not. Both are declared, so the
+ * seed below is a write `additionalProperties: false` accepts.
+ */
+const CHOSEN = 'loading'
+const ADDED = 'show_more'
 
 describe('English key backfill', () => {
   let payload: Payload
@@ -93,12 +96,12 @@ describe('English key backfill', () => {
     await payload.updateGlobal({
       slug: 'wm-web-translations',
       locale: 'en',
-      data: { common: { a11y: { [CHOSEN]: 'Close' } } },
+      data: { common: { general: { [CHOSEN]: 'Loading…' } } },
     })
     await payload.updateGlobal({
       slug: 'wm-web-translations',
       locale: 'cs',
-      data: { common: { a11y: { [CHOSEN]: 'Zavřít' } } },
+      data: { common: { general: { [CHOSEN]: 'Načítání…' } } },
     })
   })
 
@@ -108,15 +111,15 @@ describe('English key backfill', () => {
 
   it('adds the key to English and to the latest version row only', async () => {
     await withSchema(payload, (tx) =>
-      addEnglishKey(tx, { table: TABLE, group: GROUP, key: ADDED, en: 'Dismiss' }),
+      addEnglishKey(tx, { table: TABLE, group: GROUP, key: ADDED, en: 'Show more' }),
     )
 
-    expect(await mainValues('en')).toEqual([{ [CHOSEN]: 'Close', [ADDED]: 'Dismiss' }])
-    expect(await mainValues('cs')).toEqual([{ [CHOSEN]: 'Zavřít' }])
+    expect(await mainValues('en')).toEqual([{ [CHOSEN]: 'Loading…', [ADDED]: 'Show more' }])
+    expect(await mainValues('cs')).toEqual([{ [CHOSEN]: 'Načítání…' }])
 
     const versions = await versionValues('en')
     expect(versions.filter((row) => row.latest).map((row) => row.value)).toEqual([
-      { [CHOSEN]: 'Close', [ADDED]: 'Dismiss' },
+      { [CHOSEN]: 'Loading…', [ADDED]: 'Show more' },
     ])
 
     const superseded = versions.filter((row) => !row.latest)
@@ -129,7 +132,7 @@ describe('English key backfill', () => {
       addEnglishKey(tx, { table: TABLE, group: GROUP, key: CHOSEN, en: 'Shut' }),
     )
 
-    expect(await mainValues('en')).toEqual([{ [CHOSEN]: 'Close', [ADDED]: 'Dismiss' }])
+    expect(await mainValues('en')).toEqual([{ [CHOSEN]: 'Loading…', [ADDED]: 'Show more' }])
   })
 
   it('drops the key from every locale and every version row', async () => {
@@ -137,7 +140,7 @@ describe('English key backfill', () => {
       dropEnglishKey(tx, { table: TABLE, group: GROUP, key: CHOSEN }),
     )
 
-    expect(await mainValues('en')).toEqual([{ [ADDED]: 'Dismiss' }])
+    expect(await mainValues('en')).toEqual([{ [ADDED]: 'Show more' }])
     expect(await mainValues('cs')).toEqual([{}])
     expect((await versionValues('en')).filter((row) => CHOSEN in row.value)).toEqual([])
     expect((await versionValues('cs')).filter((row) => CHOSEN in row.value)).toEqual([])
@@ -155,7 +158,7 @@ describe('English key backfill', () => {
       await store(stored)
 
       await withSchema(payload, (tx) =>
-        addEnglishKey(tx, { table: TABLE, group: GROUP, key: ADDED, en: 'Dismiss' }),
+        addEnglishKey(tx, { table: TABLE, group: GROUP, key: ADDED, en: 'Show more' }),
       )
 
       expect(await mainValues('en')).toEqual([JSON.parse(stored)])
