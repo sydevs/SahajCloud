@@ -217,6 +217,14 @@ does; a spec's own create helper declares it once, where its own creates do.
 case needing both splits into an ordinary update for the array and this for the
 state.
 
+A fifth, and the only one for raw SQL: `withSchema(payload, (tx) => …)`
+(`tests/utils/withSchema.ts`) runs a statement against this suite's own schema.
+⚠ **Every raw statement in this lane goes through it.** A spec that qualifies a
+table itself, or sets `search_path` outside a transaction, lands on whichever
+pooled connection answered — so it reads `public`, where the suite has no
+tables, and the case passes having changed nothing. It returns the body's
+value, so an assertion reads a row back the way the code under test wrote it.
+
 ### Driving the REST API from the integration lane
 
 `createRestClient(env)` (`tests/utils/restRequest.ts`) issues authenticated
