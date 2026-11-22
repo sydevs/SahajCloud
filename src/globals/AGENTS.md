@@ -315,7 +315,7 @@ write.
   an array holding one, so it excludes neither shape.
   `20261118_231500_wm_web_a11y_landmark_keys.ts`'s `dropKey` guards on `?`
   alone, so a `migrate:down` through it can abort. Copy
-  `@/lib/translations/englishKeyBackfill`, which carries both guards, not the
+  `@/lib/migrations/englishKeyBackfill`, which carries both guards, not the
   nearest predecessor.
   `20261101_191500_atlas_drop_time_in_place` is the worked example (#1057; squashed away, read it at `c70081c0`), and
   this holds for all three translations globals — `stringsSchema` sets

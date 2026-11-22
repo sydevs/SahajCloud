@@ -1,6 +1,6 @@
 /**
  * `addEnglishKey` / `dropEnglishKey` — the jsonb writes a translations global's
- * English copy ships as (`@/lib/translations/englishKeyBackfill`).
+ * English copy ships as (`@/lib/migrations/englishKeyBackfill`).
  *
  * This is an integration spec because both guards are Postgres semantics, not
  * SQL text. `||` on a scalar builds an array and `-` on one raises
@@ -17,7 +17,7 @@ import type { Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { addEnglishKey, dropEnglishKey } from '@/lib/translations/englishKeyBackfill'
+import { addEnglishKey, dropEnglishKey } from '@/lib/migrations/englishKeyBackfill'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 import { withSchema } from '../utils/withSchema'
