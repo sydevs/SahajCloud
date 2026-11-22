@@ -151,4 +151,10 @@ describe('FrameListManager', () => {
     act(() => button('Seek').click())
     expect(stub.seek).toHaveBeenCalledWith(90)
   })
+
+  it('merges the field styles onto its root, so a declared width reaches Payload', () => {
+    // `merge-field-styles.spec.ts` owns what the helper returns. This is only
+    // that the root goes through it at all, so it reads the property, not a value.
+    expect((container.firstElementChild as HTMLElement).style.flex).not.toBe('')
+  })
 })

@@ -7,6 +7,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 
 import { fieldId } from '@/components/admin/helpers/fieldId'
 import { usePlaybackTime, useSeekToTime } from '@/components/admin/helpers/livePreviewPlayback'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { KeyframeData } from '@/types/frames'
 
 import styles from './FrameListManager.module.css'
@@ -226,7 +227,7 @@ export const FrameListManager: JSONFieldClientComponent = ({ field, readOnly }) 
     .join(' ')
 
   return (
-    <div className={fieldClasses} id={fieldId(name)}>
+    <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
 
