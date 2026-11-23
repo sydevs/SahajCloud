@@ -254,6 +254,12 @@ export const VIEWS: ViewRegistry = {
 
   // Content.
   '@/components/admin/TableOfContentsField#default': links(doc('pages', 1_014_001)),
+  // Tagged `technique` and `wisdom`, and one of the subtle-system node pages: the
+  // notice reads each service's configuration, which a preview starts without.
+  '@/components/admin/PageAvailability#default': links(
+    doc('pages', 1_014_004),
+    doc('pages', 1_014_101),
+  ),
   '@/components/admin/AudioUpload#default': links(
     doc('meditations', 1_015_001),
     doc('songs', 1_018_001),
