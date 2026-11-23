@@ -43,6 +43,11 @@ export const WeMeditateWebConfig: GlobalConfig = {
       // is already nested is the other ordering, and composes `section/` as the
       // root's address.
       filterOptions: { parent: { exists: false } },
+      admin: {
+        description:
+          'The page the site serves at its root. Only a page that sits under no other page can ' +
+          'be chosen — the root has no address above it.',
+      },
     },
     availableLocalesField({
       translationsSlug: 'wm-web-translations',
@@ -137,7 +142,9 @@ export const WeMeditateWebConfig: GlobalConfig = {
           relationTo: 'pages',
           filterOptions: { slug: { equals: 'meditations' }, parent: { exists: false } },
           admin: {
-            description: 'The site shows this page as the parent of every meditation page.',
+            description:
+              'The site shows this page as the parent of every meditation page. Only a page ' +
+              'whose slug is “meditations” and that sits under no other page can be chosen.',
           },
         },
         {
@@ -146,7 +153,9 @@ export const WeMeditateWebConfig: GlobalConfig = {
           relationTo: 'pages',
           filterOptions: { slug: { equals: 'lectures' }, parent: { exists: false } },
           admin: {
-            description: 'The site shows this page as the parent of every talk page.',
+            description:
+              'The site shows this page as the parent of every talk page. Only a page whose ' +
+              'slug is “lectures” and that sits under no other page can be chosen.',
           },
         },
       ],
