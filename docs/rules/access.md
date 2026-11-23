@@ -113,8 +113,8 @@ today), or one carrying a tag listed in its **Page tags**. `servicePagesClause`
 (`src/plugins/access/servicePages.ts`) ANDs that onto the published-only clause, and
 `src/lib/pageServices` derives each set — reading the page fields off the global's built config,
 so a page field added there places its pages with no other change. There is no publish control on
-the page itself; its sidebar carries a notice saying where it is available
-(`src/components/admin/PageAvailability`).
+the page itself; its sidebar carries a notice saying where it is available and which field or tag
+places it there (`src/components/admin/PageAvailability`).
 
 - **Each project reads its services' pages** (`PAGE_SERVICES_BY_PROJECT`): a website key the
   website's, an app key the app's **and the website's**. The app opens a page it does not carry in
