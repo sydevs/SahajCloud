@@ -1,8 +1,9 @@
 /**
- * A website key reads only the pages the website's configuration places — a
- * page field naming it, or a tag it lists — across a `find`, a `findByID` and
- * a populated relationship. The app's key is not narrowed. The pure rules are
- * `tests/unit/page-services.spec.ts`; `docs/rules/access.md` carries the rule.
+ * A client reads only the pages its service's configuration places — a page
+ * field naming it, or a tag it lists — across a `find`, a `findByID` and a
+ * populated relationship. The app reads the website's pages too. The pure rules
+ * are `tests/unit/page-services.spec.ts` and `service-pages-clause.spec.ts`;
+ * `docs/rules/access.md` carries the rule.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
@@ -18,7 +19,7 @@ import {
   idOnlySelect,
 } from '../utils/testHelpers'
 
-describe('the pages a website key reads', () => {
+describe('the pages a client reads', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
   let adminId: number
@@ -26,6 +27,7 @@ describe('the pages a website key reads', () => {
   let named: Page
   let tagged: Page
   let unplaced: Page
+  let nowhere: Page
   let taggedDraft: Page
 
   beforeAll(async () => {
@@ -45,9 +47,15 @@ describe('the pages a website key reads', () => {
       tags: ['technique'],
       _status: 'published',
     })
+    nowhere = await testData.createPage(payload, {
+      title: 'Unplaced Page',
+      tags: ['event'],
+      _status: 'published',
+    })
     taggedDraft = await testData.createPage(payload, { title: 'Tagged Draft', tags: ['wisdom'] })
 
     await placePages(payload, 'web', { pages: [named.id], tags: ['wisdom'] })
+    await placePages(payload, 'app', { tags: ['technique'] })
   })
 
   afterAll(async () => {
@@ -117,12 +125,16 @@ describe('the pages a website key reads', () => {
     expect(read.page).toBe(unplaced.id)
   })
 
-  it('leaves the app key unnarrowed, and a key in both projects too', async () => {
+  // The app opens a page it does not carry at the page's webUrl, so it must
+  // still read the website's pages.
+  it('gives the app key the app’s pages and the website’s, and a key in both the same', async () => {
     for (const roles of [
       ['wemeditate-app-client'],
       ['wemeditate-web-client', 'wemeditate-app-client'],
     ]) {
-      expect(await findIds(await clientReq(roles))).toContain(unplaced.id)
+      const ids = await findIds(await clientReq(roles))
+      expect(ids).toEqual(expect.arrayContaining([unplaced.id, named.id, tagged.id]))
+      expect(ids).not.toContain(nowhere.id)
     }
   })
 })

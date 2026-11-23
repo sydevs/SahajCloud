@@ -77,7 +77,7 @@ export const CACHE_TTLS = {
  * A global whose write changes what a cached read of these collections answers,
  * so it purges their tags too. A page's place on the website and in the app is
  * read off the two configuration globals (`src/lib/pageServices`): saving one
- * changes which pages a website key reads, and every page's `webUrl` and
+ * changes which pages a client reads, and every page's `webUrl` and
  * `appUrl`, with no page row written.
  */
 export const GLOBAL_DEPENDENT_TAGS: Partial<

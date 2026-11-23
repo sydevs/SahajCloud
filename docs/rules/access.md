@@ -105,30 +105,34 @@ A bypass function returns `'allow'`, `'deny'`, or `'continue'`.
 
 Managers and API clients both read their role's project plus every shared collection.
 
-### Which pages a website key reads
+### Which pages a client reads
 
-A client in the `wemeditate-web` project reads only the pages the **website's configuration
-places**: a page that any page field of `wm-web-config` names (the home page and the menu lists, today),
-or one carrying a tag listed in its **Page tags**. `websitePagesClause`
-(`src/plugins/access/websitePages.ts`) ANDs that onto the published-only clause, and
-`src/lib/pageServices` derives the set — reading the page fields off the global's built config, so
-a page field added there places its pages with no other change. There is no publish control on
+A client reads only the pages **its service's configuration places**: a page that any page field
+of that configuration names (`wm-web-config`'s home page and menu lists, `wm-app-config`'s slots,
+today), or one carrying a tag listed in its **Page tags**. `servicePagesClause`
+(`src/plugins/access/servicePages.ts`) ANDs that onto the published-only clause, and
+`src/lib/pageServices` derives each set — reading the page fields off the global's built config,
+so a page field added there places its pages with no other change. There is no publish control on
 the page itself; its sidebar says where it is placed and why (`onWebsite`, `inApp`).
 
+- **Each project reads its services' pages** (`PAGE_SERVICES_BY_PROJECT`): a website key the
+  website's, an app key the app's **and the website's**. The app opens a page it does not carry in
+  its in-app browser at the page's `webUrl`, so it must still learn that address; `appUrl`, set only
+  for a page the app places, is what tells the two apart. The website never falls back to the app.
+  A key in several projects reads the union.
 - **Every surface, because it is upstream.** A `find` returns fewer docs, a `findByID` answers
   404, and a populated relationship or a content-index fetch hands the page back as its **bare
   id** — the shape WeMeditateWeb's `partitionPublishedPages` already discards. The page's
-  `webPath` and `webUrl` go null by the same rule.
-- **Fails closed.** An unconfigured `wm-web-config` places nothing, so a website key reads no page.
+  `webPath`/`webUrl` and `appUrl` go null by the same rule.
+- **Fails closed.** An unconfigured configuration places nothing.
   `20261122_213300_place_service_pages` seeds both configurations' Page tags, and tags every
   subtle-system node's page `subtle-system`, so the deploy that ships the clause keeps the tagged
-  pages; a page neither named nor tagged leaves the website on that deploy.
-- **The app is not narrowed.** Released app builds fetch pages by hardcoded id, which a filter
-  cannot follow. `wm-app-config` places pages the same way, and decides only `appUrl` and the
-  sidebar line until the app reads its pages from that configuration. A key in both projects is
-  not narrowed either.
-- **Keyed on the project, not on a client role**, as implicit read is, so a second website key is
-  narrowed with no change.
+  pages; a page neither named nor tagged leaves both services on that deploy.
+- ⚠ **A project listing `pages` must be in `PAGE_SERVICES_BY_PROJECT`**, or its clients read every
+  published page. `tests/unit/service-pages-clause.spec.ts` derives the list from `PROJECTS` and
+  fails on one that is missing.
+- **Keyed on the project, not on a client role**, as implicit read is, so a second key is narrowed
+  with no change.
 - **Exempt:** managers, every `overrideAccess` read, and live preview — as with the published-only
   clause.
 - ⚠ **The edge cache must purge `pages` when either configuration changes**, since a page's place

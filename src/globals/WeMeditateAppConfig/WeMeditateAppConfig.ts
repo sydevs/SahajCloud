@@ -18,6 +18,8 @@ type AppPageField = {
   name: string
   description?: string
   label?: string
+  /** Defaults to true: a released build reads the slot and has no fallback. */
+  required?: boolean
 }
 
 const APP_PAGE_FIELDS: readonly AppPageField[] = [
@@ -35,9 +37,19 @@ const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'subtleSystemPage', description: 'Learn more about the Subtle System.' },
   { name: 'privacyPage' },
   { name: 'termsPage' },
+  {
+    name: 'liveMeditationsReminderPage',
+    description:
+      'An app card pointing at this page offers a reminder for live meditations instead of opening it.',
+    // Released builds recognise the card by the page's slug, so nothing breaks
+    // while it is empty.
+    required: false,
+  },
 ]
 
-export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.map((p) => p.name)
+export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.filter((p) => p.required !== false).map(
+  (p) => p.name,
+)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
@@ -67,12 +79,11 @@ export const WeMeditateAppConfig: GlobalConfig = {
               ...(page.label ? { label: page.label } : {}),
               type: 'relationship' as const,
               relationTo: 'pages' as const,
-              required: true,
+              required: page.required !== false,
               ...(page.description ? { admin: { description: page.description } } : {}),
             })),
-            // The app's page set is these slots plus these tags
-            // (`src/lib/pageServices`); `docs/rules/access.md` says why the
-            // app's own key is not narrowed to it yet.
+            // The app's page set is these slots plus these tags; an app key
+            // reads no other page but the website's (`src/lib/pageServices`).
             servicePageTagsField('app'),
           ],
         },

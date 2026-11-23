@@ -228,8 +228,8 @@ value, so an assertion reads a row back the way the code under test wrote it.
 A sixth, for which pages a service reads: `placePages(payload, service, { pages, tags })`
 (`tests/utils/servicePages.ts`) sets a configuration's Page tags and names pages in its first
 list of pages, beneath validation. ⚠ **Setup only**: it proves what placement derives, never the
-configuration's own validation or the cache purge on its save. A website key reads no page until a
-suite places some.
+configuration's own validation or the cache purge on its save. A website or app key reads no page
+until a suite places some.
 
 ### Driving the REST API from the integration lane
 

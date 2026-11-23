@@ -247,12 +247,14 @@ Five things to know:
 - ⚠ **That second case fires on existing data, not only on a deliberate unpublish — and it is intended.** The migration copies each document's old status into every locale row that _exists_, and an untranslated locale has none, so a page published in English alone returns nothing at `?locale=de` where Payload's English fallback used to serve it. **Decided on #765: an unpublished locale should 404, and a page must not serve English text under a German URL.** Do not add a fallback, here or in a consumer. A consumer that wants to link the locales a page _is_ live in reads the map above ([WeMeditateWeb#81](https://github.com/sydevs/WeMeditateWeb/issues/81)). Note Payload's own `localizeStatus` migration template behaves the same way: it `UPDATE`s locale rows and never inserts one.
 - ⚠ **A `locale=all` read returns every locale's content, unpublished locales included.** The filter matches _documents_ — a document published in any locale — and does not narrow the locales in the response. So a cross-locale read is not a publish gate: read one locale at a time when the answer must respect publish state. This is deliberate (#765). Content here is not sensitive to read; write, edit and delete are what the roles guard. Pinned by `tests/int/pages-localize-status.int.spec.ts`.
 
-## Client read contract: which pages a website key reads
+## Client read contract: which pages a key reads
 
-A website key reads only the pages `wm-web-config` names or tags — a missing page answers 404, and
-arrives through a relationship as its bare id. The rule, and what it exempts, is "Which pages a
-website key reads" in `docs/rules/access.md`. To put a page on the website, name it in that
-configuration or give it one of its Page tags; never filter downstream.
+A website key reads only the pages `wm-web-config` names or tags, and an app key those
+`wm-app-config` names or tags plus the website's — a missing page answers 404, and arrives through
+a relationship as its bare id. An app page carries an `appUrl`; a website page the app reaches
+without one is opened at its `webUrl`. The rule, and what it exempts, is "Which pages a client
+reads" in `docs/rules/access.md`. To put a page in a service, name it in that configuration or give
+it one of its Page tags; never filter downstream.
 
 ## Origin / Referer enforcement
 

@@ -39,7 +39,7 @@ import {
   resolveOwnedRegionIds,
   scopeRegionSubtreeWrite,
 } from './regionSubtreeAccess'
-import { websitePagesClause } from './websitePages'
+import { servicePagesClause } from './servicePages'
 
 /**
  * True when the entity named by `slug` has drafts enabled — collection **or**
@@ -200,8 +200,8 @@ export function createAccessConfig(
           // which is the point rather than a regression.
           if (entityHasDrafts(req, collection)) clauses.push({ _status: { equals: 'published' } })
 
-          const websitePages = await websitePagesClause(req, collection)
-          if (websitePages) clauses.push(websitePages)
+          const servicePages = await servicePagesClause(req, collection)
+          if (servicePages) clauses.push(servicePages)
 
           if (clauses.length === 1) return clauses[0]
           if (clauses.length > 1) return { and: clauses }

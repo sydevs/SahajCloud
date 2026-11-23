@@ -372,6 +372,8 @@ describe('Pages Collection', () => {
 
       const page = await testData.createPage(payload, {
         title: 'Published Page with Client App Card Relationship',
+        // The suite's website places it, and an app key reads the website's pages.
+        tags: ['wisdom'],
         _status: 'published',
         content,
       })

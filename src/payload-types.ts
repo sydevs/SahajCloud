@@ -6174,6 +6174,10 @@ export interface WmAppConfig {
   privacyPage: number | Page;
   termsPage: number | Page;
   /**
+   * An app card pointing at this page offers a reminder for live meditations instead of opening it.
+   */
+  liveMeditationsReminderPage?: (number | null) | Page;
+  /**
    * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page's sidebar says which services it belongs to, and why.
    */
   pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
@@ -10257,6 +10261,7 @@ export interface WmAppConfigSelect<T extends boolean = true> {
   subtleSystemPage?: T;
   privacyPage?: T;
   termsPage?: T;
+  liveMeditationsReminderPage?: T;
   pageTags?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
