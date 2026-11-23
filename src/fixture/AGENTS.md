@@ -19,7 +19,8 @@ So it loads on every Railway preview and every local `pnpm dev`. `/api/health` r
 `fixture: loading | loaded | failed | off`, and boots Payload itself when nothing has yet, since
 Payload otherwise boots on first use. CI's `Wait for the preview's fixture` step polls the Railway
 host until `loaded` and fails on anything else, naming which (`scripts/wait-preview-fixture.ts`).
-A failed row is logged in full as `[fixture] <collection> <id> failed to load`.
+A failed row is logged in full as `[fixture] <collection> <id> failed to load`, a failed global as
+`[fixture] <global> failed to load`.
 
 ## Adding or changing an entry
 
@@ -45,6 +46,13 @@ and the same path on `localhost`. Each collection owns a block of a thousand:
 
 An id another file points at is named in `ids.ts`. Never reuse an id for a different row: a link
 in an old pull request still names it.
+
+**A global's fixture is `<global-slug>.ts`**, exporting `globalFixture('<slug>', {...})`, and
+`GLOBAL_FIXTURES` in `index.ts` lists them. A global has no id and no row to prune, so it is
+written after every collection — `wm-web-config` and `wm-app-config` name pages, and a page the
+configuration names must exist first. Both are seeded because **a configuration is the one thing
+that places a page in a service**: with neither filled, every preview shows the Pages sidebar
+notice refusing every page, and `webUrl` and `appUrl` null for all of them.
 
 - Every email ends in `.invalid`, every name is invented, and a unique value carries `fixture-`.
 - A date that means something relative to now is `at({ days, hour })` (`at.ts`), resolved at boot

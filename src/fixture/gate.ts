@@ -74,7 +74,8 @@ export function startFixtureLoad(payload: Payload): void {
     .then(({ loadFixture }) => loadFixture(payload))
     .then((report) => {
       for (const { slug, id, error } of report.errors) {
-        payload.logger.error({ err: error }, `[fixture] ${slug} ${id} failed to load`)
+        const what = id == null ? slug : `${slug} ${id}`
+        payload.logger.error({ err: error }, `[fixture] ${what} failed to load`)
       }
       setFixtureStatus(report.errors.length ? 'failed' : 'loaded')
       payload.logger.info(
