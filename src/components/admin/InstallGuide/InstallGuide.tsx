@@ -548,6 +548,9 @@ export function InstallGuide(props: InstallGuideProps): React.ReactElement {
         {activeTrack ? (
           <section className={styles.section}>
             <h3 className={styles.heading}>2. Where should the atlas live?</h3>
+            {/* Not a control: it saves when focus leaves the group, and the
+                input inside it is what a keyboard reaches. */}
+            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
             <div className={styles.urlField} onBlur={saveAddress}>
               <TextInput
                 // Payload's error tooltip truncates a sentence, so the whole

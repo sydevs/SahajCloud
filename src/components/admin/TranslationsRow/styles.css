@@ -222,6 +222,13 @@
   border-radius: 0 0 var(--style-radius-s) var(--style-radius-s);
 }
 
+/* The editable area below suppresses its own ring, because the shell draws the
+   frame — so the shell owes the focus answer, in the border colour Payload's
+   own `formInput` answers with rather than an outline the frame would fight. */
+.translations-row__lexical-shell:focus-within {
+  border-color: var(--theme-elevation-400);
+}
+
 .translations-row__lexical-content {
   min-height: calc(var(--base) * 1.5);
   padding: calc(var(--base) * 0.4);

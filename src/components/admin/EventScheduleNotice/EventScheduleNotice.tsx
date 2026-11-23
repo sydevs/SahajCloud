@@ -3,6 +3,7 @@
 import { useField, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { ScheduleSummary } from '@/components/admin/ScheduleSummary'
 import { hasContactRoute } from '@/lib/events/contactRoute'
@@ -79,7 +80,7 @@ function revealField(form: HTMLFormElement | null, tabLabel: string, fieldName: 
   let attempts = 0
   const scroll = () => {
     // A drawer suffixes each field id with its depth.
-    const target = form.querySelector<HTMLElement>(`[id^="field-${fieldName}"]`)
+    const target = form.querySelector<HTMLElement>(`[id^="${fieldId(fieldName)}"]`)
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'center' })
       target.focus({ preventScroll: true })

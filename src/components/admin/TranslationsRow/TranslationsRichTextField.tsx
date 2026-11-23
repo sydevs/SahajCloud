@@ -6,6 +6,8 @@ import { useField, useLocale } from '@payloadcms/ui'
 import { toWords } from 'payload/shared'
 import React, { useCallback, useMemo } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 import { TranslationLexicalEditor, type TranslationLexicalValue } from './TranslationLexicalEditor'
 import { TranslationsRow } from './TranslationsRow'
 import { useEnglishTranslation } from './useEnglishTranslation'
@@ -63,6 +65,7 @@ export const TranslationsRichTextField: RichTextFieldClientComponent = ({ field,
       className={['field-type', 'richText', showError && 'error', readOnly && 'read-only']
         .filter(Boolean)
         .join(' ')}
+      style={mergeFieldStyles(field.admin)}
     >
       <TranslationsRow
         title={toWords(translationKey.replace(/_/g, '-'))}

@@ -4,6 +4,7 @@ import { FieldLabel, Pill } from '@payloadcms/ui'
 import React from 'react'
 
 import { TYPE_LABELS } from '@/collections/UserSubmissions/fields'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { relationId } from '@/lib/utilities/relationId'
 import type { UserSubmission } from '@/payload-types'
 
@@ -83,7 +84,10 @@ const SubmissionSummary: FieldServerComponent<Field> = async ({ data, field, pay
   const label = 'label' in field && typeof field.label === 'string' ? field.label : 'Context'
 
   return (
-    <div className="field-type submission-data submission-summary read-only">
+    <div
+      className="field-type submission-data submission-summary read-only"
+      style={mergeFieldStyles(field.admin)}
+    >
       <FieldLabel label={label} />
       <StackedTable
         appearance="condensed"

@@ -14,9 +14,11 @@
  *
  * The stand-in reproduces one `@payloadcms/ui` behaviour, read from
  * `dist/fields/FieldLabel/index.js` and `dist/utilities/generateFieldID.js`:
- * `FieldLabel` renders `<label htmlFor={generateFieldID(path, editDepth, uuid)}>`,
- * which on a document form is `field-<path>` — `editDepth` is 1 there, and the
- * form `uuid` only the drawers pass. Both components take their own id from
+ * `FieldLabel` renders `<label htmlFor={htmlForFromProps || generateFieldID(path,
+ * editDepth, uuid)}>`. A derived id is `field-<path>` on a document form —
+ * `editDepth` is 1 there, and the form `uuid` only the drawers pass — but above
+ * depth 1 it gains a `-<editDepth>` suffix the control never carries, which is
+ * why both fields hand it the id outright (#1247). Both components take their own id from
  * `fieldId`, whose spec owns the `.` → `__` substitution; no collection nests
  * either field today, so the paths below are flat.
  */
@@ -29,8 +31,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@payloadcms/ui', () => ({
   FieldDescription: () => null,
   FieldError: () => null,
-  FieldLabel: ({ label, path }: { label?: string; path: string }) =>
-    createElement('label', { htmlFor: `field-${path.replace(/\./g, '__')}` }, label),
+  FieldLabel: ({ htmlFor, label, path }: { htmlFor?: string; label?: string; path?: string }) =>
+    createElement(
+      'label',
+      // The real component's precedence: `htmlFor = htmlForFromProps ||
+      // generateFieldID(path, …)`. Both fields hand it the id directly now, so
+      // a stand-in reading only `path` would describe a component that is gone.
+      { htmlFor: htmlFor ?? (path ? `field-${path.replace(/\./g, '__')}` : undefined) },
+      label,
+    ),
   useField: () => ({ setValue: vi.fn(), showError: false }),
 }))
 

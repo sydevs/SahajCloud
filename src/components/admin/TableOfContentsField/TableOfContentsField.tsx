@@ -8,6 +8,7 @@ import { FieldDescription, FieldError, FieldLabel, useField } from '@payloadcms/
 import { $getRoot, type EditorState } from 'lexical'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { slugifyValue } from '@/fields/slugify'
 import type { TableOfContentsHeadings } from '@/payload-types'
@@ -112,8 +113,8 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
   )
 
   return (
-    <div className="field-type json" id={`field-${name}`} style={mergeFieldStyles(field.admin)}>
-      <FieldLabel label={label || 'Headings'} path={name} />
+    <div className="field-type json" id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label || 'Headings'} />
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
         <TableOfContents

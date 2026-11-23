@@ -5,6 +5,7 @@ import type { FieldClientComponent, SelectFieldClient } from 'payload'
 import { FieldLabel, useFormFields } from '@payloadcms/ui'
 import React from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { VerificationStage } from '@/lib/eventVerification/stages'
 
 import { buildStageTracker, formatStageDate, type TrackerStep } from './timeline'
@@ -32,7 +33,7 @@ function stepClassName(step: TrackerStep): string {
  * highlighted. See `./timeline` for the journeys and their copy.
  */
 export const VerificationStageField: FieldClientComponent = ({ field }) => {
-  const { name, label } = field as SelectFieldClient
+  const { label } = field as SelectFieldClient
   const stage = useFormFields(
     ([fields]) => fields?.verificationStage?.value as VerificationStage | undefined,
   )
@@ -54,8 +55,8 @@ export const VerificationStageField: FieldClientComponent = ({ field }) => {
   })
 
   return (
-    <div className="field-type vstage-field read-only">
-      <FieldLabel label={label} path={name} />
+    <div className="field-type vstage-field read-only" style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} />
       <div className="field-type__wrap">
         <ol className="vstage">
           {steps.map((step) => {

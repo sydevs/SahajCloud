@@ -41,6 +41,15 @@ schedule RRULE/DST computations, Lexical block migration helpers,
 `filterAvailableLocales`, seed pagination helpers,
 unify-index-blocks migration transforms.
 
+### Walking a convention over the admin components
+
+A spec that enforces a convention across every registered `Cell:` or `Field:`
+component takes `registeredComponents`, `resolveSpec` and `reaches` from
+`tests/utils/adminRegistrations.ts` — from there, never from `importGraph`,
+whose header carries both reasons. ⚠ **Assert the walk's `unresolved` is
+empty**: a registration that resolves nowhere leaves the population silently
+and still satisfies any floor placed under its size (#1247).
+
 ### Mounting an admin component in the unit lane
 
 The lane is node by default. A spec that needs a DOM opts in per file with a

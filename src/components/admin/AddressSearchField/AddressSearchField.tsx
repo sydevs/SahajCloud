@@ -15,6 +15,8 @@ import {
 import dynamic from 'next/dynamic'
 import React, { useEffect, useState } from 'react'
 
+import { labelText } from '@/components/admin/helpers/labelText'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { MapboxFeature } from '@/lib/mapbox/feature'
 import { isManualMapboxId, makeManualMapboxId } from '@/lib/mapbox/manualLocation'
 
@@ -204,10 +206,16 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
   // Dead end: nothing can fill the field — no search box and no manual entry.
   const showNoInputBanner = !value && !token && !manualAllowed && !readOnly
 
+  const ariaLabel = labelText(label, path)
+
   return (
-    <div className={fieldClasses}>
-      <FieldLabel label={label} localized={localized} path={path} required={required} />
-      <div className="field-type__wrap">
+    <div className={fieldClasses} style={mergeFieldStyles(admin)}>
+      <FieldLabel label={label} localized={localized} required={required} />
+      {/* The label claims no control: which one is mounted depends on whether
+          a value is stored, and Mapbox's `Geocoder` takes neither an `id` nor
+          an aria prop, so no single element can hold `field-<path>`. Naming
+          the group is what a screen reader reads on entering it instead. */}
+      <div aria-label={ariaLabel} className="field-type__wrap" role="group">
         <FieldError path={path} showError={showError} />
         {/* Selected: the stored id (or the `manual` sentinel) shown as a single
             pill inside an input-styled control — the same chip ReactSelect
@@ -217,6 +225,7 @@ export const AddressSearchField: TextFieldClientComponent = ({ field, path, read
             re-hides the dependent fields. */}
         {value ? (
           <ReactSelect
+            aria-label={ariaLabel}
             className="address-search__selected"
             isMulti
             isClearable={false}

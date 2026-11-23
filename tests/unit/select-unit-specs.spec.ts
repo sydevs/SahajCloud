@@ -205,9 +205,9 @@ describe('this repository', () => {
       .map((source) => ({ source, count: selectFrom(source, repo).length }))
       .reduce((a, b) => (b.count > a.count ? b : a))
 
-    // 9 today, on `tests/utils/importGraph.ts`: its 8 specs, plus this one, which names it above.
-    // Width stands in for time without being it, so when this trips, time the hook and re-measure
-    // in `tests/PERF.md`. Never drop a spec from a selection to pass it.
+    // 10 today, at the bound, on `tests/utils/importGraph.ts`: its 9 specs, plus this one, which
+    // names it above. Width stands in for time without being it, so when this trips, time the hook
+    // and re-measure in `tests/PERF.md`. Never drop a spec from a selection to pass it.
     expect(widest.count, `widest selection: ${widest.source}`).toBeLessThanOrEqual(10)
   })
 })

@@ -9,6 +9,7 @@ import type {
   DiffSegment,
   ProposedChange,
 } from '@/collections/UserSubmissions/lifecycle/proposedChanges'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 
 import './styles.css'
 
@@ -149,13 +150,13 @@ function WordDiff({ change }: { change: ProposedChange }) {
  * free of logic and unit-testable without a DOM.
  */
 export const SubmissionChanges: FieldClientComponent = ({ field }) => {
-  const { name, label } = field as JSONFieldClient
+  const { label } = field as JSONFieldClient
   const { value } = useField<ProposedChange[]>()
   const changes = Array.isArray(value) ? value : []
 
   return (
-    <div className="field-type json read-only">
-      <FieldLabel label={label} path={name} />
+    <div className="field-type json read-only" style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} />
       <div className="field-type__wrap">
         {changes.length === 0 ? (
           <div className="event-submission-changes__empty">

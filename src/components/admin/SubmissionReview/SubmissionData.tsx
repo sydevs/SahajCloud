@@ -5,6 +5,7 @@ import { toWords } from 'payload/shared'
 import React from 'react'
 
 import type { SubmissionDataEntry } from '@/collections/UserSubmissions/submissionData'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { EVENT_REGISTRATION_QUESTIONS } from '@/lib/registrations/questions'
 import { CLIENT_CONTEXT_KEYS } from '@/lib/submissions/clientContext'
 import { relationId } from '@/lib/utilities/relationId'
@@ -62,7 +63,7 @@ const SubmissionData: FieldServerComponent<Field, never, { part?: Part }> = asyn
   const keyLabel = (key: string) => labels[key] || FIXED_LABELS[key] || toWords(key)
 
   return (
-    <div className="field-type submission-data read-only">
+    <div className="field-type submission-data read-only" style={mergeFieldStyles(field.admin)}>
       <FieldLabel label={label} />
       {entries.length === 0 ? (
         <div className="submission-data__empty">Nothing was submitted.</div>

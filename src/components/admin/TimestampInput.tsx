@@ -68,7 +68,7 @@ export const TimestampInput: NumberFieldClientComponent = ({ field, readOnly }) 
 
   return (
     <div className={fieldClasses} style={mergeFieldStyles(field.admin)}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+      <FieldLabel htmlFor={fieldId(name)} label={label} localized={localized} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
