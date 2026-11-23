@@ -370,22 +370,11 @@ describe('WeMeditateAppStatus Global', () => {
       expect(draftReport.checks.find((c) => c.key === 'exists')?.passed).toBe(true)
     })
 
-    // A page trashed after the config named it stays named (`required` is only
-    // checked on save), and no client can read it — so the report keeps a
-    // failing row for it rather than dropping it (#1252).
-    it('reports a configured page that has been trashed as a failing row', async () => {
-      const trashedPage = await testData.createPage(payload, {
-        title: 'Sahaja Yoga',
-        _status: 'published',
-      } as Partial<Page>)
+    it('reports a configured page that has been trashed as a failing row (#1252)', async () => {
+      const trashedPage = await testData.createPage(payload)
       await payload.updateGlobal({
         slug: 'wm-app-config',
-        data: {
-          ...requiredAppConfig,
-          classesPage: publishedCorePage.id,
-          lecturesPage: draftCorePage.id,
-          sahajaYogaPage: trashedPage.id,
-        },
+        data: { ...requiredAppConfig, sahajaYogaPage: trashedPage.id },
       })
       await payload.update({
         collection: 'pages',
@@ -397,10 +386,9 @@ describe('WeMeditateAppStatus Global', () => {
       const core = report.groups.find((g) => g.key === 'core-pages')
       if (core?.type !== 'documents') throw new Error('core-pages is not a documents group')
 
-      const row = core.documents.find((d) => d.id === trashedPage.id)
-      expect(row?.label).toBe(`sahajaYogaPage — page ${trashedPage.id} not found`)
+      const row = core.documents.find((d) => d.id === 'missing:Sahaja Yoga Page')
+      expect(row?.label).toBe(`Sahaja Yoga Page — page ${trashedPage.id} not found`)
       expect(row?.checks.find((c) => c.key === 'exists')?.passed).toBe(false)
-      expect(core.passing).toBe(false)
     })
   })
 

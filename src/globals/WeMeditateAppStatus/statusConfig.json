@@ -181,7 +181,7 @@
     },
     "exists": {
       "label": "Exists",
-      "description": "The referenced page exists and is not in the trash."
+      "description": "The referenced document exists and is not in the trash."
     },
     "has-lecture": {
       "label": "Has a lecture",

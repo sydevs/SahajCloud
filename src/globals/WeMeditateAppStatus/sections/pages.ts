@@ -1,4 +1,6 @@
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { toWords } from 'payload/shared'
+
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 import { richTextHasContent } from '@/lib/status/helpers'
 
@@ -14,35 +16,31 @@ interface Ctx {
   nodeDocs: DocumentReport[]
 }
 
+/** A configured page reference, and how to name it when no page is behind it. */
+interface PageSlot {
+  id: number | string | null
+  label: string
+}
+
 /**
- * A slot whose page was trashed (or deleted, which empties the slot) after the
- * config was saved still gets a failing row: `required` is only checked on
- * save, and no client can read the page, so the app gets nothing (#1252).
+ * `required` is only checked on save, so a slot can name a trashed page, or
+ * none once its page is deleted. Either still gets a failing row (#1252), with
+ * a string id so the row doesn't link to a document that won't open.
  */
-function reportForPage(
+function reportForSlot(
   pagesById: Map<number | string, Record<string, unknown>>,
-  id: number | string | null,
-  slotLabel: string,
+  { id, label }: PageSlot,
 ): DocumentReport {
   const page = id === null ? undefined : pagesById.get(id)
-  if (!page) {
-    return {
-      id: id ?? `unset:${slotLabel}`,
-      label: id === null ? `${slotLabel} — not set` : `${slotLabel} — page ${id} not found`,
-      checks: [
-        { key: 'exists', passed: false },
-        { key: 'published', passed: false },
-        { key: 'content-localized', passed: false },
-      ],
-    }
-  }
   return {
-    id: page.id as number | string,
-    label: labelOf(page as { id: number | string; title?: unknown }),
+    id: page ? (page.id as number | string) : `missing:${label}`,
+    label: page
+      ? labelOf(page as { id: number | string; title?: unknown })
+      : `${label} — ${id === null ? 'not set' : `page ${id} not found`}`,
     checks: [
-      { key: 'exists', passed: true },
-      { key: 'published', passed: page._status === 'published' },
-      { key: 'content-localized', passed: richTextHasContent(page.content) },
+      { key: 'exists', passed: page !== undefined },
+      { key: 'published', passed: page?._status === 'published' },
+      { key: 'content-localized', passed: richTextHasContent(page?.content) },
     ],
   }
 }
@@ -55,7 +53,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   checks: {
     exists: {
       label: 'Exists',
-      description: 'The referenced page exists and is not in the trash.',
+      description: 'The referenced document exists and is not in the trash.',
     },
     published: {
       label: 'Published',
@@ -74,17 +72,27 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         locale,
         limit: 0,
         pagination: false,
-        depth: 1,
+        depth: 0,
         select: { slug: true, page: true },
         req: isolatedReq(req),
       }),
     ])
 
-    const corePageIds = APP_REQUIRED_PAGE_FIELDS.map((fieldName) => refId(appConfig[fieldName]))
-    const nodePageIds = nodes.map((n) => refId((n as unknown as Record<string, unknown>).page))
+    const coreSlots: PageSlot[] = APP_PAGE_FIELDS.map((field) => ({
+      id: refId(appConfig[field.name]),
+      label: field.label ?? toWords(field.name),
+    }))
+    const nodeSlots: PageSlot[] = nodes.map((n) => ({
+      id: refId(n.page),
+      label: `Node ${n.slug}`,
+    }))
 
     const allIds = Array.from(
-      new Set([...corePageIds, ...nodePageIds].filter((id): id is number | string => id !== null)),
+      new Set(
+        [...coreSlots, ...nodeSlots]
+          .map((slot) => slot.id)
+          .filter((id): id is number | string => id !== null),
+      ),
     )
 
     const [pages, titles] = await Promise.all([
@@ -111,12 +119,8 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       pages.map((p) => [p.id, { ...p, title: titles.get(p.id) } as Record<string, unknown>]),
     )
 
-    const coreDocs = corePageIds.map((id, i) =>
-      reportForPage(pagesById, id, APP_REQUIRED_PAGE_FIELDS[i]),
-    )
-    const nodeDocs = nodePageIds.map((id, i) =>
-      reportForPage(pagesById, id, `Node ${nodes[i].slug ?? nodes[i].id}`),
-    )
+    const coreDocs = coreSlots.map((slot) => reportForSlot(pagesById, slot))
+    const nodeDocs = nodeSlots.map((slot) => reportForSlot(pagesById, slot))
 
     return { coreDocs, nodeDocs }
   },

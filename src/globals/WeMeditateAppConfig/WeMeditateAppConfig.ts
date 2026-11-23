@@ -19,7 +19,7 @@ type AppPageField = {
   label?: string
 }
 
-const APP_PAGE_FIELDS: readonly AppPageField[] = [
+export const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'classesPage' },
   { name: 'liveMeditationsPage' },
   { name: 'explorePage', description: 'Page for exploring full app content' },
