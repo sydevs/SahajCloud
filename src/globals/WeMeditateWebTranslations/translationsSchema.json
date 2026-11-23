@@ -308,6 +308,10 @@
               "type": "string",
               "description": "Heading above the mood picker on the Meditate now page, asking the visitor how they feel right now."
             },
+            "length_question": {
+              "type": "string",
+              "description": "Heading above the length picker on the Meditate now page, asking how much time the visitor has to meditate."
+            },
             "finder_unavailable": {
               "type": "string",
               "description": "Shown in place of the mood picker when the moods cannot be loaded. Say the visitor should try again shortly."
@@ -315,13 +319,19 @@
             "all_meditations": {
               "type": "string",
               "maxLength": 24,
-              "description": "Links from the mood picker to the page listing every meditation it offers, and titles that page."
+              "description": "Titles the list of every meditation the library offers, below the pickers."
             },
             "mood_meditation_label": {
               "type": "string",
               "plural": true,
               "maxLength": 28,
               "description": "Names a meditation by the feeling it is for and how long it runs. `%{mood}` = the mood's own name, inflected as your language needs; `%{count}` = minutes, and selects the plural form. The limit counts the raw string, and `%{mood}` expands at render, so the slot is wider than it looks."
+            },
+            "length_meditation_label": {
+              "type": "string",
+              "plural": true,
+              "maxLength": 28,
+              "description": "Names a meditation the visitor reached by length alone, so it carries no feeling. `%{count}` = minutes, and selects the plural form."
             }
           },
           "additionalProperties": false

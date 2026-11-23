@@ -5871,11 +5871,15 @@ export interface WmWebTranslationsMeditationGeneralStrings {
    */
   finder_question?: string;
   /**
+   * Heading above the length picker on the Meditate now page, asking how much time the visitor has to meditate.
+   */
+  length_question?: string;
+  /**
    * Shown in place of the mood picker when the moods cannot be loaded. Say the visitor should try again shortly.
    */
   finder_unavailable?: string;
   /**
-   * Links from the mood picker to the page listing every meditation it offers, and titles that page.
+   * Titles the list of every meditation the library offers, below the pickers.
    */
   all_meditations?: string;
   /**
@@ -5894,6 +5898,22 @@ export interface WmWebTranslationsMeditationGeneralStrings {
    * Names a meditation by the feeling it is for and how long it runs. `%{mood}` = the mood's own name, inflected as your language needs; `%{count}` = minutes, and selects the plural form. The limit counts the raw string, and `%{mood}` expands at render, so the slot is wider than it looks.
    */
   mood_meditation_label_other?: string;
+  /**
+   * Names a meditation the visitor reached by length alone, so it carries no feeling. `%{count}` = minutes, and selects the plural form.
+   */
+  length_meditation_label_one?: string;
+  /**
+   * Names a meditation the visitor reached by length alone, so it carries no feeling. `%{count}` = minutes, and selects the plural form.
+   */
+  length_meditation_label_few?: string;
+  /**
+   * Names a meditation the visitor reached by length alone, so it carries no feeling. `%{count}` = minutes, and selects the plural form.
+   */
+  length_meditation_label_many?: string;
+  /**
+   * Names a meditation the visitor reached by length alone, so it carries no feeling. `%{count}` = minutes, and selects the plural form.
+   */
+  length_meditation_label_other?: string;
 }
 export interface WmWebTranslationsLectureGeneralStrings {
   /**
@@ -10915,9 +10935,9 @@ export interface TableOfContentsBlock {
  * via the `definition` "ContentIndexBlock".
  */
 export interface ContentIndexBlock {
-  type: 'meditations' | 'pages' | 'songs' | 'lectures' | 'moods';
+  type: 'meditations' | 'pages' | 'songs' | 'lectures';
   /**
-   * Maximum number of items to return (1–100). A Moods index shows only the moods for the visitor's time of day.
+   * Maximum number of items to return (1–100)
    */
   limit: number;
   /**

@@ -3,20 +3,20 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 // Data only — no DDL; the `.json` is the prior snapshot re-stamped
 // (`src/migrations/AGENTS.md`).
 //
-// WeMeditate Web is building a mood finder on "Meditate now" (#1223, for
+// WeMeditate Web is building a meditation library on "Meditate now" (#1223, for
 // sydevs/WeMeditateWeb#272). It ships the English strings that work reads, which the seed reaches
 // only on a fresh database.
 //
-// ⚠ **Five rows for four declared keys.** `mood_meditation_label` is `plural: true`, and the
-// column holds the expanded CLDR family — nothing expands it at migration time, so English's
-// `_one` and `_other` are written out.
+// ⚠ **Eight rows for six declared keys.** Both label keys are `plural: true`, and the column
+// holds the expanded CLDR family — nothing expands it at migration time, so English's `_one` and
+// `_other` are written out for each.
 //
 // ⚠ **`up` never overwrites a word somebody chose.** Each key lands only where English lacks it.
 // Of the versions, only the `latest: true` row gets it: a global's update loads the document it
 // changes from that row.
 //
-// ⚠ **`down` drops all seven, whatever they hold** — the five `up` writes plus the plural family's
-// `_few` and `_many`, which other locales store. The previous schema declares none of them, and
+// ⚠ **`down` drops all twelve, whatever they hold** — the eight `up` writes plus each plural
+// family's `_few` and `_many`, which other locales store. The previous schema declares none of them, and
 // a stored undeclared key makes `additionalProperties: false` refuse every later save of the
 // global (`src/globals/AGENTS.md`).
 
@@ -24,6 +24,7 @@ const MEDITATION_GENERAL = { main: 'meditation_general', version: 'version_medit
 
 const ADDED = [
   { group: MEDITATION_GENERAL, key: 'finder_question', en: 'How are you feeling?' },
+  { group: MEDITATION_GENERAL, key: 'length_question', en: 'How much time do you have?' },
   {
     group: MEDITATION_GENERAL,
     key: 'finder_unavailable',
@@ -32,16 +33,24 @@ const ADDED = [
   { group: MEDITATION_GENERAL, key: 'all_meditations', en: 'All meditations' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_one', en: '%{mood} · %{count} min' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_other', en: '%{mood} · %{count} min' },
+  { group: MEDITATION_GENERAL, key: 'length_meditation_label_one', en: 'Meditation · %{count} min' },
+  {
+    group: MEDITATION_GENERAL,
+    key: 'length_meditation_label_other',
+    en: 'Meditation · %{count} min',
+  },
 ]
 
-// `down` sweeps wider than `up` wrote. `mood_meditation_label` is `plural: true`, so `_few` and
-// `_many` are legal storage keys too — a Slavic locale needs them, and the admin's grouped
-// plural row is what writes them. The previous schema declares none of the family, and one
-// stored undeclared key refuses every later save of the global.
+// `down` sweeps wider than `up` wrote. Both label keys are `plural: true`, so `_few` and `_many`
+// are legal storage keys too — a Slavic locale needs them, and the admin's grouped plural row is
+// what writes them. The previous schema declares none of either family, and one stored undeclared
+// key refuses every later save of the global.
 const DROPPED = [
   ...ADDED.map(({ group, key }) => ({ group, key })),
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_few' },
   { group: MEDITATION_GENERAL, key: 'mood_meditation_label_many' },
+  { group: MEDITATION_GENERAL, key: 'length_meditation_label_few' },
+  { group: MEDITATION_GENERAL, key: 'length_meditation_label_many' },
 ]
 
 type Db = MigrateUpArgs['db']
