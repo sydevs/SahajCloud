@@ -14,17 +14,33 @@ interface Ctx {
   nodeDocs: DocumentReport[]
 }
 
+/**
+ * A slot whose page was trashed (or deleted, which empties the slot) after the
+ * config was saved still gets a failing row: `required` is only checked on
+ * save, and no client can read the page, so the app gets nothing (#1252).
+ */
 function reportForPage(
   pagesById: Map<number | string, Record<string, unknown>>,
   id: number | string | null,
-): DocumentReport | null {
-  if (id === null) return null
-  const page = pagesById.get(id)
-  if (!page) return null
+  slotLabel: string,
+): DocumentReport {
+  const page = id === null ? undefined : pagesById.get(id)
+  if (!page) {
+    return {
+      id: id ?? `unset:${slotLabel}`,
+      label: id === null ? `${slotLabel} — not set` : `${slotLabel} — page ${id} not found`,
+      checks: [
+        { key: 'exists', passed: false },
+        { key: 'published', passed: false },
+        { key: 'content-localized', passed: false },
+      ],
+    }
+  }
   return {
     id: page.id as number | string,
     label: labelOf(page as { id: number | string; title?: unknown }),
     checks: [
+      { key: 'exists', passed: true },
       { key: 'published', passed: page._status === 'published' },
       { key: 'content-localized', passed: richTextHasContent(page.content) },
     ],
@@ -37,6 +53,10 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   description: 'All required core and subtle-system pages are published and localized.',
   tutorialLink: 'https://example.com/tutorials/pages',
   checks: {
+    exists: {
+      label: 'Exists',
+      description: 'The referenced page exists and is not in the trash.',
+    },
     published: {
       label: 'Published',
       description: 'The document is published for this locale.',
@@ -55,7 +75,7 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         limit: 0,
         pagination: false,
         depth: 1,
-        select: { page: true },
+        select: { slug: true, page: true },
         req: isolatedReq(req),
       }),
     ])
@@ -91,12 +111,12 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       pages.map((p) => [p.id, { ...p, title: titles.get(p.id) } as Record<string, unknown>]),
     )
 
-    const coreDocs = corePageIds
-      .map((id) => reportForPage(pagesById, id))
-      .filter((r): r is DocumentReport => r !== null)
-    const nodeDocs = nodePageIds
-      .map((id) => reportForPage(pagesById, id))
-      .filter((r): r is DocumentReport => r !== null)
+    const coreDocs = corePageIds.map((id, i) =>
+      reportForPage(pagesById, id, APP_REQUIRED_PAGE_FIELDS[i]),
+    )
+    const nodeDocs = nodePageIds.map((id, i) =>
+      reportForPage(pagesById, id, `Node ${nodes[i].slug ?? nodes[i].id}`),
+    )
 
     return { coreDocs, nodeDocs }
   },

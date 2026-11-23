@@ -179,6 +179,10 @@
       "label": "Content translated",
       "description": "The document's content field is non-empty for this locale."
     },
+    "exists": {
+      "label": "Exists",
+      "description": "The referenced page exists and is not in the trash."
+    },
     "has-lecture": {
       "label": "Has a lecture",
       "description": "At least one lecture is tagged with this user choice."
