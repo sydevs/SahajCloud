@@ -19,6 +19,7 @@ interface Ctx {
 /** A configured page reference, and how to name it when no page is behind it. */
 interface PageSlot {
   id: number | string | null
+  key: string
   label: string
 }
 
@@ -29,16 +30,15 @@ interface PageSlot {
  */
 function reportForSlot(
   pagesById: Map<number | string, Record<string, unknown>>,
-  { id, label }: PageSlot,
+  { id, key, label }: PageSlot,
 ): DocumentReport {
   const page = id === null ? undefined : pagesById.get(id)
   return {
-    id: page ? (page.id as number | string) : `missing:${label}`,
+    id: page ? (page.id as number | string) : `missing:${key}`,
     label: page
       ? labelOf(page as { id: number | string; title?: unknown })
       : `${label} — ${id === null ? 'not set' : `page ${id} not found`}`,
     checks: [
-      { key: 'exists', passed: page !== undefined },
       { key: 'published', passed: page?._status === 'published' },
       { key: 'content-localized', passed: richTextHasContent(page?.content) },
     ],
@@ -51,10 +51,6 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   description: 'All required core and subtle-system pages are published and localized.',
   tutorialLink: 'https://example.com/tutorials/pages',
   checks: {
-    exists: {
-      label: 'Exists',
-      description: 'The referenced document exists and is not in the trash.',
-    },
     published: {
       label: 'Published',
       description: 'The document is published for this locale.',
@@ -80,10 +76,12 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
 
     const coreSlots: PageSlot[] = APP_PAGE_FIELDS.map((field) => ({
       id: refId(appConfig[field.name]),
+      key: field.name,
       label: field.label ?? toWords(field.name),
     }))
     const nodeSlots: PageSlot[] = nodes.map((n) => ({
       id: refId(n.page),
+      key: `node:${n.slug}`,
       label: `Node ${n.slug}`,
     }))
 

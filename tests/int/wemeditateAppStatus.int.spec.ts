@@ -367,11 +367,11 @@ describe('WeMeditateAppStatus Global', () => {
       expect(publishedReport.checks.find((c) => c.key === 'published')?.passed).toBe(true)
       const draftReport = core.documents.find((d) => d.id === draftCorePage.id)!
       expect(draftReport.checks.find((c) => c.key === 'published')?.passed).toBe(false)
-      expect(draftReport.checks.find((c) => c.key === 'exists')?.passed).toBe(true)
     })
 
-    it('reports a configured page that has been trashed as a failing row (#1252)', async () => {
+    it('keeps a failing row for a configured page that has been trashed (#1252)', async () => {
       const trashedPage = await testData.createPage(payload)
+      const node = await testData.createSubtleSystemNode(payload, { page: trashedPage.id })
       await payload.updateGlobal({
         slug: 'wm-app-config',
         data: { ...requiredAppConfig, sahajaYogaPage: trashedPage.id },
@@ -383,12 +383,20 @@ describe('WeMeditateAppStatus Global', () => {
       })
 
       const report = await run(pagesSection, payload)
-      const core = report.groups.find((g) => g.key === 'core-pages')
-      if (core?.type !== 'documents') throw new Error('core-pages is not a documents group')
+      const rowsOf = (key: string) => {
+        const group = report.groups.find((g) => g.key === key)
+        if (group?.type !== 'documents') throw new Error(`${key} is not a documents group`)
+        return group.documents
+      }
 
-      const row = core.documents.find((d) => d.id === 'missing:Sahaja Yoga Page')
-      expect(row?.label).toBe(`Sahaja Yoga Page — page ${trashedPage.id} not found`)
-      expect(row?.checks.find((c) => c.key === 'exists')?.passed).toBe(false)
+      const coreRow = rowsOf('core-pages').find((d) => d.id === 'missing:sahajaYogaPage')
+      expect(coreRow?.label).toBe(`Sahaja Yoga Page — page ${trashedPage.id} not found`)
+      expect(coreRow?.checks.every((c) => !c.passed)).toBe(true)
+
+      const nodeRow = rowsOf('subtle-system-pages').find(
+        (d) => d.id === `missing:node:${node.slug}`,
+      )
+      expect(nodeRow?.label).toBe(`Node ${node.slug} — page ${trashedPage.id} not found`)
     })
   })
 
