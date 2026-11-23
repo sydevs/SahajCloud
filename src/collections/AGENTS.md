@@ -667,13 +667,8 @@ it cannot state from inside itself:
   descendant. Measured on 500 pages with the path selected: 16 ms for a plain
   column, 36 ms walked, 87 ms in a tree five levels deep with 400 distinct
   ancestors.
-- ⚠ **The field's NAME is an access-control opt-in.** `detectDocManagerFields`
-  (`src/plugins/access/documentManagers.ts`) finds a self-referential
-  relationship by the literal name `parent`, so a manager listed in Page Editors
-  on a section now holds `update` on every page beneath it, and `pages` takes
-  the per-level walk rather than the one-query `breadcrumbs` branch Regions get.
-  Nothing declares either; `tests/int/pages-nesting.int.spec.ts` asserts the
-  first. See `docs/rules/access.md` § Document-level manager access.
+- ⚠ **`parent` is an access-control opt-in** — see `docs/rules/access.md` §
+  Document-level manager access.
 
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
