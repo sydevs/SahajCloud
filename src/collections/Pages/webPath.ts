@@ -120,31 +120,6 @@ export async function pageAncestry(
 }
 
 /**
- * The slugs of `parentId` and its ancestors, root first — the segments every
- * page under it shares.
- *
- * Memoized because this is what collapses the work: three virtual fields ask
- * per document, and every page under one section asks the same question, so a
- * 500-page read composes one prefix per distinct parent rather than 1,500.
- *
- * `null` where the chain yields no address — an ancestor with no slug would
- * compose a `//`, and a malformed address is worse than an absent one.
- */
-function ancestorPrefix(parentId: number, req: PayloadRequest): Promise<string | null> {
-  return memoizeOnRequest(req, `pages:prefix:${parentId}`, async () => {
-    const { chain, stopped } = await pageAncestry(parentId, req)
-    if (stopped !== null) return null
-
-    const segments: string[] = []
-    for (const ancestor of chain) {
-      if (!ancestor.slug) return null
-      segments.unshift(ancestor.slug)
-    }
-    return segments.join('/')
-  })
-}
-
-/**
  * The nested, unprefixed path a page is served at — `subtle-system/kundalini`.
  *
  * `''` for the home page, which is served at the site root and holds the slug
@@ -168,9 +143,18 @@ export async function buildPagePath(opts: {
   const parentId = relationId(opts.parent)
   if (parentId === null) return slug
 
-  const prefix = await ancestorPrefix(parentId, opts.req)
+  const { chain, stopped } = await pageAncestry(parentId, opts.req)
+  if (stopped !== null) return null
 
-  return prefix === null ? null : `${prefix}/${slug}`
+  const segments: string[] = []
+  for (const ancestor of chain) {
+    // An ancestor with no slug would compose a `//`, and a malformed address is
+    // worse than an absent one.
+    if (!ancestor.slug) return null
+    segments.unshift(ancestor.slug)
+  }
+
+  return [...segments, slug].join('/')
 }
 
 /**
