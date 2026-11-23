@@ -19,7 +19,7 @@ type AppPageField = {
   label?: string
 }
 
-const APP_PAGE_FIELDS: readonly AppPageField[] = [
+export const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'classesPage' },
   { name: 'liveMeditationsPage' },
   { name: 'explorePage', description: 'Page for exploring full app content' },
@@ -35,8 +35,6 @@ const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'privacyPage' },
   { name: 'termsPage' },
 ]
-
-export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.map((p) => p.name)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',

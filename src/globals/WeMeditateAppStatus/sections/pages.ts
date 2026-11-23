@@ -1,4 +1,6 @@
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { toWords } from 'payload/shared'
+
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { labelOf, refId, type DocumentReport, type SectionSpec } from '@/lib/status'
 import { richTextHasContent } from '@/lib/status/helpers'
 
@@ -14,19 +16,31 @@ interface Ctx {
   nodeDocs: DocumentReport[]
 }
 
-function reportForPage(
+/** A configured page reference, and how to name it when no page is behind it. */
+interface PageSlot {
+  id: number | string | null
+  key: string
+  label: string
+}
+
+/**
+ * `required` is only checked on save, so a slot can name a trashed page, or
+ * none once its page is deleted. Either still gets a failing row (#1252), with
+ * a string id so the row doesn't link to a document that won't open.
+ */
+function reportForSlot(
   pagesById: Map<number | string, Record<string, unknown>>,
-  id: number | string | null,
-): DocumentReport | null {
-  if (id === null) return null
-  const page = pagesById.get(id)
-  if (!page) return null
+  { id, key, label }: PageSlot,
+): DocumentReport {
+  const page = id === null ? undefined : pagesById.get(id)
   return {
-    id: page.id as number | string,
-    label: labelOf(page as { id: number | string; title?: unknown }),
+    id: page ? (page.id as number | string) : `missing:${key}`,
+    label: page
+      ? labelOf(page as { id: number | string; title?: unknown })
+      : `${label} — ${id === null ? 'not set' : `page ${id} not found`}`,
     checks: [
-      { key: 'published', passed: page._status === 'published' },
-      { key: 'content-localized', passed: richTextHasContent(page.content) },
+      { key: 'published', passed: page?._status === 'published' },
+      { key: 'content-localized', passed: richTextHasContent(page?.content) },
     ],
   }
 }
@@ -54,17 +68,29 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
         locale,
         limit: 0,
         pagination: false,
-        depth: 1,
-        select: { page: true },
+        depth: 0,
+        select: { slug: true, page: true },
         req: isolatedReq(req),
       }),
     ])
 
-    const corePageIds = APP_REQUIRED_PAGE_FIELDS.map((fieldName) => refId(appConfig[fieldName]))
-    const nodePageIds = nodes.map((n) => refId((n as unknown as Record<string, unknown>).page))
+    const coreSlots: PageSlot[] = APP_PAGE_FIELDS.map((field) => ({
+      id: refId(appConfig[field.name]),
+      key: field.name,
+      label: field.label ?? toWords(field.name),
+    }))
+    const nodeSlots: PageSlot[] = nodes.map((n) => ({
+      id: refId(n.page),
+      key: `node:${n.slug}`,
+      label: `Node ${n.slug}`,
+    }))
 
     const allIds = Array.from(
-      new Set([...corePageIds, ...nodePageIds].filter((id): id is number | string => id !== null)),
+      new Set(
+        [...coreSlots, ...nodeSlots]
+          .map((slot) => slot.id)
+          .filter((id): id is number | string => id !== null),
+      ),
     )
 
     const [pages, titles] = await Promise.all([
@@ -91,12 +117,8 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       pages.map((p) => [p.id, { ...p, title: titles.get(p.id) } as Record<string, unknown>]),
     )
 
-    const coreDocs = corePageIds
-      .map((id) => reportForPage(pagesById, id))
-      .filter((r): r is DocumentReport => r !== null)
-    const nodeDocs = nodePageIds
-      .map((id) => reportForPage(pagesById, id))
-      .filter((r): r is DocumentReport => r !== null)
+    const coreDocs = coreSlots.map((slot) => reportForSlot(pagesById, slot))
+    const nodeDocs = nodeSlots.map((slot) => reportForSlot(pagesById, slot))
 
     return { coreDocs, nodeDocs }
   },

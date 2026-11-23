@@ -29,7 +29,7 @@ export const SubtleSystemNodes: CollectionConfig = {
         description: 'Identifier for this chakra or nadi. Closed enum of 12 values.',
       },
       access: {
-        // Vimeo URL is immutable after creation
+        // A migration seeds exactly these twelve rows, keyed on this slug.
         update: () => false,
       },
     },

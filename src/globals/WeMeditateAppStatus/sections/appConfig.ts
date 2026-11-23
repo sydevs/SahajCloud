@@ -1,3 +1,5 @@
+import type { BasePayload, PayloadRequest } from 'payload'
+
 import { VIBE_CHECK_IDENTIFIERS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import {
   isUploadAssigned,
@@ -6,8 +8,14 @@ import {
   type DocumentReport,
   type SectionSpec,
 } from '@/lib/status'
+import { isRecord } from '@/lib/utilities/isRecord'
 
-import { getWmAppConfig, meditationMatchesLocale, type WeMeditateAppStatusConfig } from './shared'
+import {
+  getWmAppConfig,
+  isolatedReq,
+  meditationMatchesLocale,
+  type WeMeditateAppStatusConfig,
+} from './shared'
 
 interface WmAppConfigSlice {
   selfRealizationMeditation?: unknown
@@ -19,6 +27,53 @@ interface Ctx {
   selfRealizationDocs: DocumentReport[]
   postRealizationDocs: DocumentReport[]
   vibeCheckDocs: DocumentReport[]
+}
+
+/**
+ * Whether a configured reference still resolves. Payload populates a trashed
+ * document whole, `_status` included, so a slot pointing into the trash reads
+ * as ready while the app cannot read the document at all (#1252). Only a read
+ * that excludes the trash tells the two apart.
+ */
+async function refIsLive(
+  payload: BasePayload,
+  collection: 'lectures' | 'meditations',
+  ref: unknown,
+  req?: PayloadRequest,
+): Promise<boolean> {
+  const id = refId(ref)
+  if (id === null) return false
+  const { docs } = await payload.find({
+    collection,
+    where: { id: { equals: id } },
+    limit: 1,
+    pagination: false,
+    depth: 0,
+    req: isolatedReq(req),
+  })
+  return docs.length > 0
+}
+
+/**
+ * Name a configured relationship's row. A row nothing resolves to fails every
+ * check, as the pages section's does; only the label and a sentinel id say
+ * whether the slot is empty or names a document that is gone.
+ */
+function slotIdentity(
+  ref: unknown,
+  live: boolean,
+  key: string,
+  noun: string,
+): { id: number | string; label: string; live: boolean } {
+  const id = refId(ref)
+  if (live && id !== null) {
+    return { id, label: labelOf(isRecord(ref) ? { ...ref, id } : { id }), live }
+  }
+  return {
+    id: id === null ? 'unset' : `missing:${key}`,
+    label: id === null ? 'Not set' : `${noun} ${id} not found`,
+    live: false,
+  }
 }
 
 export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
@@ -51,34 +106,41 @@ export const appConfigSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
   },
   prepare: async ({ payload, locale, req }) => {
     const appConfig = (await getWmAppConfig(payload, locale, 1, req)) as WmAppConfigSlice
+    const meditationRef = appConfig.selfRealizationMeditation
+    const lectureRef = appConfig.postRealizationLecture
+    const [meditationLive, lectureLive] = await Promise.all([
+      refIsLive(payload, 'meditations', meditationRef, req),
+      refIsLive(payload, 'lectures', lectureRef, req),
+    ])
 
     // Self-realization meditation — single 1-row group.
-    const meditationRef = appConfig.selfRealizationMeditation
-    const meditationRefSet = refId(meditationRef) !== null
-    const meditationPublished = meditationMatchesLocale(meditationRef, locale)
+    const meditation = slotIdentity(
+      meditationRef,
+      meditationLive,
+      'selfRealizationMeditation',
+      'Meditation',
+    )
     const selfRealizationDocs: DocumentReport[] = [
       {
-        id: refId(meditationRef) ?? 'unset',
-        label: meditationRefSet
-          ? labelOf(meditationRef as { id: number | string; title?: unknown })
-          : 'Not set',
+        id: meditation.id,
+        label: meditation.label,
         checks: [
-          { key: 'relationship-set', passed: meditationRefSet },
-          { key: 'relationship-published', passed: meditationPublished },
+          { key: 'relationship-set', passed: meditation.live },
+          {
+            key: 'relationship-published',
+            passed: meditation.live && meditationMatchesLocale(meditationRef, locale),
+          },
         ],
       },
     ]
 
     // Post-realization lecture — single 1-row group.
-    const lectureRef = appConfig.postRealizationLecture
-    const lectureRefSet = refId(lectureRef) !== null
+    const lecture = slotIdentity(lectureRef, lectureLive, 'postRealizationLecture', 'Lecture')
     const postRealizationDocs: DocumentReport[] = [
       {
-        id: refId(lectureRef) ?? 'unset',
-        label: lectureRefSet
-          ? labelOf(lectureRef as { id: number | string; title?: unknown })
-          : 'Not set',
-        checks: [{ key: 'relationship-set', passed: lectureRefSet }],
+        id: lecture.id,
+        label: lecture.label,
+        checks: [{ key: 'relationship-set', passed: lecture.live }],
       },
     ]
 
