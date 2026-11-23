@@ -6,8 +6,7 @@
  *
  * ⚠ **The migrations already on `main` keep their own hand copies, and must** —
  * a name with a `payload_migrations` row never runs again
- * (`src/migrations/AGENTS.md`), so rewriting them changes nothing. First
- * caller: the next such migration (#1242).
+ * (`src/migrations/AGENTS.md`), so rewriting them changes nothing.
  */
 
 import type { MigrateUpArgs } from '@payloadcms/db-postgres'
