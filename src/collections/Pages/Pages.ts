@@ -30,10 +30,9 @@ export const Pages: CollectionConfig = {
       // cannot disagree. A page with no slug yet has no address, and lands on
       // the explanation instead of a URL that 404s.
       //
-      // ⚠ This re-resolves on every autosave, so the ancestor walk is bounded
-      // by the page's own depth rather than reading the whole tree. Do not
-      // swap it for a tree load, as `buildEventWebPath` uses — Events have no
-      // autosave and these pages save themselves every 60 seconds.
+      // ⚠ This re-resolves on every autosave, so do not swap the ancestor walk
+      // for a tree load, as `buildEventWebPath` uses: Events have no autosave
+      // and these pages save themselves every 60 seconds.
       url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: weMeditatePreviewUrl(),
@@ -99,13 +98,15 @@ export const Pages: CollectionConfig = {
     }),
     pageParentField,
     {
-      // The address the consumer routes and links to, unprefixed — `webPath`
-      // carries the locale, and the consumer owns prefixing. Not published-gated,
-      // unlike the public links: the preview panel opens a page's address before
-      // anyone publishes it, and a client reads no unpublished page anyway.
+      // Not published-gated, unlike the three public links below: its reader is
+      // the sidebar beside the picker above, which has to answer before anyone
+      // publishes. Gating it would buy a consumer nothing either — a client
+      // reads no unpublished page at all.
       name: 'path',
       type: 'text',
       virtual: true,
+      // Declares what the hook reads, or an include-mode `select` naming `path`
+      // alone strips `parent` before it runs and the field answers null (#1084).
       custom: virtualFieldInputs('slug', 'parent'),
       admin: {
         position: 'sidebar',

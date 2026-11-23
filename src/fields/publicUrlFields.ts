@@ -133,7 +133,15 @@ function computeHook(
   }
 }
 
-/** A virtual, read-only, list-hidden text field carrying a computed URL/path. */
+/**
+ * A virtual, read-only, list-hidden text field carrying a computed URL/path.
+ *
+ * ⚠ **Private, and must stay private.** `@/plugins/storage/urlFields` already
+ * exports a `virtualUrlField`, with an object argument, used by the four upload
+ * collections — exporting this one would put two different functions behind one
+ * name. A collection needing a computed text field outside this factory's three
+ * declares its own, with `virtualFieldInputs` (`Pages.path`).
+ */
 function virtualUrlField(name: string, hook: FieldHook, inputs: readonly string[]): TextField {
   return {
     name,

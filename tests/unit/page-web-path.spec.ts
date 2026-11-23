@@ -51,33 +51,27 @@ describe('buildPageWebPath', () => {
     expect((await webPath('about', 'cs'))!.split('/')).toHaveLength(2)
   })
 
-  it('is null without a usable slug, so no caller builds a URL to nowhere', async () => {
-    await expect(webPath('', 'en')).resolves.toBeNull()
-    await expect(webPath(undefined, 'en')).resolves.toBeNull()
-    await expect(webPath(42, 'en')).resolves.toBeNull()
-  })
-
   it('is null for the home page, in every locale', async () => {
     // The home page holds the slug `''` and is served at the site root, which
     // is not a page address the consumer routes to — and `cs/` with nothing
     // after it is not one either.
+    await expect(webPath('', 'en')).resolves.toBeNull()
     await expect(webPath('', 'cs')).resolves.toBeNull()
   })
 })
 
 describe('buildPagePath', () => {
   it('is the bare slug, with no locale prefix of any kind', async () => {
-    // The consumer owns prefixing, so this one carries none.
     await expect(path('about')).resolves.toBe('about')
   })
 
   it('is the empty string for the home page, which webPath answers null for', async () => {
     // The consumer needs the home page's address to be a value rather than an
-    // absence: it is the root of the tree every other path hangs under.
+    // absence.
     await expect(path('')).resolves.toBe('')
   })
 
-  it('is null without a usable slug', async () => {
+  it('is null without a usable slug, so no caller builds a URL to nowhere', async () => {
     await expect(path(undefined)).resolves.toBeNull()
     await expect(path(null)).resolves.toBeNull()
     await expect(path(42)).resolves.toBeNull()

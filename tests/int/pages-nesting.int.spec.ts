@@ -3,28 +3,34 @@
  * joined with its own (#1250).
  *
  * Every case here needs a database: the property under test is a walk over
- * stored rows, and the two refusals are Payload's own validation path. The pure
+ * stored rows, and the refusals are Payload's own validation path. The pure
  * half — locale prefixing, the home page, an unusable slug — is
  * `tests/unit/page-web-path.spec.ts`, which runs with no Payload at all.
  *
  * ⚠ **`nestedDocsPlugin` is deliberately not registered on `pages`**, so there
  * is no cascade to test and no `breadcrumbs` column to read. The path is walked
- * per read instead, which is why renaming a parent needs no write to its
- * children at all — the case below asserts exactly that, and that it publishes
- * nothing in any locale.
+ * per read instead.
  */
 import type { Payload, PayloadRequest } from 'payload'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { PAGE_ANCESTOR_LIMIT } from '@/collections/Pages/webPath'
 import type { LocaleCode } from '@/lib/locales'
 import type { Page } from '@/payload-types'
 
 import { createData, testData } from '../utils/testData'
-import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
+import {
+  createClientAuthenticatedRequest,
+  createTestEnvironment,
+  idOnlySelect,
+} from '../utils/testHelpers'
 
 /** The plaintext key the client read below authenticates with. */
 const CLIENT_API_KEY = 'pages-nesting-spec-key'
+
+/** The address fields a consumer reads, for one page. */
+type Address = Pick<Page, 'path' | 'webPath' | 'webUrl'>
 
 /**
  * The message a named field refused the write with, or `null` when it went
@@ -32,7 +38,7 @@ const CLIENT_API_KEY = 'pages-nesting-spec-key'
  *
  * ⚠ **Payload's thrown `message` is only the envelope** — "The following field
  * is invalid: Parent" — and says nothing about which of the page's own
- * relatives was handed to it. The field's own words are in `data.errors`.
+ * relatives it was handed. The field's own words are in `data.errors`.
  */
 async function refusalFor(path: string, write: () => Promise<unknown>): Promise<string | null> {
   try {
@@ -42,22 +48,6 @@ async function refusalFor(path: string, write: () => Promise<unknown>): Promise<
     const { data } = error as { data?: { errors?: { path?: string; message?: string }[] } }
     return data?.errors?.find((entry) => entry.path === path)?.message ?? null
   }
-}
-
-/** The three address fields a consumer reads, for one page. */
-async function addressOf(
-  payload: Payload,
-  id: number,
-  locale?: LocaleCode,
-): Promise<{ path?: string | null; webPath?: string | null; webUrl?: string | null }> {
-  return (await payload.findByID({
-    collection: 'pages',
-    id,
-    depth: 0,
-    locale,
-    overrideAccess: true,
-    select: { path: true, webPath: true, webUrl: true } as never,
-  })) as { path?: string | null; webPath?: string | null; webUrl?: string | null }
 }
 
 describe('nested pages', () => {
@@ -76,15 +66,28 @@ describe('nested pages', () => {
       _status: 'published',
     })
 
+  /** A chain of `levels` published pages, root first. */
+  const chainOf = async (prefix: string, levels: number): Promise<Page[]> => {
+    const chain: Page[] = []
+    for (let level = 0; level < levels; level += 1) {
+      chain.push(await publish(`${prefix}-${level}`, chain.at(-1)?.id))
+    }
+    return chain
+  }
+
+  const addressOf = (id: number, locale?: LocaleCode): Promise<Address> =>
+    payload.findByID({
+      collection: 'pages',
+      id,
+      depth: 0,
+      locale,
+      overrideAccess: true,
+      select: { path: true, webPath: true, webUrl: true },
+    }) as Promise<Address>
+
   /**
-   * A write to `wm-web-config`, as the suite's admin.
-   *
-   * ⚠ **The user is required, and `overrideAccess: true` is no substitute.**
-   * Payload does not thread a global update's `overrideAccess` into
-   * `validateFilterOptions`, which falls back to `overrideAccess ?? false` and
-   * reads `pages` on the request's own authority — so a write carrying the flag
-   * and no user reads as anonymous, finds nothing, and refuses every selection
-   * a `filterOptions` narrows. Measured on `indexPages`, payload 3.93.
+   * A write to `wm-web-config`, as the suite's admin. The user is required —
+   * `src/globals/AGENTS.md` carries why `overrideAccess` is no substitute.
    */
   const writeWebConfig = (data: Record<string, unknown>): Promise<unknown> =>
     payload.updateGlobal({ slug: 'wm-web-config', user: admin, data: data as never })
@@ -132,58 +135,43 @@ describe('nested pages', () => {
   describe('the composed address', () => {
     it('leaves a page with no parent exactly as it was', async () => {
       const page = await publish('nesting-unnested')
+      const { path, webPath, webUrl } = await addressOf(page.id)
 
-      expect(await addressOf(payload, page.id)).toMatchObject({
-        path: 'nesting-unnested',
-        webPath: 'nesting-unnested',
-      })
-      const { webUrl } = await addressOf(payload, page.id)
+      expect(path).toBe('nesting-unnested')
+      expect(webPath).toBe('nesting-unnested')
       expect(webUrl).toMatch(/\/nesting-unnested$/)
     })
 
     it('carries every ancestor, in root-first order', async () => {
-      const root = await publish('nesting-subtle-system')
-      const child = await publish('nesting-kundalini', root.id)
-      const grandchild = await publish('nesting-rising', child.id)
+      const chain = await chainOf('nesting-subtle', 3)
 
-      expect(await addressOf(payload, child.id)).toMatchObject({
-        path: 'nesting-subtle-system/nesting-kundalini',
-        webPath: 'nesting-subtle-system/nesting-kundalini',
-      })
-      expect(await addressOf(payload, grandchild.id)).toMatchObject({
-        path: 'nesting-subtle-system/nesting-kundalini/nesting-rising',
-      })
+      expect((await addressOf(chain[1]!.id)).path).toBe('nesting-subtle-0/nesting-subtle-1')
+      expect((await addressOf(chain[2]!.id)).path).toBe(
+        'nesting-subtle-0/nesting-subtle-1/nesting-subtle-2',
+      )
     })
 
     it('prefixes the locale on webPath, and never on path', async () => {
-      const root = await publish('nesting-de-root')
-      const child = await publish('nesting-de-child', root.id)
+      const [, child] = await chainOf('nesting-de', 2)
       await payload.update({
         collection: 'pages',
-        id: child.id,
+        id: child!.id,
         locale: 'de',
         publishSpecificLocale: 'de',
         data: { title: 'Deutsches Kind', _status: 'published' },
       })
 
-      expect(await addressOf(payload, child.id, 'de')).toMatchObject({
-        path: 'nesting-de-root/nesting-de-child',
-        webPath: 'de/nesting-de-root/nesting-de-child',
+      expect(await addressOf(child!.id, 'de')).toMatchObject({
+        path: 'nesting-de-0/nesting-de-1',
+        webPath: 'de/nesting-de-0/nesting-de-1',
       })
     })
 
-    it('keeps the home page at the site root even when it is nested', async () => {
-      // Nothing refuses the home page a parent — only its use *as* one — so the
-      // composer has to answer for it. A trailing empty segment would publish
-      // `section/` as the home page's address.
-      const section = await publish('nesting-home-section')
-      await payload.update({
-        collection: 'pages',
-        id: homePage.id,
-        data: { parent: section.id },
-      })
-
-      expect(await addressOf(payload, homePage.id)).toMatchObject({ path: '', webPath: null })
+    it('keeps the home page at the site root', async () => {
+      // `''` rather than an absence: the consumer needs the root of the tree
+      // every other path hangs under. `webPath` stays null, because a locale
+      // prefix with nothing after it is not an address.
+      expect(await addressOf(homePage.id)).toMatchObject({ path: '', webPath: null })
     })
 
     it('answers nothing where an ancestor has no slug of its own', async () => {
@@ -198,7 +186,7 @@ describe('nested pages', () => {
 
       const child = await publish('nesting-orphaned-child', untitled.id)
 
-      expect(await addressOf(payload, child.id)).toMatchObject({
+      expect(await addressOf(child.id)).toMatchObject({
         path: null,
         webPath: null,
         webUrl: null,
@@ -226,16 +214,18 @@ describe('nested pages', () => {
         depth: 0,
         req: clientReq as PayloadRequest,
         overrideAccess: false,
-        select: { path: true, webUrl: true } as never,
-      })) as { path?: string | null; webUrl?: string | null }
+        select: { path: true, webUrl: true },
+      })) as Address
 
       expect(read.path).toBe('nesting-hidden-parent/nesting-hidden-child')
       expect(read.webUrl).toMatch(/\/nesting-hidden-parent\/nesting-hidden-child$/)
     })
 
     it('refuses the client that ancestor as a document', async () => {
-      // The other half of the case above: the client genuinely cannot read the
-      // row, so the address really is composed past its authority.
+      // The other half of the case above, which would otherwise pass vacuously
+      // if a client could read a draft page. The published gate itself is
+      // `pages-localize-status.int.spec.ts`; this pins only that it applies to
+      // the row the walk reaches past.
       const hidden = await testData.createPage(payload, {
         title: 'Nesting unreadable',
         slug: 'nesting-unreadable',
@@ -248,7 +238,7 @@ describe('nested pages', () => {
         depth: 0,
         req: clientReq as PayloadRequest,
         overrideAccess: false,
-        select: { id: true } as never,
+        select: idOnlySelect(),
       })
 
       expect(found.docs).toHaveLength(0)
@@ -257,22 +247,20 @@ describe('nested pages', () => {
 
   describe('moving and renaming', () => {
     it('moves every descendant, and publishes nothing in any locale', async () => {
-      const root = await publish('nesting-move-root')
-      const child = await publish('nesting-move-child', root.id)
-      const grandchild = await publish('nesting-move-grandchild', child.id)
+      const [root, , grandchild] = await chainOf('nesting-move', 3)
 
       // German published, French left as a draft: the shapes a cascade would
       // damage. `_status` is per locale here (#718).
       await payload.update({
         collection: 'pages',
-        id: grandchild.id,
+        id: grandchild!.id,
         locale: 'de',
         publishSpecificLocale: 'de',
         data: { title: 'Deutscher Enkel', _status: 'published' },
       })
       await payload.update({
         collection: 'pages',
-        id: grandchild.id,
+        id: grandchild!.id,
         locale: 'fr',
         draft: true,
         data: { title: 'Brouillon français' },
@@ -280,20 +268,21 @@ describe('nested pages', () => {
 
       await payload.update({
         collection: 'pages',
-        id: root.id,
+        id: root!.id,
         data: { slug: 'nesting-move-renamed' },
       })
 
-      expect(await addressOf(payload, grandchild.id)).toMatchObject({
-        path: 'nesting-move-renamed/nesting-move-child/nesting-move-grandchild',
-      })
+      expect((await addressOf(grandchild!.id)).path).toBe(
+        'nesting-move-renamed/nesting-move-1/nesting-move-2',
+      )
 
-      // Nothing wrote the descendants, so no locale's publish state moved: the
-      // two live languages are still live and French is still not.
+      // Nothing wrote the descendants, so no locale's publish state moved.
+      // `locale: 'all'` returns `_status` as a per-locale map, which the
+      // generated type does not describe — hence the cast here and nowhere else.
       const statuses = (
         (await payload.findByID({
           collection: 'pages',
-          id: grandchild.id,
+          id: grandchild!.id,
           locale: 'all',
           depth: 0,
           overrideAccess: true,
@@ -307,29 +296,27 @@ describe('nested pages', () => {
       expect(statuses?.fr).not.toBe('published')
 
       // And the draft itself survived: a cascade would have rewritten it.
-      const frDraft = (await payload.findByID({
+      const frDraft = await payload.findByID({
         collection: 'pages',
-        id: grandchild.id,
+        id: grandchild!.id,
         locale: 'fr',
         draft: true,
         depth: 0,
         overrideAccess: true,
-        select: { title: true } as never,
-      })) as { title?: string | null }
+        select: { title: true },
+      })
       expect(frDraft.title).toBe('Brouillon français')
     })
 
     it('reparents a whole subtree in one write', async () => {
-      const first = await publish('nesting-reparent-first')
       const second = await publish('nesting-reparent-second')
-      const child = await publish('nesting-reparent-child', first.id)
-      const grandchild = await publish('nesting-reparent-grandchild', child.id)
+      const [, child, grandchild] = await chainOf('nesting-reparent', 3)
 
-      await payload.update({ collection: 'pages', id: child.id, data: { parent: second.id } })
+      await payload.update({ collection: 'pages', id: child!.id, data: { parent: second.id } })
 
-      expect(await addressOf(payload, grandchild.id)).toMatchObject({
-        path: 'nesting-reparent-second/nesting-reparent-child/nesting-reparent-grandchild',
-      })
+      expect((await addressOf(grandchild!.id)).path).toBe(
+        'nesting-reparent-second/nesting-reparent-1/nesting-reparent-2',
+      )
     })
   })
 
@@ -344,47 +331,66 @@ describe('nested pages', () => {
     })
 
     it('refuses a descendant, naming it', async () => {
-      const root = await publish('nesting-loop-root')
-      const child = await publish('nesting-loop-child', root.id)
-      const grandchild = await publish('nesting-loop-grandchild', child.id)
+      const [root, , grandchild] = await chainOf('nesting-loop', 3)
 
       // A descendant passes `filterOptions` — no `Where` expresses ancestry —
       // so only the chain walk catches it.
-      expect(await reparent(root.id, grandchild.id)).toMatch(/nesting-loop-grandchild/)
+      expect(await reparent(root!.id, grandchild!.id)).toMatch(/nesting-loop-2/)
     })
 
-    it('refuses the home page', async () => {
+    it('refuses the home page as a parent', async () => {
       const page = await publish('nesting-wants-home')
-
-      expect(await reparent(page.id, homePage.id)).toMatch(/home page/)
+      expect(await reparent(page.id, homePage.id)).toMatch(/cannot be a parent/)
     })
 
-    it('refuses a chain past the depth ceiling', async () => {
-      let parent: number | undefined
-      const chain: Page[] = []
-      for (let level = 0; level < 6; level += 1) {
-        const page = await publish(`nesting-deep-${level}`, parent)
-        chain.push(page)
-        parent = page.id
-      }
+    it('refuses the home page a parent of its own', async () => {
+      // The symmetric rule, and what lets the composer answer `''` for the home
+      // page with no branch for it: a nested root would otherwise compose a
+      // trailing empty segment.
+      const section = await publish('nesting-home-section')
+      expect(await reparent(homePage.id, section.id)).toMatch(/cannot sit under/)
+    })
 
-      // The sixth page already has five ancestors, so a seventh level is one
-      // ancestor too many.
+    it('refuses a chain one level past the ceiling', async () => {
+      const chain = await chainOf('nesting-deep', PAGE_ANCESTOR_LIMIT + 1)
       const tooDeep = await publish('nesting-deep-tail')
-      expect(await reparent(tooDeep.id, chain[5]!.id)).toMatch(/at most 5 others/)
+
+      // The deepest page already has `PAGE_ANCESTOR_LIMIT` ancestors, so one
+      // more level is one ancestor too many.
+      expect(await reparent(tooDeep.id, chain.at(-1)!.id)).toMatch(
+        new RegExp(`at most ${PAGE_ANCESTOR_LIMIT} others`),
+      )
     })
 
     it('allows a chain at the ceiling, so the refusal is the depth and not the nesting', async () => {
-      let parent: number | undefined
-      for (let level = 0; level < 5; level += 1) {
-        const page = await publish(`nesting-ok-${level}`, parent)
-        parent = page.id
-      }
-      const deepest = await publish('nesting-ok-tail', parent)
+      const chain = await chainOf('nesting-ok', PAGE_ANCESTOR_LIMIT)
+      const deepest = await publish('nesting-ok-tail', chain.at(-1)!.id)
 
-      expect(await addressOf(payload, deepest.id)).toMatchObject({
-        path: 'nesting-ok-0/nesting-ok-1/nesting-ok-2/nesting-ok-3/nesting-ok-4/nesting-ok-tail',
+      expect((await addressOf(deepest.id)).path).not.toBeNull()
+    })
+
+    it('keeps a child saveable after its parent is trashed', async () => {
+      // `validateFilterOptions` re-runs on every save, and its own find passes
+      // no `trash: true` — so a trashed parent reads as an invalid selection and
+      // the child cannot be saved at all. `loadAncestor` passes the flag
+      // deliberately, so the two must agree.
+      const [section, child] = await chainOf('nesting-trashed', 2)
+      await payload.update({
+        collection: 'pages',
+        id: section!.id,
+        data: { deletedAt: new Date().toISOString() },
       })
+
+      const refusal = await refusalFor('parent', () =>
+        payload.update({
+          collection: 'pages',
+          id: child!.id,
+          data: { title: 'Still editable' },
+        }),
+      )
+      expect(refusal).toBeNull()
+      // And it keeps the trashed section's slug in its address.
+      expect((await addressOf(child!.id)).path).toBe('nesting-trashed-0/nesting-trashed-1')
     })
 
     it('refuses an id no page holds, in Payload’s own words', async () => {
@@ -397,6 +403,122 @@ describe('nested pages', () => {
       await payload.delete({ collection: 'pages', id: missing.id })
 
       expect(await reparent(page.id, missing.id)).toMatch(/invalid/i)
+    })
+  })
+
+  describe('the site root', () => {
+    it('cannot be pointed at a page that is already nested', async () => {
+      // The other ordering: `pages` refuses the home page a parent, but nothing
+      // stopped `homePage` naming a page that already had one — and with its
+      // slug then blanked, the root's own address composes `section/`.
+      const [, nested] = await chainOf('nesting-root-order', 2)
+
+      const refusal = await refusalFor('homePage', () => writeWebConfig({ homePage: nested.id }))
+      expect(refusal).not.toBeNull()
+    })
+  })
+
+  describe('a parent no validator saw', () => {
+    it('does not move a published address, and never loops the walk', async () => {
+      // ⚠ `pages` declares no `drafts.validate`, so Payload skips validation on
+      // every draft save — an autosave stores whatever `parent` the form holds,
+      // including a descendant every refusal above would reject. It lands in the
+      // version row, so the published address is unaffected; what the walk can
+      // be handed is that unvalidated value as its FIRST hop, on a `draft: true`
+      // read. It has to terminate on one.
+      const [root, child] = await chainOf('nesting-unvalidated', 2)
+
+      await payload.update({
+        collection: 'pages',
+        id: root!.id,
+        draft: true,
+        data: { parent: child!.id },
+      })
+
+      expect((await addressOf(root!.id)).path).toBe('nesting-unvalidated-0')
+      expect((await addressOf(child!.id)).path).toBe('nesting-unvalidated-0/nesting-unvalidated-1')
+
+      // The draft read starts the walk from the unvalidated parent and returns.
+      const draft = (await payload.findByID({
+        collection: 'pages',
+        id: root!.id,
+        draft: true,
+        depth: 0,
+        overrideAccess: true,
+        select: { path: true },
+      })) as Pick<Page, 'path'>
+      expect(typeof draft.path).toBe('string')
+    })
+  })
+
+  describe('the per-request memo', () => {
+    it('reads each distinct ancestor once, however many pages ask', async () => {
+      // Three virtual fields ask per document, and siblings share a parent, so
+      // without the memo a read of N pages under one section costs 3N walks and
+      // 3N queries. Nothing else would notice that regressing.
+      const [root, child] = await chainOf('nesting-memo', 2)
+      const leaves = [
+        await publish('nesting-memo-leaf-a', child!.id),
+        await publish('nesting-memo-leaf-b', child!.id),
+        await publish('nesting-memo-leaf-c', child!.id),
+      ]
+
+      const spy = vi.spyOn(payload, 'findByID')
+      try {
+        const read = await payload.find({
+          collection: 'pages',
+          where: { id: { in: leaves.map((leaf) => leaf.id) } },
+          depth: 0,
+          pagination: false,
+          overrideAccess: true,
+          select: { path: true, webPath: true, webUrl: true },
+        })
+        expect(read.docs).toHaveLength(3)
+
+        const ancestorIds = spy.mock.calls
+          .map(([args]) => args as { collection?: string; id?: unknown })
+          .filter((args) => args.collection === 'pages')
+          .map((args) => args.id)
+
+        // The two distinct ancestors, once each — not 3 pages × 3 fields × 2.
+        expect(ancestorIds).toHaveLength(2)
+        expect(new Set(ancestorIds)).toEqual(new Set([root!.id, child!.id]))
+      } finally {
+        spy.mockRestore()
+      }
+    })
+  })
+
+  describe('page editors inherit down the tree', () => {
+    it('gives a manager listed on a section the pages beneath it', async () => {
+      // ⚠ Naming the field `parent` is the whole opt-in: `detectDocManagerFields`
+      // (`src/plugins/access/documentManagers.ts`) finds a self-referential
+      // relationship by that literal name, so this collection's "Page Editors"
+      // now inherit to descendants. Nothing in this change declares it, and
+      // nothing else asserts it.
+      const editor = await testData.createManager(payload, { type: 'manager', roles: [] })
+      const section = await publish('nesting-owned-section')
+      await payload.update({
+        collection: 'pages',
+        id: section.id,
+        data: { managers: [editor.id] },
+      })
+      const beneath = await publish('nesting-owned-child', section.id)
+      const elsewhere = await publish('nesting-unowned')
+
+      // Asserted on `update`, not `read`: being listed derives the
+      // `page-editor` role, whose project already grants a collection-wide read
+      // of `pages`, so a read cannot tell inheritance from that.
+      const user = await testData.authUser(payload, editor)
+      const retitle = (id: number, title: string) =>
+        payload.update({ collection: 'pages', id, data: { title }, overrideAccess: false, user })
+
+      // Asserted on the written value, not on "it did not throw": a refusal and
+      // a silent no-op are both falsy, and only the readback tells them apart.
+      const edited = await retitle(beneath.id, 'Edited by the section editor')
+      expect(edited.title).toBe('Edited by the section editor')
+
+      await expect(retitle(elsewhere.id, 'Should be refused')).rejects.toThrow()
     })
   })
 

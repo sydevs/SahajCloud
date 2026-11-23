@@ -30,33 +30,40 @@ import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 const UNPREFIXED = new Set(['en', 'all'])
 
 /**
- * How many ancestors a page may have.
+ * How many pages a page may sit under.
  *
  * The content tree is section → page → subpage, so this is slack rather than a
- * limit anyone meets. It bounds the walk against a chain the `parent` validator
- * never saw — written before it existed, or straight into the database.
+ * limit anyone meets. The walk enforces it as well as the validator because the
+ * two see different data: the validator judges one save, while the walk starts
+ * from whatever `parent` the read hands it — and a draft read supplies an
+ * autosaved one, which no validator saw (`pages` declares no `drafts.validate`,
+ * so Payload skips validation on every draft save).
  */
 export const PAGE_ANCESTOR_LIMIT = 5
 
 /** One page in an ancestor chain: enough to compose a path and keep walking. */
-export interface PageAncestor {
+interface PageAncestor {
   id: number
   slug: string | null
   parent: number | null
 }
+
+/** Why an ancestor walk stopped before it reached a root. */
+type AncestryStop = 'depth' | 'loop' | 'missing'
 
 /**
  * One ancestor row, on its own connection and memoized per request.
  *
  * ⚠ **`overrideAccess`, and `req` is not forwarded.** A page's address must not
  * depend on who reads it: a client's `pages` read is narrowed, so an ancestor it
- * may not read would compose a truncated address for a child it may — published
- * as that page's canonical, with nothing erroring. Its own connection also keeps
- * a failed read out of the caller's transaction, which an `afterRead` decorating
- * a write still shares (`src/collections/AGENTS.md`).
+ * may not read would compose a truncated address for a child it may. Its own
+ * connection also keeps a failed read out of the caller's transaction, which an
+ * `afterRead` decorating a write still shares (`src/collections/AGENTS.md`).
  *
- * Only `slug` and `parent` are selected, so none of the ancestor's own computed
- * fields resolve and the walk cannot recurse back into itself.
+ * Keyed on the id alone, which is sound only because `req` is not forwarded:
+ * the nested read runs at the default locale, and `slug` is not localized.
+ *
+ * The narrow `select` is what stops the walk recursing back into itself.
  *
  * `trash: true` because a trashed row still holds its slug: trashing a section
  * must not move the address of every page beneath it.
@@ -81,17 +88,13 @@ function loadAncestor(id: number, req: PayloadRequest): Promise<PageAncestor | n
   })
 }
 
-/** Why an ancestor walk stopped before it reached a root. */
-export type AncestryStop = 'depth' | 'loop' | 'missing'
-
 /**
  * `pageId` and every page above it, nearest first.
  *
  * `stopped` is `null` when the walk reached a root, so the chain is the whole
- * ancestry and no longer than {@link PAGE_ANCESTOR_LIMIT}. Which broken shape it
- * found otherwise matters because the callers differ: the composer has no
- * address for any of them, while the `parent` validator refuses a loop and a
- * too-deep chain and leaves a missing row to Payload's own validator.
+ * ancestry. Which broken shape it found otherwise matters because the callers
+ * differ: the composer has no address for any of them, while the `parent`
+ * validator names each in words an editor can act on.
  */
 export async function pageAncestry(
   pageId: number,
@@ -117,13 +120,37 @@ export async function pageAncestry(
 }
 
 /**
+ * The slugs of `parentId` and its ancestors, root first — the segments every
+ * page under it shares.
+ *
+ * Memoized because this is what collapses the work: three virtual fields ask
+ * per document, and every page under one section asks the same question, so a
+ * 500-page read composes one prefix per distinct parent rather than 1,500.
+ *
+ * `null` where the chain yields no address — an ancestor with no slug would
+ * compose a `//`, and a malformed address is worse than an absent one.
+ */
+function ancestorPrefix(parentId: number, req: PayloadRequest): Promise<string | null> {
+  return memoizeOnRequest(req, `pages:prefix:${parentId}`, async () => {
+    const { chain, stopped } = await pageAncestry(parentId, req)
+    if (stopped !== null) return null
+
+    const segments: string[] = []
+    for (const ancestor of chain) {
+      if (!ancestor.slug) return null
+      segments.unshift(ancestor.slug)
+    }
+    return segments.join('/')
+  })
+}
+
+/**
  * The nested, unprefixed path a page is served at — `subtle-system/kundalini`.
  *
  * `''` for the home page, which is served at the site root and holds the slug
- * `''` by contract (`src/globals/AGENTS.md`). `null` where the page has no
- * address at all: no slug yet, or an ancestor chain that cannot be resolved —
- * an ancestor with no slug of its own would compose a `//`, and a malformed
- * address is worse than an absent one.
+ * `''` by contract (`src/globals/AGENTS.md`); `parentField` refuses it a parent,
+ * so the root has no ancestors to prefix it with. `null` where the page has no
+ * address at all: no slug yet, or an ancestor chain that cannot be resolved.
  */
 export async function buildPagePath(opts: {
   slug: unknown
@@ -132,23 +159,18 @@ export async function buildPagePath(opts: {
 }): Promise<string | null> {
   const { slug } = opts
   if (typeof slug !== 'string') return null
-  // The site root, whatever it is nested under.
+  // The site root, whatever it is nested under. Both sides refuse the home page
+  // a parent, so this is the floor under a row written past them rather than a
+  // branch anyone reaches: a trailing empty segment is the malformed address
+  // this composer exists to refuse.
   if (slug === '') return ''
 
   const parentId = relationId(opts.parent)
   if (parentId === null) return slug
 
-  const { chain, stopped } = await pageAncestry(parentId, opts.req)
-  if (stopped !== null) return null
+  const prefix = await ancestorPrefix(parentId, opts.req)
 
-  const segments: string[] = []
-  for (const ancestor of chain) {
-    if (!ancestor.slug) return null
-    segments.unshift(ancestor.slug)
-  }
-  segments.push(slug)
-
-  return segments.join('/')
+  return prefix === null ? null : `${prefix}/${slug}`
 }
 
 /**

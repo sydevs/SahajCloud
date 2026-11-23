@@ -38,6 +38,11 @@ export const WeMeditateWebConfig: GlobalConfig = {
       type: 'relationship',
       relationTo: 'pages',
       required: true,
+      // The site root sits under nothing. `pages` refuses the home page a
+      // parent, but only from its own side — pointing this field at a page that
+      // is already nested is the other ordering, and composes `section/` as the
+      // root's address.
+      filterOptions: { parent: { exists: false } },
     },
     availableLocalesField({
       translationsSlug: 'wm-web-translations',
