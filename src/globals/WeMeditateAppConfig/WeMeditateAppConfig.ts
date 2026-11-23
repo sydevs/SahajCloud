@@ -1,7 +1,8 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
-import { servicePageTagsField } from '@/fields/servicePageTagsField'
+import { SERVICE_PAGE_TAGS_FIELD } from '@/lib/pageServices'
+import { PAGE_TAGS } from '@/lib/pageTags'
 
 export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
@@ -84,7 +85,18 @@ export const WeMeditateAppConfig: GlobalConfig = {
             })),
             // The app's page set is these slots plus these tags; an app key
             // reads no other page but the website's (`src/lib/pageServices`).
-            servicePageTagsField('app'),
+            {
+              name: SERVICE_PAGE_TAGS_FIELD,
+              label: 'Page tags',
+              type: 'select' as const,
+              hasMany: true,
+              options: PAGE_TAGS,
+              admin: {
+                description:
+                  'Published pages carrying any of these tags belong to the app, as well as ' +
+                  'every page this configuration names. Each page says where it is available.',
+              },
+            },
           ],
         },
         {
