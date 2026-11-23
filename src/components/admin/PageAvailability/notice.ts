@@ -1,11 +1,17 @@
 import type { InfoBannerType } from '@/components/admin/InfoBanner'
-import type { PageService } from '@/lib/pageServices'
+import type { PagePlacement, PageService } from '@/lib/pageServices'
 
 /** What the notice says: where the page is available, and how to widen that. */
 export interface AvailabilityNotice {
   type: InfoBannerType
   title: string
   text?: string
+}
+
+/** One service that places the page, and what places it there. */
+export interface ServicePlacement {
+  service: PageService
+  placement: PagePlacement
 }
 
 /** Where a service serves its pages, as the title reads it. */
@@ -20,19 +26,27 @@ const CONFIGURATION: Record<PageService, string> = {
   app: 'We Meditate App › Configuration',
 }
 
+const because = (placement: PagePlacement): string =>
+  placement.by === 'tag' ? `tagged “${placement.tag}”` : 'named in its configuration'
+
 /**
  * Where a page is available, in the words the sidebar shows.
  *
  * Both facts are needed, because each can be the one holding the page back: a
  * placed page nobody published is served nowhere, and a published page no
- * configuration names is too.
+ * configuration names is too. Each service also names what placed the page
+ * there, so taking it off one is a single edit to find.
  */
 export function availabilityNotice(
   published: boolean,
-  placed: readonly PageService[],
+  placed: readonly ServicePlacement[],
 ): AvailabilityNotice {
-  const missing = (Object.keys(WHERE) as PageService[]).filter((s) => !placed.includes(s))
-  const where = placed.map((service) => WHERE[service]).join(' and ')
+  const missing = (Object.keys(WHERE) as PageService[]).filter(
+    (service) => !placed.some((entry) => entry.service === service),
+  )
+  const where = placed
+    .map(({ service, placement }) => `${WHERE[service]} (${because(placement)})`)
+    .join(' and ')
 
   const sentences: string[] = []
   if (!published && placed.length) sentences.push(`Publishing it makes it available ${where}.`)

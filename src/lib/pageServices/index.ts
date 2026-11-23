@@ -109,14 +109,31 @@ export function servicePagesFromConfig(
   }
 }
 
+/** How a service places a page: it names the page itself, or lists a tag the page carries. */
+export type PagePlacement = { by: 'name' } | { by: 'tag'; tag: string }
+
+/**
+ * What places this page in a service, or `null` where nothing does.
+ *
+ * The sidebar notice names it, so an editor reaches the one field or tag that
+ * holds the page there rather than searching six page fields and a tag list.
+ */
+export function pagePlacement(
+  page: { id?: unknown; tags?: Page['tags'] },
+  pages: ServicePages,
+): PagePlacement | null {
+  const id = relationId(page.id)
+  if (id != null && pages.ids.has(id)) return { by: 'name' }
+  const tag = (page.tags ?? []).find((value) => pages.tags.includes(value))
+  return tag ? { by: 'tag', tag } : null
+}
+
 /** Does a service place this page — by naming it, or by a tag it carries? */
 export function isPagePlaced(
   page: { id?: unknown; tags?: Page['tags'] },
   pages: ServicePages,
 ): boolean {
-  const id = relationId(page.id)
-  if (id != null && pages.ids.has(id)) return true
-  return (page.tags ?? []).some((tag) => pages.tags.includes(tag))
+  return pagePlacement(page, pages) !== null
 }
 
 /**

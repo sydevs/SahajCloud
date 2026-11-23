@@ -6,6 +6,7 @@ import {
   isPagePlaced,
   loadServicePages,
   PAGE_SERVICE_GLOBALS,
+  pagePlacement,
   servicePagesFromConfig,
   servicePagesWhere,
   type ServicePages,
@@ -94,6 +95,25 @@ describe('isPagePlaced', () => {
 
   it('refuses a page neither named nor tagged with a listed tag', () => {
     expect(isPagePlaced({ id: 7, tags: ['event'] }, pages)).toBe(false)
+  })
+})
+
+describe('pagePlacement', () => {
+  const pages = servicePagesFromConfig(FIELDS, { homePage: 1, pageTags: ['wisdom', 'event'] })
+
+  it('names the field over the tag, so one edit is enough to take the page off', () => {
+    expect(pagePlacement({ id: 1, tags: ['wisdom'] }, pages)).toEqual({ by: 'name' })
+  })
+
+  it('names the tag that matched, not the first tag the page carries', () => {
+    expect(pagePlacement({ id: 7, tags: ['technique', 'event'] }, pages)).toEqual({
+      by: 'tag',
+      tag: 'event',
+    })
+  })
+
+  it('answers null where nothing places the page', () => {
+    expect(pagePlacement({ id: 7, tags: ['technique'] }, pages)).toBeNull()
   })
 })
 
