@@ -12,9 +12,8 @@ import { adminOnlyFieldAccess } from '@/plugins/access'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 import { loadAppConfigOnce } from './appConfigCache'
-import { homePageId } from './homePage'
 import { pageParentField } from './parentField'
-import { buildPagePath, buildPageWebPath } from './webPath'
+import { buildPagePath, buildPageWebPath, homePageId } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',

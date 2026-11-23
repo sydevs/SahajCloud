@@ -4,8 +4,7 @@ import { relationship } from 'payload/shared'
 
 import { relationId } from '@/lib/utilities/relationId'
 
-import { homePageId } from './homePage'
-import { PAGE_ANCESTOR_LIMIT, pageAncestry } from './webPath'
+import { homePageId, PAGE_ANCESTOR_LIMIT, pageAncestry } from './webPath'
 
 /**
  * The pages offered as a parent: every page but this one and the home page.

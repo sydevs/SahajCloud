@@ -41,6 +41,19 @@ const UNPREFIXED = new Set(['en', 'all'])
  */
 export const PAGE_ANCESTOR_LIMIT = 5
 
+/** The page `wm-web-config` serves at the site root, read once per request. */
+export function homePageId(req: PayloadRequest): Promise<number | null> {
+  return memoizeOnRequest(req, 'pages:homePageId', async () => {
+    const { homePage } = await req.payload.findGlobal({
+      slug: 'wm-web-config',
+      depth: 0,
+      req,
+      select: { homePage: true },
+    })
+    return relationId(homePage)
+  })
+}
+
 /** One page in an ancestor chain: enough to compose a path and keep walking. */
 interface PageAncestor {
   id: number
