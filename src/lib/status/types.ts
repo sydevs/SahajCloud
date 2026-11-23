@@ -15,8 +15,9 @@ export type CheckResult = {
 /**
  * One row inside a `documents` group: a per-document set of checks.
  * The `label` is the document instance title (e.g. a lesson title); the
- * `id` is the document's primary key (or a sentinel string for "unset"
- * single-row groups).
+ * `id` is the document's primary key, or a sentinel string wherever no
+ * document backs the row — an empty slot, or one naming a document that no
+ * longer resolves — whatever the group's size.
  *
  * A check and a label want opposite locale policies, and a section owes
  * both: a check described "for this locale" must refuse the locale
