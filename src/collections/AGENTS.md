@@ -667,9 +667,6 @@ it cannot state from inside itself:
   descendant. Measured on 500 pages with the path selected: 16 ms for a plain
   column, 36 ms walked, 87 ms in a tree five levels deep with 400 distinct
   ancestors.
-- **`path` is the unprefixed address the consumer routes by**; `webPath` is the
-  same thing with the locale prefix. They differ for the home page, which is
-  `''` and `null` respectively.
 - ⚠ **The field's NAME is an access-control opt-in.** `detectDocManagerFields`
   (`src/plugins/access/documentManagers.ts`) finds a self-referential
   relationship by the literal name `parent`, so a manager listed in Page Editors
