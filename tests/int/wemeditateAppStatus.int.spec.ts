@@ -2,7 +2,7 @@ import type { BasePayload, Payload, PayloadRequest, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import {
   appCardsSection,
   appConfigSection,
@@ -146,7 +146,7 @@ describe('WeMeditateAppStatus Global', () => {
       title: 'Required Page Placeholder',
     })
     requiredAppConfig = {
-      ...Object.fromEntries(APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id])),
+      ...Object.fromEntries(APP_PAGE_FIELDS.map(({ name }) => [name, placeholderPage.id])),
       availableLocales: ['en'],
     }
   })
@@ -490,7 +490,8 @@ describe('WeMeditateAppStatus Global', () => {
       try {
         const report = await run(appConfigSection, payload)
         const group = report.groups.find((g) => g.key === 'self-realization-meditation')
-        if (group?.type !== 'documents') throw new Error('self-realization-meditation is not a documents group')
+        if (group?.type !== 'documents')
+          throw new Error('self-realization-meditation is not a documents group')
         const row = group.documents[0]
         expect(row.id).toBe('missing:selfRealizationMeditation')
         expect(row.label).toBe(`Meditation ${trashed.id} not found`)

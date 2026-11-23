@@ -36,8 +36,6 @@ export const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'termsPage' },
 ]
 
-export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.map((p) => p.name)
-
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
   admin: {

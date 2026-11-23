@@ -3,7 +3,7 @@ import type { CollectionConfig } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { slugField, publicUrlFields } from '@/fields'
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
 import { PAGE_TAGS } from '@/lib/pageTags'
@@ -186,8 +186,8 @@ export const Pages: CollectionConfig = {
         // loadAppConfigOnce for why the cache holds the promise, not the value.
         const config = await loadAppConfigOnce(req)
 
-        return APP_REQUIRED_PAGE_FIELDS.some((field) => {
-          const val = config[field]
+        return APP_PAGE_FIELDS.some(({ name }) => {
+          const val = config[name]
           if (val === id) return true
           return typeof val === 'object' && val !== null && (val as { id: unknown }).id === id
         })
