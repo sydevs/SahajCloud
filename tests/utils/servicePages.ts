@@ -1,6 +1,6 @@
 import type { Payload, RelationshipField } from 'payload'
 
-import { PAGE_SERVICES, type PageService } from '@/lib/pageServices'
+import { PAGE_SERVICE_GLOBALS, type PageService } from '@/lib/pageServices'
 import type { PageTag } from '@/lib/pageTags'
 
 import { testData } from './testData'
@@ -26,7 +26,7 @@ export async function placePages(
   service: PageService,
   { pages = [], tags = [] }: { pages?: number[]; tags?: PageTag[] },
 ): Promise<void> {
-  const { slug } = PAGE_SERVICES[service]
+  const slug = PAGE_SERVICE_GLOBALS[service]
 
   let placeholder = placeholders.get(payload)
   if (!placeholder) {

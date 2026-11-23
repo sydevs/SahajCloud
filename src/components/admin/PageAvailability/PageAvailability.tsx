@@ -4,7 +4,7 @@ import React from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { isPublished } from '@/fields/publicUrlFields'
-import { loadServicePages, PAGE_SERVICES, pageServiceReasons } from '@/lib/pageServices'
+import { isPagePlaced, loadServicePages, PAGE_SERVICE_GLOBALS } from '@/lib/pageServices'
 import type { PageService } from '@/lib/pageServices'
 
 import { availabilityNotice } from './notice'
@@ -28,11 +28,11 @@ const PageAvailability: UIFieldServerComponent = async ({ id, req }) => {
   const page = await readAsRequestUser(req, 'pages', pageId, { _status: true, tags: true })
   if (!page) return null
 
-  const services = Object.keys(PAGE_SERVICES) as PageService[]
+  const services = Object.keys(PAGE_SERVICE_GLOBALS) as PageService[]
   const placement = await Promise.all(
     services.map(async (service) => ({
       service,
-      placed: pageServiceReasons(page, await loadServicePages(req, service)).length > 0,
+      placed: isPagePlaced(page, await loadServicePages(req, service)),
     })),
   )
   const notice = availabilityNotice(

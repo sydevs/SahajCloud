@@ -50,8 +50,9 @@ export async function servicePagesClause(
   )
   if (!services.size) return null
 
-  const clauses = await Promise.all(
-    [...services].map(async (service) => servicePagesWhere(await loadServicePages(req, service))),
+  // One clause over every service the caller reads, so a key in two of them
+  // sends one id list and one tag list rather than a clause each.
+  return servicePagesWhere(
+    await Promise.all([...services].map((service) => loadServicePages(req, service))),
   )
-  return clauses.length === 1 ? clauses[0] : { or: clauses }
 }

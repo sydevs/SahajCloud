@@ -21,7 +21,6 @@ function clientReq(roles: string[]): PayloadRequest {
 }
 
 const WEB = { tags: { in: ['wisdom'] } }
-const APP = { tags: { in: ['technique'] } }
 
 describe('servicePagesClause', () => {
   it('narrows a website key to the website’s pages', async () => {
@@ -29,16 +28,18 @@ describe('servicePagesClause', () => {
   })
 
   // The app opens a page it does not carry at the page's webUrl, so it reads
-  // the website's pages too.
+  // the website's pages too — as one list, not a clause per service.
   it('narrows an app key to the app’s pages and the website’s', async () => {
     expect(await servicePagesClause(clientReq(['wemeditate-app-client']), 'pages')).toEqual({
-      or: [APP, WEB],
+      tags: { in: ['technique', 'wisdom'] },
     })
   })
 
   it('gives a key in both projects the union, once each', async () => {
     const req = clientReq(['wemeditate-web-client', 'wemeditate-app-client'])
-    expect(await servicePagesClause(req, 'pages')).toEqual({ or: [WEB, APP] })
+    expect(await servicePagesClause(req, 'pages')).toEqual({
+      tags: { in: ['wisdom', 'technique'] },
+    })
   })
 
   it('adds nothing for another collection, a key in no page project, or a manager', async () => {

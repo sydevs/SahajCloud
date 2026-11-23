@@ -5,7 +5,7 @@ import { extractID } from 'payload/shared'
 import { slugField, publicUrlFields } from '@/fields'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
-import { loadServicePages, pageServiceReasons } from '@/lib/pageServices'
+import { isPagePlaced, loadServicePages } from '@/lib/pageServices'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
@@ -188,10 +188,8 @@ export const Pages: CollectionConfig = {
       // Beyond the factory's publish gate, each link needs its page placed in
       // that service by the service's own configuration — a `webUrl` for a page
       // the website never reads is an address that 404s.
-      exposeWhen: async ({ platform, data, req }) => {
-        const pages = await loadServicePages(req, platform)
-        return pageServiceReasons(data ?? {}, pages).length > 0
-      },
+      exposeWhen: async ({ platform, data, req }) =>
+        isPagePlaced(data ?? {}, await loadServicePages(req, platform)),
     }),
   ],
 }

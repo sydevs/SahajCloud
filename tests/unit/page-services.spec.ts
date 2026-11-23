@@ -3,9 +3,9 @@ import type { FlattenedField, PayloadRequest } from 'payload'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  isPagePlaced,
   loadServicePages,
-  PAGE_SERVICES,
-  pageServiceReasons,
+  PAGE_SERVICE_GLOBALS,
   servicePagesFromConfig,
   servicePagesWhere,
   type ServicePages,
@@ -17,8 +17,6 @@ const field = (f: Record<string, unknown>) => f as unknown as FlattenedField
 
 const FIELDS: FlattenedField[] = [
   field({ name: 'homePage', label: 'Home Page', type: 'relationship', relationTo: 'pages' }),
-  // Unlabelled, as no sanitized field is: the walk falls back to Payload's own
-  // `toWords`.
   field({ name: 'classPages', type: 'relationship', relationTo: 'pages', hasMany: true }),
   field({ name: 'audiences', type: 'relationship', relationTo: 'audiences', hasMany: true }),
   field({
@@ -63,19 +61,13 @@ describe('servicePagesFromConfig', () => {
     pageTags: ['wisdom', 'subtle-system'],
   })
 
-  it('collects every page a page field names, at any depth, with each field that names it', () => {
-    expect(Object.fromEntries(pages.named)).toEqual({
-      1: ['Home Page', 'Target'],
-      2: ['Class Pages'],
-      3: ['Class Pages'],
-      4: ['Link'],
-      6: ['Page'],
-    })
+  it('collects every page a page field names, at any depth', () => {
+    expect([...pages.ids].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 6])
   })
 
   it('ignores relationships to other collections', () => {
-    expect(pages.named.has(99)).toBe(false)
-    expect(pages.named.has(5)).toBe(false)
+    expect(pages.ids.has(99)).toBe(false)
+    expect(pages.ids.has(5)).toBe(false)
   })
 
   it('reads the tag list', () => {
@@ -84,43 +76,54 @@ describe('servicePagesFromConfig', () => {
 
   it('answers an empty set for an unsaved configuration', () => {
     const empty = servicePagesFromConfig(FIELDS, {})
-    expect(empty.named.size).toBe(0)
+    expect(empty.ids.size).toBe(0)
     expect(empty.tags).toEqual([])
   })
 })
 
-describe('pageServiceReasons', () => {
+describe('isPagePlaced', () => {
   const pages = servicePagesFromConfig(FIELDS, { homePage: 1, pageTags: ['wisdom'] })
 
-  it('names the fields first, then the listed tags the page carries', () => {
-    expect(pageServiceReasons({ id: 1, tags: ['wisdom', 'event'] }, pages)).toEqual([
-      'Home Page',
-      'tagged "wisdom"',
-    ])
+  it('places a page a page field names', () => {
+    expect(isPagePlaced({ id: 1, tags: ['event'] }, pages)).toBe(true)
   })
 
-  it('is empty for a page neither named nor tagged with a listed tag', () => {
-    expect(pageServiceReasons({ id: 7, tags: ['event'] }, pages)).toEqual([])
+  it('places a page carrying a listed tag', () => {
+    expect(isPagePlaced({ id: 7, tags: ['event', 'wisdom'] }, pages)).toBe(true)
+  })
+
+  it('refuses a page neither named nor tagged with a listed tag', () => {
+    expect(isPagePlaced({ id: 7, tags: ['event'] }, pages)).toBe(false)
   })
 })
 
 describe('servicePagesWhere', () => {
   it('ORs the named ids with the listed tags', () => {
     const pages = servicePagesFromConfig(FIELDS, { classPages: [2, 3], pageTags: ['wisdom'] })
-    expect(servicePagesWhere(pages)).toEqual({
+    expect(servicePagesWhere([pages])).toEqual({
       or: [{ id: { in: [2, 3] } }, { tags: { in: ['wisdom'] } }],
     })
   })
 
   it('keeps a single clause bare', () => {
     const pages = servicePagesFromConfig(FIELDS, { pageTags: ['wisdom'] })
-    expect(servicePagesWhere(pages)).toEqual({ tags: { in: ['wisdom'] } })
+    expect(servicePagesWhere([pages])).toEqual({ tags: { in: ['wisdom'] } })
+  })
+
+  // Two services are one id list and one tag list, not a clause each: the two
+  // forms match the same pages, and this one sends half the predicates.
+  it('unions several services into one pair of lists', () => {
+    const web = servicePagesFromConfig(FIELDS, { homePage: 1, pageTags: ['wisdom'] })
+    const app = servicePagesFromConfig(FIELDS, { classPages: [1, 9], pageTags: ['technique'] })
+    expect(servicePagesWhere([web, app])).toEqual({
+      or: [{ id: { in: [1, 9] } }, { tags: { in: ['wisdom', 'technique'] } }],
+    })
   })
 
   // The fail-closed direction: an unconfigured website reads no page, rather
   // than every page.
   it('matches nothing for an unconfigured service', () => {
-    expect(servicePagesWhere(servicePagesFromConfig(FIELDS, {}))).toEqual({
+    expect(servicePagesWhere([servicePagesFromConfig(FIELDS, {})])).toEqual({
       id: { exists: false },
     })
   })
@@ -164,7 +167,7 @@ describe('loadServicePages', () => {
       expect.objectContaining({ slug: 'wm-app-config', depth: 0 }),
     )
     results.forEach((r) => expect(r).toBe(results[0]))
-    expect(Object.fromEntries(results[0]!.named)).toEqual({ 1: ['Home Page'] })
+    expect([...results[0]!.ids]).toEqual([1])
   })
 
   // ⚠ The hooks run on a write's response inside its open transaction, and a
@@ -214,7 +217,7 @@ describe('loadServicePages', () => {
 // A page's place moves when its configuration is saved, with no page row
 // written, so each configuration's save must purge the cached page reads.
 it('purges cached page reads on every placing configuration’s save', () => {
-  for (const { slug } of Object.values(PAGE_SERVICES)) {
+  for (const slug of Object.values(PAGE_SERVICE_GLOBALS)) {
     expect(GLOBAL_DEPENDENT_TAGS[slug]).toContain('pages')
   }
 })
