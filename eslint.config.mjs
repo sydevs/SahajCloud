@@ -36,6 +36,14 @@ const eslintConfig = [
       // Unused imports auto-removal
       'unused-imports/no-unused-imports': 'warn',
 
+      // `eslint-config-next` registers jsx-a11y and enables six of its rules,
+      // but not the two that catch a control built out of a `<div onClick>` —
+      // the shape that left a meditation's frames mouse-only (#1221). A row
+      // whose click is a mouse convenience beside a real control disables
+      // these by name, narrowly, with the control it defers to.
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
+
       // Import ordering with alphabetization
       'import/order': [
         'warn',

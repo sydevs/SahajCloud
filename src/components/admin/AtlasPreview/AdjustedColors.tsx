@@ -5,6 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { Banner, Button, useField, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { BRAND_COLOR_LABELS, type BrandColorColumn } from '@/lib/clients/appearance'
 
 import {
@@ -23,7 +24,7 @@ const COLUMNS = Object.keys(BRAND_COLOR_LABELS) as BrandColorColumn[]
  * it adjusted any of them: each colour's light and dark swatch, why it moved,
  * and one action that takes every suggestion.
  */
-export const AdjustedColors: UIFieldClientComponent = () => {
+export const AdjustedColors: UIFieldClientComponent = ({ field }) => {
   const report = useLatestPaletteReport()
   const fields = {
     color1: useField<null | string>({ path: 'color1' }),
@@ -46,7 +47,7 @@ export const AdjustedColors: UIFieldClientComponent = () => {
   const suggestions = swatches.filter((swatch) => swatch.suggested)
 
   return (
-    <div className="field-type">
+    <div className="field-type" style={mergeFieldStyles(field.admin)}>
       <Banner className="atlas-preview__banner" type="info">
         <strong>Colors are being adjusted for visibility</strong>
         <table className="atlas-preview__table">

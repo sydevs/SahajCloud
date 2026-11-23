@@ -5,6 +5,7 @@ import type { UIFieldClientComponent } from 'payload'
 import { FieldLabel, useLivePreviewContext } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { ToggleGroup } from '@/components/admin/ToggleGroupField/ToggleGroup'
 import { originOf } from '@/lib/utilities/url'
 
@@ -25,7 +26,7 @@ const MODES: { label: string; value: Mode }[] = [
  *
  * Stores nothing: the mode is a way of looking at the colours, not a setting.
  */
-export const MapPreviewField: UIFieldClientComponent = () => {
+export const MapPreviewField: UIFieldClientComponent = ({ field }) => {
   const { iframeRef, url } = useLivePreviewContext()
   const [mode, setMode] = useState<Mode>('light')
 
@@ -70,7 +71,7 @@ export const MapPreviewField: UIFieldClientComponent = () => {
   }, [iframeRef, mode, url])
 
   return (
-    <div className="field-type">
+    <div className="field-type" style={mergeFieldStyles(field.admin)}>
       <FieldLabel label="Map Preview" />
       <ToggleGroup
         aria-label="Map Preview"

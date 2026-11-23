@@ -323,7 +323,10 @@ describe('a file’s Transcript panel', () => {
   describe('on the file’s own page', () => {
     const mountFilePanel = async () => {
       const { FileTranscriptField } = await import('@/components/admin/TranscriptPanel')
-      mount(FileTranscriptField, { path: 'transcriptPanel' })
+      mount(FileTranscriptField, {
+        field: { name: 'transcriptPanel', type: 'ui' },
+        path: 'transcriptPanel',
+      })
     }
 
     // The transcript is the point of this page, so it is never folded away.
@@ -379,7 +382,11 @@ describe('a file’s Transcript panel', () => {
   describe('under a Path Step’s upload field', () => {
     const mountUnderField = async () => {
       const { FileTranscriptField } = await import('@/components/admin/TranscriptPanel')
-      mount(FileTranscriptField, { fileField: 'introAudio', path: 'introTranscript' })
+      mount(FileTranscriptField, {
+        field: { name: 'transcriptPanel', type: 'ui' },
+        fileField: 'introAudio',
+        path: 'introTranscript',
+      })
     }
 
     // The step's own save changes nothing about its files' transcripts.

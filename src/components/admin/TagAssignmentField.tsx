@@ -11,6 +11,7 @@ import { FieldLabel, useDocumentDrawer, useField } from '@payloadcms/ui'
 import Link from 'next/link'
 import { useCallback } from 'react'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { TagAssignments } from '@/payload-types'
 
 import { ExternalLinkIcon } from './ExternalLinkIcon'
@@ -60,14 +61,17 @@ const TagPill: React.FC<{ tag: TagAssignments[number] }> = ({ tag }) => {
 }
 
 export const TagAssignmentField: JSONFieldClientComponent = ({ field }) => {
-  const { name, label } = field
+  const { label } = field
   const { value } = useField<TagAssignments>()
 
   const tags = Array.isArray(value) ? value : []
 
   return (
-    <div className="field-type json" style={{ marginBottom: 'calc(var(--base) * 1.25)' }}>
-      <FieldLabel label={label} path={name} />
+    <div
+      className="field-type json"
+      style={{ ...mergeFieldStyles(field.admin), marginBottom: 'calc(var(--base) * 1.25)' }}
+    >
+      <FieldLabel label={label} />
 
       <div style={{ marginTop: 'calc(var(--base) * 0.25)' }}>
         {tags.length === 0 ? (

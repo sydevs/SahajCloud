@@ -1,0 +1,8 @@
+/* The segments sit flush against each other, sharing a 1px divider, so
+   Payload's own 2px outline is drawn over its neighbours. The ring goes inside
+   the chip instead — in the text colour, so it reads on a chosen segment's
+   accent fill and an unchosen one's transparent background alike. */
+.option:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--theme-text);
+}

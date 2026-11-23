@@ -5,6 +5,10 @@ import type { FieldClientComponent, RelationshipFieldClient } from 'payload'
 import { FieldDescription, FieldError, FieldLabel, useField, usePayloadAPI } from '@payloadcms/ui'
 import React, { useMemo } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+import { labelText } from '@/components/admin/helpers/labelText'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 import { TagSelector, type TagOption, type TagSelectorSize } from './TagSelector'
 
 /**
@@ -73,7 +77,7 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     hasMany = false,
     minRows,
     maxRows,
-    admin: { description, className, style, custom } = {},
+    admin: { description, className, custom } = {},
   } = field as RelationshipFieldClient
 
   // Extract size from custom config with type safety
@@ -134,20 +138,11 @@ export const TagSelectorField: FieldClientComponent = ({ field, readOnly }) => {
     .filter(Boolean)
     .join(' ')
 
-  // Generate field ID from path
-  const fieldId = `field-${name.replace(/\./g, '__')}`
-
-  // Generate aria-label for accessibility
-  const ariaLabel =
-    typeof label === 'string'
-      ? label
-      : typeof label === 'object' && label !== null
-        ? label['en'] || Object.values(label)[0] || name
-        : name
+  const ariaLabel = labelText(label, name)
 
   return (
-    <div className={fieldClasses} id={fieldId} style={style}>
-      <FieldLabel label={label} localized={localized} path={name} required={required} />
+    <div className={fieldClasses} id={fieldId(name)} style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} localized={localized} required={required} />
 
       <div className="field-type__wrap">
         <FieldError path={name} showError={showError} />
