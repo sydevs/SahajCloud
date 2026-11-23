@@ -65,10 +65,17 @@ fi
 
 echo
 echo "--- Running tsc --noEmit on migration ---"
-# --ignoreConfig: TypeScript 6 refuses a file named on the command line beside a
-# tsconfig.json (TS5112). TS <6 has no such flag; it is passed bare because
-# package.json pins `typescript` to an exact 6.x (#1200).
-if (cd "$PROJECT_DIR" && pnpm tsc --ignoreConfig --noEmit --target es2022 --module esnext --moduleResolution bundler --skipLibCheck "$MIGRATION" 2>&1 | tee /tmp/migration-validator-tsc.log | grep -qE 'error TS'); then
+# Through a throwaway config extending the project's own, so `paths` (`@/…`)
+# still resolves: `src/migrations/AGENTS.md` sends a data migration to
+# `@/lib/migrations/` (#1251). Naming the file on the command line instead needs
+# `--ignoreConfig` (TS5112), which drops `paths` with the rest of the config.
+# `include: []` keeps the check to this one file; `incremental: false` writes no
+# .tsbuildinfo beside the temp config.
+TSC_CONFIG=$(mktemp "${TMPDIR:-/tmp}/migration-validator-tsconfig.XXXXXX")
+trap 'rm -f "$TSC_CONFIG"' EXIT
+printf '{"extends":"%s","compilerOptions":{"noEmit":true,"incremental":false},"include":[],"files":["%s"]}\n' \
+  "$PROJECT_DIR/tsconfig.json" "$MIGRATION" >"$TSC_CONFIG"
+if (cd "$PROJECT_DIR" && pnpm tsc -p "$TSC_CONFIG" 2>&1 | tee /tmp/migration-validator-tsc.log | grep -qE 'error TS'); then
   fail "TypeScript errors in migration (see output above)"
 else
   pass "TypeScript compiles cleanly"
