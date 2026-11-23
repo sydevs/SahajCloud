@@ -16,7 +16,6 @@ import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let adminId: number
   let asManager: { user: PayloadRequest['user'] }
 
   // Page tags are now inline enum strings
@@ -29,8 +28,6 @@ describe('Pages Collection', () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-    adminId = testEnv.adminUser.id
-    // The sidebar lines are computed for a manager's read only.
     asManager = { user: { ...testEnv.adminUser, collection: 'managers' } as PayloadRequest['user'] }
     // The website takes pages tagged `wisdom`; a case that names a page keeps it.
     await placePages(payload, 'web', { tags: ['wisdom'] })
@@ -609,19 +606,18 @@ describe('Pages Collection', () => {
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
       expect(fetched.webPath).toBeNull()
       expect(fetched.webUrl).toBeNull()
-      expect(fetched.onWebsite).toMatch(/^Not on the website/)
     })
 
-    it('says which configuration field and which tag place the page', async () => {
+    it('gives a website address to a page a configuration field names', async () => {
+      vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
-        title: 'Doubly Placed Page',
-        tags: ['wisdom'],
+        title: 'Named Page',
         _status: 'published',
       })
       await placePages(payload, 'web', { pages: [page.id], tags: ['wisdom'] })
 
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
-      expect(fetched.onWebsite).toBe('Featured Pages, tagged "wisdom"')
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
 
     it('gives an app address to a page the app places by tag', async () => {
@@ -634,29 +630,6 @@ describe('Pages Collection', () => {
 
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
       expect(fetched.appUrl).toBe(`wemeditate://${page.slug}`)
-      expect(fetched.inApp).toBe('tagged "technique"')
-    })
-
-    it('keeps the sidebar lines from an API client', async () => {
-      const page = await testData.createPage(payload, {
-        title: 'Client Read Page',
-        tags: ['wisdom'],
-        _status: 'published',
-      })
-      const client = await testData.createClient(payload, adminId, {
-        roles: ['wemeditate-app-client'],
-      })
-
-      const fetched = await payload.findByID({
-        collection: 'pages',
-        id: page.id,
-        depth: 0,
-        select: { onWebsite: true, inApp: true },
-        user: client,
-        overrideAccess: false,
-      })
-      expect(fetched).not.toHaveProperty('onWebsite')
-      expect(fetched).not.toHaveProperty('inApp')
     })
   })
 })

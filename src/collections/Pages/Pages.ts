@@ -12,14 +12,11 @@ import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { adminOnlyFieldAccess } from '@/plugins/access'
 
-import { serviceFields } from './serviceFields'
 import { buildPageWebPath } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
-  // The sidebar lines read both configurations and only the edit view shows
-  // them, so a populated page never computes them.
-  defaultPopulate: { appUrl: false, onWebsite: false, inApp: false },
+  defaultPopulate: { appUrl: false },
   trash: true,
   admin: {
     group: 'Content',
@@ -122,6 +119,17 @@ export const Pages: CollectionConfig = {
       },
     },
     {
+      // Where each service's configuration places this page, and which one to
+      // name it in. A notice rather than a column: nothing stores it, and
+      // `webUrl` and `appUrl` are what a consumer reads the answer from.
+      name: 'availability',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/PageAvailability' },
+      },
+    },
+    {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).
       // ⚠ Listing someone here also grants them the derived `page-editor` role
@@ -185,6 +193,5 @@ export const Pages: CollectionConfig = {
         return pageServiceReasons(data ?? {}, pages).length > 0
       },
     }),
-    ...serviceFields(),
   ],
 }

@@ -1090,8 +1090,6 @@ export interface Page {
   webPath?: string | null;
   webUrl?: string | null;
   appUrl?: string | null;
-  onWebsite?: string | null;
-  inApp?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -4470,8 +4468,6 @@ export interface PagesSelect<T extends boolean = true> {
   webPath?: T;
   webUrl?: T;
   appUrl?: T;
-  onWebsite?: T;
-  inApp?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -5570,7 +5566,7 @@ export interface WmWebConfig {
    */
   infoPages?: (number | Page)[] | null;
   /**
-   * Published pages carrying any of these tags belong to the website, as well as every page this configuration names. Each page's sidebar says which services it belongs to, and why.
+   * Published pages carrying any of these tags belong to the website, as well as every page this configuration names. Each page says where it is available.
    */
   pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   updatedAt?: string | null;
@@ -6178,7 +6174,7 @@ export interface WmAppConfig {
    */
   liveMeditationsReminderPage?: (number | null) | Page;
   /**
-   * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page's sidebar says which services it belongs to, and why.
+   * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page says where it is available.
    */
   pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**

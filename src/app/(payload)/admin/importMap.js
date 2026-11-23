@@ -23,6 +23,7 @@ import { MetaDescriptionComponent as MetaDescriptionComponent_a8a977ebc872c5d5ea
 import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { default as default_aab4ebf5529acd7d615f7dc8a0ee17ec } from '@/components/admin/LockedSlugField'
+import { default as default_57708b7070f79ed78244c55643c3d123 } from '@/components/admin/PageAvailability'
 import { default as default_4bf3740760c6993814cd4a5b35ee85d0 } from '@/components/admin/LivePreviewNotice'
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
 import { default as default_bc10fee3a76719781454f604d687129b } from '@/components/admin/TagAssignmentField'
@@ -140,6 +141,7 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#MetaImageComponent": MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@/components/admin/LockedSlugField#default": default_aab4ebf5529acd7d615f7dc8a0ee17ec,
+  "@/components/admin/PageAvailability#default": default_57708b7070f79ed78244c55643c3d123,
   "@/components/admin/LivePreviewNotice#default": default_4bf3740760c6993814cd4a5b35ee85d0,
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
   "@/components/admin/TagAssignmentField#default": default_bc10fee3a76719781454f604d687129b,
