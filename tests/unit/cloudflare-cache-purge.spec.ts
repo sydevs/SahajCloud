@@ -121,13 +121,31 @@ describe('cachePlugin global hook attachment (#710)', () => {
         globals: [{ slug: 'wm-web-config', fields: [] }],
       } as unknown as Config).globals!
       const hook = web!.hooks!.afterChange!.at(-1)!
-      await hook({ doc: {}, req: { payload: { logger } } } as never)
+      await hook({ doc: {}, req: { context: {}, payload: { logger } } } as never)
       await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled())
 
       const body = JSON.parse(
         (fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
       )
       expect(body.tags).toEqual(['wm-web-config', 'pages'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  // The preview fixture seeds both configuration globals, and the zone it would
+  // purge is production's.
+  it('purges nothing for a preview fixture write', async () => {
+    configure()
+    const fetchFn = vi.fn(async () => new Response('{"success":true}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchFn)
+    try {
+      const [web] = cachePlugin({
+        globals: [{ slug: 'wm-web-config', fields: [] }],
+      } as unknown as Config).globals!
+      const hook = web!.hooks!.afterChange!.at(-1)!
+      await hook({ doc: {}, req: { context: { fixture: true }, payload: { logger } } } as never)
+      expect(fetchFn).not.toHaveBeenCalled()
     } finally {
       vi.unstubAllGlobals()
     }

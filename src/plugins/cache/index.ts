@@ -74,7 +74,10 @@ export function cachePlugin(config: Config): Config {
       // most here: a client read is published-only and merged with English, so
       // publishing one locale changes what every client sees.
       const afterChange: GlobalAfterChangeHook = ({ doc, req }) => {
-        void purgeCloudflareCache({ tags }, { logger: req.payload.logger })
+        // A preview fixture write purges nothing: the zone's cache is production's.
+        if (!req.context.fixture) {
+          void purgeCloudflareCache({ tags }, { logger: req.payload.logger })
+        }
         return doc
       }
 
