@@ -29,6 +29,11 @@ export const Pages: CollectionConfig = {
       // composer `webPath` publishes, so the panel and the published URL
       // cannot disagree. A page with no slug yet has no address, and lands on
       // the explanation instead of a URL that 404s.
+      //
+      // ⚠ This re-resolves on every autosave, so the ancestor walk is bounded
+      // by the page's own depth rather than reading the whole tree. Do not
+      // swap it for a tree load, as `buildEventWebPath` uses — Events have no
+      // autosave and these pages save themselves every 60 seconds.
       url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: weMeditatePreviewUrl(),
@@ -110,7 +115,9 @@ export const Pages: CollectionConfig = {
         description: 'Where this page is served, as of the last save.',
       },
       hooks: {
-        afterRead: [({ data, req }) => buildPagePath({ slug: data?.slug, parent: data?.parent, req })],
+        afterRead: [
+          ({ data, req }) => buildPagePath({ slug: data?.slug, parent: data?.parent, req }),
+        ],
       },
     },
     {

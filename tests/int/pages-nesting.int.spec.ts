@@ -371,7 +371,7 @@ describe('nested pages', () => {
       // The sixth page already has five ancestors, so a seventh level is one
       // ancestor too many.
       const tooDeep = await publish('nesting-deep-tail')
-      expect(await reparent(tooDeep.id, chain[5]!.id)).toMatch(/no deeper than/)
+      expect(await reparent(tooDeep.id, chain[5]!.id)).toMatch(/at most 5 others/)
     })
 
     it('allows a chain at the ceiling, so the refusal is the depth and not the nesting', async () => {
@@ -403,9 +403,7 @@ describe('nested pages', () => {
   describe('wm-web-config.indexPages', () => {
     /** What the named index field refused with, or `null` when it accepted. */
     const setIndexPage = (field: 'meditations' | 'lectures', pageId: number) =>
-      refusalFor(`indexPages.${field}`, () =>
-        writeWebConfig({ indexPages: { [field]: pageId } }),
-      )
+      refusalFor(`indexPages.${field}`, () => writeWebConfig({ indexPages: { [field]: pageId } }))
 
     it('accepts the page at `meditations`, and refuses any other', async () => {
       const index = await publish('meditations')

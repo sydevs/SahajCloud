@@ -21,9 +21,9 @@ import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
  * must pass that. They are not reliably the same value, and a builder that
  * reached for `req.locale` itself would silently render English in the panel.
  *
- * The ancestor walk lives here because a page's path *is* its ancestry. The
- * `parent` validator reuses {@link pageAncestry} for the same reason: what it
- * must refuse is a chain this composer could not compose.
+ * The ancestor walk lives here because a page's path *is* its ancestry, and the
+ * `parent` validator reuses {@link pageAncestry}: what it must refuse is a chain
+ * this composer could not compose.
  */
 
 /** Locales that take no path prefix: the default, and the all-locales read. */
@@ -49,22 +49,17 @@ export interface PageAncestor {
  * One ancestor row, on its own connection and memoized per request.
  *
  * ⚠ **`overrideAccess`, and `req` is not forwarded.** A page's address must not
- * depend on who reads it. A client's `pages` read is narrowed to the pages its
- * service configuration places, so an ancestor the configuration leaves out
- * reads as absent — and the walk would compose a truncated `path`, `webPath` and
- * `webUrl` for a child that *is* placed, with nothing erroring. The site would
- * then route and advertise that page at the wrong address, canonical, hreflang
- * and sitemap with it.
- *
- * Its own connection also keeps a failed read out of the caller's transaction,
- * which an `afterRead` decorating a write still shares
- * (`src/collections/AGENTS.md`).
+ * depend on who reads it: a client's `pages` read is narrowed, so an ancestor it
+ * may not read would compose a truncated address for a child it may — published
+ * as that page's canonical, with nothing erroring. Its own connection also keeps
+ * a failed read out of the caller's transaction, which an `afterRead` decorating
+ * a write still shares (`src/collections/AGENTS.md`).
  *
  * Only `slug` and `parent` are selected, so none of the ancestor's own computed
  * fields resolve and the walk cannot recurse back into itself.
  *
  * `trash: true` because a trashed row still holds its slug: trashing a section
- * must not silently move the address of every page beneath it.
+ * must not move the address of every page beneath it.
  */
 function loadAncestor(id: number, req: PayloadRequest): Promise<PageAncestor | null> {
   return memoizeOnRequest(req, `pages:ancestor:${id}`, async () => {
@@ -93,11 +88,10 @@ export type AncestryStop = 'depth' | 'loop' | 'missing'
  * `pageId` and every page above it, nearest first.
  *
  * `stopped` is `null` when the walk reached a root, so the chain is the whole
- * ancestry and no longer than {@link PAGE_ANCESTOR_LIMIT}. Otherwise it says
- * which of the three broken shapes it found, because the two callers answer
- * them differently: the composer has no address for any of them, while the
- * `parent` validator refuses a loop and a too-deep chain and leaves a missing
- * row to Payload's own relationship validator.
+ * ancestry and no longer than {@link PAGE_ANCESTOR_LIMIT}. Which broken shape it
+ * found otherwise matters because the callers differ: the composer has no
+ * address for any of them, while the `parent` validator refuses a loop and a
+ * too-deep chain and leaves a missing row to Payload's own validator.
  */
 export async function pageAncestry(
   pageId: number,

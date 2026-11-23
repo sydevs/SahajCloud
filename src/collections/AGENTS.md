@@ -651,6 +651,26 @@ Three consequences, each of which has already bitten:
 Live preview integrates with the We Meditate Web frontend
 (`WEMEDITATE_WEB_URL` env var).
 
+### A page's address is its ancestors' slugs (#1250)
+
+`parent` nests a page, and `src/collections/Pages/webPath.ts` composes the
+address for all three readers — the `path` field, `publicUrlFields`, and the
+live-preview panel. Read that module before changing any of them. Three facts
+it cannot state from inside itself:
+
+- ⚠ **`nestedDocsPlugin` is registered for Regions only, and `pages` must stay
+  out.** It appends `resaveChildren` unconditionally, which cascades on every
+  publish and reads the per-locale `_status` map as a draft — so a parent's save
+  would publish a descendant's pending translation. Regions carry it because
+  Regions have no drafts.
+- **The path is walked per read, not stored**, so no write touches a
+  descendant. Measured on 500 pages with the path selected: 16 ms for a plain
+  column, 36 ms walked, 87 ms in a tree five levels deep with 400 distinct
+  ancestors.
+- **`path` is the unprefixed address the consumer routes by**; `webPath` is the
+  same thing with the locale prefix. They differ for the home page, which is
+  `''` and `null` respectively.
+
 ### Page blocks (`src/lib/richEditor/blocks/`)
 
 Field notes and custom block icons → `src/lib/richEditor/blocks/AGENTS.md`.

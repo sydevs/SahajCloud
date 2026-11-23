@@ -71,7 +71,7 @@ describe('buildPagePath', () => {
     await expect(path('about')).resolves.toBe('about')
   })
 
-  it("is the empty string for the home page, which webPath answers null for", async () => {
+  it('is the empty string for the home page, which webPath answers null for', async () => {
     // The consumer needs the home page's address to be a value rather than an
     // absence: it is the root of the tree every other path hangs under.
     await expect(path('')).resolves.toBe('')

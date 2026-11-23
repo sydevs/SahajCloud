@@ -20,10 +20,10 @@ const parentFilterOptions: RelationshipField['filterOptions'] = async ({ id, req
 
 /**
  * Why this parent cannot be saved, in words an editor can act on, or
- * `undefined` when it is fine.
+ * `undefined` to leave the answer to the composed validator below.
  *
- * Payload's own refusal for all three of these is "invalid selection", which
- * says nothing about which of the page's own relatives it was handed.
+ * Payload refuses every one of these as "invalid selection", which says nothing
+ * about which of the page's own relatives it was handed.
  */
 async function describeRefusal(
   value: unknown,
@@ -40,13 +40,13 @@ async function describeRefusal(
 
   const { chain, stopped } = await pageAncestry(parentId, req)
 
-  // Before `stopped`: a chain that loops back to this page stops as a loop, and
+  // Before `stopped`, because a chain looping back here stops as a loop, and
   // naming the page the editor picked is the more useful answer.
   if (id != null && chain.some((ancestor) => ancestor.id === id)) {
     return `“${chain[0]?.slug ?? parentId}” already sits under this page, so it cannot be its parent.`
   }
   if (stopped === 'depth') {
-    return `Pages may sit no deeper than ${PAGE_ANCESTOR_LIMIT} levels, and this parent is already that deep.`
+    return `A page may sit under at most ${PAGE_ANCESTOR_LIMIT} others, and this parent is already that deep.`
   }
   if (stopped === 'loop') {
     return 'This parent sits in a loop of parents, which has to be broken first.'
@@ -81,12 +81,11 @@ const validateParent: RelationshipFieldValidation = async (value, options) => {
  * Optional: a page with no parent sits at the site root, which is every page
  * until an editor nests one.
  *
- * `nestedDocsPlugin` is deliberately **not** registered on `pages`. It appends
- * `resaveChildren`, `resaveSelfAfterCreate` and `populateBreadcrumbsBeforeChange`
- * unconditionally, and those misfire under `localizeStatus`: `resaveChildren`
- * cascades on every publish, reads a `{locale: status}` map as a draft, and
- * propagates one locale only. Regions carry the plugin because Regions have no
- * drafts.
+ * ⚠ **`nestedDocsPlugin` is not registered on `pages`, and must not be.** It
+ * appends `resaveChildren` unconditionally, which cascades on every publish and
+ * reads a `{locale: status}` map as a draft — so a parent's save would publish
+ * a descendant's pending translation. Regions carry the plugin because Regions
+ * have no drafts.
  */
 export const pageParentField: RelationshipField = {
   name: 'parent',
