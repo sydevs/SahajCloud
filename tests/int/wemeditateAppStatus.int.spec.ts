@@ -469,6 +469,40 @@ describe('WeMeditateAppStatus Global', () => {
       ])
       expect(group.documents[0].checks.every((c) => c.passed)).toBe(true)
     })
+
+    it('names a trashed meditation instead of reporting the slot unset (#1252)', async () => {
+      const trashed = await testData.createMeditation(payload, undefined, {
+        type: 'daily',
+        _status: 'published',
+        locale: 'en',
+      })
+      await payload.updateGlobal({
+        slug: 'wm-app-config',
+        locale: 'en',
+        data: { ...requiredAppConfig, selfRealizationMeditation: trashed.id },
+      })
+      await payload.update({
+        collection: 'meditations',
+        id: trashed.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      try {
+        const report = await run(appConfigSection, payload)
+        const group = report.groups.find((g) => g.key === 'self-realization-meditation')
+        if (group?.type !== 'documents') throw new Error('self-realization-meditation is not a documents group')
+        const row = group.documents[0]
+        expect(row.id).toBe('missing:selfRealizationMeditation')
+        expect(row.label).toBe(`Meditation ${trashed.id} not found`)
+        expect(row.checks.every((c) => !c.passed)).toBe(true)
+      } finally {
+        await payload.updateGlobal({
+          slug: 'wm-app-config',
+          locale: 'en',
+          data: { ...requiredAppConfig, selfRealizationMeditation: null },
+        })
+      }
+    })
   })
 
   // --- Section 6 — Translations ---
