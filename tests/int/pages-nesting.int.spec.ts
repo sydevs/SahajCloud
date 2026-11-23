@@ -372,7 +372,7 @@ describe('nested pages', () => {
     it('keeps a child saveable after its parent is trashed', async () => {
       // `validateFilterOptions` re-runs on every save, and its own find passes
       // no `trash: true` — so a trashed parent reads as an invalid selection and
-      // the child cannot be saved at all. `loadAncestor` passes the flag
+      // the child cannot be saved at all. The ancestor walk passes the flag
       // deliberately, so the two must agree.
       const [section, child] = await chainOf('nesting-trashed', 2)
       await payload.update({

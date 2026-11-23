@@ -65,43 +65,6 @@ interface PageAncestor {
 type AncestryStop = 'depth' | 'loop' | 'missing'
 
 /**
- * One ancestor row, on its own connection and memoized per request.
- *
- * ⚠ **`overrideAccess`, and `req` is not forwarded.** A page's address must not
- * depend on who reads it: a client's `pages` read is narrowed, so an ancestor it
- * may not read would compose a truncated address for a child it may. Its own
- * connection also keeps a failed read out of the caller's transaction, which an
- * `afterRead` decorating a write still shares (`src/collections/AGENTS.md`).
- *
- * Keyed on the id alone, which is sound only because `req` is not forwarded:
- * the nested read runs at the default locale, and `slug` is not localized.
- *
- * The narrow `select` is what stops the walk recursing back into itself.
- *
- * `trash: true` because a trashed row still holds its slug: trashing a section
- * must not move the address of every page beneath it.
- */
-function loadAncestor(id: number, req: PayloadRequest): Promise<PageAncestor | null> {
-  return memoizeOnRequest(req, `pages:ancestor:${id}`, async () => {
-    const row = await req.payload.findByID({
-      collection: 'pages',
-      id,
-      depth: 0,
-      select: { slug: true, parent: true },
-      overrideAccess: true,
-      disableErrors: true,
-      trash: true,
-    })
-    if (!row) return null
-    return {
-      id,
-      slug: typeof row.slug === 'string' ? row.slug : null,
-      parent: relationId(row.parent),
-    }
-  })
-}
-
-/**
  * `pageId` and every page above it, nearest first.
  *
  * `stopped` is `null` when the walk reached a root, so the chain is the whole
@@ -123,10 +86,34 @@ export async function pageAncestry(
     // limit rather than one over it.
     if (chain.length >= PAGE_ANCESTOR_LIMIT) return { chain, stopped: 'depth' }
     seen.add(next)
-    const row = await loadAncestor(next, req)
+
+    // ⚠ **`overrideAccess`, and `req` is not forwarded.** A page's address must
+    // not depend on who reads it: a client's `pages` read is narrowed, so an
+    // ancestor it may not read would compose a truncated address for a child it
+    // may. Its own connection also keeps a failed read out of the caller's
+    // transaction, which an `afterRead` decorating a write still shares
+    // (`src/collections/AGENTS.md`). That is also what makes the id alone a
+    // sound memo key: the read runs at the default locale, and `slug` is not
+    // localized. The narrow `select` is what stops the walk recursing back into
+    // itself. `trash: true` because a trashed row still holds its slug —
+    // trashing a section must not move the address of every page beneath it.
+    const id: number = next
+    const row = await memoizeOnRequest(req, `pages:ancestor:${id}`, () =>
+      req.payload.findByID({
+        collection: 'pages',
+        id,
+        depth: 0,
+        select: { slug: true, parent: true },
+        overrideAccess: true,
+        disableErrors: true,
+        trash: true,
+      }),
+    )
     if (!row) return { chain, stopped: 'missing' }
-    chain.push(row)
-    next = row.parent
+
+    const parent = relationId(row.parent)
+    chain.push({ id, slug: row.slug ?? null, parent })
+    next = parent
   }
 
   return { chain, stopped: null }
