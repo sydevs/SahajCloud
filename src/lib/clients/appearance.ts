@@ -17,10 +17,6 @@
  *
  * ⚠ Mirrors `DEFAULT_SEEDS` in SahajAtlasWeb's `src/config/theme/palette.ts`,
  * where `color3` themes the `contrast` role. Change both together.
- *
- * An unbranded atlas paints its map from these by the rules a service's own
- * colours follow: `color1`'s green fills the pins and, one tone deeper, the
- * cluster circles; `color3`'s coral fills the selected class.
  */
 export const ATLAS_DEFAULT_COLORS = {
   color1: '#2D9A76',
