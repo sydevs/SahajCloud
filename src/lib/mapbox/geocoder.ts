@@ -204,30 +204,19 @@ const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
   postcode: 'postcode',
 }
 
-/** The v6 structured query for one lookup. */
+/** The v6 structured query for one lookup: its own fields, blanks skipped. */
 function lookupUrl(args: GeocodeLocationArgs, token: string): string {
   const params = baseParams(LOOKUP_TYPES[args.kind], args.countryCode, token)
-  for (const [key, value] of Object.entries(queryFields(args))) {
+  const fields: Record<string, null | string | undefined> = {
+    address_line1: args.kind === 'address' ? args.address : null,
+    postcode: 'postcode' in args ? args.postcode : null,
+    place: 'city' in args ? args.city : null,
+    region: args.region,
+  }
+  for (const [key, value] of Object.entries(fields)) {
     if (value?.trim()) params.set(key, value.trim())
   }
   return `${GEOCODE_URL}?${params.toString()}`
-}
-
-/** The v6 fields a lookup sends, by name. */
-function queryFields(args: GeocodeLocationArgs): Record<string, null | string | undefined> {
-  switch (args.kind) {
-    case 'address':
-      return {
-        address_line1: args.address,
-        postcode: args.postcode,
-        place: args.city,
-        region: args.region,
-      }
-    case 'place':
-      return { place: args.city, region: args.region }
-    case 'postcode':
-      return { postcode: args.postcode, region: args.region }
-  }
 }
 
 /**
