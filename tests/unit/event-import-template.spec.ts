@@ -48,6 +48,13 @@ describe('the import template reads as an upload of it does', () => {
     expect(isTemplateHelpRow([...retyped.slice(0, -1), 'Something we never wrote'])).toBe(false)
   })
 
+  it('knows its help row whatever punctuation in it has been re-typed', () => {
+    const retyped = Object.values(parsed()[0]!).map((cell) =>
+      String(cell).replace(/[.,:—-]/g, (mark) => (mark === ',' ? ';' : '·')),
+    )
+    expect(isTemplateHelpRow(retyped)).toBe(true)
+  })
+
   /**
    * The example row is reported rather than skipped, so a volunteer who leaves
    * it in is told to replace it. That one error is the only one it may carry:

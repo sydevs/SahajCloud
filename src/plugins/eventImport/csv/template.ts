@@ -34,17 +34,16 @@ const HELP_TEXTS = IMPORT_COLUMNS.map(
   ({ requirement, help }) => `${REQUIREMENT_PREFIX[requirement]}${help}`,
 )
 /**
- * A help cell as compared. ⚠ **Spreadsheets and the tools around them re-type
- * punctuation**: one em dash saved back as a hyphen left a Karnataka file's help
- * row unrecognised, and it was read as a class with twelve errors.
+ * A help cell as compared, with its punctuation dropped rather than listed. ⚠
+ * **Spreadsheets and the tools around them re-type punctuation**: one em dash
+ * saved back as a hyphen left a Karnataka file's help row unrecognised, and it
+ * was read as a class with twelve errors.
  */
 function helpKey(text: string): string {
   return text
     .normalize('NFKC')
-    .replace(/[\u2010-\u2015\u2212]/g, '-')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
 }
 
@@ -87,7 +86,7 @@ export function skippedRowsCsv(
  * ⚠ **Matched on our own help strings, not on a leading `#`.** A `#` is how a
  * real class can start (`#1 Beginners Class`, `#204-1234 Main St`), and
  * skipping on it dropped those rows without a word. Every filled cell must be
- * one of the strings we wrote, in any order and with any dash or quote, so a
+ * one of the strings we wrote, in any order and whatever its punctuation, so a
  * reordered sheet still matches and a help row from an older template falls
  * through to visible row errors.
  */
