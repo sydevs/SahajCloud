@@ -141,8 +141,7 @@ async function slugAllocator(
 ): Promise<(city: PendingCity) => string> {
   const candidatesOf = (city: PendingCity) => {
     const base = slugifyValue(city.name) || 'city'
-    const qualified = `${base}-${slugifyValue(city.parentName) || 'city'}`
-    return [base, qualified, ...[2, 3, 4, 5].map((n) => `${qualified}-${n}`)]
+    return [base, `${base}-${slugifyValue(city.parentName) || 'city'}`]
   }
   const taken = new Set(
     (await regionsWhere(req, { slug: { in: cities.flatMap(candidatesOf) } })).map(
@@ -151,8 +150,10 @@ async function slugAllocator(
   )
   return (city) => {
     const candidates = candidatesOf(city)
-    const slug =
-      candidates.find((candidate) => !taken.has(candidate)) ?? `${candidates[1]}-${Date.now()}`
+    // shortcut: two namesakes under one parent in one run repeat a slug, and
+    // the second's create is refused as "create it first". Ladder it if that
+    // ever happens.
+    const slug = candidates.find((candidate) => !taken.has(candidate)) ?? candidates[1]
     taken.add(slug)
     return slug
   }
