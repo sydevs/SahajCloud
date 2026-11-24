@@ -72,25 +72,14 @@ function inListParams(filterField: string, queryParam: string, extra?: string): 
  * `sanitizeSortParams`).
  */
 function userChoiceParams(siblingData: Record<string, unknown>): string | null {
-  const raw = siblingData.userChoiceTypeFilters
-  const types = (Array.isArray(raw) ? raw : []).filter(
-    (value): value is string => typeof value === 'string' && value.length > 0,
-  )
-  if (types.length === 0) return null
-
   const option = USER_CHOICE_FEATURED.find(({ value }) => value === siblingData.userChoiceFeatured)
   if (!option) return null
 
-  const kinds = types.map((type) => encodeURIComponent(type)).join(',')
-
-  return [
-    `where[type][in]=${kinds}`,
-    option.where,
-    'where[isParent][equals]=false',
-    'sort=order,id',
-  ]
+  const extra = [option.where, 'where[isParent][equals]=false', 'sort=order,id']
     .filter(Boolean)
     .join('&')
+
+  return inListParams('userChoiceTypeFilters', 'where[type][in]', extra)(siblingData)
 }
 
 /**
