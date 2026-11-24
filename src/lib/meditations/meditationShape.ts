@@ -16,8 +16,8 @@ import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
  *
  * Each virtual field's `afterRead` reads a sibling an include-mode `select`
  * would otherwise strip first: `duration` feeds `durationMinutes`, and
- * `subtleSystemNodeWeights` feeds `title` and `titleNode`. Each field declares that input on
- * itself, and `virtualFieldsPlugin` puts it back for any caller (#1084), so
+ * `subtleSystemNodeWeights` feeds `title` and `titleNode`. Each field declares
+ * that input on itself, and `virtualFieldsPlugin` puts it back for any caller (#1084), so
  * naming them here no longer carries that on its own — `scoreMeditationByNodes`
  * in `/api/lectures/:id/related-meditations` reads the weights itself, which is
  * what still earns `subtleSystemNodeWeights` its place.

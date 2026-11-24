@@ -251,8 +251,7 @@ describe('seeds/wm-web-translations/data.en.json', () => {
    */
   it('declares one meditation node key per SUBTLE_SYSTEM_NODE_OPTIONS entry', () => {
     const general = (schema.properties.meditation?.properties ?? {})['general'] as
-      | SchemaNode
-      | undefined
+      SchemaNode | undefined
     const declared = Object.entries(general?.properties ?? {})
       .filter(([key]) => key.startsWith('node_'))
       .map(([key, prop]) => ({
@@ -262,9 +261,10 @@ describe('seeds/wm-web-translations/data.en.json', () => {
       .sort((a, b) => a.value.localeCompare(b.value))
 
     expect(declared).toEqual(
-      SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => ({ value: option.value, label: option.label })).sort(
-        (a, b) => a.value.localeCompare(b.value),
-      ),
+      SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+      })).sort((a, b) => a.value.localeCompare(b.value)),
     )
   })
 })

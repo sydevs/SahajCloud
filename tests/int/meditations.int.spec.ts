@@ -458,15 +458,16 @@ describe('Meditations Collection', () => {
   })
 
   /**
-   * `durationMinutes` is computed from `duration` and `title` from
-   * `subtleSystemNodeWeights`, and an include-mode `select` strips both before
-   * the afterRead field hooks run. An API client must send a `select`
-   * (`docs/rules/api-clients.md`), so without the `beforeOperation` declaration
-   * `?select[durationMinutes]=true` answered null for every meditation (#1084).
-   * `MEDITATION_CARD_SELECT` compensates by hand; an external caller cannot.
+   * `durationMinutes` is computed from `duration`, and `title` / `titleNode`
+   * from `subtleSystemNodeWeights`, and an include-mode `select` strips those
+   * inputs before the afterRead field hooks run. An API client must send a
+   * `select` (`docs/rules/api-clients.md`), so without the `beforeOperation`
+   * declaration `?select[durationMinutes]=true` answered null for every
+   * meditation (#1084). `MEDITATION_CARD_SELECT` compensates by hand; an
+   * external caller cannot.
    */
   describe('the computed fields survive a select', () => {
-    it('answers the same durationMinutes and title as a read selecting nothing', async () => {
+    it('answers the same durationMinutes, title and titleNode as a read selecting nothing', async () => {
       // `anahat`, not the `pingala` the case above already created — the slug
       // is unique and both nodes live in this file's one environment.
       const node = await testData.createSubtleSystemNode(payload, {}, { slug: 'anahat' })
@@ -483,13 +484,21 @@ describe('Meditations Collection', () => {
         locale: 'en',
       })
 
-      const [whole, selected] = await Promise.all([
+      const [whole, selected, nodeOnly] = await Promise.all([
         payload.findByID({ collection: 'meditations', id: created.id, locale: 'en' }),
         payload.findByID({
           collection: 'meditations',
           id: created.id,
           locale: 'en',
           select: { durationMinutes: true, title: true },
+        }),
+        // Named alone, the way a consumer composing its own localized name asks
+        // for it — nothing else in the select puts its input back.
+        payload.findByID({
+          collection: 'meditations',
+          id: created.id,
+          locale: 'en',
+          select: { titleNode: true },
         }),
       ])
 
@@ -499,6 +508,8 @@ describe('Meditations Collection', () => {
       expect(selected.durationMinutes).toBe(1)
       expect(selected.title).toBe(whole.title)
       expect(selected.title).toBe('Meditation for Anahat')
+      expect(nodeOnly.titleNode).toBe(whole.titleNode)
+      expect(nodeOnly.titleNode).toBe('anahat')
     })
   })
 
