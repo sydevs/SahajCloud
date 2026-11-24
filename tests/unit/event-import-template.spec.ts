@@ -38,6 +38,16 @@ describe('the import template reads as an upload of it does', () => {
     expect(exampleRow().title).toBe('Tuesday Evening Meditation')
   })
 
+  it('still knows its help row once a dash or quote in it has been re-typed', () => {
+    // A Karnataka file arrived with the em dash in contactName's help saved as a hyphen.
+    const retyped = Object.values(parsed()[0]!).map((cell) =>
+      String(cell).replace(/—/g, '-').replace(/"/g, '“'),
+    )
+    expect(retyped.join('')).not.toContain('—')
+    expect(isTemplateHelpRow(retyped)).toBe(true)
+    expect(isTemplateHelpRow([...retyped.slice(0, -1), 'Something we never wrote'])).toBe(false)
+  })
+
   /**
    * The example row is reported rather than skipped, so a volunteer who leaves
    * it in is told to replace it. That one error is the only one it may carry:

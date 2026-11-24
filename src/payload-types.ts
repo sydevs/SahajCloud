@@ -50,6 +50,19 @@ export type EventImportResults = {
     name: string;
   };
 }[];
+export type EventImportCreatedRegions = {
+  regionId: number;
+  /**
+   * Mapbox’s name for the town, as the region was created.
+   */
+  name: string;
+  parentId: number;
+  parentName: string;
+  /**
+   * The spreadsheet lines whose town it is.
+   */
+  rows: number[];
+}[];
 export type EventImportRows =
   | {
       /**
@@ -2012,7 +2025,7 @@ export interface Event {
 export interface Import {
   id: number;
   /**
-   * Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.
+   * Classes are filed under the cities of this region. A town with no city region yet gets one, listed on the import once it has run.
    */
   targetRegion?: (number | null) | Region;
   /**
@@ -2020,6 +2033,7 @@ export interface Import {
    */
   error?: string | null;
   results?: EventImportResults;
+  createdRegions?: EventImportCreatedRegions;
   rows?: EventImportRows;
   status?: ('pending' | 'review' | 'completed' | 'failed') | null;
   /**
@@ -5249,6 +5263,7 @@ export interface ImportsSelect<T extends boolean = true> {
   targetRegion?: T;
   error?: T;
   results?: T;
+  createdRegions?: T;
   rows?: T;
   status?: T;
   defaultLanguages?: T;

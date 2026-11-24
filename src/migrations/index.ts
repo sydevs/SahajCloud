@@ -8,6 +8,7 @@ import * as migration_20261119_044129_tidy_event_form from './20261119_044129_ti
 import * as migration_20261119_223756_merge_snapshot_heal from './20261119_223756_merge_snapshot_heal';
 import * as migration_20261121_035055_wm_web_drop_a11y_groups from './20261121_035055_wm_web_drop_a11y_groups';
 import * as migration_20261121_035100_atlas_drop_a11y_keys from './20261121_035100_atlas_drop_a11y_keys';
+import * as migration_20261124_042718_import_created_regions from './20261124_042718_import_created_regions';
 
 export const migrations = [
   {
@@ -59,5 +60,10 @@ export const migrations = [
     up: migration_20261121_035100_atlas_drop_a11y_keys.up,
     down: migration_20261121_035100_atlas_drop_a11y_keys.down,
     name: '20261121_035100_atlas_drop_a11y_keys',
+  },
+  {
+    up: migration_20261124_042718_import_created_regions.up,
+    down: migration_20261124_042718_import_created_regions.down,
+    name: '20261124_042718_import_created_regions'
   },
 ];

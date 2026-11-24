@@ -26,7 +26,7 @@ import { hydrateLocalizedRoles } from '@/plugins/access'
 import { IMPORT_TASK } from './constants'
 import { failImport, finishImport } from './finish'
 import { prepareRows } from './prepare'
-import { cityIndex, loadTarget } from './regions'
+import { cityIndex, loadTarget, stateIndex } from './regions'
 import { importWriteContext } from './run'
 import { reasonsOf } from './validate'
 
@@ -102,6 +102,9 @@ async function startRun(req: PayloadRequest, batch: Import) {
     created: [],
     skipped: [],
     cities: await cityIndex(req, target.id),
+    states: await stateIndex(req, target),
+    createdRegions: [],
+    towns: new Map(),
     claimed: new Map(),
   }
   return { run, rows: batch.rows ?? [] }

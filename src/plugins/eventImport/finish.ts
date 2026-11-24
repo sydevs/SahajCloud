@@ -54,6 +54,7 @@ function writeOutcome(
   return markImport(req, run.importId, {
     ...data,
     results: buildResults(run.created, run.skipped),
+    createdRegions: run.createdRegions,
     rows: null,
   })
 }

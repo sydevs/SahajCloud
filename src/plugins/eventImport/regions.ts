@@ -2,9 +2,8 @@
  * The region reads an import makes: the target, and the cities beneath it a
  * row may be filed under.
  *
- * ⚠ **The import creates no regions.** A row whose town has no city region
- * under the target is skipped with a sentence saying so; the volunteer creates
- * the city in Regions and uploads the skipped lines again.
+ * A row whose town has no city region under the target gets one, created by
+ * the run (`cities.ts`).
  *
  * Every read elevates past access: the uploader's right to the target was
  * settled by `targetRegion.ts` at the create, and the job runs with no user.
@@ -61,4 +60,31 @@ export async function cityIndex(
     req,
   })
   return new Map((docs as Region[]).map((region) => [region.mapboxId, region.id]))
+}
+
+/**
+ * The state regions under a country target, by the Mapbox id each holds, so a
+ * created city is filed under its state where the Atlas has one. Empty for any
+ * other target: a region target is the state, and a city target creates nothing.
+ */
+export async function stateIndex(
+  req: PayloadRequest,
+  target: ImportTarget,
+): Promise<Map<string, { id: number; name: string }>> {
+  if (target.level !== 'country') return new Map()
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    where: { and: [{ level: { equals: 'region' } }, { 'breadcrumbs.doc': { equals: target.id } }] },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { mapboxId: true, name: true, slug: true },
+    req,
+  })
+  return new Map(
+    (docs as Region[]).map((region) => [
+      region.mapboxId,
+      { id: region.id, name: region.name?.trim() || region.slug },
+    ]),
+  )
 }

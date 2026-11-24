@@ -1,14 +1,20 @@
-import type { JSONFieldServerComponent } from 'payload'
+import type { JSONFieldServerComponent, PayloadRequest } from 'payload'
 
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Manager } from '@/payload-types'
+import type { Manager, Region } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
+import type { CreatedRegion } from '@/plugins/eventImport/run'
 
-import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
+import {
+  type RegionResultRow,
+  type ResultRow,
+  type ResultStatus,
+  ImportResultsTable,
+} from './ImportResultsTable'
 import { csvScheduleSummary, liveScheduleSummary } from './scheduleSummary'
 import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
@@ -22,7 +28,8 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
 
 /**
  * The import's result, one line per CSV row, with each created class's live
- * status: it may have been published or cleaned up since the import ran.
+ * status: it may have been published or cleaned up since the import ran — and,
+ * above them, the city regions the run created for those classes.
  *
  * ⚠ **Read past access, on purpose.** Only admins and the managers of the
  * target region can open an import, and these are the classes it created there
@@ -44,10 +51,15 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
 }) => {
   const importId = Number(id)
   const stored = Number.isInteger(importId)
-    ? await readAsRequestUser(req, 'imports', importId, { results: true, targetRegion: true })
+    ? await readAsRequestUser(req, 'imports', importId, {
+        results: true,
+        createdRegions: true,
+        targetRegion: true,
+      })
     : null
   if (!stored) return null
   const results = (stored.results ?? []) as ImportResultRow[]
+  const createdRegions = (stored.createdRegions ?? []) as CreatedRegion[]
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
@@ -69,6 +81,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           select: {
             title: true,
             eventType: true,
+            region: true,
             address: { mapboxId: true },
             _status: true,
             createdAt: true,
@@ -91,7 +104,8 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
               exclusions: true,
             },
           },
-          populate: { managers: { name: true, email: true } },
+          // `region` only to count the classes in each city the run created.
+          populate: { managers: { name: true, email: true }, regions: { name: true } },
           req: localeIsolatedReq(req),
         }),
         // When each created class was first published: its earliest published version.
@@ -170,6 +184,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   })
 
   const skipped = results.filter(({ outcome }) => outcome !== 'created')
+  const regions = await regionRows(req, createdRegions, events.docs)
 
   return (
     <ImportResultsTable
@@ -190,9 +205,43 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       label={clientField.label}
       style={mergeFieldStyles(clientField.admin)}
       path={path}
+      regions={regions}
       rows={rows}
     />
   )
+}
+
+/**
+ * Each city region the run created, as it stands now: it may have been renamed
+ * or deleted since, and its classes published or cleaned up. Past access for
+ * the reason the classes are (above): these are the regions this import made.
+ */
+async function regionRows(
+  req: PayloadRequest,
+  created: readonly CreatedRegion[],
+  events: readonly { region?: unknown }[],
+): Promise<RegionResultRow[]> {
+  if (!created.length) return []
+  const { docs } = await req.payload.find({
+    collection: 'regions',
+    where: { id: { in: created.map(({ regionId }) => regionId) } },
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+    select: { name: true },
+    req: localeIsolatedReq(req),
+  })
+  const live = new Map((docs as Region[]).map((region) => [region.id, region]))
+  return created.map(({ regionId, name, parentName }) => {
+    const region = live.get(regionId)
+    return {
+      id: regionId,
+      name: region?.name || name,
+      parentName,
+      classes: events.filter((event) => relationId(event.region as never) === regionId).length,
+      removed: !region,
+    }
+  })
 }
 
 /**

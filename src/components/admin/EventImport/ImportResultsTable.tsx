@@ -50,11 +50,24 @@ export interface ResultRow {
   missingCity?: { name: string }
 }
 
+/** A city region the import created, as it stands now. */
+export interface RegionResultRow {
+  id: number
+  name: string
+  /** The region it was filed under. */
+  parentName: string
+  /** The import's classes held in it now. */
+  classes: number
+  /** Deleted since the import. */
+  removed: boolean
+}
+
 /** The end of the missing-city refusal, which the page turns into a link. */
 const CREATE_IT = 'create it first'
 
 /** Why an approximately placed class takes no checkbox. */
-const APPROXIMATE = 'Placed at the street, not the building — open the class and check the map pin'
+const APPROXIMATE =
+  'Placed near the address, not at the building — open the class and check the map pin'
 
 const CONFIRM_MODAL = 'event-import-confirm'
 
@@ -97,13 +110,15 @@ export const ImportResultsTable: React.FC<{
   importId: number | string
   label: StaticLabel | undefined
   path: string
+  /** The city regions the run created, listed above the classes. */
+  regions: RegionResultRow[]
   rows: ResultRow[]
   /** The skipped rows as a file to fix and upload again, or null for none. */
   skippedCsv: null | string
   /** The field's merged styles: this component owns the `field-type` root. */
   style: CSSProperties
   targetId: null | number
-}> = ({ description, importId, label, path, rows, skippedCsv, style, targetId }) => {
+}> = ({ description, importId, label, path, regions, rows, skippedCsv, style, targetId }) => {
   const { config } = useConfig()
   const locale = useLocale()
   const { i18n } = useTranslation()
@@ -126,6 +141,7 @@ export const ImportResultsTable: React.FC<{
 
   const eventDrawer = useDrawerLink('events')
   const managerDrawer = useDrawerLink('managers')
+  const regionDrawer = useDrawerLink('regions')
   // A create drawer for the city region a skipped row needed, under the target.
   // The location is left for the volunteer to search: the field shows a bare
   // Mapbox id as its label, and searching the name lands on the same place.
@@ -239,6 +255,49 @@ export const ImportResultsTable: React.FC<{
 
   return (
     <div className="field-type event-import__results" style={style}>
+      {regions.length > 0 && (
+        <div className="event-import__regions">
+          <FieldLabel label="New City Regions" />
+          <StackedTable
+            appearance="condensed"
+            columns={[
+              {
+                accessor: 'name',
+                cells: regions.map(({ id, name, removed }) =>
+                  removed ? name : link(() => regionDrawer.open(id), name),
+                ),
+                heading: 'City',
+              },
+              {
+                accessor: 'parent',
+                cells: regions.map(({ parentName }) => parentName),
+                heading: 'Filed under',
+              },
+              {
+                accessor: 'classes',
+                cells: regions.map(({ classes }) =>
+                  classes === 1 ? '1 class' : `${classes} classes`,
+                ),
+                heading: 'Classes',
+              },
+              {
+                accessor: 'status',
+                cells: regions.map(({ removed }) =>
+                  removed ? 'Deleted after the import' : 'Created by this import',
+                ),
+                heading: 'Status',
+              },
+            ]}
+            rows={regions.map(({ id, removed }) => ({
+              id: `${removed ? 'removed' : 'region'}-${id}`,
+            }))}
+          />
+          <FieldDescription
+            description="Named as Mapbox names the town. Rename one, or delete it once its classes are gone, from its own page."
+            path={`${path}.regions`}
+          />
+        </div>
+      )}
       <div className="event-import__results-header">
         <FieldLabel label={label} />
         <div className="event-import__results-actions">
@@ -321,6 +380,7 @@ export const ImportResultsTable: React.FC<{
       <FieldDescription description={description} path={path} />
       <eventDrawer.Drawer onDelete={refresh} onSave={refresh} />
       <managerDrawer.Drawer onSave={refresh} />
+      <regionDrawer.Drawer onDelete={refresh} onSave={refresh} />
       <RegionDrawer
         initialData={newCity}
         onSave={() => {
@@ -332,7 +392,7 @@ export const ImportResultsTable: React.FC<{
         body={
           publishing
             ? `Publish ${classes(toPublish.length)}? They appear in the Atlas straight away.`
-            : `Delete ${classes(toDelete.length)} that ${toDelete.length === 1 ? 'is' : 'are'} not ticked, including any placed only at the street? This cannot be undone.`
+            : `Delete ${classes(toDelete.length)} that ${toDelete.length === 1 ? 'is' : 'are'} not ticked, including any placed only near the address? This cannot be undone.`
         }
         confirmLabel={
           publishing ? `Publish (${toPublish.length})` : `Clean Up (${toDelete.length})`

@@ -5,7 +5,8 @@
  *
  * `geocodeLocation` is the one function mocked: every town the fixtures name
  * resolves to a place id, and a city region holding that id is what a row is
- * filed under.
+ * filed under. A town in `geocoder.towns` also carries its state and country,
+ * which decide whether the run may create a city region for it.
  */
 
 import type { Payload, TaskConfig } from 'payload'
@@ -33,6 +34,8 @@ const geocoder = vi.hoisted(() => ({
   outcome: null as GeocodeOutcome | null,
   /** Overrides the match level, to stand for an address Mapbox placed only at the street. */
   featureType: 'address',
+  /** Per town: what Mapbox calls it, and the state and country it lies in. */
+  towns: {} as Record<string, { name?: string; stateId?: string; countryId: string }>,
 }))
 
 /**
@@ -56,13 +59,19 @@ vi.mock('@/lib/mapbox/geocoder', async (importOriginal) => ({
 
 function locationFor(city: string, address: string): GeocodedLocation {
   const slug = city.toLowerCase().replace(/\W+/g, '-')
+  const town = geocoder.towns[city]
   return {
     mapboxId: `addr.${slug}.${address.toLowerCase().replace(/\W+/g, '-')}`,
     featureType: geocoder.featureType,
     latitude: 52.5 + slug.length / 100,
     longitude: 13.4 + address.length / 100,
-    placeName: city,
+    placeName: town?.name ?? city,
     placeId: `place.${slug}`,
+    postcode: null,
+    stateId: town?.stateId ?? null,
+    countryId: town?.countryId ?? 'country.de',
+    matchCode: null,
+    fullAddress: null,
   }
 }
 
@@ -583,6 +592,163 @@ describe('class imports', () => {
       } finally {
         geocoder.outcome = null
       }
+    })
+  })
+
+  describe('the city regions a run creates', () => {
+    let india: number
+    let karnataka: number
+
+    beforeAll(async () => {
+      india = (
+        await testData.createRegion(payload, {
+          name: 'India',
+          slug: 'india-import',
+          level: 'country',
+          mapboxId: 'country.in',
+        })
+      ).id
+      karnataka = (
+        await testData.createRegion(payload, {
+          name: 'Karnataka',
+          slug: 'karnataka-import',
+          level: 'region',
+          parent: india,
+          mapboxId: 'state.ka',
+        })
+      ).id
+      const inKarnataka = { stateId: 'state.ka', countryId: 'country.in' }
+      geocoder.towns = {
+        Mysuru: { name: 'Mysore', ...inKarnataka },
+        Hubballi: inKarnataka,
+        Hampi: inKarnataka,
+        Bidar: inKarnataka,
+        Kochi: { stateId: 'state.kl', countryId: 'country.in' },
+        Panaji: { stateId: 'state.ga', countryId: 'country.in' },
+      }
+    })
+
+    afterAll(() => {
+      geocoder.towns = {}
+    })
+
+    const indianLine = (cells: Record<string, string>) =>
+      classLine({ country: 'IN', address: 'Temple Road 1', ...cells })
+
+    const cityHolding = async (placeId: string) => {
+      const { docs } = await payload.find({
+        collection: 'regions',
+        where: { mapboxId: { equals: placeId } },
+        depth: 0,
+      })
+      return docs[0]
+    }
+
+    it('creates the city a town needs once, as Mapbox names it, and lists it', async () => {
+      const created = await createImport(
+        [
+          indianLine({ title: 'Mysore one', city: 'Mysuru', startTime: '07:01' }),
+          indianLine({ title: 'Mysore two', city: 'Mysuru', startTime: '07:02' }),
+        ],
+        admin,
+        { targetRegion: karnataka },
+      )
+      await run(created.id)
+
+      const city = await cityHolding('place.mysuru')
+      expect(city).toMatchObject({ name: 'Mysore', level: 'city', slug: 'mysore' })
+      expect(relationId(city!.parent)).toBe(karnataka)
+      const after = await read(created.id)
+      expect(after.status).toBe('review')
+      expect(after.createdRegions).toEqual([
+        {
+          regionId: city!.id,
+          name: 'Mysore',
+          parentId: karnataka,
+          parentName: 'Karnataka',
+          rows: [2, 3],
+        },
+      ])
+      const { docs } = await importedClasses(created.id)
+      expect(docs.map((event) => relationId(event.region))).toEqual([city!.id, city!.id])
+
+      // Listed on the import page beside its classes, as it stands now.
+      const rendered = (await renderResults({
+        clientField: { label: 'Results' },
+        id: created.id,
+        path: 'results',
+        req: await reqAs(await testData.authUser(payload, admin)),
+      })) as null | { props: { regions: unknown[] } }
+      expect(rendered?.props.regions).toEqual([
+        { id: city!.id, name: 'Mysore', parentName: 'Karnataka', classes: 2, removed: false },
+      ])
+    })
+
+    it('files a city under its state when the target is the country, else under the country', async () => {
+      const created = await createImport(
+        [
+          indianLine({ title: 'In a state the Atlas holds', city: 'Hubballi', startTime: '07:03' }),
+          indianLine({ title: 'In a state it does not', city: 'Kochi', startTime: '07:04' }),
+        ],
+        admin,
+        { targetRegion: india },
+      )
+      await run(created.id)
+      expect(relationId((await cityHolding('place.hubballi'))!.parent)).toBe(karnataka)
+      expect(relationId((await cityHolding('place.kochi'))!.parent)).toBe(india)
+    })
+
+    it('creates no city for a town outside the target, skipping the row as before', async () => {
+      const created = await createImport(
+        [indianLine({ title: 'Goa class', city: 'Panaji', startTime: '07:05' })],
+        admin,
+        { targetRegion: karnataka },
+      )
+      await run(created.id)
+      const after = await read(created.id)
+      expect(after.results?.[0]?.reasons).toEqual([
+        'no city region for "Panaji" under Karnataka — create it first',
+      ])
+      expect(after.results?.[0]?.missingCity).toEqual({ name: 'Panaji' })
+      expect(await cityHolding('place.panaji')).toBeUndefined()
+      expect(after.createdRegions).toEqual([])
+    })
+
+    it('creates it as the uploader, qualifying a slug another region holds', async () => {
+      await testData.createRegion(payload, {
+        name: 'Hampi',
+        slug: 'hampi',
+        level: 'country',
+        mapboxId: 'country.hampi-namesake',
+      })
+      const owner = await testData.createManager(payload, { name: 'Karnataka Manager' })
+      await payload.update({ collection: 'regions', id: karnataka, data: { managers: [owner.id] } })
+      const created = await createImport(
+        [indianLine({ title: 'Hampi class', city: 'Hampi', startTime: '07:06' })],
+        await testData.authUser(payload, owner),
+        { targetRegion: karnataka },
+      )
+      await run(created.id)
+      expect(await cityHolding('place.hampi')).toMatchObject({ slug: 'hampi-karnataka' })
+      expect((await read(created.id)).results?.[0]?.outcome).toBe('created')
+    })
+
+    it('skips a town whose city is already held outside the target', async () => {
+      await testData.createRegion(payload, {
+        name: 'Bidar',
+        level: 'city',
+        parent: country,
+        mapboxId: 'place.bidar',
+      })
+      const created = await createImport(
+        [indianLine({ title: 'Bidar class', city: 'Bidar', startTime: '07:07' })],
+        admin,
+        { targetRegion: karnataka },
+      )
+      await run(created.id)
+      expect((await read(created.id)).results?.[0]?.reasons?.[0]).toMatch(
+        /the city region "Bidar" already exists outside Karnataka/,
+      )
     })
   })
 

@@ -11,7 +11,7 @@
  * with Mapbox — so a column written from one may not be kept (#893).
  */
 
-import type { MapboxContextLayer, MapboxFeature } from './feature'
+import type { MapboxContextLayer, MapboxFeature, MapboxMatchCode } from './feature'
 
 import pRetry from 'p-retry'
 
@@ -23,9 +23,11 @@ import { isRecord } from '@/lib/utilities/isRecord'
  * ⚠ **Not Search Box, because Search Box is a type-ahead.** Handed one line —
  * `Hansaring 22, Köln, NRW, 50670` — it put Köln in Kiel, Hannover in Berne and
  * Offenbach in Bad Vilbel: the right street name in the wrong town. v6 takes the
- * street, postcode, town and state as separate fields and grades each match, so
- * a row whose address Mapbox does not hold is caught rather than placed on a
- * namesake street. `AddressSearchField` reads the same id-space, so an id this
+ * street, postcode, town and state as separate fields. ⚠ **It grades an
+ * `address` answer only** (`matchCode`): a `street` answer carries no grade, and
+ * in India it often named a street in another town 500 km away. Whether an
+ * answer is the row's own place is the caller's question, answered from the
+ * `postcode` and `placeId` returned here. `AddressSearchField` reads the same id-space, so an id this
  * import stores is one the admin picker can land on too.
  */
 const GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
@@ -53,7 +55,7 @@ const BASE_BACKOFF_MS = 500
  */
 type ForwardAnswer =
   | { kind: 'answered'; feature: MapboxFeature | null }
-  | { kind: 'refused'; httpStatus: number }
+  | { kind: 'refused'; httpStatus: number; message: null | string }
   | { kind: 'unauthorized'; httpStatus: number }
   | { kind: 'unavailable' }
 
@@ -95,7 +97,11 @@ async function attemptForward(url: string): Promise<ForwardAnswer | null> {
     return { kind: 'unauthorized', httpStatus: res.status }
   }
   if (res.status === 408 || res.status === 429 || res.status >= 500) return null
-  if (!res.ok) return { kind: 'refused', httpStatus: res.status }
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null)
+    const message = isRecord(body) && typeof body.message === 'string' ? body.message : null
+    return { kind: 'refused', httpStatus: res.status, message }
+  }
 
   // ⚠ A body that did not arrive whole is not an empty result. The timeout
   // still runs while it streams, so an abort lands here as easily as at the
@@ -149,6 +155,16 @@ export interface GeocodedLocation {
   placeName: string | null
   /** The `place` layer's own id, which a city region's `mapboxId` holds. */
   placeId: string | null
+  /** The postcode the answer lies in: a postcode answer's own name, else its `postcode` layer. */
+  postcode: string | null
+  /** The `region` layer's id — the state or province, which a region's `mapboxId` holds. */
+  stateId: string | null
+  /** The `country` layer's id, which a country region's `mapboxId` holds. */
+  countryId: string | null
+  /** v6's grade of an `address` answer, field by field. Null for every coarser feature. */
+  matchCode: MapboxMatchCode | null
+  /** What Mapbox matched, in one line — shown to a volunteer whose row it is refused for. */
+  fullAddress: string | null
 }
 
 /** Whichever key this Mapbox response spelled a context layer's id with. */
@@ -164,10 +180,12 @@ const TOWN_FEATURE_TYPES = new Set(['place', 'locality'])
  * town, or a town alone (an online class has no hall).
  */
 export interface GeocodeLocationArgs {
-  kind: 'address' | 'place'
+  kind: 'address' | 'place' | 'postcode'
   /** The street and number, for an address lookup. */
   address?: string | null
+  /** For an address lookup, and the whole query of a postcode one. */
   postcode?: string | null
+  /** Not sent by a postcode lookup, which asks where the postcode is. */
   city: string
   /** The state or province as the row wrote it — a name or a code. */
   region?: string | null
@@ -183,6 +201,7 @@ export interface GeocodeLocationArgs {
 const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
   address: 'address,street,postcode,place,locality',
   place: 'place,locality',
+  postcode: 'postcode',
 }
 
 /** The v6 structured query for one lookup. */
@@ -190,8 +209,8 @@ function lookupUrl(args: GeocodeLocationArgs, token: string): string {
   const params = baseParams(LOOKUP_TYPES[args.kind], args.countryCode, token)
   const fields: [string, null | string | undefined][] = [
     ['address_line1', args.kind === 'address' ? args.address : null],
-    ['postcode', args.kind === 'address' ? args.postcode : null],
-    ['place', args.city],
+    ['postcode', args.kind === 'place' ? null : args.postcode],
+    ['place', args.kind === 'postcode' ? null : args.city],
     ['region', args.region],
   ]
   for (const [key, value] of fields) if (value?.trim()) params.set(key, value.trim())
@@ -212,7 +231,8 @@ function lookupUrl(args: GeocodeLocationArgs, token: string): string {
 export type GeocodeOutcome =
   | { status: 'found'; location: GeocodedLocation }
   | { status: 'missed' }
-  | { status: 'refused'; httpStatus: number }
+  /** `message` is Mapbox's own reason, e.g. `Query too long - 21/20 tokens`. */
+  | { status: 'refused'; httpStatus: number; message: null | string }
   | { status: 'unavailable' }
   | { status: 'unconfigured'; httpStatus: number | null }
 
@@ -220,13 +240,16 @@ export type GeocodeOutcome =
 export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
   const token = accessToken()
   if (!token) return { status: 'unconfigured', httpStatus: null }
-  if (!args.city.trim() && !args.address?.trim()) return { status: 'missed' }
+  const asked = args.kind === 'postcode' ? [args.postcode] : [args.city, args.address]
+  if (!asked.some((value) => value?.trim())) return { status: 'missed' }
 
   const answer = await fetchForwardFeature(lookupUrl(args, token))
   if (answer.kind === 'unavailable') return { status: 'unavailable' }
   if (answer.kind === 'unauthorized')
     return { status: 'unconfigured', httpStatus: answer.httpStatus }
-  if (answer.kind === 'refused') return { status: 'refused', httpStatus: answer.httpStatus }
+  if (answer.kind === 'refused') {
+    return { status: 'refused', httpStatus: answer.httpStatus, message: answer.message }
+  }
 
   const coordinates = answer.feature?.geometry?.coordinates
   // A feature without a point is a miss rather than an answer: the zone and
@@ -256,6 +279,11 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
       latitude: coordinates[1],
       placeName: place?.name ?? null,
       placeId: contextLayerId(place),
+      postcode: (featureType === 'postcode' ? properties?.name : context?.postcode?.name) ?? null,
+      stateId: contextLayerId(context?.region),
+      countryId: contextLayerId(context?.country),
+      matchCode: (featureType === 'address' && properties?.match_code) || null,
+      fullAddress: properties?.full_address ?? null,
     },
   }
 }

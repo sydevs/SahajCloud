@@ -1,6 +1,7 @@
 /** What one import run knows about itself, from the job's start to its finish. */
 
 import type { ImportTarget } from './regions'
+import type { GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import type { PayloadRequest, RequestContext } from 'payload'
 
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
@@ -52,6 +53,17 @@ export interface CreatedRow extends ImportRow {
   eventId: number
 }
 
+/** A city region the run created, because a row's town had none under the target. */
+export interface CreatedRegion {
+  regionId: number
+  name: string
+  /** Where it was filed: the target, or the state under a country target. */
+  parentId: number
+  parentName: string
+  /** The lines whose town it is, whether or not their classes were then created. */
+  rows: number[]
+}
+
 export interface ImportRun {
   importId: number
   target: ImportTarget
@@ -64,6 +76,12 @@ export interface ImportRun {
   skipped: SkippedRow[]
   /** City regions under the target, by the Mapbox place id each holds. */
   cities: Map<string, number>
+  /** Under a country target, its state regions by the Mapbox id each holds. */
+  states: Map<string, { id: number; name: string }>
+  /** The city regions this run created, in the order it created them. */
+  createdRegions: CreatedRegion[]
+  /** One town lookup per town, shared by every row that names it (`locate.ts`). */
+  towns: Map<string, Promise<GeocodeOutcome>>
   /** Each class key a row of this file has claimed, and that row, so a later twin is caught. */
   claimed: Map<string, number>
 }

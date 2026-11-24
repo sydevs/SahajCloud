@@ -50,12 +50,15 @@ export function echo(value: string): string {
  * held. ⚠ A pathless issue is the whole row's — the example-row refusal.
  */
 export function messagesOf(issues: readonly z.core.$ZodIssue[], values: RawImportRow): string[] {
-  return issues.map(({ message, path }) => {
+  // Once per column, however many of its list items failed: `weekdays` reports
+  // each bad code as its own issue, with the same cell to quote.
+  const messages = issues.map(({ message, path }) => {
     if (!path.length) return message
     const column = String(path[0])
     const got = values[column]
     return got ? `${column} ${message} (got "${echo(got)}")` : `${column} ${message}`
   })
+  return [...new Set(messages)]
 }
 
 const cell = z

@@ -1,34 +1,36 @@
 /**
  * Turns each CSV row into the draft class the job then creates.
  *
- * Per row: the column checks, a geocode, the zone at the point, the city
- * region under the target, the schedule, Payload's own field validation, the
- * duplicate check, the manager — and `eventCreateData`. A row that fails any
- * step is recorded on the run as skipped.
+ * Per row: the column checks, a geocode the row's own postcode or town agrees
+ * with (`locate.ts`), the zone at the point, the city region under the target,
+ * the schedule, Payload's own field validation, the duplicate check — then the
+ * cities no row's town had yet (`cities.ts`), the managers, and
+ * `eventCreateData`. A row that fails any step is recorded on the run as
+ * skipped.
  *
- * ⚠ **Only a miss or a refusal is about the row.** The geocoder being down or
- * unconfigured throws, which fails the whole import with that sentence; a row
- * error there would send the volunteer fixing addresses that are fine.
+ * ⚠ **Nothing is written until every row is checked.** A city region is
+ * created, and a manager account opened, only for a row that will become a
+ * class — and `planRows` alone writes nothing at all, which is what a dry run
+ * against production reads.
  */
 
-import type { RawImportRow } from './csv/columns'
 import type { UploadedRow } from './csv/upload'
 import type { ImportRow, ImportRun, SkippedRow } from './run'
 import type { PayloadRequest } from 'payload'
 
 import { Temporal } from '@js-temporal/polyfill'
 import pMap from 'p-map'
-import { APIError } from 'payload'
 
 import { classKey, findDuplicateClass } from '@/collections/Events/hooks/refuseDuplicateClass'
-import type { GeocodedLocation, GeocodeLocationArgs } from '@/lib/mapbox/geocoder'
-import { geocodeLocation } from '@/lib/mapbox/geocoder'
+import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import type { Event } from '@/payload-types'
 
+import { createCities, type PendingCity, planCity } from './cities'
 import { GEOCODE_CONCURRENCY } from './constants'
 import { checkRowFields } from './csv/fieldChecks'
 import { eventCreateData } from './eventData'
+import { locateRow } from './locate'
 import { ensureManagers, managerKeyOf, managerRoster } from './managers'
 import { importWriteContext } from './run'
 import { timezoneAt } from './timezone'
@@ -36,14 +38,18 @@ import { fieldErrors } from './validate'
 
 type Row = ImportRow
 
-type Prepared =
+type Located =
   | { row: Row; ok: true; location: GeocodedLocation; timezone: string }
   | { row: Row; ok: false; errors: string[] }
 
-/** A row that passed every check but its manager, with what it will be created from. */
-interface Ready {
+/**
+ * A row that passed every check but its manager. `regionId` is null while its
+ * city is still `pending` — one the run is to create.
+ */
+export interface Planned {
   row: Row
-  regionId: number
+  regionId: null | number
+  pending?: PendingCity
   location: GeocodedLocation
   timezone: string
 }
@@ -54,19 +60,19 @@ export async function prepareRows(
   run: ImportRun,
   uploaded: readonly UploadedRow[],
 ): Promise<{ row: Row; data: Record<string, unknown> }[]> {
-  const rows: Row[] = uploaded.map(({ line, values }) => ({ row: line, values }))
-  const prepared = await pMap(rows, prepareRow, { concurrency: GEOCODE_CONCURRENCY })
+  const planned = await planRows(req, run, uploaded)
 
-  // Everything but the manager is settled first, so an account is opened only
-  // for a row that will become a class.
-  const ready = new Map<number, Ready>()
-  for (const entry of prepared) {
-    if (!entry.ok) {
-      skip(run, entry.row, entry.errors)
+  const created = await createCities(req, run, pendingCities(planned))
+  const ready = new Map<number, Planned>()
+  for (const entry of planned) {
+    const pending = entry.pending
+    if (!pending) {
+      ready.set(entry.row.row, entry)
       continue
     }
-    const placed = await placeRow(req, run, entry)
-    if (placed) ready.set(entry.row.row, placed)
+    const outcome = created.get(pending.placeId)
+    if (typeof outcome === 'number') ready.set(entry.row.row, { ...entry, regionId: outcome })
+    else skip(run, entry.row, [outcome ?? `the city region "${pending.name}" was not created`])
   }
 
   const managers = await ensureManagers(
@@ -74,7 +80,7 @@ export async function prepareRows(
     managerRoster([...ready.values()].map(({ row }) => ({ line: row.row, values: row.values }))),
   )
 
-  return rows.flatMap((row) => {
+  return planned.flatMap(({ row }) => {
     const entry = ready.get(row.row)
     if (!entry) return []
     const email = managerKeyOf(row.values)
@@ -86,15 +92,50 @@ export async function prepareRows(
   })
 }
 
+/** Check and place every row, writing nothing: the rows that would import, in file order. */
+export async function planRows(
+  req: PayloadRequest,
+  run: ImportRun,
+  uploaded: readonly UploadedRow[],
+): Promise<Planned[]> {
+  const rows: Row[] = uploaded.map(({ line, values }) => ({ row: line, values }))
+  const located = await pMap(rows, (row) => locate(run, row), {
+    concurrency: GEOCODE_CONCURRENCY,
+  })
+  const planned: Planned[] = []
+  for (const entry of located) {
+    if (!entry.ok) {
+      skip(run, entry.row, entry.errors)
+      continue
+    }
+    const placed = await placeRow(req, run, entry)
+    if (placed) planned.push(placed)
+  }
+  return planned
+}
+
+/** The cities `planned` waits on, each with the lines that named it. */
+function pendingCities(planned: readonly Planned[]) {
+  const byPlace = new Map<string, { city: PendingCity; rows: number[] }>()
+  for (const { pending, row } of planned) {
+    if (!pending) continue
+    const entry = byPlace.get(pending.placeId)
+    if (entry) entry.rows.push(row.row)
+    else byPlace.set(pending.placeId, { city: pending, rows: [row.row] })
+  }
+  return byPlace
+}
+
 /**
- * The region a row is filed under, its schedule, and whether it repeats a
- * class already listed or an earlier row of this file. Null when skipped.
+ * The region a row is filed under (or the city it needs created), its
+ * schedule, and whether it repeats a class already listed or an earlier row of
+ * this file. Null when skipped.
  */
 async function placeRow(
   req: PayloadRequest,
   run: ImportRun,
-  entry: Extract<Prepared, { ok: true }>,
-): Promise<null | Ready> {
+  entry: Extract<Located, { ok: true }>,
+): Promise<null | Planned> {
   const { row, location } = entry
   const town = location.placeName ?? row.values.city ?? ''
 
@@ -111,21 +152,32 @@ async function placeRow(
   const regionId =
     (location.placeId ? run.cities.get(location.placeId) : undefined) ??
     (run.target.level === 'city' ? run.target.id : undefined)
+  let pending: PendingCity | undefined
   if (regionId === undefined) {
-    return (
-      skip(run, row, [`no city region for "${town}" under ${run.target.name} — create it first`], {
-        missingCity: { name: town },
-      }) ?? null
-    )
+    const plan = planCity(run, location, town)
+    if (!plan.ok) {
+      return (
+        skip(run, row, [plan.reason], plan.missingCity ? { missingCity: { name: town } } : {}) ??
+        null
+      )
+    }
+    pending = plan.city
   }
 
-  const ready: Ready = { ...entry, regionId }
-  const built = build(run, ready, null)
+  const planned: Planned = { ...entry, regionId: regionId ?? null, pending }
+  const built = build(run, planned, null)
   if (!built.ok) return skip(run, row, built.errors) ?? null
-  const refused = await fieldErrors(req, built.data, importWriteContext())
+  // A city still to be created has no id to check yet; its create is that check.
+  const refused = await fieldErrors(
+    req,
+    built.data,
+    importWriteContext(),
+    pending ? ['region'] : [],
+  )
   if (refused.length) return skip(run, row, refused) ?? null
 
-  const key = `${regionId}|${classKey(built.data as Partial<Event>)}`
+  const identity = classKey(built.data as Partial<Event>)
+  const key = `${regionId ?? `new:${pending?.placeId}`}|${identity}`
   const earlier = run.claimed.get(key)
   if (earlier !== undefined) {
     return (
@@ -133,7 +185,9 @@ async function placeRow(
       null
     )
   }
-  const twin = await findDuplicateClass(req, built.data as Partial<Event>)
+  // A city the run has yet to create lists no class to repeat.
+  const twin =
+    regionId === undefined ? null : await findDuplicateClass(req, built.data as Partial<Event>)
   if (twin) {
     return (
       skip(run, row, [`repeats the class "${twin.title}" already listed`], {
@@ -141,11 +195,11 @@ async function placeRow(
       }) ?? null
     )
   }
-  if (classKey(built.data as Partial<Event>)) run.claimed.set(key, row.row)
-  return ready
+  if (identity) run.claimed.set(key, row.row)
+  return planned
 }
 
-function build(run: ImportRun, entry: Ready, managerId: null | number) {
+function build(run: ImportRun, entry: Planned, managerId: null | number) {
   return eventCreateData({
     values: entry.row.values,
     location: entry.location,
@@ -158,52 +212,16 @@ function build(run: ImportRun, entry: Ready, managerId: null | number) {
   })
 }
 
-async function prepareRow(row: Row): Promise<Prepared> {
+async function locate(run: ImportRun, row: Row): Promise<Located> {
   const errors = checkRowFields(row.values)
   if (errors.length) return { row, ok: false, errors }
 
-  const outcome = await geocodeLocation(geocodeQuery(row.values))
-  switch (outcome.status) {
-    case 'unconfigured':
-      throw new APIError('Address lookup is not configured on this server. Ask an admin.', 500)
-    case 'unavailable':
-      throw new APIError('The address lookup service did not answer. Try again later.', 503)
-    case 'refused':
-      return {
-        row,
-        ok: false,
-        errors: [
-          `Mapbox could not look up this location (HTTP ${outcome.httpStatus}) — simplify the address and city`,
-        ],
-      }
-    case 'missed':
-      return {
-        row,
-        ok: false,
-        errors: ['the address could not be found — check the address, city and country'],
-      }
-    case 'found':
-      break
-  }
+  const placed = await locateRow({ values: row.values, towns: run.towns })
+  if (!placed.ok) return { row, ok: false, errors: [placed.error] }
 
-  const zone = timezoneAt(outcome.location.latitude, outcome.location.longitude)
+  const zone = timezoneAt(placed.location.latitude, placed.location.longitude)
   if (!zone.ok) return { row, ok: false, errors: [zone.error] }
-  return { row, ok: true, location: outcome.location, timezone: zone.timezone }
-}
-
-/**
- * Field by field, never one line: joined into one string, a state and a
- * postcode trailing the town were enough for Mapbox to pick the same street in
- * another town. An online class is placed by its town alone.
- */
-function geocodeQuery(values: RawImportRow): GeocodeLocationArgs {
-  const common = {
-    city: values.city ?? '',
-    region: values.state,
-    countryCode: values.country ?? '',
-  }
-  if (values.eventType === 'online') return { kind: 'place', ...common }
-  return { kind: 'address', address: values.address, postcode: values.postcode, ...common }
+  return { row, ok: true, location: placed.location, timezone: zone.timezone }
 }
 
 function skip(

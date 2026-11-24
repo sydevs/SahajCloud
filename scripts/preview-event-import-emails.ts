@@ -31,13 +31,20 @@ const duplicate = (row: number): SkippedRow => ({ ...error(row), duplicateOf: { 
 const rows = (count: number, make: (row: number) => SkippedRow) =>
   Array.from({ length: count }, (_, index) => make(index + 3))
 
-const SCENARIOS: { label: string; note: string; imported: number; skipped: SkippedRow[] }[] = [
+const SCENARIOS: {
+  label: string
+  note: string
+  imported: number
+  skipped: SkippedRow[]
+  newCities?: number
+}[] = [
   { label: 'all created', note: 'every row became a draft', imported: 12, skipped: [] },
   {
     label: 'mixed',
-    note: 'drafts, duplicates and errors — one line each',
+    note: 'drafts, duplicates, errors and new cities — one line each',
     imported: 7,
     skipped: [...rows(2, duplicate), ...rows(3, error)],
+    newCities: 2,
   },
   { label: 'one class', note: 'singular wording', imported: 1, skipped: rows(1, error) },
   {
@@ -77,6 +84,13 @@ async function main() {
         eventId: index + 1,
       })),
       skipped: scenario.skipped,
+      createdRegions: Array.from({ length: scenario.newCities ?? 0 }, (_, index) => ({
+        regionId: index + 1,
+        name: `New Town ${index + 1}`,
+        parentId: 7,
+        parentName: 'United Kingdom',
+        rows: [index + 2],
+      })),
     } as unknown as ImportRun
     if (!(await sendImportSummary({ req, run }))) throw new Error(`${scenario.label}: not sent`)
   }

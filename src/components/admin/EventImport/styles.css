@@ -97,3 +97,8 @@
 .event-import__details > :not(:first-child) {
   color: var(--theme-elevation-500);
 }
+
+/* The cities the run created, above the classes they hold. */
+.event-import__regions {
+  margin-bottom: var(--base);
+}

@@ -13,6 +13,8 @@ interface EventImportSummaryEmailProps {
   duplicates: number
   /** Rows skipped for anything else. */
   errors: number
+  /** City regions the run created for the classes' towns. */
+  newCities?: number
   importUrl: string
 }
 
@@ -26,6 +28,7 @@ export function EventImportSummaryEmail({
   created,
   duplicates,
   errors,
+  newCities = 0,
   importUrl,
 }: EventImportSummaryEmailProps) {
   return (
@@ -51,6 +54,11 @@ export function EventImportSummaryEmail({
         <DetailRow label="Created as drafts">{classes(created)}</DetailRow>
         {duplicates ? <DetailRow label="Duplicates skipped">{rows(duplicates)}</DetailRow> : null}
         {errors ? <DetailRow label="Errors">{rows(errors)}</DetailRow> : null}
+        {newCities ? (
+          <DetailRow label="New city regions">
+            {`${newCities} — check their names on the import page`}
+          </DetailRow>
+        ) : null}
       </Section>
 
       <BrandButtonRow
