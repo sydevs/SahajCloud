@@ -398,9 +398,8 @@ export const Meditations: CollectionConfig = {
             {
               name: 'titleNode',
               type: 'select',
-              // The same argmax `title` uses (see ./hooks/fallbackTitle),
-              // published as a slug so a site can word the name itself.
-              // Virtual: no DB column, computed on read.
+              // The same argmax `title` uses (see ./hooks/fallbackTitle).
+              // Virtual: no DB column, so it can't be set or queried.
               virtual: true,
               custom: virtualFieldInputs('subtleSystemNodeWeights'),
               options: [...SUBTLE_SYSTEM_NODE_OPTIONS],

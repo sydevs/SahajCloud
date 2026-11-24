@@ -21,6 +21,7 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { meditationTitleFromWeights } from '@/collections/Meditations/hooks/fallbackTitle'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
@@ -113,6 +114,23 @@ function declaredKeys(): DeclaredKey[] {
     }
   }
   return out
+}
+
+/** The `meditation` tab's one sub-group, which both node cases below read. */
+function meditationGeneral(): SchemaNode | undefined {
+  return (schema.properties.meditation?.properties ?? {})['general'] as SchemaNode | undefined
+}
+
+/**
+ * Each `node_*` key as `[slug, declared English]`, through the walker this
+ * file's header names rather than a second reading of the nesting rules.
+ * `englishDefault` is the walker's own extraction, so a plural key cannot
+ * smuggle a value past it.
+ */
+function nodeKeys(): Array<[string, string | undefined]> {
+  return collectLeafLookups('meditation', schema.properties.meditation)
+    .filter((lookup) => lookup.fieldName === 'general' && lookup.innerKey?.startsWith('node_'))
+    .map((lookup) => [(lookup.innerKey as string).slice('node_'.length), lookup.englishDefault])
 }
 
 describe('seeds/wm-web-translations/data.en.json', () => {
@@ -250,21 +268,27 @@ describe('seeds/wm-web-translations/data.en.json', () => {
    * rather than seeded, so it is the only copy a drifting label could pass.
    */
   it('declares one meditation node key per SUBTLE_SYSTEM_NODE_OPTIONS entry', () => {
-    const general = (schema.properties.meditation?.properties ?? {})['general'] as
-      SchemaNode | undefined
-    const declared = Object.entries(general?.properties ?? {})
-      .filter(([key]) => key.startsWith('node_'))
-      .map(([key, prop]) => ({
-        value: key.slice('node_'.length),
-        label: (prop as LeafProp).default,
-      }))
-      .sort((a, b) => a.value.localeCompare(b.value))
-
-    expect(declared).toEqual(
-      SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => ({
-        value: option.value,
-        label: option.label,
-      })).sort((a, b) => a.value.localeCompare(b.value)),
+    expect(Object.fromEntries(nodeKeys())).toEqual(
+      Object.fromEntries(SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => [option.value, option.label])),
     )
+  })
+
+  /**
+   * `meditations.title` holds the finished English sentence and this group holds
+   * the format string a site composes its own from. Both spell the wording, and
+   * `reconcileEnglishDefaults` fills only an absent key — so a reword needs a
+   * data migration, and until one runs the two copies are free to diverge for a
+   * whole release with nothing failing.
+   */
+  it('composes the same English name the meditations hook does', () => {
+    const general = meditationGeneral()
+    const format = (general?.properties ?? {})['title'] as LeafProp | undefined
+
+    expect(format?.default).toBeDefined()
+    for (const [value, label] of nodeKeys()) {
+      expect(meditationTitleFromWeights({ [value]: 1 })).toBe(
+        format?.default?.replace('%{node}', String(label)),
+      )
+    }
   })
 })

@@ -1,13 +1,15 @@
 import type { FieldHook } from 'payload'
 
-import { SUBTLE_SYSTEM_NODE_OPTIONS, type SubtleSystemNodeSlug } from '@/lib/subtleSystem'
+import {
+  isSubtleSystemNodeSlug,
+  SUBTLE_SYSTEM_NODE_OPTIONS,
+  type SubtleSystemNodeSlug,
+} from '@/lib/subtleSystem'
 
-const NODE_LABELS: Record<string, string> = Object.fromEntries(
+/** A `Map`, not an object: a lookup at a stored key would reach `Object.prototype`. */
+const NODE_LABELS = new Map<string, string>(
   SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => [option.value, option.label]),
 )
-
-/** A `Set`, not `in NODE_LABELS` — every inherited `Object` key answers that. */
-const NODE_SLUGS = new Set<string>(SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => option.value))
 
 /**
  * Pure helper: the slug a meditation spends the most on-screen time on, read
@@ -18,7 +20,7 @@ const NODE_SLUGS = new Set<string>(SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => op
  * mirrors the frame timeline produced by `computeMeditationNodeWeights`).
  *
  * The slug is raw, so an unknown one still reaches a caller. Both fields below
- * derive from this one argmax, so they cannot name different nodes.
+ * project this one argmax.
  */
 export function meditationDominantNode(weights: unknown): string | null {
   if (!weights || typeof weights !== 'object') return null
@@ -39,10 +41,10 @@ export function meditationDominantNode(weights: unknown): string | null {
 /**
  * Pure helper: the English auto-generated fallback title for a meditation.
  *
- * Resolves {@link meditationDominantNode} to its enum label via
- * `SUBTLE_SYSTEM_NODE_OPTIONS` (e.g. `anahat → "Anahat"`,
- * `pingala → "Right Channel"`) and returns `Meditation for <label>`, falling
- * back to the raw slug for one the closed set does not hold.
+ * Resolves {@link meditationDominantNode} to its enum label (e.g.
+ * `anahat → "Anahat"`, `pingala → "Right Channel"`) and returns
+ * `Meditation for <label>`, falling back to the raw slug for one the closed set
+ * does not hold.
  *
  * Returns `null` when there are no usable weights, so the front-end can fall
  * back to its own composed label.
@@ -51,7 +53,7 @@ export function meditationTitleFromWeights(weights: unknown): string | null {
   const topSlug = meditationDominantNode(weights)
   if (topSlug === null) return null
 
-  return `Meditation for ${NODE_LABELS[topSlug] ?? topSlug}`
+  return `Meditation for ${NODE_LABELS.get(topSlug) ?? topSlug}`
 }
 
 /**
@@ -59,16 +61,16 @@ export function meditationTitleFromWeights(weights: unknown): string | null {
  * a meditation's name in the visitor's own language.
  *
  * Narrowed to the closed node set, which is what keeps the virtual `titleNode`
- * field's answer inside its own `select` options. The narrowing is unreachable
- * in practice — the weights map is keyed by `subtle-system-nodes.slug`, itself a
- * select over the same 12 values — so `title` and `titleNode` are non-null
- * together, which the related-meditations card relies on.
+ * field's answer inside its own `select` options and its generated union. A slug
+ * outside that set answers `null` here while {@link meditationTitleFromWeights}
+ * still words it, so the two part company only for a node the
+ * `subtle-system-nodes` enum does not hold.
  */
 export function meditationTitleNodeFromWeights(weights: unknown): SubtleSystemNodeSlug | null {
   const topSlug = meditationDominantNode(weights)
-  if (topSlug === null || !NODE_SLUGS.has(topSlug)) return null
+  if (topSlug === null || !isSubtleSystemNodeSlug(topSlug)) return null
 
-  return topSlug as SubtleSystemNodeSlug
+  return topSlug
 }
 
 /**

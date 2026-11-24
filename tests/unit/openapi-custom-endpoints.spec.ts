@@ -4,6 +4,7 @@ import { WIX_PREFIX_MAX_LENGTH, WIX_PREFIX_PATTERN } from '../../src/lib/atlas/w
 import { ROUTING_MODES } from '../../src/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '../../src/lib/clients/embedMetadata'
 import { LOCALES } from '../../src/lib/locales'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '../../src/lib/subtleSystem'
 import { getProjectSlugs } from '../../src/plugins/access/config/projects'
 import { limitParameter, pageParameter } from '../../src/plugins/openapi/clientReadParametersDocs'
 import {
@@ -125,6 +126,40 @@ describe('LecturePlayerData schema (OpenAPI)', () => {
       'userChoices',
     ])
     expect(schema.additionalProperties).toBe(false)
+  })
+})
+
+describe('MeditationCardData schema (OpenAPI)', () => {
+  // The sibling `LecturePlayerData` case exists because a hand-synced schema
+  // drifted from its shaper silently. This schema carries the same "keep in
+  // lockstep" docblock and had no such case, so `titleNode` is the edit that
+  // makes the gap load-bearing. The int spec pins the response, not the spec.
+  it('documents exactly the keys the shaper emits', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['MeditationCardData'] as {
+      additionalProperties?: boolean
+      required?: string[]
+      properties?: Record<string, { enum?: unknown[] }>
+    }
+    // The same list `lecture-related-meditations` pins against a real response.
+    const keys = ['durationMinutes', 'id', 'narratorName', 'thumbnailUrl', 'title', 'titleNode']
+    expect(Object.keys(schema.properties ?? {}).sort()).toEqual(keys)
+    // additionalProperties: false documents the shape; it validates nothing at
+    // runtime. Every key being required is what says the shaper always emits it.
+    expect([...(schema.required ?? [])].sort()).toEqual(keys)
+    expect(schema.additionalProperties).toBe(false)
+  })
+
+  it('sources titleNode’s enum from the node constants, so they cannot drift', () => {
+    const schema = CUSTOM_ENDPOINT_SCHEMAS['MeditationCardData'] as {
+      properties?: Record<string, { enum?: unknown[]; type?: unknown }>
+    }
+    expect(schema.properties?.titleNode?.enum).toEqual([
+      ...SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => option.value),
+      null,
+    ])
+    // The shaper coalesces an absent node to null, so the published type has to
+    // admit it even though every other key is non-null.
+    expect(schema.properties?.titleNode?.type).toEqual(['string', 'null'])
   })
 })
 

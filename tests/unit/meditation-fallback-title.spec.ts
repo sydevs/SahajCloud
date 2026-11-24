@@ -73,27 +73,20 @@ describe('meditationDominantNode', () => {
 })
 
 describe('meditationTitleNodeFromWeights', () => {
-  it('returns null when there are no usable weights', () => {
-    expect(meditationTitleNodeFromWeights(undefined)).toBeNull()
-    expect(meditationTitleNodeFromWeights(null)).toBeNull()
+  it('passes a null argmax through', () => {
     expect(meditationTitleNodeFromWeights({})).toBeNull()
-    expect(meditationTitleNodeFromWeights(42)).toBeNull()
   })
 
-  it('answers the dominant slug for every node in the closed set', () => {
+  /**
+   * Reads as circular — the set `isSubtleSystemNodeSlug` tests is built from the
+   * list this iterates. It is not: it is what catches an exclusion added to the
+   * guard, which is the one way a node the data can hold stops answering. An
+   * earlier pass deleted this case as a tautology and nothing went red.
+   */
+  it('answers every node in the closed set', () => {
     for (const { value } of SUBTLE_SYSTEM_NODE_OPTIONS) {
       expect(meditationTitleNodeFromWeights({ [value]: 5 })).toBe(value)
     }
-  })
-
-  it('picks the highest-weighted node', () => {
-    expect(meditationTitleNodeFromWeights({ mooladhara: 10, anahat: 30, sahasrara: 20 })).toBe(
-      'anahat',
-    )
-  })
-
-  it('keeps the first-inserted slug on a weight tie', () => {
-    expect(meditationTitleNodeFromWeights({ agnya: 10, anahat: 10 })).toBe('agnya')
   })
 
   // `title` falls back to the raw slug; this field cannot, or it would answer
@@ -103,10 +96,12 @@ describe('meditationTitleNodeFromWeights', () => {
     expect(meditationTitleFromWeights({ mystery: 5 })).toBe('Meditation for mystery')
   })
 
-  // The slugs sit in a `Set`, not an object, so no inherited `Object` key can
-  // answer the membership check and reach a caller as a node.
-  it('narrows away an inherited Object key', () => {
+  // A stored key is read against a `Set` and a `Map`, never an object, so no
+  // inherited `Object` key can answer as a node or as a label. On an object,
+  // `NODE_LABELS['toString']` resolved to the function's own source text.
+  it('never resolves an inherited Object key', () => {
     expect(meditationTitleNodeFromWeights({ toString: 5 })).toBeNull()
-    expect(meditationTitleNodeFromWeights({ constructor: 5 })).toBeNull()
+    expect(meditationTitleFromWeights({ toString: 5 })).toBe('Meditation for toString')
+    expect(meditationTitleFromWeights({ constructor: 5 })).toBe('Meditation for constructor')
   })
 })

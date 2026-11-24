@@ -27,3 +27,19 @@ export const SUBTLE_SYSTEM_NODE_OPTIONS = [
 ] as const
 
 export type SubtleSystemNodeSlug = (typeof SUBTLE_SYSTEM_NODE_OPTIONS)[number]['value']
+
+const SUBTLE_SYSTEM_NODE_VALUES = new Set<string>(
+  SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => option.value),
+)
+
+/**
+ * Whether a string is one of the twelve slugs above.
+ *
+ * For a caller holding a slug read back from storage — a key of a meditation's
+ * `subtleSystemNodeWeights` map — that has to answer a closed `select`'s own
+ * options, or a generated union. A `Set` rather than a lookup on an object
+ * keyed by these values, which every inherited `Object` key would answer.
+ */
+export function isSubtleSystemNodeSlug(value: string): value is SubtleSystemNodeSlug {
+  return SUBTLE_SYSTEM_NODE_VALUES.has(value)
+}

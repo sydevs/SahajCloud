@@ -44,8 +44,9 @@ export const MEDITATION_CARD_SELECT = {
  * narrator relationship isn't populated).
  *
  * `titleNode` is that same node's language-neutral slug, for a consumer wording
- * the name in the visitor's own language. One argmax feeds both, over a closed
- * set of 12 slugs, so a card carrying a `title` carries this too.
+ * the name in the visitor's own language. Nullable, and the one way it is null
+ * on a card is a dominant slug the closed 12 does not hold — which `title`
+ * still words from the raw slug.
  */
 export type MeditationCardData = {
   id: number
