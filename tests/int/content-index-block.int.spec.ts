@@ -235,9 +235,7 @@ describe('computeApiEndpoint hook (pure)', () => {
       expect(callHook({ type: 'songs', limit: 5, songFilters: [3] })).toBe(
         '/api/songs?where[tags][in]=3&limit=5',
       )
-      expect(callHook({ type: 'lectures', limit: 3 })).toBe(
-        '/api/lectures/for-audience?limit=3',
-      )
+      expect(callHook({ type: 'lectures', limit: 3 })).toBe('/api/lectures/for-audience?limit=3')
     })
   })
 
