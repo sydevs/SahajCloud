@@ -1,32 +1,21 @@
-import type { Payload, PayloadRequest } from 'payload'
+import type { Payload } from 'payload'
 
-import { parseParams } from 'payload'
-import * as qs from 'qs-esm'
 import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 
 import { computeApiEndpoint } from '@/lib/richEditor/blocks/ContentIndexBlock'
 
 import { uniqueId } from '../utils/lexicalTestHelpers'
+import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
-import { createClientAuthenticatedRequest, createTestEnvironment } from '../utils/testHelpers'
+import { createTestEnvironment } from '../utils/testHelpers'
 
-/**
- * Payload's own REST parse of a computed endpoint's query string:
- * `qs.parse` with `createPayloadRequest`'s options, then payload's
- * `parseParams`. Reproducing neither is what keeps a case from passing against
- * an uncoerced string — `'false'` is truthy, and `sort` is split on commas
- * here and nowhere in this repo.
- */
-function parseEndpointQuery(endpoint: string): Record<string, unknown> {
-  const search = endpoint.split('?')[1] ?? ''
-  const query = qs.parse(search, {
-    arrayLimit: 1000,
-    depth: 10,
-    ignoreQueryPrefix: true,
-  }) as Record<string, unknown>
-  // `parseParams` mutates its argument, which is why the spread is not reused.
-  return parseParams({ ...query }) as Record<string, unknown>
-}
+/** The plaintext key the REST cases authenticate with — see `beforeAll`. */
+const WEB_API_KEY = 'content-index-block-web-client-key'
+
+/** The endpoint a mood + featured block publishes, which several cases pin. */
+const MOOD_FEATURED_ENDPOINT =
+  '/api/user-choices?where[type][in]=mood&where[isFeatured][equals]=true' +
+  '&where[isParent][equals]=false&sort=order,id&limit=20'
 
 // --- Pure function tests for computeApiEndpoint hook ---
 
@@ -138,12 +127,8 @@ describe('computeApiEndpoint hook (pure)', () => {
         userChoiceTypeFilters: ['mood'],
         userChoiceFeatured: 'featured',
       })
-      expect(result).toBe(
-        '/api/user-choices?where[type][in]=mood&where[isFeatured][equals]=true' +
-          '&where[isParent][equals]=false&sort=order,id&limit=20',
-      )
-      // WeMeditate Web appends its own depth and strips a baked one.
-      expect(result).not.toContain('depth')
+      // No `depth`: WeMeditate Web appends its own and strips a baked one.
+      expect(result).toBe(MOOD_FEATURED_ENDPOINT)
     })
 
     it("omits the isFeatured clause for 'all'", () => {
@@ -156,7 +141,6 @@ describe('computeApiEndpoint hook (pure)', () => {
       expect(result).toBe(
         '/api/user-choices?where[type][in]=mood&where[isParent][equals]=false&sort=order,id&limit=20',
       )
-      expect(result).not.toContain('isFeatured')
     })
 
     it("asks for the non-featured choices on 'not-featured'", () => {
@@ -177,16 +161,6 @@ describe('computeApiEndpoint hook (pure)', () => {
         userChoiceFeatured: 'featured',
       })
       expect(result).toContain('where[type][in]=mood,goal,duration')
-    })
-
-    it('always excludes parent categories, which name no meditation', () => {
-      const result = callHook({
-        type: 'user-choices',
-        limit: 10,
-        userChoiceTypeFilters: ['mood'],
-        userChoiceFeatured: 'all',
-      })
-      expect(result).toContain('where[isParent][equals]=false')
     })
 
     it('returns null when no kind is selected', () => {
@@ -333,13 +307,26 @@ describe('computeApiEndpoint hook (pure)', () => {
 describe('ContentIndexBlock apiEndpoint (integration)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
-  let adminUserId: number
+  /** A real REST call, authenticated by an API client's own key. */
+  let rest: RestClient
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
-    adminUserId = testEnv.adminUser.id
+
+    // The site's own role, so the read is authorised the way production's is.
+    // Payload returns `apiKey: null` from a create — the column is encrypted —
+    // so the key the header carries is the plaintext this seeds.
+    await testData.createClient(testEnv.payload, testEnv.adminUser.id, {
+      label: 'Content index reader',
+      roles: ['wemeditate-web-client'],
+      apiKey: WEB_API_KEY,
+    })
+
+    rest = createRestClientWithAuth(testEnv, {
+      Authorization: `clients API-Key ${WEB_API_KEY}`,
+    })
   })
 
   afterAll(async () => {
@@ -475,10 +462,7 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
       userChoiceFeatured: 'featured',
     })
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
-    expect(getBlockFields(fetched).apiEndpoint).toBe(
-      '/api/user-choices?where[type][in]=mood&where[isFeatured][equals]=true' +
-        '&where[isParent][equals]=false&sort=order,id&limit=20',
-    )
+    expect(getBlockFields(fetched).apiEndpoint).toBe(MOOD_FEATURED_ENDPOINT)
   })
 
   it('clears the user-choice filter fields when the type changes away', async () => {
@@ -500,19 +484,23 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
 
   /**
    * The block publishes a query string, so what it owes is that the string
-   * works: this reads the computed endpoint back through Payload's own REST
-   * parse, as an API client with the site's `select` and `depth=0`, and checks
-   * which choices come out. Other cases in this file create user choices of
+   * works. This sends the computed endpoint to Payload's own REST entry point
+   * as an API client, with the `depth` and `select` WeMeditate Web appends, and
+   * checks the answer: Payload parses the query, rather than the spec parsing
+   * it the way Payload would. Other cases in this file create user choices of
    * their own, so it asserts over the rows it made rather than the whole page.
    */
-  it('answers the featured moods, in order, when read as a client', async () => {
+  it('answers 200 with the featured moods, in order, when read as a client', async () => {
     const mood = (overrides: Parameters<typeof testData.createUserChoice>[1]) =>
       testData.createUserChoice(payload, { type: 'mood', ...overrides })
 
     const parent = await mood({ title: `Parent ${uniqueId()}`, isFeatured: true, order: 1 })
-    // `maintainIsParent` flips `isParent` on the parent once a child names it.
+    // `maintainIsParent` flips `isParent` on the parent once a child names it,
+    // so the row the endpoint must exclude is one the real hook made.
     await mood({ title: `Child ${uniqueId()}`, parent: parent.id, isFeatured: false, order: 9 })
 
+    // Created in this order on purpose: `order` ties, so the endpoint's `id`
+    // tie-break is what decides these two, and ids are serial.
     const tiedFirst = await mood({ title: `Tied A ${uniqueId()}`, isFeatured: true, order: 1 })
     const tiedSecond = await mood({ title: `Tied B ${uniqueId()}`, isFeatured: true, order: 1 })
     const later = await mood({ title: `Later ${uniqueId()}`, isFeatured: true, order: 2 })
@@ -533,40 +521,22 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
     const endpoint = getBlockFields(fetched).apiEndpoint as string
 
-    const client = await testData.createClient(payload, adminUserId)
-    const result = await payload.find({
-      collection: 'user-choices',
-      ...parseEndpointQuery(endpoint),
-      // Both of these are WeMeditate Web's, not the endpoint's. The endpoint
-      // carries no depth on purpose, and a client read at this config's default
-      // depth is refused without `populate`; a client read with no `select` is
-      // refused outright.
-      depth: 0,
-      select: {
-        title: true,
-        type: true,
-        isFeatured: true,
-        url: true,
-        filename: true,
-        color: true,
-        morningMeditation: true,
-        afternoonMeditation: true,
-        eveningMeditation: true,
-      },
-      req: createClientAuthenticatedRequest(client.id, client.apiKey || 'test-key', [
-        'wemeditate-web-client',
-      ]) as PayloadRequest,
-    })
+    // `depth` and `select` are WeMeditate Web's, not the endpoint's: the
+    // endpoint carries no depth on purpose, and a client read is refused
+    // without a select.
+    const response = await rest(`${endpoint}&depth=0&select[id]=true`)
 
-    const returned = result.docs.map((doc) => doc.id)
+    expect(response.status).toBe(200)
+
+    const returned = (response.body as { docs: { id: number }[] }).docs.map((doc) => doc.id)
+
     for (const excluded of [parent, notFeatured, duration]) {
       expect(returned).not.toContain(excluded.id)
     }
 
     // `order` first, then `id` as the tie-break the two `order: 1` moods need.
-    const mine = returned.filter((id) =>
-      [tiedFirst.id, tiedSecond.id, later.id].includes(id as number),
-    )
+    const mine = returned.filter((id) => [tiedFirst.id, tiedSecond.id, later.id].includes(id))
+
     expect(mine).toEqual([tiedFirst.id, tiedSecond.id, later.id])
   })
 })

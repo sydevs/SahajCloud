@@ -82,7 +82,7 @@ export const UserChoices: CollectionConfig = {
       required: true,
       defaultValue: 'mood',
       access: { update: adminOnlyFieldAccess },
-      options: [...USER_CHOICE_TYPES],
+      options: USER_CHOICE_TYPES,
       admin: {
         position: 'sidebar',
         description:

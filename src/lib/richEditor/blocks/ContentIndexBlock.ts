@@ -5,45 +5,38 @@ import { extractID } from 'payload/shared'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { USER_CHOICE_TYPES } from '@/lib/userChoices'
 
-/** The `userChoiceFeatured` options, and the clause each one contributes. */
-const USER_CHOICE_FEATURED_CLAUSES: Record<string, string> = {
-  featured: '&where[isFeatured][equals]=true',
-  'not-featured': '&where[isFeatured][equals]=false',
-  all: '',
-}
+/** The `userChoiceFeatured` options, each with the `where` clause it contributes. */
+const USER_CHOICE_FEATURED: { label: string; value: string; where: string | null }[] = [
+  { label: 'Featured only', value: 'featured', where: 'where[isFeatured][equals]=true' },
+  { label: 'Not featured', value: 'not-featured', where: 'where[isFeatured][equals]=false' },
+  { label: 'All', value: 'all', where: null },
+]
+
+/** Builds every clause of a type's endpoint before `limit`, or null to publish none. */
+type ParamsBuilder = (siblingData: Record<string, unknown>) => string | null
 
 /**
- * Configuration for each content type's API endpoint generation.
- * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
- * which evaluates audiences from runtime user context and ignores `where`.
- * `params` is for a type whose filters are not one list of ids: it builds every
- * clause before `limit` itself, or answers null to publish no endpoint.
+ * Where each content type's list lives, and how its filters reach the query.
+ *
+ * One mechanism, so an entry cannot half-declare two: every filtered type
+ * names a `ParamsBuilder`, and `lectures` names none because
+ * `/for-audience` evaluates audiences from runtime user context and ignores
+ * `where`. A builder joins its own clauses, never the separator around them —
+ * `computeApiEndpoint` owns that, which is what lets `lectures` come out as
+ * `?limit=n` rather than `?&limit=n`.
  */
-const CONTENT_TYPE_CONFIG: Record<
-  string,
-  {
-    basePath: string
-    filterField?: string
-    queryParam?: string
-    extraParams?: string
-    params?: (siblingData: Record<string, unknown>) => string | null
-  }
-> = {
+const CONTENT_TYPE_CONFIG: Record<string, { basePath: string; params?: ParamsBuilder }> = {
   meditations: {
     basePath: '/api/user-choices',
-    filterField: 'userChoiceFilters',
-    queryParam: 'where[id][in]',
-    extraParams: '&depth=1',
+    params: idListParams('userChoiceFilters', 'where[id][in]', 'depth=1'),
   },
   pages: {
     basePath: '/api/pages',
-    filterField: 'pageFilters',
-    queryParam: 'where[tags][in]',
+    params: idListParams('pageFilters', 'where[tags][in]'),
   },
   songs: {
     basePath: '/api/songs',
-    filterField: 'songFilters',
-    queryParam: 'where[tags][in]',
+    params: idListParams('songFilters', 'where[tags][in]'),
   },
   lectures: {
     basePath: '/api/lectures/for-audience',
@@ -52,6 +45,22 @@ const CONTENT_TYPE_CONFIG: Record<
     basePath: '/api/user-choices',
     params: userChoiceParams,
   },
+}
+
+/** A type filtered by one relationship or select field, as a comma-joined `in`. */
+function idListParams(filterField: string, queryParam: string, extra?: string): ParamsBuilder {
+  return (siblingData) => {
+    const filters = siblingData[filterField]
+    if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
+
+    const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
+    const ids = filterValues.map(extractID)
+    if (ids.length === 0) return null
+
+    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
+
+    return [`${queryParam}=${queryValue}`, extra].filter(Boolean).join('&')
+  }
 }
 
 /**
@@ -66,16 +75,25 @@ const CONTENT_TYPE_CONFIG: Record<
  * `sanitizeSortParams`).
  */
 function userChoiceParams(siblingData: Record<string, unknown>): string | null {
-  const types = [siblingData.userChoiceTypeFilters]
-    .flat()
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+  const raw = siblingData.userChoiceTypeFilters
+  const types = (Array.isArray(raw) ? raw : []).filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  )
   if (types.length === 0) return null
 
-  const featured = siblingData.userChoiceFeatured
-  if (typeof featured !== 'string' || !(featured in USER_CHOICE_FEATURED_CLAUSES)) return null
+  const option = USER_CHOICE_FEATURED.find(({ value }) => value === siblingData.userChoiceFeatured)
+  if (!option) return null
 
   const kinds = types.map((type) => encodeURIComponent(type)).join(',')
-  return `where[type][in]=${kinds}${USER_CHOICE_FEATURED_CLAUSES[featured]}&where[isParent][equals]=false&sort=order,id`
+
+  return [
+    `where[type][in]=${kinds}`,
+    option.where,
+    'where[isParent][equals]=false',
+    'sort=order,id',
+  ]
+    .filter(Boolean)
+    .join('&')
 }
 
 /**
@@ -96,28 +114,10 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
       : null
   if (limit === null) return null
 
-  if (config.params) {
-    const params = config.params(siblingData as Record<string, unknown>)
-    if (params === null) return null
-    return `${config.basePath}?${params}&limit=${limit}`
-  }
+  const params = config.params ? config.params(siblingData as Record<string, unknown>) : ''
+  if (params === null) return null
 
-  if (config.filterField && config.queryParam) {
-    const filters = siblingData?.[config.filterField]
-    if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
-
-    const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
-    const ids = filterValues.map(extractID)
-    if (ids.length === 0) return null
-
-    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-    let url = `${config.basePath}?${config.queryParam}=${queryValue}`
-    if (config.extraParams) url = `${url}${config.extraParams}`
-    return `${url}&limit=${limit}`
-  }
-
-  // No filter field → limit is the first query param
-  return `${config.basePath}?limit=${limit}`
+  return `${config.basePath}?${[params, `limit=${limit}`].filter(Boolean).join('&')}`
 }
 
 /**
@@ -209,7 +209,7 @@ export const ContentIndexBlock: Block = {
       type: 'select',
       hasMany: true,
       required: true,
-      options: [...USER_CHOICE_TYPES],
+      options: USER_CHOICE_TYPES,
       hooks: clearWhenTypeNot('user-choices'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'user-choices',
@@ -220,15 +220,8 @@ export const ContentIndexBlock: Block = {
       name: 'userChoiceFeatured',
       type: 'select',
       required: true,
-      // No `defaultValue`, deliberately: Payload re-applies one in the afterRead
-      // field pass, after the hooks, to any value that came out undefined. A
-      // default here would therefore undo `clearWhenTypeNot` on every other
-      // type, and the block would publish a featured setting it does not use.
-      options: [
-        { label: 'Featured only', value: 'featured' },
-        { label: 'Not featured', value: 'not-featured' },
-        { label: 'All', value: 'all' },
-      ],
+      // No `defaultValue`: one here would undo `clearWhenTypeNot` (AGENTS.md, #1257).
+      options: USER_CHOICE_FEATURED.map(({ label, value }) => ({ label, value })),
       hooks: clearWhenTypeNot('user-choices'),
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'user-choices',

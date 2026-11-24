@@ -7,10 +7,8 @@
  * collection folder, as `pageTags` does for the same reason. One list means the
  * block cannot offer a kind the collection does not have.
  */
-export const USER_CHOICE_TYPES = [
+export const USER_CHOICE_TYPES: { label: string; value: string }[] = [
   { label: 'Mood', value: 'mood' },
   { label: 'Goal', value: 'goal' },
   { label: 'Duration', value: 'duration' },
-] as const satisfies readonly { label: string; value: string }[]
-
-export type UserChoiceType = (typeof USER_CHOICE_TYPES)[number]['value']
+]

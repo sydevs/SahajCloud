@@ -90,3 +90,8 @@ can tell what the icon shows without decoding the base64.
 - `TextBoxBlock.wisdomStyle` shows for the side layouts and hides for `overlay`. Its condition
   reads `imagePosition`; `position` is the legacy EditorJS name, live only inside `importData`
   (#989).
+- **A field `clearWhenTypeNot` guards must not carry a `defaultValue`.** Payload re-applies a
+  default in the afterRead field pass, after the field hooks, to any value that came out
+  undefined — so the hook deletes the stale value and the default puts it straight back, and the
+  block publishes a filter setting its type does not use.
+  `ContentIndexBlock.userChoiceFeatured` has none for that reason (#1257).

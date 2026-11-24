@@ -41,8 +41,7 @@ export default fixture('user-choices', [
   },
   // Two more featured moods, each filled for one slot only, so a mood picker
   // reading this fixture shows a different tile for morning, afternoon and
-  // evening. Both sit at `order: 1` beside Calm, as three of production's
-  // featured moods do, so the endpoint's tie-break has something to break.
+  // evening.
   {
     id: CHOICE.grateful,
     file: 'content-choice-mood.svg',
