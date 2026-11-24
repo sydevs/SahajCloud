@@ -98,7 +98,8 @@ describe('meditationTitleNodeFromWeights', () => {
 
   // A stored key is matched against the node list, never read off an object
   // keyed by its slugs, so no inherited `Object` key answers as a node or as a
-  // label. An object lookup once answered the function's own source text.
+  // label. A label read off an object once answered the function's own source
+  // text.
   it('never resolves an inherited Object key', () => {
     expect(meditationTitleNodeFromWeights({ toString: 5 })).toBeNull()
     expect(meditationTitleFromWeights({ toString: 5 })).toBe('Meditation for toString')

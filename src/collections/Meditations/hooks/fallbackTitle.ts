@@ -2,14 +2,9 @@ import type { FieldHook } from 'payload'
 
 import {
   isSubtleSystemNodeSlug,
-  SUBTLE_SYSTEM_NODE_OPTIONS,
+  subtleSystemNodeLabel,
   type SubtleSystemNodeSlug,
 } from '@/lib/subtleSystem'
-
-/** A `Map`, not an object: a lookup at a stored key would reach `Object.prototype`. */
-const NODE_LABELS = new Map<string, string>(
-  SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => [option.value, option.label]),
-)
 
 /**
  * Pure helper: the slug a meditation spends the most on-screen time on, read
@@ -53,7 +48,7 @@ export function meditationTitleFromWeights(weights: unknown): string | null {
   const topSlug = meditationDominantNode(weights)
   if (topSlug === null) return null
 
-  return `Meditation for ${NODE_LABELS.get(topSlug) ?? topSlug}`
+  return `Meditation for ${subtleSystemNodeLabel(topSlug)}`
 }
 
 /**

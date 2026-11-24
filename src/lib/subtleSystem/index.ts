@@ -39,3 +39,11 @@ export type SubtleSystemNodeSlug = (typeof SUBTLE_SYSTEM_NODE_OPTIONS)[number]['
 export function isSubtleSystemNodeSlug(value: string): value is SubtleSystemNodeSlug {
   return SUBTLE_SYSTEM_NODE_OPTIONS.some((option) => option.value === value)
 }
+
+/**
+ * The display label for a node slug, falling back to the slug itself for one
+ * the list above does not hold.
+ */
+export function subtleSystemNodeLabel(slug: string): string {
+  return SUBTLE_SYSTEM_NODE_OPTIONS.find((option) => option.value === slug)?.label ?? slug
+}
