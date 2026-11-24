@@ -24,7 +24,8 @@ import { slugifyValue } from '@/fields/slugify'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
-import type { Region } from '@/payload-types'
+
+import { regionsWhere } from './regions'
 
 /** A city region rows need, which the run creates once every row is checked. */
 export interface PendingCity {
@@ -155,20 +156,6 @@ async function slugAllocator(
     taken.add(slug)
     return slug
   }
-}
-
-function regionsWhere(req: PayloadRequest, where: Record<string, unknown>): Promise<Region[]> {
-  return req.payload
-    .find({
-      collection: 'regions',
-      where: where as never,
-      depth: 0,
-      pagination: false,
-      overrideAccess: true,
-      select: { mapboxId: true, name: true, slug: true },
-      req,
-    })
-    .then(({ docs }) => docs as Region[])
 }
 
 function refusalOf(error: unknown, city: PendingCity): string {
