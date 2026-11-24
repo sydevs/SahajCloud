@@ -61,14 +61,10 @@ function inListParams(filterField: string, queryParam: string, extra?: string): 
 }
 
 /**
- * The `user-choices` clauses: the chosen kinds, the featured setting, and two
- * fixed ones. `isParent` is excluded because a parent category names no
- * meditation of its own, so a tile for one could only lead nowhere. The second
- * sort key is a tie-break: `order` is not unique (three of production's
- * featured moods share `order: 1`), and without it Postgres may return tied
- * rows in a different order on each read, so the grid would reshuffle between
- * page loads. `id` rather than `title` keeps that order the same in every
- * locale. Payload splits a comma-joined `sort` into keys (3.93,
+ * `isParent` is excluded because a parent category names no meditation of its
+ * own. `order` is not unique — three of production's featured moods share
+ * `order: 1` — so `id` breaks ties; `id` not `title`, so the order matches in
+ * every locale. Payload splits a comma-joined `sort` into keys (3.93,
  * `sanitizeSortParams`).
  */
 function userChoiceParams(siblingData: Record<string, unknown>): string | null {
