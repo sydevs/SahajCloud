@@ -7,15 +7,12 @@ import {
 } from '@/lib/subtleSystem'
 
 /**
- * Pure helper: the slug a meditation spends the most on-screen time on, read
- * from its cached `subtleSystemNodeWeights` map (`{ slug → on-screen seconds }`).
+ * The slug a meditation spends the most on-screen time on, read from its cached
+ * `subtleSystemNodeWeights` map (`{ slug → on-screen seconds }`).
  *
- * Returns `null` when there are no usable weights (no frames / no populated
- * nodes yet). On a weight tie the first-inserted slug wins (insertion order
- * mirrors the frame timeline produced by `computeMeditationNodeWeights`).
- *
- * The slug is raw, so an unknown one still reaches a caller. Both fields below
- * project this one argmax.
+ * On a weight tie the first-inserted slug wins — insertion order mirrors the
+ * frame timeline `computeMeditationNodeWeights` produces. `null` when there are
+ * no usable weights. The slug is raw, so an unknown one still reaches a caller.
  */
 export function meditationDominantNode(weights: unknown): string | null {
   if (!weights || typeof weights !== 'object') return null
@@ -34,15 +31,10 @@ export function meditationDominantNode(weights: unknown): string | null {
 }
 
 /**
- * Pure helper: the English auto-generated fallback title for a meditation.
+ * The English auto-generated fallback title for a meditation.
  *
- * Resolves {@link meditationDominantNode} to its enum label (e.g.
- * `anahat → "Anahat"`, `pingala → "Right Channel"`) and returns
- * `Meditation for <label>`, falling back to the raw slug for one the closed set
- * does not hold.
- *
- * Returns `null` when there are no usable weights, so the front-end can fall
- * back to its own composed label.
+ * `null` when there are no usable weights, so the front-end can fall back to
+ * its own composed label.
  */
 export function meditationTitleFromWeights(weights: unknown): string | null {
   const topSlug = meditationDominantNode(weights)
@@ -52,14 +44,11 @@ export function meditationTitleFromWeights(weights: unknown): string | null {
 }
 
 /**
- * Pure helper: the dominant node's language-neutral slug, for a site composing
- * a meditation's name in the visitor's own language.
+ * The dominant node's language-neutral slug, for a site composing a
+ * meditation's name in the visitor's own language.
  *
  * Narrowed to the closed node set, which is what keeps the virtual `titleNode`
- * field's answer inside its own `select` options and its generated union. A slug
- * outside that set answers `null` here while {@link meditationTitleFromWeights}
- * still words it, so the two part company only for a node the
- * `subtle-system-nodes` enum does not hold.
+ * field's answer inside its own `select` options and its generated union.
  */
 export function meditationTitleNodeFromWeights(weights: unknown): SubtleSystemNodeSlug | null {
   const topSlug = meditationDominantNode(weights)
