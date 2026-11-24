@@ -7,7 +7,7 @@
       "properties": {
         "chrome": {
           "type": "object",
-          "description": "Drawer, peek-strip, and widget-wide controls.",
+          "description": "Drawer, Back, and widget-wide controls.",
           "properties": {
             "back": {
               "type": "string",
@@ -305,7 +305,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Search view heading, and its peek-strip name."
+              "description": "Search view heading, and the name Back says for it."
             },
             "placeholder": {
               "type": "string",
@@ -398,7 +398,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Filter view heading, and its peek-strip name."
+              "description": "Filter view heading, and the name Back says for it."
             },
             "apply": {
               "type": "string",
@@ -597,7 +597,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name."
+          "description": "Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it."
         }
       },
       "additionalProperties": false
@@ -897,7 +897,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Calendar view heading, and its peek-strip name."
+          "description": "Calendar view heading, and the name Back says for it."
         },
         "view_month": {
           "type": "string",
@@ -928,7 +928,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
             },
             "name": {
               "type": "string",
@@ -1354,7 +1354,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+          "description": "Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
         },
         "native": {
           "type": "string",

@@ -9110,7 +9110,7 @@ export interface SyAtlasTranslationsCountriesStrings {
 }
 export interface SyAtlasTranslationsSearchChromeStrings {
   /**
-   * Search view heading, and its peek-strip name.
+   * Search view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9168,7 +9168,7 @@ export interface SyAtlasTranslationsSearchNearbyPromptStrings {
 }
 export interface SyAtlasTranslationsFiltersChromeStrings {
   /**
-   * Filter view heading, and its peek-strip name.
+   * Filter view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9324,7 +9324,7 @@ export interface SyAtlasTranslationsFiltersRegionStrings {
 }
 export interface SyAtlasTranslationsOnlineStrings {
   /**
-   * Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name.
+   * Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it.
    */
   title?: string;
 }
@@ -9586,7 +9586,7 @@ export interface SyAtlasTranslationsEventTitleStrings {
 }
 export interface SyAtlasTranslationsCalendarStrings {
   /**
-   * Calendar view heading, and its peek-strip name.
+   * Calendar view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9608,7 +9608,7 @@ export interface SyAtlasTranslationsCalendarStrings {
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
@@ -9964,7 +9964,7 @@ export interface SyAtlasTranslationsSubmitErrorsStrings {
 }
 export interface SyAtlasTranslationsShareStrings {
   /**
-   * Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
