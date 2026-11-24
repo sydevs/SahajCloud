@@ -11,15 +11,15 @@
           "properties": {
             "back": {
               "type": "string",
-              "description": "Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control’s label where the page it returns to has no name to give."
+              "description": "Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control where its target has no name."
             },
             "back_to": {
               "type": "string",
-              "description": "Peek-strip name that names its target view, and the Back control above every place and class page’s own name. `%{title}` = the place it returns to."
+              "description": "Peek-strip name for its target view, and the Back control on every place and class page. `%{title}` = the place it returns to."
             },
             "back_to_class": {
               "type": "string",
-              "description": "Back control on the registration and share pages, which return to the class still on screen behind them."
+              "description": "Back control on the registration and share pages, which open over the class they return to."
             },
             "back_to_world_map": {
               "type": "string",
@@ -31,11 +31,11 @@
             },
             "show_more": {
               "type": "string",
-              "description": "Button that raises a phone’s pulled-down panel again, on the first screen and on every place and class page."
+              "description": "Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page."
             },
             "close": {
               "type": "string",
-              "description": "Close control on the filters, which sit over the page they narrow, the report modal, the compact dialog, and the feedback banner. Drawers carry none."
+              "description": "Close control on the filters, which sit over the page they narrow, the report modal, the compact dialog, and the feedback banner."
             },
             "cancel": {
               "type": "string",

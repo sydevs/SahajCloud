@@ -8870,15 +8870,15 @@ export interface SyAtlasTranslation {
 }
 export interface SyAtlasTranslationsCommonChromeStrings {
   /**
-   * Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control’s label where the page it returns to has no name to give.
+   * Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control where its target has no name.
    */
   back?: string;
   /**
-   * Peek-strip name that names its target view, and the Back control above every place and class page’s own name. `%{title}` = the place it returns to.
+   * Peek-strip name for its target view, and the Back control on every place and class page. `%{title}` = the place it returns to.
    */
   back_to?: string;
   /**
-   * Back control on the registration and share pages, which return to the class still on screen behind them.
+   * Back control on the registration and share pages, which open over the class they return to.
    */
   back_to_class?: string;
   /**
@@ -8890,11 +8890,11 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    */
   back_to_results_near?: string;
   /**
-   * Button that raises a phone’s pulled-down panel again, on the first screen and on every place and class page.
+   * Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page.
    */
   show_more?: string;
   /**
-   * Close control on the filters, which sit over the page they narrow, the report modal, the compact dialog, and the feedback banner. Drawers carry none.
+   * Close control on the filters, which sit over the page they narrow, the report modal, the compact dialog, and the feedback banner.
    */
   close?: string;
   /**
