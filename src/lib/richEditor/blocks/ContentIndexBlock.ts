@@ -28,15 +28,15 @@ type ParamsBuilder = (siblingData: Record<string, unknown>) => string | null
 const CONTENT_TYPE_CONFIG: Record<string, { basePath: string; params?: ParamsBuilder }> = {
   meditations: {
     basePath: '/api/user-choices',
-    params: idListParams('userChoiceFilters', 'where[id][in]', 'depth=1'),
+    params: inListParams('userChoiceFilters', 'where[id][in]', 'depth=1'),
   },
   pages: {
     basePath: '/api/pages',
-    params: idListParams('pageFilters', 'where[tags][in]'),
+    params: inListParams('pageFilters', 'where[tags][in]'),
   },
   songs: {
     basePath: '/api/songs',
-    params: idListParams('songFilters', 'where[tags][in]'),
+    params: inListParams('songFilters', 'where[tags][in]'),
   },
   lectures: {
     basePath: '/api/lectures/for-audience',
@@ -47,8 +47,8 @@ const CONTENT_TYPE_CONFIG: Record<string, { basePath: string; params?: ParamsBui
   },
 }
 
-/** A type filtered by one relationship or select field, as a comma-joined `in`. */
-function idListParams(filterField: string, queryParam: string, extra?: string): ParamsBuilder {
+/** A type filtered by one relationship or select field, as a comma-joined `in` clause. */
+function inListParams(filterField: string, queryParam: string, extra?: string): ParamsBuilder {
   return (siblingData) => {
     const raw = siblingData[filterField]
     const ids = (Array.isArray(raw) ? raw : [raw])
