@@ -39,6 +39,38 @@ export default fixture('user-choices', [
       es: { title: 'Calma', morningMeditation: MEDITATION.dailySpanish },
     },
   },
+  // Two more featured moods, each filled for one slot only, so a mood picker
+  // reading this fixture shows a different tile for morning, afternoon and
+  // evening. Both sit at `order: 1` beside Calm, as three of production's
+  // featured moods do, so the endpoint's tie-break has something to break.
+  {
+    id: CHOICE.grateful,
+    file: 'content-choice-mood.svg',
+    data: {
+      title: 'Grateful',
+      slug: 'fixture-grateful',
+      type: 'mood',
+      color: '#c98bb9',
+      isFeatured: true,
+      order: 1,
+      timings: ['afternoon'],
+      afternoonMeditation: MEDITATION.dailyEnglish,
+    },
+  },
+  {
+    id: CHOICE.restless,
+    file: 'content-choice-mood.svg',
+    data: {
+      title: 'Restless',
+      slug: 'fixture-restless',
+      type: 'mood',
+      color: '#d98b5f',
+      isFeatured: true,
+      order: 1,
+      timings: ['evening'],
+      eveningMeditation: ID.meditations.first,
+    },
+  },
   {
     id: CHOICE.energised,
     file: 'content-choice-mood.svg',

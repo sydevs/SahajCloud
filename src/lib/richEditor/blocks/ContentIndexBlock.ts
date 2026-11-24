@@ -220,7 +220,10 @@ export const ContentIndexBlock: Block = {
       name: 'userChoiceFeatured',
       type: 'select',
       required: true,
-      defaultValue: 'featured',
+      // No `defaultValue`, deliberately: Payload re-applies one in the afterRead
+      // field pass, after the hooks, to any value that came out undefined. A
+      // default here would therefore undo `clearWhenTypeNot` on every other
+      // type, and the block would publish a featured setting it does not use.
       options: [
         { label: 'Featured only', value: 'featured' },
         { label: 'Not featured', value: 'not-featured' },
