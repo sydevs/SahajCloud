@@ -15,11 +15,13 @@
  */
 
 import type { RawImportRow } from './csv/columns'
+import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
 import type { GeocodedLocation, GeocodeLocationArgs, GeocodeOutcome } from '@/lib/mapbox/geocoder'
 import { geocodeLocation, isDoubtfulAddress } from '@/lib/mapbox/geocoder'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
 
 export type Geocode = (args: GeocodeLocationArgs) => Promise<GeocodeOutcome>
 
@@ -32,17 +34,8 @@ const TOO_LONG_RE = /too long\D+(\d+)\s*\/\s*(\d+)/i
  * One request per distinct lookup for a whole run: every row of a town asks
  * for the same town, and rows of one street often for the same postcode.
  */
-export function memoiseGeocode(geocode: Geocode = geocodeLocation): Geocode {
-  const asked = new Map<string, Promise<GeocodeOutcome>>()
-  return (args) => {
-    const key = JSON.stringify(args)
-    let lookup = asked.get(key)
-    if (!lookup) {
-      lookup = geocode(args)
-      asked.set(key, lookup)
-    }
-    return lookup
-  }
+export function memoiseGeocode(req: PayloadRequest, geocode: Geocode = geocodeLocation): Geocode {
+  return (args) => memoizeOnRequest(req, `geocode:${JSON.stringify(args)}`, () => geocode(args))
 }
 
 /** Find a row's place, or the one sentence saying why it cannot be placed. */

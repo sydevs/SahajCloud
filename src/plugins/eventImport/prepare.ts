@@ -84,7 +84,7 @@ async function planRows(
   run: ImportRun,
   uploaded: readonly UploadedRow[],
 ): Promise<Planned[]> {
-  const geocode = memoiseGeocode()
+  const geocode = memoiseGeocode(req)
   const rows: Row[] = uploaded.map(({ line, values }) => ({ row: line, values }))
   const located = await pMap(rows, (row) => locate(row, geocode), {
     concurrency: GEOCODE_CONCURRENCY,

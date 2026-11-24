@@ -4,6 +4,8 @@
  * rule: v6 answered Bidar's address with a street in Bengaluru.
  */
 
+import type { PayloadRequest } from 'payload'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import type { GeocodedLocation, GeocodeLocationArgs, GeocodeOutcome } from '@/lib/mapbox/geocoder'
@@ -151,7 +153,7 @@ describe('locateRow', () => {
 describe('memoiseGeocode', () => {
   it('asks Mapbox once per distinct lookup, however many rows ask it', async () => {
     const inner = geocoder({ address: found(bengaluruStreet), place: found(bidar) })
-    const geocode = memoiseGeocode(inner)
+    const geocode = memoiseGeocode({ context: {} } as PayloadRequest, inner)
     await locateRow(row({}), geocode)
     await locateRow(row({ address: 'Another road' }), geocode)
     const kinds = inner.mock.calls.map(([args]) => args.kind)
