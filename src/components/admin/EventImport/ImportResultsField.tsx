@@ -1,10 +1,10 @@
-import type { JSONFieldServerComponent, PayloadRequest } from 'payload'
+import type { JSONFieldServerComponent } from 'payload'
 
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
-import type { EventImportCreatedRegions, Manager, Region } from '@/payload-types'
+import type { Manager, Region } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
 
@@ -64,7 +64,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   const originals = results.flatMap((result) => originalOf(result) ?? [])
   const ids = [...new Set([...created, ...originals])]
 
-  const [[events, published], regionsLive] = await Promise.all([
+  const [[events, published], { docs: regionDocs }] = await Promise.all([
     ids.length
       ? Promise.all([
           req.payload.find({
@@ -121,10 +121,22 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
           }),
         ])
       : ([{ docs: [] }, { docs: [] }] as const),
-    liveRegions(req, createdRegions),
+    // The created regions as they stand now: renamed or deleted since, perhaps.
+    createdRegions.length
+      ? req.payload.find({
+          collection: 'regions',
+          where: { id: { in: createdRegions.map(({ regionId }) => regionId) } },
+          depth: 0,
+          pagination: false,
+          overrideAccess: true,
+          select: { name: true },
+          req: localeIsolatedReq(req),
+        })
+      : ({ docs: [] } as const),
   ])
 
   const live = new Map(events.docs.map((event) => [event.id, event]))
+  const liveRegion = new Map((regionDocs as Region[]).map((region) => [region.id, region]))
   const publishedAt = new Map<number, string>()
   for (const version of published.docs) {
     const parent = relationId(version.parent)
@@ -184,7 +196,18 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   })
 
   const skipped = results.filter(({ outcome }) => outcome !== 'created')
-  const regions = regionRows(createdRegions, regionsLive, results, live)
+  const eventOfRow = new Map(results.map(({ row, eventId }) => [row, eventId]))
+  // Each created city, with the classes its rows made that still exist.
+  const regions: RegionResultRow[] = createdRegions.map(({ regionId, name, parentName, rows }) => {
+    const region = liveRegion.get(regionId)
+    return {
+      id: regionId,
+      name: region?.name || name,
+      parentName,
+      classes: rows.filter((row) => live.has(eventOfRow.get(row) ?? -1)).length,
+      removed: !region,
+    }
+  })
 
   return (
     <ImportResultsTable
@@ -209,48 +232,6 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       rows={rows}
     />
   )
-}
-
-/**
- * The city regions the run created, as they stand now: renamed or deleted
- * since, perhaps. Past access for the reason the classes are (above): these
- * are the regions this import made.
- */
-async function liveRegions(
-  req: PayloadRequest,
-  created: EventImportCreatedRegions,
-): Promise<Map<number, Region>> {
-  if (!created.length) return new Map()
-  const { docs } = await req.payload.find({
-    collection: 'regions',
-    where: { id: { in: created.map(({ regionId }) => regionId) } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { name: true },
-    req: localeIsolatedReq(req),
-  })
-  return new Map((docs as Region[]).map((region) => [region.id, region]))
-}
-
-/** Each created city, with the classes its rows made that still exist. */
-function regionRows(
-  created: EventImportCreatedRegions,
-  regions: ReadonlyMap<number, Region>,
-  results: readonly ImportResultRow[],
-  events: ReadonlyMap<number, unknown>,
-): RegionResultRow[] {
-  const eventOfRow = new Map(results.map(({ row, eventId }) => [row, eventId]))
-  return created.map(({ regionId, name, parentName, rows }) => {
-    const region = regions.get(regionId)
-    return {
-      id: regionId,
-      name: region?.name || name,
-      parentName,
-      classes: rows.filter((row) => events.has(eventOfRow.get(row) ?? -1)).length,
-      removed: !region,
-    }
-  })
 }
 
 /**
