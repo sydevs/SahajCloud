@@ -83,8 +83,11 @@ export async function createCities(
   )
 
   for (const [placeId, { city, rows: waiting }] of byPlace) {
-    const skipAll = (reason: string) => {
-      for (const row of waiting) run.skipped.push({ ...row, reasons: [reason] })
+    // `missingCity` lets the page offer to create the town by hand.
+    const skipAll = (reason: string, missingCity?: { name: string }) => {
+      for (const row of waiting) {
+        run.skipped.push({ ...row, reasons: [reason], ...(missingCity && { missingCity }) })
+      }
     }
     const existing = heldElsewhere.get(placeId)
     if (existing) {
@@ -118,7 +121,8 @@ export async function createCities(
       })
     } catch (error) {
       skipAll(
-        `the city region "${city.name}" could not be created (${refusalOf(error, city)}) — create it in Regions, then upload these rows again`,
+        `the city region "${city.name}" could not be created (${refusalOf(error, city)}) — create it first`,
+        { name: city.name },
       )
     }
   }
@@ -136,7 +140,7 @@ async function slugAllocator(
 ): Promise<(city: PendingCity) => string> {
   const candidatesOf = (city: PendingCity) => {
     const base = slugifyValue(city.name) || 'city'
-    const qualified = `${base}-${slugifyValue(city.parentName)}`
+    const qualified = `${base}-${slugifyValue(city.parentName) || 'city'}`
     return [base, qualified, ...[2, 3, 4, 5].map((n) => `${qualified}-${n}`)]
   }
   const taken = new Set(

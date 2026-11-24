@@ -10,7 +10,8 @@
  *
  * ⚠ **Nothing is written until every row is checked.** A city region is
  * created, and a manager account opened, only for a row that passed every
- * check — so a file of bad rows leaves no empty cities behind.
+ * check, so a row the checks refuse leaves no empty city behind. A class whose
+ * create is refused after that can, and the import page lists its city.
  */
 
 import type { UploadedRow } from './csv/upload'

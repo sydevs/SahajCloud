@@ -253,8 +253,12 @@ export type GeocodeOutcome =
 export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
   const token = accessToken()
   if (!token) return { status: 'unconfigured', httpStatus: null }
-  const { region: _region, ...asked } = queryFields(args)
-  if (!Object.values(asked).some((value) => value?.trim())) return { status: 'missed' }
+  // An address lookup needs a street or a town; a postcode alone is the postcode lookup's.
+  const asked =
+    args.kind === 'postcode'
+      ? [args.postcode]
+      : [args.city, args.kind === 'address' ? args.address : null]
+  if (!asked.some((value) => value?.trim())) return { status: 'missed' }
 
   const answer = await fetchForwardFeature(lookupUrl(args, token))
   if (answer.kind === 'unavailable') return { status: 'unavailable' }
