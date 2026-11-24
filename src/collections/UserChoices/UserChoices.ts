@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { colorField, hideUntilCreated, slugField } from '@/fields'
+import { USER_CHOICE_TYPES } from '@/lib/userChoices'
 import {
   adminOnlyCondition,
   adminOnlyFieldAccess,
@@ -81,11 +82,7 @@ export const UserChoices: CollectionConfig = {
       required: true,
       defaultValue: 'mood',
       access: { update: adminOnlyFieldAccess },
-      options: [
-        { label: 'Mood', value: 'mood' },
-        { label: 'Goal', value: 'goal' },
-        { label: 'Duration', value: 'duration' },
-      ],
+      options: [...USER_CHOICE_TYPES],
       admin: {
         position: 'sidebar',
         description:

@@ -10887,7 +10887,7 @@ export interface TableOfContentsBlock {
  * via the `definition` "ContentIndexBlock".
  */
 export interface ContentIndexBlock {
-  type: 'meditations' | 'pages' | 'songs' | 'lectures';
+  type: 'meditations' | 'pages' | 'songs' | 'lectures' | 'user-choices';
   /**
    * Maximum number of items to return (1–100)
    */
@@ -10900,6 +10900,14 @@ export interface ContentIndexBlock {
    * Select user choices to use as filters for this index grid
    */
   userChoiceFilters?: (number | UserChoice)[] | null;
+  /**
+   * Which kinds of user choice this index lists
+   */
+  userChoiceTypeFilters?: ('mood' | 'goal' | 'duration')[] | null;
+  /**
+   * Whether to list the featured choices, the rest, or every one
+   */
+  userChoiceFeatured?: ('featured' | 'not-featured' | 'all') | null;
   /**
    * Select music tags to use as filters for this index grid
    */

@@ -3,15 +3,31 @@ import type { Block, FieldHook } from 'payload'
 import { extractID } from 'payload/shared'
 
 import { PAGE_TAGS } from '@/lib/pageTags'
+import { USER_CHOICE_TYPES } from '@/lib/userChoices'
+
+/** The `userChoiceFeatured` options, and the clause each one contributes. */
+const USER_CHOICE_FEATURED_CLAUSES: Record<string, string> = {
+  featured: '&where[isFeatured][equals]=true',
+  'not-featured': '&where[isFeatured][equals]=false',
+  all: '',
+}
 
 /**
  * Configuration for each content type's API endpoint generation.
  * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
  * which evaluates audiences from runtime user context and ignores `where`.
+ * `params` is for a type whose filters are not one list of ids: it builds every
+ * clause before `limit` itself, or answers null to publish no endpoint.
  */
 const CONTENT_TYPE_CONFIG: Record<
   string,
-  { basePath: string; filterField?: string; queryParam?: string; extraParams?: string }
+  {
+    basePath: string
+    filterField?: string
+    queryParam?: string
+    extraParams?: string
+    params?: (siblingData: Record<string, unknown>) => string | null
+  }
 > = {
   meditations: {
     basePath: '/api/user-choices',
@@ -32,6 +48,34 @@ const CONTENT_TYPE_CONFIG: Record<
   lectures: {
     basePath: '/api/lectures/for-audience',
   },
+  'user-choices': {
+    basePath: '/api/user-choices',
+    params: userChoiceParams,
+  },
+}
+
+/**
+ * The `user-choices` clauses: the chosen kinds, the featured setting, and two
+ * fixed ones. `isParent` is excluded because a parent category names no
+ * meditation of its own, so a tile for one could only lead nowhere. The second
+ * sort key is a tie-break: `order` is not unique (three of production's
+ * featured moods share `order: 1`), and without it Postgres may return tied
+ * rows in a different order on each read, so the grid would reshuffle between
+ * page loads. `id` rather than `title` keeps that order the same in every
+ * locale. Payload splits a comma-joined `sort` into keys (3.93,
+ * `sanitizeSortParams`).
+ */
+function userChoiceParams(siblingData: Record<string, unknown>): string | null {
+  const types = [siblingData.userChoiceTypeFilters]
+    .flat()
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+  if (types.length === 0) return null
+
+  const featured = siblingData.userChoiceFeatured
+  if (typeof featured !== 'string' || !(featured in USER_CHOICE_FEATURED_CLAUSES)) return null
+
+  const kinds = types.map((type) => encodeURIComponent(type)).join(',')
+  return `where[type][in]=${kinds}${USER_CHOICE_FEATURED_CLAUSES[featured]}&where[isParent][equals]=false&sort=order,id`
 }
 
 /**
@@ -51,6 +95,12 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
       ? rawLimit
       : null
   if (limit === null) return null
+
+  if (config.params) {
+    const params = config.params(siblingData as Record<string, unknown>)
+    if (params === null) return null
+    return `${config.basePath}?${params}&limit=${limit}`
+  }
 
   if (config.filterField && config.queryParam) {
     const filters = siblingData?.[config.filterField]
@@ -110,6 +160,7 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
+        { label: 'User Choices', value: 'user-choices' },
       ],
       admin: {
         components: {
@@ -151,6 +202,34 @@ export const ContentIndexBlock: Block = {
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'meditations',
         description: 'Select user choices to use as filters for this index grid',
+      },
+    },
+    {
+      name: 'userChoiceTypeFilters',
+      type: 'select',
+      hasMany: true,
+      required: true,
+      options: [...USER_CHOICE_TYPES],
+      hooks: clearWhenTypeNot('user-choices'),
+      admin: {
+        condition: (_, siblingData) => siblingData?.type === 'user-choices',
+        description: 'Which kinds of user choice this index lists',
+      },
+    },
+    {
+      name: 'userChoiceFeatured',
+      type: 'select',
+      required: true,
+      defaultValue: 'featured',
+      options: [
+        { label: 'Featured only', value: 'featured' },
+        { label: 'Not featured', value: 'not-featured' },
+        { label: 'All', value: 'all' },
+      ],
+      hooks: clearWhenTypeNot('user-choices'),
+      admin: {
+        condition: (_, siblingData) => siblingData?.type === 'user-choices',
+        description: 'Whether to list the featured choices, the rest, or every one',
       },
     },
     {
