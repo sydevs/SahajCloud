@@ -22,6 +22,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { PAGE_TAGS } from '@/lib/pageTags'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import { PLURAL_CATEGORIES, pluralStorageKeys } from '@/lib/translations/pluralCategories'
 import { collectLeafLookups, type SchemaNode } from '@/lib/translations/schemaWalker'
 
@@ -237,5 +238,33 @@ describe('seeds/wm-web-translations/data.en.json', () => {
       .map((key) => key.slice('tag_'.length))
 
     expect([...declared].sort()).toEqual([...PAGE_TAGS].sort())
+  })
+
+  /**
+   * `meditation.general.node_*` is one name per `SUBTLE_SYSTEM_NODE_OPTIONS`
+   * entry, which `meditations.titleNode` answers from. Nothing joins the two
+   * lists, so a thirteenth node would give a meditation a name `title` has no
+   * translatable label for — and nothing would fail, here or in WeMeditateWeb.
+   *
+   * The `default` half is the same coupling: English is declared beside the key
+   * rather than seeded, so it is the only copy a drifting label could pass.
+   */
+  it('declares one meditation node key per SUBTLE_SYSTEM_NODE_OPTIONS entry', () => {
+    const general = (schema.properties.meditation?.properties ?? {})['general'] as
+      | SchemaNode
+      | undefined
+    const declared = Object.entries(general?.properties ?? {})
+      .filter(([key]) => key.startsWith('node_'))
+      .map(([key, prop]) => ({
+        value: key.slice('node_'.length),
+        label: (prop as LeafProp).default,
+      }))
+      .sort((a, b) => a.value.localeCompare(b.value))
+
+    expect(declared).toEqual(
+      SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => ({ value: option.value, label: option.label })).sort(
+        (a, b) => a.value.localeCompare(b.value),
+      ),
+    )
   })
 })

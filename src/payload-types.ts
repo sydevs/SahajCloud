@@ -3022,6 +3022,25 @@ export interface Meditation {
    * Optional auto-generated fallback title (e.g. Meditation for Anahat), derived from this meditation's dominant subtle-system node. Front-end clients use it only when they have no composed label of their own.
    */
   title?: string | null;
+  /**
+   * The language-neutral slug of this meditation's dominant subtle-system node, for a front-end composing a localized name of its own. Public Title is the English wording of the same node.
+   */
+  titleNode?:
+    | (
+        | 'mooladhara'
+        | 'swadhistan'
+        | 'nabhi'
+        | 'void'
+        | 'anahat'
+        | 'vishuddhi'
+        | 'agnya'
+        | 'sahasrara'
+        | 'kundalini'
+        | 'pingala'
+        | 'ida'
+        | 'sushumna'
+      )
+    | null;
   thumbnail?: (number | null) | Image;
   type: 'daily' | 'lesson';
   /**
@@ -4487,6 +4506,7 @@ export interface MeditationsSelect<T extends boolean = true> {
   durationMinutes?: T;
   transcript?: T;
   title?: T;
+  titleNode?: T;
   thumbnail?: T;
   type?: T;
   tagAssignments?:
@@ -5866,6 +5886,58 @@ export interface WmWebTranslationsMeditationGeneralStrings {
    * The clickable words inside `upsell_app`, naming the mobile app and that it costs nothing. Translate as a noun phrase, not a sentence. `upsell_app` ends in a possessive, so inflect this phrase to follow it.
    */
   upsell_app_link?: string;
+  /**
+   * A meditation's name, composed from the node it dwells on longest. `%{node}` = that chakra or channel's name, taken from the `node_*` keys below and translated there. Reads as a page heading, a card title and a browser tab title, so none of the three is a fixed-width slot.
+   */
+  title?: string;
+  /**
+   * Name of Mooladhara, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_mooladhara?: string;
+  /**
+   * Name of Swadhistan, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_swadhistan?: string;
+  /**
+   * Name of Nabhi, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_nabhi?: string;
+  /**
+   * Name of the Void, the region of the subtle system around Nabhi, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them.
+   */
+  node_void?: string;
+  /**
+   * Name of Anahat, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_anahat?: string;
+  /**
+   * Name of Vishuddhi, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_vishuddhi?: string;
+  /**
+   * Name of Agnya, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_agnya?: string;
+  /**
+   * Name of Sahasrara, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_sahasrara?: string;
+  /**
+   * Name of Kundalini, the energy a meditation awakens, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it — and keep the spelling your language already uses for it.
+   */
+  node_kundalini?: string;
+  /**
+   * Name of the Right Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them.
+   */
+  node_pingala?: string;
+  /**
+   * Name of the Left Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them.
+   */
+  node_ida?: string;
+  /**
+   * Name of the Center Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them.
+   */
+  node_sushumna?: string;
 }
 export interface WmWebTranslationsLectureGeneralStrings {
   /**

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { lectureRelatedMeditations } from '@/collections/Lectures/endpoints/relatedMeditations'
 import type { MeditationCardData } from '@/lib/meditations/meditationShape'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import type { Frame, Lecture, Meditation, SubtleSystemNode } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -212,6 +213,7 @@ describe('lectureRelatedMeditations endpoint', () => {
       'narratorName',
       'thumbnailUrl',
       'title',
+      'titleNode',
     ])
     const card = docs[0]
     expect(typeof card.title).toBe('string')
@@ -220,6 +222,12 @@ describe('lectureRelatedMeditations endpoint', () => {
     expect(typeof card.thumbnailUrl).toBe('string')
     expect(card.thumbnailUrl.length).toBeGreaterThan(0)
     expect(card.narratorName).toBe('Test Narrator')
+    // One argmax feeds both fields, so the card's English name is the wording of
+    // the very node it publishes — never a different one. Derived rather than
+    // pinned: which candidate ranks first is this suite's other cases' subject.
+    const node = SUBTLE_SYSTEM_NODE_OPTIONS.find((option) => option.value === card.titleNode)
+    expect(node, `titleNode ${String(card.titleNode)} is outside the closed node set`).toBeDefined()
+    expect(card.title).toBe(`Meditation for ${node?.label}`)
   })
 
   it('returns 404 for an unknown lecture', async () => {

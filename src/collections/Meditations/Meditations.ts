@@ -21,6 +21,7 @@ import {
   normalizeMeditationFrames,
   normalizeMeditationFramesForStorage,
 } from '@/lib/meditations/frames'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 import { syncTranscriptOnSave } from '@/lib/transcripts/sync'
 import { restrictUploadToAdmin } from '@/plugins/access'
 import { virtualUrlField } from '@/plugins/storage/urlFields'
@@ -31,7 +32,7 @@ import { meditationLectures } from './endpoints/lectures'
 import { meditationSongs } from './endpoints/songs'
 import { meditationTranscribe } from './endpoints/transcribe'
 import { cacheMeditationNodeWeights } from './hooks/cacheMeditationNodeWeights'
-import { fallbackTitleAfterRead } from './hooks/fallbackTitle'
+import { fallbackTitleAfterRead, titleNodeAfterRead } from './hooks/fallbackTitle'
 import { filterMeditationsByLocale } from './hooks/filterMeditationsByLocale'
 
 /**
@@ -392,6 +393,24 @@ export const Meditations: CollectionConfig = {
               },
               hooks: {
                 afterRead: [fallbackTitleAfterRead],
+              },
+            },
+            {
+              name: 'titleNode',
+              type: 'select',
+              // The same argmax `title` uses (see ./hooks/fallbackTitle),
+              // published as a slug so a site can word the name itself.
+              // Virtual: no DB column, computed on read.
+              virtual: true,
+              custom: virtualFieldInputs('subtleSystemNodeWeights'),
+              options: [...SUBTLE_SYSTEM_NODE_OPTIONS],
+              admin: {
+                readOnly: true,
+                description:
+                  "The language-neutral slug of this meditation's dominant subtle-system node, for a front-end composing a localized name of its own. Public Title is the English wording of the same node.",
+              },
+              hooks: {
+                afterRead: [titleNodeAfterRead],
               },
             },
             {

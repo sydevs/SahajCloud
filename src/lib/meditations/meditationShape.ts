@@ -1,5 +1,6 @@
 import type { PayloadLogger } from 'payload'
 
+import type { SubtleSystemNodeSlug } from '@/lib/subtleSystem'
 import { resolveThumbnailUrl } from '@/lib/utilities/thumbnailUrl'
 import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
 
@@ -15,7 +16,7 @@ import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
  *
  * Each virtual field's `afterRead` reads a sibling an include-mode `select`
  * would otherwise strip first: `duration` feeds `durationMinutes`, and
- * `subtleSystemNodeWeights` feeds `title`. Each field declares that input on
+ * `subtleSystemNodeWeights` feeds `title` and `titleNode`. Each field declares that input on
  * itself, and `virtualFieldsPlugin` puts it back for any caller (#1084), so
  * naming them here no longer carries that on its own — `scoreMeditationByNodes`
  * in `/api/lectures/:id/related-meditations` reads the weights itself, which is
@@ -23,6 +24,7 @@ import type { Meditation, MeditationsSelect, Narrator } from '@/payload-types'
  */
 export const MEDITATION_CARD_SELECT = {
   title: true,
+  titleNode: true,
   duration: true,
   durationMinutes: true,
   thumbnail: true,
@@ -40,10 +42,15 @@ export const MEDITATION_CARD_SELECT = {
  * rather than emit a card missing any of these three, so consumers never expose
  * a placeholder or internal name. `narratorName` is best-effort (`null` when the
  * narrator relationship isn't populated).
+ *
+ * `titleNode` is that same node's language-neutral slug, for a consumer wording
+ * the name in the visitor's own language. One argmax feeds both, over a closed
+ * set of 12 slugs, so a card carrying a `title` carries this too.
  */
 export type MeditationCardData = {
   id: number
   title: string
+  titleNode: SubtleSystemNodeSlug | null
   durationMinutes: number
   thumbnailUrl: string
   narratorName: string | null
@@ -82,5 +89,12 @@ export function shapeMeditation(
   const narrator = meditation.narrator
   const narratorName = narrator && typeof narrator === 'object' ? (narrator as Narrator).name : null
 
-  return { id: meditation.id, title, durationMinutes, thumbnailUrl, narratorName }
+  return {
+    id: meditation.id,
+    title,
+    titleNode: meditation.titleNode ?? null,
+    durationMinutes,
+    thumbnailUrl,
+    narratorName,
+  }
 }
