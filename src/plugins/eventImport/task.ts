@@ -104,7 +104,6 @@ async function startRun(req: PayloadRequest, batch: Import) {
     cities: await cityIndex(req, target.id),
     states: await stateIndex(req, target),
     createdRegions: [],
-    towns: new Map(),
     claimed: new Map(),
   }
   return { run, rows: batch.rows ?? [] }

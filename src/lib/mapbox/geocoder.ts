@@ -24,11 +24,10 @@ import { isRecord } from '@/lib/utilities/isRecord'
  * `Hansaring 22, Köln, NRW, 50670` — it put Köln in Kiel, Hannover in Berne and
  * Offenbach in Bad Vilbel: the right street name in the wrong town. v6 takes the
  * street, postcode, town and state as separate fields. ⚠ **It grades an
- * `address` answer only** (`matchCode`): a `street` answer carries no grade, and
- * in India it often named a street in another town 500 km away. Whether an
- * answer is the row's own place is the caller's question, answered from the
- * `postcode` and `placeId` returned here. `AddressSearchField` reads the same id-space, so an id this
- * import stores is one the admin picker can land on too.
+ * `address` answer only** (`matchCode`), so whether any coarser answer is the
+ * row's own place is the caller's question (`eventImport/locate.ts`).
+ * `AddressSearchField` reads the same id-space, so an id this import stores is
+ * one the admin picker can land on too.
  */
 const GEOCODE_URL = 'https://api.mapbox.com/search/geocode/v6/forward'
 
@@ -175,23 +174,24 @@ function contextLayerId(entry: MapboxContextLayer | undefined): string | null {
 /** The `feature_type`s that are a town, which a place lookup is answered with. */
 const TOWN_FEATURE_TYPES = new Set(['place', 'locality'])
 
-/**
- * One lookup, field by field: an address placed by its street, postcode and
- * town, or a town alone (an online class has no hall).
- */
-export interface GeocodeLocationArgs {
-  kind: 'address' | 'place' | 'postcode'
-  /** The street and number, for an address lookup. */
-  address?: string | null
-  /** For an address lookup, and the whole query of a postcode one. */
-  postcode?: string | null
-  /** Not sent by a postcode lookup, which asks where the postcode is. */
-  city: string
+interface LookupScope {
   /** The state or province as the row wrote it — a name or a code. */
   region?: string | null
   /** ISO alpha-2 to restrict the search to. */
   countryCode: string
 }
+
+/**
+ * One lookup, field by field: an address placed by its street, postcode and
+ * town; a town alone (an online class has no hall); or a postcode alone,
+ * which asks where the postcode is and so names no town.
+ */
+export type GeocodeLocationArgs = LookupScope &
+  (
+    | { kind: 'address'; address?: string | null; postcode?: string | null; city: string }
+    | { kind: 'place'; city: string }
+    | { kind: 'postcode'; postcode: string }
+  )
 
 /**
  * The layers each lookup may answer with. An address lookup still reaches a
@@ -207,14 +207,27 @@ const LOOKUP_TYPES: Record<GeocodeLocationArgs['kind'], string> = {
 /** The v6 structured query for one lookup. */
 function lookupUrl(args: GeocodeLocationArgs, token: string): string {
   const params = baseParams(LOOKUP_TYPES[args.kind], args.countryCode, token)
-  const fields: [string, null | string | undefined][] = [
-    ['address_line1', args.kind === 'address' ? args.address : null],
-    ['postcode', args.kind === 'place' ? null : args.postcode],
-    ['place', args.kind === 'postcode' ? null : args.city],
-    ['region', args.region],
-  ]
-  for (const [key, value] of fields) if (value?.trim()) params.set(key, value.trim())
+  for (const [key, value] of Object.entries(queryFields(args))) {
+    if (value?.trim()) params.set(key, value.trim())
+  }
   return `${GEOCODE_URL}?${params.toString()}`
+}
+
+/** The v6 fields a lookup sends, by name. */
+function queryFields(args: GeocodeLocationArgs): Record<string, null | string | undefined> {
+  switch (args.kind) {
+    case 'address':
+      return {
+        address_line1: args.address,
+        postcode: args.postcode,
+        place: args.city,
+        region: args.region,
+      }
+    case 'place':
+      return { place: args.city, region: args.region }
+    case 'postcode':
+      return { postcode: args.postcode, region: args.region }
+  }
 }
 
 /**
@@ -240,8 +253,8 @@ export type GeocodeOutcome =
 export async function geocodeLocation(args: GeocodeLocationArgs): Promise<GeocodeOutcome> {
   const token = accessToken()
   if (!token) return { status: 'unconfigured', httpStatus: null }
-  const asked = args.kind === 'postcode' ? [args.postcode] : [args.city, args.address]
-  if (!asked.some((value) => value?.trim())) return { status: 'missed' }
+  const { region: _region, ...asked } = queryFields(args)
+  if (!Object.values(asked).some((value) => value?.trim())) return { status: 'missed' }
 
   const answer = await fetchForwardFeature(lookupUrl(args, token))
   if (answer.kind === 'unavailable') return { status: 'unavailable' }
@@ -289,8 +302,21 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
 }
 
 /**
+ * Whether v6 doubts the address it answered with: the town or postcode it
+ * matched is not the one asked for, or its own grade is low.
+ */
+export function isDoubtfulAddress(matchCode: MapboxMatchCode): boolean {
+  return (
+    matchCode.place === 'unmatched' ||
+    matchCode.postcode === 'unmatched' ||
+    matchCode.confidence === 'low'
+  )
+}
+
+/**
  * The id Mapbox matched, but only where it matched an `address` feature — a
- * single street number — and null for every coarser `feature_type`.
+ * single street number — that v6 does not doubt, and null for every coarser
+ * `feature_type`.
  *
  * ⚠ **A feature id names what Mapbox matched, not what was asked for.** A
  * lookup that reaches only the street or the town answers with that street's
@@ -298,5 +324,6 @@ export async function geocodeLocation(args: GeocodeLocationArgs): Promise<Geocod
  * Every caller that writes an address's id reads it through here.
  */
 export function addressFeatureMapboxId(location: GeocodedLocation): string | null {
-  return location.featureType === 'address' ? location.mapboxId : null
+  if (location.featureType !== 'address') return null
+  return location.matchCode && isDoubtfulAddress(location.matchCode) ? null : location.mapboxId
 }

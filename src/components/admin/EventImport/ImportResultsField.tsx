@@ -4,10 +4,9 @@ import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Manager, Region } from '@/payload-types'
+import type { EventImportCreatedRegions, Manager, Region } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
-import type { CreatedRegion } from '@/plugins/eventImport/run'
 
 import {
   type RegionResultRow,
@@ -59,70 +58,71 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
     : null
   if (!stored) return null
   const results = (stored.results ?? []) as ImportResultRow[]
-  const createdRegions = (stored.createdRegions ?? []) as CreatedRegion[]
+  const createdRegions = stored.createdRegions ?? []
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
   const ids = [...new Set([...created, ...originals])]
 
-  const [events, published] = ids.length
-    ? await Promise.all([
-        req.payload.find({
-          collection: 'events',
-          where: { id: { in: ids } },
-          // The stored document, not its newest draft: a published class with
-          // an edit saved as a draft is still published.
-          draft: false,
-          depth: 1,
-          pagination: false,
-          overrideAccess: true,
-          // ⚠ Stored columns only: the whole schedule group would compute its
-          // virtual `icalRule` and `upcomingDates` for each of up to 500 rows.
-          select: {
-            title: true,
-            eventType: true,
-            region: true,
-            address: { mapboxId: true },
-            _status: true,
-            createdAt: true,
-            manager: true,
-            verificationStage: true,
-            inactive: true,
-            schedule: {
-              firstDate: true,
-              firstDate_tz: true,
-              recurrenceType: true,
-              interval: true,
-              weekdays: true,
-              monthlyMode: true,
-              monthDay: true,
-              weekNumber: true,
-              weekdayOfMonth: true,
-              endingType: true,
-              count: true,
-              untilDate: true,
-              exclusions: true,
+  const [[events, published], regionsLive] = await Promise.all([
+    ids.length
+      ? Promise.all([
+          req.payload.find({
+            collection: 'events',
+            where: { id: { in: ids } },
+            // The stored document, not its newest draft: a published class with
+            // an edit saved as a draft is still published.
+            draft: false,
+            depth: 1,
+            pagination: false,
+            overrideAccess: true,
+            // ⚠ Stored columns only: the whole schedule group would compute its
+            // virtual `icalRule` and `upcomingDates` for each of up to 500 rows.
+            select: {
+              title: true,
+              eventType: true,
+              address: { mapboxId: true },
+              _status: true,
+              createdAt: true,
+              manager: true,
+              verificationStage: true,
+              inactive: true,
+              schedule: {
+                firstDate: true,
+                firstDate_tz: true,
+                recurrenceType: true,
+                interval: true,
+                weekdays: true,
+                monthlyMode: true,
+                monthDay: true,
+                weekNumber: true,
+                weekdayOfMonth: true,
+                endingType: true,
+                count: true,
+                untilDate: true,
+                exclusions: true,
+              },
             },
-          },
-          // `region` only to count the classes in each city the run created.
-          populate: { managers: { name: true, email: true }, regions: { name: true } },
-          req: localeIsolatedReq(req),
-        }),
-        // When each created class was first published: its earliest published version.
-        req.payload.findVersions({
-          collection: 'events',
-          where: {
-            and: [{ parent: { in: created } }, { 'version._status': { equals: 'published' } }],
-          },
-          sort: 'createdAt',
-          depth: 0,
-          pagination: false,
-          overrideAccess: true,
-          select: { parent: true, createdAt: true },
-          req: localeIsolatedReq(req),
-        }),
-      ])
-    : [{ docs: [] }, { docs: [] }]
+            populate: { managers: { name: true, email: true } },
+            req: localeIsolatedReq(req),
+          }),
+          // When each created class was first published: its earliest published version.
+          req.payload.findVersions({
+            collection: 'events',
+            where: {
+              and: [{ parent: { in: created } }, { 'version._status': { equals: 'published' } }],
+            },
+            sort: 'createdAt',
+            depth: 0,
+            pagination: false,
+            overrideAccess: true,
+            select: { parent: true, createdAt: true },
+            req: localeIsolatedReq(req),
+          }),
+        ])
+      : ([{ docs: [] }, { docs: [] }] as const),
+    liveRegions(req, createdRegions),
+  ])
 
   const live = new Map(events.docs.map((event) => [event.id, event]))
   const publishedAt = new Map<number, string>()
@@ -184,7 +184,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   })
 
   const skipped = results.filter(({ outcome }) => outcome !== 'created')
-  const regions = await regionRows(req, createdRegions, events.docs)
+  const regions = regionRows(createdRegions, regionsLive, results, live)
 
   return (
     <ImportResultsTable
@@ -212,16 +212,15 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
 }
 
 /**
- * Each city region the run created, as it stands now: it may have been renamed
- * or deleted since, and its classes published or cleaned up. Past access for
- * the reason the classes are (above): these are the regions this import made.
+ * The city regions the run created, as they stand now: renamed or deleted
+ * since, perhaps. Past access for the reason the classes are (above): these
+ * are the regions this import made.
  */
-async function regionRows(
+async function liveRegions(
   req: PayloadRequest,
-  created: readonly CreatedRegion[],
-  events: readonly { region?: unknown }[],
-): Promise<RegionResultRow[]> {
-  if (!created.length) return []
+  created: EventImportCreatedRegions,
+): Promise<Map<number, Region>> {
+  if (!created.length) return new Map()
   const { docs } = await req.payload.find({
     collection: 'regions',
     where: { id: { in: created.map(({ regionId }) => regionId) } },
@@ -231,14 +230,24 @@ async function regionRows(
     select: { name: true },
     req: localeIsolatedReq(req),
   })
-  const live = new Map((docs as Region[]).map((region) => [region.id, region]))
-  return created.map(({ regionId, name, parentName }) => {
-    const region = live.get(regionId)
+  return new Map((docs as Region[]).map((region) => [region.id, region]))
+}
+
+/** Each created city, with the classes its rows made that still exist. */
+function regionRows(
+  created: EventImportCreatedRegions,
+  regions: ReadonlyMap<number, Region>,
+  results: readonly ImportResultRow[],
+  events: ReadonlyMap<number, unknown>,
+): RegionResultRow[] {
+  const eventOfRow = new Map(results.map(({ row, eventId }) => [row, eventId]))
+  return created.map(({ regionId, name, parentName, rows }) => {
+    const region = regions.get(regionId)
     return {
       id: regionId,
       name: region?.name || name,
       parentName,
-      classes: events.filter((event) => relationId(event.region as never) === regionId).length,
+      classes: rows.filter((row) => events.has(eventOfRow.get(row) ?? -1)).length,
       removed: !region,
     }
   })

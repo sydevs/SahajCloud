@@ -56,7 +56,9 @@ export type EventImportCreatedRegions = {
    * Mapbox’s name for the town, as the region was created.
    */
   name: string;
-  parentId: number;
+  /**
+   * The region it was filed under.
+   */
   parentName: string;
   /**
    * The spreadsheet lines whose town it is.

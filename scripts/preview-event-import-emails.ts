@@ -87,7 +87,6 @@ async function main() {
       createdRegions: Array.from({ length: scenario.newCities ?? 0 }, (_, index) => ({
         regionId: index + 1,
         name: `New Town ${index + 1}`,
-        parentId: 7,
         parentName: 'United Kingdom',
         rows: [index + 2],
       })),

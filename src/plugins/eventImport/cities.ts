@@ -15,14 +15,15 @@
  * picker fills it in, and the import page lists every region it created.
  */
 
-import type { CreatedRegion, ImportRun } from './run'
+import type { ImportRow, ImportRun } from './run'
 import type { PayloadRequest } from 'payload'
 
-import { APIError, ValidationError } from 'payload'
+import { APIError } from 'payload'
 
 import { slugifyValue } from '@/fields/slugify'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
+import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
 import type { Region } from '@/payload-types'
 
 /** A city region rows need, which the run creates once every row is checked. */
@@ -34,70 +35,60 @@ export interface PendingCity {
   parentName: string
 }
 
-export type CityPlan =
-  | { ok: true; city: PendingCity }
-  /** `missingCity`: the page may offer to create the town by hand. */
-  | { ok: false; reason: string; missingCity: boolean }
-
-/**
- * The city a row's town needs created, or why the run cannot create it.
- * `town` is how the refusal names it: Mapbox's name, else the row's own.
- */
-export function planCity(run: ImportRun, location: GeocodedLocation, town: string): CityPlan {
+/** The city a row's town needs created, or null when the run may not create it. */
+export function planCity(run: ImportRun, location: GeocodedLocation): null | PendingCity {
   const { target } = run
-  const createItFirst: CityPlan = {
-    ok: false,
-    reason: `no city region for "${town}" under ${target.name} — create it first`,
-    missingCity: true,
-  }
-  if (!location.placeId || !location.placeName || isManualMapboxId(target.mapboxId)) {
-    return createItFirst
-  }
+  const { placeId, placeName } = location
+  if (!placeId || !placeName || isManualMapboxId(target.mapboxId)) return null
 
-  const city = { placeId: location.placeId, name: location.placeName }
   if (target.level === 'region') {
-    if (location.stateId !== target.mapboxId) return createItFirst
-    return { ok: true, city: { ...city, parentId: target.id, parentName: target.name } }
+    if (location.stateId !== target.mapboxId) return null
+    return { placeId, name: placeName, parentId: target.id, parentName: target.name }
   }
   if (target.level === 'country') {
-    if (location.countryId !== target.mapboxId) return createItFirst
+    if (location.countryId !== target.mapboxId) return null
     const state = location.stateId ? run.states.get(location.stateId) : undefined
     const parent = state ?? { id: target.id, name: target.name }
-    return { ok: true, city: { ...city, parentId: parent.id, parentName: parent.name } }
+    return { placeId, name: placeName, parentId: parent.id, parentName: parent.name }
   }
-  return createItFirst
+  return null
 }
 
 /**
- * Create the cities rows are waiting on. Answers each place id with the new
- * region's id, or with the sentence its rows are skipped with.
+ * Create the cities `rows` are waiting on, answering each place id with its
+ * new region's id. A row whose city could not be created is skipped, naming why.
  */
 export async function createCities(
   req: PayloadRequest,
   run: ImportRun,
-  pending: ReadonlyMap<string, { city: PendingCity; rows: number[] }>,
-): Promise<Map<string, number | string>> {
-  const outcome = new Map<string, number | string>()
-  if (!pending.size) return outcome
+  rows: readonly { row: ImportRow; pending?: PendingCity }[],
+): Promise<Map<string, number>> {
+  const byPlace = new Map<string, { city: PendingCity; rows: ImportRow[] }>()
+  for (const { row, pending } of rows) {
+    if (!pending) continue
+    const entry = byPlace.get(pending.placeId)
+    if (entry) entry.rows.push(row)
+    else byPlace.set(pending.placeId, { city: pending, rows: [row] })
+  }
+  const created = new Map<string, number>()
+  if (!byPlace.size) return created
 
   // `mapboxId` is unique across the tree, so a town already held outside the
   // target cannot be created again under it.
-  const { docs: held } = await req.payload.find({
-    collection: 'regions',
-    where: { mapboxId: { in: [...pending.keys()] } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { mapboxId: true, name: true },
+  const held = await regionsWhere(req, { mapboxId: { in: [...byPlace.keys()] } })
+  const heldElsewhere = new Map(held.map((region) => [region.mapboxId, region]))
+  const slugs = await slugAllocator(
     req,
-  })
-  const heldElsewhere = new Map((held as Region[]).map((region) => [region.mapboxId, region]))
+    [...byPlace.values()].map(({ city }) => city),
+  )
 
-  for (const [placeId, { city, rows }] of pending) {
+  for (const [placeId, { city, rows: waiting }] of byPlace) {
+    const skipAll = (reason: string) => {
+      for (const row of waiting) run.skipped.push({ ...row, reasons: [reason] })
+    }
     const existing = heldElsewhere.get(placeId)
     if (existing) {
-      outcome.set(
-        placeId,
+      skipAll(
         `the city region "${existing.name ?? city.name}" already exists outside ${run.target.name} — import these rows into a region that contains it`,
       )
       continue
@@ -110,7 +101,7 @@ export async function createCities(
           parent: city.parentId,
           mapboxId: placeId,
           name: city.name,
-          slug: await freeSlug(req, city),
+          slug: slugs(city),
         },
         depth: 0,
         select: { name: true },
@@ -118,50 +109,69 @@ export async function createCities(
         overrideAccess: false,
         locale: run.locale as never,
       })
-      outcome.set(placeId, region.id)
+      created.set(placeId, region.id)
       run.createdRegions.push({
         regionId: region.id,
         name: city.name,
-        parentId: city.parentId,
         parentName: city.parentName,
-        rows,
-      } satisfies CreatedRegion)
+        rows: waiting.map(({ row }) => row),
+      })
     } catch (error) {
-      outcome.set(placeId, refusalOf(error, city))
+      skipAll(
+        `the city region "${city.name}" could not be created (${refusalOf(error, city)}) — create it in Regions, then upload these rows again`,
+      )
     }
   }
-  return outcome
+  return created
 }
 
 /**
- * The town's own slug, or one qualified by its parent where another region has
- * it — `georgia-united-states` is how the Atlas migration told namesakes apart.
+ * Hands each city its own slug, or one qualified by its parent where another
+ * region has it — `georgia-united-states` is how the Atlas migration told
+ * namesakes apart. One query answers every candidate of the run.
  */
-async function freeSlug(req: PayloadRequest, city: PendingCity): Promise<string> {
-  const base = slugifyValue(city.name) || 'city'
-  const qualified = `${base}-${slugifyValue(city.parentName)}`
-  const candidates = [base, qualified, ...[2, 3, 4, 5].map((n) => `${qualified}-${n}`)]
-  const { docs } = await req.payload.find({
-    collection: 'regions',
-    where: { slug: { in: candidates } },
-    depth: 0,
-    pagination: false,
-    overrideAccess: true,
-    select: { slug: true },
-    req,
-  })
-  const taken = new Set((docs as Region[]).map(({ slug }) => slug))
-  return candidates.find((slug) => !taken.has(slug)) ?? `${qualified}-${Date.now()}`
+async function slugAllocator(
+  req: PayloadRequest,
+  cities: readonly PendingCity[],
+): Promise<(city: PendingCity) => string> {
+  const candidatesOf = (city: PendingCity) => {
+    const base = slugifyValue(city.name) || 'city'
+    const qualified = `${base}-${slugifyValue(city.parentName)}`
+    return [base, qualified, ...[2, 3, 4, 5].map((n) => `${qualified}-${n}`)]
+  }
+  const taken = new Set(
+    (await regionsWhere(req, { slug: { in: cities.flatMap(candidatesOf) } })).map(
+      ({ slug }) => slug,
+    ),
+  )
+  return (city) => {
+    const candidates = candidatesOf(city)
+    const slug =
+      candidates.find((candidate) => !taken.has(candidate)) ?? `${candidates[1]}-${Date.now()}`
+    taken.add(slug)
+    return slug
+  }
+}
+
+function regionsWhere(req: PayloadRequest, where: Record<string, unknown>): Promise<Region[]> {
+  return req.payload
+    .find({
+      collection: 'regions',
+      where: where as never,
+      depth: 0,
+      pagination: false,
+      overrideAccess: true,
+      select: { mapboxId: true, name: true, slug: true },
+      req,
+    })
+    .then(({ docs }) => docs as Region[])
 }
 
 function refusalOf(error: unknown, city: PendingCity): string {
-  const why =
-    error instanceof ValidationError
-      ? error.data.errors.map(({ message, path }) => `${path}: ${message}`).join('; ')
-      : error instanceof APIError && error.status === 403
-        ? `you may not add regions under ${city.parentName}`
-        : error instanceof Error
-          ? error.message
-          : String(error)
-  return `the city region "${city.name}" could not be created (${why}) — create it in Regions, then upload these rows again`
+  const fields = validationFieldErrors(error)
+  if (fields) return describeValidationErrors(fields).join('; ')
+  if (error instanceof APIError && error.status === 403) {
+    return `you may not add regions under ${city.parentName}`
+  }
+  return error instanceof Error ? error.message : String(error)
 }

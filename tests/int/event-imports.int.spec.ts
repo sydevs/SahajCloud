@@ -632,6 +632,9 @@ describe('class imports', () => {
       geocoder.towns = {}
     })
 
+    // Each class its own start time, so none repeats another as a duplicate.
+    let minute = 0
+    const nextTime = () => `07:${String(++minute).padStart(2, '0')}`
     const indianLine = (cells: Record<string, string>) =>
       classLine({ country: 'IN', address: 'Temple Road 1', ...cells })
 
@@ -647,8 +650,8 @@ describe('class imports', () => {
     it('creates the city a town needs once, as Mapbox names it, and lists it', async () => {
       const created = await createImport(
         [
-          indianLine({ title: 'Mysore one', city: 'Mysuru', startTime: '07:01' }),
-          indianLine({ title: 'Mysore two', city: 'Mysuru', startTime: '07:02' }),
+          indianLine({ title: 'Mysore one', city: 'Mysuru', startTime: nextTime() }),
+          indianLine({ title: 'Mysore two', city: 'Mysuru', startTime: nextTime() }),
         ],
         admin,
         { targetRegion: karnataka },
@@ -664,7 +667,6 @@ describe('class imports', () => {
         {
           regionId: city!.id,
           name: 'Mysore',
-          parentId: karnataka,
           parentName: 'Karnataka',
           rows: [2, 3],
         },
@@ -687,8 +689,12 @@ describe('class imports', () => {
     it('files a city under its state when the target is the country, else under the country', async () => {
       const created = await createImport(
         [
-          indianLine({ title: 'In a state the Atlas holds', city: 'Hubballi', startTime: '07:03' }),
-          indianLine({ title: 'In a state it does not', city: 'Kochi', startTime: '07:04' }),
+          indianLine({
+            title: 'In a state the Atlas holds',
+            city: 'Hubballi',
+            startTime: nextTime(),
+          }),
+          indianLine({ title: 'In a state it does not', city: 'Kochi', startTime: nextTime() }),
         ],
         admin,
         { targetRegion: india },
@@ -700,7 +706,7 @@ describe('class imports', () => {
 
     it('creates no city for a town outside the target, skipping the row as before', async () => {
       const created = await createImport(
-        [indianLine({ title: 'Goa class', city: 'Panaji', startTime: '07:05' })],
+        [indianLine({ title: 'Goa class', city: 'Panaji', startTime: nextTime() })],
         admin,
         { targetRegion: karnataka },
       )
@@ -724,7 +730,7 @@ describe('class imports', () => {
       const owner = await testData.createManager(payload, { name: 'Karnataka Manager' })
       await payload.update({ collection: 'regions', id: karnataka, data: { managers: [owner.id] } })
       const created = await createImport(
-        [indianLine({ title: 'Hampi class', city: 'Hampi', startTime: '07:06' })],
+        [indianLine({ title: 'Hampi class', city: 'Hampi', startTime: nextTime() })],
         await testData.authUser(payload, owner),
         { targetRegion: karnataka },
       )
@@ -741,7 +747,7 @@ describe('class imports', () => {
         mapboxId: 'place.bidar',
       })
       const created = await createImport(
-        [indianLine({ title: 'Bidar class', city: 'Bidar', startTime: '07:07' })],
+        [indianLine({ title: 'Bidar class', city: 'Bidar', startTime: nextTime() })],
         admin,
         { targetRegion: karnataka },
       )

@@ -9,12 +9,12 @@
  * skipped.
  *
  * ⚠ **Nothing is written until every row is checked.** A city region is
- * created, and a manager account opened, only for a row that will become a
- * class — and `planRows` alone writes nothing at all, which is what a dry run
- * against production reads.
+ * created, and a manager account opened, only for a row that passed every
+ * check — so a file of bad rows leaves no empty cities behind.
  */
 
 import type { UploadedRow } from './csv/upload'
+import type { Geocode } from './locate'
 import type { ImportRow, ImportRun, SkippedRow } from './run'
 import type { PayloadRequest } from 'payload'
 
@@ -30,7 +30,7 @@ import { createCities, type PendingCity, planCity } from './cities'
 import { GEOCODE_CONCURRENCY } from './constants'
 import { checkRowFields } from './csv/fieldChecks'
 import { eventCreateData } from './eventData'
-import { locateRow } from './locate'
+import { locateRow, memoiseGeocode } from './locate'
 import { ensureManagers, managerKeyOf, managerRoster } from './managers'
 import { importWriteContext } from './run'
 import { timezoneAt } from './timezone'
@@ -42,17 +42,10 @@ type Located =
   | { row: Row; ok: true; location: GeocodedLocation; timezone: string }
   | { row: Row; ok: false; errors: string[] }
 
-/**
- * A row that passed every check but its manager. `regionId` is null while its
- * city is still `pending` — one the run is to create.
- */
-export interface Planned {
-  row: Row
-  regionId: null | number
-  pending?: PendingCity
-  location: GeocodedLocation
-  timezone: string
-}
+/** A row that passed every check but its manager, filed under a city it has or one to create. */
+type Planned = { row: Row; location: GeocodedLocation; timezone: string } & (
+  { regionId: number; pending?: undefined } | { regionId: null; pending: PendingCity }
+)
 
 /** Every row that passed, in file order, with the class to create from it. */
 export async function prepareRows(
@@ -61,28 +54,20 @@ export async function prepareRows(
   uploaded: readonly UploadedRow[],
 ): Promise<{ row: Row; data: Record<string, unknown> }[]> {
   const planned = await planRows(req, run, uploaded)
-
-  const created = await createCities(req, run, pendingCities(planned))
-  const ready = new Map<number, Planned>()
-  for (const entry of planned) {
-    const pending = entry.pending
-    if (!pending) {
-      ready.set(entry.row.row, entry)
-      continue
-    }
-    const outcome = created.get(pending.placeId)
-    if (typeof outcome === 'number') ready.set(entry.row.row, { ...entry, regionId: outcome })
-    else skip(run, entry.row, [outcome ?? `the city region "${pending.name}" was not created`])
-  }
+  const cityIds = await createCities(req, run, planned)
+  const ready = planned.flatMap((entry): Planned[] => {
+    if (!entry.pending) return [entry]
+    const regionId = cityIds.get(entry.pending.placeId)
+    return regionId === undefined ? [] : [{ ...entry, regionId, pending: undefined }]
+  })
 
   const managers = await ensureManagers(
     req,
-    managerRoster([...ready.values()].map(({ row }) => ({ line: row.row, values: row.values }))),
+    managerRoster(ready.map(({ row }) => ({ line: row.row, values: row.values }))),
   )
 
-  return planned.flatMap(({ row }) => {
-    const entry = ready.get(row.row)
-    if (!entry) return []
+  return ready.flatMap((entry) => {
+    const { row } = entry
     const email = managerKeyOf(row.values)
     const failure = email ? managers.failures.get(email) : undefined
     if (failure) return skip(run, row, [failure]) ?? []
@@ -93,13 +78,14 @@ export async function prepareRows(
 }
 
 /** Check and place every row, writing nothing: the rows that would import, in file order. */
-export async function planRows(
+async function planRows(
   req: PayloadRequest,
   run: ImportRun,
   uploaded: readonly UploadedRow[],
 ): Promise<Planned[]> {
+  const geocode = memoiseGeocode()
   const rows: Row[] = uploaded.map(({ line, values }) => ({ row: line, values }))
-  const located = await pMap(rows, (row) => locate(run, row), {
+  const located = await pMap(rows, (row) => locate(row, geocode), {
     concurrency: GEOCODE_CONCURRENCY,
   })
   const planned: Planned[] = []
@@ -112,18 +98,6 @@ export async function planRows(
     if (placed) planned.push(placed)
   }
   return planned
-}
-
-/** The cities `planned` waits on, each with the lines that named it. */
-function pendingCities(planned: readonly Planned[]) {
-  const byPlace = new Map<string, { city: PendingCity; rows: number[] }>()
-  for (const { pending, row } of planned) {
-    if (!pending) continue
-    const entry = byPlace.get(pending.placeId)
-    if (entry) entry.rows.push(row.row)
-    else byPlace.set(pending.placeId, { city: pending, rows: [row.row] })
-  }
-  return byPlace
 }
 
 /**
@@ -146,54 +120,50 @@ async function placeRow(
     location.placeId &&
     location.placeId !== run.target.mapboxId
   ) {
-    return skip(run, row, [`"${town}" is not in ${run.target.name}`]) ?? null
+    return skip(run, row, [`"${town}" is not in ${run.target.name}`])
   }
 
   const regionId =
     (location.placeId ? run.cities.get(location.placeId) : undefined) ??
     (run.target.level === 'city' ? run.target.id : undefined)
-  let pending: PendingCity | undefined
-  if (regionId === undefined) {
-    const plan = planCity(run, location, town)
-    if (!plan.ok) {
-      return (
-        skip(run, row, [plan.reason], plan.missingCity ? { missingCity: { name: town } } : {}) ??
-        null
+  let planned: Planned
+  if (regionId !== undefined) planned = { ...entry, regionId }
+  else {
+    const pending = planCity(run, location)
+    if (!pending) {
+      return skip(
+        run,
+        row,
+        [`no city region for "${town}" under ${run.target.name} — create it first`],
+        {
+          missingCity: { name: town },
+        },
       )
     }
-    pending = plan.city
+    planned = { ...entry, regionId: null, pending }
   }
 
-  const planned: Planned = { ...entry, regionId: regionId ?? null, pending }
   const built = build(run, planned, null)
-  if (!built.ok) return skip(run, row, built.errors) ?? null
+  if (!built.ok) return skip(run, row, built.errors)
   // A city still to be created has no id to check yet; its create is that check.
-  const refused = await fieldErrors(
-    req,
-    built.data,
-    importWriteContext(),
-    pending ? ['region'] : [],
-  )
-  if (refused.length) return skip(run, row, refused) ?? null
+  const ignore = planned.pending ? ['region'] : []
+  const refused = await fieldErrors(req, built.data, importWriteContext(), ignore)
+  if (refused.length) return skip(run, row, refused)
 
   const identity = classKey(built.data as Partial<Event>)
-  const key = `${regionId ?? `new:${pending?.placeId}`}|${identity}`
+  const key = `${planned.pending ? `new:${planned.pending.placeId}` : planned.regionId}|${identity}`
   const earlier = run.claimed.get(key)
   if (earlier !== undefined) {
-    return (
-      skip(run, row, [`repeats row ${earlier} of this file`], { duplicateOf: { row: earlier } }) ??
-      null
-    )
+    return skip(run, row, [`repeats row ${earlier} of this file`], {
+      duplicateOf: { row: earlier },
+    })
   }
-  // A city the run has yet to create lists no class to repeat.
-  const twin =
-    regionId === undefined ? null : await findDuplicateClass(req, built.data as Partial<Event>)
+  // With no region yet — a city to create — this lists no class and asks nothing.
+  const twin = await findDuplicateClass(req, built.data as Partial<Event>)
   if (twin) {
-    return (
-      skip(run, row, [`repeats the class "${twin.title}" already listed`], {
-        duplicateOf: { eventId: twin.id, title: twin.title },
-      }) ?? null
-    )
+    return skip(run, row, [`repeats the class "${twin.title}" already listed`], {
+      duplicateOf: { eventId: twin.id, title: twin.title },
+    })
   }
   if (identity) run.claimed.set(key, row.row)
   return planned
@@ -212,11 +182,11 @@ function build(run: ImportRun, entry: Planned, managerId: null | number) {
   })
 }
 
-async function locate(run: ImportRun, row: Row): Promise<Located> {
+async function locate(row: Row, geocode: Geocode): Promise<Located> {
   const errors = checkRowFields(row.values)
   if (errors.length) return { row, ok: false, errors }
 
-  const placed = await locateRow({ values: row.values, towns: run.towns })
+  const placed = await locateRow(row.values, geocode)
   if (!placed.ok) return { row, ok: false, errors: [placed.error] }
 
   const zone = timezoneAt(placed.location.latitude, placed.location.longitude)
@@ -229,7 +199,7 @@ function skip(
   row: Row,
   reasons: string[],
   extra: Pick<SkippedRow, 'duplicateOf' | 'missingCity'> = {},
-): undefined {
+): null {
   run.skipped.push({ row: row.row, reasons, values: row.values, ...extra })
-  return undefined
+  return null
 }

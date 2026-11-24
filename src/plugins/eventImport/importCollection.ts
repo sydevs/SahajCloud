@@ -174,8 +174,7 @@ const MAIN_FIELDS: Field[] = [
       z.strictObject({
         regionId: z.int(),
         name: z.string().describe('Mapbox’s name for the town, as the region was created.'),
-        parentId: z.int(),
-        parentName: z.string(),
+        parentName: z.string().describe('The region it was filed under.'),
         rows: z.array(z.int()).describe('The spreadsheet lines whose town it is.'),
       }),
     ),

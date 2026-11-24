@@ -41,13 +41,9 @@ export interface MapboxContextLayer {
  * coarser answer — a street, a postcode, a town — carries none.
  */
 export interface MapboxMatchCode {
-  address_number?: string
-  street?: string
-  postcode?: string
+  /** `matched`, `unmatched` or `not_applicable`, as each field below. */
   place?: string
-  region?: string
-  locality?: string
-  country?: string
+  postcode?: string
   /** `exact`, `high`, `medium` or `low`. */
   confidence?: string
 }

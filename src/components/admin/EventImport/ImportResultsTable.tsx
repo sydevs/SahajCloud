@@ -56,7 +56,7 @@ export interface RegionResultRow {
   name: string
   /** The region it was filed under. */
   parentName: string
-  /** The import's classes held in it now. */
+  /** Classes its rows created that still exist. */
   classes: number
   /** Deleted since the import. */
   removed: boolean
@@ -275,8 +275,8 @@ export const ImportResultsTable: React.FC<{
               },
               {
                 accessor: 'classes',
-                cells: regions.map(({ classes }) =>
-                  classes === 1 ? '1 class' : `${classes} classes`,
+                cells: regions.map(({ classes: count }) =>
+                  count === 1 ? '1 class' : `${count} classes`,
                 ),
                 heading: 'Classes',
               },

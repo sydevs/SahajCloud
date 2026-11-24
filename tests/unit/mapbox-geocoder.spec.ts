@@ -130,7 +130,7 @@ describe('geocodeLocation', () => {
       seenUrl = url
       return { body: placed(berlinContext) }
     })
-    await geocodeLocation({ kind: 'place', city: 'Leipzig', countryCode: 'DE', address: 'ignored' })
+    await geocodeLocation({ kind: 'place', city: 'Leipzig', countryCode: 'DE' })
     const url = new URL(seenUrl)
     expect(url.searchParams.get('types')).toBe('place,locality')
     expect(url.searchParams.has('address_line1')).toBe(false)
@@ -151,8 +151,6 @@ describe('geocodeLocation', () => {
     const location = await located({
       kind: 'postcode',
       postcode: '10999',
-      city: 'Hamburg',
-      address: 'ignored',
       countryCode: 'DE',
     })
     const url = new URL(seenUrl)
