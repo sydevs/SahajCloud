@@ -116,11 +116,6 @@ function declaredKeys(): DeclaredKey[] {
   return out
 }
 
-/** The `meditation` tab's one sub-group, which both node cases below read. */
-function meditationGeneral(): SchemaNode | undefined {
-  return (schema.properties.meditation?.properties ?? {})['general'] as SchemaNode | undefined
-}
-
 /**
  * Each `node_*` key as `[slug, declared English]`, through the walker this
  * file's header names rather than a second reading of the nesting rules.
@@ -281,7 +276,8 @@ describe('seeds/wm-web-translations/data.en.json', () => {
    * whole release with nothing failing.
    */
   it('composes the same English name the meditations hook does', () => {
-    const general = meditationGeneral()
+    const general = (schema.properties.meditation?.properties ?? {})['general'] as
+      SchemaNode | undefined
     const format = (general?.properties ?? {})['title'] as LeafProp | undefined
 
     expect(format?.default).toBeDefined()
