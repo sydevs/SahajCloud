@@ -74,11 +74,12 @@ export const pagesSection: SectionSpec<WeMeditateAppStatusConfig, Ctx> = {
       }),
     ])
 
-    const coreSlots: PageSlot[] = APP_PAGE_FIELDS.map((field) => ({
-      id: refId(appConfig[field.name]),
-      key: field.name,
-      label: field.label ?? toWords(field.name),
-    }))
+    const coreSlots: PageSlot[] = APP_PAGE_FIELDS.flatMap((field) => {
+      const id = refId(appConfig[field.name])
+      // An optional slot left empty configures no page, so it has none to report.
+      if (id === null && field.required === false) return []
+      return [{ id, key: field.name, label: field.label ?? toWords(field.name) }]
+    })
     const nodeSlots: PageSlot[] = nodes.map((n) => ({
       id: refId(n.page),
       key: `node:${n.slug}`,

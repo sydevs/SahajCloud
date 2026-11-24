@@ -398,6 +398,36 @@ describe('WeMeditateAppStatus Global', () => {
       )
       expect(nodeRow?.label).toBe(`Node ${node.slug} — page ${trashedPage.id} not found`)
     })
+
+    it('skips an optional slot left empty, and still reports one that names a missing page', async () => {
+      const coreRows = async () => {
+        const group = (await run(pagesSection, payload)).groups.find((g) => g.key === 'core-pages')
+        if (group?.type !== 'documents') throw new Error('core-pages is not a documents group')
+        return group.documents
+      }
+
+      await payload.updateGlobal({
+        slug: 'wm-app-config',
+        data: { ...requiredAppConfig, liveMeditationsReminderPage: null },
+      })
+      expect((await coreRows()).some((d) => d.id === 'missing:liveMeditationsReminderPage')).toBe(
+        false,
+      )
+
+      const goneReminder = await testData.createPage(payload)
+      await payload.updateGlobal({
+        slug: 'wm-app-config',
+        data: { ...requiredAppConfig, liveMeditationsReminderPage: goneReminder.id },
+      })
+      await payload.update({
+        collection: 'pages',
+        id: goneReminder.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+      expect(
+        (await coreRows()).find((d) => d.id === 'missing:liveMeditationsReminderPage')?.label,
+      ).toBe(`Live Meditations Reminder Page — page ${goneReminder.id} not found`)
+    })
   })
 
   // --- Section 3 — Lectures ---
