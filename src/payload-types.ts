@@ -8870,11 +8870,11 @@ export interface SyAtlasTranslation {
 }
 export interface SyAtlasTranslationsCommonChromeStrings {
   /**
-   * Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control where its target has no name.
+   * Back control where its target has no name.
    */
   back?: string;
   /**
-   * Peek-strip name for its target view, and the Back control on every place and class page. `%{title}` = the place it returns to.
+   * Back control on every place and class page. `%{title}` = the place it returns to.
    */
   back_to?: string;
   /**

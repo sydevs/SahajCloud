@@ -11,11 +11,11 @@
           "properties": {
             "back": {
               "type": "string",
-              "description": "Peek-strip name for the root drawer, shown when a deeper view is open, and the Back control where its target has no name."
+              "description": "Back control where its target has no name."
             },
             "back_to": {
               "type": "string",
-              "description": "Peek-strip name for its target view, and the Back control on every place and class page. `%{title}` = the place it returns to."
+              "description": "Back control on every place and class page. `%{title}` = the place it returns to."
             },
             "back_to_class": {
               "type": "string",
