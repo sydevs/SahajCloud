@@ -50,16 +50,13 @@ const CONTENT_TYPE_CONFIG: Record<string, { basePath: string; params?: ParamsBui
 /** A type filtered by one relationship or select field, as a comma-joined `in`. */
 function idListParams(filterField: string, queryParam: string, extra?: string): ParamsBuilder {
   return (siblingData) => {
-    const filters = siblingData[filterField]
-    if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
-
-    const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
-    const ids = filterValues.map(extractID)
+    const raw = siblingData[filterField]
+    const ids = (Array.isArray(raw) ? raw : [raw])
+      .filter(Boolean)
+      .map((value) => encodeURIComponent(extractID(value)))
     if (ids.length === 0) return null
 
-    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-
-    return [`${queryParam}=${queryValue}`, extra].filter(Boolean).join('&')
+    return [`${queryParam}=${ids.join(',')}`, extra].filter(Boolean).join('&')
   }
 }
 
