@@ -2,7 +2,10 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import {
+  APP_PAGE_FIELDS,
+  APP_REQUIRED_PAGE_FIELDS,
+} from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -103,10 +106,17 @@ describe('WeMeditateAppConfig Global', () => {
         // beside the optional ones and the app's Page tags.
         const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
         const pageFieldNames = pagesTab.fields
+          .filter((f) => f.type === 'relationship')
+          .map((f) => ('name' in f ? f.name : undefined))
+        expect(pageFieldNames).toHaveLength(APP_PAGE_FIELDS.length)
+        expect(pageFieldNames).toEqual(
+          expect.arrayContaining(APP_PAGE_FIELDS.map(({ name }) => name)),
+        )
+
+        const requiredFieldNames = pagesTab.fields
           .filter((f) => f.type === 'relationship' && f.required)
           .map((f) => ('name' in f ? f.name : undefined))
-        expect(pageFieldNames).toHaveLength(APP_REQUIRED_PAGE_FIELDS.length)
-        expect(pageFieldNames).toEqual(expect.arrayContaining([...APP_REQUIRED_PAGE_FIELDS]))
+        expect(requiredFieldNames).toEqual([...APP_REQUIRED_PAGE_FIELDS])
 
         const firstMeditationTab = tabsField.tabs.find((t) => t.label === 'First Meditation')!
         const fieldNames = firstMeditationTab.fields.map((f) => ('name' in f ? f.name : undefined))

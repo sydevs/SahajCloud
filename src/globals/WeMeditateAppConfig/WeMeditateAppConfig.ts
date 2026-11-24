@@ -23,7 +23,7 @@ type AppPageField = {
   required?: boolean
 }
 
-const APP_PAGE_FIELDS: readonly AppPageField[] = [
+export const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'classesPage' },
   { name: 'liveMeditationsPage' },
   { name: 'explorePage', description: 'Page for exploring full app content' },
@@ -48,6 +48,7 @@ const APP_PAGE_FIELDS: readonly AppPageField[] = [
   },
 ]
 
+/** The slots an app build cannot open without. `liveMeditationsReminderPage` is not one. */
 export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.filter((p) => p.required !== false).map(
   (p) => p.name,
 )

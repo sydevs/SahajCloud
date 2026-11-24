@@ -2,7 +2,7 @@ import type { BasePayload, Payload, PayloadRequest, TypedLocale } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { APP_REQUIRED_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import {
   appCardsSection,
   appConfigSection,
@@ -146,7 +146,7 @@ describe('WeMeditateAppStatus Global', () => {
       title: 'Required Page Placeholder',
     })
     requiredAppConfig = {
-      ...Object.fromEntries(APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id])),
+      ...Object.fromEntries(APP_PAGE_FIELDS.map(({ name }) => [name, placeholderPage.id])),
       availableLocales: ['en'],
     }
   })
@@ -368,6 +368,36 @@ describe('WeMeditateAppStatus Global', () => {
       const draftReport = core.documents.find((d) => d.id === draftCorePage.id)!
       expect(draftReport.checks.find((c) => c.key === 'published')?.passed).toBe(false)
     })
+
+    it('keeps a failing row for a configured page that has been trashed (#1252)', async () => {
+      const trashedPage = await testData.createPage(payload)
+      const node = await testData.createSubtleSystemNode(payload, { page: trashedPage.id })
+      await payload.updateGlobal({
+        slug: 'wm-app-config',
+        data: { ...requiredAppConfig, sahajaYogaPage: trashedPage.id },
+      })
+      await payload.update({
+        collection: 'pages',
+        id: trashedPage.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      const report = await run(pagesSection, payload)
+      const rowsOf = (key: string) => {
+        const group = report.groups.find((g) => g.key === key)
+        if (group?.type !== 'documents') throw new Error(`${key} is not a documents group`)
+        return group.documents
+      }
+
+      const coreRow = rowsOf('core-pages').find((d) => d.id === 'missing:sahajaYogaPage')
+      expect(coreRow?.label).toBe(`Sahaja Yoga Page — page ${trashedPage.id} not found`)
+      expect(coreRow?.checks.every((c) => !c.passed)).toBe(true)
+
+      const nodeRow = rowsOf('subtle-system-pages').find(
+        (d) => d.id === `missing:node:${node.slug}`,
+      )
+      expect(nodeRow?.label).toBe(`Node ${node.slug} — page ${trashedPage.id} not found`)
+    })
   })
 
   // --- Section 3 — Lectures ---
@@ -438,6 +468,41 @@ describe('WeMeditateAppStatus Global', () => {
         'relationship-published',
       ])
       expect(group.documents[0].checks.every((c) => c.passed)).toBe(true)
+    })
+
+    it('names a trashed meditation instead of reporting the slot unset (#1252)', async () => {
+      const trashed = await testData.createMeditation(payload, undefined, {
+        type: 'daily',
+        _status: 'published',
+        locale: 'en',
+      })
+      await payload.updateGlobal({
+        slug: 'wm-app-config',
+        locale: 'en',
+        data: { ...requiredAppConfig, selfRealizationMeditation: trashed.id },
+      })
+      await payload.update({
+        collection: 'meditations',
+        id: trashed.id,
+        data: { deletedAt: new Date().toISOString() },
+      })
+
+      try {
+        const report = await run(appConfigSection, payload)
+        const group = report.groups.find((g) => g.key === 'self-realization-meditation')
+        if (group?.type !== 'documents')
+          throw new Error('self-realization-meditation is not a documents group')
+        const row = group.documents[0]
+        expect(row.id).toBe('missing:selfRealizationMeditation')
+        expect(row.label).toBe(`Meditation ${trashed.id} not found`)
+        expect(row.checks.every((c) => !c.passed)).toBe(true)
+      } finally {
+        await payload.updateGlobal({
+          slug: 'wm-app-config',
+          locale: 'en',
+          data: { ...requiredAppConfig, selfRealizationMeditation: null },
+        })
+      }
     })
   })
 
