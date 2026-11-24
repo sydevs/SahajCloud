@@ -1,4 +1,4 @@
-import type { Block, FieldHook } from 'payload'
+import type { Block, Condition, FieldHook } from 'payload'
 
 import { extractID } from 'payload/shared'
 
@@ -103,19 +103,31 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
 }
 
 /**
- * Creates hooks that clear a filter field's value when the block's type doesn't match.
- * Prevents stale filter data from being stored or returned in the API.
+ * Scopes a filter field to one block type: shown only for it, and cleared on
+ * write and on read for every other, so no stale filter is stored or
+ * published. A field this guards must declare no `defaultValue` — Payload
+ * re-applies one after the hooks run (AGENTS.md, #1257).
  */
-function clearWhenTypeNot(activeType: string): {
-  beforeChange: FieldHook[]
-  afterRead: FieldHook[]
+function onlyForType(
+  activeType: string,
+  description: string,
+): {
+  hooks: { beforeChange: FieldHook[]; afterRead: FieldHook[] }
+  admin: { condition: Condition; description: string }
 } {
   const hook: FieldHook = ({ value, siblingData, field }) => {
     if (siblingData?.type === activeType) return value
     if (siblingData && field?.name) delete siblingData[field.name]
     return undefined
   }
-  return { beforeChange: [hook], afterRead: [hook] }
+
+  return {
+    hooks: { beforeChange: [hook], afterRead: [hook] },
+    admin: {
+      condition: (_, siblingData) => siblingData?.type === activeType,
+      description,
+    },
+  }
 }
 
 export const ContentIndexBlock: Block = {
@@ -167,11 +179,7 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       required: true,
       options: PAGE_TAGS,
-      hooks: clearWhenTypeNot('pages'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'pages',
-        description: 'Select page tags to use as filters for this index grid',
-      },
+      ...onlyForType('pages', 'Select page tags to use as filters for this index grid'),
     },
     {
       name: 'userChoiceFilters',
@@ -180,11 +188,7 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
-      hooks: clearWhenTypeNot('meditations'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'meditations',
-        description: 'Select user choices to use as filters for this index grid',
-      },
+      ...onlyForType('meditations', 'Select user choices to use as filters for this index grid'),
     },
     {
       name: 'userChoiceTypeFilters',
@@ -192,23 +196,18 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       required: true,
       options: USER_CHOICE_TYPES,
-      hooks: clearWhenTypeNot('user-choices'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'user-choices',
-        description: 'Which kinds of user choice this index lists',
-      },
+      ...onlyForType('user-choices', 'Which kinds of user choice this index lists'),
     },
     {
       name: 'userChoiceFeatured',
       type: 'select',
       required: true,
-      // No `defaultValue`: one here would undo `clearWhenTypeNot` (AGENTS.md, #1257).
+      // No `defaultValue`: one here would undo `onlyForType` (AGENTS.md, #1257).
       options: USER_CHOICE_FEATURED.map(({ label, value }) => ({ label, value })),
-      hooks: clearWhenTypeNot('user-choices'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'user-choices',
-        description: 'Whether to list the featured choices, the rest, or every one',
-      },
+      ...onlyForType(
+        'user-choices',
+        'Whether to list the featured choices, the rest, or every one',
+      ),
     },
     {
       name: 'songFilters',
@@ -217,11 +216,7 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
-      hooks: clearWhenTypeNot('songs'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'songs',
-        description: 'Select music tags to use as filters for this index grid',
-      },
+      ...onlyForType('songs', 'Select music tags to use as filters for this index grid'),
     },
     {
       name: 'apiEndpoint',
