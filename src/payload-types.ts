@@ -1090,6 +1090,14 @@ export interface Page {
   generateSlug?: boolean | null;
   slug: string;
   /**
+   * The page this one sits under. Its address becomes the start of this one’s.
+   */
+  parent?: (number | null) | Page;
+  /**
+   * Where this page is served, as of the last save.
+   */
+  path?: string | null;
+  /**
    * Article author (for article pages)
    */
   author?: (number | null) | Author;
@@ -4477,6 +4485,8 @@ export interface PagesSelect<T extends boolean = true> {
       };
   generateSlug?: T;
   slug?: T;
+  parent?: T;
+  path?: T;
   author?: T;
   featuredVideo?: T;
   tags?: T;
@@ -5582,6 +5592,16 @@ export interface WmWebConfig {
    * Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.
    */
   infoPages?: (number | Page)[] | null;
+  indexPages?: {
+    /**
+     * The site shows this page as the parent of every meditation page.
+     */
+    meditations?: (number | null) | Page;
+    /**
+     * The site shows this page as the parent of every talk page.
+     */
+    lectures?: (number | null) | Page;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -10170,6 +10190,12 @@ export interface WmWebConfigSelect<T extends boolean = true> {
   classPages?: T;
   knowledgePages?: T;
   infoPages?: T;
+  indexPages?:
+    | T
+    | {
+        meditations?: T;
+        lectures?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -10904,7 +10930,7 @@ export interface TableOfContentsBlock {
  * via the `definition` "ContentIndexBlock".
  */
 export interface ContentIndexBlock {
-  type: 'meditations' | 'pages' | 'songs' | 'lectures';
+  type: 'meditations' | 'pages' | 'songs' | 'lectures' | 'user-choices';
   /**
    * Maximum number of items to return (1–100)
    */
@@ -10917,6 +10943,14 @@ export interface ContentIndexBlock {
    * Select user choices to use as filters for this index grid
    */
   userChoiceFilters?: (number | UserChoice)[] | null;
+  /**
+   * Which kinds of user choice this index lists
+   */
+  userChoiceTypeFilters?: ('mood' | 'goal' | 'duration')[] | null;
+  /**
+   * Whether to list the featured choices, the rest, or every one
+   */
+  userChoiceFeatured?: ('featured' | 'not-featured' | 'all') | null;
   /**
    * Select music tags to use as filters for this index grid
    */

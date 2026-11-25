@@ -1,15 +1,15 @@
 import type { FieldHook } from 'payload'
 
 import { Block } from 'payload'
-import slugify from 'slugify'
 
 import { mediaField } from '@/fields'
+import { slugify } from '@/fields/slugify'
 
 const computeTabTitleUrls: FieldHook = ({ value, siblingData }) => {
   if ((siblingData as { style?: string })?.style !== 'tabs') return value
   return (value as Array<{ title?: string; titleUrl?: string }>).map((item) => ({
     ...item,
-    titleUrl: item.title ? `#${slugify(item.title, { strict: true, lower: true })}` : item.titleUrl,
+    titleUrl: item.title ? `#${slugify(item.title)}` : item.titleUrl,
   }))
 }
 
@@ -86,11 +86,11 @@ export const LayoutBlock: Block = {
         const block = siblingData as { style?: string; items?: Array<{ title?: string }> }
         if (block?.style !== 'tabs' || !value) return true
 
-        const slug = `#${slugify(String(value), { strict: true, lower: true })}`
+        const slug = `#${slugify(String(value))}`
         const tabTitles = (block.items ?? [])
           .map((item) => item?.title)
           .filter((t): t is string => Boolean(t))
-        const anchors = tabTitles.map((t) => `#${slugify(t, { strict: true, lower: true })}`)
+        const anchors = tabTitles.map((t) => `#${slugify(t)}`)
 
         if (!anchors.includes(slug)) {
           const hint = tabTitles.length ? ` Available tabs: ${tabTitles.join(', ')}.` : ''
@@ -102,7 +102,7 @@ export const LayoutBlock: Block = {
         beforeChange: [
           ({ value }) => {
             if (!value || typeof value !== 'string') return value
-            return `#${slugify(value, { strict: true, lower: true })}`
+            return `#${slugify(value)}`
           },
         ],
       },

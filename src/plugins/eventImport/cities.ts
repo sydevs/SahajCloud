@@ -20,7 +20,7 @@ import type { PayloadRequest } from 'payload'
 
 import { APIError } from 'payload'
 
-import { slugifyValue } from '@/fields/slugify'
+import { slugify } from '@/fields/slugify'
 import type { GeocodedLocation } from '@/lib/mapbox/geocoder'
 import { isManualMapboxId } from '@/lib/mapbox/manualLocation'
 import { describeValidationErrors, validationFieldErrors } from '@/lib/utilities/validationFailure'
@@ -140,8 +140,8 @@ async function slugAllocator(
   cities: readonly PendingCity[],
 ): Promise<(city: PendingCity) => string> {
   const candidatesOf = (city: PendingCity) => {
-    const base = slugifyValue(city.name) || 'city'
-    return [base, `${base}-${slugifyValue(city.parentName) || 'city'}`]
+    const base = slugify(city.name) || 'city'
+    return [base, `${base}-${slugify(city.parentName) || 'city'}`]
   }
   const taken = new Set(
     (await regionsWhere(req, { slug: { in: cities.flatMap(candidatesOf) } })).map(

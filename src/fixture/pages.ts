@@ -234,6 +234,12 @@ export default fixture('pages', [
           songFilters: [ID.songTags.first],
         }),
         block('content-index', 'landing-index-lectures', { type: 'lectures', limit: 3 }),
+        block('content-index', 'landing-index-user-choices', {
+          type: 'user-choices',
+          limit: 20,
+          userChoiceTypeFilters: ['mood'],
+          userChoiceFeatured: 'featured',
+        }),
       ),
     },
   },
@@ -410,6 +416,42 @@ export default fixture('pages', [
           userChoiceFilters: [CHOICE.deepen],
         }),
       ),
+    },
+  },
+  // A three-level chain, parents first — a self-referential relationship is
+  // ordered inside its own file (`order.ts`).
+  {
+    id: PAGE.nestedSection,
+    data: {
+      _status: 'published',
+      title: 'Where to practise',
+      slug: 'fixture-where-to-practise',
+      tags: ['lifestyle'],
+      content: plainTextToLexical('A section page, with pages nested under it.'),
+    },
+  },
+  {
+    id: PAGE.nestedChild,
+    data: {
+      _status: 'published',
+      title: 'At home',
+      slug: 'fixture-at-home',
+      tags: ['lifestyle'],
+      parent: PAGE.nestedSection,
+      content: plainTextToLexical(
+        'Served at fixture-where-to-practise/fixture-at-home, one segment per ancestor.',
+      ),
+    },
+  },
+  {
+    id: PAGE.nestedGrandchild,
+    data: {
+      _status: 'published',
+      title: 'A corner of one room',
+      slug: 'fixture-a-corner-of-one-room',
+      tags: ['lifestyle'],
+      parent: PAGE.nestedChild,
+      content: plainTextToLexical('Two ancestors, so its address carries both of their slugs.'),
     },
   },
   ...NODE_PAGES.map((node) => ({

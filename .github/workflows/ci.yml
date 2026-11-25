@@ -43,6 +43,20 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/payload_test
     steps:
       - uses: actions/checkout@v7
+
+      # ── Docs-only changes take the light lane ───────────────────────────────
+      # A change touching nothing but markdown, docs/, .claude/ or .vscode/ can
+      # break nothing below except the formatter: eslint and prettier both
+      # ignore .claude/, and no code or test reads a .md file. So it runs only
+      # `format:check` and passes in a minute or two instead of 12–16.
+      #
+      # ⚠ Gate the steps, never the job or the workflow. This job is the
+      # required check, and skipping it would drop the markdown format check.
+      # (why: sydevs/claude-workflow docs/why.md#a-docs-only-change-takes-the-light-lane)
+      - name: Classify the change
+        id: scope
+        uses: sydevs/claude-workflow/.github/actions/change-scope@main
+
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -50,15 +64,19 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+        if: ${{ steps.scope.outputs.full == 'true' }}
       # Its own step, so a formatting failure names itself rather than
       # reading as a lint error. `pnpm lint` is eslint only, and nothing
       # here checked the formatter until #992: a prettier bump landed
       # without a reformat and 229 files drifted silently (#991).
       - name: Check formatting
         run: pnpm format:check
-      - run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
-      - run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
-      - run: pnpm test # runs test:unit and test:int (integration runs against Postgres)
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
+      - if: ${{ steps.scope.outputs.full == 'true' }}
+        run: pnpm test # runs test:unit and test:int (integration runs against Postgres)
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
       # Find the PR's Railway preview URL from Railway's commit status. This
@@ -73,12 +91,13 @@ jobs:
       # re-run does not clear it — see RAILWAY_RUNBOOK.md.
       - name: Discover Railway preview URL
         id: preview
+        if: ${{ steps.scope.outputs.full == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: pnpm tsx scripts/get-railway-preview-url.ts
       - name: Warn when the smoke lane was skipped
-        if: ${{ steps.preview.outputs.preview_url == '' }}
+        if: ${{ steps.scope.outputs.full == 'true' && steps.preview.outputs.preview_url == '' }}
         run: |
           echo "::warning title=Smoke specs skipped::No Railway preview was discovered for this \
           commit, so the Tier-3 smoke lane did not run. Read the 'Discover Railway preview URL' \

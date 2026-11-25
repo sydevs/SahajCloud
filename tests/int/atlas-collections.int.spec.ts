@@ -31,7 +31,7 @@ describe('Atlas collections', () => {
   })
 
   describe('Regions slug', () => {
-    it('auto-generates a transliterated slug from a non-Latin (Cyrillic) name', async () => {
+    it("auto-generates a slug in the name's own letters (Cyrillic)", async () => {
       const region = await payload.create({
         collection: 'regions',
         overrideAccess: true,
@@ -42,7 +42,7 @@ describe('Atlas collections', () => {
           managers: [managerId],
         }),
       })
-      expect(region.slug).toBe('moskva')
+      expect(region.slug).toBe('москва')
     })
   })
 

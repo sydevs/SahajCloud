@@ -38,6 +38,16 @@ export const WeMeditateWebConfig: GlobalConfig = {
       type: 'relationship',
       relationTo: 'pages',
       required: true,
+      // The site root sits under nothing. `pages` refuses the home page a
+      // parent, but only from its own side — pointing this field at a page that
+      // is already nested is the other ordering, and composes `section/` as the
+      // root's address.
+      filterOptions: { parent: { exists: false } },
+      admin: {
+        description:
+          'The page the site serves at its root. Only a page that sits under no other page can ' +
+          'be chosen — the root has no address above it.',
+      },
     },
     availableLocalesField({
       translationsSlug: 'wm-web-translations',
@@ -115,6 +125,40 @@ export const WeMeditateWebConfig: GlobalConfig = {
         description:
           'Select up to 5 meta pages about the website. eg. Privacy Notice, Contact Form, etc.',
       },
+    },
+    {
+      // The site owns two detail routes in code — a meditation's page and a
+      // talk's — so neither can carry a `parent` of its own. Naming the page
+      // each sits under is what lets the site give them an address and a
+      // breadcrumb trail. No `parent`, because a route the site builds is
+      // mounted at the named page, not beneath it.
+      name: 'indexPages',
+      type: 'group',
+      label: 'Index Pages',
+      fields: [
+        {
+          name: 'meditations',
+          type: 'relationship',
+          relationTo: 'pages',
+          filterOptions: { slug: { equals: 'meditations' }, parent: { exists: false } },
+          admin: {
+            description:
+              'The site shows this page as the parent of every meditation page. Only a page ' +
+              'whose slug is “meditations” and that sits under no other page can be chosen.',
+          },
+        },
+        {
+          name: 'lectures',
+          type: 'relationship',
+          relationTo: 'pages',
+          filterOptions: { slug: { equals: 'lectures' }, parent: { exists: false } },
+          admin: {
+            description:
+              'The site shows this page as the parent of every talk page. Only a page whose ' +
+              'slug is “lectures” and that sits under no other page can be chosen.',
+          },
+        },
+      ],
     },
   ],
 }

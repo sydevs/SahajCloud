@@ -427,6 +427,12 @@ describe('SendDigests job', () => {
         canonical: {
           verification: {
             ...EMPTY_VERIFICATION,
+            verified: {
+              at: '2026-11-08T07:00:00.000Z',
+              domain: 'essonne-digest.example',
+              mount: '/carte',
+              widgetVersion: 2,
+            },
             seo: {
               at: '2026-11-08T07:00:00.000Z',
               results: [
@@ -463,6 +469,28 @@ describe('SendDigests job', () => {
         site: { domain: 'missing-digest.example', page: '/carte', track: 'custom' },
       })
 
+      // Never confirmed and never missed: the admin's to follow up, and not the service's.
+      await testData.createClient(payload, managerId, {
+        label: 'Uninstalled Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'uninstalled-digest.example', page: '/carte', track: 'custom' },
+      })
+      await testData.createClient(payload, managerId, {
+        embedMetadata: {
+          'https://reported-digest.example/carte': {
+            lastSeen: '2026-11-08T07:00:00.000Z',
+            mode: 'inline',
+            paramPersisted: true,
+            routing: 'query',
+            topLevel: true,
+            urlWritable: true,
+          },
+        },
+        label: 'Reported Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'reported-digest.example', page: '/carte', track: 'custom' },
+      })
+
       // A Monday, for the Weekly anchor.
       emailAdapter.clearCapturedEmails()
       await runDigests(payload, new Date('2026-11-09T07:00:00.000Z'))
@@ -487,7 +515,14 @@ describe('SendDigests job', () => {
 
       const admin = emailsTo('websites-admin@example.com')
       expect(admin).toHaveLength(1)
-      expect(String(admin[0]!.html)).toContain('Essonne Digest Site')
+      const adminHtml = String(admin[0]!.html)
+      expect(adminHtml).toContain('Essonne Digest Site')
+      expect(adminHtml).toContain('Search problem')
+      expect(adminHtml).toContain('Uninstalled Digest Site')
+      expect(adminHtml).toContain('Atlas not detected yet')
+      expect(adminHtml).toContain('Reported Digest Site')
+      expect(adminHtml).toContain('Atlas detected, not yet confirmed')
+      expect(html).not.toContain('Uninstalled Digest Site')
     })
   })
 
