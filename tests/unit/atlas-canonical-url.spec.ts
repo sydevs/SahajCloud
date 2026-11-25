@@ -10,6 +10,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
+import { slugify } from '@/fields/slugify'
 import contract from '@/lib/atlas/atlas-url-contract.json'
 import type { CanonicalTarget } from '@/lib/atlas/canonicalUrl'
 import {
@@ -31,7 +32,7 @@ const cases = contract.cases as ContractCase[]
 
 describe('atlas-url-contract fixture', () => {
   it('is the shape the other two repos read', () => {
-    expect(contract.version).toBe(1)
+    expect(contract.version).toBe(2)
     expect(contract.queryParam).toBe(ATLAS_QUERY_PARAM)
     expect(cases.length).toBeGreaterThan(0)
   })
@@ -62,14 +63,14 @@ describe('buildCanonicalUrl', () => {
     }
   })
 
-  it('composes as base + path, which is what publicUrlFields relies on', () => {
-    // `webUrl` is built by `publicUrlFields` as `base + webPath`, not by calling
+  it('composes as base + encodeURI(path), which is what publicUrlFields relies on', () => {
+    // `webUrl` is built by `publicUrlFields` as `base + encodeURI(webPath)`, not by calling
     // buildCanonicalUrl — so if these two ever disagreed, the collection fields
     // would emit something no test of the builder would catch.
     for (const testCase of cases) {
       const full = buildCanonicalUrl(testCase.target, testCase.webPath)
       if (full === null) continue
-      expect(`${canonicalUrlBase(testCase.target)}${testCase.webPath}`).toBe(full)
+      expect(`${canonicalUrlBase(testCase.target)}${encodeURI(testCase.webPath)}`).toBe(full)
     }
   })
 
@@ -85,43 +86,22 @@ describe('buildCanonicalUrl', () => {
 })
 
 /**
- * The builder emits `webPath` **raw**, not percent-encoded, and that is only a
- * no-op because every segment a path can contain is already URL-safe: region
- * slugs are transliterated to `[a-z0-9-]` (Москва → `moskva`, see
- * `Regions.ts`) and event ids are numeric.
- *
- * This asserts that assumption directly, so widening the slug charset fails
- * here — loudly, next to the reason — instead of silently emitting a URL with
- * an unencoded space or a `?` in it.
+ * A slug keeps its native letters, lowercased, so `slugPattern` is a Unicode
+ * pattern, and every slug `slugify` makes must satisfy it: a parser in
+ * SahajAtlasWeb or the WordPress plugin judges a request by it.
  */
-describe('slug-charset assumption behind emitting the path raw', () => {
-  const SLUG_PATH = new RegExp(contract.slugPattern)
+describe('slug charset', () => {
+  const SLUG_PATH = new RegExp(contract.slugPattern, 'u')
 
-  const realisticPaths = [
-    '/united-kingdom',
-    '/nl/amsterdam',
-    '/belgium/flanders/antwerp/downtown-hall',
-    '/belgium/flanders/antwerp/downtown-hall/12345',
-    '/russia/moskva',
-    '/georgia-united-states',
-  ]
+  it.each(['Universität Trier', 'София', 'Մաս 1. Ուղիներ', 'مدیتیشن چیست؟', '冥想', 'Georgia'])(
+    'a slug made from %j matches slugPattern',
+    (name) => {
+      expect(SLUG_PATH.test(`/${slugify(name)}`)).toBe(true)
+    },
+  )
 
-  it.each(realisticPaths)('%s matches the slug charset', (path) => {
-    expect(SLUG_PATH.test(path)).toBe(true)
-  })
-
-  it.each(realisticPaths)('%s survives the builder unchanged', (path) => {
-    const url = buildCanonicalUrl(
-      { origin: 'https://host.example', mount: '/map', routing: 'path' },
-      path,
-    )
-    expect(url).toBe(`https://host.example/map${path}`)
-    // Raw is only safe because encoding would be a no-op — prove it.
-    expect(encodeURI(path)).toBe(path)
-  })
-
-  it.each(['/nl/Amsterdam', '/nl/amster dam', '/nl/москва', '/nl/a?b', '/nl/'])(
-    'rejects %s, which the raw-emission assumption does not cover',
+  it.each(['/nl/Amsterdam', '/nl/amster dam', '/nl/a?b', '/nl/a%20b', '/nl/'])(
+    'rejects %s',
     (path) => {
       expect(SLUG_PATH.test(path)).toBe(false)
     },
