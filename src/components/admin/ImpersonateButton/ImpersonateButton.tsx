@@ -4,6 +4,7 @@ import { useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
+import type { Manager } from '@/payload-types'
 import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/login/impersonation/gate'
 
 /**
@@ -17,7 +18,7 @@ export function ImpersonateButton(): React.ReactElement | null {
   const { id } = useDocumentInfo()
   const target = useFormFields(([fields]) => ({
     _verified: fields._verified?.value as boolean | undefined,
-    type: fields.type?.value as string | undefined,
+    type: fields.type?.value as Manager['type'] | undefined,
   }))
   const [state, setState] = useState<'idle' | 'starting' | 'failed'>('idle')
 

@@ -4,24 +4,28 @@
  * (`@/plugins/login/impersonation/gate`, never the login barrel, from client code).
  */
 import { CONTACT_EMAIL } from '@/lib/contact'
-import type { ProjectSlug } from '@/payload-types'
+import type { Manager } from '@/payload-types'
 
-/** The support account behind an impersonated request, as `req.user` carries it. */
-export interface Impersonator {
+/**
+ * The support account behind an impersonated request, as `req.user` carries it.
+ *
+ * `id` is widened deliberately: Payload types an authenticated user's id as
+ * `number | string` whatever the collection's own column is.
+ */
+export interface Impersonator extends Pick<Manager, 'email'> {
   id: number | string
-  email: string
 }
 
-/** What this plugin reads off `req.user`, `useAuth().user` or a manager row. */
-export interface GateUser {
+/**
+ * What this plugin reads off `req.user`, `useAuth().user` or a manager row —
+ * every stored column taken from the generated type, so `type` carries its own
+ * three values and the literals below are checked against them.
+ */
+export interface GateUser extends Partial<
+  Pick<Manager, '_verified' | 'currentProject' | 'email' | 'name' | 'type'>
+> {
   id?: number | string
   collection?: string
-  email?: string | null
-  name?: string | null
-  type?: string | null
-  currentProject?: ProjectSlug | null
-  /** Whether this account has confirmed its email — Payload's accepted flag. */
-  _verified?: boolean | null
   /** The session id Payload's JWT strategy stamps on an authenticated user. */
   _sid?: string
   impersonatedBy?: Impersonator | null
