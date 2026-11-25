@@ -5,6 +5,9 @@ import type { SlugFieldClientProps, TextFieldClient, TextFieldClientProps } from
 import { FieldLabel, SlugField, TextInput, useAuth, useField } from '@payloadcms/ui'
 import React from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 const LockedSlugField: React.FC<TextFieldClientProps> = (props) => {
   const { field, path } = props
   const { name, label } = field as TextFieldClient
@@ -19,9 +22,9 @@ const LockedSlugField: React.FC<TextFieldClientProps> = (props) => {
   }
 
   return (
-    <div className="field-type slug-field-component">
+    <div className="field-type slug-field-component" style={mergeFieldStyles(field.admin)}>
       <div className="label-wrapper">
-        <FieldLabel htmlFor={`field-${resolvedPath}`} label={label || undefined} />
+        <FieldLabel htmlFor={fieldId(resolvedPath)} label={label || undefined} />
       </div>
       <TextInput path={resolvedPath} readOnly value={value ?? ''} />
     </div>

@@ -233,7 +233,6 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
                 opacity: isDisabled ? 0.5 : 1,
                 transition: 'all 0.15s ease',
-                outline: 'none',
               }}
               onMouseEnter={(e) => {
                 if (!isDisabled && !isSelected) {
@@ -244,12 +243,6 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 if (!isDisabled && !isSelected) {
                   e.currentTarget.style.backgroundColor = 'transparent'
                 }
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.boxShadow = '0 0 0 2px var(--theme-elevation-200)'
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.boxShadow = 'none'
               }}
             >
               {tag.url ? (

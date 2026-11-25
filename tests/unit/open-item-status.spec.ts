@@ -321,12 +321,13 @@ describe('openItem', () => {
   describe('a service with a problem on its site (#1055)', () => {
     const PAGE = 'https://yogaessonne.fr/carte'
     const service = (
-      overrides: Partial<Extract<OpenItemRow, { kind: 'service' }>> = {},
+      overrides: Partial<Extract<OpenItemRow, { kind: 'service'; notInstalled: null }>> = {},
     ): OpenItemRow => ({
       checkedAt: '2026-11-04T07:00:00.000Z',
       id: 43,
       kind: 'service',
       missingOn: null,
+      notInstalled: null,
       owned: false,
       releasedAt: null,
       title: 'Yoga Essonne',
@@ -397,6 +398,41 @@ describe('openItem', () => {
         before: ', so we can no longer send search engines (Google) to your website. ',
         lead,
         link: 'Review it',
+      })
+    })
+
+    const notInstalled = (state: 'not-detected' | 'unconfirmed'): OpenItemRow => ({
+      addedAt: '2026-11-04T07:00:00.000Z',
+      id: 43,
+      kind: 'service',
+      notInstalled: state,
+      title: 'Yoga Essonne',
+    })
+    const followUp = { after: ' and follow up with the service.', link: 'Review the install' }
+
+    it('lists a service that never installed, dated from when it was added', () => {
+      const item = openItem(notInstalled('not-detected'), NOW)
+      expect(item.statuses.map((s) => s.key)).toEqual(['not-installed'])
+      expect(item.placing).toMatchObject({
+        action: review,
+        label: 'Not installed',
+        lines: ['Atlas not detected yet', 'Added 4 Nov 2026'],
+        pill: 'light-gray',
+        rank: 4,
+      })
+      expect(item.since).toBe('2026-11-04T07:00:00.000Z')
+      expect(actionPrompt(item.placing)).toEqual({
+        ...followUp,
+        before: 'This service has not installed the atlas yet. ',
+      })
+    })
+
+    it('tells a detected but unconfirmed install apart from one not started', () => {
+      const item = openItem(notInstalled('unconfirmed'), NOW)
+      expect(item.placing.lines[0]).toBe('Atlas detected, not yet confirmed')
+      expect(actionPrompt(item.placing)).toEqual({
+        ...followUp,
+        before: 'The atlas was found on this site but has not been confirmed. ',
       })
     })
   })

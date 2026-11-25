@@ -8,7 +8,7 @@ import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedCh
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
-import { hasSearchListings, ownedHost, primaryPageUrl } from '@/lib/clients/site'
+import { hasSearchListings, ownedHost, primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -313,6 +313,10 @@ function loadFailedDeliveries(req: PayloadRequest): Promise<OpenItemRow[]> {
  * service scope's own, or every one for an admin (#1055). Read off the stored
  * verification, so nothing here renders a page.
  *
+ * An admin's list also holds every service no check has confirmed or missed
+ * yet, to follow up. A service manager's digest leaves those out: the Install
+ * tab already says so.
+ *
  * ⚠ **A track with no search listings is never a search problem**, whatever
  * the snapshot holds, as on the Install tab (`installModel.ts`).
  */
@@ -337,16 +341,35 @@ async function readServiceRows(
     req: localeIsolatedReq(req),
     select: {
       label: true,
+      createdAt: true,
       updatedAt: true,
       enabled: true,
       site: { domain: true, page: true, track: true },
       canonical: { owned: true, verification: true },
+      embedMetadata: true,
     },
   })
   return docs.flatMap((doc): OpenItemRow[] => {
+    const head = {
+      kind: 'service',
+      id: doc.id,
+      title: doc.label?.trim() || 'Untitled service',
+    } as const
     const verification = doc.canonical?.verification
     // Only a service with a page is checked, so only one can have missed.
     const missingOn = verification?.failureCount ? primaryPageUrl(doc.site) : null
+    // ⚠ A page never confirmed but already missed by a check stays "Map not
+    // found" (`!missingOn`): that install started, and the miss says why.
+    if (scope.role === 'admin' && !missingOn && !verification?.verified) {
+      const reported = reportedMountsFor(doc.embedMetadata, doc.site).length > 0
+      return [
+        {
+          ...head,
+          notInstalled: reported ? 'unconfirmed' : 'not-detected',
+          addedAt: doc.createdAt,
+        },
+      ]
+    }
     const seo = verification?.seo
     // No track yet means the install is unfinished, which is not a problem to report.
     const searchProblem =
@@ -356,9 +379,8 @@ async function readServiceRows(
     if (!missingOn && !searchProblem) return []
     return [
       {
-        kind: 'service',
-        id: doc.id,
-        title: doc.label?.trim() || 'Untitled service',
+        ...head,
+        notInstalled: null,
         checkedAt: (missingOn ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
         missingOn,
         owned: ownedHost(doc) !== null,

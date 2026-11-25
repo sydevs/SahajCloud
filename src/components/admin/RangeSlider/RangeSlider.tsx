@@ -111,7 +111,6 @@ export const RangeSlider: React.FC<RangeSliderProps> = ({
               boxShadow: isDragged
                 ? '0 0 0 3px var(--theme-success-300)'
                 : '0 1px 2px rgba(0,0,0,0.2)',
-              outline: 'none',
             }}
           />
         )}

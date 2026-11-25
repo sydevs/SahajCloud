@@ -28,6 +28,11 @@ export const PAGE = {
   retreat: 1_014_005,
   layouts: 1_014_006,
   subtleOverview: 1_014_007,
+  // A three-level chain, so a reviewer can see a composed address and a
+  // breadcrumb trail without building one (#1250).
+  nestedSection: 1_014_008,
+  nestedChild: 1_014_009,
+  nestedGrandchild: 1_014_010,
 } as const
 
 export const FRAME = {
@@ -67,6 +72,8 @@ export const CHOICE = {
   five: 1_010_007,
   ten: 1_010_008,
   twenty: 1_010_009,
+  grateful: 1_010_010,
+  restless: 1_010_011,
 } as const
 
 export const LECTURE = {

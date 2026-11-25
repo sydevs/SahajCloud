@@ -16,12 +16,20 @@ import { dirname, join, resolve } from 'node:path'
 
 export const SRC = resolve(__dirname, '../../src')
 
-/** Resolve an `@/…` or relative specifier to a file under src/, or null. */
+/**
+ * Resolve an `@/…` or relative specifier to a file under src/, or null.
+ *
+ * ⚠ **An `#Export` suffix is stripped first.** A Payload component
+ * registration names its export that way — `'…/TranscriptPanel#FileTranscriptField'`
+ * — so without the strip every such registration resolves nowhere, and leaves
+ * a convention walk's population with nothing said about it.
+ */
 export function resolveSpec(spec: string, fromFile: string): string | null {
-  const base = spec.startsWith('@/')
-    ? join(SRC, spec.slice(2))
-    : spec.startsWith('.')
-      ? resolve(dirname(fromFile), spec)
+  const path = spec.split('#')[0]!
+  const base = path.startsWith('@/')
+    ? join(SRC, path.slice(2))
+    : path.startsWith('.')
+      ? resolve(dirname(fromFile), path)
       : null
   if (!base) return null
 
@@ -187,14 +195,13 @@ export function entryAndDirectImports(entry: string): string[] {
   return [...new Set([entry, ...direct])]
 }
 
-/** Every `.ts`/`.tsx` file under `src/`. */
-export function sourceFiles(dir: string = SRC, out: string[] = []): string[] {
-  for (const item of readdirSync(dir, { withFileTypes: true })) {
+/** Every file under `dir` whose name matches `extensions`. */
+export function sourceFiles(dir: string = SRC, extensions = /\.tsx?$/): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((item) => {
     const path = join(dir, item.name)
-    if (item.isDirectory()) sourceFiles(path, out)
-    else if (/\.tsx?$/.test(item.name)) out.push(path)
-  }
-  return out
+    if (item.isDirectory()) return sourceFiles(path, extensions)
+    return extensions.test(item.name) ? [path] : []
+  })
 }
 
 /**

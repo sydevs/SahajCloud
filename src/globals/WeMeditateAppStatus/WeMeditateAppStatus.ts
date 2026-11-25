@@ -91,6 +91,9 @@ export const WeMeditateAppStatusSpec: StatusGlobalSpec<WeMeditateAppStatusConfig
     'self-realization-meditation': 'wm-app-config',
     'post-realization-lecture': 'wm-app-config',
     'vibe-check-tracks': 'wm-app-config',
+    // pages section — only a slot whose page is missing has a string id, and
+    // the fix for it is in the config, not on a page
+    'core-pages': 'wm-app-config',
   },
   // Section key → global slug for the section card's "Edit configuration"
   // link. Used when the section's rows aren't backed by a collection

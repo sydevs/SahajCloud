@@ -41,6 +41,15 @@ schedule RRULE/DST computations, Lexical block migration helpers,
 `filterAvailableLocales`, seed pagination helpers,
 unify-index-blocks migration transforms.
 
+### Walking a convention over the admin components
+
+A spec that enforces a convention across every registered `Cell:` or `Field:`
+component takes `registeredComponents`, `resolveSpec` and `reaches` from
+`tests/utils/adminRegistrations.ts` — from there, never from `importGraph`,
+whose header carries both reasons. ⚠ **Assert the walk's `unresolved` is
+empty**: a registration that resolves nowhere leaves the population silently
+and still satisfies any floor placed under its size (#1247).
+
 ### Mounting an admin component in the unit lane
 
 The lane is node by default. A spec that needs a DOM opts in per file with a
@@ -216,6 +225,14 @@ does; a spec's own create helper declares it once, where its own creates do.
 ⚠ It cannot seed an array column — Payload generates each row's own id — so a
 case needing both splits into an ordinary update for the array and this for the
 state.
+
+A fifth, and the only one for raw SQL: `withSchema(payload, (tx) => …)`
+(`tests/utils/withSchema.ts`) runs a statement against this suite's own schema.
+⚠ **Every raw statement in this lane goes through it.** A spec that qualifies a
+table itself, or sets `search_path` outside a transaction, lands on whichever
+pooled connection answered — so it reads `public`, where the suite has no
+tables, and the case passes having changed nothing. It returns the body's
+value, so an assertion reads a row back the way the code under test wrote it.
 
 ### Driving the REST API from the integration lane
 

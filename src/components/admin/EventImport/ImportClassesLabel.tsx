@@ -14,9 +14,11 @@ import { useImportClassesTarget } from './useImportClassesTarget'
  * that opens a new import aimed at this region. `targetRegion`'s `defaultValue`
  * reads the `?targetRegion=` it carries.
  */
-export const ImportClassesLabel: JoinFieldLabelClientComponent = ({ field, path }) => {
+export const ImportClassesLabel: JoinFieldLabelClientComponent = ({ field }) => {
   const target = useImportClassesTarget()
-  const label = <FieldLabel label={field?.label} path={path} />
+  // No `path`: a join table is a composite with no control to name, and its
+  // own root is what carries `field-<path>`.
+  const label = <FieldLabel label={field?.label} />
 
   if (!target) return label
 

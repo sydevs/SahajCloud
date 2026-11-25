@@ -12,6 +12,7 @@ import {
 } from '@payloadcms/ui'
 import React from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { getCountryOptions, getRegionOptions, type GeographyOption } from '@/lib/geography'
 
@@ -67,11 +68,12 @@ export const StringSelectField: TextFieldClientComponent = ({ field, path, readO
   const styles = mergeFieldStyles(admin)
 
   return (
-    <div className={fieldClasses} id={`field-${path.replace(/\./g, '__')}`} style={styles}>
-      <FieldLabel label={label} localized={localized} path={path} required={required} />
+    <div className={fieldClasses} style={styles}>
+      <FieldLabel htmlFor={fieldId(path)} label={label} localized={localized} required={required} />
       <div className="field-type__wrap">
         <FieldError path={path} showError={showError} />
         <ReactSelect
+          inputId={fieldId(path)}
           options={options as unknown as ReactSelectOption[]}
           value={(selected ?? undefined) as unknown as ReactSelectOption | undefined}
           onChange={(option) =>

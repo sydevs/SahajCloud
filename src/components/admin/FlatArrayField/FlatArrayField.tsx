@@ -14,6 +14,9 @@ import {
 } from '@payloadcms/ui'
 import { useCallback } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 /**
  * A flat array field that renders rows without individual Collapsible wrappers.
  * All rows are grouped inside a single Collapsible, with each row displaying
@@ -63,8 +66,8 @@ const FlatArrayField: ArrayFieldClientComponent = ({
   const canAddMore = !maxRows || (rowCount ?? 0) < maxRows
 
   return (
-    <div className="field-type array" id={`field-${path?.replace(/\./g, '__')}`}>
-      <FieldLabel label={label} path={path} />
+    <div className="field-type array" id={fieldId(path)} style={mergeFieldStyles(field.admin)}>
+      <FieldLabel label={label} />
       <FieldError path={path} showError={showError} />
 
       <Collapsible

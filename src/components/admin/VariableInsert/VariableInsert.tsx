@@ -5,6 +5,8 @@ import type { FieldClientComponent } from 'payload'
 import { Pill, useField } from '@payloadcms/ui'
 import React, { useEffect, useRef } from 'react'
 
+import { fieldId } from '@/components/admin/helpers/fieldId'
+
 const VariableInsert: FieldClientComponent = ({ field }) => {
   const variables = field.admin?.custom?.variables as string[] | undefined
   const { value, setValue, path } = useField<string>()
@@ -13,7 +15,7 @@ const VariableInsert: FieldClientComponent = ({ field }) => {
 
   // Track cursor position on the sibling text input
   useEffect(() => {
-    const inputId = `field-${path.replace(/\./g, '__')}`
+    const inputId = fieldId(path)
     const input = document.getElementById(inputId) as HTMLInputElement | null
     if (!input) return
     const track = () => {
@@ -34,7 +36,7 @@ const VariableInsert: FieldClientComponent = ({ field }) => {
   useEffect(() => {
     const cursor = pendingCursorRef.current
     if (cursor === null) return
-    const inputId = `field-${path.replace(/\./g, '__')}`
+    const inputId = fieldId(path)
     const raf = requestAnimationFrame(() => {
       pendingCursorRef.current = null
       const input = document.getElementById(inputId) as HTMLInputElement | null

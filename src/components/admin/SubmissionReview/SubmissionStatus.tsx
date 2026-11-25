@@ -19,6 +19,7 @@ import {
   STATUS_LABELS,
   VERDICT_LABELS,
 } from '@/collections/UserSubmissions/statuses'
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import type { SubmissionScreeningResult, UserSubmission } from '@/payload-types'
 
 import './styles.css'
@@ -159,7 +160,7 @@ function screeningLine(
  * Mounted on `screeningResult` — the data it renders — so it reads its own
  * value through `useField`, and `status` from form state.
  */
-export const SubmissionStatus: FieldClientComponent = () => {
+export const SubmissionStatus: FieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
   const status = useFormFields(([fields]) => fields?.status?.value as SubmissionStatus | undefined)
   const type = useFormFields(([fields]) => fields?.type?.value as SubmissionType | undefined)
@@ -178,7 +179,7 @@ export const SubmissionStatus: FieldClientComponent = () => {
   const screening = screeningLine(value, status)
 
   return (
-    <div className="field-type json read-only">
+    <div className="field-type json read-only" style={mergeFieldStyles(field.admin)}>
       <Banner
         className={`event-submission-status event-submission-status--${severity}`}
         type={BANNER_TYPE[severity]}

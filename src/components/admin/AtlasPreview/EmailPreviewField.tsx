@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react'
 
 import './AtlasPreview.scss'
 
+import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
+
 /** How long typing must pause before the sample is re-rendered. */
 const SETTLE_MS = 500
 
@@ -18,7 +20,7 @@ const SETTLE_MS = 500
  * renders through the real template, server-side, so what it shows is what a
  * send produces.
  */
-export const EmailPreviewField: UIFieldClientComponent = () => {
+export const EmailPreviewField: UIFieldClientComponent = ({ field }) => {
   const { id } = useDocumentInfo()
   // Only what the template draws.
   const values = useFormFields(([fields]) => ({
@@ -69,7 +71,7 @@ export const EmailPreviewField: UIFieldClientComponent = () => {
   if (id == null) return null
 
   return (
-    <div className="field-type email-preview-field">
+    <div className="field-type email-preview-field" style={mergeFieldStyles(field.admin)}>
       <Collapsible
         header="Preview registration email"
         initCollapsed

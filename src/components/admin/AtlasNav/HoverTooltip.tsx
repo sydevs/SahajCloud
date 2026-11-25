@@ -25,6 +25,9 @@ export function HoverTooltip({ text, children }: { text: string; children: React
   const close = () => setAnchor(null)
 
   return (
+    // Not a control: it watches its own child's hover and focus to place the
+    // tooltip. The child is what a keyboard reaches.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <span
       ref={ref}
       onBlur={close}
