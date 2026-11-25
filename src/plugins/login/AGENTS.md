@@ -44,3 +44,7 @@ Four things worth knowing before you touch `Managers`:
 without a password, for any auth collection that can hold one. It refuses a
 collection with no `sessions` field: `clients` sets `disableLocalStrategy`, so
 Payload gives it neither `sessions` nor `email`.
+
+`signSessionToken` is its signing tail, exported alone so the support impersonation refresh
+(`src/plugins/impersonation`) re-signs support's own token on the session it already holds. It
+mints no session row.
