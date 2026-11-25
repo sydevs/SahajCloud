@@ -25,23 +25,24 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
   (`[impersonation] … started acting as manager …`).
 - **No timeout.** It lasts until Exit or sign-out; the cookie itself keeps for the browser's
   maximum, 400 days. A red banner sits across every admin page (`admin.components.header`).
+- **Support's own session stays underneath**, and the cookie naming the target is bound to it.
+  That one choice is what forces every stop under "What Payload would otherwise get wrong", so it
+  is the one to weigh first.
+  The alternative was minting the target's own session with `createSession` and stashing
+  support's token instead. Three facts decided against it: `createSession` writes a session row
+  on the manager's account and stamps `lastLoginAt`, the column the manager contacts table shows
+  as their last sign-in; nothing would then be re-checked per request, so a demotion, a
+  deactivation or support's own sign-out would leave a live token for the manager until it
+  expired; and `impersonatedBy` still has to come from somewhere, since the banner, Exit, `/me`
+  and the own-row refusal are all keyed on it. It would have saved the manager's stored
+  `currentProject`, which the cookie carries instead.
 
 ## How a request becomes the manager
 
-`POST /api/managers/impersonate/:id` sets the `sahajcloud-impersonation` cookie. It holds a
-`jose` token signed with `payload.secret`, carrying the support account's id, the support session
-id, the target's id, and the target's project. The `support-impersonation` auth strategy is
-prepended to `managers` by `loginPlugin`, so it runs before `localized-roles`. On every request it:
-
-1. authenticates support's JWT exactly as an ordinary request would (`authenticateJWT`);
-2. requires that the account is still the support account, and that the session is still the one
-   the cookie is bound to;
-3. loads the target, checks it is still an active manager, and returns it through
-   `hydrateAuthUser`, with `impersonatedBy` and the cookie's `currentProject` set on it.
-
-If any of these checks fails, the request reads as support themself, and the response clears the
-cookie wherever it can carry the header (a REST request; an admin page render cannot). So a stale
-cookie does no harm, and a demotion or a sign-out ends the impersonation on the next request.
+`POST /api/managers/impersonate/:id` sets the `sahajcloud-impersonation` cookie, and the
+`support-impersonation` auth strategy reads it on every request. What it checks, in what order,
+and what a refused cookie answers with are `strategy.ts`'s docblocks; the cookie's claims are
+`cookie.ts`'s.
 
 ⚠ **The token carries no `id`, `collection` or `sid` claim.** Payload's JWT verifier reads those
 three names, and they are what keeps this token from ever reading as a session
@@ -49,17 +50,13 @@ three names, and they are what keeps this token from ever reading as a session
 
 ## What Payload would otherwise get wrong
 
-Each of these hooks covers a place where Payload's default would act on `req.user` (the
-manager) when it should act on support, or would write the manager's own state:
+Six Payload defaults would act on `req.user` — the manager — where they should act on support, or
+would write the manager's own state. `hooks.ts`, `endpoints.ts` and `preferences.ts` hold one
+docblock per stop, naming the default it covers.
 
-| Where                                      | Default                                                                                                                  | Here                                                                                                                                                                         |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `refresh-token`                            | Signs a token for the manager, on no session of theirs. It authenticates nobody, so the first refresh signs support out. | `refreshImpersonatorToken` re-signs support's own token (`signSessionToken`).                                                                                                |
-| `/me`, and the user a refresh answers with | Re-read the manager's stored row, so the cookie's project and `impersonatedBy` are lost.                                 | `overlayImpersonation`, an `afterRead` hook on the impersonated manager's own row, puts both back.                                                                           |
-| Project switcher                           | Writes `currentProject` to the manager's row.                                                                            | `set-project` writes it into the cookie instead (`setImpersonatedProject`).                                                                                                  |
-| The manager's own row                      | Writable: their name, contacts and notification preferences.                                                             | `refuseOwnRowWrites` answers 403, and refuses every bulk write. Another manager's row stays writable by id.                                                                  |
-| `payload-preferences`                      | Saves column, nav and locale choices over the manager's own.                                                             | `keepImpersonatedPreferences` skips them. ⚠ A first-time create still lands. Payload adds this collection after every plugin, so `restrictPayloadSystemEntities` applies it. |
-| Sign-out                                   | Removes `req.user`'s session, which is the manager's, so support's own session outlives it.                              | `endImpersonationOnLogout` removes support's session and clears the cookie.                                                                                                  |
+⚠ **A first-time `payload-preferences` create still lands**, so a preference row the manager never
+had is written on support's first column or locale change. Refusing it would throw inside a page
+render.
 
 ⚠ **Document locks are not covered.** While support has a document open, other people see the
 manager's name on it. The lock clears when support leaves the document.
@@ -70,7 +67,5 @@ impersonating is reported under the manager.
 
 ## Tests
 
-- `tests/unit/impersonation-gate.spec.ts` covers the full matrix of who may impersonate whom.
-- `tests/int/support-impersonation.int.spec.ts` checks the wiring end to end: the per-locale roles
-  on the target, refusals, the support-address lock, a stale session, a demoted target, the own-row (single and bulk) and
-  project-switcher writes, refresh, preferences, `/me`, exit, and sign-out.
+`tests/unit/impersonation-gate.spec.ts` holds the matrix of who may impersonate whom, and
+`tests/int/support-impersonation.int.spec.ts` the wiring end to end.
