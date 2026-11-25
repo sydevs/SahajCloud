@@ -8,6 +8,7 @@ import {
   refuseOwnRowWrites,
 } from './hooks'
 import { createImpersonationStrategy } from './strategy'
+import { refuseSupportAddress } from './supportAddress'
 
 /** "Sign in as this manager", shown to the support account alone. */
 const START_BUTTON: Field = {
@@ -42,7 +43,14 @@ export const impersonationPlugin: Plugin = (config) => ({
       ...collection,
       auth: { ...auth, strategies: [createImpersonationStrategy(), ...(auth.strategies ?? [])] },
       endpoints: [...(collection.endpoints || []), startImpersonation, stopImpersonation],
-      fields: [...collection.fields, START_BUTTON],
+      fields: [
+        ...collection.fields.map((field) =>
+          'name' in field && field.name === 'email' && field.type === 'email'
+            ? { ...field, validate: refuseSupportAddress }
+            : field,
+        ),
+        START_BUTTON,
+      ],
       hooks: {
         ...collection.hooks,
         afterLogout: [...(collection.hooks?.afterLogout ?? []), endImpersonationOnLogout],

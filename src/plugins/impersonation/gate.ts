@@ -27,16 +27,22 @@ export interface GateUser {
 
 export const IMPERSONATION_COOKIE = 'sahajcloud-impersonation'
 
+/** Whether `value` is the support address, `CONTACT_EMAIL`, in any case. */
+export function isSupportAddress(
+  value: string | null | undefined,
+  supportAddress: string = CONTACT_EMAIL,
+): boolean {
+  return typeof value === 'string' && value.toLowerCase() === supportAddress.toLowerCase()
+}
+
 /**
  * Whether `user` is the support account: the admin holding `CONTACT_EMAIL`.
  *
  * ⚠ **The address alone would let any manager in**, since a manager may edit
- * their own email, so the account must already be an admin. ⚠ **That leaves
- * every admin able to take the role**, by moving the address off the support
- * account and onto their own — accepted when the gate was chosen
- * (2026-11-25), because an admin already holds full access to every record.
- * `CONTACT_EMAIL` is also the public support address, so moving it moves this
- * right with it.
+ * their own email, so the account must already be an admin. ⚠ **No one can
+ * move the address onto their own account** (`refuseSupportAddress`), which
+ * is what keeps another admin from taking the role. `CONTACT_EMAIL` is also
+ * the public support address, so changing it moves this right with it.
  *
  * An impersonated request never passes — its user is a manager, never an
  * admin — which is what refuses nesting.
@@ -48,7 +54,7 @@ export function isSupportAccount(
   return (
     user?.collection === 'managers' &&
     user.type === 'admin' &&
-    user.email?.toLowerCase() === supportAddress.toLowerCase()
+    isSupportAddress(user.email, supportAddress)
   )
 }
 

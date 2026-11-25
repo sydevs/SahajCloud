@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { IMPERSONATION_COOKIE } from '@/plugins/impersonation/gate'
+import { SUPPORT_ADDRESS_TAKEN } from '@/plugins/impersonation/supportAddress'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientWithAuth } from '../utils/restRequest'
@@ -78,6 +79,28 @@ describe('support impersonation', () => {
     expect((user as { impersonatedBy?: { id: number } }).impersonatedBy?.id).toBe(support.id)
     // A flat array would mean the target was loaded past `hydrateAuthUser`.
     expect((user as { roles?: unknown }).roles).toMatchObject({ fr: ['web-translator'] })
+  })
+
+  it('refuses moving the support address onto any other account', async () => {
+    const otherAdmin = await testData.createManager(payload, { type: 'admin', _verified: true })
+    const asOtherAdmin = restAs(await createSession(payload, 'managers', otherAdmin.id))
+    const target = await createTarget()
+
+    for (const id of [otherAdmin.id, target.id]) {
+      const moved = await asOtherAdmin(`/api/managers/${id}`, {
+        method: 'PATCH',
+        json: { email: CONTACT_EMAIL.toUpperCase() },
+      })
+      expect(moved.status).toBe(400)
+      expect(moved.raw).toContain(SUPPORT_ADDRESS_TAKEN)
+    }
+
+    // The account that already holds it keeps saving.
+    const kept = await restAs(supportToken)(`/api/managers/${support.id}`, {
+      method: 'PATCH',
+      json: { email: CONTACT_EMAIL, name: 'Support' },
+    })
+    expect(kept.status).toBe(200)
   })
 
   it('refuses anyone but the support account, and targets that are not active managers', async () => {

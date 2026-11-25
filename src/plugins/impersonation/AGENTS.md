@@ -9,9 +9,11 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
 - **Only the support account can impersonate.** That is the manager whose email equals
   `CONTACT_EMAIL` (`NEXT_PUBLIC_CONTACT_EMAIL`) **and** whose `type` is `admin` (`gate.ts`).
   Anyone who can read that mailbox can request its sign-in link, so access to the inbox is the
-  real gate. ⚠ Any admin can also take the role, by moving the address off the support account
-  and onto their own; accepted, since an admin already reaches every record. `CONTACT_EMAIL` is
-  also the public support address, so changing it moves this right to the new address.
+  real gate. No one can give a manager the address through the admin or the API
+  (`refuseSupportAddress`, attached to `email` by the plugin), so another admin cannot take the
+  role by moving it onto their own account; a seed or script with no user is not judged.
+  `CONTACT_EMAIL` is also the public support address, so changing it moves this right to the new
+  address.
 - **Only an active, non-admin manager can be impersonated.**
 - **Writes are allowed, and are recorded as the manager's.** The manager gets no notice and
   nothing is stored. The only record is one log line at start and one at exit
@@ -65,5 +67,5 @@ impersonating is reported under the manager.
 
 - `tests/unit/impersonation-gate.spec.ts` covers the full matrix of who may impersonate whom.
 - `tests/int/support-impersonation.int.spec.ts` checks the wiring end to end: the per-locale roles
-  on the target, refusals, a stale session, a demoted target, the own-row (single and bulk) and
+  on the target, refusals, the support-address lock, a stale session, a demoted target, the own-row (single and bulk) and
   project-switcher writes, refresh, preferences, `/me`, exit, and sign-out.
