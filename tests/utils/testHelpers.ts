@@ -21,7 +21,6 @@ import { accessPlugin, bypassPermissions, restrictPayloadSystemEntities } from '
 import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
-import { impersonationPlugin } from '@/plugins/impersonation'
 import { loginPlugin } from '@/plugins/login'
 import { managersLoginHere } from '@/plugins/previewAdmin'
 import { usagePlugin } from '@/plugins/usage'
@@ -187,8 +186,6 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       loginPlugin({
         collections: [managersLoginHere()],
       }),
-      // Support impersonation, as `payload.config.ts` registers it.
-      impersonationPlugin,
       // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],

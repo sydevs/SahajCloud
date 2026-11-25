@@ -31,7 +31,6 @@ import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
-import { impersonationPlugin } from '@/plugins/impersonation'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { retryWhilePostgresWakes } from '@/plugins/postgresWake'
@@ -411,12 +410,12 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // writes would otherwise leave production a queue to mail (see the option).
       // `managersLoginHere` resolves the preview exchange (#840); the sign-in
       // page's Server Action reads the same entry.
+      // It also wires support impersonation onto the same `managers` entry
+      // (`src/plugins/login/impersonation/AGENTS.md`).
       loginPlugin({
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
-      // Support impersonation (`src/plugins/impersonation/AGENTS.md`).
-      impersonationPlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

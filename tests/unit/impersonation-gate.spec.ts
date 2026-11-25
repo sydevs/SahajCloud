@@ -1,10 +1,10 @@
 /**
- * Who may impersonate, and whom (`@/plugins/impersonation/gate`). The one
+ * Who may impersonate, and whom (`@/plugins/login/impersonation/gate`). The one
  * home for the matrix; `support-impersonation.int.spec.ts` proves the wiring.
  */
 import { describe, expect, it } from 'vitest'
 
-import { isSupportAccount, mayImpersonate } from '@/plugins/impersonation/gate'
+import { isSupportAccount, mayImpersonate } from '@/plugins/login/impersonation/gate'
 
 const SUPPORT = 'support@example.org'
 const support = { id: 1, collection: 'managers', email: SUPPORT, type: 'admin' }

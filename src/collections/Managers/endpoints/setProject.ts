@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { errorResponse, parseBody, requireActiveManager } from '@/lib/endpoints'
 import { isValidProject } from '@/plugins/access'
-import { setImpersonatedProject } from '@/plugins/impersonation'
+import { setImpersonatedProject } from '@/plugins/login'
 import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 const bodySchema = z.object({

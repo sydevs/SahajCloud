@@ -1,5 +1,5 @@
 /**
- * Support impersonation (`@/plugins/impersonation`): the support account acts
+ * Support impersonation (`@/plugins/login/impersonation`): the support account acts
  * as a manager, end to end through the real auth strategies.
  *
  * Needs a database because every property here is decided per request from
@@ -12,9 +12,9 @@ import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
-import { IMPERSONATION_COOKIE } from '@/plugins/impersonation/gate'
-import { SUPPORT_ADDRESS_TAKEN } from '@/plugins/impersonation/supportAddress'
 import { createSession } from '@/plugins/login'
+import { IMPERSONATION_COOKIE } from '@/plugins/login/impersonation/gate'
+import { SUPPORT_ADDRESS_TAKEN } from '@/plugins/login/impersonation/supportAddress'
 
 import { createRestClientWithAuth } from '../utils/restRequest'
 import { testData } from '../utils/testData'

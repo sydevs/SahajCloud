@@ -10,7 +10,7 @@ import type {
 
 import { Forbidden } from 'payload'
 
-import { keepImpersonatedPreferences } from '@/plugins/impersonation/preferences'
+import { keepImpersonatedPreferences } from '@/plugins/login/impersonation/preferences'
 
 import { isAdminManager } from './adminOnly'
 

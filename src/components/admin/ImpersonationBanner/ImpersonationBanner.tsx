@@ -4,7 +4,7 @@ import { useAuth } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
-import { type GateUser, impersonatorOf } from '@/plugins/impersonation/gate'
+import { type GateUser, impersonatorOf } from '@/plugins/login/impersonation/gate'
 
 /**
  * The bar across every admin page while support acts as a manager, with the

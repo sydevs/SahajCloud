@@ -12,6 +12,15 @@ import { selfOrAdminFieldAccess } from '@/plugins/access'
 import { redeem } from './endpoints/redeem'
 import { requestMagicLink } from './endpoints/requestMagicLink'
 import { managerJoins, MANAGERS_COLLECTION } from './grantSummary'
+import { startImpersonation, stopImpersonation } from './impersonation/endpoints'
+import {
+  endImpersonationOnLogout,
+  overlayImpersonation,
+  refreshImpersonatorToken,
+  refuseOwnRowWrites,
+} from './impersonation/hooks'
+import { createImpersonationStrategy } from './impersonation/strategy'
+import { refuseSupportAddress } from './impersonation/supportAddress'
 import {
   INVITATIONS_CRON,
   INVITATIONS_QUEUE,
@@ -164,6 +173,31 @@ function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['aut
 }
 
 /**
+ * Give the collection the support-impersonation strategy.
+ *
+ * ⚠ **Prepended.** `accessPlugin` appends `localized-roles`, so this runs
+ * first whichever plugin is registered first — which it must, since it stands
+ * the impersonated manager in for the support account the JWT names.
+ */
+function withSupportImpersonation(auth: CollectionConfig['auth']): CollectionConfig['auth'] {
+  const base = typeof auth === 'object' ? auth : {}
+  return { ...base, strategies: [createImpersonationStrategy(), ...(base.strategies ?? [])] }
+}
+
+/**
+ * Refuse giving any manager the support address, on the collection's own
+ * `email` field: moving it onto one's own account is the one way another admin
+ * could take the support role.
+ */
+function withSupportAddressLock(fields: Field[]): Field[] {
+  return fields.map((field) =>
+    'name' in field && field.name === 'email' && field.type === 'email'
+      ? { ...field, validate: refuseSupportAddress }
+      : field,
+  )
+}
+
+/**
  * Where the admin panel's sign-in view lives. A barrel whose default export is
  * the view, as Payload's import map requires.
  */
@@ -212,6 +246,20 @@ function adminWithSignInView(
 }
 
 /**
+ * The red bar and its Exit, on every admin page while support acts as a
+ * manager — in the header rather than a view, so no view can forget it.
+ */
+function adminWithImpersonationBanner(admin: Config['admin']): Config['admin'] {
+  return {
+    ...admin,
+    components: {
+      ...admin?.components,
+      header: [...(admin?.components?.header ?? []), '@/components/admin/ImpersonationBanner'],
+    },
+  }
+}
+
+/**
  * Passwordless sign-in: one hidden timestamp field plus the endpoints that
  * trade an emailed link for a session (#837).
  *
@@ -223,10 +271,16 @@ function adminWithSignInView(
  * predicate and the branding project. `src/collections/Managers/login.ts` is the
  * one in use.
  *
- * ⚠ Register it **before** `accessPlugin`, which must stay last. The reason is
- * `accessPlugin`'s own contract, **not** field survival: it re-maps
- * `collection.fields` only for a translatable collection, and `managers` is not
- * one.
+ * `impersonation/` rides on the same `managers` entry: the support account
+ * acting as a manager is a second way into the panel, so its strategy, routes,
+ * hooks and sidebar button are wired here rather than by a second per-collection
+ * plugin over the same collection. See `impersonation/AGENTS.md`.
+ *
+ * ⚠ Register it **before** `accessPlugin`, which must stay last. Two reasons
+ * now: `accessPlugin`'s own contract — it re-maps `collection.fields` only for
+ * a translatable collection, and `managers` is not one — and the impersonation
+ * strategy, which is prepended here and must run ahead of the `localized-roles`
+ * strategy `accessPlugin` appends.
  *
  * ⚠ Plugins are folded left to right, **before `sanitizeConfig`**, so
  * `collection.endpoints` may still be `undefined`. The array is spread onto
@@ -254,16 +308,20 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
   const byslug = new Map(collections.map((entry) => [entry.slug as string, entry]))
 
   return (config) => {
-    // Invitations need per-locale roles and manager joins, which only
-    // `managers` has — see `grantSummary.ts`.
-    const invitesFor = byslug.get(MANAGERS_COLLECTION)
-    const joins = invitesFor
+    // Two features serve `managers` alone, and neither can serve a second
+    // collection: invitations need its per-locale roles and manager joins
+    // (`grantSummary.ts`), and support impersonation reads its `type` column
+    // (`impersonation/gate.ts`).
+    const managersEntry = byslug.get(MANAGERS_COLLECTION)
+    const joins = managersEntry
       ? managerJoins(config.collections?.find((c) => c.slug === MANAGERS_COLLECTION)?.fields ?? [])
       : []
 
     return {
       ...config,
-      admin: adminWithSignInView(config.admin, byslug),
+      admin: managersEntry
+        ? adminWithImpersonationBanner(adminWithSignInView(config.admin, byslug))
+        : adminWithSignInView(config.admin, byslug),
       collections: config.collections?.map((collection) => {
         const entry = byslug.get(collection.slug)
         const namesManagers = joins.filter((join) => join.collection === collection.slug)
@@ -283,15 +341,32 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
             : collection
         if (!entry) return withQueue
 
-        const invites = entry === invitesFor
+        const servesManagers = entry === managersEntry
+        let auth = withQueue.auth
+        if (entry.passwordless) auth = withoutPasswords(auth)
+        if (servesManagers) auth = withSupportImpersonation(auth)
+
         return {
           ...withQueue,
-          ...(entry.passwordless ? { auth: withoutPasswords(withQueue.auth) } : {}),
+          ...(auth === withQueue.auth ? {} : { auth }),
           fields: [
-            ...withQueue.fields,
+            ...(servesManagers ? withSupportAddressLock(withQueue.fields) : withQueue.fields),
             magicLinkIssuedAt,
             lastLoginAt,
-            ...(invites ? invitationFields : []),
+            ...(servesManagers ? invitationFields : []),
+            // "Sign in as this manager", shown to the support account alone.
+            ...(servesManagers
+              ? [
+                  {
+                    name: 'impersonate',
+                    type: 'ui' as const,
+                    admin: {
+                      position: 'sidebar' as const,
+                      components: { Field: '@/components/admin/ImpersonateButton' },
+                    },
+                  },
+                ]
+              : []),
           ],
           hooks: {
             ...withQueue.hooks,
@@ -299,19 +374,34 @@ export function loginPlugin(options: LoginPluginOptions = {}): Plugin {
               ...(withQueue.hooks?.beforeOperation ?? []),
               suppressCreateMail,
               ...(entry.passwordless ? [dropPassword] : []),
+              ...(servesManagers ? [refuseOwnRowWrites] : []),
             ],
             afterChange: [
               ...(withQueue.hooks?.afterChange ?? []),
-              ...(invites && invitations ? [queueOnRoles] : []),
+              ...(servesManagers && invitations ? [queueOnRoles] : []),
             ],
+            ...(servesManagers
+              ? {
+                  afterLogout: [...(withQueue.hooks?.afterLogout ?? []), endImpersonationOnLogout],
+                  afterRead: [...(withQueue.hooks?.afterRead ?? []), overlayImpersonation],
+                  // Ahead of anything else: Payload's own refresh would re-sign
+                  // a token for the impersonated manager, who holds no session.
+                  refresh: [refreshImpersonatorToken, ...(withQueue.hooks?.refresh ?? [])],
+                }
+              : {}),
           },
-          endpoints: [...(collection.endpoints || []), requestMagicLink(entry), redeem(entry)],
+          endpoints: [
+            ...(collection.endpoints || []),
+            requestMagicLink(entry),
+            redeem(entry),
+            ...(servesManagers ? [startImpersonation, stopImpersonation] : []),
+          ],
         }
       }),
-      jobs: invitesFor
+      jobs: managersEntry
         ? {
             ...config.jobs,
-            tasks: [...(config.jobs?.tasks ?? []), sendInvitationsTask(invitesFor)],
+            tasks: [...(config.jobs?.tasks ?? []), sendInvitationsTask(managersEntry)],
             // A schedule only enqueues; an `autoRun` entry is what runs the queue.
             autoRun: Array.isArray(config.jobs?.autoRun)
               ? [...config.jobs.autoRun, { cron: INVITATIONS_CRON, queue: INVITATIONS_QUEUE }]

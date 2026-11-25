@@ -4,7 +4,7 @@ import { useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
-import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/impersonation/gate'
+import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/login/impersonation/gate'
 
 /**
  * "Sign in as this manager", on a manager's page — for the support account

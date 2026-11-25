@@ -1,4 +1,7 @@
-# Support impersonation (`src/plugins/impersonation`)
+# Support impersonation (`src/plugins/login/impersonation`)
+
+Wired by `loginPlugin` onto the same `managers` entry as passwordless sign-in: both are ways
+into the admin panel, so one plugin owns the collection (`../loginPlugin.ts`).
 
 The support account can act as a manager in the production admin and reproduce a permission
 problem exactly as that manager sees it: their roles in each locale, their derived roles, their
@@ -28,7 +31,7 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
 `POST /api/managers/impersonate/:id` sets the `sahajcloud-impersonation` cookie. It holds a
 `jose` token signed with `payload.secret`, carrying the support account's id, the support session
 id, the target's id, and the target's project. The `support-impersonation` auth strategy is
-prepended to `managers`, so it runs before `localized-roles`. On every request it:
+prepended to `managers` by `loginPlugin`, so it runs before `localized-roles`. On every request it:
 
 1. authenticates support's JWT exactly as an ordinary request would (`authenticateJWT`);
 2. requires that the account is still the support account, and that the session is still the one

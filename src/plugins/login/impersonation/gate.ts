@@ -1,7 +1,7 @@
 /**
  * Who may impersonate, and whom. Pure, and free of server imports, so the
  * admin's start button and exit banner read the same answer the server does
- * (`@/plugins/impersonation/gate`, never the barrel, from client code).
+ * (`@/plugins/login/impersonation/gate`, never the login barrel, from client code).
  */
 import { CONTACT_EMAIL } from '@/lib/contact'
 import type { ProjectSlug } from '@/payload-types'

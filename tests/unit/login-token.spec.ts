@@ -13,7 +13,6 @@ import type { Payload } from 'payload'
 import { decodeJwt } from 'jose'
 import { describe, expect, it } from 'vitest'
 
-import { IMPERSONATION_TOKEN_KIND } from '@/plugins/impersonation/cookie'
 import {
   INVITE_TOKEN_TTL_MS,
   LINK_TOKEN_TTL_MS,
@@ -27,6 +26,7 @@ import {
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
 } from '@/plugins/login'
+import { IMPERSONATION_TOKEN_KIND } from '@/plugins/login/impersonation/cookie'
 
 const SECRET = 'test-secret-for-login-tokens'
 const NOW = new Date('2026-09-23T12:00:00.000Z')

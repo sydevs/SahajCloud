@@ -8,8 +8,8 @@ import type {
 import { Forbidden } from 'payload'
 
 import { isOwnRow } from '@/plugins/access'
-import { signSessionToken } from '@/plugins/login'
 
+import { signSessionToken } from '../session'
 import { impersonationCookie, readImpersonation } from './cookie'
 import { type GateUser, impersonatorOf } from './gate'
 
