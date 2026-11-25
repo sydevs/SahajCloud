@@ -19,8 +19,6 @@ type AppPageField = {
   name: string
   description?: string
   label?: string
-  /** Defaults to true: a released build reads the slot and has no fallback. */
-  required?: boolean
 }
 
 export const APP_PAGE_FIELDS: readonly AppPageField[] = [
@@ -42,16 +40,8 @@ export const APP_PAGE_FIELDS: readonly AppPageField[] = [
     name: 'liveMeditationsReminderPage',
     description:
       'An app card pointing at this page offers a reminder for live meditations instead of opening it.',
-    // Released builds recognise the card by the page's slug, so nothing breaks
-    // while it is empty.
-    required: false,
   },
 ]
-
-/** The slots an app build cannot open without. `liveMeditationsReminderPage` is not one. */
-export const APP_REQUIRED_PAGE_FIELDS = APP_PAGE_FIELDS.filter((p) => p.required !== false).map(
-  (p) => p.name,
-)
 
 export const WeMeditateAppConfig: GlobalConfig = {
   slug: 'wm-app-config',
@@ -81,7 +71,7 @@ export const WeMeditateAppConfig: GlobalConfig = {
               ...(page.label ? { label: page.label } : {}),
               type: 'relationship' as const,
               relationTo: 'pages' as const,
-              required: page.required !== false,
+              required: true,
               ...(page.description ? { admin: { description: page.description } } : {}),
             })),
             // The app's page set is these slots plus these tags; an app key

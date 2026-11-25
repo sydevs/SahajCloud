@@ -2,10 +2,7 @@ import type { Payload } from 'payload'
 
 import { describe, it, beforeAll, afterAll, expect, vi } from 'vitest'
 
-import {
-  APP_PAGE_FIELDS,
-  APP_REQUIRED_PAGE_FIELDS,
-} from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
+import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import type { File, Lecture, Meditation, WmAppConfig } from '@/payload-types'
 
 import { testData } from '../utils/testData'
@@ -72,7 +69,7 @@ describe('WeMeditateAppConfig Global', () => {
       title: 'Required Page Placeholder',
     })
     requiredConfig = {
-      ...Object.fromEntries(APP_REQUIRED_PAGE_FIELDS.map((name) => [name, placeholderPage.id])),
+      ...Object.fromEntries(APP_PAGE_FIELDS.map(({ name }) => [name, placeholderPage.id])),
       availableLocales: ['en'],
     }
   })
@@ -102,8 +99,8 @@ describe('WeMeditateAppConfig Global', () => {
         expect(tabLabels).toContain('First Meditation')
         expect(tabLabels).toContain('Misc')
 
-        // All required page relationships live in the single "Pages" tab,
-        // beside the optional ones and the app's Page tags.
+        // Every page relationship lives in the single "Pages" tab, beside the
+        // app's Page tags.
         const pagesTab = tabsField.tabs.find((t) => t.label === 'Pages')!
         const pageFieldNames = pagesTab.fields
           .filter((f) => f.type === 'relationship')
@@ -116,7 +113,7 @@ describe('WeMeditateAppConfig Global', () => {
         const requiredFieldNames = pagesTab.fields
           .filter((f) => f.type === 'relationship' && f.required)
           .map((f) => ('name' in f ? f.name : undefined))
-        expect(requiredFieldNames).toEqual([...APP_REQUIRED_PAGE_FIELDS])
+        expect(requiredFieldNames).toEqual(APP_PAGE_FIELDS.map(({ name }) => name))
 
         const firstMeditationTab = tabsField.tabs.find((t) => t.label === 'First Meditation')!
         const fieldNames = firstMeditationTab.fields.map((f) => ('name' in f ? f.name : undefined))

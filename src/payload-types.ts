@@ -6172,7 +6172,7 @@ export interface WmAppConfig {
   /**
    * An app card pointing at this page offers a reminder for live meditations instead of opening it.
    */
-  liveMeditationsReminderPage?: (number | null) | Page;
+  liveMeditationsReminderPage: number | Page;
   /**
    * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page says where it is available.
    */
