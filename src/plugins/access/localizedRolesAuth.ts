@@ -142,34 +142,55 @@ function withLocalStrategyView(payload: Payload, slug: string): Payload {
   })
 }
 
+/**
+ * The strategy's whole answer, for one collection: the JWT's own user, with the
+ * per-locale record. Exported for `@/plugins/impersonation`, which must
+ * authenticate the support account exactly as an ordinary request would before
+ * it may stand anyone in for them — a second copy of this path would drift.
+ */
+export async function authenticateWithLocalizedRoles(
+  args: AuthStrategyFunctionArgs,
+  slug: string,
+): Promise<AuthStrategyResult> {
+  const result = await JWTAuthentication({
+    ...args,
+    payload: withLocalStrategyView(args.payload, slug),
+  })
+  const user = result.user
+
+  // Another auth collection's user, or no user. Yielding null rather than
+  // hydrating against the wrong collection — see the docblock.
+  if (!user || user.collection !== slug) return { user: null }
+
+  return { ...result, user: await hydrateAuthUser(args.payload, user) }
+}
+
+/**
+ * `user` with the per-locale record in place of its flat `roles`. Shared by the
+ * strategy and `@/plugins/impersonation`, which stands a different manager in
+ * for the authenticated one.
+ */
+export async function hydrateAuthUser<T extends AuthUser>(payload: Payload, user: T): Promise<T> {
+  try {
+    // No `req` here: this runs inside `executeAuthStrategies`, before any
+    // operation. There is no transaction to join, and no caller locale to protect.
+    const roles = await hydrateLocalizedRoles(payload, user.id)
+    return withRoles(user, roles)
+  } catch (err) {
+    payload.logger.error(
+      { err, userId: user.id },
+      `[${LOCALIZED_ROLES_STRATEGY}] could not resolve localized roles; ` +
+        'denying all role-based access for this request',
+    )
+    return withRoles(user, {})
+  }
+}
+
 function createLocalizedRolesStrategy(slug: string) {
   return {
     name: LOCALIZED_ROLES_STRATEGY,
-    authenticate: async (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> => {
-      const result = await JWTAuthentication({
-        ...args,
-        payload: withLocalStrategyView(args.payload, slug),
-      })
-      const user = result.user
-
-      // Another auth collection's user, or no user. Yielding null rather than
-      // hydrating against the wrong collection — see the docblock.
-      if (!user || user.collection !== slug) return { user: null }
-
-      try {
-        // No `req` here: this runs inside `executeAuthStrategies`, before any
-        // operation. There is no transaction to join, and no caller locale to protect.
-        const roles = await hydrateLocalizedRoles(args.payload, user.id)
-        return { ...result, user: withRoles(user, roles) }
-      } catch (err) {
-        args.payload.logger.error(
-          { err, userId: user.id },
-          `[${LOCALIZED_ROLES_STRATEGY}] could not resolve localized roles; ` +
-            'denying all role-based access for this request',
-        )
-        return { ...result, user: withRoles(user, {}) }
-      }
-    },
+    authenticate: (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> =>
+      authenticateWithLocalizedRoles(args, slug),
   }
 }
 

@@ -47,6 +47,14 @@ export const VIEWS: ViewRegistry = {
   '@/components/branding/Icon#default': links('/admin'),
   '@/components/admin/SignIn#default': { none: 'the sign-in view, unreachable once signed in' },
   '@/components/admin/NeedHelpButton#default': links('/admin'),
+  // A preview signs in as its own admin, never `CONTACT_EMAIL`, and a preview
+  // can already sign in as any manager directly.
+  '@/components/admin/ImpersonationBanner#default': {
+    none: 'shown only while the support account impersonates, which no preview signs in as',
+  },
+  '@/components/admin/ImpersonateButton#default': {
+    none: 'shown only to the support account, which no preview signs in as',
+  },
 
   // Root views.
   '@/components/admin/Dashboard/DashboardView#default': links(

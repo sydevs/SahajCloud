@@ -13,6 +13,7 @@ import type { Payload } from 'payload'
 import { decodeJwt } from 'jose'
 import { describe, expect, it } from 'vitest'
 
+import { IMPERSONATION_TOKEN_KIND } from '@/plugins/impersonation/cookie'
 import {
   INVITE_TOKEN_TTL_MS,
   LINK_TOKEN_TTL_MS,
@@ -44,7 +45,7 @@ describe('login token kinds', () => {
     expect(invite.aud).toBe('manager-invite')
     expect(page.aud).toBe('manager-link')
 
-    // The two other kinds in use, asserted as strings because signing one needs
+    // The other kinds in use, asserted as strings because signing one needs
     // nothing this spec has.
     const kinds = [
       signin.aud,
@@ -52,6 +53,7 @@ describe('login token kinds', () => {
       page.aud,
       'submission-feedback',
       'submission-unsubscribe',
+      IMPERSONATION_TOKEN_KIND,
     ]
     expect(new Set(kinds).size).toBe(kinds.length)
   })

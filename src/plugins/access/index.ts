@@ -36,6 +36,7 @@ export {
   rolesForAllLocales,
 } from './localizedRoles'
 export type { LocalizedRoles } from './localizedRoles'
+export { authenticateWithLocalizedRoles, hydrateAuthUser } from './localizedRolesAuth'
 export {
   adminOnlyCondition,
   adminOnlyFieldAccess,

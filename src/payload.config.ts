@@ -11,6 +11,7 @@ import { openapi } from 'payload-oapi'
 
 import { startFixtureLoad } from '@/fixture/gate'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv, weMeditatePreviewUrl } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
@@ -30,6 +31,7 @@ import { databaseErrorPlugin } from '@/plugins/databaseErrors'
 import { buildSmtpTransportOptions, resendAdapter, warnEmailDisabled } from '@/plugins/email'
 import { eventImportPlugin } from '@/plugins/eventImport'
 import { formsPlugin } from '@/plugins/formBuilder'
+import { impersonationPlugin } from '@/plugins/impersonation'
 import { loginPlugin } from '@/plugins/login'
 import { openapiEndpointAuth, scalarPlugin } from '@/plugins/openapi'
 import { retryWhilePostgresWakes } from '@/plugins/postgresWake'
@@ -185,7 +187,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Disable admin UI in unit test environment (but enable for E2E tests)
       disable: isTestEnvironment && !isE2ETest,
       // Disable auto-login for E2E tests (tests need to authenticate manually)
-      autoLogin: !isProduction && !isE2ETest ? { email: 'contact@sydevelopers.com' } : false,
+      autoLogin: !isProduction && !isE2ETest ? { email: CONTACT_EMAIL } : false,
     },
     collections,
     globals,
@@ -413,6 +415,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
+      // Support impersonation. Before accessPlugin, so its strategy runs first.
+      impersonationPlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({
         enabled: true,

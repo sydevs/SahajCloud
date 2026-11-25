@@ -42,6 +42,7 @@ import { default as default_216b4fefb509fb8787bce46ede901332 } from '@/component
 import { default as default_673fb432cb45f37a951f8916cb366397 } from '@/components/admin/ColorField/ColorCell'
 import { default as default_c76ed6d3c3881bbd4c90e56dac27b1a7 } from '@/components/admin/ColorField/ColorField'
 import { default as default_f121f461cebbcfa61ef84b5a0960a270 } from '@/components/admin/ManagerEditNotice'
+import { default as default_01bd2ba0f1b90bfa3739903347867b1a } from '@/components/admin/ImpersonateButton'
 import { default as default_8dd17cb8528b516d825f8fb6a794fe97 } from '@/components/admin/RolesField'
 import { default as default_49cc57155f60c2bacf9eaa38c760d251 } from '@/components/admin/PermissionsTable'
 import { default as default_62cc53570223acc00863adec1af8b6de } from '@/components/admin/NotificationPreferences'
@@ -101,6 +102,7 @@ import { TranslationsRichTextField as TranslationsRichTextField_4e22aa57842837ef
 import { default as default_ffac54d067109368ad5684d6ea4e1327 } from '@/components/admin/ReadinessField/ReadinessBanner'
 import { default as default_8dcebb2ea41c850ff8532af16196e52b } from '@/components/admin/ReadinessField'
 import { default as default_fec9a646cfc358f70245d2d0e360935e } from '@/components/admin/AtlasNav/AtlasNav'
+import { default as default_ebf47c8fd748a8219bd450d3866973f1 } from '@/components/admin/ImpersonationBanner'
 import { default as default_7b4ba381140135af5cae014b3533be0b } from '@/components/branding/Icon'
 import { default as default_742835b254059f88bfb2f781ea75df90 } from '@/components/branding/Logo'
 import { default as default_61e2128a563ccbf90798aeb2bc90aa02 } from '@/components/admin/NeedHelpButton'
@@ -159,6 +161,7 @@ export const importMap = {
   "@/components/admin/ColorField/ColorCell#default": default_673fb432cb45f37a951f8916cb366397,
   "@/components/admin/ColorField/ColorField#default": default_c76ed6d3c3881bbd4c90e56dac27b1a7,
   "@/components/admin/ManagerEditNotice#default": default_f121f461cebbcfa61ef84b5a0960a270,
+  "@/components/admin/ImpersonateButton#default": default_01bd2ba0f1b90bfa3739903347867b1a,
   "@/components/admin/RolesField#default": default_8dd17cb8528b516d825f8fb6a794fe97,
   "@/components/admin/PermissionsTable#default": default_49cc57155f60c2bacf9eaa38c760d251,
   "@/components/admin/NotificationPreferences#default": default_62cc53570223acc00863adec1af8b6de,
@@ -218,6 +221,7 @@ export const importMap = {
   "@/components/admin/ReadinessField/ReadinessBanner#default": default_ffac54d067109368ad5684d6ea4e1327,
   "@/components/admin/ReadinessField#default": default_8dcebb2ea41c850ff8532af16196e52b,
   "@/components/admin/AtlasNav/AtlasNav#default": default_fec9a646cfc358f70245d2d0e360935e,
+  "@/components/admin/ImpersonationBanner#default": default_ebf47c8fd748a8219bd450d3866973f1,
   "@/components/branding/Icon#default": default_7b4ba381140135af5cae014b3533be0b,
   "@/components/branding/Logo#default": default_742835b254059f88bfb2f781ea75df90,
   "@/components/admin/NeedHelpButton#default": default_61e2128a563ccbf90798aeb2bc90aa02,

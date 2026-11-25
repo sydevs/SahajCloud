@@ -10,6 +10,8 @@ import type {
 
 import { Forbidden } from 'payload'
 
+import { impersonatorOf } from '@/plugins/impersonation/gate'
+
 import { isAdminManager } from './adminOnly'
 
 /**
@@ -43,6 +45,7 @@ export function restrictPayloadSystemEntities(config: SanitizedConfig): Sanitize
     if (policy.guardEndpoints && collection.endpoints) {
       collection.endpoints = collection.endpoints.map(managersOnlyEndpoint)
     }
+    if (collection.slug === 'payload-preferences') keepImpersonatedPreferences(collection)
   }
 
   for (const global of config.globals) {
@@ -135,4 +138,37 @@ function managersOnlyEndpoint(endpoint: Endpoint): Endpoint {
       return endpoint.handler(req)
     },
   }
+}
+
+/**
+ * While support impersonates a manager, their column, nav and locale choices
+ * are kept in the browser and never written over the manager's own.
+ *
+ * Two write paths, and each needs its own stop: the `/:key` REST handlers write
+ * through `payload.db`, which runs no hook, so they answer without writing —
+ * the admin's preferences provider ignores the response body. The admin's
+ * server-side `upsertPreferences` writes through the Local API, where an update
+ * keeps the stored value. ⚠ A first-time create still lands: refusing it would
+ * throw inside a page render, and a row the manager never had is the least of
+ * the three.
+ */
+function keepImpersonatedPreferences(collection: SanitizedCollectionConfig): void {
+  collection.endpoints = (collection.endpoints || []).map((endpoint) =>
+    endpoint.method === 'get'
+      ? endpoint
+      : {
+          ...endpoint,
+          handler: async (req) =>
+            impersonatorOf(req.user)
+              ? Response.json({ message: 'Not saved while impersonating.' })
+              : endpoint.handler(req),
+        },
+  )
+  collection.hooks.beforeChange = [
+    ...(collection.hooks.beforeChange ?? []),
+    ({ data, operation, originalDoc, req }) =>
+      operation === 'update' && impersonatorOf(req.user) && originalDoc
+        ? { ...data, value: (originalDoc as { value?: unknown }).value }
+        : data,
+  ]
 }
