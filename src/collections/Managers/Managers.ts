@@ -67,13 +67,6 @@ export const Managers: CollectionConfig = {
       admin: { components: { Field: '@/components/admin/ManagerEditNotice' } },
     },
     {
-      // "Sign in as this manager", shown to the support account alone
-      // (`@/plugins/impersonation`).
-      name: 'impersonate',
-      type: 'ui',
-      admin: { position: 'sidebar', components: { Field: '@/components/admin/ImpersonateButton' } },
-    },
-    {
       name: 'name',
       type: 'text',
       required: true,

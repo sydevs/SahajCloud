@@ -19,7 +19,6 @@ describe('isSupportAccount', () => {
     ['another admin', { ...support, email: 'other@example.org' }],
     ['the address on a non-admin', { ...support, type: 'manager' }],
     ['an API client', { ...support, collection: 'clients' }],
-    ['an impersonated request', { ...support, impersonatedBy: { id: 1, email: SUPPORT } }],
     ['nobody', null],
   ])('refuses %s', (_label, user) => {
     expect(isSupportAccount(user, SUPPORT)).toBe(false)
@@ -27,15 +26,15 @@ describe('isSupportAccount', () => {
 })
 
 describe('mayImpersonate', () => {
-  it('admits an active manager other than the support account', () => {
-    expect(mayImpersonate(support, { id: 2, type: 'manager' })).toBe(true)
+  it('admits an active manager', () => {
+    expect(mayImpersonate({ id: 2, type: 'manager' })).toBe(true)
   })
 
+  // The support account is an admin, so this also refuses it becoming itself.
   it.each([
     ['an admin', { id: 2, type: 'admin' }],
     ['an inactive manager', { id: 2, type: 'inactive' }],
-    ['itself', { id: '1', type: 'manager' }],
   ])('refuses %s', (_label, target) => {
-    expect(mayImpersonate(support, target)).toBe(false)
+    expect(mayImpersonate(target)).toBe(false)
   })
 })

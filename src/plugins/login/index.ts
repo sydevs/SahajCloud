@@ -32,7 +32,7 @@ export {
   returnPath,
   SIGNIN_VALID_FOR,
 } from './magicLinks'
-export { createSession, sessionCookie, sessionCookieParts } from './session'
+export { createSession, sessionCookie, sessionCookieParts, signSessionToken } from './session'
 export { responsibilityLabel, summarizeGrants } from './grantSummary'
 export type { GrantSummary } from './grantSummary'
 export {

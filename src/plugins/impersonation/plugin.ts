@@ -1,18 +1,27 @@
-import type { Plugin } from 'payload'
+import type { Field, Plugin } from 'payload'
 
 import { startImpersonation, stopImpersonation } from './endpoints'
-import { afterMeImpersonation, refreshImpersonatorToken, refuseOwnRowWrites } from './hooks'
+import {
+  endImpersonationOnLogout,
+  overlayImpersonation,
+  refreshImpersonatorToken,
+  refuseOwnRowWrites,
+} from './hooks'
 import { createImpersonationStrategy } from './strategy'
 
-export const IMPERSONATION_BANNER = '@/components/admin/ImpersonationBanner'
+/** "Sign in as this manager", shown to the support account alone. */
+const START_BUTTON: Field = {
+  name: 'impersonate',
+  type: 'ui',
+  admin: { position: 'sidebar', components: { Field: '@/components/admin/ImpersonateButton' } },
+}
 
 /**
  * Support impersonation: the support account acts as a manager in the real
  * admin, to reproduce a permission problem. See this folder's `AGENTS.md`.
  *
- * ⚠ **Register before `accessPlugin`.** The strategy is prepended and the
- * access plugin appends `localized-roles`, so this one runs first; the
- * reverse order would authenticate support as themself and never reach it.
+ * The strategy is prepended and `accessPlugin` appends `localized-roles`, so
+ * this one runs first whichever plugin is registered first.
  */
 export const impersonationPlugin: Plugin = (config) => ({
   ...config,
@@ -20,7 +29,10 @@ export const impersonationPlugin: Plugin = (config) => ({
     ...config.admin,
     components: {
       ...config.admin?.components,
-      header: [...(config.admin?.components?.header ?? []), IMPERSONATION_BANNER],
+      header: [
+        ...(config.admin?.components?.header ?? []),
+        '@/components/admin/ImpersonationBanner',
+      ],
     },
   },
   collections: (config.collections ?? []).map((collection) => {
@@ -30,9 +42,11 @@ export const impersonationPlugin: Plugin = (config) => ({
       ...collection,
       auth: { ...auth, strategies: [createImpersonationStrategy(), ...(auth.strategies ?? [])] },
       endpoints: [...(collection.endpoints || []), startImpersonation, stopImpersonation],
+      fields: [...collection.fields, START_BUTTON],
       hooks: {
         ...collection.hooks,
-        afterMe: [...(collection.hooks?.afterMe ?? []), afterMeImpersonation],
+        afterLogout: [...(collection.hooks?.afterLogout ?? []), endImpersonationOnLogout],
+        afterRead: [...(collection.hooks?.afterRead ?? []), overlayImpersonation],
         beforeOperation: [...(collection.hooks?.beforeOperation ?? []), refuseOwnRowWrites],
         refresh: [refreshImpersonatorToken, ...(collection.hooks?.refresh ?? [])],
       },

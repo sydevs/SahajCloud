@@ -12,7 +12,7 @@ import { decodeJwt } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
-import { IMPERSONATION_COOKIE } from '@/plugins/impersonation'
+import { IMPERSONATION_COOKIE } from '@/plugins/impersonation/gate'
 import { createSession } from '@/plugins/login'
 
 import { createRestClientWithAuth } from '../utils/restRequest'
@@ -58,8 +58,8 @@ describe('support impersonation', () => {
     })
 
   /** Start impersonating `targetId` as support; answers the cookie pair to send. */
-  const start = async (targetId: number | string) => {
-    const response = await restAs(supportToken)(`/api/managers/impersonate/${targetId}`, {
+  const start = async (targetId: number | string, token = supportToken) => {
+    const response = await restAs(token)(`/api/managers/impersonate/${targetId}`, {
       method: 'POST',
     })
     expect(response.status).toBe(200)
@@ -111,8 +111,10 @@ describe('support impersonation', () => {
     const cookie = await start(target.id)
     await payload.update({ collection: 'managers', id: target.id, data: { type: 'inactive' } })
 
-    const { user } = await authAs(supportToken, cookie)
+    const { responseHeaders, user } = await authAs(supportToken, cookie)
     expect(user?.id).toBe(support.id)
+    // A refused cookie clears itself rather than being re-checked on every request.
+    expect(responseHeaders?.get('set-cookie')).toMatch(/sahajcloud-impersonation=;/)
   })
 
   it("refuses a write to the target's own row, and keeps the project switcher off it", async () => {
@@ -132,6 +134,13 @@ describe('support impersonation', () => {
     })
     expect(switched.status).toBe(200)
     expect(switched.headers.get('set-cookie')).toContain(IMPERSONATION_COOKIE)
+
+    // A bulk write names no row, so it is refused whole rather than read for one.
+    const bulk = await asTarget(`/api/managers?where[id][equals]=${target.id}`, {
+      method: 'PATCH',
+      json: { name: 'Renamed in bulk' },
+    })
+    expect(bulk.status).toBe(403)
 
     const stored = await payload.findByID({ collection: 'managers', id: target.id, depth: 0 })
     expect(stored.name).toBe(target.name)
@@ -171,5 +180,20 @@ describe('support impersonation', () => {
     const stop = await asTarget('/api/managers/stop-impersonating', { method: 'POST' })
     expect(stop.status).toBe(200)
     expect(stop.headers.get('set-cookie')).toMatch(/sahajcloud-impersonation=;/)
+  })
+
+  it("signs support's own session out, not the target's", async () => {
+    const target = await createTarget()
+    const session = await createSession(payload, 'managers', support.id)
+    const cookie = await start(target.id, session)
+
+    const logout = await restAs(session, cookie)('/api/managers/logout', { method: 'POST' })
+    expect(logout.status).toBe(200)
+    expect(logout.headers.get('set-cookie')).toMatch(/sahajcloud-impersonation=;/)
+
+    const { user } = await payload.auth({
+      headers: new Headers({ Authorization: `JWT ${session}` }),
+    })
+    expect(user).toBeNull()
   })
 })

@@ -1,11 +1,11 @@
+import type { Impersonator } from './gate'
 import type { Endpoint, PayloadRequest } from 'payload'
 
 import { errorResponse } from '@/lib/endpoints'
+import type { ProjectSlug } from '@/payload-types'
 
 import { impersonationCookie, readImpersonation, signImpersonation } from './cookie'
-import { impersonatorOf, isSupportAccount, mayImpersonate } from './gate'
-
-type ManagerFields = { email?: string | null; name?: string | null }
+import { type GateUser, impersonatorOf, isSupportAccount, mayImpersonate } from './gate'
 
 /**
  * POST /api/managers/impersonate/:id — the support account starts acting as
@@ -20,33 +20,32 @@ export const startImpersonation: Endpoint = {
   path: '/impersonate/:id',
   method: 'post',
   handler: async (req) => {
-    const actor = req.user
-    if (!actor || !isSupportAccount(actor)) {
+    const actor = req.user as (GateUser & { id: number | string; email: string }) | null
+    if (!isSupportAccount(actor)) {
       return errorResponse('Only the support account can sign in as another manager.', 403)
     }
 
-    const target = await req.payload
-      .findByID({
-        collection: 'managers',
-        id: req.routeParams?.id as string,
-        depth: 0,
-        joins: false,
-        overrideAccess: true,
-        select: { currentProject: true, email: true, name: true, type: true },
-      })
-      .catch(() => null)
+    const target = await req.payload.findByID({
+      collection: 'managers',
+      id: req.routeParams?.id as string,
+      depth: 0,
+      disableErrors: true,
+      joins: false,
+      overrideAccess: true,
+      select: { currentProject: true, email: true, type: true },
+    })
     if (!target) return errorResponse('Manager not found.', 404)
-    if (!mayImpersonate(actor, target)) {
+    if (!mayImpersonate(target)) {
       return errorResponse('Only an active, non-admin manager can be signed in as.', 400)
     }
 
     const token = await signImpersonation(req.payload, {
-      actor: actor.id,
-      actorSession: (actor as { _sid?: string })._sid ?? null,
+      actor: actor!.id,
+      actorSession: actor!._sid ?? null,
       target: target.id,
       project: target.currentProject ?? null,
     })
-    logImpersonation(req, 'start', target.id, target)
+    logImpersonation(req, 'started', actor!, target)
 
     return Response.json(
       { ok: true },
@@ -64,10 +63,10 @@ export const stopImpersonation: Endpoint = {
   path: '/stop-impersonating',
   method: 'post',
   handler: (req) => {
-    if (impersonatorOf(req.user))
-      logImpersonation(req, 'stop', req.user!.id, req.user as ManagerFields)
+    const actor = impersonatorOf(req.user)
+    if (actor) logImpersonation(req, 'stopped', actor, req.user as GateUser & { id: number })
     return Response.json(
-      { ok: true, managerId: impersonatorOf(req.user) ? req.user!.id : null },
+      { ok: true },
       { headers: { 'Set-Cookie': impersonationCookie(req.payload, null) } },
     )
   },
@@ -80,7 +79,7 @@ export const stopImpersonation: Endpoint = {
  */
 export async function setImpersonatedProject(
   req: PayloadRequest,
-  project: string | null,
+  project: ProjectSlug | null,
 ): Promise<string | null> {
   if (!impersonatorOf(req.user)) return null
   const claims = await readImpersonation(req.payload, req.headers)
@@ -93,19 +92,18 @@ export async function setImpersonatedProject(
 
 function logImpersonation(
   req: PayloadRequest,
-  event: 'start' | 'stop',
-  targetId: number | string,
-  target: ManagerFields,
+  event: 'started' | 'stopped',
+  actor: Impersonator,
+  target: { id: number | string; email?: string | null },
 ): void {
-  const actor = impersonatorOf(req.user) ?? (req.user as { id: number | string; email?: string })
   req.payload.logger.info(
     {
-      event: `impersonation.${event}`,
+      event: `impersonation.${event === 'started' ? 'start' : 'stop'}`,
       actorId: actor.id,
       actorEmail: actor.email,
-      targetId,
+      targetId: target.id,
       targetEmail: target.email,
     },
-    `[impersonation] ${actor.email} ${event === 'start' ? 'started' : 'stopped'} acting as manager ${targetId} (${target.email})`,
+    `[impersonation] ${actor.email} ${event} acting as manager ${target.id} (${target.email})`,
   )
 }

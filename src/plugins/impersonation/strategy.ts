@@ -1,91 +1,83 @@
-import type {
-  AuthStrategy,
-  AuthStrategyFunctionArgs,
-  AuthStrategyResult,
-  PayloadRequest,
-} from 'payload'
+import type { AuthStrategy, AuthStrategyFunctionArgs, PayloadRequest } from 'payload'
 
-import { authenticateWithLocalizedRoles, hydrateAuthUser } from '@/plugins/access'
+import { authenticateJWT, hydrateAuthUser, isOwnRow } from '@/plugins/access'
 
-import { type ImpersonationClaims, readImpersonation } from './cookie'
-import { type Impersonator, isSupportAccount, mayImpersonate } from './gate'
+import { type ImpersonationClaims, impersonationCookie, readImpersonation } from './cookie'
+import { type GateUser, isSupportAccount, mayImpersonate } from './gate'
 
-export const IMPERSONATION_STRATEGY = 'support-impersonation'
+const IMPERSONATION_STRATEGY = 'support-impersonation'
 
 type AuthUser = NonNullable<PayloadRequest['user']>
 
 /**
- * The support account, authenticated exactly as an ordinary request would be,
- * when it is the one the cookie names and is still entitled to impersonate.
- */
-export async function authenticateImpersonator(
-  args: AuthStrategyFunctionArgs,
-  claims: ImpersonationClaims,
-): Promise<AuthUser | null> {
-  const { user } = await authenticateWithLocalizedRoles(args, 'managers')
-  if (!user || !isSupportAccount(user)) return null
-  if (String(user.id) !== String(claims.actor)) return null
-  if (((user as { _sid?: string })._sid ?? null) !== claims.actorSession) return null
-  return user
-}
-
-/**
  * Stand the manager the cookie names in for the support account.
  *
- * Runs ahead of `localized-roles` on `managers`. With no cookie it yields no
- * user, and the next strategy authenticates the request as usual — so does
- * every refusal, which is what makes a stale cookie harmless: support simply
- * reads as themself again.
+ * Prepended to `managers`, ahead of `localized-roles`. With no cookie it
+ * yields no user and costs nothing, and the next strategy authenticates the
+ * request as usual.
  *
  * ⚠ **Every request re-checks all of it** — support's own session, that the
- * account is still the support address and an admin, and that the target is
- * still an active non-admin manager. A demotion, a sign-out or a role change
- * on either side ends the impersonation on the next request.
+ * account is still the support account, and that the target is still an
+ * active manager — so a demotion or a sign-out on either side ends the
+ * impersonation on the next request. A refused cookie answers with support
+ * themself, and clears itself where the response can carry the header.
  *
- * ⚠ **The target goes through `hydrateAuthUser`**, the same per-locale role
- * load an ordinary request gets. Loaded any other way it would carry flat,
+ * ⚠ **The target goes through `hydrateAuthUser`**, the per-locale role load
+ * an ordinary request gets. Loaded any other way it would carry flat,
  * default-locale roles, and the view support is debugging would be wrong.
  */
 export function createImpersonationStrategy(): AuthStrategy {
   return {
     name: IMPERSONATION_STRATEGY,
-    authenticate: async (args): Promise<AuthStrategyResult> => {
+    authenticate: async (args) => {
       const claims = await readImpersonation(args.payload, args.headers)
       if (!claims) return { user: null }
 
-      const actor = await authenticateImpersonator(args, claims)
+      const { user: actor } = await authenticateJWT(args, 'managers')
       if (!actor) return { user: null }
 
-      const collection = args.payload.collections.managers.config
-      const target = await args.payload
-        .findByID({
-          collection: 'managers',
-          id: claims.target,
-          depth: args.isGraphQL ? 0 : collection.auth.depth,
-          fallbackLocale: args.req?.fallbackLocale,
-          locale: args.req?.locale,
-          overrideAccess: true,
-          req: args.req,
-        })
-        .catch(() => null)
-      if (!target || !mayImpersonate(actor, target)) return { user: null }
-      if (collection.auth.verify && !target._verified) return { user: null }
-
-      const impersonatedBy: Impersonator = {
-        id: actor.id,
-        email: (actor as { email: string }).email,
-        name: (actor as { name?: string | null }).name ?? null,
+      const target = isBoundTo(actor, claims) ? await readTarget(args, claims) : null
+      if (!target) {
+        return {
+          user: await hydrateAuthUser(args.payload, actor),
+          responseHeaders: new Headers({ 'Set-Cookie': impersonationCookie(args.payload, null) }),
+        }
       }
 
-      const user = await hydrateAuthUser(args.payload, {
+      const user = {
         ...target,
         collection: 'managers',
         _strategy: IMPERSONATION_STRATEGY,
         currentProject: claims.project,
-        impersonatedBy,
-      } as unknown as AuthUser)
-
-      return { user }
+        impersonatedBy: { id: actor.id, email: (actor as GateUser).email! },
+      } as AuthUser
+      return { user: await hydrateAuthUser(args.payload, user) }
     },
   }
+}
+
+/** Whether the cookie names this support account, on this very session. */
+function isBoundTo(actor: GateUser & { id: number | string }, claims: ImpersonationClaims) {
+  return (
+    isSupportAccount(actor) &&
+    isOwnRow(actor.id, claims.actor) &&
+    (actor._sid ?? null) === claims.actorSession
+  )
+}
+
+/** The target as Payload's JWT strategy loads a user, while it may still be impersonated. */
+async function readTarget(args: AuthStrategyFunctionArgs, claims: ImpersonationClaims) {
+  const { auth } = args.payload.collections.managers.config
+  const target = await args.payload.findByID({
+    collection: 'managers',
+    id: claims.target,
+    depth: args.isGraphQL ? 0 : auth.depth,
+    disableErrors: true,
+    fallbackLocale: args.req?.fallbackLocale,
+    locale: args.req?.locale,
+    overrideAccess: true,
+    req: args.req,
+  })
+  if (!target || !mayImpersonate(target) || (auth.verify && !target._verified)) return null
+  return target
 }

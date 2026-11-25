@@ -415,7 +415,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
         collections: [managersLoginHere()],
         invitations: !isSeedScript,
       }),
-      // Support impersonation. Before accessPlugin, so its strategy runs first.
+      // Support impersonation (`src/plugins/impersonation/AGENTS.md`).
       impersonationPlugin,
       // Access Plugin: Unified RBAC and project visibility (must be LAST to process plugin-created collections)
       accessPlugin({

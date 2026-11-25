@@ -187,9 +187,9 @@ function createBaseTestConfig(emailConfig: any, schemaName: string, debug = fals
       loginPlugin({
         collections: [managersLoginHere()],
       }),
-      // Access Plugin must be LAST to process plugin-created collections
-      // Mirrors `payload.config.ts`: before accessPlugin, so its strategy runs first.
+      // Support impersonation, as `payload.config.ts` registers it.
       impersonationPlugin,
+      // Access Plugin must be LAST to process plugin-created collections
       accessPlugin({ enabled: true, bypassPermissions }),
     ],
     email:

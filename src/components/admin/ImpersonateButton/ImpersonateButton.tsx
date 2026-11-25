@@ -18,15 +18,15 @@ export function ImpersonateButton(): React.ReactElement | null {
   const type = useFormFields(([fields]) => fields.type?.value as string | undefined)
   const [state, setState] = useState<'idle' | 'starting' | 'failed'>('idle')
 
-  if (!id || !user || !isSupportAccount(user) || !mayImpersonate(user, { id, type })) return null
+  if (!id || !isSupportAccount(user) || !mayImpersonate({ type })) return null
 
   const start = async () => {
     setState('starting')
     const response = await fetch(`/api/managers/impersonate/${id}`, {
       method: 'POST',
       credentials: 'include',
-    })
-    if (!response.ok) return setState('failed')
+    }).catch(() => null)
+    if (!response?.ok) return setState('failed')
     // A full load, not a router push: the signed-in user changes, and the
     // auth provider and server-rendered nav must both start again from it.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
@@ -44,7 +44,7 @@ export function ImpersonateButton(): React.ReactElement | null {
       type={state === 'failed' ? 'error' : 'default'}
     >
       {state === 'failed'
-        ? 'Could not sign in as this manager. Reload the page and try again.'
+        ? 'Could not sign in as this manager. Try again.'
         : 'See the admin exactly as they do. Anything you save is saved in their name, until you exit.'}
     </InfoBanner>
   )

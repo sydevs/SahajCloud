@@ -4,36 +4,42 @@
  * (`@/plugins/impersonation/gate`, never the barrel, from client code).
  */
 import { CONTACT_EMAIL } from '@/lib/contact'
+import type { ProjectSlug } from '@/payload-types'
 
 /** The support account behind an impersonated request, as `req.user` carries it. */
 export interface Impersonator {
   id: number | string
   email: string
-  name?: string | null
 }
 
-/** What the gate reads off `req.user`, `useAuth().user` or a manager row. */
+/** What this plugin reads off `req.user`, `useAuth().user` or a manager row. */
 export interface GateUser {
   id?: number | string
   collection?: string
   email?: string | null
+  name?: string | null
   type?: string | null
+  currentProject?: ProjectSlug | null
+  /** The session id Payload's JWT strategy stamps on an authenticated user. */
+  _sid?: string
   impersonatedBy?: Impersonator | null
 }
 
-/** The cookie that names the manager support is acting as. Shared with `src/middleware.ts`. */
 export const IMPERSONATION_COOKIE = 'sahajcloud-impersonation'
 
 /**
- * Whether `user` is the support account, signed in as itself.
+ * Whether `user` is the support account: the admin holding `CONTACT_EMAIL`.
  *
- * ⚠ **Both the address and `type: admin`.** Any admin can edit a manager's
- * email, so the address alone would let one rename themself into the role;
- * requiring `admin` means the account must also already hold full access.
- * `CONTACT_EMAIL` is the public support address, so moving it moves this
+ * ⚠ **The address alone would let any manager in**, since a manager may edit
+ * their own email, so the account must already be an admin. ⚠ **That leaves
+ * every admin able to take the role**, by moving the address off the support
+ * account and onto their own — accepted when the gate was chosen
+ * (2026-11-25), because an admin already holds full access to every record.
+ * `CONTACT_EMAIL` is also the public support address, so moving it moves this
  * right with it.
  *
- * An impersonated request never passes, which is what refuses nesting.
+ * An impersonated request never passes — its user is a manager, never an
+ * admin — which is what refuses nesting.
  */
 export function isSupportAccount(
   user: GateUser | null | undefined,
@@ -42,22 +48,19 @@ export function isSupportAccount(
   return (
     user?.collection === 'managers' &&
     user.type === 'admin' &&
-    !user.impersonatedBy &&
-    typeof user.email === 'string' &&
-    user.email.toLowerCase() === supportAddress.toLowerCase()
+    user.email?.toLowerCase() === supportAddress.toLowerCase()
   )
 }
 
 /**
  * Whether the support account may act as `target`: an active, non-admin
- * manager other than itself. An admin shows nothing new and would hand over
- * role editing; an inactive manager is denied everywhere.
+ * manager. An admin shows nothing new and would hand over role editing; an
+ * inactive manager is denied everywhere.
  */
-export function mayImpersonate(actor: GateUser, target: GateUser): boolean {
-  return target.type === 'manager' && String(target.id) !== String(actor.id)
+export function mayImpersonate(target: GateUser): boolean {
+  return target.type === 'manager'
 }
 
-/** The support account behind this user, when the request is impersonated. */
 export function impersonatorOf(user: GateUser | null | undefined): Impersonator | undefined {
   return user?.impersonatedBy ?? undefined
 }

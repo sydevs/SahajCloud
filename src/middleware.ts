@@ -27,7 +27,6 @@ import {
   previewOrigin,
 } from '@/lib/preview/proxy'
 import { handleCacheMiddleware } from '@/plugins/cache/middleware'
-import { IMPERSONATION_COOKIE } from '@/plugins/impersonation/gate'
 
 const refuse = (body: string): NextResponse =>
   new NextResponse(`${body}\n`, {
@@ -101,16 +100,7 @@ function previewGate(request: NextRequest): NextResponse | null {
 }
 
 export function middleware(request: NextRequest) {
-  const response = previewGate(request) ?? handleCacheMiddleware(request)
-  // Signing out ends an impersonation too. The cookie is already inert once
-  // the session it is bound to is gone; this keeps it from outliving that.
-  if (
-    request.nextUrl.pathname === '/api/managers/logout' &&
-    request.cookies.has(IMPERSONATION_COOKIE)
-  ) {
-    response.cookies.delete(IMPERSONATION_COOKIE)
-  }
-  return response
+  return previewGate(request) ?? handleCacheMiddleware(request)
 }
 
 export const config = {

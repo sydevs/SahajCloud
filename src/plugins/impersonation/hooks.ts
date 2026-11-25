@@ -1,71 +1,65 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type {
+  CollectionAfterLogoutHook,
+  CollectionAfterReadHook,
+  CollectionBeforeOperationHook,
+  CollectionRefreshHook,
+} from 'payload'
 
-import { Forbidden, getFieldsToSign, jwtSign } from 'payload'
+import { Forbidden } from 'payload'
 
-import { readImpersonation } from './cookie'
-import { impersonatorOf } from './gate'
+import { isOwnRow } from '@/plugins/access'
+import { signSessionToken } from '@/plugins/login'
 
-type Hooks = NonNullable<CollectionConfig['hooks']>
-type AuthUser = NonNullable<PayloadRequest['user']>
-
-// `updateByID` and `deleteByID` reach `beforeOperation` as `update` and
-// `delete`; only they carry an `id`.
-const OWN_ROW_WRITES = new Set(['update', 'delete'])
+import { impersonationCookie, readImpersonation } from './cookie'
+import { type GateUser, impersonatorOf } from './gate'
 
 /**
  * Refuse any write to the impersonated manager's own row. Support is acting
  * as them, not editing them, and every such write — their name, contact
- * details, notification preferences — would read later as theirs.
- * Other managers' rows stay writable, so an assignment's invitation still
+ * details, notification preferences — would read later as theirs. Another
+ * manager's row stays writable by id, so an assignment's invitation still
  * queues. The project switcher never reaches this: it writes the cookie
  * instead (`setImpersonatedProject`).
  */
-export const refuseOwnRowWrites: NonNullable<Hooks['beforeOperation']>[number] = ({
-  args,
-  operation,
-  req,
-}) => {
-  if (!impersonatorOf(req.user) || !OWN_ROW_WRITES.has(operation)) return args
-  if (String((args as { id?: number | string }).id) === String(req.user!.id)) {
+export const refuseOwnRowWrites: CollectionBeforeOperationHook = ({ args, operation, req }) => {
+  if (!impersonatorOf(req.user) || (operation !== 'update' && operation !== 'delete')) return args
+  // A bulk write names no row, so its `where` could reach the manager's own.
+  if (!('id' in args) || isOwnRow(req.user!.id, args.id as number | string)) {
     throw new Forbidden(req.t)
   }
   return args
 }
 
 /**
+ * Every read of the impersonated manager's own row — `/me`, and the user a
+ * refresh answers with — carries what the strategy set on `req.user`: the
+ * cookie's project, and who is impersonating. The banner and the project
+ * switcher read both from `useAuth()`.
+ */
+export const overlayImpersonation: CollectionAfterReadHook = ({ doc, req }) => {
+  const user = req.user as GateUser | null
+  const impersonatedBy = impersonatorOf(user)
+  if (!impersonatedBy || !isOwnRow(user!.id!, doc.id)) return doc
+  return { ...doc, currentProject: user!.currentProject ?? null, impersonatedBy }
+}
+
+/**
  * Refresh the support account's token, not the target's.
  *
  * ⚠ Payload's default re-signs a token for `req.user`, which is the target
- * here, carrying support's session id — a token that authenticates nobody, so
+ * here, carrying no session of theirs — a token that authenticates nobody, so
  * an open tab would sign support out on its first refresh.
  */
-export const refreshImpersonatorToken: NonNullable<Hooks['refresh']>[number] = async ({
-  args,
-  user,
-}) => {
-  const req = args.req as PayloadRequest
+export const refreshImpersonatorToken: CollectionRefreshHook = async ({ args, user }) => {
+  const { req } = args
   const impersonatedBy = impersonatorOf(req.user)
-  if (!impersonatedBy) return undefined
+  if (!impersonatedBy) return
 
   const claims = await readImpersonation(req.payload, req.headers)
-  const collectionConfig = args.collection.config
-  const { tokenExpiration } = collectionConfig.auth
-  const responseUser = {
-    ...user,
-    collection: 'managers',
-    currentProject: (req.user as { currentProject?: unknown }).currentProject ?? null,
-    impersonatedBy,
-  }
-
   // Local auto-login holds no session to refresh.
   if (!claims?.actorSession) {
-    return {
-      exp: Math.floor(Date.now() / 1000) + tokenExpiration,
-      // Unsent: `setCookie: false` keeps the endpoint from writing it.
-      refreshedToken: '',
-      setCookie: false,
-      user: responseUser,
-    }
+    const exp = Math.floor(Date.now() / 1000) + args.collection.config.auth.tokenExpiration
+    return { exp, refreshedToken: '', setCookie: false, user }
   }
 
   const actor = await req.payload.findByID({
@@ -75,37 +69,46 @@ export const refreshImpersonatorToken: NonNullable<Hooks['refresh']>[number] = a
     joins: false,
     overrideAccess: true,
   })
-  const fieldsToSign = getFieldsToSign({
-    collectionConfig,
-    email: actor.email,
-    sid: claims.actorSession,
-    user: { ...actor, collection: 'managers' } as AuthUser,
-  })
-  const { exp, token } = await jwtSign({
-    fieldsToSign,
-    secret: req.payload.secret,
-    tokenExpiration,
-  })
-
-  return { exp, refreshedToken: token, setCookie: true, user: responseUser }
+  const { exp, token } = await signSessionToken(req.payload, 'managers', actor, claims.actorSession)
+  return { exp, refreshedToken: token, setCookie: true, user }
 }
 
 /**
- * `/me` re-reads the target's stored row, so put back what the strategy
- * overlays: the cookie's project, and who is impersonating — the banner and
- * the project switcher read both from `useAuth()`.
+ * Sign-out ends support's own session, and the impersonation with it.
+ *
+ * ⚠ Payload's logout removes `req.user`'s session, and `req.user` is the
+ * target here — so without this, support's session row would outlive the
+ * sign-out.
  */
-export const afterMeImpersonation: NonNullable<Hooks['afterMe']>[number] = ({ req, response }) => {
-  const impersonatedBy = impersonatorOf(req.user)
-  const result = response as { user?: Record<string, unknown> | null } | null
-  if (!impersonatedBy || !result?.user) return response
+export const endImpersonationOnLogout: CollectionAfterLogoutHook = async ({ req }) => {
+  if (!impersonatorOf(req.user)) return
 
-  return {
-    ...result,
-    user: {
-      ...result.user,
-      currentProject: (req.user as { currentProject?: unknown }).currentProject ?? null,
-      impersonatedBy,
-    },
-  } as typeof response
+  const claims = await readImpersonation(req.payload, req.headers)
+  if (claims?.actorSession) {
+    const { sessions } = await req.payload.findByID({
+      collection: 'managers',
+      id: claims.actor,
+      depth: 0,
+      joins: false,
+      overrideAccess: true,
+      select: { sessions: true },
+      req,
+    })
+    const allSessions = req.searchParams?.get('allSessions') === 'true'
+    await req.payload.update({
+      collection: 'managers',
+      id: claims.actor,
+      data: {
+        sessions: allSessions
+          ? []
+          : (sessions ?? []).filter(({ id }) => id !== claims.actorSession),
+      },
+      depth: 0,
+      req,
+    })
+  }
+
+  const headers = new Headers(req.responseHeaders)
+  headers.append('Set-Cookie', impersonationCookie(req.payload, null))
+  req.responseHeaders = headers
 }

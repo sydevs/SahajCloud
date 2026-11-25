@@ -143,12 +143,12 @@ function withLocalStrategyView(payload: Payload, slug: string): Payload {
 }
 
 /**
- * The strategy's whole answer, for one collection: the JWT's own user, with the
- * per-locale record. Exported for `@/plugins/impersonation`, which must
- * authenticate the support account exactly as an ordinary request would before
- * it may stand anyone in for them — a second copy of this path would drift.
+ * The JWT's own user for one collection, before any role is resolved.
+ * Exported for `@/plugins/impersonation`, which must authenticate the support
+ * account exactly as an ordinary request would — a second copy of this path
+ * would drift.
  */
-export async function authenticateWithLocalizedRoles(
+export async function authenticateJWT(
   args: AuthStrategyFunctionArgs,
   slug: string,
 ): Promise<AuthStrategyResult> {
@@ -156,13 +156,11 @@ export async function authenticateWithLocalizedRoles(
     ...args,
     payload: withLocalStrategyView(args.payload, slug),
   })
-  const user = result.user
 
   // Another auth collection's user, or no user. Yielding null rather than
   // hydrating against the wrong collection — see the docblock.
-  if (!user || user.collection !== slug) return { user: null }
-
-  return { ...result, user: await hydrateAuthUser(args.payload, user) }
+  if (!result.user || result.user.collection !== slug) return { user: null }
+  return result
 }
 
 /**
@@ -189,8 +187,12 @@ export async function hydrateAuthUser<T extends AuthUser>(payload: Payload, user
 function createLocalizedRolesStrategy(slug: string) {
   return {
     name: LOCALIZED_ROLES_STRATEGY,
-    authenticate: (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> =>
-      authenticateWithLocalizedRoles(args, slug),
+    authenticate: async (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> => {
+      const result = await authenticateJWT(args, slug)
+      return result.user
+        ? { ...result, user: await hydrateAuthUser(args.payload, result.user) }
+        : result
+    },
   }
 }
 
