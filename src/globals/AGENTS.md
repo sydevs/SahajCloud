@@ -348,6 +348,10 @@ write.
   two copies are free to disagree. `tests/unit/wm-web-translations-seed.spec.ts`
   and `tests/unit/atlas-translations-schema.spec.ts` each hold both halves, for
   their own global.
+  ⚠ **A spec reading a key's English out of a corpus file reads one home of
+  two**, so it stops seeing a key whose copy moves into the schema — silently,
+  since the lookup merely misses. The atlas placeholder and untranslated-value
+  checks merge both homes for that reason.
   ⚠ **A data migration is still what _retires_ a key**, and a rewording is
   still a migration too: a default lands only where nothing is stored, so it
   cannot replace copy somebody already has.

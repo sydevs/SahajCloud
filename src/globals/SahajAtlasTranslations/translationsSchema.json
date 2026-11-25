@@ -7,19 +7,39 @@
       "properties": {
         "chrome": {
           "type": "object",
-          "description": "Drawer, peek-strip, and widget-wide controls.",
+          "description": "Drawer, Back, and widget-wide controls.",
           "properties": {
             "back": {
               "type": "string",
-              "description": "Peek-strip name for the root drawer, shown when a deeper view is open."
+              "description": "Back control where its target has no name."
             },
             "back_to": {
               "type": "string",
-              "description": "Peek-strip name that names its target view. `%{title}` = the parent view’s title."
+              "description": "Back control on every place and class page. `%{title}` = the place it returns to."
+            },
+            "back_to_class": {
+              "type": "string",
+              "default": "Back to class",
+              "description": "Back control on the registration and share pages, which open over the class they return to."
+            },
+            "back_to_world_map": {
+              "type": "string",
+              "default": "Back to the world map",
+              "description": "Back control on a country page, which returns to the map of every country."
+            },
+            "back_to_results_near": {
+              "type": "string",
+              "default": "Back to results near %{place}",
+              "description": "Back control on a class opened from a search, and the spoken name of the arrow beside the search box on the results. `%{place}` = the first part of the searched place, such as `Prague`."
+            },
+            "show_more": {
+              "type": "string",
+              "default": "Show more",
+              "description": "Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page."
             },
             "close": {
               "type": "string",
-              "description": "Close control on every drawer, the report modal, and the feedback banner."
+              "description": "Close control on the filters, which sit over the page they narrow, the report modal, and the feedback banner."
             },
             "cancel": {
               "type": "string",
@@ -309,7 +329,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Search view heading, and its peek-strip name."
+              "description": "Search view heading, and the name Back says for it."
             },
             "placeholder": {
               "type": "string",
@@ -402,7 +422,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Filter view heading, and its peek-strip name."
+              "description": "Filter view heading, and the name Back says for it."
             },
             "apply": {
               "type": "string",
@@ -601,7 +621,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name."
+          "description": "Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it."
         },
         "subtitle": {
           "type": "string",
@@ -906,7 +926,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Calendar view heading, and its peek-strip name."
+          "description": "Calendar view heading, and the name Back says for it."
         },
         "view_month": {
           "type": "string",
@@ -937,7 +957,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
             },
             "name": {
               "type": "string",
@@ -990,6 +1010,11 @@
             "captcha_retry": {
               "type": "string",
               "description": "Refusal: the security check expired and must be redone before registering."
+            },
+            "captcha_blocked": {
+              "type": "string",
+              "default": "We couldn't load the security check, so you can't register just yet.",
+              "description": "Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works."
             },
             "subscribe": {
               "type": "string",
@@ -1363,7 +1388,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+          "description": "Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
         },
         "native": {
           "type": "string",

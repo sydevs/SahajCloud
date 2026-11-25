@@ -8892,15 +8892,31 @@ export interface SyAtlasTranslation {
 }
 export interface SyAtlasTranslationsCommonChromeStrings {
   /**
-   * Peek-strip name for the root drawer, shown when a deeper view is open.
+   * Back control where its target has no name.
    */
   back?: string;
   /**
-   * Peek-strip name that names its target view. `%{title}` = the parent view’s title.
+   * Back control on every place and class page. `%{title}` = the place it returns to.
    */
   back_to?: string;
   /**
-   * Close control on every drawer, the report modal, and the feedback banner.
+   * Back control on the registration and share pages, which open over the class they return to.
+   */
+  back_to_class?: string;
+  /**
+   * Back control on a country page, which returns to the map of every country.
+   */
+  back_to_world_map?: string;
+  /**
+   * Back control on a class opened from a search, and the spoken name of the arrow beside the search box on the results. `%{place}` = the first part of the searched place, such as `Prague`.
+   */
+  back_to_results_near?: string;
+  /**
+   * Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page.
+   */
+  show_more?: string;
+  /**
+   * Close control on the filters, which sit over the page they narrow, the report modal, and the feedback banner.
    */
   close?: string;
   /**
@@ -9132,7 +9148,7 @@ export interface SyAtlasTranslationsCountriesStrings {
 }
 export interface SyAtlasTranslationsSearchChromeStrings {
   /**
-   * Search view heading, and its peek-strip name.
+   * Search view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9190,7 +9206,7 @@ export interface SyAtlasTranslationsSearchNearbyPromptStrings {
 }
 export interface SyAtlasTranslationsFiltersChromeStrings {
   /**
-   * Filter view heading, and its peek-strip name.
+   * Filter view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9346,7 +9362,7 @@ export interface SyAtlasTranslationsFiltersRegionStrings {
 }
 export interface SyAtlasTranslationsOnlineStrings {
   /**
-   * Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name.
+   * Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9612,7 +9628,7 @@ export interface SyAtlasTranslationsEventTitleStrings {
 }
 export interface SyAtlasTranslationsCalendarStrings {
   /**
-   * Calendar view heading, and its peek-strip name.
+   * Calendar view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9634,7 +9650,7 @@ export interface SyAtlasTranslationsCalendarStrings {
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
@@ -9689,6 +9705,10 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    * Refusal: the security check expired and must be redone before registering.
    */
   captcha_retry?: string;
+  /**
+   * Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works.
+   */
+  captcha_blocked?: string;
   /**
    * Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true.
    */
@@ -9990,7 +10010,7 @@ export interface SyAtlasTranslationsSubmitErrorsStrings {
 }
 export interface SyAtlasTranslationsShareStrings {
   /**
-   * Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
