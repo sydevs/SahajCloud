@@ -1,6 +1,7 @@
 import type { FieldHook } from 'payload'
 
 import { Block } from 'payload'
+
 import { mediaField } from '@/fields'
 import { slugifyAnchor } from '@/fields/slugify'
 
