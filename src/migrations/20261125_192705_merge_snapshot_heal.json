@@ -23352,12 +23352,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "compact": {
-          "name": "compact",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "seo": {
           "name": "seo",
           "type": "jsonb",
@@ -23858,12 +23852,6 @@
         },
         "version_share": {
           "name": "version_share",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_compact": {
-          "name": "version_compact",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -29812,6 +29800,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "a6d0ac1e-b5eb-4d1d-abcb-51e50537a414",
+  "id": "1dcaa566-f81a-4bc1-8162-33ca42133ea7",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

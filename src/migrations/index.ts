@@ -13,7 +13,9 @@ import * as migration_20261122_213300_place_service_pages from './20261122_21330
 import * as migration_20261123_001950_add_app_live_reminder_page from './20261123_001950_add_app_live_reminder_page';
 import * as migration_20261123_002000_fill_app_live_reminder_page from './20261123_002000_fill_app_live_reminder_page';
 import * as migration_20261123_185218_pages_parent_index_pages from './20261123_185218_pages_parent_index_pages';
+import * as migration_20261125_152923_atlas_drop_compact_tab from './20261125_152923_atlas_drop_compact_tab';
 import * as migration_20261125_191100_require_app_live_reminder_page from './20261125_191100_require_app_live_reminder_page';
+import * as migration_20261125_191844_merge_snapshot_heal from './20261125_191844_merge_snapshot_heal';
 import * as migration_20261125_192705_merge_snapshot_heal from './20261125_192705_merge_snapshot_heal';
 
 export const migrations = [
@@ -93,9 +95,19 @@ export const migrations = [
     name: '20261123_185218_pages_parent_index_pages',
   },
   {
+    up: migration_20261125_152923_atlas_drop_compact_tab.up,
+    down: migration_20261125_152923_atlas_drop_compact_tab.down,
+    name: '20261125_152923_atlas_drop_compact_tab',
+  },
+  {
     up: migration_20261125_191100_require_app_live_reminder_page.up,
     down: migration_20261125_191100_require_app_live_reminder_page.down,
     name: '20261125_191100_require_app_live_reminder_page',
+  },
+  {
+    up: migration_20261125_191844_merge_snapshot_heal.up,
+    down: migration_20261125_191844_merge_snapshot_heal.down,
+    name: '20261125_191844_merge_snapshot_heal',
   },
   {
     up: migration_20261125_192705_merge_snapshot_heal.up,

@@ -87,8 +87,8 @@ describe('reconcileEnglishDefaults', () => {
 
   // Two defaults in one column, one of them stored: the statement writes the
   // whole blob, so the merge order decides whether the stored one survives.
-  // The shipped schema declares one default per column, which is why this case
-  // builds its own target rather than waiting for a second key.
+  // `wm-web-translations` declares one default per column, so this case builds
+  // its own target rather than reaching for another global's.
   it('fills the absent key of a column whose other key is stored', async () => {
     const twoKeys: TranslationsTarget = {
       slug: SLUG,
