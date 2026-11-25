@@ -9,7 +9,8 @@ import { LayoutBlock } from '@/lib/richEditor/blocks/LayoutBlock'
  * anchors are read verbatim by a consumer that folds an umlaut to a bare
  * vowel, so the slug spelling here would point at an id nobody emits.
  */
-const field = <T>(name: string) => LayoutBlock.fields.find((f) => 'name' in f && f.name === name) as T
+const field = <T>(name: string) =>
+  LayoutBlock.fields.find((f) => 'name' in f && f.name === name) as T
 
 const items = field<ArrayField>('items')
 const defaultTab = field<TextField>('defaultTab')
