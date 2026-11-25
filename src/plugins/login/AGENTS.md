@@ -41,10 +41,12 @@ Four things worth knowing before you touch `Managers`:
   would delete `setProject` — the project switcher — silently.
 
 `createSession` (`@/plugins/login`) is the one place a session is minted
-without a password, for any auth collection that can hold one. It refuses a
-collection with no `sessions` field: `clients` sets `disableLocalStrategy`, so
-Payload gives it neither `sessions` nor `email`.
+without a password, for any auth collection that can hold one.
 
 `signSessionToken` is its signing tail, exported alone so the support impersonation refresh
-(`src/plugins/impersonation`) re-signs support's own token on the session it already holds. It
-mints no session row.
+re-signs support's own token on the session it already holds. It mints no session row.
+
+⚠ **Both refuse a collection with no `sessions` field, and the refusal lives in the signing
+half.** `clients` sets `disableLocalStrategy`, so Payload gives it neither `sessions` nor
+`email` — a token minted for it type-checks and authenticates nobody. `createSession` checks
+first only so a refused collection costs no read and no write.
