@@ -4,7 +4,9 @@
  * Pure — no database — so `tests/unit/umlaut-region-slugs-plan.spec.ts`
  * covers it.
  */
-import { slugifyAnchor, slugifyValue } from '../src/fields/slugify'
+import slugify from 'slugify'
+
+import { slugifyValue } from '../src/fields/slugify'
 
 export interface SlugChange {
   id: number
@@ -37,8 +39,8 @@ export function planUmlautSlugs(
 
   for (const { id, name, slug } of [...rows].sort((a, b) => a.id - b.id)) {
     if (!name || !slug) continue
-    // `slugifyAnchor` is the spelling every slug had before the umlaut rule.
-    const before = slugifyAnchor(name)
+    // The library's own spelling (`ü → u`), which every slug had before the umlaut rule.
+    const before = slugify(name, { lower: true, strict: true })
     const after = slugifyValue(name)
     if (before === after || hasStem(slug, after)) continue
     if (!hasStem(slug, before)) {

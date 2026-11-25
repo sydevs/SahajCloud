@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { slugifyAnchor, slugifyValue } from '../../src/fields/slugify'
+import { slugifyValue } from '../../src/fields/slugify'
 
 describe('slugifyValue', () => {
   it('transliterates Cyrillic to ASCII', () => {
@@ -36,11 +36,5 @@ describe('slugifyValue', () => {
     expect(slugifyValue('')).toBe('')
     expect(slugifyValue(null)).toBe('')
     expect(slugifyValue(undefined)).toBe('')
-  })
-})
-
-describe('slugifyAnchor', () => {
-  it('keeps the pre-umlaut spelling, so shared anchors still resolve', () => {
-    expect(slugifyAnchor('Über uns')).toBe('uber-uns')
   })
 })
