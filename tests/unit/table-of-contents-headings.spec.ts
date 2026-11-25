@@ -7,7 +7,7 @@ import {
   stampOccurrences,
   toggleHeading,
 } from '@/components/admin/TableOfContentsField/headings'
-import { slugifyValue } from '@/fields/slugify'
+import { slugifyAnchor } from '@/fields/slugify'
 import type { TableOfContentsHeadings } from '@/payload-types'
 
 /**
@@ -21,7 +21,7 @@ function doc(...spec: string[]): TableOfContentsHeadings {
   return stampOccurrences(
     spec.map((entry) => {
       const text = entry.slice(1)
-      return { slug: slugifyValue(text), text, level: Number(entry[0]) }
+      return { slug: slugifyAnchor(text), text, level: Number(entry[0]) }
     }),
   )
 }
