@@ -9682,6 +9682,10 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    */
   captcha_retry?: string;
   /**
+   * Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works.
+   */
+  captcha_blocked?: string;
+  /**
    * Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true.
    */
   subscribe?: string;
