@@ -260,7 +260,6 @@ describe('Translations Globals Configuration', () => {
         'done',
         'errors',
         'share',
-        'compact',
         'seo',
         'emails',
       ])
@@ -468,16 +467,16 @@ describe('Translations Globals Configuration', () => {
       })
 
     it('rejects a key the schema does not declare', async () => {
-      await expect(write({ compact: { mystery: 'nope' } })).rejects.toThrow()
+      await expect(write({ online: { mystery: 'nope' } })).rejects.toThrow()
     })
 
     it('rejects a non-string value for a declared key', async () => {
-      await expect(write({ compact: { open: 42 } })).rejects.toThrow()
+      await expect(write({ online: { title: 42 } })).rejects.toThrow()
     })
 
     it('accepts a partial object, and null', async () => {
-      await expect(write({ compact: { open: 'Find a class near you' } })).resolves.toBeDefined()
-      await expect(write({ compact: null })).resolves.toBeDefined()
+      await expect(write({ online: { title: 'Online classes' } })).resolves.toBeDefined()
+      await expect(write({ online: null })).resolves.toBeDefined()
     })
 
     // #706 turned seven advisory budgets strict, so the limit is emitted into
@@ -493,8 +492,8 @@ describe('Translations Globals Configuration', () => {
     // counts `[]` as empty, so the schema never sees it. The composed check
     // ahead of the delegation is what refuses it.
     it('rejects an array, which the built-in validator alone lets through', async () => {
-      await expect(write({ compact: [] })).rejects.toThrow()
-      await expect(write({ compact: ['a'] })).rejects.toThrow()
+      await expect(write({ online: [] })).rejects.toThrow()
+      await expect(write({ online: ['a'] })).rejects.toThrow()
     })
   })
   /**

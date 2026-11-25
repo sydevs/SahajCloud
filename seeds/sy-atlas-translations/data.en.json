@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "en",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1023 (13 tabs, 43 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 42 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -63,7 +63,9 @@
     "map": {
       "find_my_location": "Find my location",
       "location_failed": "We couldn’t get your location. Search for a place instead.",
-      "location_not_available": "Location not available"
+      "location_not_available": "Location not available",
+      "expand": "Expand map",
+      "close": "Close map"
     },
     "feedback": {
       "confirmed_title": "Thank you for confirming",
@@ -75,7 +77,8 @@
     }
   },
   "countries": {
-    "title": "Free Meditation Classes"
+    "title": "Free Meditation Classes",
+    "place_title": "Free Meditation classes in %{place}"
   },
   "search": {
     "chrome": {
@@ -343,9 +346,6 @@
     "title": "Share Meditation",
     "native": "Share…",
     "copied": "Copied"
-  },
-  "compact": {
-    "open": "Find a class near you"
   },
   "seo": {
     "root_title": "Free Meditation Classes Near You",

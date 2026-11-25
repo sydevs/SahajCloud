@@ -117,9 +117,9 @@ function collapsePlurals(keys: Iterable<string>): Set<string> {
 }
 
 describe('atlas translations schema', () => {
-  // Twelve widget views, plus the two groups no widget view reads: `seo` is the
+  // Ten widget views, plus the two groups no widget view reads: `seo` is the
   // atlas landing page's `<head>` copy (#739), `emails` is registrant mail.
-  it('has the twelve view tabs, then seo and emails, in order', () => {
+  it('has the ten view tabs, then seo and emails, in order', () => {
     expect(Object.keys(schema.properties ?? {})).toEqual([
       'common',
       'countries',
@@ -131,7 +131,6 @@ describe('atlas translations schema', () => {
       'registration',
       'submit',
       'share',
-      'compact',
       'seo',
       'emails',
     ])
