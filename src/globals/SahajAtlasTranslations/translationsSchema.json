@@ -210,7 +210,7 @@
         },
         "map": {
           "type": "object",
-          "description": "The map’s own controls — their labels, the message shown when one of them fails, and the pair that opens the map over the host’s page and closes it again.",
+          "description": "The map’s own controls — their labels, the message shown when one of them fails, and the pair that opens and closes the map.",
           "properties": {
             "find_my_location": {
               "type": "string",
@@ -226,11 +226,11 @@
             },
             "expand": {
               "type": "string",
-              "description": "Button over the inline map’s top-left corner, which opens the full map over the host’s page."
+              "description": "Button on the inline map that opens the full map over the host’s page."
             },
             "close": {
               "type": "string",
-              "description": "Button floating at the bottom middle of the expanded map, which returns the visitor to the page."
+              "description": "Button on the expanded map that returns the visitor to the page."
             }
           },
           "additionalProperties": false
@@ -275,7 +275,7 @@
     },
     "countries": {
       "type": "object",
-      "description": "The base view: the list of countries the atlas covers.",
+      "description": "The base view: the list of countries the atlas covers, plus the inline embed’s page heading for wherever the visitor is.",
       "properties": {
         "title": {
           "type": "string",

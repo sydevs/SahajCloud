@@ -9059,11 +9059,11 @@ export interface SyAtlasTranslationsCommonMapStrings {
    */
   location_not_available?: string;
   /**
-   * Button over the inline map’s top-left corner, which opens the full map over the host’s page.
+   * Button on the inline map that opens the full map over the host’s page.
    */
   expand?: string;
   /**
-   * Button floating at the bottom middle of the expanded map, which returns the visitor to the page.
+   * Button on the expanded map that returns the visitor to the page.
    */
   close?: string;
 }

@@ -9,7 +9,7 @@
  *   the tab slug so the API response is namespaced: `{ onboarding: { welcome:
  *   {…} } }` instead of `{ onboarding_welcome: {…} }`.
  * - Sy-atlas and wm-web both mix leaf tabs with nested ones. Sy-atlas's leaf
- *   tabs are Countries, Online, Calendar, Share, Compact, Seo and Emails;
+ *   tabs are Countries, Online, Calendar, Share, Seo and Emails;
  *   Common, Search, Filters, Event and Registration nest (#706). Every nested
  *   wm-web tab declares a `general` sub-group, so its field names repeat
  *   across tabs and only the `<group>.<field>` PAIR identifies a leaf group.
@@ -359,7 +359,7 @@ describe('Translations Globals Configuration', () => {
             label,
           ).toBe(true)
         } else {
-          // Leaf tabs (Countries, Online, Calendar, Share, Compact, Emails)
+          // Leaf tabs (Countries, Online, Calendar, Share, Seo, Emails)
           // have no group wrapper.
           expect(groups, label).toHaveLength(0)
         }
