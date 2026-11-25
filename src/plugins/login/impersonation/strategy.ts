@@ -12,7 +12,7 @@ type AuthUser = NonNullable<PayloadRequest['user']>
 /**
  * Stand the manager the cookie names in for the support account.
  *
- * Prepended to `managers`, ahead of `localized-roles`. With no cookie it
+ * Prepended to `managers` by `loginPlugin`, ahead of `localized-roles`. With no cookie it
  * yields no user and costs nothing, and the next strategy authenticates the
  * request as usual.
  *
@@ -26,43 +26,38 @@ type AuthUser = NonNullable<PayloadRequest['user']>
  * an ordinary request gets. Loaded any other way it would carry flat,
  * default-locale roles, and the view support is debugging would be wrong.
  */
-export function createImpersonationStrategy(): AuthStrategy {
-  return {
-    name: IMPERSONATION_STRATEGY,
-    authenticate: async (args) => {
-      const claims = await readImpersonation(args.payload, args.headers)
-      if (!claims) return { user: null }
+export const impersonationStrategy: AuthStrategy = {
+  name: IMPERSONATION_STRATEGY,
+  authenticate: async (args) => {
+    const claims = await readImpersonation(args.payload, args.headers)
+    if (!claims) return { user: null }
 
-      const { user: actor } = await authenticateJWT(args, 'managers')
-      if (!actor) return { user: null }
+    const { user: actor } = await authenticateJWT(args, 'managers')
+    if (!actor) return { user: null }
 
-      const target = isBoundTo(actor, claims) ? await readTarget(args, claims) : null
-      if (!target) {
-        return {
-          user: await hydrateAuthUser(args.payload, actor),
-          responseHeaders: new Headers({ 'Set-Cookie': impersonationCookie(args.payload, null) }),
-        }
+    // The cookie must still name this support account, on this very session.
+    const target =
+      isSupportAccount(actor) &&
+      isOwnRow(actor.id, claims.actor) &&
+      ((actor as GateUser)._sid ?? null) === claims.actorSession
+        ? await readTarget(args, claims)
+        : null
+    if (!target) {
+      return {
+        user: await hydrateAuthUser(args.payload, actor),
+        responseHeaders: new Headers({ 'Set-Cookie': impersonationCookie(args.payload, null) }),
       }
+    }
 
-      const user = {
-        ...target,
-        collection: 'managers',
-        _strategy: IMPERSONATION_STRATEGY,
-        currentProject: claims.project,
-        impersonatedBy: { id: actor.id, email: (actor as GateUser).email! },
-      } as AuthUser
-      return { user: await hydrateAuthUser(args.payload, user) }
-    },
-  }
-}
-
-/** Whether the cookie names this support account, on this very session. */
-function isBoundTo(actor: GateUser & { id: number | string }, claims: ImpersonationClaims) {
-  return (
-    isSupportAccount(actor) &&
-    isOwnRow(actor.id, claims.actor) &&
-    (actor._sid ?? null) === claims.actorSession
-  )
+    const user = {
+      ...target,
+      collection: 'managers',
+      _strategy: IMPERSONATION_STRATEGY,
+      currentProject: claims.project,
+      impersonatedBy: { id: actor.id, email: (actor as GateUser).email! },
+    } as AuthUser
+    return { user: await hydrateAuthUser(args.payload, user) }
+  },
 }
 
 /** The target as Payload's JWT strategy loads a user, while it may still be impersonated. */

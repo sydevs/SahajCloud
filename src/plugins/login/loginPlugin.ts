@@ -19,7 +19,7 @@ import {
   refreshImpersonatorToken,
   refuseOwnRowWrites,
 } from './impersonation/hooks'
-import { createImpersonationStrategy } from './impersonation/strategy'
+import { impersonationStrategy } from './impersonation/strategy'
 import { refuseSupportAddress } from './impersonation/supportAddress'
 import {
   INVITATIONS_CRON,
@@ -181,7 +181,7 @@ function withoutPasswords(auth: CollectionConfig['auth']): CollectionConfig['aut
  */
 function withSupportImpersonation(auth: CollectionConfig['auth']): CollectionConfig['auth'] {
   const base = typeof auth === 'object' ? auth : {}
-  return { ...base, strategies: [createImpersonationStrategy(), ...(base.strategies ?? [])] }
+  return { ...base, strategies: [impersonationStrategy, ...(base.strategies ?? [])] }
 }
 
 /**
