@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Clases gratuitas de meditación"
+    "title": "Clases gratuitas de meditación",
+    "browse_heading": "O explora por país"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Clases en línea"
+    "title": "Clases en línea",
+    "subtitle": "Únete desde cualquier lugar"
   },
   "event": {
     "display": {

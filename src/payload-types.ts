@@ -9138,6 +9138,10 @@ export interface SyAtlasTranslationsCountriesStrings {
    */
   title?: string;
   /**
+   * Small section heading above the country list on the first screen, after the Online classes row. It offers browsing by country as the alternative to online classes. Written in sentence case; the widget uppercases it.
+   */
+  browse_heading?: string;
+  /**
    * The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in.
    */
   place_title?: string;
@@ -9361,6 +9365,10 @@ export interface SyAtlasTranslationsOnlineStrings {
    * Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it.
    */
   title?: string;
+  /**
+   * Short line under the Online classes row on the Countries list, saying these classes belong to no place.
+   */
+  subtitle?: string;
 }
 export interface SyAtlasTranslationsEventDisplayStrings {
   /**

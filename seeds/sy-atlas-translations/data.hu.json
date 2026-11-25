@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Ingyenes meditációs órák"
+    "title": "Ingyenes meditációs órák",
+    "browse_heading": "Vagy böngéssz ország szerint"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online órák"
+    "title": "Online órák",
+    "subtitle": "Csatlakozz bárhonnan"
   },
   "event": {
     "display": {

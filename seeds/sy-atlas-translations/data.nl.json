@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Gratis meditatielessen"
+    "title": "Gratis meditatielessen",
+    "browse_heading": "Of blader per land"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online lessen"
+    "title": "Online lessen",
+    "subtitle": "Doe mee vanaf elke plek"
   },
   "event": {
     "display": {

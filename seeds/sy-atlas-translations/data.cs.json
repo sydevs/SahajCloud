@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Bezplatné kurzy meditace"
+    "title": "Bezplatné kurzy meditace",
+    "browse_heading": "Nebo procházejte podle země"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online kurzy"
+    "title": "Online kurzy",
+    "subtitle": "Připojte se odkudkoli"
   },
   "event": {
     "display": {

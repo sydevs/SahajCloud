@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Aulas gratuitas de meditação"
+    "title": "Aulas gratuitas de meditação",
+    "browse_heading": "Ou navegue por país"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Aulas on-line"
+    "title": "Aulas on-line",
+    "subtitle": "Participe de qualquer lugar"
   },
   "event": {
     "display": {

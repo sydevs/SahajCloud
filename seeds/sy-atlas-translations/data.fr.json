@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Cours de méditation gratuits"
+    "title": "Cours de méditation gratuits",
+    "browse_heading": "Ou parcourez par pays"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Cours en ligne"
+    "title": "Cours en ligne",
+    "subtitle": "Rejoignez de n’importe où"
   },
   "event": {
     "display": {
