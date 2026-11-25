@@ -313,9 +313,9 @@ function loadFailedDeliveries(req: PayloadRequest): Promise<OpenItemRow[]> {
  * service scope's own, or every one for an admin (#1055). Read off the stored
  * verification, so nothing here renders a page.
  *
- * An admin's list also holds every service whose install was never confirmed,
- * so the move to the new atlas can be followed up service by service. A
- * service's own home leaves those out: its Install tab already says so.
+ * An admin's list also holds every service no check has confirmed or missed
+ * yet, to follow up. A service manager's digest leaves those out: the Install
+ * tab already says so.
  *
  * ⚠ **A track with no search listings is never a search problem**, whatever
  * the snapshot holds, as on the Install tab (`installModel.ts`).
@@ -350,23 +350,23 @@ async function readServiceRows(
     },
   })
   return docs.flatMap((doc): OpenItemRow[] => {
+    const head = {
+      kind: 'service',
+      id: doc.id,
+      title: doc.label?.trim() || 'Untitled service',
+    } as const
     const verification = doc.canonical?.verification
     // Only a service with a page is checked, so only one can have missed.
     const missingOn = verification?.failureCount ? primaryPageUrl(doc.site) : null
-    // Never confirmed. One confirmed and since broken is `missingOn`'s to report.
+    // ⚠ A page never confirmed but already missed by a check stays "Map not
+    // found" (`!missingOn`): that install started, and the miss says why.
     if (scope.role === 'admin' && !missingOn && !verification?.verified) {
+      const reported = reportedMountsFor(doc.embedMetadata, doc.site).length > 0
       return [
         {
-          kind: 'service',
-          id: doc.id,
-          title: doc.label?.trim() || 'Untitled service',
-          checkedAt: doc.createdAt,
-          missingOn: null,
-          notInstalled: reportedMountsFor(doc.embedMetadata, doc.site).length
-            ? 'unconfirmed'
-            : 'not-detected',
-          owned: false,
-          releasedAt: null,
+          ...head,
+          notInstalled: reported ? 'unconfirmed' : 'not-detected',
+          addedAt: doc.createdAt,
         },
       ]
     }
@@ -379,12 +379,10 @@ async function readServiceRows(
     if (!missingOn && !searchProblem) return []
     return [
       {
-        kind: 'service',
-        id: doc.id,
-        title: doc.label?.trim() || 'Untitled service',
+        ...head,
+        notInstalled: null,
         checkedAt: (missingOn ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
         missingOn,
-        notInstalled: null,
         owned: ownedHost(doc) !== null,
         releasedAt: verification?.releasedAt ?? null,
       },

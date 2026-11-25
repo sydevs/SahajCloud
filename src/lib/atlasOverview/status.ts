@@ -118,24 +118,24 @@ export type OpenItemRow =
       intake: string
       receivedAt: string
     }
-  | {
-      kind: 'service'
-      id: number
-      title: string
-      /** When the check this row reports last ran — for one never installed, when it was added. */
-      checkedAt: string
-      /**
-       * How far an install that was never confirmed got, or `null` once one was.
-       * Only an admin's list holds such a row, to follow up with the service.
-       */
-      notInstalled: null | 'not-detected' | 'unconfirmed'
-      /** The page the map belongs on, while the nightly check cannot find it there. */
-      missingOn: null | string
-      /** Whether the site still holds its region's links, which the third miss releases. */
-      owned: boolean
-      /** When the misses released the region, or `null`. */
-      releasedAt: null | string
-    }
+  | ({ kind: 'service'; id: number; title: string } & (
+      | {
+          notInstalled: null
+          /** When the check this row reports last ran. */
+          checkedAt: string
+          /** The page the map belongs on, while the nightly check cannot find it there. */
+          missingOn: null | string
+          /** Whether the site still holds its region's links, which the third miss releases. */
+          owned: boolean
+          /** When the misses released the region, or `null`. */
+          releasedAt: null | string
+        }
+      | {
+          /** How far an install no check has confirmed or missed got. */
+          notInstalled: 'not-detected' | 'unconfirmed'
+          addedAt: string
+        }
+    ))
 
 /** One row, with every status it has and the one that places it. */
 export interface OpenItem {
@@ -222,7 +222,7 @@ const STATUS_TABLE = {
     counts: true,
   },
   // In no filter: only an admin's list holds these. Below a broken install,
-  // which visitors already see; here there is nothing live to break.
+  // which visitors already see.
   'not-installed': {
     label: 'Not installed',
     pill: 'light-gray',
@@ -391,16 +391,15 @@ function eventStatuses(event: OpenItemEvent, now: Date): OpenItemStatus[] {
  */
 function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenItemStatus[] {
   const action = { label: 'Review', target: rowTarget(row) }
-  const lines = [`Checked ${shortDate(row.checkedAt)}`]
-  const link = 'Review it'
 
+  // Admin-facing, unlike the rest: these are the admin's to follow up.
   if (row.notInstalled) {
     const detected = row.notInstalled === 'unconfirmed'
     return [
       status('not-installed', {
         lines: [
           detected ? 'Atlas detected, not yet confirmed' : 'Atlas not detected yet',
-          `Added ${shortDate(row.checkedAt)}`,
+          `Added ${shortDate(row.addedAt)}`,
         ],
         action,
         prompt: {
@@ -413,6 +412,8 @@ function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenIt
       }),
     ]
   }
+  const lines = [`Checked ${shortDate(row.checkedAt)}`]
+  const link = 'Review it'
   if (row.missingOn) {
     const lead = { text: 'The map was not detected on ', link: 'your site', href: row.missingOn }
     const prompt: ActionPrompt = row.releasedAt
@@ -531,7 +532,9 @@ export function openItem(row: OpenItemRow, now: Date): OpenItem {
       row.kind === 'event'
         ? row.createdAt
         : row.kind === 'service'
-          ? row.checkedAt
+          ? row.notInstalled
+            ? row.addedAt
+            : row.checkedAt
           : row.receivedAt,
     counts: statuses.some((s) => s.counts),
     filters: [...new Set(statuses.flatMap((s) => (s.filter === null ? [] : [s.filter])))],
