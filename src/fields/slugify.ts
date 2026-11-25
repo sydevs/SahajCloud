@@ -22,9 +22,11 @@ export const slugifyAnchor = (value: string | null | undefined): string =>
  * The slugifier for a stored slug. An in-page anchor takes
  * {@link slugifyAnchor} instead.
  *
- * Umlauts become `ae`/`oe`/`ue` in every language (`Göteborg → "goeteborg"`),
- * the ICAO passport convention. Not `slugify`'s `locale: 'de'`, which also
- * rewrites symbols in every slug (`% → prozent`).
+ * `ä`/`ö`/`ü` become `ae`/`oe`/`ue` in every language (`Göteborg →
+ * "goeteborg"`), by the owner's choice. Those three and no more: each letter
+ * added re-spells stored slugs, and a re-spelling breaks the place URL that
+ * named the old one. Not `slugify`'s `locale: 'de'`, which also rewrites
+ * symbols in every slug (`% → prozent`).
  *
  * Returns `''` for empty/blank input (callers that require a non-empty slug
  * fall back accordingly).
