@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { slugifyValue } from '../../src/fields/slugify'
+import { slugify } from '../../src/fields/slugify'
 
 /**
  * ⚠ The same vectors are pinned in WeMeditateWeb (`lib/urls/slugify.test.ts`)
  * and WeMeditateApp, which run the same recipe.
  */
-describe('slugifyValue', () => {
+describe('slugify', () => {
   it.each([
     ['Universität Trier', 'universität-trier'],
     ['Straße', 'straße'],
@@ -22,18 +22,18 @@ describe('slugifyValue', () => {
     ['Yoga & Ruhe | 50%', 'yoga-ruhe-50'],
     ['8.1 What we share — in detail', '8-1-what-we-share-in-detail'],
   ])('%j → %j', (value, slug) => {
-    expect(slugifyValue(value)).toBe(slug)
+    expect(slugify(value)).toBe(slug)
   })
 
   it('composes a letter written as base plus combining mark', () => {
-    expect(slugifyValue('Ku\u0308che')).toBe('küche')
+    expect(slugify('Ku\u0308che')).toBe('küche')
   })
 
   it('returns an empty string when there is no letter or digit', () => {
-    expect(slugifyValue('')).toBe('')
-    expect(slugifyValue('?! 🧘')).toBe('')
-    expect(slugifyValue('\u2764\ufe0f 1\ufe0f\u20e3')).toBe('1')
-    expect(slugifyValue(null)).toBe('')
-    expect(slugifyValue(undefined)).toBe('')
+    expect(slugify('')).toBe('')
+    expect(slugify('?! 🧘')).toBe('')
+    expect(slugify('\u2764\ufe0f 1\ufe0f\u20e3')).toBe('1')
+    expect(slugify(null)).toBe('')
+    expect(slugify(undefined)).toBe('')
   })
 })

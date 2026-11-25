@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { slugifyValue } from '@/fields/slugify'
+import { slugify } from '@/fields/slugify'
 import contract from '@/lib/atlas/atlas-url-contract.json'
 import type { CanonicalTarget } from '@/lib/atlas/canonicalUrl'
 import {
@@ -87,7 +87,7 @@ describe('buildCanonicalUrl', () => {
 
 /**
  * A slug keeps its native letters, lowercased, so `slugPattern` is a Unicode
- * pattern, and every slug `slugifyValue` makes must satisfy it: a parser in
+ * pattern, and every slug `slugify` makes must satisfy it: a parser in
  * SahajAtlasWeb or the WordPress plugin judges a request by it.
  */
 describe('slug charset', () => {
@@ -96,7 +96,7 @@ describe('slug charset', () => {
   it.each(['Universität Trier', 'София', 'Մաս 1. Ուղիներ', 'مدیتیشن چیست؟', '冥想', 'Georgia'])(
     'a slug made from %j matches slugPattern',
     (name) => {
-      expect(SLUG_PATH.test(`/${slugifyValue(name)}`)).toBe(true)
+      expect(SLUG_PATH.test(`/${slugify(name)}`)).toBe(true)
     },
   )
 

@@ -7,7 +7,7 @@ import { LayoutBlock } from '@/lib/richEditor/blocks/LayoutBlock'
 /**
  * The wiring, not the spelling — `slugify.spec.ts` owns the matrix. WeMeditateWeb
  * reads these two anchors verbatim against heading ids from its own copy of the
- * recipe (`lib/urls/slugify.ts`), so both must come from `slugifyValue`.
+ * recipe (`lib/urls/slugify.ts`), so both must come from `slugify`.
  */
 const field = <T>(name: string) =>
   LayoutBlock.fields.find((f) => 'name' in f && f.name === name) as T

@@ -4,17 +4,17 @@
  * Generates URL-safe slugs from uploaded filenames, with a short random
  * suffix to avoid collisions in the underlying storage backend.
  */
-import slugify from 'slugify'
+import asciiSlugify from 'slugify'
 
 const RANDOM_SUFFIX_LENGTH = 6
 
 const buildSlug = (baseName: string): string => {
-  // The library's ASCII transliteration, unlike `slugifyValue`'s native
+  // The library's ASCII transliteration, unlike `@/fields/slugify`'s native
   // letters: a storage key and a Cloudflare Images id stay unescaped in a URL.
   // Fall back to "file" when slugify strips the entire base name (e.g.
   // all-Unicode input like "文件名"). Without this, the slug would start
   // with a hyphen, which Cloudflare Images may reject as a custom ID.
-  const slugified = slugify(baseName, { strict: true, lower: true }) || 'file'
+  const slugified = asciiSlugify(baseName, { strict: true, lower: true }) || 'file'
   // (Math.random() + 1) forces the integer part to 1, guaranteeing
   // toString(36) yields a long enough base36 expansion for the slice
   // below. Plain Math.random() can return values like 0.5 whose base36

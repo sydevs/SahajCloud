@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Re-spell region slugs generated before `slugifyValue` kept native letters
+ * Re-spell region slugs generated before `slugify` kept native letters
  * (`sofiya → софия`, `universitat-trier → universität-trier`).
  *
  * **Dry run by default.** It prints every rename, collision and unmatched

@@ -4,7 +4,7 @@ import { slugField as payloadSlugField, ValidationError } from 'payload'
 import { hasDraftsEnabled } from 'payload/shared'
 
 import { isPublished } from '@/fields/publicUrlFields'
-import { slugifyValue } from '@/fields/slugify'
+import { slugify } from '@/fields/slugify'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
@@ -118,7 +118,7 @@ function blankSlugHooks(options: {
       return undefined
     }
     if (collection && hasDraftsEnabled(collection) && !(await isLive(args))) {
-      const generated = slugifyValue(data[sourceField] as string | undefined)
+      const generated = slugify(data[sourceField] as string | undefined)
       if (generated) {
         data[slugFieldName] = generated
         return undefined
@@ -173,7 +173,7 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
   return payloadSlugField({
     // Default for every slugField: native letters in any script, where
     // Payload's ASCII-only default would collapse a non-Latin title to empty.
-    slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify),
+    slugify: ({ valueToSlugify }) => slugify(valueToSlugify),
     ...payloadOptions,
     overrides: (field) => {
       // Apply description if provided

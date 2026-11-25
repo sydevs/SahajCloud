@@ -14,7 +14,7 @@
  * Returns `''` for input with no letter or digit (callers that require a
  * non-empty slug fall back accordingly).
  */
-export const slugifyValue = (value: string | null | undefined): string =>
+export const slugify = (value: string | null | undefined): string =>
   String(value ?? '')
     .normalize('NFC')
     .toLowerCase()

@@ -4,9 +4,9 @@
  * Pure — no database — so `tests/unit/respell-region-slugs-plan.spec.ts`
  * covers it.
  */
-import slugify from 'slugify'
+import asciiSlugify from 'slugify'
 
-import { slugifyValue } from '../src/fields/slugify'
+import { slugify } from '../src/fields/slugify'
 
 export interface SlugChange {
   id: number
@@ -40,8 +40,8 @@ export function planRespelledSlugs(
   for (const { id, name, slug } of [...rows].sort((a, b) => a.id - b.id)) {
     if (!name || !slug) continue
     // The `slugify` library's ASCII spelling, which every slug had before.
-    const before = slugify(name, { lower: true, strict: true })
-    const after = slugifyValue(name)
+    const before = asciiSlugify(name, { lower: true, strict: true })
+    const after = slugify(name)
     if (before === after || hasStem(slug, after)) continue
     if (!hasStem(slug, before)) {
       plan.unmatched.push({ id, name, slug })
