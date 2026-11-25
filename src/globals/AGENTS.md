@@ -346,7 +346,11 @@ write.
   than a value, so a `default` beside `plural` is ignored.
   ⚠ **The corpus file must not carry a key that declares a `default`**, or the
   two copies are free to disagree. `tests/unit/wm-web-translations-seed.spec.ts`
-  holds both halves of that.
+  and `tests/unit/atlas-translations-schema.spec.ts` hold both halves of that.
+  ⚠ **A spec reading a key's English out of a corpus file reads one home of
+  two**, so it stops seeing a key whose copy moves into the schema — silently,
+  since the lookup merely misses. The atlas placeholder and untranslated-value
+  checks merge both homes for that reason.
   ⚠ **A data migration is still what _retires_ a key**, and a rewording is
   still a migration too: a default lands only where nothing is stored, so it
   cannot replace copy somebody already has.

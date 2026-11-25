@@ -19,18 +19,22 @@
             },
             "back_to_class": {
               "type": "string",
+              "default": "Back to class",
               "description": "Back control on the registration and share pages, which open over the class they return to."
             },
             "back_to_world_map": {
               "type": "string",
+              "default": "Back to the world map",
               "description": "Back control on a country page, which returns to the map of every country."
             },
             "back_to_results_near": {
               "type": "string",
+              "default": "Back to results near %{place}",
               "description": "Back control on a class opened from a search, and the spoken name of the arrow beside the search box on the results. `%{place}` = the first part of the searched place, such as `Prague`."
             },
             "show_more": {
               "type": "string",
+              "default": "Show more",
               "description": "Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page."
             },
             "close": {

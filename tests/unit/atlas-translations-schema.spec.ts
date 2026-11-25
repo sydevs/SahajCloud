@@ -35,6 +35,7 @@ type Leaf = {
   strict?: boolean
   plural?: boolean
   description?: string
+  default?: string
 }
 type Node = {
   type: 'object'
@@ -236,6 +237,26 @@ describe('atlas translations schema', () => {
 describe('atlas translations seeds', () => {
   const declared = storageKeys()
 
+  /**
+   * Dotted path → the English a key declares beside itself, as `default` (#1218).
+   * A plural key is left out, because `collectLeafLookups` ignores a `default`
+   * beside one: its English is a CLDR family rather than a value.
+   */
+  const schemaDefaults = new Map(
+    declaredKeys()
+      .filter((key) => leaf(key).plural !== true && typeof leaf(key).default === 'string')
+      .map((key) => [key, leaf(key).default as string]),
+  )
+
+  /**
+   * Every English value, from both of its homes. A check reading English from
+   * `data.en.json` alone stops seeing a key the moment its copy moves into the
+   * schema — so `back_to_results_near`'s `%{place}` would read as invented in
+   * the first locale a translator filled.
+   */
+  const englishValues = (): Map<string, string> =>
+    new Map([...schemaDefaults, ...(seedEntries(readSeed('en')) as Array<[string, string]>)])
+
   it.each(SEED_LOCALES)('data.%s.json writes only keys the schema declares', (locale) => {
     const undeclared = seedEntries(readSeed(locale))
       .map(([key]) => key)
@@ -267,11 +288,13 @@ describe('atlas translations seeds', () => {
   // `event.title` are seeded too, but from the English defaults the importer
   // merges into blank keys, never from this file. `few` and `many` are exempt:
   // English has no such plural category, and a value there would be invented.
+  // A key declaring a schema `default` is exempt too — that is its one home.
   it('data.en.json covers every key seeded from this file', () => {
     const seeded = new Set(seedEntries(readSeed('en')).map(([key]) => key))
     const missing = [...declared].filter(
       (key) =>
         !seeded.has(key) &&
+        !schemaDefaults.has(key) &&
         !key.startsWith('emails.') &&
         !key.startsWith('event.title.') &&
         !/_(few|many)$/.test(key),
@@ -280,10 +303,17 @@ describe('atlas translations seeds', () => {
     expect(seeded.size).toBeGreaterThan(150)
   })
 
+  // One home per key. The `default` is what reaches a database that predates
+  // the key, and a copy here would be free to disagree with it.
+  it('data.en.json leaves out every key declaring a schema default', () => {
+    const seeded = new Set(seedEntries(readSeed('en')).map(([key]) => key))
+    expect([...schemaDefaults.keys()].filter((key) => seeded.has(key))).toEqual([])
+  })
+
   it.each(SEED_LOCALES.filter((l) => l !== 'en'))(
     'data.%s.json invents no placeholder English lacks',
     (locale) => {
-      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const english = englishValues()
 
       // A plural category English does not use (`few`, `many`) has no English
       // value of its own, so `other` is what it must agree with.
@@ -364,7 +394,7 @@ describe('atlas translations seeds', () => {
   it.each(SEED_LOCALES.filter((locale) => locale !== 'en'))(
     'data.%s.json holds no English value outside its allowlist',
     (locale) => {
-      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const english = englishValues()
       const fold = (value: string): string => value.trim().toLowerCase()
 
       const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)

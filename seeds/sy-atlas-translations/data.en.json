@@ -11,10 +11,6 @@
     "chrome": {
       "back": "Back",
       "back_to": "Back to %{title}",
-      "back_to_class": "Back to class",
-      "back_to_world_map": "Back to the world map",
-      "back_to_results_near": "Back to results near %{place}",
-      "show_more": "Show more",
       "close": "Close",
       "cancel": "Cancel",
       "widget_label": "Free meditation classes",
