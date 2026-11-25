@@ -122,8 +122,13 @@ export type OpenItemRow =
       kind: 'service'
       id: number
       title: string
-      /** When the check this row reports last ran. */
+      /** When the check this row reports last ran — for one never installed, when it was added. */
       checkedAt: string
+      /**
+       * How far an install that was never confirmed got, or `null` once one was.
+       * Only an admin's list holds such a row, to follow up with the service.
+       */
+      notInstalled: null | 'not-detected' | 'unconfirmed'
       /** The page the map belongs on, while the nightly check cannot find it there. */
       missingOn: null | string
       /** Whether the site still holds its region's links, which the third miss releases. */
@@ -213,6 +218,15 @@ const STATUS_TABLE = {
     label: 'Search problem',
     pill: 'warning',
     rank: 3,
+    filter: null,
+    counts: true,
+  },
+  // In no filter: only an admin's list holds these. Below a broken install,
+  // which visitors already see; here there is nothing live to break.
+  'not-installed': {
+    label: 'Not installed',
+    pill: 'light-gray',
+    rank: 4,
     filter: null,
     counts: true,
   },
@@ -380,6 +394,25 @@ function serviceStatuses(row: Extract<OpenItemRow, { kind: 'service' }>): OpenIt
   const lines = [`Checked ${shortDate(row.checkedAt)}`]
   const link = 'Review it'
 
+  if (row.notInstalled) {
+    const detected = row.notInstalled === 'unconfirmed'
+    return [
+      status('not-installed', {
+        lines: [
+          detected ? 'Atlas detected, not yet confirmed' : 'Atlas not detected yet',
+          `Added ${shortDate(row.checkedAt)}`,
+        ],
+        action,
+        prompt: {
+          before: detected
+            ? 'The atlas was found on this site but has not been confirmed. '
+            : 'This service has not installed the atlas yet. ',
+          link: 'Review the install',
+          after: ' and follow up with the service.',
+        },
+      }),
+    ]
+  }
   if (row.missingOn) {
     const lead = { text: 'The map was not detected on ', link: 'your site', href: row.missingOn }
     const prompt: ActionPrompt = row.releasedAt

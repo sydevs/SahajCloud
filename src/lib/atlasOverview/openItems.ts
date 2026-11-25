@@ -8,7 +8,7 @@ import { labelForPath } from '@/collections/UserSubmissions/lifecycle/proposedCh
 import { OPEN_REVIEW_STATUSES, VERDICT_LABELS } from '@/collections/UserSubmissions/statuses'
 import { readSubmissionValue } from '@/collections/UserSubmissions/submissionData'
 import { getRegionManagers, getRegionTree, type RegionTree } from '@/lib/atlas/regionTree'
-import { hasSearchListings, ownedHost, primaryPageUrl } from '@/lib/clients/site'
+import { hasSearchListings, ownedHost, primaryPageUrl, reportedMountsFor } from '@/lib/clients/site'
 import { buildEventQualityReport, loadTitleTemplates } from '@/lib/eventQuality'
 import { listingProgressFromReport } from '@/lib/notifications/listingProgress'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
@@ -313,6 +313,10 @@ function loadFailedDeliveries(req: PayloadRequest): Promise<OpenItemRow[]> {
  * service scope's own, or every one for an admin (#1055). Read off the stored
  * verification, so nothing here renders a page.
  *
+ * An admin's list also holds every service whose install was never confirmed,
+ * so the move to the new atlas can be followed up service by service. A
+ * service's own home leaves those out: its Install tab already says so.
+ *
  * ⚠ **A track with no search listings is never a search problem**, whatever
  * the snapshot holds, as on the Install tab (`installModel.ts`).
  */
@@ -337,16 +341,35 @@ async function readServiceRows(
     req: localeIsolatedReq(req),
     select: {
       label: true,
+      createdAt: true,
       updatedAt: true,
       enabled: true,
       site: { domain: true, page: true, track: true },
       canonical: { owned: true, verification: true },
+      embedMetadata: true,
     },
   })
   return docs.flatMap((doc): OpenItemRow[] => {
     const verification = doc.canonical?.verification
     // Only a service with a page is checked, so only one can have missed.
     const missingOn = verification?.failureCount ? primaryPageUrl(doc.site) : null
+    // Never confirmed. One confirmed and since broken is `missingOn`'s to report.
+    if (scope.role === 'admin' && !missingOn && !verification?.verified) {
+      return [
+        {
+          kind: 'service',
+          id: doc.id,
+          title: doc.label?.trim() || 'Untitled service',
+          checkedAt: doc.createdAt,
+          missingOn: null,
+          notInstalled: reportedMountsFor(doc.embedMetadata, doc.site).length
+            ? 'unconfirmed'
+            : 'not-detected',
+          owned: false,
+          releasedAt: null,
+        },
+      ]
+    }
     const seo = verification?.seo
     // No track yet means the install is unfinished, which is not a problem to report.
     const searchProblem =
@@ -361,6 +384,7 @@ async function readServiceRows(
         title: doc.label?.trim() || 'Untitled service',
         checkedAt: (missingOn ? verification?.attempts[0]?.at : seo?.at) ?? doc.updatedAt,
         missingOn,
+        notInstalled: null,
         owned: ownedHost(doc) !== null,
         releasedAt: verification?.releasedAt ?? null,
       },

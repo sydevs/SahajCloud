@@ -427,6 +427,12 @@ describe('SendDigests job', () => {
         canonical: {
           verification: {
             ...EMPTY_VERIFICATION,
+            verified: {
+              at: '2026-11-08T07:00:00.000Z',
+              domain: 'essonne-digest.example',
+              mount: '/carte',
+              widgetVersion: 2,
+            },
             seo: {
               at: '2026-11-08T07:00:00.000Z',
               results: [
@@ -463,6 +469,13 @@ describe('SendDigests job', () => {
         site: { domain: 'missing-digest.example', page: '/carte', track: 'custom' },
       })
 
+      // Never installed: the admin's to follow up, and no problem on the service's own list.
+      await testData.createClient(payload, managerId, {
+        label: 'Uninstalled Digest Site',
+        roles: ['sahaj-atlas-client'],
+        site: { domain: 'uninstalled-digest.example', page: '/carte', track: 'custom' },
+      })
+
       // A Monday, for the Weekly anchor.
       emailAdapter.clearCapturedEmails()
       await runDigests(payload, new Date('2026-11-09T07:00:00.000Z'))
@@ -488,6 +501,10 @@ describe('SendDigests job', () => {
       const admin = emailsTo('websites-admin@example.com')
       expect(admin).toHaveLength(1)
       expect(String(admin[0]!.html)).toContain('Essonne Digest Site')
+      expect(String(admin[0]!.html)).toContain('Search problem')
+      expect(String(admin[0]!.html)).toContain('Uninstalled Digest Site')
+      expect(String(admin[0]!.html)).toContain('Not installed')
+      expect(html).not.toContain('Uninstalled Digest Site')
     })
   })
 

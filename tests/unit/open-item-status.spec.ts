@@ -327,6 +327,7 @@ describe('openItem', () => {
       id: 43,
       kind: 'service',
       missingOn: null,
+      notInstalled: null,
       owned: false,
       releasedAt: null,
       title: 'Yoga Essonne',
@@ -397,6 +398,29 @@ describe('openItem', () => {
         before: ', so we can no longer send search engines (Google) to your website. ',
         lead,
         link: 'Review it',
+      })
+    })
+
+    it('lists a service that never installed, dated from when it was added', () => {
+      const item = openItem(service({ notInstalled: 'not-detected' }), NOW)
+      expect(item.statuses.map((s) => s.key)).toEqual(['not-installed'])
+      expect(item.placing).toMatchObject({
+        action: review,
+        label: 'Not installed',
+        lines: ['Atlas not detected yet', 'Added 4 Nov 2026'],
+        pill: 'light-gray',
+        rank: 4,
+      })
+      expect(item.counts).toBe(true)
+    })
+
+    it('tells a detected but unconfirmed install apart from one not started', () => {
+      const item = openItem(service({ notInstalled: 'unconfirmed' }), NOW)
+      expect(item.placing.lines[0]).toBe('Atlas detected, not yet confirmed')
+      expect(actionPrompt(item.placing)).toEqual({
+        after: ' and follow up with the service.',
+        before: 'The atlas was found on this site but has not been confirmed. ',
+        link: 'Review the install',
       })
     })
   })
