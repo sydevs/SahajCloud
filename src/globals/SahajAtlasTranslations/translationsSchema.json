@@ -19,7 +19,7 @@
             },
             "close": {
               "type": "string",
-              "description": "Close control on every drawer, the report modal, the compact dialog, and the feedback banner."
+              "description": "Close control on every drawer, the report modal, and the feedback banner."
             },
             "cancel": {
               "type": "string",
@@ -27,7 +27,7 @@
             },
             "widget_label": {
               "type": "string",
-              "description": "Landmark name (role=\"region\") of the widget root, and the compact card’s heading. Must never be blank — it is how a screen-reader user finds the widget."
+              "description": "Landmark name (role=\"region\") of the widget root, and the accessible name of the expanded map’s dialog. Must never be blank — it is how a screen-reader user finds the widget."
             },
             "all_classes_free": {
               "type": "string",
@@ -210,7 +210,7 @@
         },
         "map": {
           "type": "object",
-          "description": "The map’s own controls — their labels, and the message shown when one of them fails.",
+          "description": "The map’s own controls — their labels, the message shown when one of them fails, and the pair that opens and closes the map.",
           "properties": {
             "find_my_location": {
               "type": "string",
@@ -223,6 +223,16 @@
             "location_not_available": {
               "type": "string",
               "description": "Label of the geolocate control once the browser has refused or failed to supply a location, and the heading of the dialog that reports that failure."
+            },
+            "expand": {
+              "type": "string",
+              "default": "Expand map",
+              "description": "Button on the inline map that opens the full map over the host’s page."
+            },
+            "close": {
+              "type": "string",
+              "default": "Close map",
+              "description": "Button on the expanded map that returns the visitor to the page."
             }
           },
           "additionalProperties": false
@@ -267,11 +277,16 @@
     },
     "countries": {
       "type": "object",
-      "description": "The base view: the list of countries the atlas covers.",
+      "description": "The base view: the list of countries the atlas covers, plus the inline embed’s page heading for wherever the visitor is.",
       "properties": {
         "title": {
           "type": "string",
-          "description": "Heading of the base drawer, and the drawer stack’s document title."
+          "description": "Heading of the base drawer, the drawer stack’s document title, and the inline embed’s page heading at the top of the atlas, where no place is chosen."
+        },
+        "place_title": {
+          "type": "string",
+          "default": "Free Meditation classes in %{place}",
+          "description": "The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in."
         }
       },
       "additionalProperties": false
@@ -1347,17 +1362,6 @@
         "copied": {
           "type": "string",
           "description": "Confirmation shown after the link is copied."
-        }
-      },
-      "additionalProperties": false
-    },
-    "compact": {
-      "type": "object",
-      "description": "The compact card, rendered where the host’s box is too small for the interface itself.",
-      "properties": {
-        "open": {
-          "type": "string",
-          "description": "The card’s one button, which opens the atlas."
         }
       },
       "additionalProperties": false
