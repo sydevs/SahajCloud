@@ -10,6 +10,9 @@ import type {
 
 import { Forbidden } from 'payload'
 
+// Deep, not through `@/plugins/login`: that barrel reaches this plugin's own
+// barrel through `loginPlugin` and the impersonation strategy, so importing it
+// here closes a cycle between the two.
 import { keepImpersonatedPreferences } from '@/plugins/login/impersonation/preferences'
 
 import { isAdminManager } from './adminOnly'
