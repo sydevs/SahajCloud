@@ -53,9 +53,17 @@ jobs:
       # ⚠ Gate the steps, never the job or the workflow. This job is the
       # required check, and skipping it would drop the markdown format check.
       # (why: sydevs/claude-workflow docs/why.md#a-docs-only-change-takes-the-light-lane)
+      # A change to nothing but translation schemas, locale seeds and the
+      # generated types takes the narrow lane: lint, format and both
+      # typechecks still run, and only the specs that read those files.
+      # Keep the regex in step with `translationOnly.repos.SahajCloud` in
+      # claude-workflow's loop-config.json.
+      # (why: sydevs/claude-workflow docs/why.md#a-translation-key-is-approved-by-actions)
       - name: Classify the change
         id: scope
         uses: sydevs/claude-workflow/.github/actions/change-scope@main
+        with:
+          narrow: '^src/globals/[A-Za-z]+Translations/translationsSchema\.json$|^seeds/[a-z-]+-translations/data\.[A-Za-z-]+\.json$|^src/payload-types\.ts$'
 
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -75,8 +83,12 @@ jobs:
         run: pnpm typecheck # tsc --noEmit. Neither lint nor Vitest typechecks. Only this step and the Railway build do.
       - if: ${{ steps.scope.outputs.full == 'true' }}
         run: pnpm typecheck:tests # the root tsconfig excludes `tests`, so specs need their own pass (#606)
-      - if: ${{ steps.scope.outputs.full == 'true' }}
+      - if: ${{ steps.scope.outputs.full == 'true' && steps.scope.outputs.narrow != 'true' }}
         run: pnpm test # runs test:unit and test:int (integration runs against Postgres)
+      # Both projects, filtered to the specs whose file names say they read
+      # the translation files, plus preview-targets, which imports the schemas.
+      - if: ${{ steps.scope.outputs.narrow == 'true' }}
+        run: pnpm exec vitest run --config ./vitest.config.mts translation preview-targets
 
       # ── Smoke specs against the Railway PR preview ──────────────────────────
       # Find the PR's Railway preview URL from Railway's commit status. This
