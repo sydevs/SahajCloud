@@ -283,6 +283,11 @@
           "type": "string",
           "description": "Heading of the base drawer, the drawer stack’s document title, and the inline embed’s page heading at the top of the atlas, where no place is chosen."
         },
+        "browse": {
+          "type": "string",
+          "default": "Or browse by country",
+          "description": "Small section heading above the country list on the first screen, after the Online classes row. It offers browsing by country as the alternative to online classes. Written in sentence case; the widget uppercases it."
+        },
         "place_title": {
           "type": "string",
           "default": "Free Meditation classes in %{place}",

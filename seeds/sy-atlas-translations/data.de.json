@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Kostenlose Meditationskurse"
+    "title": "Kostenlose Meditationskurse",
+    "browse": "Oder nach Land stöbern"
   },
   "search": {
     "chrome": {

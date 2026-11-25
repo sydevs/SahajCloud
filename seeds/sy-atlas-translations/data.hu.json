@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Ingyenes meditációs órák"
+    "title": "Ingyenes meditációs órák",
+    "browse": "Vagy böngéssz ország szerint"
   },
   "search": {
     "chrome": {

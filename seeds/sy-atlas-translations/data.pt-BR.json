@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Aulas gratuitas de meditação"
+    "title": "Aulas gratuitas de meditação",
+    "browse": "Ou navegue por país"
   },
   "search": {
     "chrome": {
