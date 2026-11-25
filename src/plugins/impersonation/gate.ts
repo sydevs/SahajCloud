@@ -20,6 +20,8 @@ export interface GateUser {
   name?: string | null
   type?: string | null
   currentProject?: ProjectSlug | null
+  /** Whether this account has confirmed its email — Payload's accepted flag. */
+  _verified?: boolean | null
   /** The session id Payload's JWT strategy stamps on an authenticated user. */
   _sid?: string
   impersonatedBy?: Impersonator | null
@@ -60,11 +62,16 @@ export function isSupportAccount(
 
 /**
  * Whether the support account may act as `target`: an active, non-admin
- * manager. An admin shows nothing new and would hand over role editing; an
- * inactive manager is denied everywhere.
+ * manager who has confirmed their email. An admin shows nothing new and would
+ * hand over role editing; an inactive manager is denied everywhere.
+ *
+ * ⚠ **`_verified` is here so the start refuses what every request would.**
+ * Payload's JWT strategy yields no user while that flag is false, so an
+ * invited manager who never confirmed would pass a `type`-only gate, take the
+ * cookie, and then read as support on every request with nothing said.
  */
 export function mayImpersonate(target: GateUser): boolean {
-  return target.type === 'manager'
+  return target.type === 'manager' && target._verified === true
 }
 
 export function impersonatorOf(user: GateUser | null | undefined): Impersonator | undefined {

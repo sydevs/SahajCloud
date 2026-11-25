@@ -26,14 +26,18 @@ describe('isSupportAccount', () => {
 })
 
 describe('mayImpersonate', () => {
-  it('admits an active manager', () => {
-    expect(mayImpersonate({ id: 2, type: 'manager' })).toBe(true)
+  it('admits an active, confirmed manager', () => {
+    expect(mayImpersonate({ id: 2, type: 'manager', _verified: true })).toBe(true)
   })
 
   // The support account is an admin, so this also refuses it becoming itself.
+  // An unconfirmed manager authenticates nobody, so the start refuses what
+  // every request would.
   it.each([
-    ['an admin', { id: 2, type: 'admin' }],
-    ['an inactive manager', { id: 2, type: 'inactive' }],
+    ['an admin', { id: 2, type: 'admin', _verified: true }],
+    ['an inactive manager', { id: 2, type: 'inactive', _verified: true }],
+    ['an unconfirmed manager', { id: 2, type: 'manager', _verified: false }],
+    ['a manager who has never been asked', { id: 2, type: 'manager' }],
   ])('refuses %s', (_label, target) => {
     expect(mayImpersonate(target)).toBe(false)
   })

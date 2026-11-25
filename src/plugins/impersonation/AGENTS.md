@@ -14,7 +14,9 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
   role by moving it onto their own account; a seed or script with no user is not judged.
   `CONTACT_EMAIL` is also the public support address, so changing it moves this right to the new
   address.
-- **Only an active, non-admin manager can be impersonated.**
+- **Only an active, non-admin manager who has confirmed their email can be impersonated.** The
+  JWT strategy yields no user while `_verified` is false, so an unconfirmed target would be
+  refused every request — the start refuses it instead (`gate.ts`).
 - **Writes are allowed, and are recorded as the manager's.** The manager gets no notice and
   nothing is stored. The only record is one log line at start and one at exit
   (`[impersonation] … started acting as manager …`).

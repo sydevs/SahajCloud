@@ -32,11 +32,14 @@ export const startImpersonation: Endpoint = {
       disableErrors: true,
       joins: false,
       overrideAccess: true,
-      select: { currentProject: true, email: true, type: true },
+      select: { _verified: true, currentProject: true, email: true, type: true },
     })
     if (!target) return errorResponse('Manager not found.', 404)
     if (!mayImpersonate(target)) {
-      return errorResponse('Only an active, non-admin manager can be signed in as.', 400)
+      return errorResponse(
+        'Only an active, non-admin manager who has confirmed their email can be signed in as.',
+        400,
+      )
     }
 
     const token = await signImpersonation(req.payload, {

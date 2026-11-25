@@ -15,10 +15,13 @@ import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/imper
 export function ImpersonateButton(): React.ReactElement | null {
   const { user } = useAuth<GateUser>()
   const { id } = useDocumentInfo()
-  const type = useFormFields(([fields]) => fields.type?.value as string | undefined)
+  const target = useFormFields(([fields]) => ({
+    _verified: fields._verified?.value as boolean | undefined,
+    type: fields.type?.value as string | undefined,
+  }))
   const [state, setState] = useState<'idle' | 'starting' | 'failed'>('idle')
 
-  if (!id || !isSupportAccount(user) || !mayImpersonate({ type })) return null
+  if (!id || !isSupportAccount(user) || !mayImpersonate(target)) return null
 
   const start = async () => {
     setState('starting')

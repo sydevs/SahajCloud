@@ -117,6 +117,15 @@ describe('support impersonation', () => {
       method: 'POST',
     })
     expect(ofAdmin.status).toBe(400)
+
+    // Payload's JWT strategy yields no user while `_verified` is false, so an
+    // invited manager who never confirmed would take the cookie and then read
+    // as support on every request with nothing said.
+    const invited = await testData.createManager(payload, { type: 'manager' })
+    const ofInvited = await restAs(supportToken)(`/api/managers/impersonate/${invited.id}`, {
+      method: 'POST',
+    })
+    expect(ofInvited.status).toBe(400)
   })
 
   it('reads as support again once the cookie is bound to another session', async () => {

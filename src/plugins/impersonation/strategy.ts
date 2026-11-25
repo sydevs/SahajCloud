@@ -78,6 +78,6 @@ async function readTarget(args: AuthStrategyFunctionArgs, claims: ImpersonationC
     overrideAccess: true,
     req: args.req,
   })
-  if (!target || !mayImpersonate(target) || (auth.verify && !target._verified)) return null
+  if (!target || !mayImpersonate(target)) return null
   return target
 }
