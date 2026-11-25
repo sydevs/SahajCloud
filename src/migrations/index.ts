@@ -12,6 +12,7 @@ import * as migration_20261122_213242_add_service_page_tags from './20261122_213
 import * as migration_20261122_213300_place_service_pages from './20261122_213300_place_service_pages';
 import * as migration_20261123_001950_add_app_live_reminder_page from './20261123_001950_add_app_live_reminder_page';
 import * as migration_20261123_002000_fill_app_live_reminder_page from './20261123_002000_fill_app_live_reminder_page';
+import * as migration_20261123_185218_pages_parent_index_pages from './20261123_185218_pages_parent_index_pages';
 import * as migration_20261125_191100_require_app_live_reminder_page from './20261125_191100_require_app_live_reminder_page';
 
 export const migrations = [
@@ -84,6 +85,11 @@ export const migrations = [
     up: migration_20261123_002000_fill_app_live_reminder_page.up,
     down: migration_20261123_002000_fill_app_live_reminder_page.down,
     name: '20261123_002000_fill_app_live_reminder_page',
+  },
+  {
+    up: migration_20261123_185218_pages_parent_index_pages.up,
+    down: migration_20261123_185218_pages_parent_index_pages.down,
+    name: '20261123_185218_pages_parent_index_pages',
   },
   {
     up: migration_20261125_191100_require_app_live_reminder_page.up,

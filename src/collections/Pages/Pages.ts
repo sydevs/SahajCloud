@@ -1,7 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-import { extractID } from 'payload/shared'
-
 import { slugField, publicUrlFields } from '@/fields'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
@@ -11,8 +9,10 @@ import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
 import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexicalHooks'
 import { adminOnlyFieldAccess } from '@/plugins/access'
+import { virtualFieldInputs } from '@/plugins/virtualFields'
 
-import { buildPageWebPath } from './webPath'
+import { pageParentField } from './parentField'
+import { buildPagePath, buildPageWebPath, homePageId } from './webPath'
 
 export const Pages: CollectionConfig = {
   slug: 'pages',
@@ -27,10 +27,19 @@ export const Pages: CollectionConfig = {
       // composer `webPath` publishes, so the panel and the published URL
       // cannot disagree. A page with no slug yet has no address, and lands on
       // the explanation instead of a URL that 404s.
-      url: ({ data, locale }) =>
+      //
+      // ⚠ This re-resolves on every autosave, so do not swap the ancestor walk
+      // for a tree load, as `buildEventWebPath` uses: Events have no autosave
+      // and these pages save themselves every 60 seconds.
+      url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: weMeditatePreviewUrl(),
-          path: buildPageWebPath({ slug: data?.slug, locale: locale.code }),
+          path: await buildPageWebPath({
+            slug: data?.slug,
+            parent: data?.parent,
+            locale: locale.code,
+            req,
+          }),
         }),
     },
   },
@@ -82,15 +91,34 @@ export const Pages: CollectionConfig = {
       // (`src/globals/AGENTS.md`).
       blankAllowed: async ({ originalDoc, req }) => {
         if (originalDoc?.id == null) return false
-        const { homePage } = await req.payload.findGlobal({
-          slug: 'wm-web-config',
-          depth: 0,
-          req,
-          select: { homePage: true },
-        })
-        return homePage != null && extractID(homePage) === originalDoc.id
+        return (await homePageId(req)) === originalDoc.id
       },
     }),
+    pageParentField,
+    {
+      // Not published-gated, unlike the three public links below: its reader is
+      // the sidebar beside the picker above, which has to answer before anyone
+      // publishes. Gating it would buy a consumer nothing either — a client
+      // reads no unpublished page at all.
+      name: 'path',
+      type: 'text',
+      virtual: true,
+      // Declares what the hook reads, or an include-mode `select` naming `path`
+      // alone strips `parent` before it runs and the field answers null (#1084).
+      custom: virtualFieldInputs('slug', 'parent'),
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        disableListColumn: true,
+        disableListFilter: true,
+        description: 'Where this page is served, as of the last save.',
+      },
+      hooks: {
+        afterRead: [
+          ({ data, req }) => buildPagePath({ slug: data?.slug, parent: data?.parent, req }),
+        ],
+      },
+    },
     {
       name: 'author',
       type: 'relationship',
@@ -152,17 +180,17 @@ export const Pages: CollectionConfig = {
     // (gate built into publicUrlFields). Web path carries the optional locale,
     // then the slug.
     //
-    // ⚠ **No tag segment.** This used to emit `[locale, tag, slug]`, which no
-    // site has ever served. WeMeditateWeb routes a page at one segment —
-    // `ROUTE_BUILDERS.pages` is `'/' + slug` and `pages/[slug]/+route.ts`
-    // matches `^/([^/]+)/?$`, with its own spec pinning that a nested path does
-    // not match — and its sitemap publishes the same shape. The legacy Rails
-    // site does not serve it either: its articles live at `/articles/<slug>`
-    // and `wisdom` appears only as `/inspiration/wisdom`, a category index
-    // (checked against production, 2026-09-15). So every tagged page published
-    // a `webUrl` that 404s, while untagged ones worked — which is why it went
-    // unnoticed. `buildWebPath` below is also what the live-preview URL is
-    // built from, so the panel would have landed on those same 404s.
+    // ⚠ **The segments are the ancestors' slugs, then this page's — and no tag.**
+    // WeMeditateWeb routes a page at its nested address (sydevs/WeMeditateWeb#333),
+    // and its sitemap publishes the same shape. A **tag** segment is a different
+    // thing and is still never emitted: this used to publish `[locale, tag, slug]`,
+    // which no site has ever served. The legacy Rails site does not serve it
+    // either — its articles live at `/articles/<slug>` and `wisdom` appears only
+    // as `/inspiration/wisdom`, a category index (checked against production,
+    // 2026-09-15). So every tagged page published a `webUrl` that 404s, while
+    // untagged ones worked, which is why it went unnoticed. `buildPageWebPath`
+    // below is also what the live-preview URL is built from, so the panel would
+    // have landed on those same 404s.
     ...publicUrlFields({
       // Raw `process.env`, deliberately: this callback runs per read, so the
       // late bind is what lets a spec stub the base with `vi.stubEnv`. The
@@ -175,15 +203,19 @@ export const Pages: CollectionConfig = {
       // answered null for every published page (#1084). The publish gate's own
       // `_status` is added by the factory; `tags` is what places a page in a
       // service beside its configuration (`exposeWhen`).
-      inputs: ['slug', 'tags'],
+      inputs: ['slug', 'tags', 'parent'],
       buildPath: ({ platform, data, req }) => {
-        // The app deep-links by bare slug; the web path is shared with the
-        // live-preview panel through `buildPageWebPath`, so the two cannot
-        // drift. See that module for why the locale is passed, not read.
+        // The app deep-links by bare slug — it hands `webUrl` to a WebView
+        // verbatim for four config pages, so a nested one needs no app release,
+        // but `appUrl` is a route the app resolves itself and stays one segment.
+        //
+        // The web path is shared with the live-preview panel through
+        // `buildPageWebPath`, so the two cannot drift. See that module for why
+        // the locale is passed, not read.
         if (platform === 'app') {
           return typeof data?.slug === 'string' && data.slug.length > 0 ? data.slug : null
         }
-        return buildPageWebPath({ slug: data?.slug, locale: req.locale })
+        return buildPageWebPath({ slug: data?.slug, parent: data?.parent, locale: req.locale, req })
       },
       // Beyond the factory's publish gate, each link needs its page placed in
       // that service by the service's own configuration — a `webUrl` for a page

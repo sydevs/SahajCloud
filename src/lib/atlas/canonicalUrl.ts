@@ -87,11 +87,8 @@ export function canonicalTargetForHost(
  * A path we are willing to put in a URL: one or more non-empty segments, and
  * no query, fragment or whitespace.
  *
- * Deliberately charset-agnostic rather than pinned to the slug alphabet — the
- * *stricter* `^(\/[a-z0-9-]+)+$` assumption (region slugs are transliterated to
- * `[a-z0-9-]`, event ids are numeric, so emitting the path raw is a no-op) is
- * asserted in the unit test, where widening the slug rules fails loudly instead
- * of silently changing what this builder accepts.
+ * Deliberately charset-agnostic rather than pinned to the slug alphabet, which
+ * the shared contract's `slugPattern` states instead (`atlas-url-contract.json`).
  *
  * The non-empty-segment requirement is what stops a blank slug anywhere in a
  * region's ancestry emitting `//` inside a canonical URL.
@@ -107,8 +104,8 @@ function trimTrailingSlash(value: string): string {
  * The fixed part of a canonical URL — everything before the region path.
  *
  * This, rather than the whole URL, is the primitive because `publicUrlFields`
- * composes `webUrl` as `base + webPath`. Both shapes can express themselves
- * that way precisely *because* the path is emitted raw and always last: `query`
+ * composes `webUrl` as `base + encodeURI(webPath)`. Both shapes can express
+ * themselves that way because the path is always last: `query`
  * routing simply ends its base at `…?atlas=`. So the collection fields and
  * {@link buildCanonicalUrl} share one definition instead of two that could drift.
  *
@@ -176,10 +173,11 @@ export function canonicalMountUrl(target: Omit<CanonicalTarget, 'routing'>): str
  * Compose a full canonical URL, or `null` when either the target or the path
  * cannot make one.
  *
- * `webPath` is emitted **raw**, not percent-encoded — see {@link EMITTABLE_PATH}.
+ * `webPath` is percent-encoded with `encodeURI`: a slug keeps its native
+ * letters (`/bg/софия`), which a URL must carry escaped.
  */
 export function buildCanonicalUrl(target: CanonicalTarget, webPath: string): string | null {
   if (typeof webPath !== 'string' || !EMITTABLE_PATH.test(webPath)) return null
   const base = canonicalUrlBase(target)
-  return base === null ? null : `${base}${webPath}`
+  return base === null ? null : `${base}${encodeURI(webPath)}`
 }

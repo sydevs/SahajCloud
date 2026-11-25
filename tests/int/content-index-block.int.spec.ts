@@ -5,8 +5,17 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest'
 import { computeApiEndpoint } from '@/lib/richEditor/blocks/ContentIndexBlock'
 
 import { uniqueId } from '../utils/lexicalTestHelpers'
+import { createRestClientWithAuth, type RestClient } from '../utils/restRequest'
 import { testData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
+
+/** The plaintext key the REST cases authenticate with — see `beforeAll`. */
+const WEB_API_KEY = 'content-index-block-web-client-key'
+
+/** The endpoint a mood + featured block publishes, which several cases pin. */
+const MOOD_FEATURED_ENDPOINT =
+  '/api/user-choices?where[type][in]=mood&where[isFeatured][equals]=true' +
+  '&where[isParent][equals]=false&sort=order,id&limit=20'
 
 // --- Pure function tests for computeApiEndpoint hook ---
 
@@ -110,6 +119,100 @@ describe('computeApiEndpoint hook (pure)', () => {
     })
   })
 
+  describe('user-choices type', () => {
+    it('generates the mood + featured endpoint, with no depth', () => {
+      const result = callHook({
+        type: 'user-choices',
+        limit: 20,
+        userChoiceTypeFilters: ['mood'],
+        userChoiceFeatured: 'featured',
+      })
+      // No `depth`: WeMeditate Web appends its own and strips a baked one.
+      expect(result).toBe(MOOD_FEATURED_ENDPOINT)
+    })
+
+    it("omits the isFeatured clause for 'all'", () => {
+      const result = callHook({
+        type: 'user-choices',
+        limit: 20,
+        userChoiceTypeFilters: ['mood'],
+        userChoiceFeatured: 'all',
+      })
+      expect(result).toBe(
+        '/api/user-choices?where[type][in]=mood&where[isParent][equals]=false&sort=order,id&limit=20',
+      )
+    })
+
+    it("asks for the non-featured choices on 'not-featured'", () => {
+      const result = callHook({
+        type: 'user-choices',
+        limit: 5,
+        userChoiceTypeFilters: ['mood'],
+        userChoiceFeatured: 'not-featured',
+      })
+      expect(result).toContain('where[isFeatured][equals]=false')
+    })
+
+    it('joins several kinds with commas', () => {
+      const result = callHook({
+        type: 'user-choices',
+        limit: 10,
+        userChoiceTypeFilters: ['mood', 'goal', 'duration'],
+        userChoiceFeatured: 'featured',
+      })
+      expect(result).toContain('where[type][in]=mood,goal,duration')
+    })
+
+    it('returns null when no kind is selected', () => {
+      expect(
+        callHook({ type: 'user-choices', limit: 10, userChoiceFeatured: 'featured' }),
+      ).toBeNull()
+      expect(
+        callHook({
+          type: 'user-choices',
+          limit: 10,
+          userChoiceTypeFilters: [],
+          userChoiceFeatured: 'featured',
+        }),
+      ).toBeNull()
+    })
+
+    it('returns null when the featured setting is missing or not an option', () => {
+      expect(
+        callHook({ type: 'user-choices', limit: 10, userChoiceTypeFilters: ['mood'] }),
+      ).toBeNull()
+      expect(
+        callHook({
+          type: 'user-choices',
+          limit: 10,
+          userChoiceTypeFilters: ['mood'],
+          userChoiceFeatured: 'sometimes',
+        }),
+      ).toBeNull()
+    })
+  })
+
+  describe('the four existing types are untouched', () => {
+    /**
+     * The `user-choices` type added its clauses through a new `params` builder
+     * rather than by widening the one `filterField`/`queryParam` pair, so these
+     * pin that the four endpoints WeMeditate Web and the app already read came
+     * out of this change byte for byte.
+     */
+    it('spells each endpoint exactly as before', () => {
+      expect(callHook({ type: 'meditations', limit: 6, userChoiceFilters: [1, 2] })).toBe(
+        '/api/user-choices?where[id][in]=1,2&depth=1&limit=6',
+      )
+      expect(callHook({ type: 'pages', limit: 4, pageFilters: ['wisdom'] })).toBe(
+        '/api/pages?where[tags][in]=wisdom&limit=4',
+      )
+      expect(callHook({ type: 'songs', limit: 5, songFilters: [3] })).toBe(
+        '/api/songs?where[tags][in]=3&limit=5',
+      )
+      expect(callHook({ type: 'lectures', limit: 3 })).toBe('/api/lectures/for-audience?limit=3')
+    })
+  })
+
   describe('limit field coverage', () => {
     it('threads limit=100 through a filtered type', () => {
       const result = callHook({
@@ -204,11 +307,26 @@ describe('computeApiEndpoint hook (pure)', () => {
 describe('ContentIndexBlock apiEndpoint (integration)', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  /** A real REST call, authenticated by an API client's own key. */
+  let rest: RestClient
 
   beforeAll(async () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
+
+    // The site's own role, so the read is authorised the way production's is.
+    // Payload returns `apiKey: null` from a create — the column is encrypted —
+    // so the key the header carries is the plaintext this seeds.
+    await testData.createClient(testEnv.payload, testEnv.adminUser.id, {
+      label: 'Content index reader',
+      roles: ['wemeditate-web-client'],
+      apiKey: WEB_API_KEY,
+    })
+
+    rest = createRestClientWithAuth(testEnv, {
+      Authorization: `clients API-Key ${WEB_API_KEY}`,
+    })
   })
 
   afterAll(async () => {
@@ -334,5 +452,91 @@ describe('ContentIndexBlock apiEndpoint (integration)', () => {
     expect(fields.apiEndpoint).toBe(`/api/songs?where[tags][in]=${songTag.id}&limit=10`)
     // Stale filter should be removed entirely by afterRead hook
     expect(fields).not.toHaveProperty('pageFilters')
+  })
+
+  it('computes apiEndpoint for user-choices from both filter fields', async () => {
+    const page = await createPageWithBlock({
+      type: 'user-choices',
+      limit: 20,
+      userChoiceTypeFilters: ['mood'],
+      userChoiceFeatured: 'featured',
+    })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    expect(getBlockFields(fetched).apiEndpoint).toBe(MOOD_FEATURED_ENDPOINT)
+  })
+
+  it('clears the user-choice filter fields when the type changes away', async () => {
+    const page = await createPageWithBlock({
+      type: 'pages',
+      limit: 10,
+      pageFilters: ['wisdom'],
+      // Stale state from an editor who chose User Choices first.
+      userChoiceTypeFilters: ['mood'],
+      userChoiceFeatured: 'featured',
+    })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    const fields = getBlockFields(fetched)
+
+    expect(fields.apiEndpoint).toBe('/api/pages?where[tags][in]=wisdom&limit=10')
+    expect(fields).not.toHaveProperty('userChoiceTypeFilters')
+    expect(fields).not.toHaveProperty('userChoiceFeatured')
+  })
+
+  /**
+   * The block publishes a query string, so what it owes is that the string
+   * works. This sends the computed endpoint to Payload's own REST entry point
+   * as an API client, with the `depth` and `select` WeMeditate Web appends, and
+   * checks the answer: Payload parses the query, rather than the spec parsing
+   * it the way Payload would. Other cases in this file create user choices of
+   * their own, so it asserts over the rows it made rather than the whole page.
+   */
+  it('answers 200 with the featured moods, in order, when read as a client', async () => {
+    const mood = (overrides: Parameters<typeof testData.createUserChoice>[1]) =>
+      testData.createUserChoice(payload, { type: 'mood', ...overrides })
+
+    const parent = await mood({ title: `Parent ${uniqueId()}`, isFeatured: true, order: 1 })
+    // `maintainIsParent` flips `isParent` on the parent once a child names it,
+    // so the row the endpoint must exclude is one the real hook made.
+    await mood({ title: `Child ${uniqueId()}`, parent: parent.id, isFeatured: false, order: 9 })
+
+    // Created in this order on purpose: `order` ties, so the endpoint's `id`
+    // tie-break is what decides these two, and ids are serial.
+    const tiedFirst = await mood({ title: `Tied A ${uniqueId()}`, isFeatured: true, order: 1 })
+    const tiedSecond = await mood({ title: `Tied B ${uniqueId()}`, isFeatured: true, order: 1 })
+    const later = await mood({ title: `Later ${uniqueId()}`, isFeatured: true, order: 2 })
+    const notFeatured = await mood({ title: `Plain ${uniqueId()}`, isFeatured: false, order: 1 })
+    const duration = await testData.createUserChoice(payload, {
+      title: `Duration ${uniqueId()}`,
+      type: 'duration',
+      isFeatured: true,
+      order: 1,
+    })
+
+    const page = await createPageWithBlock({
+      type: 'user-choices',
+      limit: 100,
+      userChoiceTypeFilters: ['mood'],
+      userChoiceFeatured: 'featured',
+    })
+    const fetched = await payload.findByID({ collection: 'pages', id: page.id, depth: 0 })
+    const endpoint = getBlockFields(fetched).apiEndpoint as string
+
+    // `depth` and `select` are WeMeditate Web's, not the endpoint's: the
+    // endpoint carries no depth on purpose, and a client read is refused
+    // without a select.
+    const response = await rest(`${endpoint}&depth=0&select[id]=true`)
+
+    expect(response.status).toBe(200)
+
+    const returned = (response.body as { docs: { id: number }[] }).docs.map((doc) => doc.id)
+
+    for (const excluded of [parent, notFeatured, duration]) {
+      expect(returned).not.toContain(excluded.id)
+    }
+
+    // `order` first, then `id` as the tie-break the two `order: 1` moods need.
+    const mine = returned.filter((id) => [tiedFirst.id, tiedSecond.id, later.id].includes(id))
+
+    expect(mine).toEqual([tiedFirst.id, tiedSecond.id, later.id])
   })
 })
