@@ -11,8 +11,8 @@ describe('planUmlautSlugs', () => {
   })
 
   it('keeps a disambiguating suffix', () => {
-    const plan = planUmlautSlugs([{ id: 1, name: 'Köln', slug: 'koln-germany' }])
-    expect(plan.renames[0]?.to).toBe('koeln-germany')
+    const plan = planUmlautSlugs([{ id: 1, name: 'Köln', slug: 'koln-2' }])
+    expect(plan.renames[0]?.to).toBe('koeln-2')
   })
 
   it('leaves names without umlauts, and slugs already re-spelled', () => {
@@ -39,12 +39,20 @@ describe('planUmlautSlugs', () => {
     expect(plan.renames).toEqual([])
   })
 
-  it('lets only the first of two renames onto one slug through', () => {
+  it('skips a rename onto a slug that another rename vacates', () => {
+    const plan = planUmlautSlugs([
+      { id: 1, name: 'Äa', slug: 'aa' },
+      { id: 2, name: 'Äeä', slug: 'aea' },
+    ])
+    expect(plan.collisions.map((change) => change.id)).toEqual([1])
+    expect(plan.renames.map((change) => change.id)).toEqual([2])
+  })
+
+  it('plans in id order', () => {
     const plan = planUmlautSlugs([
       { id: 2, name: 'Bärlin', slug: 'barlin' },
       { id: 1, name: 'BÄRLIN', slug: 'barlin-2' },
     ])
     expect(plan.renames.map((change) => change.to)).toEqual(['baerlin-2', 'baerlin'])
-    expect(plan.collisions).toEqual([])
   })
 })

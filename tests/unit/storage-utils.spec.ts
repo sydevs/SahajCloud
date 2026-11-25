@@ -522,6 +522,10 @@ describe('Filename Utilities', () => {
       expect(result).toMatch(/^file-1-test-[a-z0-9]{6}\.mp3$/)
     })
 
+    it('spells umlauts as the slug field does', () => {
+      expect(generateR2Key('Über Musik.mp3')).toMatch(/^ueber-musik-[a-z0-9]{6}\.mp3$/)
+    })
+
     it('preserves only the final file extension', () => {
       const result = generateR2Key('test.tar.gz')
       // Multi-dot filename: dots in base are removed (not converted to hyphens)

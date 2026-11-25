@@ -15,18 +15,16 @@ describe('slugifyValue', () => {
 
   it('spells umlauts and ß the German way', () => {
     expect(slugifyValue('Universität Trier')).toBe('universitaet-trier')
-    expect(slugifyValue('Köln')).toBe('koeln')
-    expect(slugifyValue('Zürich')).toBe('zuerich')
     expect(slugifyValue('ÄÖÜ äöü')).toBe('aeoeue-aeoeue')
     expect(slugifyValue('Straße')).toBe('strasse')
   })
 
   it('treats a combining diaeresis as the umlaut it spells', () => {
-    expect(slugifyValue('Küche')).toBe('kueche')
+    expect(slugifyValue('Ku\u0308che')).toBe('kueche')
   })
 
-  it('leaves symbols alone', () => {
-    expect(slugifyValue('Yoga & Meditation')).toBe('yoga-and-meditation')
+  it("spells symbols in English, not slugify's German locale", () => {
+    expect(slugifyValue('Yoga & Ruhe | 50%')).toBe('yoga-and-ruhe-or-50percent')
   })
 
   it('lowercases and hyphenates spaces', () => {

@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 /**
  * Re-spell region slugs generated before `slugifyValue` wrote umlauts as
- * `ae`/`oe`/`ue` (`universitat-trier → universitaet-trier`). Which slugs
- * qualify is `planUmlautSlugs` (`scripts/umlaut-region-slugs-plan.ts`).
+ * `ae`/`oe`/`ue` (`universitat-trier → universitaet-trier`).
  *
  * **Dry run by default.** It prints every rename, collision and unmatched
- * slug. `--apply` writes the renames.
+ * slug. `--apply` writes the renames. A re-run is safe: a renamed region
+ * drops out of the plan.
  *
  * ⚠ A renamed place's old URL stops resolving: the atlas finds a place by its
  * last slug alone. An event URL still opens, because it resolves by id. A
  * host whose configured default route names an old slug opens nothing.
  *
- * Each rename goes through the Local API, so the nested-docs cascade
- * re-saves every descendant's breadcrumbs, which `webPath` is built from.
+ * Renames run one at a time through the Local API: each one's nested-docs
+ * cascade re-saves its descendants whole, so a parallel rename of a
+ * descendant could be written back over.
  *
  * Usage:
  *   pnpm tsx scripts/umlaut-region-slugs.ts            # dry run
@@ -23,7 +24,7 @@
 import dotenv from 'dotenv'
 
 import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
-import { planUmlautSlugs, type RegionSlugRow } from './umlaut-region-slugs-plan'
+import { planUmlautSlugs } from './umlaut-region-slugs-plan'
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply')
@@ -37,7 +38,7 @@ async function main(): Promise<void> {
     overrideAccess: true,
     select: { name: true, slug: true },
   })
-  const plan = planUmlautSlugs(docs as RegionSlugRow[])
+  const plan = planUmlautSlugs(docs)
 
   console.log(`${plan.renames.length} rename(s) of ${docs.length} regions:`)
   for (const change of plan.renames) {
@@ -56,27 +57,27 @@ async function main(): Promise<void> {
     }
   }
 
-  if (!apply) {
-    console.log('\nDry run. Pass --apply to write the renames.')
-    exitAfterFlush(0)
-    return
-  }
-
-  console.log('\n⚠ Writing renames.')
   let failed = 0
-  for (const change of plan.renames) {
-    try {
-      await payload.update({
-        collection: 'regions',
-        id: change.id,
-        data: { slug: change.to },
-        overrideAccess: true,
-      })
-      console.log(`  ✓ regions#${change.id}  ${change.to}`)
-    } catch (error) {
-      failed++
-      console.error(`  ✗ regions#${change.id}  ${change.to}: ${(error as Error).message}`)
+  if (apply) {
+    console.log('\n⚠ Writing renames.')
+    for (const change of plan.renames) {
+      try {
+        await payload.update({
+          collection: 'regions',
+          id: change.id,
+          data: { slug: change.to },
+          depth: 0,
+          overrideAccess: true,
+        })
+        console.log(`  ✓ regions#${change.id}  ${change.to}`)
+      } catch (error) {
+        failed++
+        console.error(`  ✗ regions#${change.id}  ${change.to}: ${(error as Error).message}`)
+      }
     }
+    if (failed) console.error(`\n${failed} rename(s) failed. Re-run to retry them.`)
+  } else {
+    console.log('\nDry run. Pass --apply to write the renames.')
   }
   exitAfterFlush(failed ? 1 : 0)
 }

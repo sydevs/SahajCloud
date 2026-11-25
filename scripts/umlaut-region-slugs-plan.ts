@@ -1,18 +1,10 @@
 /**
- * The decision half of `scripts/umlaut-region-slugs.ts`: which region slugs
- * to re-spell now that `slugifyValue` writes umlauts as `ae`/`oe`/`ue`
- * (`universitat-trier → universitaet-trier`).
+ * The decision half of `scripts/umlaut-region-slugs.ts`.
  *
  * Pure — no database — so `tests/unit/umlaut-region-slugs-plan.spec.ts`
- * covers it. The CLI half reads and writes regions.
+ * covers it.
  */
 import { slugifyAnchor, slugifyValue } from '../src/fields/slugify'
-
-export interface RegionSlugRow {
-  id: number
-  name?: string | null
-  slug?: string | null
-}
 
 export interface SlugChange {
   id: number
@@ -23,47 +15,40 @@ export interface SlugChange {
 
 export interface UmlautSlugPlan {
   renames: SlugChange[]
-  /** The new spelling is already another region's slug. Left as is. */
+  /** The new spelling is already a region's slug. Left as is. */
   collisions: SlugChange[]
   /** A name with an umlaut whose slug was not generated from it. Left as is. */
   unmatched: Array<{ id: number; name: string; slug: string }>
 }
 
+const hasStem = (slug: string, stem: string) => slug === stem || slug.startsWith(`${stem}-`)
+
 /**
  * A slug is re-spelled only when it is the old spelling of the region's own
- * name, alone or with the importer's disambiguating suffix
- * (`neustadt-baden-wurttemberg`). A slug someone typed by hand is reported,
- * never guessed at.
+ * name, alone or with a disambiguating suffix (`koln-2 → koeln-2`). The suffix
+ * is kept as it is, and a slug someone typed by hand is reported, never
+ * guessed at.
  */
-export function planUmlautSlugs(rows: readonly RegionSlugRow[]): UmlautSlugPlan {
+export function planUmlautSlugs(
+  rows: ReadonlyArray<{ id: number; name?: string | null; slug?: string | null }>,
+): UmlautSlugPlan {
   const plan: UmlautSlugPlan = { renames: [], collisions: [], unmatched: [] }
-  const candidates: SlugChange[] = []
+  const taken = new Set(rows.map((row) => row.slug))
 
-  for (const row of [...rows].sort((a, b) => a.id - b.id)) {
-    const name = row.name ?? ''
-    const slug = row.slug ?? ''
+  for (const { id, name, slug } of [...rows].sort((a, b) => a.id - b.id)) {
     if (!name || !slug) continue
-
     // `slugifyAnchor` is the spelling every slug had before the umlaut rule.
     const before = slugifyAnchor(name)
     const after = slugifyValue(name)
-    if (before === after) continue
-    if (slug === after || slug.startsWith(`${after}-`)) continue
+    if (before === after || hasStem(slug, after)) continue
+    if (!hasStem(slug, before)) {
+      plan.unmatched.push({ id, name, slug })
+      continue
+    }
 
-    if (slug === before) candidates.push({ id: row.id, name, from: slug, to: after })
-    else if (slug.startsWith(`${before}-`))
-      candidates.push({ id: row.id, name, from: slug, to: after + slug.slice(before.length) })
-    else plan.unmatched.push({ id: row.id, name, slug })
-  }
-
-  const renamed = new Set(candidates.map((change) => change.id))
-  const taken = new Set(
-    rows.filter((row) => row.slug && !renamed.has(row.id)).map((row) => row.slug as string),
-  )
-  for (const change of candidates) {
+    const change = { id, name, from: slug, to: after + slug.slice(before.length) }
     if (taken.has(change.to)) {
       plan.collisions.push(change)
-      taken.add(change.from)
     } else {
       plan.renames.push(change)
       taken.add(change.to)
