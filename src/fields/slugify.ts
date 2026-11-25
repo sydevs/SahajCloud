@@ -19,7 +19,8 @@ export const slugifyValue = (value: string | null | undefined): string =>
     .normalize('NFC')
     .toLowerCase()
     // Apostrophes and Armenian in-word marks (Ի՞նչ) sit inside a word, so they
-    // are dropped rather than splitting it.
-    .replace(/['’ʼ`՛՜՞]/g, '')
+    // are dropped rather than splitting it. So are emoji variation selectors and
+    // the keycap mark, which count as marks and would otherwise survive alone.
+    .replace(/['\u2019\u02bc`\u055b\u055c\u055e\ufe00-\ufe0f\u20e3]/g, '')
     .replace(/[^\p{L}\p{M}\p{N}]+/gu, '-')
     .replace(/^-+|-+$/g, '')

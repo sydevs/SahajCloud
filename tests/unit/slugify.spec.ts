@@ -26,12 +26,13 @@ describe('slugifyValue', () => {
   })
 
   it('composes a letter written as base plus combining mark', () => {
-    expect(slugifyValue('Küche')).toBe('küche')
+    expect(slugifyValue('Ku\u0308che')).toBe('küche')
   })
 
   it('returns an empty string when there is no letter or digit', () => {
     expect(slugifyValue('')).toBe('')
     expect(slugifyValue('?! 🧘')).toBe('')
+    expect(slugifyValue('\u2764\ufe0f 1\ufe0f\u20e3')).toBe('1')
     expect(slugifyValue(null)).toBe('')
     expect(slugifyValue(undefined)).toBe('')
   })
