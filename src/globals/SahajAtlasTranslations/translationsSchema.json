@@ -981,6 +981,11 @@
               "type": "string",
               "description": "Refusal: the security check expired and must be redone before registering."
             },
+            "captcha_blocked": {
+              "type": "string",
+              "default": "We couldn't load the security check, so you can't register just yet.",
+              "description": "Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works."
+            },
             "subscribe": {
               "type": "string",
               "description": "Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true."
