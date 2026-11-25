@@ -30,6 +30,7 @@ export function ImpersonationBanner(): React.ReactElement | null {
   return (
     <InfoBanner
       action={{ label: 'Exit', onClick: () => void exit(), disabled: state === 'leaving' }}
+      inline
       title={`You are signed in as ${user.name || user.email}`}
       type="error"
     >
