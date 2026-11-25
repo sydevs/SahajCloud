@@ -2,16 +2,17 @@ import type { UIFieldServerComponent } from 'payload'
 
 import React from 'react'
 
-import { InfoBanner } from '@/components/admin/InfoBanner'
 import { isPublished } from '@/fields/publicUrlFields'
 import { loadServicePages, pagePlacement, PAGE_SERVICE_GLOBALS } from '@/lib/pageServices'
 import type { PageService } from '@/lib/pageServices'
 
-import { availabilityNotice, type ServicePlacement } from './notice'
+import { pageAvailability, type ServicePlacement } from './availability'
+import { AvailabilityTable } from './AvailabilityTable'
+import styles from './PageAvailability.module.css'
 import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
 /**
- * Where this page is available — the website, the app, both or neither. Each
+ * Where this page is available — one row per service, colour-coded. Each
  * service's configuration decides it, by naming the page or by a tag it lists
  * (`src/lib/pageServices`), so there is nothing to set here.
  *
@@ -35,15 +36,16 @@ const PageAvailability: UIFieldServerComponent = async ({ id, req }) => {
       placement: pagePlacement(page, await loadServicePages(req, service)),
     })),
   )
-  const notice = availabilityNotice(
+  const report = pageAvailability(
     isPublished(page._status, req.locale),
     placement.filter((entry): entry is ServicePlacement => entry.placement !== null),
   )
 
   return (
-    <InfoBanner title={notice.title} type={notice.type}>
-      {notice.text}
-    </InfoBanner>
+    <div>
+      <AvailabilityTable rows={report.rows} />
+      {report.hint ? <p className={styles.hint}>{report.hint}</p> : null}
+    </div>
   )
 }
 

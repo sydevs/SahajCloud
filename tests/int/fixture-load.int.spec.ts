@@ -117,7 +117,7 @@ describe('preview fixture loader', () => {
     }, 300_000)
 
     // The point of seeding the globals: without them every preview shows the
-    // sidebar notice refusing every page, which is what a reviewer opens.
+    // sidebar table refusing every page, which is what a reviewer opens.
     it('places pages in both services, by name and by tag', async () => {
       for (const service of Object.keys(PAGE_SERVICE_GLOBALS) as PageService[]) {
         const req = { payload, context: {} } as unknown as PayloadRequest

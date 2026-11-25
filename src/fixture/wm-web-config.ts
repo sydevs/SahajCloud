@@ -7,7 +7,7 @@ import { globalFixture } from './types'
  *
  * `pageTags` is what makes placement visible past the pages named here: it
  * takes `fixture-hands-on-the-earth` and the twelve node pages, none of which
- * this configuration names, so the sidebar notice has a tagged page to report
+ * this configuration names, so the sidebar table has a tagged page to report
  * as well as a named one. `fixture-creativity-and-stillness` is tagged
  * `creativity` and named nowhere, which leaves it the negative case.
  */

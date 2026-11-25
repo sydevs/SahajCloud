@@ -254,7 +254,7 @@ export const VIEWS: ViewRegistry = {
 
   // Content.
   '@/components/admin/TableOfContentsField#default': links(doc('pages', 1_014_001)),
-  // Three notices, from the configurations the fixture seeds: a page both
+  // Three tables, from the configurations the fixture seeds: a page both
   // services place, one each places by a different tag, and one neither places.
   '@/components/admin/PageAvailability#default': links(
     doc('pages', 1_014_004),

@@ -41,7 +41,7 @@ export interface ServicePages {
 
 /**
  * The pages one service places, derived at most once per request: a page's read
- * clause asks, and so does the sidebar notice beside it
+ * clause asks, and so does the sidebar table beside it
  * (`memoizeOnRequest` says why the promise is what is kept).
  *
  * ⚠ **`req` keys the memo and is not forwarded.** A page's afterRead hooks also
@@ -115,7 +115,7 @@ export type PagePlacement = { by: 'name' } | { by: 'tag'; tag: string }
 /**
  * What places this page in a service, or `null` where nothing does.
  *
- * The sidebar notice names it, so an editor reaches the one field or tag that
+ * The sidebar table names it, so an editor reaches the one field or tag that
  * holds the page there rather than searching six page fields and a tag list.
  */
 export function pagePlacement(

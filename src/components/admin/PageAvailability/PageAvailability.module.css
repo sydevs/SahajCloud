@@ -1,0 +1,37 @@
+.service {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.note {
+  font-size: 0.85em;
+  line-height: 1.35;
+  color: var(--theme-elevation-500);
+  overflow-wrap: anywhere;
+}
+
+.status {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.success {
+  color: var(--theme-success-500);
+}
+
+.warning {
+  color: var(--theme-warning-500);
+}
+
+/* Not placed is an ordinary state, so it reads quietly rather than as a verdict. */
+.neutral {
+  font-weight: 400;
+  color: var(--theme-elevation-500);
+}
+
+.hint {
+  margin: calc(var(--base) * 0.4) 0 0;
+  font-size: 0.85em;
+  line-height: 1.4;
+  color: var(--theme-elevation-500);
+}

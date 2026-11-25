@@ -148,7 +148,7 @@ export const Pages: CollectionConfig = {
     },
     {
       // Where each service's configuration places this page, and which one to
-      // name it in. A notice rather than a column: nothing stores it, and
+      // name it in. A table rather than a column: nothing stores it, and
       // `webUrl` and `appUrl` are what a consumer reads the answer from.
       name: 'availability',
       type: 'ui',
