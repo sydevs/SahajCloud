@@ -5,7 +5,7 @@ import { errorResponse } from '@/lib/endpoints'
 import type { ProjectSlug } from '@/payload-types'
 
 import { impersonationCookie, readImpersonation, signImpersonation } from './cookie'
-import { type GateUser, impersonatorOf, isSupportAccount, mayImpersonate } from './gate'
+import { type GateUser, impersonatorOf, isSupportAccount, mayBeImpersonated } from './gate'
 
 /**
  * POST /api/managers/impersonate/:id — the support account starts acting as
@@ -35,7 +35,7 @@ export const startImpersonation: Endpoint = {
       select: { _verified: true, currentProject: true, email: true, type: true },
     })
     if (!target) return errorResponse('Manager not found.', 404)
-    if (!mayImpersonate(target)) {
+    if (!mayBeImpersonated(target)) {
       return errorResponse(
         'Only an active, non-admin manager who has confirmed their email can be signed in as.',
         400,

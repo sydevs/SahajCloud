@@ -63,8 +63,8 @@ export function isSupportAccount(
 }
 
 /**
- * Whether the support account may act as `target`: an active, non-admin
- * manager who has confirmed their email. An admin shows nothing new and would
+ * Whether `target` may **be** impersonated: an active, non-admin manager who
+ * has confirmed their email. An admin shows nothing new and would
  * hand over role editing; an inactive manager is denied everywhere.
  *
  * ⚠ **`_verified` is here so the start refuses what every request would.**
@@ -72,7 +72,7 @@ export function isSupportAccount(
  * invited manager who never confirmed would pass a `type`-only gate, take the
  * cookie, and then read as support on every request with nothing said.
  */
-export function mayImpersonate(target: GateUser): boolean {
+export function mayBeImpersonated(target: GateUser): boolean {
   return target.type === 'manager' && target._verified === true
 }
 

@@ -3,7 +3,7 @@ import type { AuthStrategy, AuthStrategyFunctionArgs, PayloadRequest } from 'pay
 import { authenticateJWT, hydrateAuthUser, isOwnRow } from '@/plugins/access'
 
 import { type ImpersonationClaims, impersonationCookie, readImpersonation } from './cookie'
-import { type GateUser, isSupportAccount, mayImpersonate } from './gate'
+import { type GateUser, isSupportAccount, mayBeImpersonated } from './gate'
 
 const IMPERSONATION_STRATEGY = 'support-impersonation'
 
@@ -78,6 +78,6 @@ async function readTarget(args: AuthStrategyFunctionArgs, claims: ImpersonationC
     overrideAccess: true,
     req: args.req,
   })
-  if (!target || !mayImpersonate(target)) return null
+  if (!target || !mayBeImpersonated(target)) return null
   return target
 }

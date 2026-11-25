@@ -5,7 +5,11 @@ import React, { useState } from 'react'
 
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import type { Manager } from '@/payload-types'
-import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/login/impersonation/gate'
+import {
+  type GateUser,
+  isSupportAccount,
+  mayBeImpersonated,
+} from '@/plugins/login/impersonation/gate'
 
 /**
  * "Sign in as this manager", on a manager's page — for the support account
@@ -22,7 +26,7 @@ export function ImpersonateButton(): React.ReactElement | null {
   }))
   const [state, setState] = useState<'idle' | 'starting' | 'failed'>('idle')
 
-  if (!id || !isSupportAccount(user) || !mayImpersonate(target)) return null
+  if (!id || !isSupportAccount(user) || !mayBeImpersonated(target)) return null
 
   const start = async () => {
     setState('starting')

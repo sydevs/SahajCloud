@@ -4,7 +4,11 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { type GateUser, isSupportAccount, mayImpersonate } from '@/plugins/login/impersonation/gate'
+import {
+  type GateUser,
+  isSupportAccount,
+  mayBeImpersonated,
+} from '@/plugins/login/impersonation/gate'
 
 const SUPPORT = 'support@example.org'
 const support: GateUser = { id: 1, collection: 'managers', email: SUPPORT, type: 'admin' }
@@ -25,9 +29,9 @@ describe('isSupportAccount', () => {
   })
 })
 
-describe('mayImpersonate', () => {
+describe('mayBeImpersonated', () => {
   it('admits an active, confirmed manager', () => {
-    expect(mayImpersonate({ id: 2, type: 'manager', _verified: true })).toBe(true)
+    expect(mayBeImpersonated({ id: 2, type: 'manager', _verified: true })).toBe(true)
   })
 
   // The support account is an admin, so this also refuses it becoming itself.
@@ -39,6 +43,6 @@ describe('mayImpersonate', () => {
     ['an unconfirmed manager', { id: 2, type: 'manager', _verified: false }],
     ['a manager who has never been asked', { id: 2, type: 'manager' }],
   ])('refuses %s', (_label, target) => {
-    expect(mayImpersonate(target)).toBe(false)
+    expect(mayBeImpersonated(target)).toBe(false)
   })
 })
