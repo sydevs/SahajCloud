@@ -3,6 +3,7 @@
 import { useAuth, useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
+import { postAndReload } from '@/components/admin/helpers/postAndReload'
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import type { Manager } from '@/payload-types'
 import {
@@ -30,15 +31,7 @@ export function ImpersonateButton(): React.ReactElement | null {
 
   const start = async () => {
     setState('starting')
-    const response = await fetch(`/api/managers/impersonate/${id}`, {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => null)
-    if (!response?.ok) return setState('failed')
-    // A full load, not a router push: the signed-in user changes, and the
-    // auth provider and server-rendered nav must both start again from it.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign('/admin')
+    if (!(await postAndReload(`/api/managers/impersonate/${id}`, '/admin'))) setState('failed')
   }
 
   return (

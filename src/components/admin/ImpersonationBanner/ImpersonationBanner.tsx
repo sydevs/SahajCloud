@@ -3,6 +3,7 @@
 import { useAuth } from '@payloadcms/ui'
 import React, { useState } from 'react'
 
+import { postAndReload } from '@/components/admin/helpers/postAndReload'
 import { InfoBanner } from '@/components/admin/InfoBanner'
 import { type GateUser, impersonatorOf } from '@/plugins/login/impersonation/gate'
 
@@ -18,16 +19,12 @@ export function ImpersonationBanner(): React.ReactElement | null {
 
   const exit = async () => {
     setState('leaving')
-    const response = await fetch('/api/managers/stop-impersonating', {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => null)
+    const left = await postAndReload(
+      '/api/managers/stop-impersonating',
+      `/admin/collections/managers/${user.id}`,
+    )
     // Still impersonating: navigating away would hide the one sign that says so.
-    if (!response?.ok) return setState('failed')
-    // A full load, not a router push: the signed-in user changes, and the
-    // auth provider and server-rendered nav must both start again from it.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign(`/admin/collections/managers/${user.id}`)
+    if (!left) setState('failed')
   }
 
   return (
