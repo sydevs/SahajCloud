@@ -3,8 +3,8 @@
     "global": "sy-atlas-translations",
     "locale": "en",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1023 (13 tabs, 43 leaf groups, grouped by widget view)",
-    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "schema_version": "post-#1256 (12 tabs, 42 leaf groups, grouped by widget view)",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed. A key whose English is declared as a schema default is omitted too: translationsSchema.json is its one home, and the importer merges it in.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
   "common": {
@@ -343,9 +343,6 @@
     "title": "Share Meditation",
     "native": "Share…",
     "copied": "Copied"
-  },
-  "compact": {
-    "open": "Find a class near you"
   },
   "seo": {
     "root_title": "Free Meditation Classes Near You",
