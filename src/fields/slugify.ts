@@ -1,8 +1,7 @@
 import slugify from 'slugify'
 
 /**
- * An in-page anchor, on the library's own spelling (`ü → u`): the
- * table-of-contents headings and the layout block's tab anchors.
+ * An in-page anchor, on the library's own spelling (`ü → u`).
  *
  * ⚠ Cross-repo contract. A consumer derives a heading's `id` with its own
  * slugifier, which folds an umlaut to a bare vowel, and reads a tab's
@@ -20,8 +19,8 @@ export const slugifyAnchor = (value: string | null | undefined): string =>
  * Payload's built-in ASCII-only slugify would collapse them to empty
  * (`Москва → ""`, which then needs disambiguation or fails the slug constraint).
  *
- * The slugifier for a stored slug: every {@link slugField}, and upload
- * filenames. An in-page anchor takes {@link slugifyAnchor} instead.
+ * The slugifier for a stored slug. An in-page anchor takes
+ * {@link slugifyAnchor} instead.
  *
  * Umlauts become `ae`/`oe`/`ue` in every language (`Göteborg → "goeteborg"`),
  * the ICAO passport convention. Not `slugify`'s `locale: 'de'`, which also
