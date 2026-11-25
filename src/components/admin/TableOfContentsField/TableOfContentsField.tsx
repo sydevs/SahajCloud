@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { fieldId } from '@/components/admin/helpers/fieldId'
 import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
-import { slugifyValue } from '@/fields/slugify'
+import { slugify } from '@/fields/slugify'
 import type { TableOfContentsHeadings } from '@/payload-types'
 
 import {
@@ -51,7 +51,7 @@ export const TableOfContentsField: JSONFieldClientComponent = ({ field, readOnly
               const text = node.getTextContent().trim()
               if (text) {
                 detected.push({
-                  slug: slugifyValue(text),
+                  slug: slugify(text),
                   text,
                   level: parseInt(node.getTag().slice(1), 10),
                 })

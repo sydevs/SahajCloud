@@ -10,7 +10,7 @@ import { createTestEnvironment } from '../utils/testHelpers'
  * (#1038, #1040).
  *
  * Payload's Generate button posts `''` for a blank title, any REST or Local API
- * write can carry one, and a source that transliterates to nothing (`東京`)
+ * write can carry one, and a source that slugifies to nothing (`— · —`)
  * generates one. `pages` is the one collection with drafts — so the one whose
  * slug column is nullable — and its home page is the one document that keeps
  * `''`. `authors` and `regions` stand in for the NOT NULL collections.
@@ -138,8 +138,8 @@ describe('slugField: a blank slug', () => {
       expect(published.slug).toBe('titled-at-last')
     })
 
-    it('stores NULL for a title that transliterates to nothing, so a second one still saves', async () => {
-      const first = await testData.createPage(payload, { title: '東京' })
+    it('stores NULL for a title that slugifies to nothing, so a second one still saves', async () => {
+      const first = await testData.createPage(payload, { title: '— · —' })
       const second = await testData.createPage(payload, { title: '!!!' })
 
       expect(first.slug).toBeNull()
@@ -225,9 +225,9 @@ describe('slugField: a blank slug', () => {
       expect(updated.slug).toBe('renamed-author')
     })
 
-    it('refuses a create whose name transliterates to nothing', async () => {
+    it('refuses a create whose name slugifies to nothing', async () => {
       await expect(
-        payload.create({ collection: 'authors', data: createData<'authors'>({ name: '東京' }) }),
+        payload.create({ collection: 'authors', data: createData<'authors'>({ name: '— · —' }) }),
       ).rejects.toMatchObject(blankSlugRefusal)
     })
 
@@ -238,7 +238,7 @@ describe('slugField: a blank slug', () => {
         payload.update({
           collection: 'authors',
           id: author.id,
-          data: { name: '東京', generateSlug: true },
+          data: { name: '— · —', generateSlug: true },
         }),
       ).rejects.toMatchObject(blankSlugRefusal)
     })
@@ -258,12 +258,12 @@ describe('slugField: a blank slug', () => {
       ).rejects.toMatchObject(blankSlugRefusal)
     })
 
-    it('refuses a region whose name transliterates to nothing', async () => {
+    it('refuses a region whose name slugifies to nothing', async () => {
       await expect(
         payload.create({
           collection: 'regions',
           overrideAccess: true,
-          data: { name: '東京', level: 'country', mapboxId: 'mb-tokyo' } as never,
+          data: { name: '— · —', level: 'country', mapboxId: 'mb-tokyo' } as never,
         }),
       ).rejects.toMatchObject(blankSlugRefusal)
     })
