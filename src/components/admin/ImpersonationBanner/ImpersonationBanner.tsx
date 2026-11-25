@@ -10,7 +10,7 @@ import { type GateUser, impersonatorOf } from '@/plugins/login/impersonation/gat
 /**
  * The bar across every admin page while support acts as a manager, with the
  * one way out. Registered in `admin.components.header` by
- * `impersonationPlugin`, so no view can forget it.
+ * `loginPlugin`, so no view can forget it.
  */
 export function ImpersonationBanner(): React.ReactElement | null {
   const { user } = useAuth<GateUser>()

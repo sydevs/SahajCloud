@@ -8,7 +8,7 @@ import { impersonatorOf } from './gate'
  *
  * ⚠ **Applied to the sanitized config, from `restrictPayloadSystemEntities`**:
  * Payload appends `payload-preferences` after every plugin has run, so
- * `impersonationPlugin` never sees the collection.
+ * `loginPlugin` never sees the collection.
  *
  * Two write paths, each with its own stop. The `/:key` REST handlers write
  * through `payload.db`, which runs no hook, so they answer without writing —

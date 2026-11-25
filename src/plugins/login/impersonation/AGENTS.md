@@ -37,6 +37,9 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
   and the own-row refusal are all keyed on it. It would have saved the manager's stored
   `currentProject`, which the cookie carries instead.
 
+**To try it on a PR preview**, pick the preview's admin on its sign-in page: that account is the
+support account (`PREVIEW_ADMIN_ADDRESS`), so the button shows on every fixture manager.
+
 ## How a request becomes the manager
 
 `POST /api/managers/impersonate/:id` sets the `sahajcloud-impersonation` cookie, and the
