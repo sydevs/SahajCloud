@@ -276,6 +276,10 @@ export async function loadFixture(
           context: FIXTURE_CONTEXT,
           depth: 0,
           overrideAccess: true,
+          // A global's `filterOptions` is validated on the request's own
+          // authority, so a userless write is refused as an invalid selection
+          // for every value it narrows — `src/globals/AGENTS.md` carries why.
+          user: await fixtureAdmin(payload),
         })
         await payload.kv.set(globalKvKey(slug), hash)
         report.updated++
