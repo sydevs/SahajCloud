@@ -31,8 +31,6 @@ export interface GateUser extends Partial<
   impersonatedBy?: Impersonator | null
 }
 
-export const IMPERSONATION_COOKIE = 'sahajcloud-impersonation'
-
 /** Whether `value` is the support address, `CONTACT_EMAIL`, in any case. */
 export function isSupportAddress(
   value: string | null | undefined,

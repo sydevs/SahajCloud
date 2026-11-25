@@ -5,7 +5,7 @@ import { generateCookie, parseCookies } from 'payload/shared'
 import { signToken, verifyToken } from '@/lib/utilities/signedToken'
 import type { ProjectSlug } from '@/payload-types'
 
-import { IMPERSONATION_COOKIE } from './gate'
+export const IMPERSONATION_COOKIE = 'sahajcloud-impersonation'
 
 /** The token's audience. Distinct from every link kind (`tests/unit/login-token.spec.ts`). */
 export const IMPERSONATION_TOKEN_KIND = 'support-impersonation'

@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CONTACT_EMAIL } from '@/lib/contact'
 import { createSession } from '@/plugins/login'
-import { IMPERSONATION_COOKIE } from '@/plugins/login/impersonation/gate'
+import { IMPERSONATION_COOKIE } from '@/plugins/login/impersonation/cookie'
 import { SUPPORT_ADDRESS_TAKEN } from '@/plugins/login/impersonation/supportAddress'
 
 import { createRestClientWithAuth } from '../utils/restRequest'
