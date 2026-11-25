@@ -99,7 +99,7 @@ interface HookConfig {
 /**
  * afterRead hook for one field: publish gate → `exposeWhen` → path → optional
  * base prefix. `base === null` builds the path-only field (returns the raw
- * path); any other `base` builds a URL (`base + path`), and an unset base
+ * path); any other `base` builds a URL (`base + encodeURI(path)`), and an unset base
  * (`undefined`) means that URL platform isn't configured, so it reads `null`.
  */
 function computeHook(
@@ -129,7 +129,9 @@ function computeHook(
     // base (the client owning this region's canonical URLs) can read `data` /
     // `req` — and pays nothing on a document whose path didn't resolve.
     const resolved = typeof base === 'function' ? await base(ctx) : base
-    return resolved ? `${resolved}${path}` : null
+    // A slug keeps its native letters (`/bg/софия`), so the path is stored raw
+    // and percent-encoded only where it becomes a URL.
+    return resolved ? `${resolved}${encodeURI(path)}` : null
   }
 }
 
