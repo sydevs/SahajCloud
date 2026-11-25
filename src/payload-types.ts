@@ -9349,6 +9349,10 @@ export interface SyAtlasTranslationsOnlineStrings {
    * Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name.
    */
   title?: string;
+  /**
+   * Short line under the Online classes row on the Countries list, saying these classes belong to no place.
+   */
+  subtitle?: string;
 }
 export interface SyAtlasTranslationsEventDisplayStrings {
   /**

@@ -155,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Aulas on-line"
+    "title": "Aulas on-line",
+    "subtitle": "Participe de qualquer lugar"
   },
   "event": {
     "display": {

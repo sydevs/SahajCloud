@@ -155,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online-Kurse"
+    "title": "Online-Kurse",
+    "subtitle": "Von überall teilnehmen"
   },
   "event": {
     "display": {
