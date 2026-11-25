@@ -346,7 +346,8 @@ write.
   than a value, so a `default` beside `plural` is ignored.
   ⚠ **The corpus file must not carry a key that declares a `default`**, or the
   two copies are free to disagree. `tests/unit/wm-web-translations-seed.spec.ts`
-  holds both halves of that.
+  and `tests/unit/atlas-translations-schema.spec.ts` each hold both halves, for
+  their own global.
   ⚠ **A data migration is still what _retires_ a key**, and a rewording is
   still a migration too: a default lands only where nothing is stored, so it
   cannot replace copy somebody already has.
@@ -443,6 +444,16 @@ Two consequences when you add a global:
   never by a call from here.
 
 Rules for the client contract: `docs/rules/api-clients.md`.
+
+## ⚠ A `filterOptions` on a global's field needs the write to carry a user
+
+Payload does not thread a global update's `overrideAccess` into
+`validateFilterOptions`, which falls back to `overrideAccess ?? false` and reads
+the related collection on the request's own authority. So a write carrying
+`overrideAccess: true` and **no user** — a seed, a script, a spec — reads as
+anonymous, finds nothing, and is refused as an invalid selection for every value
+the filter narrows. Pass `user`. Measured on `wm-web-config.indexPages`, payload
+3.93 (#1250); `tests/int/pages-nesting.int.spec.ts` carries the note.
 
 ## Project visibility
 
