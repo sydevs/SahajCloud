@@ -137,7 +137,7 @@ const client = new S3Client({
 
 `CLOUDFLARE_R2_DELIVERY_URL` is per-env: prod uses `https://assets.sydevelopers.com`, and dev/staging use a different delivery domain.
 
-**Filename sanitization**, on every upload: extract the base name and extension, slugify the base (lowercase, URL-safe, strict), and append a 6-char random suffix, keeping the original extension. Example: `"My Audio File (1).mp3"` → `"my-audio-file-1-xk2j9s.mp3"`.
+**Filename sanitization**, on every upload: extract the base name and extension, slugify the base with `slugifyValue`, the slug field's spelling (lowercase, URL-safe, strict, `ü → ue`), and append a 6-char random suffix, keeping the original extension. Example: `"My Audio File (1).mp3"` → `"my-audio-file-1-xk2j9s.mp3"`.
 
 ## R2 filename preassignment hook (`r2FilenameHook.ts`)
 
