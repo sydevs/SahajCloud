@@ -26,6 +26,7 @@ import {
   signSigninToken,
   SIGNIN_TOKEN_TTL_MS,
 } from '@/plugins/login'
+import { IMPERSONATION_TOKEN_KIND } from '@/plugins/login/impersonation/cookie'
 
 const SECRET = 'test-secret-for-login-tokens'
 const NOW = new Date('2026-09-23T12:00:00.000Z')
@@ -44,7 +45,7 @@ describe('login token kinds', () => {
     expect(invite.aud).toBe('manager-invite')
     expect(page.aud).toBe('manager-link')
 
-    // The two other kinds in use, asserted as strings because signing one needs
+    // The other kinds in use, asserted as strings because signing one needs
     // nothing this spec has.
     const kinds = [
       signin.aud,
@@ -52,6 +53,7 @@ describe('login token kinds', () => {
       page.aud,
       'submission-feedback',
       'submission-unsubscribe',
+      IMPERSONATION_TOKEN_KIND,
     ]
     expect(new Set(kinds).size).toBe(kinds.length)
   })

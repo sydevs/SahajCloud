@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { errorResponse, parseBody, requireActiveManager } from '@/lib/endpoints'
 import { isValidProject } from '@/plugins/access'
+import { setImpersonatedProject } from '@/plugins/login'
 import { reportHandlerFailure } from '@/plugins/sentry/handlerFailure'
 
 const bodySchema = z.object({
@@ -43,6 +44,16 @@ export const setProject: Endpoint = {
     const parsed = await parseBody(req, bodySchema)
     if (!parsed.ok) return parsed.response
     const { currentProject } = parsed.data
+
+    // Support acting as this manager: the choice lives in the impersonation
+    // cookie, so the manager's own row keeps the project they left it on.
+    const impersonatedCookie = await setImpersonatedProject(req, currentProject)
+    if (impersonatedCookie) {
+      return Response.json(
+        { ok: true, currentProject },
+        { headers: { 'Set-Cookie': impersonatedCookie } },
+      )
+    }
 
     try {
       const updated = await req.payload.update({

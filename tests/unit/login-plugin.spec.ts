@@ -74,6 +74,12 @@ const WIRED_ROUTES = [
   // Every kind of link — the token's own audience picks the rules.
   'post /redeem',
 ]
+
+/**
+ * And onto `managers`, which also carries support impersonation. Both lists are
+ * the whole set on purpose: an auth route arriving here unnoticed is the bug.
+ */
+const MANAGER_ROUTES = [...WIRED_ROUTES, 'post /impersonate/:id', 'post /stop-impersonating']
 const fieldNames = (c: CollectionConfig) => c.fields.map((f) => ('name' in f ? f.name : null))
 
 describe('loginPlugin', () => {
@@ -81,7 +87,7 @@ describe('loginPlugin', () => {
     const [wired] = fold(loginPlugin({ collections: [managers] }), collection('managers'))
 
     expect(fieldNames(wired)).toContain('magicLinkIssuedAt')
-    expect(routes(wired)).toEqual(WIRED_ROUTES)
+    expect(routes(wired)).toEqual(MANAGER_ROUTES)
   })
 
   it('appends to the endpoints a collection already declares', () => {
@@ -92,7 +98,7 @@ describe('loginPlugin', () => {
       collection('managers', [setProject]),
     )
 
-    expect(routes(wired)).toEqual(['post /set-project', ...WIRED_ROUTES])
+    expect(routes(wired)).toEqual(['post /set-project', ...MANAGER_ROUTES])
   })
 
   it('leaves a collection the option does not name untouched', () => {
@@ -115,7 +121,8 @@ describe('loginPlugin', () => {
       collection('staff'),
     )
 
-    expect(routes(a)).toEqual(WIRED_ROUTES)
+    // Impersonation reads `Managers.type`, so it is wired on that entry alone.
+    expect(routes(a)).toEqual(MANAGER_ROUTES)
     expect(routes(b)).toEqual(WIRED_ROUTES)
   })
 
@@ -133,7 +140,7 @@ describe('loginPlugin', () => {
 
     expect(folded).toHaveLength(1)
     expect(folded[0]!.slug).toBe('managers')
-    expect(routes(folded[0]!)).toEqual(WIRED_ROUTES)
+    expect(routes(folded[0]!)).toEqual(MANAGER_ROUTES)
   })
 
   it('wires nothing when no collection is named, or when disabled', () => {
@@ -169,7 +176,11 @@ describe('loginPlugin', () => {
       const folded = foldConfig(loginPlugin({ collections: [passwordless] }), before)
       const components = folded.admin!.components!
 
-      expect(Object.keys(components).sort()).toEqual(Object.keys(before.admin!.components!).sort())
+      // `header` is the impersonation banner, added below; everything else the
+      // config declared must still be here.
+      expect(Object.keys(components).sort()).toEqual(
+        [...Object.keys(before.admin!.components!), 'header'].sort(),
+      )
       expect(components.views).toEqual({
         ...before.admin!.components!.views,
         login: expect.anything(),
@@ -177,6 +188,17 @@ describe('loginPlugin', () => {
       expect(components.beforeNavLinks).toEqual(before.admin!.components!.beforeNavLinks)
       expect(components.Nav).toBe(before.admin!.components!.Nav)
       expect(components.graphics).toEqual(before.admin!.components!.graphics)
+    })
+
+    it('appends the impersonation banner beside whatever the header already holds', () => {
+      const before = adminConfig()
+      before.admin!.components!.header = ['@/components/admin/SomeNotice']
+      const folded = foldConfig(loginPlugin({ collections: [passwordless] }), before)
+
+      expect(folded.admin?.components?.header).toEqual([
+        '@/components/admin/SomeNotice',
+        '@/components/admin/ImpersonationBanner',
+      ])
     })
 
     it('leaves the view alone while the collection still has passwords', () => {
