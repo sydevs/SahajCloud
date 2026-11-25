@@ -1371,7 +1371,7 @@
         "qr_hint": {
           "type": "string",
           "default": "Print this on posters or flyers. People can point their phone camera at it to open this class.",
-          "description": "One line under the opened QR code, saying what it is for."
+          "description": "A short note under the opened QR code, saying what it is for and how to use it."
         },
         "qr_download": {
           "type": "string",
@@ -1380,7 +1380,7 @@
         },
         "qr_failed": {
           "type": "string",
-          "default": "The QR code didn't load. Check your connection, then close and reopen this.",
+          "default": "The QR code didn’t load. Check your connection, then close and reopen this.",
           "description": "Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again."
         }
       },

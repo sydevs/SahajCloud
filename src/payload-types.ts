@@ -9998,7 +9998,7 @@ export interface SyAtlasTranslationsShareStrings {
    */
   qr_title?: string;
   /**
-   * One line under the opened QR code, saying what it is for.
+   * A short note under the opened QR code, saying what it is for and how to use it.
    */
   qr_hint?: string;
   /**
