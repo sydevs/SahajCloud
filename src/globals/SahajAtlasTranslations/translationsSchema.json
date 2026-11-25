@@ -226,10 +226,12 @@
             },
             "expand": {
               "type": "string",
+              "default": "Expand map",
               "description": "Button on the inline map that opens the full map over the host’s page."
             },
             "close": {
               "type": "string",
+              "default": "Close map",
               "description": "Button on the expanded map that returns the visitor to the page."
             }
           },
@@ -283,6 +285,7 @@
         },
         "place_title": {
           "type": "string",
+          "default": "Free Meditation classes in %{place}",
           "description": "The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in."
         }
       },

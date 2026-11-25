@@ -4,7 +4,7 @@
     "locale": "en",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
     "schema_version": "post-#1256 (12 tabs, 42 leaf groups, grouped by widget view)",
-    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
+    "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed. A key whose English is declared as a schema default is omitted too: translationsSchema.json is its one home, and the importer merges it in.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
   "common": {
@@ -63,9 +63,7 @@
     "map": {
       "find_my_location": "Find my location",
       "location_failed": "We couldn’t get your location. Search for a place instead.",
-      "location_not_available": "Location not available",
-      "expand": "Expand map",
-      "close": "Close map"
+      "location_not_available": "Location not available"
     },
     "feedback": {
       "confirmed_title": "Thank you for confirming",
@@ -77,8 +75,7 @@
     }
   },
   "countries": {
-    "title": "Free Meditation Classes",
-    "place_title": "Free Meditation classes in %{place}"
+    "title": "Free Meditation Classes"
   },
   "search": {
     "chrome": {
