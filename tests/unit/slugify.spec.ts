@@ -2,38 +2,36 @@ import { describe, expect, it } from 'vitest'
 
 import { slugifyValue } from '../../src/fields/slugify'
 
+/**
+ * ⚠ The same vectors are pinned in WeMeditateWeb (`lib/urls/slugify.test.ts`)
+ * and WeMeditateApp, which run the same recipe.
+ */
 describe('slugifyValue', () => {
-  it('transliterates Cyrillic to ASCII', () => {
-    expect(slugifyValue('Москва')).toBe('moskva')
-    expect(slugifyValue('Санкт-Петербург')).toBe('sankt-peterburg')
-    expect(slugifyValue('Воронеж')).toBe('voronezh')
+  it.each([
+    ['Universität Trier', 'universität-trier'],
+    ['Straße', 'straße'],
+    ['São Paulo', 'são-paulo'],
+    ['Meditasyonun çıkış noktası', 'meditasyonun-çıkış-noktası'],
+    ['Москва', 'москва'],
+    ['Τα οφέλη του διαλογισμού', 'τα-οφέλη-του-διαλογισμού'],
+    ['Մաս 1. Ուղիներ', 'մաս-1-ուղիներ'],
+    ['Ի՞նչ ակնկալել', 'ինչ-ակնկալել'],
+    ['مدیتیشن چیست؟', 'مدیتیشن-چیست'],
+    ['ध्यान क्या है', 'ध्यान-क्या-है'],
+    ["Shri Mataji's Lectures", 'shri-matajis-lectures'],
+    ['Yoga & Ruhe | 50%', 'yoga-ruhe-50'],
+    ['8.1 What we share — in detail', '8-1-what-we-share-in-detail'],
+  ])('%j → %j', (value, slug) => {
+    expect(slugifyValue(value)).toBe(slug)
   })
 
-  it('strips diacritics from Latin names', () => {
-    expect(slugifyValue('São Paulo')).toBe('sao-paulo')
+  it('composes a letter written as base plus combining mark', () => {
+    expect(slugifyValue('Küche')).toBe('küche')
   })
 
-  it('spells umlauts and ß the German way', () => {
-    expect(slugifyValue('Universität Trier')).toBe('universitaet-trier')
-    expect(slugifyValue('ÄÖÜ äöü')).toBe('aeoeue-aeoeue')
-    expect(slugifyValue('Straße')).toBe('strasse')
-  })
-
-  it('treats a combining diaeresis as the umlaut it spells', () => {
-    expect(slugifyValue('Ku\u0308che')).toBe('kueche')
-  })
-
-  it("spells symbols in English, not slugify's German locale", () => {
-    expect(slugifyValue('Yoga & Ruhe | 50%')).toBe('yoga-and-ruhe-or-50percent')
-  })
-
-  it('lowercases and hyphenates spaces', () => {
-    expect(slugifyValue('Rio De Janeiro')).toBe('rio-de-janeiro')
-    expect(slugifyValue('Georgia')).toBe('georgia')
-  })
-
-  it('returns an empty string for blank/nullish input', () => {
+  it('returns an empty string when there is no letter or digit', () => {
     expect(slugifyValue('')).toBe('')
+    expect(slugifyValue('?! 🧘')).toBe('')
     expect(slugifyValue(null)).toBe('')
     expect(slugifyValue(undefined)).toBe('')
   })

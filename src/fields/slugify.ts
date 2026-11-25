@@ -1,28 +1,25 @@
-import slugify from 'slugify'
-
 /**
- * Slugify a value into a URL-safe, lowercased slug, **transliterating** non-Latin
- * scripts (Cyrillic, Greek, …) to ASCII via the `slugify` charmap — where
- * Payload's built-in ASCII-only slugify would collapse them to empty
- * (`Москва → ""`, which then needs disambiguation or fails the slug constraint).
+ * Slugify a value into a lowercased slug that keeps every letter as written,
+ * in any script (`Universität Trier → "universität-trier"`, `София → "софия"`).
+ * A URL built from one percent-encodes it (`publicUrlFields`).
  *
- * The one slugifier in this repo: every {@link slugField}, upload filenames,
- * and the table-of-contents and layout-tab anchors.
+ * The one slugifier in this repo: every {@link slugField}, and the
+ * table-of-contents and layout-tab anchors. Upload filenames stay ASCII
+ * (`src/plugins/storage/filenameUtils.ts`).
  *
- * Umlauts become `ae`/`oe`/`ue` in every language (`Göteborg → "goeteborg"`),
- * the ICAO passport convention. Not `slugify`'s `locale: 'de'`, which also
- * rewrites symbols in every slug (`% → prozent`).
+ * ⚠ Cross-repo recipe: WeMeditateWeb (`lib/urls/slugify.ts`) and WeMeditateApp
+ * (`technique_render_model.dart`) run the same steps, so an anchor or slug
+ * derived on either side matches. Change all three together.
  *
- * Returns `''` for empty/blank input (callers that require a non-empty slug
- * fall back accordingly).
+ * Returns `''` for input with no letter or digit (callers that require a
+ * non-empty slug fall back accordingly).
  */
 export const slugifyValue = (value: string | null | undefined): string =>
-  slugify(
-    String(value ?? '')
-      // A decomposed `u` + U+0308 would otherwise miss the replacements below.
-      .normalize('NFC')
-      .replace(/ä/gi, 'ae')
-      .replace(/ö/gi, 'oe')
-      .replace(/ü/gi, 'ue'),
-    { lower: true, strict: true },
-  )
+  String(value ?? '')
+    .normalize('NFC')
+    .toLowerCase()
+    // Apostrophes and Armenian in-word marks (Ի՞նչ) sit inside a word, so they
+    // are dropped rather than splitting it.
+    .replace(/['’ʼ`՛՜՞]/g, '')
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')

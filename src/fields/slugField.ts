@@ -171,9 +171,8 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
   const slugFieldName = options.name ?? 'slug'
 
   return payloadSlugField({
-    // Default for every slugField: transliterating slugify so non-Latin titles /
-    // names (Cyrillic, …) produce readable ASCII slugs instead of collapsing to
-    // empty under Payload's ASCII-only default.
+    // Default for every slugField: native letters in any script, where
+    // Payload's ASCII-only default would collapse a non-Latin title to empty.
     slugify: ({ valueToSlugify }) => slugifyValue(valueToSlugify),
     ...payloadOptions,
     overrides: (field) => {

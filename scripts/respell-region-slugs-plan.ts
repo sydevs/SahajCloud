@@ -1,7 +1,7 @@
 /**
- * The decision half of `scripts/umlaut-region-slugs.ts`.
+ * The decision half of `scripts/respell-region-slugs.ts`.
  *
- * Pure — no database — so `tests/unit/umlaut-region-slugs-plan.spec.ts`
+ * Pure — no database — so `tests/unit/respell-region-slugs-plan.spec.ts`
  * covers it.
  */
 import slugify from 'slugify'
@@ -15,11 +15,11 @@ export interface SlugChange {
   to: string
 }
 
-export interface UmlautSlugPlan {
+export interface RespellPlan {
   renames: SlugChange[]
   /** The new spelling is already a region's slug. Left as is. */
   collisions: SlugChange[]
-  /** A name with an umlaut whose slug was not generated from it. Left as is. */
+  /** A slug not generated from the region's name. Left as is. */
   unmatched: Array<{ id: number; name: string; slug: string }>
 }
 
@@ -27,19 +27,19 @@ const hasStem = (slug: string, stem: string) => slug === stem || slug.startsWith
 
 /**
  * A slug is re-spelled only when it is the old spelling of the region's own
- * name, alone or with a disambiguating suffix (`koln-2 → koeln-2`). The suffix
+ * name, alone or with a disambiguating suffix (`sofiya-2 → софия-2`). The suffix
  * is kept as it is, and a slug someone typed by hand is reported, never
  * guessed at.
  */
-export function planUmlautSlugs(
+export function planRespelledSlugs(
   rows: ReadonlyArray<{ id: number; name?: string | null; slug?: string | null }>,
-): UmlautSlugPlan {
-  const plan: UmlautSlugPlan = { renames: [], collisions: [], unmatched: [] }
+): RespellPlan {
+  const plan: RespellPlan = { renames: [], collisions: [], unmatched: [] }
   const taken = new Set(rows.map((row) => row.slug))
 
   for (const { id, name, slug } of [...rows].sort((a, b) => a.id - b.id)) {
     if (!name || !slug) continue
-    // The library's own spelling (`ü → u`), which every slug had before the umlaut rule.
+    // The `slugify` library's ASCII spelling, which every slug had before.
     const before = slugify(name, { lower: true, strict: true })
     const after = slugifyValue(name)
     if (before === after || hasStem(slug, after)) continue

@@ -198,7 +198,7 @@ query:  https://{domain}{mount}{?|&}atlas={webPath}
 - **Two extra queries per request, total** (one `regions`, one `clients`), memoized on the `PayloadRequest`, loaded lazily — a `webPath`-only read never touches ownership.
 - **Never a fragment.** Hash routing is gone from the widget with no back-compat.
 - **The verified host is re-checked at read time, not trusted** — `VerifyEmbeds` writes via raw SQL, bypassing the JSON schema's domain pattern. `loadDirectOwners` re-validates before the ancestor walk, so an unusable client is skipped rather than collapsing its whole subtree to the fallback.
-- **The path is emitted raw**, not percent-encoded — safe only because region slugs are `[a-z0-9-]` and event ids are numeric (`tests/unit/atlas-canonical-url.spec.ts` pins this).
+- **`webPath` is raw, `webUrl` is percent-encoded.** A region slug keeps its native letters (`/bg/софия`), so `webUrl` and the contract builder pass the path through `encodeURI`, and every parser decodes a segment before matching it against `slugPattern` (`src/lib/atlas/atlas-url-contract.json`, version 2).
 - **Region paths are queryable** via `where[breadcrumbs.url][equals]='/nl/amsterdam'`, but this matches descendants too — add `slug` to resolve exactly one.
 
 ## Mailing-list configuration on `clients`

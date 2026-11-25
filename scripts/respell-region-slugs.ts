@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Re-spell region slugs generated before `slugifyValue` wrote umlauts as
- * `ae`/`oe`/`ue` (`universitat-trier → universitaet-trier`).
+ * Re-spell region slugs generated before `slugifyValue` kept native letters
+ * (`sofiya → софия`, `universitat-trier → universität-trier`).
  *
  * **Dry run by default.** It prints every rename, collision and unmatched
  * slug. `--apply` writes the renames. A re-run is safe: a renamed region
@@ -16,15 +16,15 @@
  * descendant could be written back over.
  *
  * Usage:
- *   pnpm tsx scripts/umlaut-region-slugs.ts            # dry run
- *   pnpm tsx scripts/umlaut-region-slugs.ts --apply
+ *   pnpm tsx scripts/respell-region-slugs.ts            # dry run
+ *   pnpm tsx scripts/respell-region-slugs.ts --apply
  *
  * Env vars required: DATABASE_URL, PAYLOAD_SECRET (as for any Payload CLI run).
  */
 import dotenv from 'dotenv'
 
 import { exitAfterFlush, loadPayloadWithoutSchemaChanges } from './lib/payloadBoot'
-import { planUmlautSlugs } from './umlaut-region-slugs-plan'
+import { planRespelledSlugs } from './respell-region-slugs-plan'
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply')
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     overrideAccess: true,
     select: { name: true, slug: true },
   })
-  const plan = planUmlautSlugs(docs)
+  const plan = planRespelledSlugs(docs)
 
   console.log(`${plan.renames.length} rename(s) of ${docs.length} regions:`)
   for (const change of plan.renames) {
