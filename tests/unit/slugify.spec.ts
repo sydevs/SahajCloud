@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { slugifyValue } from '../../src/fields/slugify'
+import { slugifyAnchor, slugifyValue } from '../../src/fields/slugify'
 
 describe('slugifyValue', () => {
   it('transliterates Cyrillic to ASCII', () => {
@@ -36,5 +36,18 @@ describe('slugifyValue', () => {
     expect(slugifyValue('')).toBe('')
     expect(slugifyValue(null)).toBe('')
     expect(slugifyValue(undefined)).toBe('')
+  })
+})
+
+describe('slugifyAnchor', () => {
+  it('folds an umlaut to a bare vowel, as the consumer emits it', () => {
+    expect(slugifyAnchor('Über uns')).toBe('uber-uns')
+    expect(slugifyAnchor('Universität Trier')).toBe('universitat-trier')
+  })
+
+  it('transliterates and lowercases like the slug spelling', () => {
+    expect(slugifyAnchor('Москва')).toBe('moskva')
+    expect(slugifyAnchor('São Paulo')).toBe('sao-paulo')
+    expect(slugifyAnchor(null)).toBe('')
   })
 })

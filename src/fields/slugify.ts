@@ -1,13 +1,27 @@
 import slugify from 'slugify'
 
 /**
+ * An in-page anchor, on the library's own spelling (`ü → u`): the
+ * table-of-contents headings and the layout block's tab anchors.
+ *
+ * ⚠ Cross-repo contract. A consumer derives a heading's `id` with its own
+ * slugifier, which folds an umlaut to a bare vowel, and reads a tab's
+ * `titleUrl` verbatim (`lib/urls/slugify.ts` and `LayoutBlock.tsx` in
+ * sydevs/WeMeditateWeb). A stored slug is ours to spell; an anchor has to
+ * match what the consumer emits, so it must not follow {@link slugifyValue}'s
+ * umlaut rule.
+ */
+export const slugifyAnchor = (value: string | null | undefined): string =>
+  slugify(String(value ?? ''), { lower: true, strict: true })
+
+/**
  * Slugify a value into a URL-safe, lowercased slug, **transliterating** non-Latin
  * scripts (Cyrillic, Greek, …) to ASCII via the `slugify` charmap — where
  * Payload's built-in ASCII-only slugify would collapse them to empty
  * (`Москва → ""`, which then needs disambiguation or fails the slug constraint).
  *
- * The one slugifier in this repo: every {@link slugField}, upload filenames,
- * and the table-of-contents and layout-tab anchors.
+ * The slugifier for a stored slug: every {@link slugField}, and upload
+ * filenames. An in-page anchor takes {@link slugifyAnchor} instead.
  *
  * Umlauts become `ae`/`oe`/`ue` in every language (`Göteborg → "goeteborg"`),
  * the ICAO passport convention. Not `slugify`'s `locale: 'de'`, which also
@@ -17,12 +31,11 @@ import slugify from 'slugify'
  * fall back accordingly).
  */
 export const slugifyValue = (value: string | null | undefined): string =>
-  slugify(
+  slugifyAnchor(
     String(value ?? '')
       // A decomposed `u` + U+0308 would otherwise miss the replacements below.
       .normalize('NFC')
       .replace(/ä/gi, 'ae')
       .replace(/ö/gi, 'oe')
       .replace(/ü/gi, 'ue'),
-    { lower: true, strict: true },
   )
