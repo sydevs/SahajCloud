@@ -178,7 +178,6 @@ describe('Translations Globals Configuration', () => {
         'Registration',
         'Submit',
         'Share',
-        'Compact',
         'Seo',
         'Emails',
       ])

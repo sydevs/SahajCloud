@@ -95,7 +95,7 @@ describe('seed: sy-atlas-translations', () => {
     const fr = await read('fr')
 
     expect((en.countries as Record<string, string>).title).toBe('Free Meditation Classes')
-    expect((fr.compact as Record<string, string>).open).toBe('Trouver un cours près de chez vous')
+    expect((fr.countries as Record<string, string>).title).toBe('Cours de méditation gratuits')
   })
 
   it('stores the expanded plural family a locale actually uses', async () => {
