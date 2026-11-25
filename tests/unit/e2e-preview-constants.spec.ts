@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { PREVIEW_ADMIN_ADDRESS } from '@/lib/preview/proxy'
 import { REQUEST_MAGIC_LINK_PATH } from '@/plugins/login/endpoints/requestMagicLink'
 
@@ -19,6 +20,12 @@ import { PREVIEW_ADMIN, REQUEST_PATH } from '../e2e/_helpers/preview'
 describe('the smoke lane copies', () => {
   it('reads the address the deploy provisions, rather than restating it', () => {
     expect(PREVIEW_ADMIN.email).toBe(PREVIEW_ADMIN_ADDRESS)
+  })
+
+  it('provisions the support account, so a preview can try impersonation', () => {
+    // A preview inherits production's variables, which leave the address at
+    // its default — the value this lane reads too.
+    expect(PREVIEW_ADMIN_ADDRESS).toBe(CONTACT_EMAIL)
   })
 
   it('names the route the login plugin registers', () => {

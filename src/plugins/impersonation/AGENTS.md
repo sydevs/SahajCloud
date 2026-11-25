@@ -21,6 +21,9 @@ Owner decisions (2026-11-25). Don't reopen them without asking:
 - **No timeout.** It lasts until Exit or sign-out; the cookie itself keeps for the browser's
   maximum, 400 days. A red banner sits across every admin page (`admin.components.header`).
 
+**To try it on a PR preview**, pick the preview's admin on its sign-in page: that account is the
+support account (`PREVIEW_ADMIN_ADDRESS`), so the button shows on every fixture manager.
+
 ## How a request becomes the manager
 
 `POST /api/managers/impersonate/:id` sets the `sahajcloud-impersonation` cookie. It holds a
