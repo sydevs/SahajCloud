@@ -9993,6 +9993,22 @@ export interface SyAtlasTranslationsShareStrings {
    * Confirmation shown after the link is copied.
    */
   copied?: string;
+  /**
+   * Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters.
+   */
+  qr_title?: string;
+  /**
+   * One line under the opened QR code, saying what it is for.
+   */
+  qr_hint?: string;
+  /**
+   * Button under the QR code that saves it as a large PNG image for printing.
+   */
+  qr_download?: string;
+  /**
+   * Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again.
+   */
+  qr_failed?: string;
 }
 export interface SyAtlasTranslationsSeoStrings {
   /**
