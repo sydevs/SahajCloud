@@ -1,32 +1,178 @@
+import type { PayloadRequest } from 'payload'
+
+import { relationId } from '@/lib/utilities/relationId'
+import { memoizeOnRequest } from '@/lib/utilities/requestMemo'
+
 /**
  * The one place a page's public path is composed.
  *
- * Two callers need the same answer and must never drift:
+ * Three callers need the same answer and must never drift:
  *
+ * - the `path` field, which publishes the unprefixed nested path,
  * - `publicUrlFields`, which publishes it as `webPath` / `webUrl`, and
  * - `admin.livePreview.url`, which points the preview panel at it.
  *
- * When those two disagree the panel lands on a 404 while the published URL
- * looks fine, or the reverse — both silent. They disagreed once already: a tag
+ * When those disagree the panel lands on a 404 while the published URL looks
+ * fine, or the reverse — both silent. They disagreed once already: a tag
  * segment was emitted here that no site has ever served.
  *
  * ⚠ **The locale is a parameter, not read from `req`.** `publicUrlFields`
  * passes `req.locale`; `livePreview.url` receives its own `locale.code` and
  * must pass that. They are not reliably the same value, and a builder that
  * reached for `req.locale` itself would silently render English in the panel.
+ *
+ * The ancestor walk lives here because a page's path *is* its ancestry, and the
+ * `parent` validator reuses {@link pageAncestry}: what it must refuse is a chain
+ * this composer could not compose.
  */
 
 /** Locales that take no path prefix: the default, and the all-locales read. */
 const UNPREFIXED = new Set(['en', 'all'])
 
-export function buildPageWebPath(opts: {
+/**
+ * How many pages a page may sit under.
+ *
+ * The content tree is section → page → subpage, so this is slack rather than a
+ * limit anyone meets. The walk enforces it as well as the validator because the
+ * two see different data: the validator judges one save, while the walk starts
+ * from whatever `parent` the read hands it — and a draft read supplies an
+ * autosaved one, which no validator saw (`pages` declares no `drafts.validate`,
+ * so Payload skips validation on every draft save).
+ */
+export const PAGE_ANCESTOR_LIMIT = 5
+
+/** The page `wm-web-config` serves at the site root, read once per request. */
+export function homePageId(req: PayloadRequest): Promise<number | null> {
+  return memoizeOnRequest(req, 'pages:homePageId', async () => {
+    const { homePage } = await req.payload.findGlobal({
+      slug: 'wm-web-config',
+      depth: 0,
+      req,
+      select: { homePage: true },
+    })
+    return relationId(homePage)
+  })
+}
+
+/** One page in an ancestor chain: enough to compose a path and keep walking. */
+interface PageAncestor {
+  id: number
+  slug: string | null
+  parent: number | null
+}
+
+/** Why an ancestor walk stopped before it reached a root. */
+type AncestryStop = 'depth' | 'loop' | 'missing'
+
+/**
+ * `pageId` and every page above it, nearest first.
+ *
+ * `stopped` is `null` when the walk reached a root, so the chain is the whole
+ * ancestry. Which broken shape it found otherwise matters because the callers
+ * differ: the composer has no address for any of them, while the `parent`
+ * validator names each in words an editor can act on.
+ */
+export async function pageAncestry(
+  pageId: number,
+  req: PayloadRequest,
+): Promise<{ chain: PageAncestor[]; stopped: AncestryStop | null }> {
+  const chain: PageAncestor[] = []
+  const seen = new Set<number>()
+  let next: number | null = pageId
+
+  while (next !== null) {
+    if (seen.has(next)) return { chain, stopped: 'loop' }
+    // Before the push, so `stopped: null` means the chain really is within the
+    // limit rather than one over it.
+    if (chain.length >= PAGE_ANCESTOR_LIMIT) return { chain, stopped: 'depth' }
+    seen.add(next)
+
+    // ⚠ **`overrideAccess`, and `req` is not forwarded.** A page's address must
+    // not depend on who reads it: a client's `pages` read is narrowed, so an
+    // ancestor it may not read would compose a truncated address for a child it
+    // may. Its own connection also keeps a failed read out of the caller's
+    // transaction, which an `afterRead` decorating a write still shares
+    // (`src/collections/AGENTS.md`). That is also what makes the id alone a
+    // sound memo key: the read runs at the default locale, and `slug` is not
+    // localized. The narrow `select` is what stops the walk recursing back into
+    // itself. `trash: true` because a trashed row still holds its slug —
+    // trashing a section must not move the address of every page beneath it.
+    const id: number = next
+    const row = await memoizeOnRequest(req, `pages:ancestor:${id}`, () =>
+      req.payload.findByID({
+        collection: 'pages',
+        id,
+        depth: 0,
+        select: { slug: true, parent: true },
+        overrideAccess: true,
+        disableErrors: true,
+        trash: true,
+      }),
+    )
+    if (!row) return { chain, stopped: 'missing' }
+
+    const parent = relationId(row.parent)
+    chain.push({ id, slug: row.slug ?? null, parent })
+    next = parent
+  }
+
+  return { chain, stopped: null }
+}
+
+/**
+ * The nested, unprefixed path a page is served at — `subtle-system/kundalini`.
+ *
+ * `''` for the home page, which is served at the site root and holds the slug
+ * `''` by contract (`src/globals/AGENTS.md`); `parentField` refuses it a parent,
+ * so the root has no ancestors to prefix it with. `null` where the page has no
+ * address at all: no slug yet, or an ancestor chain that cannot be resolved.
+ */
+export async function buildPagePath(opts: {
   slug: unknown
+  parent: unknown
+  req: PayloadRequest
+}): Promise<string | null> {
+  const { slug } = opts
+  if (typeof slug !== 'string') return null
+  // The site root, whatever it is nested under. Both sides refuse the home page
+  // a parent, so this is the floor under a row written past them rather than a
+  // branch anyone reaches: a trailing empty segment is the malformed address
+  // this composer exists to refuse.
+  if (slug === '') return ''
+
+  const parentId = relationId(opts.parent)
+  if (parentId === null) return slug
+
+  const { chain, stopped } = await pageAncestry(parentId, opts.req)
+  if (stopped !== null) return null
+
+  const segments: string[] = []
+  for (const ancestor of chain) {
+    // An ancestor with no slug would compose a `//`, and a malformed address is
+    // worse than an absent one.
+    if (!ancestor.slug) return null
+    segments.unshift(ancestor.slug)
+  }
+
+  return [...segments, slug].join('/')
+}
+
+/**
+ * The locale-prefixed public path: `webPath`, `webUrl` and the preview panel.
+ *
+ * The home page keeps no web path — the site root is not a page address the
+ * consumer routes to, and a `/de` with nothing after it is not one either.
+ */
+export async function buildPageWebPath(opts: {
+  slug: unknown
+  parent: unknown
   locale: string | null | undefined
-}): string | null {
-  const slug = typeof opts.slug === 'string' && opts.slug.length > 0 ? opts.slug : null
-  if (!slug) return null
+  req: PayloadRequest
+}): Promise<string | null> {
+  const path = await buildPagePath(opts)
+  if (!path) return null
 
   const prefix = opts.locale && !UNPREFIXED.has(opts.locale) ? opts.locale : null
 
-  return [prefix, slug].filter(Boolean).join('/')
+  return [prefix, path].filter(Boolean).join('/')
 }
