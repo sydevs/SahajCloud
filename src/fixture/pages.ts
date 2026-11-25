@@ -234,6 +234,12 @@ export default fixture('pages', [
           songFilters: [ID.songTags.first],
         }),
         block('content-index', 'landing-index-lectures', { type: 'lectures', limit: 3 }),
+        block('content-index', 'landing-index-user-choices', {
+          type: 'user-choices',
+          limit: 20,
+          userChoiceTypeFilters: ['mood'],
+          userChoiceFeatured: 'featured',
+        }),
       ),
     },
   },

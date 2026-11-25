@@ -71,6 +71,8 @@ export const CHOICE = {
   five: 1_010_007,
   ten: 1_010_008,
   twenty: 1_010_009,
+  grateful: 1_010_010,
+  restless: 1_010_011,
 } as const
 
 export const LECTURE = {

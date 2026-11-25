@@ -1,37 +1,81 @@
-import type { Block, FieldHook } from 'payload'
+import type { Block, Condition, FieldHook } from 'payload'
 
 import { extractID } from 'payload/shared'
 
 import { PAGE_TAGS } from '@/lib/pageTags'
+import { USER_CHOICE_TYPES } from '@/lib/userChoices'
+
+/** The `userChoiceFeatured` options, each with the `where` clause it contributes. */
+const USER_CHOICE_FEATURED: { label: string; value: string; where: string | null }[] = [
+  { label: 'Featured only', value: 'featured', where: 'where[isFeatured][equals]=true' },
+  { label: 'Not featured', value: 'not-featured', where: 'where[isFeatured][equals]=false' },
+  { label: 'All', value: 'all', where: null },
+]
+
+/** Builds every clause of a type's endpoint before `limit`, or null to publish none. */
+type ParamsBuilder = (siblingData: Record<string, unknown>) => string | null
 
 /**
- * Configuration for each content type's API endpoint generation.
- * `filterField` / `queryParam` are optional — `lectures` hits `/for-audience`,
- * which evaluates audiences from runtime user context and ignores `where`.
+ * Where each content type's list lives, and how its filters reach the query.
+ *
+ * One mechanism, so an entry cannot half-declare two: every filtered type
+ * names a `ParamsBuilder`, and `lectures` names none because
+ * `/for-audience` evaluates audiences from runtime user context and ignores
+ * `where`. A builder joins its own clauses, never the separator around them —
+ * `computeApiEndpoint` owns that, which is what lets `lectures` come out as
+ * `?limit=n` rather than `?&limit=n`.
  */
-const CONTENT_TYPE_CONFIG: Record<
-  string,
-  { basePath: string; filterField?: string; queryParam?: string; extraParams?: string }
-> = {
+const CONTENT_TYPE_CONFIG: Record<string, { basePath: string; params?: ParamsBuilder }> = {
   meditations: {
     basePath: '/api/user-choices',
-    filterField: 'userChoiceFilters',
-    queryParam: 'where[id][in]',
-    extraParams: '&depth=1',
+    params: inListParams('userChoiceFilters', 'where[id][in]', 'depth=1'),
   },
   pages: {
     basePath: '/api/pages',
-    filterField: 'pageFilters',
-    queryParam: 'where[tags][in]',
+    params: inListParams('pageFilters', 'where[tags][in]'),
   },
   songs: {
     basePath: '/api/songs',
-    filterField: 'songFilters',
-    queryParam: 'where[tags][in]',
+    params: inListParams('songFilters', 'where[tags][in]'),
   },
   lectures: {
     basePath: '/api/lectures/for-audience',
   },
+  'user-choices': {
+    basePath: '/api/user-choices',
+    params: userChoiceParams,
+  },
+}
+
+/** A type filtered by one relationship or select field, as a comma-joined `in` clause. */
+function inListParams(filterField: string, queryParam: string, extra?: string): ParamsBuilder {
+  return (siblingData) => {
+    const raw = siblingData[filterField]
+    const ids = (Array.isArray(raw) ? raw : [raw])
+      .filter(Boolean)
+      .map((value) => encodeURIComponent(extractID(value)))
+    if (ids.length === 0) return null
+
+    return [`${queryParam}=${ids.join(',')}`, extra].filter(Boolean).join('&')
+  }
+}
+
+/**
+ * `isParent` is excluded because a parent category names no meditation of its
+ * own. `order` is not unique — three of production's featured moods share
+ * `order: 1` — so `id` breaks ties; `id` not `title`, so the order matches in
+ * every locale. Payload splits a comma-joined `sort` into keys (3.93,
+ * `sanitizeSortParams`).
+ */
+function userChoiceParams(siblingData: Record<string, unknown>): string | null {
+  const option = USER_CHOICE_FEATURED.find(({ value }) => value === siblingData.userChoiceFeatured)
+  if (!option) return null
+
+  const extra = [option.where, 'where[isParent][equals]=false', 'sort=order,id']
+    .filter(Boolean)
+    .join('&')
+
+  return inListParams('userChoiceTypeFilters', 'where[type][in]', extra)(siblingData)
 }
 
 /**
@@ -52,38 +96,38 @@ export const computeApiEndpoint: FieldHook = ({ siblingData }) => {
       : null
   if (limit === null) return null
 
-  if (config.filterField && config.queryParam) {
-    const filters = siblingData?.[config.filterField]
-    if (!filters || (Array.isArray(filters) && filters.length === 0)) return null
+  const params = config.params ? config.params(siblingData as Record<string, unknown>) : ''
+  if (params === null) return null
 
-    const filterValues = (Array.isArray(filters) ? filters : [filters]).filter(Boolean)
-    const ids = filterValues.map(extractID)
-    if (ids.length === 0) return null
-
-    const queryValue = ids.map((id) => encodeURIComponent(id)).join(',')
-    let url = `${config.basePath}?${config.queryParam}=${queryValue}`
-    if (config.extraParams) url = `${url}${config.extraParams}`
-    return `${url}&limit=${limit}`
-  }
-
-  // No filter field → limit is the first query param
-  return `${config.basePath}?limit=${limit}`
+  return `${config.basePath}?${[params, `limit=${limit}`].filter(Boolean).join('&')}`
 }
 
 /**
- * Creates hooks that clear a filter field's value when the block's type doesn't match.
- * Prevents stale filter data from being stored or returned in the API.
+ * Scopes a filter field to one block type: shown only for it, and cleared on
+ * write and on read for every other, so no stale filter is stored or
+ * published. A field this guards must declare no `defaultValue` — Payload
+ * re-applies one after the hooks run (AGENTS.md, #1257).
  */
-function clearWhenTypeNot(activeType: string): {
-  beforeChange: FieldHook[]
-  afterRead: FieldHook[]
+function onlyForType(
+  activeType: string,
+  description: string,
+): {
+  hooks: { beforeChange: FieldHook[]; afterRead: FieldHook[] }
+  admin: { condition: Condition; description: string }
 } {
   const hook: FieldHook = ({ value, siblingData, field }) => {
     if (siblingData?.type === activeType) return value
     if (siblingData && field?.name) delete siblingData[field.name]
     return undefined
   }
-  return { beforeChange: [hook], afterRead: [hook] }
+
+  return {
+    hooks: { beforeChange: [hook], afterRead: [hook] },
+    admin: {
+      condition: (_, siblingData) => siblingData?.type === activeType,
+      description,
+    },
+  }
 }
 
 export const ContentIndexBlock: Block = {
@@ -110,6 +154,7 @@ export const ContentIndexBlock: Block = {
         { label: 'Pages', value: 'pages' },
         { label: 'Songs', value: 'songs' },
         { label: 'Lectures', value: 'lectures' },
+        { label: 'User Choices', value: 'user-choices' },
       ],
       admin: {
         components: {
@@ -134,11 +179,7 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       required: true,
       options: PAGE_TAGS,
-      hooks: clearWhenTypeNot('pages'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'pages',
-        description: 'Select page tags to use as filters for this index grid',
-      },
+      ...onlyForType('pages', 'Select page tags to use as filters for this index grid'),
     },
     {
       name: 'userChoiceFilters',
@@ -147,11 +188,26 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
-      hooks: clearWhenTypeNot('meditations'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'meditations',
-        description: 'Select user choices to use as filters for this index grid',
-      },
+      ...onlyForType('meditations', 'Select user choices to use as filters for this index grid'),
+    },
+    {
+      name: 'userChoiceTypeFilters',
+      type: 'select',
+      hasMany: true,
+      required: true,
+      options: USER_CHOICE_TYPES,
+      ...onlyForType('user-choices', 'Which kinds of user choice this index lists'),
+    },
+    {
+      name: 'userChoiceFeatured',
+      type: 'select',
+      required: true,
+      // No `defaultValue`: one here would undo `onlyForType` (AGENTS.md, #1257).
+      options: USER_CHOICE_FEATURED.map(({ label, value }) => ({ label, value })),
+      ...onlyForType(
+        'user-choices',
+        'Whether to list the featured choices, the rest, or every one',
+      ),
     },
     {
       name: 'songFilters',
@@ -160,11 +216,7 @@ export const ContentIndexBlock: Block = {
       hasMany: true,
       minRows: 1,
       maxDepth: 0,
-      hooks: clearWhenTypeNot('songs'),
-      admin: {
-        condition: (_, siblingData) => siblingData?.type === 'songs',
-        description: 'Select music tags to use as filters for this index grid',
-      },
+      ...onlyForType('songs', 'Select music tags to use as filters for this index grid'),
     },
     {
       name: 'apiEndpoint',
