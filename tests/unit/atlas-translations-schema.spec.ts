@@ -247,6 +247,23 @@ describe('atlas translations schema', () => {
 describe('atlas translations seeds', () => {
   const declared = storageKeys()
 
+  /**
+   * Every English value, from both of its homes. A check reading English from
+   * `data.en.json` alone stops seeing a key the moment its copy moves into the
+   * schema — so `back_to_results_near`'s `%{place}` would read as invented in
+   * the first locale a translator filled.
+   *
+   * A plural key is left out of the schema half: `collectLeafLookups` ignores a
+   * `default` beside one, since its English is a CLDR family rather than a value.
+   */
+  const englishValues = (): Map<string, string> =>
+    new Map<string, string>([
+      ...[...defaultedKeys()]
+        .filter((key) => leaf(key).plural !== true)
+        .map((key) => [key, leaf(key).default as string] as [string, string]),
+      ...(seedEntries(readSeed('en')) as Array<[string, string]>),
+    ])
+
   it.each(SEED_LOCALES)('data.%s.json writes only keys the schema declares', (locale) => {
     const undeclared = seedEntries(readSeed(locale))
       .map(([key]) => key)
@@ -312,7 +329,7 @@ describe('atlas translations seeds', () => {
   it.each(SEED_LOCALES.filter((l) => l !== 'en'))(
     'data.%s.json invents no placeholder English lacks',
     (locale) => {
-      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const english = englishValues()
 
       // A plural category English does not use (`few`, `many`) has no English
       // value of its own, so `other` is what it must agree with.
@@ -393,7 +410,7 @@ describe('atlas translations seeds', () => {
   it.each(SEED_LOCALES.filter((locale) => locale !== 'en'))(
     'data.%s.json holds no English value outside its allowlist',
     (locale) => {
-      const english = new Map(seedEntries(readSeed('en')) as Array<[string, string]>)
+      const english = englishValues()
       const fold = (value: string): string => value.trim().toLowerCase()
 
       const untranslated = (seedEntries(readSeed(locale)) as Array<[string, string]>)

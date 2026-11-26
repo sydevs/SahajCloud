@@ -44,6 +44,8 @@ This only works because the authenticated user loads **four times**, not once. `
 
 ⚠ **A manager loaded any other way still carries the flat array.** Fine for editing the document. Wrong for deciding access.
 
+⚠ **The support impersonation strategy (`src/plugins/login/impersonation`) runs ahead of this one** and stands the impersonated manager in for support. It authenticates through `authenticateJWT` and loads the manager through `hydrateAuthUser`, the two halves of this strategy, so the impersonated view carries the same per-locale roles a real sign-in would.
+
 **The admin locale selector follows the same roles** (`filterAvailableLocales`). **English is not force-added** (#665). A manager holding roles only in French sees French alone, and Payload lands them there — the forced English entry used to make their own locale unreachable. The first entry is both the top of the dropdown and the landing locale, so the ordering is a real behavior, not cosmetics.
 
 ### What a check with no locale means

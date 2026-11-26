@@ -14,7 +14,8 @@
       "close": "Fermer",
       "cancel": "Annuler",
       "widget_label": "Cours de méditation gratuits",
-      "all_classes_free": "Tous les cours sont gratuits"
+      "all_classes_free": "Tous les cours sont gratuits",
+      "copied": "Copié"
     },
     "settings": {
       "theme_auto": "Système (auto)",
@@ -32,7 +33,6 @@
       "config": "L'Atlas n'est pas correctement configuré sur cette page.",
       "unavailable": "Il n’est pas possible de rejoindre ce programme pour le moment.",
       "share_unavailable": "Il n'y a pas encore de lien à partager pour cette méditation.",
-      "captcha_blocked": "Cet Atlas ne peut pas fonctionner sur cette page : sa vérification de sécurité a été bloquée.",
       "no_events": "Aucun événement trouvé.",
       "back_to_region": "Voir les événements : %{region}",
       "near_city": "Voir les événements près de %{city}",
@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Cours de méditation gratuits"
+    "title": "Cours de méditation gratuits",
+    "browse_heading": "Ou parcourez par pays"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Cours en ligne"
+    "title": "Cours en ligne",
+    "subtitle": "Rejoignez de n’importe où"
   },
   "event": {
     "display": {
@@ -251,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Partager…",
-    "copied": "Copié"
+    "native": "Partager…"
   },
   "seo": {
     "root_title": "Cours de méditation gratuits près de chez vous",

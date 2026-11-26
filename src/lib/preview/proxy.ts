@@ -51,7 +51,11 @@ export const PREVIEW_DOMAIN_SUFFIX = 'cloud-preview.sydevelopers.com'
  * in this leaf rather than beside the seeder so the seed CLI and the smoke lane
  * can read it without loading the Payload config.
  */
-export const PREVIEW_ADMIN_ADDRESS = 'preview-admin@sydevelopers.com'
+// ⚠ It is also the support account (`CONTACT_EMAIL`'s default), so a reviewer
+// signed in as it can try support impersonation on fixture managers
+// (`src/plugins/login/impersonation`). Spelled rather than imported, because this
+// file has no imports; `tests/unit/e2e-preview-constants.spec.ts` pins the two.
+export const PREVIEW_ADMIN_ADDRESS = 'contact@sydevelopers.com'
 
 /** One pull request's label, which is both its hostname's first part and its KV key. */
 const previewLabel = (pr: number | string): string => `pr-${pr}`

@@ -1,8 +1,9 @@
 /**
- * The jsonb writes that ship a translations global's English copy, for the
- * data-only migrations that carry it. `src/globals/AGENTS.md` owns that
- * carve-out: the seed files reach only a fresh database, so a new key stays
- * blank in production until somebody types it into the admin.
+ * The jsonb writes a translations global's data-only migrations are made of:
+ * shipping a key's English copy, carrying a renamed key's words across, and
+ * sweeping a retired key out. `src/globals/AGENTS.md` owns the first carve-out:
+ * the seed files reach only a fresh database, so a new key stays blank in
+ * production until somebody types it into the admin.
  *
  * ⚠ **The migrations already on `main` keep their own hand copies, and must** —
  * a name with a `payload_migrations` row never runs again
@@ -77,5 +78,44 @@ export async function dropEnglishKey(
         SET ${col} = ${col} - ${key}::text
         WHERE jsonb_typeof(${col}) = 'object'
           AND ${col} ? ${key}::text`)
+  }
+}
+
+/**
+ * Copies `from.key` into `to.key` on the same row, in every locale, where the
+ * target is blank — so a key that moves keeps the words a translator chose.
+ * The two groups may differ, and the version rows move with the live ones: the
+ * source is swept afterwards, and a key left in a version row returns on the
+ * next save.
+ *
+ * ⚠ `jsonb_typeof` is what keeps a non-object column out of either side: `||`
+ * on a scalar builds an array, which would void the whole group.
+ * `src/globals/AGENTS.md` carries why the shorter `? key` does not stand in
+ * for it.
+ */
+export async function moveKey(
+  db: Executor,
+  {
+    table,
+    from,
+    to,
+  }: {
+    table: string
+    from: { group: string; key: string }
+    to: { group: string; key: string }
+  },
+): Promise<void> {
+  const destinations = targets(table, to.group)
+  for (const [index, source] of targets(table, from.group).entries()) {
+    const src = sql.identifier(source.column)
+    const dst = sql.identifier(destinations[index].column)
+    await db.execute(sql`
+      UPDATE ${sql.identifier(source.table)}
+        SET ${dst} = coalesce(${dst}, '{}'::jsonb)
+          || jsonb_build_object(${to.key}::text, ${src} ->> ${from.key}::text)
+        WHERE jsonb_typeof(${src}) = 'object'
+          AND coalesce(${src} ->> ${from.key}::text, '') <> ''
+          AND jsonb_typeof(coalesce(${dst}, '{}'::jsonb)) = 'object'
+          AND coalesce(${dst} ->> ${to.key}::text, '') = ''`)
   }
 }

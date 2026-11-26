@@ -12,14 +12,23 @@ interface SessionDocument {
 }
 
 /**
+ * The collection's config, or a throw.
+ *
  * Payload injects `sessions` only when the collection keeps the local strategy
- * and `useSessions` (`getAuthFields.ts`), so this one predicate refuses every
+ * and `useSessions` (`getAuthFields.ts`), so that one field refuses every
  * collection a session cannot be minted for. `clients` is the live case: it
  * sets `disableLocalStrategy`, so it carries neither `sessions` nor `email`,
  * and a token minted for it type-checks and authenticates nothing.
  */
-function hasSessionsField(config: SanitizedCollectionConfig): boolean {
-  return hasTopLevelField(config, 'sessions')
+function sessionCapableConfig(
+  payload: Payload,
+  collection: CollectionSlug,
+): SanitizedCollectionConfig {
+  const entity = payload.collections[collection]
+  if (!entity?.config.auth || !hasTopLevelField(entity.config, 'sessions')) {
+    throw new Error(`session: '${collection}' cannot hold a session.`)
+  }
+  return entity.config
 }
 
 function hasTopLevelField(config: SanitizedCollectionConfig, name: string): boolean {
@@ -49,12 +58,9 @@ export async function createSession(
   collection: CollectionSlug,
   id: number | string,
 ): Promise<string> {
-  const entity = payload.collections[collection]
-  if (!entity?.config.auth || !hasSessionsField(entity.config)) {
-    throw new Error(`createSession: '${collection}' cannot hold a session.`)
-  }
-
-  const collectionConfig = entity.config
+  // Ahead of the read and the write below, so a refused collection costs
+  // neither — {@link signSessionToken} would otherwise throw after both.
+  const collectionConfig = sessionCapableConfig(payload, collection)
   const { tokenExpiration } = collectionConfig.auth
 
   // No `select`: `getFieldsToSign` reads whichever fields carry `saveToJWT`,
@@ -96,18 +102,37 @@ export async function createSession(
     depth: 0,
   })
 
+  const { token } = await signSessionToken(payload, collection, user, sid)
+  return token
+}
+
+/**
+ * Sign a session JWT for `user` on its existing session row `sid` — the tail
+ * of {@link createSession}, which also re-signs the support account's own
+ * token while it impersonates.
+ *
+ * @throws if `collection` carries no `sessions` field.
+ */
+export function signSessionToken(
+  payload: Payload,
+  collection: CollectionSlug,
+  user: { id: number | string; email?: string | null },
+  sid: string,
+): Promise<{ exp: number; token: string }> {
+  const collectionConfig = sessionCapableConfig(payload, collection)
   const fieldsToSign = getFieldsToSign({
     collectionConfig,
-    // Both guaranteed by the `sessions` guard above: Payload adds `sessions`
-    // and `email` in the same branch of `getAuthFields`.
+    // Both guaranteed by the guard above: Payload adds `sessions` and `email`
+    // in the same branch of `getAuthFields`.
     email: user.email!,
     sid,
     user: { ...user, collection } as PayloadRequest['user'],
   })
-
-  const { token } = await jwtSign({ fieldsToSign, secret: payload.secret, tokenExpiration })
-
-  return token
+  return jwtSign({
+    fieldsToSign,
+    secret: payload.secret,
+    tokenExpiration: collectionConfig.auth.tokenExpiration,
+  })
 }
 
 /**

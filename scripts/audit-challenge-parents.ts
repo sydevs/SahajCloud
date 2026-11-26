@@ -2,10 +2,10 @@
 /**
  * Report every stored Atlas mount whose host `GET /api/atlas/challenge` refuses (#1077).
  *
- * A refused parent gets no captcha, and the widget then shows `error.captcha_blocked` in place of
- * the whole atlas. Each row needs a human decision: give an existing service the right
- * `site.domain`, give the host a service and key of its own, or re-enable the disabled service a
- * row already names as the host's owner.
+ * A refused parent gets no captcha, so registration and issue reports are impossible on that
+ * host's atlas, which otherwise renders. Each row needs a human decision: give an existing
+ * service the right `site.domain`, give the host a service and key of its own, or re-enable the
+ * disabled service a row already names as the host's owner.
  *
  * **Read-only, always.** There is no `--force`, and the boot runs no schema push, no pending
  * migration and no `onInit`, whatever `NODE_ENV` says.

@@ -1,6 +1,7 @@
 /**
- * `addEnglishKey` / `dropEnglishKey` — the jsonb writes a translations global's
- * English copy ships as (`@/lib/migrations/englishKeyBackfill`).
+ * `addEnglishKey` / `dropEnglishKey` / `moveKey` — the jsonb writes a
+ * translations global's data-only migrations are made of
+ * (`@/lib/migrations/englishKeyBackfill`).
  *
  * This is an integration spec because both guards are Postgres semantics, not
  * SQL text. `||` on a scalar builds an array and `-` on one raises
@@ -17,7 +18,7 @@ import type { Payload } from 'payload'
 import { sql } from '@payloadcms/db-postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { addEnglishKey, dropEnglishKey } from '@/lib/migrations/englishKeyBackfill'
+import { addEnglishKey, dropEnglishKey, moveKey } from '@/lib/migrations/englishKeyBackfill'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 import { withSchema } from '../utils/withSchema'
@@ -176,6 +177,104 @@ describe('English key backfill', () => {
 
       expect(await mainValues('en')).toEqual([JSON.parse(stored)])
       expect((await versionValues('en')).map((row) => row.value)).toContainEqual(JSON.parse(stored))
+    })
+  })
+
+  /**
+   * `moveKey` spans two leaf groups, so it needs a fixture of its own: the
+   * `errors.general` column is the second group this global declares, and
+   * pairing the two groups' columns row by row is what the module has to get
+   * right. Each case seeds both columns raw, so none depends on the order
+   * above.
+   */
+  describe('moving a key into another group', () => {
+    const TO_COLUMN = 'errors_general'
+    const TO_KEY = 'heading'
+
+    const MOVE = {
+      table: TABLE,
+      from: { group: GROUP, key: CHOSEN },
+      to: { group: TO_COLUMN, key: TO_KEY },
+    }
+
+    /** Stores a raw jsonb value in one locale's copy of one leaf column, in both tables. */
+    const seed = (locale: string, column: string, value: string) =>
+      withSchema(payload, async (tx) => {
+        for (const table of [MAIN_LOCALES, VERSION_LOCALES]) {
+          const col = table === MAIN_LOCALES ? column : `version_${column}`
+          await tx.execute(sql`
+            UPDATE ${sql.identifier(table)}
+              SET ${sql.identifier(col)} = ${value}::jsonb
+              WHERE "_locale" = ${locale}`)
+        }
+      })
+
+    const destinations = (locale: string) =>
+      withSchema(payload, async (tx) => {
+        const { rows } = await tx.execute(sql`
+          SELECT ${sql.identifier(TO_COLUMN)} AS value
+            FROM ${sql.identifier(MAIN_LOCALES)}
+            WHERE "_locale" = ${locale}`)
+        return (rows as { value: Record<string, unknown> }[]).map((row) => row.value)
+      })
+
+    const versionDestinations = (locale: string) =>
+      withSchema(payload, async (tx) => {
+        const { rows } = await tx.execute(sql`
+          SELECT ${sql.identifier(`version_${TO_COLUMN}`)} AS value
+            FROM ${sql.identifier(VERSION_LOCALES)}
+            WHERE "_locale" = ${locale}`)
+        return (rows as { value: Record<string, unknown> }[]).map((row) => row.value)
+      })
+
+    it('copies the word into a blank target, in every locale and every version row', async () => {
+      await seed('en', MAIN_COLUMN, JSON.stringify({ [CHOSEN]: 'Loading…' }))
+      await seed('cs', MAIN_COLUMN, JSON.stringify({ [CHOSEN]: 'Načítání…' }))
+      await seed('en', TO_COLUMN, '{}')
+      await seed('cs', TO_COLUMN, '{}')
+
+      await withSchema(payload, (tx) => moveKey(tx, MOVE))
+
+      expect(await destinations('en')).toEqual([{ [TO_KEY]: 'Loading…' }])
+      expect(await destinations('cs')).toEqual([{ [TO_KEY]: 'Načítání…' }])
+      expect(await versionDestinations('en')).not.toContainEqual({})
+      expect(await versionDestinations('cs')).not.toContainEqual({})
+    })
+
+    it('leaves a target somebody already filled alone', async () => {
+      await seed('en', MAIN_COLUMN, JSON.stringify({ [CHOSEN]: 'Loading…' }))
+      await seed('en', TO_COLUMN, JSON.stringify({ [TO_KEY]: 'Something went wrong' }))
+
+      await withSchema(payload, (tx) => moveKey(tx, MOVE))
+
+      expect(await destinations('en')).toEqual([{ [TO_KEY]: 'Something went wrong' }])
+    })
+
+    // The same two shapes as above, now on the destination side, which is the
+    // one `jsonb_typeof` alone refuses: the target reads blank through `->>`
+    // either way, and `||` on a scalar or an array appends instead of merging,
+    // so the group would come back as an array of two.
+    describe.each([
+      { shape: 'a string scalar', stored: '"Something went wrong"' },
+      { shape: 'an array', stored: '["Something went wrong"]' },
+    ])('with $shape in the destination column', ({ stored }) => {
+      it('writes nothing, rather than replacing the group with an array', async () => {
+        await seed('en', MAIN_COLUMN, JSON.stringify({ [CHOSEN]: 'Loading…' }))
+        await seed('en', TO_COLUMN, stored)
+
+        await withSchema(payload, (tx) => moveKey(tx, MOVE))
+
+        expect(await destinations('en')).toEqual([JSON.parse(stored)])
+      })
+
+      it('reads nothing out of it as a source, and raises no error', async () => {
+        await seed('en', MAIN_COLUMN, stored)
+        await seed('en', TO_COLUMN, '{}')
+
+        await withSchema(payload, (tx) => moveKey(tx, MOVE))
+
+        expect(await destinations('en')).toEqual([{}])
+      })
     })
   })
 })

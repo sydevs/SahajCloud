@@ -14,7 +14,8 @@
       "close": "Bezárás",
       "cancel": "Mégse",
       "widget_label": "Ingyenes meditációs órák",
-      "all_classes_free": "Minden óra ingyenes"
+      "all_classes_free": "Minden óra ingyenes",
+      "copied": "Másolva"
     },
     "settings": {
       "theme_auto": "Rendszer (automatikus)",
@@ -32,7 +33,6 @@
       "config": "Az Atlas nincs megfelelően beállítva ezen az oldalon.",
       "unavailable": "Ehhez a programhoz jelenleg nem lehet csatlakozni.",
       "share_unavailable": "Ehhez a meditációhoz még nincs megosztható link.",
-      "captcha_blocked": "Ez az Atlasz nem tud működni ezen az oldalon: a biztonsági ellenőrzését blokkolták.",
       "no_events": "Nem található esemény.",
       "back_to_region": "Események itt: %{region}",
       "near_city": "Események %{city} közelében",
@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Ingyenes meditációs órák"
+    "title": "Ingyenes meditációs órák",
+    "browse_heading": "Vagy böngéssz ország szerint"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online órák"
+    "title": "Online órák",
+    "subtitle": "Csatlakozz bárhonnan"
   },
   "event": {
     "display": {
@@ -251,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Megosztás…",
-    "copied": "Másolva"
+    "native": "Megosztás…"
   },
   "seo": {
     "root_title": "Ingyenes meditációs órák a közelében",
