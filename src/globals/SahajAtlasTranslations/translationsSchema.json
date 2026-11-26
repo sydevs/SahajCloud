@@ -463,7 +463,12 @@
             },
             "no_results": {
               "type": "string",
-              "description": "Empty-list message when the filters, rather than the place, excluded everything."
+              "description": "Empty-list message when the filters, rather than the place, excluded everything. Retiring: translate `no_results_classes` instead, which says “class”."
+            },
+            "no_results_classes": {
+              "type": "string",
+              "default": "No classes match your filters.",
+              "description": "Empty-list message when the filters, rather than the place, excluded every class. Replaces `no_results`."
             }
           },
           "additionalProperties": false

@@ -9244,9 +9244,13 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   any_time?: string;
   /**
-   * Empty-list message when the filters, rather than the place, excluded everything.
+   * Empty-list message when the filters, rather than the place, excluded everything. Retiring: translate `no_results_classes` instead, which says “class”.
    */
   no_results?: string;
+  /**
+   * Empty-list message when the filters, rather than the place, excluded every class. Replaces `no_results`.
+   */
+  no_results_classes?: string;
 }
 export interface SyAtlasTranslationsFiltersWhereStrings {
   /**
