@@ -8994,9 +8994,17 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   share_unavailable?: string;
   /**
+   * Message in the Share view when the class has no shareable link. Replaces `share_unavailable`, which said “meditation”.
+   */
+  share_unavailable_class?: string;
+  /**
    * Empty-list message in the Region and Online views, when the place itself has no events.
    */
   no_events?: string;
+  /**
+   * Empty-list message in the Region and Online views, when the place itself has no classes. Replaces `no_events`.
+   */
+  no_classes?: string;
   /**
    * Onward link back to the containing region. `%{region}` = region name.
    */
@@ -9005,6 +9013,10 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    * Onward link to events near the visitor. `%{city}` = detected city name.
    */
   near_city?: string;
+  /**
+   * Onward link to classes near the visitor. `%{city}` = detected city name. Replaces `near_city`.
+   */
+  classes_near_city?: string;
   /**
    * Onward link to the country list — the last rung of every error fallback.
    */
@@ -9171,6 +9183,10 @@ export interface SyAtlasTranslationsSearchResultsStrings {
    * Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres.
    */
   no_nearby?: string;
+  /**
+   * Message when a search found no class inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres. Replaces `no_nearby`.
+   */
+  no_nearby_classes?: string;
 }
 export interface SyAtlasTranslationsSearchSortStrings {
   /**
@@ -9434,9 +9450,17 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   event_ended?: string;
   /**
+   * When-line and registration-blocked message for a class that has finished. Replaces `event_ended`.
+   */
+  class_ended?: string;
+  /**
    * Microcopy and registration-blocked message when the event has no places left.
    */
   event_full?: string;
+  /**
+   * Microcopy and registration-blocked message when the class has no places left. Replaces `event_full`.
+   */
+  class_full?: string;
   /**
    * Register-slot label and blocked message when registration has closed.
    */
@@ -9521,6 +9545,10 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    * Type label: a single occasion.
    */
   type_oneoff?: string;
+  /**
+   * Type label: a class held once. Replaces `type_oneoff`, which said “event”.
+   */
+  type_oneoff_class?: string;
   /**
    * Session count beside a course’s schedule, entered per plural form. `%{count}` = number of sessions.
    */
