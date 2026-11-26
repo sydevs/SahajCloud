@@ -17,6 +17,7 @@ import * as migration_20261126_180000_atlas_drop_status_chips from './20261126_1
 import * as migration_20261126_183458_atlas_filter_where_more from './20261126_183458_atlas_filter_where_more';
 import * as migration_20261126_224421_atlas_drop_filters_region from './20261126_224421_atlas_drop_filters_region';
 import * as migration_20261126_224500_atlas_drop_filter_labels from './20261126_224500_atlas_drop_filter_labels';
+import * as migration_20261126_230014_atlas_drop_event_worded_keys from './20261126_230014_atlas_drop_event_worded_keys';
 
 export const migrations = [
   {
@@ -113,5 +114,10 @@ export const migrations = [
     up: migration_20261126_224500_atlas_drop_filter_labels.up,
     down: migration_20261126_224500_atlas_drop_filter_labels.down,
     name: '20261126_224500_atlas_drop_filter_labels'
+  },
+  {
+    up: migration_20261126_230014_atlas_drop_event_worded_keys.up,
+    down: migration_20261126_230014_atlas_drop_event_worded_keys.down,
+    name: '20261126_230014_atlas_drop_event_worded_keys',
   },
 ];

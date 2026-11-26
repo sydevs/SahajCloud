@@ -32,10 +32,7 @@
       "not_found_region": "Ми не знайшли це місце.",
       "config": "Atlas налаштовано на цій сторінці неправильно.",
       "unavailable": "До цієї програми зараз не можна долучитися.",
-      "share_unavailable": "Для цієї медитації поки немає посилання, яким можна поділитися.",
-      "no_events": "Події не знайдено.",
       "back_to_region": "Показати події: %{region}",
-      "near_city": "Показати події поблизу: %{city}",
       "browse_countries": "Показати всі країни",
       "search_label": "Або знайдіть місце"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Показати ще",
-      "farther": "Показати віддалені події",
-      "no_nearby": "Немає подій у радіусі %{km} км."
+      "farther": "Показати віддалені події"
     },
     "sort": {
       "label": "Сортування",
@@ -107,8 +103,7 @@
       "apply": "Застосувати",
       "clear": "Очистити все",
       "clear_one": "Очистити",
-      "any_time": "Будь-який час",
-      "no_results": "Немає подій, що відповідають вашим фільтрам."
+      "any_time": "Будь-який час"
     },
     "where": {
       "label": "Де",
@@ -167,8 +162,6 @@
       "started_on": "Триває з %{date}",
       "first_session": "Перше заняття: %{date}",
       "next_session": "Наступне заняття: %{date}",
-      "event_ended": "Цей захід завершився",
-      "event_full": "Вільних місць немає",
       "registration_closed": "Реєстрацію закрито",
       "registration_required": "Потрібна реєстрація",
       "registration_external": "Реєстрація на цей захід відбувається на іншому сайті",
@@ -187,7 +180,6 @@
       "type_class_fortnightly": "Заняття раз на два тижні",
       "type_class_monthly": "Щомісячні заняття",
       "type_course": "Курс",
-      "type_oneoff": "Разовий захід",
       "sessions_count_one": "%{count} заняття",
       "sessions_count_few": "%{count} заняття",
       "sessions_count_many": "%{count} занять",

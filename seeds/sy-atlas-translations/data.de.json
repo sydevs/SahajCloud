@@ -32,10 +32,7 @@
       "not_found_region": "Wir konnten diesen Ort nicht finden.",
       "config": "Der Atlas ist auf dieser Seite nicht korrekt eingerichtet.",
       "unavailable": "Dieses Programm kann derzeit nicht besucht werden.",
-      "share_unavailable": "Für diese Meditation gibt es noch keinen Link zum Teilen.",
-      "no_events": "Keine Veranstaltungen gefunden.",
       "back_to_region": "Veranstaltungen in %{region} ansehen",
-      "near_city": "Veranstaltungen in der Nähe von %{city} ansehen",
       "browse_countries": "Alle Länder ansehen",
       "search_label": "Oder suche nach einem Ort"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Mehr anzeigen",
-      "farther": "Entfernte Veranstaltungen anzeigen",
-      "no_nearby": "Keine Veranstaltungen innerhalb von %{km} km."
+      "farther": "Entfernte Veranstaltungen anzeigen"
     },
     "sort": {
       "label": "Sortieren",
@@ -107,8 +103,7 @@
       "apply": "Anwenden",
       "clear": "Alle zurücksetzen",
       "clear_one": "Zurücksetzen",
-      "any_time": "Jederzeit",
-      "no_results": "Keine Veranstaltungen entsprechen deinen Filtern."
+      "any_time": "Jederzeit"
     },
     "where": {
       "label": "Wo",
@@ -167,8 +162,6 @@
       "started_on": "Begonnen am %{date}",
       "first_session": "Erster Termin: %{date}",
       "next_session": "Nächster Termin: %{date}",
-      "event_ended": "Diese Veranstaltung ist beendet",
-      "event_full": "Diese Veranstaltung ist ausgebucht",
       "registration_closed": "Anmeldung geschlossen",
       "registration_required": "Anmeldung erforderlich",
       "registration_external": "Die Anmeldung für diese Veranstaltung erfolgt auf einer anderen Website",
@@ -187,7 +180,6 @@
       "type_class_fortnightly": "Kurs alle zwei Wochen",
       "type_class_monthly": "Monatlicher Kurs",
       "type_course": "Kursreihe",
-      "type_oneoff": "Einmalige Veranstaltung",
       "sessions_count_one": "%{count} Termin",
       "sessions_count_other": "%{count} Termine",
       "see_nearby": "Veranstaltungen in der Nähe ansehen",

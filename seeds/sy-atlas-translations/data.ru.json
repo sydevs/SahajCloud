@@ -32,10 +32,7 @@
       "not_found_region": "Мы не нашли это место.",
       "config": "Atlas настроен на этой странице неверно.",
       "unavailable": "К этой программе сейчас нельзя присоединиться.",
-      "share_unavailable": "Для этой медитации пока нет ссылки, которой можно поделиться.",
-      "no_events": "События не найдены.",
       "back_to_region": "Показать события: %{region}",
-      "near_city": "Показать события рядом: %{city}",
       "browse_countries": "Показать все страны",
       "search_label": "Или найдите место"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Показать ещё",
-      "farther": "Показать удалённые события",
-      "no_nearby": "Нет событий в радиусе %{km} км."
+      "farther": "Показать удалённые события"
     },
     "sort": {
       "label": "Сортировка",
@@ -107,8 +103,7 @@
       "apply": "Применить",
       "clear": "Сбросить все",
       "clear_one": "Сбросить",
-      "any_time": "Любое время",
-      "no_results": "Нет событий, соответствующих вашим фильтрам."
+      "any_time": "Любое время"
     },
     "where": {
       "label": "Где",
@@ -167,8 +162,6 @@
       "started_on": "Идёт с %{date}",
       "first_session": "Первое занятие: %{date}",
       "next_session": "Следующее занятие: %{date}",
-      "event_ended": "Это мероприятие завершилось",
-      "event_full": "Свободных мест нет",
       "registration_closed": "Регистрация закрыта",
       "registration_required": "Требуется регистрация",
       "registration_external": "Регистрация на это мероприятие проходит на другом сайте",
@@ -187,7 +180,6 @@
       "type_class_fortnightly": "Занятия раз в две недели",
       "type_class_monthly": "Ежемесячные занятия",
       "type_course": "Курс",
-      "type_oneoff": "Разовое мероприятие",
       "sessions_count_one": "%{count} занятие",
       "sessions_count_few": "%{count} занятия",
       "sessions_count_many": "%{count} занятий",

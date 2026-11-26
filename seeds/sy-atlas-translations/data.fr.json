@@ -32,10 +32,7 @@
       "not_found_region": "Nous n'avons pas trouvé ce lieu.",
       "config": "L'Atlas n'est pas correctement configuré sur cette page.",
       "unavailable": "Il n’est pas possible de rejoindre ce programme pour le moment.",
-      "share_unavailable": "Il n'y a pas encore de lien à partager pour cette méditation.",
-      "no_events": "Aucun événement trouvé.",
       "back_to_region": "Voir les événements : %{region}",
-      "near_city": "Voir les événements près de %{city}",
       "browse_countries": "Voir tous les pays",
       "search_label": "Ou recherchez un lieu"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Afficher plus",
-      "farther": "Afficher les événements éloignés",
-      "no_nearby": "Aucun événement dans un rayon de %{km} km."
+      "farther": "Afficher les événements éloignés"
     },
     "sort": {
       "label": "Trier",
@@ -107,8 +103,7 @@
       "apply": "Appliquer",
       "clear": "Tout effacer",
       "clear_one": "Effacer",
-      "any_time": "À toute heure",
-      "no_results": "Aucun événement ne correspond à vos filtres."
+      "any_time": "À toute heure"
     },
     "where": {
       "label": "Où",
@@ -167,8 +162,6 @@
       "started_on": "Commencé le %{date}",
       "first_session": "Première séance : %{date}",
       "next_session": "Prochaine séance : %{date}",
-      "event_ended": "Cet événement est terminé",
-      "event_full": "Cet événement est complet",
       "registration_closed": "Inscriptions closes",
       "registration_required": "Inscription requise",
       "registration_external": "L'inscription à cet événement se fait sur un autre site web",
@@ -187,7 +180,6 @@
       "type_class_fortnightly": "Cours bimensuel",
       "type_class_monthly": "Cours mensuel",
       "type_course": "Stage",
-      "type_oneoff": "Événement unique",
       "sessions_count_one": "%{count} séance",
       "sessions_count_other": "%{count} séances",
       "see_nearby": "Voir les événements à proximité",

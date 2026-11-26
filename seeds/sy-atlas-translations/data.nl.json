@@ -32,10 +32,7 @@
       "not_found_region": "We konden die plaats niet vinden.",
       "config": "De Atlas is op deze pagina niet juist ingesteld.",
       "unavailable": "Je kunt op dit moment niet deelnemen aan dit programma.",
-      "share_unavailable": "Er is nog geen link om deze meditatie te delen.",
-      "no_events": "Geen evenementen gevonden.",
       "back_to_region": "Evenementen in %{region} bekijken",
-      "near_city": "Evenementen in de buurt van %{city} bekijken",
       "browse_countries": "Alle landen bekijken",
       "search_label": "Of zoek een plaats"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Meer tonen",
-      "farther": "Verre evenementen tonen",
-      "no_nearby": "Geen evenementen binnen %{km} km."
+      "farther": "Verre evenementen tonen"
     },
     "sort": {
       "label": "Sorteren",
@@ -107,8 +103,7 @@
       "apply": "Toepassen",
       "clear": "Alles wissen",
       "clear_one": "Wissen",
-      "any_time": "Elk tijdstip",
-      "no_results": "Geen evenementen komen overeen met je filters."
+      "any_time": "Elk tijdstip"
     },
     "where": {
       "label": "Waar",
@@ -167,8 +162,6 @@
       "started_on": "Gestart op %{date}",
       "first_session": "Eerste les: %{date}",
       "next_session": "Volgende les: %{date}",
-      "event_ended": "Dit evenement is afgelopen",
-      "event_full": "Dit evenement is vol",
       "registration_closed": "Aanmelden gesloten",
       "registration_required": "Aanmelden verplicht",
       "registration_external": "Aanmelden voor dit evenement gebeurt op een andere website",
@@ -187,7 +180,6 @@
       "type_class_fortnightly": "Tweewekelijkse les",
       "type_class_monthly": "Maandelijkse les",
       "type_course": "Cursus",
-      "type_oneoff": "Eenmalig evenement",
       "sessions_count_one": "%{count} les",
       "sessions_count_other": "%{count} lessen",
       "see_nearby": "Bekijk evenementen in de buurt",
