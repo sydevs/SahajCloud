@@ -14,7 +14,8 @@
       "close": "Schließen",
       "cancel": "Abbrechen",
       "widget_label": "Kostenlose Meditationskurse",
-      "all_classes_free": "Alle Kurse sind kostenlos"
+      "all_classes_free": "Alle Kurse sind kostenlos",
+      "copied": "Kopiert"
     },
     "settings": {
       "theme_auto": "System (automatisch)",
@@ -253,8 +254,7 @@
     }
   },
   "share": {
-    "native": "Teilen…",
-    "copied": "Kopiert"
+    "native": "Teilen…"
   },
   "seo": {
     "root_title": "Kostenlose Meditationskurse in deiner Nähe",

@@ -8931,6 +8931,10 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    * Subtitle under the Region, Online, and Registration headers.
    */
   all_classes_free?: string;
+  /**
+   * Shown for a couple of seconds, with a check mark, after a visitor copies something: the class link in Share, a phone number or email in the contact popover, or a class’s address on its page. It replaces the copied text in place, and a screen reader hears it.
+   */
+  copied?: string;
 }
 export interface SyAtlasTranslationsCommonSettingsStrings {
   /**
@@ -10017,10 +10021,6 @@ export interface SyAtlasTranslationsShareStrings {
    * Label of the device’s own share sheet.
    */
   native?: string;
-  /**
-   * Confirmation shown after the link is copied.
-   */
-  copied?: string;
   /**
    * Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters.
    */

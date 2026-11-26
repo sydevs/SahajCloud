@@ -14,7 +14,8 @@
       "close": "Cerrar",
       "cancel": "Cancelar",
       "widget_label": "Clases de meditación gratuitas",
-      "all_classes_free": "Todas las clases son gratuitas"
+      "all_classes_free": "Todas las clases son gratuitas",
+      "copied": "Copiado"
     },
     "settings": {
       "theme_auto": "Sistema (automático)",
@@ -253,8 +254,7 @@
     }
   },
   "share": {
-    "native": "Compartir…",
-    "copied": "Copiado"
+    "native": "Compartir…"
   },
   "seo": {
     "root_title": "Clases gratuitas de meditación cerca de ti",

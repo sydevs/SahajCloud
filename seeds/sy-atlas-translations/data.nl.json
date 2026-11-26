@@ -14,7 +14,8 @@
       "close": "Sluiten",
       "cancel": "Annuleren",
       "widget_label": "Gratis meditatielessen",
-      "all_classes_free": "Alle lessen zijn gratis"
+      "all_classes_free": "Alle lessen zijn gratis",
+      "copied": "Gekopieerd"
     },
     "settings": {
       "theme_auto": "Systeem (automatisch)",
@@ -253,8 +254,7 @@
     }
   },
   "share": {
-    "native": "Delen…",
-    "copied": "Gekopieerd"
+    "native": "Delen…"
   },
   "seo": {
     "root_title": "Gratis meditatielessen bij jou in de buurt",
