@@ -108,7 +108,12 @@
       "clear": "Tout effacer",
       "clear_one": "Effacer",
       "any_time": "À toute heure",
-      "no_results": "Aucun événement ne correspond à vos filtres."
+      "no_results": "Aucun événement ne correspond à vos filtres.",
+      "show_classes_one": "Voir %{count} cours",
+      "show_classes_other": "Voir %{count} cours",
+      "widen_one": "Retirer %{label} (%{count} cours)",
+      "widen_other": "Retirer %{label} (%{count} cours)",
+      "no_match": "Aucun cours ne correspond"
     },
     "where": {
       "label": "Où",

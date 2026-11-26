@@ -108,7 +108,16 @@
       "clear": "Сбросить все",
       "clear_one": "Сбросить",
       "any_time": "Любое время",
-      "no_results": "Нет событий, соответствующих вашим фильтрам."
+      "no_results": "Нет событий, соответствующих вашим фильтрам.",
+      "show_classes_one": "Показать %{count} занятие",
+      "show_classes_few": "Показать %{count} занятия",
+      "show_classes_many": "Показать %{count} занятий",
+      "show_classes_other": "Показать %{count} занятия",
+      "widen_one": "Убрать %{label} (%{count} занятие)",
+      "widen_few": "Убрать %{label} (%{count} занятия)",
+      "widen_many": "Убрать %{label} (%{count} занятий)",
+      "widen_other": "Убрать %{label} (%{count} занятия)",
+      "no_match": "Нет подходящих занятий"
     },
     "where": {
       "label": "Где",

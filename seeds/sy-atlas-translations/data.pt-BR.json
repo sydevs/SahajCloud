@@ -108,7 +108,12 @@
       "clear": "Limpar tudo",
       "clear_one": "Limpar",
       "any_time": "Qualquer horário",
-      "no_results": "Nenhum evento corresponde aos seus filtros."
+      "no_results": "Nenhum evento corresponde aos seus filtros.",
+      "show_classes_one": "Ver %{count} aula",
+      "show_classes_other": "Ver %{count} aulas",
+      "widen_one": "Remover %{label} (%{count} aula)",
+      "widen_other": "Remover %{label} (%{count} aulas)",
+      "no_match": "Nenhuma aula encontrada"
     },
     "where": {
       "label": "Onde",

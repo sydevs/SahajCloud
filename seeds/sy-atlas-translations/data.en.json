@@ -107,7 +107,11 @@
       "clear": "Clear all",
       "clear_one": "Clear",
       "any_time": "Any time",
-      "no_results": "No events match your filters."
+      "no_results": "No events match your filters.",
+      "show_classes_one": "Show %{count} class",
+      "show_classes_other": "Show %{count} classes",
+      "widen_one": "Remove %{label} (%{count} class)",
+      "widen_other": "Remove %{label} (%{count} classes)"
     },
     "format": {
       "label": "Format",

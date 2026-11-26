@@ -108,7 +108,16 @@
       "clear": "Vymazat vše",
       "clear_one": "Vymazat",
       "any_time": "Kdykoli",
-      "no_results": "Žádné události neodpovídají vašim filtrům."
+      "no_results": "Žádné události neodpovídají vašim filtrům.",
+      "show_classes_one": "Zobrazit %{count} lekci",
+      "show_classes_few": "Zobrazit %{count} lekce",
+      "show_classes_many": "Zobrazit %{count} lekce",
+      "show_classes_other": "Zobrazit %{count} lekcí",
+      "widen_one": "Odebrat %{label} (%{count} lekce)",
+      "widen_few": "Odebrat %{label} (%{count} lekce)",
+      "widen_many": "Odebrat %{label} (%{count} lekce)",
+      "widen_other": "Odebrat %{label} (%{count} lekcí)",
+      "no_match": "Žádné lekce neodpovídají"
     },
     "where": {
       "label": "Kde",

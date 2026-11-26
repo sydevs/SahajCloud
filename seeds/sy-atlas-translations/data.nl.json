@@ -108,7 +108,12 @@
       "clear": "Alles wissen",
       "clear_one": "Wissen",
       "any_time": "Elk tijdstip",
-      "no_results": "Geen evenementen komen overeen met je filters."
+      "no_results": "Geen evenementen komen overeen met je filters.",
+      "show_classes_one": "%{count} les tonen",
+      "show_classes_other": "%{count} lessen tonen",
+      "widen_one": "%{label} verwijderen (%{count} les)",
+      "widen_other": "%{label} verwijderen (%{count} lessen)",
+      "no_match": "Geen lessen gevonden"
     },
     "where": {
       "label": "Waar",
