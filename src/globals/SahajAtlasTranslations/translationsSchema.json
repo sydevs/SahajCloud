@@ -1431,12 +1431,12 @@
         },
         "copy_failed_touch": {
           "type": "string",
-          "default": "Couldn't copy it. Press and hold the link below, then choose Copy.",
+          "default": "Couldn’t copy it. Press and hold the link below, then choose Copy.",
           "description": "Shown on a phone or tablet when the page refused the clipboard: how to copy the link by hand."
         },
         "copy_failed_pointer": {
           "type": "string",
-          "default": "Couldn't copy it. The link below is selected: press Ctrl+C, or ⌘C on a Mac.",
+          "default": "Couldn’t copy it. The link below is selected: press Ctrl+C, or ⌘C on a Mac.",
           "description": "Shown on a computer when the page refused the clipboard. The link is already selected; this says which keys copy it."
         },
         "qr_title": {
