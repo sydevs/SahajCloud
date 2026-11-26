@@ -8990,7 +8990,7 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   unavailable?: string;
   /**
-   * Message in the Share view when the event has no shareable URL.
+   * Message in the Share view when the event has no shareable URL. Retiring: translate `share_unavailable_class` instead, which says “class”.
    */
   share_unavailable?: string;
   /**
@@ -8998,7 +8998,7 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   share_unavailable_class?: string;
   /**
-   * Empty-list message in the Region and Online views, when the place itself has no events.
+   * Empty-list message in the Region and Online views, when the place itself has no events. Retiring: translate `no_classes` instead, which says “class”.
    */
   no_events?: string;
   /**
@@ -9010,7 +9010,7 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   back_to_region?: string;
   /**
-   * Onward link to events near the visitor. `%{city}` = detected city name.
+   * Onward link to events near the visitor. `%{city}` = detected city name. Retiring: translate `classes_near_city` instead, which says “class”.
    */
   near_city?: string;
   /**
@@ -9180,7 +9180,7 @@ export interface SyAtlasTranslationsSearchResultsStrings {
    */
   farther?: string;
   /**
-   * Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres.
+   * Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres. Retiring: translate `no_nearby_classes` instead, which says “class”.
    */
   no_nearby?: string;
   /**
@@ -9446,7 +9446,7 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   next_session?: string;
   /**
-   * When-line and registration-blocked message for a finished event.
+   * When-line and registration-blocked message for a finished event. Retiring: translate `class_ended` instead, which says “class”.
    */
   event_ended?: string;
   /**
@@ -9454,7 +9454,7 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   class_ended?: string;
   /**
-   * Microcopy and registration-blocked message when the event has no places left.
+   * Microcopy and registration-blocked message when the event has no places left. Retiring: translate `class_full` instead, which says “class”.
    */
   event_full?: string;
   /**
@@ -9542,7 +9542,7 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   type_course?: string;
   /**
-   * Type label: a single occasion.
+   * Type label: a single occasion. Retiring: translate `type_oneoff_class` instead, which says “class”.
    */
   type_oneoff?: string;
   /**
