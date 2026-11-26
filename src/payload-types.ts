@@ -8934,7 +8934,7 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    */
   all_classes_free?: string;
   /**
-   * Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address.
+   * Confirmation after a visitor copies a phone number, an email, or a class’s address. Copying a share link answers with `share.link_copied` instead.
    */
   copied?: string;
 }
