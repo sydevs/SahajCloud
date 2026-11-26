@@ -32,6 +32,11 @@ collection the plugin's `collections` option names, so no single collection can 
 stays with a collection is its `LoginCollectionConfig` (`src/collections/Managers/login.ts`). The
 barrel deliberately stops short of the factories: `loginPlugin` is their only caller.
 
+⚠ **`login/impersonation/` is a feature inside that plugin, not a plugin of its own.** Support
+acting as a manager is a second way into the admin panel, over the one collection `login`
+already wires, so `loginPlugin` wires both rather than a second per-collection plugin folding
+over the same collection. See its `AGENTS.md`.
+
 ### `src/jobs/<JobName>/`
 
 One folder per scheduled job. Job-specific supporting code lives inside the job folder, and

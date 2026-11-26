@@ -7,19 +7,39 @@
       "properties": {
         "chrome": {
           "type": "object",
-          "description": "Drawer, peek-strip, and widget-wide controls.",
+          "description": "Drawer, Back, and widget-wide controls.",
           "properties": {
             "back": {
               "type": "string",
-              "description": "Peek-strip name for the root drawer, shown when a deeper view is open."
+              "description": "Back control where its target has no name."
             },
             "back_to": {
               "type": "string",
-              "description": "Peek-strip name that names its target view. `%{title}` = the parent view’s title."
+              "description": "Back control on every place and class page. `%{title}` = the place it returns to."
+            },
+            "back_to_class": {
+              "type": "string",
+              "default": "Back to class",
+              "description": "Back control on the registration and share pages, which open over the class they return to."
+            },
+            "back_to_world_map": {
+              "type": "string",
+              "default": "Back to the world map",
+              "description": "Back control on a country page, which returns to the map of every country."
+            },
+            "back_to_results_near": {
+              "type": "string",
+              "default": "Back to results near %{place}",
+              "description": "Back control on a class opened from a search, and the spoken name of the arrow beside the search box on the results. `%{place}` = the first part of the searched place, such as `Prague`."
+            },
+            "show_more": {
+              "type": "string",
+              "default": "Show more",
+              "description": "Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page."
             },
             "close": {
               "type": "string",
-              "description": "Close control on every drawer, the report modal, and the feedback banner."
+              "description": "Close control on the filters, which sit over the page they narrow, the report modal, and the feedback banner."
             },
             "cancel": {
               "type": "string",
@@ -32,6 +52,11 @@
             "all_classes_free": {
               "type": "string",
               "description": "Subtitle under the Region, Online, and Registration headers."
+            },
+            "copied": {
+              "type": "string",
+              "default": "Copied",
+              "description": "Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address."
             }
           },
           "additionalProperties": false
@@ -98,10 +123,6 @@
             "share_unavailable": {
               "type": "string",
               "description": "Message in the Share view when the event has no shareable URL."
-            },
-            "captcha_blocked": {
-              "type": "string",
-              "description": "Message shown in place of the Atlas when its security check (Turnstile) does not answer: the host page blocked it, or it was too slow."
             },
             "no_events": {
               "type": "string",
@@ -283,6 +304,11 @@
           "type": "string",
           "description": "Heading of the base drawer, the drawer stack’s document title, and the inline embed’s page heading at the top of the atlas, where no place is chosen."
         },
+        "browse_heading": {
+          "type": "string",
+          "default": "Or browse by country",
+          "description": "Small section heading above the country list on the first screen, after the Online classes row. It offers browsing by country as the alternative to online classes. Written in sentence case; the widget uppercases it."
+        },
         "place_title": {
           "type": "string",
           "default": "Free Meditation classes in %{place}",
@@ -304,7 +330,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Search view heading, and its peek-strip name."
+              "description": "Search view heading, and the name Back says for it."
             },
             "placeholder": {
               "type": "string",
@@ -397,7 +423,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Filter view heading, and its peek-strip name."
+              "description": "Filter view heading, and the name Back says for it."
             },
             "apply": {
               "type": "string",
@@ -596,7 +622,12 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name."
+          "description": "Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it."
+        },
+        "subtitle": {
+          "type": "string",
+          "default": "Join from anywhere",
+          "description": "Short line under the Online classes row on the Countries list, saying these classes belong to no place."
         }
       },
       "additionalProperties": false
@@ -896,7 +927,7 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Calendar view heading, and its peek-strip name."
+          "description": "Calendar view heading, and the name Back says for it."
         },
         "view_month": {
           "type": "string",
@@ -927,7 +958,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
             },
             "name": {
               "type": "string",
@@ -980,6 +1011,11 @@
             "captcha_retry": {
               "type": "string",
               "description": "Refusal: the security check expired and must be redone before registering."
+            },
+            "captcha_blocked": {
+              "type": "string",
+              "default": "We couldn't load the security check, so you can't register just yet.",
+              "description": "Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works."
             },
             "subscribe": {
               "type": "string",
@@ -1353,15 +1389,31 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+          "description": "Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
         },
         "native": {
           "type": "string",
           "description": "Label of the device’s own share sheet."
         },
-        "copied": {
+        "qr_title": {
           "type": "string",
-          "description": "Confirmation shown after the link is copied."
+          "default": "QR code for posters",
+          "description": "Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters."
+        },
+        "qr_hint": {
+          "type": "string",
+          "default": "Print this on posters or flyers. People can point their phone camera at it to open this class.",
+          "description": "A short note under the opened QR code, saying what it is for and how to use it."
+        },
+        "qr_download": {
+          "type": "string",
+          "default": "Download for printing",
+          "description": "Button under the QR code that saves it as a large PNG image for printing."
+        },
+        "qr_failed": {
+          "type": "string",
+          "default": "The QR code didn’t load. Check your connection, then close and reopen this.",
+          "description": "Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again."
         }
       },
       "additionalProperties": false

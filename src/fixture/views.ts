@@ -47,6 +47,11 @@ export const VIEWS: ViewRegistry = {
   '@/components/branding/Icon#default': links('/admin'),
   '@/components/admin/SignIn#default': { none: 'the sign-in view, unreachable once signed in' },
   '@/components/admin/NeedHelpButton#default': links('/admin'),
+  // The preview's admin is the support account (`PREVIEW_ADMIN_ADDRESS`).
+  '@/components/admin/ImpersonateButton#default': links(doc('managers', 1_001_002)),
+  '@/components/admin/ImpersonationBanner#default': {
+    none: 'shown on every page once Sign in as this manager is clicked on a manager',
+  },
 
   // Root views.
   '@/components/admin/Dashboard/DashboardView#default': links(

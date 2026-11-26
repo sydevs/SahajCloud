@@ -14,7 +14,8 @@
       "close": "Fechar",
       "cancel": "Cancelar",
       "widget_label": "Aulas de meditação gratuitas",
-      "all_classes_free": "Todas as aulas são gratuitas"
+      "all_classes_free": "Todas as aulas são gratuitas",
+      "copied": "Copiado"
     },
     "settings": {
       "theme_auto": "Sistema (automático)",
@@ -32,7 +33,6 @@
       "config": "O Atlas não está configurado corretamente nesta página.",
       "unavailable": "Não é possível participar deste programa no momento.",
       "share_unavailable": "Ainda não há um link para compartilhar esta meditação.",
-      "captcha_blocked": "Este Atlas não pode funcionar nesta página: sua verificação de segurança foi bloqueada.",
       "no_events": "Nenhum evento encontrado.",
       "back_to_region": "Ver eventos em %{region}",
       "near_city": "Ver eventos perto de %{city}",
@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Aulas gratuitas de meditação"
+    "title": "Aulas gratuitas de meditação",
+    "browse_heading": "Ou navegue por país"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Aulas on-line"
+    "title": "Aulas on-line",
+    "subtitle": "Participe de qualquer lugar"
   },
   "event": {
     "display": {
@@ -251,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Compartilhar…",
-    "copied": "Copiado"
+    "native": "Compartilhar…"
   },
   "seo": {
     "root_title": "Aulas gratuitas de meditação perto de você",

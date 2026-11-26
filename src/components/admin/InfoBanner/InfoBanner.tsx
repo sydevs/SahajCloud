@@ -52,6 +52,8 @@ export interface InfoBannerProps {
   /** The description, one or two short sentences. */
   children?: React.ReactNode
   action?: InfoBannerAction
+  /** One strip: icon, title, description and action on a single line, the action at the end. */
+  inline?: boolean
   /** Set when registered as a `ui` field, which configures the banner through `admin.custom`. */
   field?: UIFieldClientProps['field']
 }
@@ -79,16 +81,33 @@ function fromField(field: UIFieldClientProps['field']): InfoBannerProps | null {
 export function InfoBanner({ field, ...props }: InfoBannerProps): React.ReactElement | null {
   const banner = field ? fromField(field) : props
   if (!banner) return null
-  const { type = 'default', icon, title, children, action } = banner
+  const { type = 'default', icon, title, children, action, inline } = banner
   const Icon = TYPE_ICONS[type]
+  const iconNode =
+    icon === null ? null : (
+      <span aria-hidden style={{ display: 'flex', flexShrink: 0, marginTop: inline ? 0 : '2px' }}>
+        {icon ?? <Icon />}
+      </span>
+    )
+  if (inline) {
+    return (
+      <Banner type={type}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'calc(var(--base) * 0.5)' }}>
+          {iconNode}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {title ? <span style={{ fontWeight: 600 }}>{title}</span> : null}
+            {title && children ? ' — ' : null}
+            {children}
+          </div>
+          {action ? <ActionButton action={action} /> : null}
+        </div>
+      </Banner>
+    )
+  }
   return (
     <Banner type={type}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'calc(var(--base) * 0.5)' }}>
-        {icon === null ? null : (
-          <span aria-hidden style={{ display: 'flex', flexShrink: 0, marginTop: '2px' }}>
-            {icon ?? <Icon />}
-          </span>
-        )}
+        {iconNode}
         <div>
           {title ? <div style={{ fontWeight: 600 }}>{title}</div> : null}
           {children ? <div>{children}</div> : null}
