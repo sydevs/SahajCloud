@@ -122,11 +122,21 @@
             },
             "share_unavailable": {
               "type": "string",
-              "description": "Message in the Share view when the event has no shareable URL."
+              "description": "Message in the Share view when the event has no shareable URL. Retiring: translate `share_unavailable_class` instead, which says “class”."
+            },
+            "share_unavailable_class": {
+              "type": "string",
+              "default": "There is no link to share for this class yet.",
+              "description": "Message in the Share view when the class has no shareable link. Replaces `share_unavailable`, which said “meditation”."
             },
             "no_events": {
               "type": "string",
-              "description": "Empty-list message in the Region and Online views, when the place itself has no events."
+              "description": "Empty-list message in the Region and Online views, when the place itself has no events. Retiring: translate `no_classes` instead, which says “class”."
+            },
+            "no_classes": {
+              "type": "string",
+              "default": "No classes found.",
+              "description": "Empty-list message in the Region and Online views, when the place itself has no classes. Replaces `no_events`."
             },
             "back_to_region": {
               "type": "string",
@@ -134,7 +144,12 @@
             },
             "near_city": {
               "type": "string",
-              "description": "Onward link to events near the visitor. `%{city}` = detected city name."
+              "description": "Onward link to events near the visitor. `%{city}` = detected city name. Retiring: translate `classes_near_city` instead, which says “class”."
+            },
+            "classes_near_city": {
+              "type": "string",
+              "default": "See classes near %{city}",
+              "description": "Onward link to classes near the visitor. `%{city}` = detected city name. Replaces `near_city`."
             },
             "browse_countries": {
               "type": "string",
@@ -353,7 +368,12 @@
             },
             "no_nearby": {
               "type": "string",
-              "description": "Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres."
+              "description": "Message when a search found nothing inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres. Retiring: translate `no_nearby_classes` instead, which says “class”."
+            },
+            "no_nearby_classes": {
+              "type": "string",
+              "default": "No classes within %{km} km.",
+              "description": "Message when a search found no class inside the radius (ERROR_POLICY['no-nearby']). `%{km}` = radius in kilometres. Replaces `no_nearby`."
             }
           },
           "additionalProperties": false
@@ -443,7 +463,12 @@
             },
             "no_results": {
               "type": "string",
-              "description": "Empty-list message when the filters, rather than the place, excluded everything."
+              "description": "Empty-list message when the filters, rather than the place, excluded everything. Retiring: translate `no_results_classes` instead, which says “class”."
+            },
+            "no_results_classes": {
+              "type": "string",
+              "default": "No classes match your filters.",
+              "description": "Empty-list message when the filters, rather than the place, excluded every class. Replaces `no_results`."
             }
           },
           "additionalProperties": false
@@ -716,13 +741,25 @@
             },
             "event_ended": {
               "type": "string",
-              "description": "When-line and registration-blocked message for a finished event."
+              "description": "When-line and registration-blocked message for a finished event. Retiring: translate `class_ended` instead, which says “class”."
+            },
+            "class_ended": {
+              "type": "string",
+              "default": "This class is over",
+              "description": "When-line and registration-blocked message for a class that has finished. Replaces `event_ended`."
             },
             "event_full": {
               "type": "string",
               "maxLength": 36,
               "strict": true,
-              "description": "Microcopy and registration-blocked message when the event has no places left."
+              "description": "Microcopy and registration-blocked message when the event has no places left. Retiring: translate `class_full` instead, which says “class”."
+            },
+            "class_full": {
+              "type": "string",
+              "maxLength": 36,
+              "strict": true,
+              "default": "This class is full",
+              "description": "Microcopy and registration-blocked message when the class has no places left. Replaces `event_full`."
             },
             "registration_closed": {
               "type": "string",
@@ -808,7 +845,12 @@
             },
             "type_oneoff": {
               "type": "string",
-              "description": "Type label: a single occasion."
+              "description": "Type label: a single occasion. Retiring: translate `type_oneoff_class` instead, which says “class”."
+            },
+            "type_oneoff_class": {
+              "type": "string",
+              "default": "One-off class",
+              "description": "Type label: a class held once. Replaces `type_oneoff`, which said “event”."
             },
             "sessions_count": {
               "type": "string",
