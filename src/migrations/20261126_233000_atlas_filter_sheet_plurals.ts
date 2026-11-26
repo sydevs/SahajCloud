@@ -2,8 +2,7 @@ import { MigrateUpArgs, MigrateDownArgs } from '@payloadcms/db-postgres'
 
 import { addEnglishKey, dropEnglishKey } from '@/lib/migrations/englishKeyBackfill'
 
-// Data only — no DDL; the `.json` is the prior snapshot re-stamped
-// (`src/migrations/AGENTS.md`).
+// Data only, no DDL: the `.json` is the prior snapshot re-stamped (`src/migrations/AGENTS.md`).
 //
 // Sahaj Atlas's `filters.chrome.show_classes` and `filters.chrome.widen` are plural keys, and a
 // plural key's English cannot be a schema `default` (`src/globals/AGENTS.md`), so production gets
@@ -25,9 +24,17 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
   }
 }
 
-// The previous schema refuses these keys, so down sweeps them from every locale.
+// The previous schema refuses every new key, so down sweeps each stored form from every locale,
+// `no_match` included (the boot reconcile writes its English).
+const NEW_KEYS = [
+  ...['show_classes', 'widen'].flatMap((key) =>
+    ['one', 'few', 'many', 'other'].map((form) => `${key}_${form}`),
+  ),
+  'no_match',
+]
+
 export async function down({ db }: MigrateDownArgs): Promise<void> {
-  for (const key of Object.keys(ENGLISH)) {
+  for (const key of NEW_KEYS) {
     await dropEnglishKey(db, { table: TABLE, group: GROUP, key })
   }
 }

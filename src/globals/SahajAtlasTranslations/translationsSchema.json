@@ -473,20 +473,17 @@
             "show_classes": {
               "type": "string",
               "plural": true,
-              "maxLength": 28,
-              "description": "Main button at the bottom of the filters once an answer is picked: closes them onto the matching classes. Entered per plural form. `%{count}` = number of matching classes."
+              "description": "Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes."
             },
             "no_match": {
               "type": "string",
               "default": "No classes match",
-              "maxLength": 32,
               "description": "Line at the bottom of the filters when no class matches every answer picked, above the way out."
             },
             "widen": {
               "type": "string",
               "plural": true,
-              "maxLength": 40,
-              "description": "Button offered when no class matches: removes the one answer that brings the most classes back. Entered per plural form. `%{label}` = that answer as shown in the filters (“Sunday”, “Evening”); `%{count}` = how many classes come back."
+              "description": "Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back."
             }
           },
           "additionalProperties": false

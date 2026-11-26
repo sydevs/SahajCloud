@@ -9252,19 +9252,19 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   no_results_classes?: string;
   /**
-   * Main button at the bottom of the filters once an answer is picked: closes them onto the matching classes. Entered per plural form. `%{count}` = number of matching classes.
+   * Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes.
    */
   show_classes_one?: string;
   /**
-   * Main button at the bottom of the filters once an answer is picked: closes them onto the matching classes. Entered per plural form. `%{count}` = number of matching classes.
+   * Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes.
    */
   show_classes_few?: string;
   /**
-   * Main button at the bottom of the filters once an answer is picked: closes them onto the matching classes. Entered per plural form. `%{count}` = number of matching classes.
+   * Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes.
    */
   show_classes_many?: string;
   /**
-   * Main button at the bottom of the filters once an answer is picked: closes them onto the matching classes. Entered per plural form. `%{count}` = number of matching classes.
+   * Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes.
    */
   show_classes_other?: string;
   /**
@@ -9272,19 +9272,19 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   no_match?: string;
   /**
-   * Button offered when no class matches: removes the one answer that brings the most classes back. Entered per plural form. `%{label}` = that answer as shown in the filters (“Sunday”, “Evening”); `%{count}` = how many classes come back.
+   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_one?: string;
   /**
-   * Button offered when no class matches: removes the one answer that brings the most classes back. Entered per plural form. `%{label}` = that answer as shown in the filters (“Sunday”, “Evening”); `%{count}` = how many classes come back.
+   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_few?: string;
   /**
-   * Button offered when no class matches: removes the one answer that brings the most classes back. Entered per plural form. `%{label}` = that answer as shown in the filters (“Sunday”, “Evening”); `%{count}` = how many classes come back.
+   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_many?: string;
   /**
-   * Button offered when no class matches: removes the one answer that brings the most classes back. Entered per plural form. `%{label}` = that answer as shown in the filters (“Sunday”, “Evening”); `%{count}` = how many classes come back.
+   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_other?: string;
 }
