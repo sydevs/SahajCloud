@@ -191,7 +191,11 @@ describe('English key backfill', () => {
     const TO_COLUMN = 'errors_general'
     const TO_KEY = 'heading'
 
-    const MOVE = { table: TABLE, from: { group: GROUP, key: CHOSEN }, to: { group: TO_COLUMN, key: TO_KEY } }
+    const MOVE = {
+      table: TABLE,
+      from: { group: GROUP, key: CHOSEN },
+      to: { group: TO_COLUMN, key: TO_KEY },
+    }
 
     /** Stores a raw jsonb value in one locale's copy of one leaf column, in both tables. */
     const seed = (locale: string, column: string, value: string) =>
@@ -246,19 +250,31 @@ describe('English key backfill', () => {
       expect(await destinations('en')).toEqual([{ [TO_KEY]: 'Something went wrong' }])
     })
 
-    // The same two shapes as above, now on the source side: `->>` answers NULL
-    // for a scalar and for an array, so only `jsonb_typeof` keeps the write
-    // from replacing the destination group with an array.
-    it.each([{ shape: 'a string scalar', stored: '"menu"' }, { shape: 'an array', stored: '["menu"]' }])(
-      'writes nothing when the source column holds $shape',
-      async ({ stored }) => {
+    // The same two shapes as above, now on the destination side, which is the
+    // one `jsonb_typeof` alone refuses: the target reads blank through `->>`
+    // either way, and `||` on a scalar or an array appends instead of merging,
+    // so the group would come back as an array of two.
+    describe.each([
+      { shape: 'a string scalar', stored: '"Something went wrong"' },
+      { shape: 'an array', stored: '["Something went wrong"]' },
+    ])('with $shape in the destination column', ({ stored }) => {
+      it('writes nothing, rather than replacing the group with an array', async () => {
+        await seed('en', MAIN_COLUMN, JSON.stringify({ [CHOSEN]: 'Loading…' }))
+        await seed('en', TO_COLUMN, stored)
+
+        await withSchema(payload, (tx) => moveKey(tx, MOVE))
+
+        expect(await destinations('en')).toEqual([JSON.parse(stored)])
+      })
+
+      it('reads nothing out of it as a source, and raises no error', async () => {
         await seed('en', MAIN_COLUMN, stored)
         await seed('en', TO_COLUMN, '{}')
 
         await withSchema(payload, (tx) => moveKey(tx, MOVE))
 
         expect(await destinations('en')).toEqual([{}])
-      },
-    )
+      })
+    })
   })
 })
