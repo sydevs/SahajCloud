@@ -69,49 +69,6 @@ function withRoles<T extends AuthUser>(user: T, roles: LocalizedRoles): T {
 // --- 1. THE AUTH STRATEGY: fixes `req.user` on every authenticated request ---
 
 /**
- * Authenticate a JWT, and replace `roles` with the per-locale record.
- *
- * Payload's own `local-jwt` loads the user with
- * `payload.findByID({ id, collection, depth })`. It passes no `locale` and no
- * `req`, so `createLocalReq` resolves localized fields at the default locale.
- * This function wraps that strategy instead of reimplementing it. The
- * collection inherits `useSessions: true`, so a hand-rolled copy would have
- * to reproduce the session check, the `_verified` gate, and the autoLogin
- * fallbacks. Each of those three fails closed in a way nobody notices, until
- * someone cannot log in.
- *
- * ⚠ **There is no `local-jwt` behind it any more.** Payload registers that
- * strategy only for a collection whose `disableLocalStrategy` is falsy
- * (`payload/dist/index.js:434,441`), and `clients` and `managers` now both set
- * it (#840) — so this is the app's only JWT path.
- * `tests/int/manager-passwordless.int.spec.ts` asserts that.
- *
- * ⚠ **And Payload's verifier refuses this collection unless told otherwise.**
- * Since 3.90, `JWTAuthentication` throws — and so yields no user — for any
- * collection whose `disableLocalStrategy` is truthy (`auth/strategies/jwt.js`).
- * That guard is about Payload's own password sessions, and this app mints its
- * sessions without one (`createSession`). {@link withLocalStrategyView} lets
- * this one call see the collection as local; every other reader, including
- * the `login` operation's refusal, still sees the real config.
- *
- * `executeAuthStrategies` still returns on the first strategy that yields a
- * user, and two failure modes are still handled explicitly, because either one
- * would silently restore the bug:
- *
- * 1. **Not this collection's user.** `authStrategies` is one flat global
- *    array, shared across every auth collection, so this strategy also sees
- *    other collections' JWTs. For those, it returns `{ user: null }` rather
- *    than a user hydrated against the wrong collection. Nothing authenticates
- *    them now, which is correct: `clients` authenticates by API key.
- *
- * 2. **Hydration failed.** `executeAuthStrategies` SWALLOWS a thrown error
- *    and moves on to the next strategy. Throwing here would leave the request
- *    unauthenticated with no diagnosis. Instead, this returns the user with an
- *    empty role record. They see the "No Projects Available" banner, which is
- *    visible and recoverable — far better than silently receiving their
- *    default-locale roles in all 19 locales.
- */
-/**
  * `payload`, as `JWTAuthentication` needs to see it: the same instance, except
  * that `collections[slug].config.auth.disableLocalStrategy` reads `false`.
  *
@@ -142,33 +99,89 @@ function withLocalStrategyView(payload: Payload, slug: string): Payload {
   })
 }
 
+/**
+ * The JWT's own user for one collection, before any role is resolved.
+ * Exported for the support impersonation strategy, which must authenticate the
+ * support account exactly as an ordinary request would — a second copy of this
+ * path would drift.
+ *
+ * Payload's own `local-jwt` loads the user with
+ * `payload.findByID({ id, collection, depth })`, passing no `locale` and no
+ * `req`, so `createLocalReq` resolves localized fields at the default locale.
+ * This wraps that strategy instead of reimplementing it: the collection
+ * inherits `useSessions: true`, so a hand-rolled copy would have to reproduce
+ * the session check, the `_verified` gate and the autoLogin fallbacks, each of
+ * which fails closed in a way nobody notices until someone cannot log in.
+ *
+ * ⚠ **There is no `local-jwt` behind it any more.** Payload registers that
+ * strategy only for a collection whose `disableLocalStrategy` is falsy
+ * (`payload/dist/index.js:434,441`), and `clients` and `managers` now both set
+ * it (#840) — so this is the app's only JWT path.
+ * `tests/int/manager-passwordless.int.spec.ts` asserts that.
+ *
+ * ⚠ **And Payload's verifier refuses this collection unless told otherwise.**
+ * Since 3.90, `JWTAuthentication` throws — and so yields no user — for any
+ * collection whose `disableLocalStrategy` is truthy (`auth/strategies/jwt.js`).
+ * That guard is about Payload's own password sessions, and this app mints its
+ * sessions without one (`createSession`). {@link withLocalStrategyView} lets
+ * this one call see the collection as local; every other reader, including
+ * the `login` operation's refusal, still sees the real config.
+ *
+ * **Another collection's user yields `null`, never a hydration.**
+ * `authStrategies` is one flat global array shared across every auth
+ * collection, so this sees other collections' JWTs too. Hydrating one against
+ * the wrong collection would silently restore #665. Nothing authenticates them
+ * here, which is correct: `clients` authenticates by API key.
+ */
+export async function authenticateJWT(
+  args: AuthStrategyFunctionArgs,
+  slug: string,
+): Promise<AuthStrategyResult> {
+  const result = await JWTAuthentication({
+    ...args,
+    payload: withLocalStrategyView(args.payload, slug),
+  })
+
+  if (!result.user || result.user.collection !== slug) return { user: null }
+  return result
+}
+
+/**
+ * `user` with the per-locale record in place of its flat `roles`. Shared by the
+ * strategy and the support impersonation one, which stands a different manager
+ * in for the authenticated one.
+ *
+ * ⚠ **A failed hydration returns an empty record rather than throwing.**
+ * `executeAuthStrategies` SWALLOWS a thrown error and moves on to the next
+ * strategy, leaving the request unauthenticated with no diagnosis. An empty
+ * record shows the "No Projects Available" banner — visible and recoverable,
+ * where silently handing out default-locale roles in all 19 locales is #665
+ * again.
+ */
+export async function hydrateAuthUser<T extends AuthUser>(payload: Payload, user: T): Promise<T> {
+  try {
+    // No `req` here: this runs inside `executeAuthStrategies`, before any
+    // operation. There is no transaction to join, and no caller locale to protect.
+    const roles = await hydrateLocalizedRoles(payload, user.id)
+    return withRoles(user, roles)
+  } catch (err) {
+    payload.logger.error(
+      { err, userId: user.id },
+      `[${LOCALIZED_ROLES_STRATEGY}] could not resolve localized roles; ` +
+        'denying all role-based access for this request',
+    )
+    return withRoles(user, {})
+  }
+}
+
 function createLocalizedRolesStrategy(slug: string) {
   return {
     name: LOCALIZED_ROLES_STRATEGY,
     authenticate: async (args: AuthStrategyFunctionArgs): Promise<AuthStrategyResult> => {
-      const result = await JWTAuthentication({
-        ...args,
-        payload: withLocalStrategyView(args.payload, slug),
-      })
-      const user = result.user
-
-      // Another auth collection's user, or no user. Yielding null rather than
-      // hydrating against the wrong collection — see the docblock.
-      if (!user || user.collection !== slug) return { user: null }
-
-      try {
-        // No `req` here: this runs inside `executeAuthStrategies`, before any
-        // operation. There is no transaction to join, and no caller locale to protect.
-        const roles = await hydrateLocalizedRoles(args.payload, user.id)
-        return { ...result, user: withRoles(user, roles) }
-      } catch (err) {
-        args.payload.logger.error(
-          { err, userId: user.id },
-          `[${LOCALIZED_ROLES_STRATEGY}] could not resolve localized roles; ` +
-            'denying all role-based access for this request',
-        )
-        return { ...result, user: withRoles(user, {}) }
-      }
+      const result = await authenticateJWT(args, slug)
+      return result.user
+        ? { ...result, user: await hydrateAuthUser(args.payload, result.user) }
+        : result
     },
   }
 }

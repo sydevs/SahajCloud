@@ -11,6 +11,7 @@ import { openapi } from 'payload-oapi'
 
 import { startFixtureLoad } from '@/fixture/gate'
 import { REGION_NESTED_DOCS_CONFIG } from '@/lib/atlas/regionTree'
+import { CONTACT_EMAIL } from '@/lib/contact'
 import { serverEnv, weMeditatePreviewUrl } from '@/lib/env'
 import { buildPayloadLocales, DEFAULT_LOCALE } from '@/lib/locales'
 import { createWorkerSafeLogger } from '@/lib/logger/workerSafeLogger'
@@ -185,7 +186,7 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // Disable admin UI in unit test environment (but enable for E2E tests)
       disable: isTestEnvironment && !isE2ETest,
       // Disable auto-login for E2E tests (tests need to authenticate manually)
-      autoLogin: !isProduction && !isE2ETest ? { email: 'contact@sydevelopers.com' } : false,
+      autoLogin: !isProduction && !isE2ETest ? { email: CONTACT_EMAIL } : false,
     },
     collections,
     globals,
@@ -409,6 +410,8 @@ const payloadConfig = (overrides?: Partial<Config>) => {
       // writes would otherwise leave production a queue to mail (see the option).
       // `managersLoginHere` resolves the preview exchange (#840); the sign-in
       // page's Server Action reads the same entry.
+      // It also wires support impersonation onto the same `managers` entry
+      // (`src/plugins/login/impersonation/AGENTS.md`).
       loginPlugin({
         collections: [managersLoginHere()],
         invitations: !isSeedScript,

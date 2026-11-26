@@ -13,6 +13,8 @@
  * - `session.ts` — minting a session without a password, and its cookie.
  * - `invitations.ts`, `invite.ts`, `grantSummary.ts` — the invitation queue, the
  *   invitation it sends, and what that invitation names (#839).
+ * - `impersonation/` — the support account acting as a manager, wired onto the
+ *   same `managers` entry. See its `AGENTS.md`.
  *
  * ⚠ The routes are not exported, only their paths. `loginPlugin` is their one
  * caller, and exporting them would invite a collection to wire its own copy.
@@ -22,6 +24,7 @@ export { REDEEM_PATH } from './endpoints/redeem'
 export { EXPIRED_REASON, preflight } from './preflight'
 export { INVITE_VALID_FOR, composeInvitations } from './invite'
 export { INVITATION_DELAY_MS } from './invitations'
+export { setImpersonatedProject } from './impersonation/endpoints'
 export { pageLinkUrl } from './links'
 export { lastLoginAt, loginPlugin, magicLinkIssuedAt } from './loginPlugin'
 export {
@@ -32,7 +35,7 @@ export {
   returnPath,
   SIGNIN_VALID_FOR,
 } from './magicLinks'
-export { createSession, sessionCookie, sessionCookieParts } from './session'
+export { createSession, sessionCookie, sessionCookieParts, signSessionToken } from './session'
 export { responsibilityLabel, summarizeGrants } from './grantSummary'
 export type { GrantSummary } from './grantSummary'
 export {
