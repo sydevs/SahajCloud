@@ -8932,7 +8932,7 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    */
   all_classes_free?: string;
   /**
-   * Shown for a couple of seconds, with a check mark, after a visitor copies something: the class link in Share, a phone number or email in the contact popover, or a class’s address on its page. It replaces the copied text in place, and a screen reader hears it.
+   * Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address.
    */
   copied?: string;
 }
