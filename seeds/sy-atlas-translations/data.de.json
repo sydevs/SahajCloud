@@ -162,10 +162,7 @@
     "display": {
       "about": "Über diesen Kurs",
       "free_meditation_class": "Kostenloser Meditationskurs",
-      "chip_full": "Ausgebucht",
       "chip_today": "Heute",
-      "chip_ended": "Beendet",
-      "chip_starts": "Beginnt am %{date}",
       "started_on": "Begonnen am %{date}",
       "first_session": "Erster Termin: %{date}",
       "next_session": "Nächster Termin: %{date}",

@@ -193,17 +193,13 @@ describe('atlas translations schema', () => {
   })
 
   it('makes the widget’s own copy budgets blocking', () => {
-    // These seven are `i18n-budgets.test.ts` in sydevs/SahajAtlasWeb: each one
-    // sits in a slot that breaks rather than merely looking untidy. (#706's
-    // acceptance criteria say "six" while its own budget list names seven —
-    // the list is what the widget enforces, so the list is what is pinned.)
+    // These are `i18n-budgets.test.ts` in sydevs/SahajAtlasWeb: each one sits in
+    // a slot that breaks rather than merely looking untidy (#706).
     expect(
       Object.fromEntries(
         (
           [
-            'event.display.chip_full',
             'event.display.chip_today',
-            'event.display.chip_ended',
             'event.display.event_full',
             'event.display.contact_to_join_full',
             'common.feedback.confirmed_title',
@@ -212,9 +208,7 @@ describe('atlas translations schema', () => {
         ).map((key) => [key, [leaf(key).maxLength, leaf(key).strict]]),
       ),
     ).toEqual({
-      'event.display.chip_full': [14, true],
       'event.display.chip_today': [14, true],
-      'event.display.chip_ended': [14, true],
       'event.display.event_full': [36, true],
       'event.display.contact_to_join_full': [40, true],
       'common.feedback.confirmed_title': [40, true],

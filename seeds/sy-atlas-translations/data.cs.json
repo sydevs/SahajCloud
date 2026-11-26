@@ -162,10 +162,7 @@
     "display": {
       "about": "O této lekci",
       "free_meditation_class": "Kurz meditace zdarma",
-      "chip_full": "Obsazeno",
       "chip_today": "Dnes",
-      "chip_ended": "Ukončeno",
-      "chip_starts": "Začíná %{date}",
       "started_on": "Zahájeno %{date}",
       "first_session": "První lekce: %{date}",
       "next_session": "Další lekce: %{date}",

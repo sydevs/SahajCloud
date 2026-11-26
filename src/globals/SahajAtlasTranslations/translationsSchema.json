@@ -656,31 +656,15 @@
               "type": "string",
               "description": "Unverified-listing badge body, saying no local coordinator has verified the listing yet. Event view only."
             },
-            "chip_full": {
-              "type": "string",
-              "maxLength": 14,
-              "strict": true,
-              "description": "Status chip: the event has no places left."
-            },
             "chip_today": {
               "type": "string",
               "maxLength": 14,
               "strict": true,
-              "description": "Status chip and when-line: the next session is today."
-            },
-            "chip_ended": {
-              "type": "string",
-              "maxLength": 14,
-              "strict": true,
-              "description": "Status chip: the event is over."
-            },
-            "chip_starts": {
-              "type": "string",
-              "description": "Status chip for an event that has not begun. `%{date}` = start date."
+              "description": "The Today chip on a list card, and the when-line: the next session is today."
             },
             "started_on": {
               "type": "string",
-              "description": "Status chip and when-line for a series already under way. `%{date}` = start date."
+              "description": "When-line for a series already under way. `%{date}` = start date."
             },
             "first_session": {
               "type": "string",

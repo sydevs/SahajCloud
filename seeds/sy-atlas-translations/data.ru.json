@@ -162,10 +162,7 @@
     "display": {
       "about": "Об этом занятии",
       "free_meditation_class": "Бесплатный урок медитации",
-      "chip_full": "Мест нет",
       "chip_today": "Сегодня",
-      "chip_ended": "Завершено",
-      "chip_starts": "Начало: %{date}",
       "started_on": "Идёт с %{date}",
       "first_session": "Первое занятие: %{date}",
       "next_session": "Следующее занятие: %{date}",
