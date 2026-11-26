@@ -14,7 +14,8 @@
       "close": "Zavřít",
       "cancel": "Zrušit",
       "widget_label": "Bezplatné meditační kurzy",
-      "all_classes_free": "Všechny lekce jsou zdarma"
+      "all_classes_free": "Všechny lekce jsou zdarma",
+      "copied": "Zkopírováno"
     },
     "settings": {
       "theme_auto": "Systémový (auto)",
@@ -254,8 +255,7 @@
     }
   },
   "share": {
-    "native": "Sdílet…",
-    "copied": "Zkopírováno"
+    "native": "Sdílet…"
   },
   "seo": {
     "root_title": "Bezplatné kurzy meditace ve vašem okolí",

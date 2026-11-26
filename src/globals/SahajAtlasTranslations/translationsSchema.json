@@ -52,6 +52,11 @@
             "all_classes_free": {
               "type": "string",
               "description": "Subtitle under the Region, Online, and Registration headers."
+            },
+            "copied": {
+              "type": "string",
+              "default": "Copied",
+              "description": "Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address."
             }
           },
           "additionalProperties": false
@@ -1389,10 +1394,6 @@
         "native": {
           "type": "string",
           "description": "Label of the device’s own share sheet."
-        },
-        "copied": {
-          "type": "string",
-          "description": "Confirmation shown after the link is copied."
         },
         "qr_title": {
           "type": "string",

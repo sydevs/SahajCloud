@@ -14,7 +14,8 @@
       "close": "Bezárás",
       "cancel": "Mégse",
       "widget_label": "Ingyenes meditációs órák",
-      "all_classes_free": "Minden óra ingyenes"
+      "all_classes_free": "Minden óra ingyenes",
+      "copied": "Másolva"
     },
     "settings": {
       "theme_auto": "Rendszer (automatikus)",
@@ -252,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Megosztás…",
-    "copied": "Másolva"
+    "native": "Megosztás…"
   },
   "seo": {
     "root_title": "Ingyenes meditációs órák a közelében",

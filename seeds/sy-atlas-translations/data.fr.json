@@ -14,7 +14,8 @@
       "close": "Fermer",
       "cancel": "Annuler",
       "widget_label": "Cours de méditation gratuits",
-      "all_classes_free": "Tous les cours sont gratuits"
+      "all_classes_free": "Tous les cours sont gratuits",
+      "copied": "Copié"
     },
     "settings": {
       "theme_auto": "Système (auto)",
@@ -252,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Partager…",
-    "copied": "Copié"
+    "native": "Partager…"
   },
   "seo": {
     "root_title": "Cours de méditation gratuits près de chez vous",

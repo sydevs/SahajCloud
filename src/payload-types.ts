@@ -8931,6 +8931,10 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    * Subtitle under the Region, Online, and Registration headers.
    */
   all_classes_free?: string;
+  /**
+   * Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address.
+   */
+  copied?: string;
 }
 export interface SyAtlasTranslationsCommonSettingsStrings {
   /**
@@ -10013,10 +10017,6 @@ export interface SyAtlasTranslationsShareStrings {
    * Label of the device’s own share sheet.
    */
   native?: string;
-  /**
-   * Confirmation shown after the link is copied.
-   */
-  copied?: string;
   /**
    * Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters.
    */
