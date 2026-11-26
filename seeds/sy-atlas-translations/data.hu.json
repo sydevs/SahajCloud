@@ -162,10 +162,7 @@
     "display": {
       "about": "Erről a foglalkozásról",
       "free_meditation_class": "Ingyenes meditációs óra",
-      "chip_full": "Betelt",
       "chip_today": "Ma",
-      "chip_ended": "Véget ért",
-      "chip_starts": "Kezdés: %{date}",
       "started_on": "Elkezdődött: %{date}",
       "first_session": "Első alkalom: %{date}",
       "next_session": "Következő alkalom: %{date}",

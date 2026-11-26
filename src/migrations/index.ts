@@ -13,6 +13,7 @@ import * as migration_20261125_152923_atlas_drop_compact_tab from './20261125_15
 import * as migration_20261125_191844_merge_snapshot_heal from './20261125_191844_merge_snapshot_heal';
 import * as migration_20261125_213000_atlas_common_copied from './20261125_213000_atlas_common_copied';
 import * as migration_20261125_230000_atlas_drop_captcha_blocked from './20261125_230000_atlas_drop_captcha_blocked';
+import * as migration_20261126_180000_atlas_drop_status_chips from './20261126_180000_atlas_drop_status_chips';
 
 export const migrations = [
   {
@@ -89,5 +90,10 @@ export const migrations = [
     up: migration_20261125_230000_atlas_drop_captcha_blocked.up,
     down: migration_20261125_230000_atlas_drop_captcha_blocked.down,
     name: '20261125_230000_atlas_drop_captcha_blocked',
+  },
+  {
+    up: migration_20261126_180000_atlas_drop_status_chips.up,
+    down: migration_20261126_180000_atlas_drop_status_chips.down,
+    name: '20261126_180000_atlas_drop_status_chips',
   },
 ];

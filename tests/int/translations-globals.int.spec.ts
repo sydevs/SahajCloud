@@ -478,13 +478,13 @@ describe('Translations Globals Configuration', () => {
       await expect(write({ online: null })).resolves.toBeDefined()
     })
 
-    // #706 turned seven advisory budgets strict, so the limit is emitted into
+    // #706 turned the advisory budgets strict, so the limit is emitted into
     // the column's JSON Schema and Payload refuses the write itself.
     it('rejects a strict key over its maxLength', async () => {
       await expect(
-        write({ event: { display: { chip_full: 'Completely full up' } } }),
+        write({ event: { display: { chip_today: 'Today, this very evening' } } }),
       ).rejects.toThrow()
-      await expect(write({ event: { display: { chip_full: 'Full' } } })).resolves.toBeDefined()
+      await expect(write({ event: { display: { chip_today: 'Today' } } })).resolves.toBeDefined()
     })
 
     // Payload's built-in validator short-circuits on an "empty" value and

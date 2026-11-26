@@ -162,10 +162,7 @@
     "display": {
       "about": "Over deze les",
       "free_meditation_class": "Gratis meditatieles",
-      "chip_full": "Vol",
       "chip_today": "Vandaag",
-      "chip_ended": "Afgelopen",
-      "chip_starts": "Start %{date}",
       "started_on": "Gestart op %{date}",
       "first_session": "Eerste les: %{date}",
       "next_session": "Volgende les: %{date}",

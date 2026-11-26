@@ -162,10 +162,7 @@
     "display": {
       "about": "Про це заняття",
       "free_meditation_class": "Безкоштовний курс медитації",
-      "chip_full": "Місць немає",
       "chip_today": "Сьогодні",
-      "chip_ended": "Завершено",
-      "chip_starts": "Початок: %{date}",
       "started_on": "Триває з %{date}",
       "first_session": "Перше заняття: %{date}",
       "next_session": "Наступне заняття: %{date}",

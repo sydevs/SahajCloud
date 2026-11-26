@@ -162,10 +162,7 @@
     "display": {
       "about": "Acerca de esta clase",
       "free_meditation_class": "Clase de meditación gratuita",
-      "chip_full": "Completo",
       "chip_today": "Hoy",
-      "chip_ended": "Finalizado",
-      "chip_starts": "Empieza el %{date}",
       "started_on": "Empezó el %{date}",
       "first_session": "Primera sesión: %{date}",
       "next_session": "Próxima sesión: %{date}",

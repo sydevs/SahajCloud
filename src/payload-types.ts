@@ -9388,23 +9388,11 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   unverified_note?: string;
   /**
-   * Status chip: the event has no places left.
-   */
-  chip_full?: string;
-  /**
-   * Status chip and when-line: the next session is today.
+   * The Today chip on a list card, and the when-line: the next session is today.
    */
   chip_today?: string;
   /**
-   * Status chip: the event is over.
-   */
-  chip_ended?: string;
-  /**
-   * Status chip for an event that has not begun. `%{date}` = start date.
-   */
-  chip_starts?: string;
-  /**
-   * Status chip and when-line for a series already under way. `%{date}` = start date.
+   * When-line for a series already under way. `%{date}` = start date.
    */
   started_on?: string;
   /**
