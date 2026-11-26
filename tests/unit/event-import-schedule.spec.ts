@@ -59,6 +59,10 @@ describe('mapCsvSchedule — weekly', () => {
     expect(errors(map({ weekdays: 'Funday' }))).toEqual([
       'weekdays must be codes from MO,TU,WE,TH,FR,SA,SU (got "Funday")',
     ])
+    // Once for the cell, not once per bad code in it.
+    expect(errors(map({ weekdays: 'Mon,Tue,Wed' }))).toEqual([
+      'weekdays must be codes from MO,TU,WE,TH,FR,SA,SU (got "Mon,Tue,Wed")',
+    ])
   })
 })
 

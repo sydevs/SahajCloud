@@ -23,7 +23,8 @@ export interface EventDataArgs {
   timezone: SupportedTimezones
   /** Today in the row's own zone, which "has already passed" is measured against. */
   today: Temporal.PlainDate
-  regionId: number
+  /** Null while the row's city is still to be created, for the checks that run before. */
+  regionId: number | null
   managerId: number | null
   importBatch: number
   defaultLanguages: readonly string[]

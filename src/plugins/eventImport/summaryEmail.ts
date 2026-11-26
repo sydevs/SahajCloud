@@ -36,6 +36,7 @@ export async function sendImportSummary(args: {
           created: imported,
           duplicates,
           errors: run.skipped.length - duplicates,
+          newCities: run.createdRegions.length,
           importUrl: adminDocUrl('imports', run.importId),
         }),
       )),

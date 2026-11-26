@@ -8,6 +8,7 @@ export const IMPORT_IDS = {
   failed: 1_024_002,
   review: 1_024_003,
   pending: 1_024_004,
+  newCity: 1_024_005,
 } as const
 
 // The job clears `rows` once it has run; the create parses them from the file, so a second write drops them.
@@ -150,6 +151,37 @@ export default fixture('imports', [
           city: 'Fixture Harbourton',
           reasons: ['startTime: enter a time as HH:MM, 24-hour.'],
           values: { title: 'Fixture Bad Time', startTime: '25:00', endTime: '26:00' },
+        },
+      ],
+    },
+    locales: { en: AFTER_RUN },
+  },
+  // The run created the city its row's town had none of, listed above the classes.
+  // Its class was deleted after the import, so the event id names no row on purpose.
+  {
+    id: IMPORT_IDS.newCity,
+    file: 'fixture-import-new-city.csv',
+    data: {
+      status: 'completed',
+      manager: ID.managers.admin,
+      targetRegion: ID.regions.country,
+      defaultLanguages: ['en'],
+      uploadLocale: 'en',
+      results: [
+        {
+          row: 2,
+          outcome: 'created',
+          eventId: 1_025_999,
+          title: 'Fixture Well House Sitting',
+          city: 'Fixture Wellspring',
+        },
+      ],
+      createdRegions: [
+        {
+          regionId: REGION_IDS.cityEmpty,
+          name: 'Fixture Wellspring',
+          parentName: 'Fixture Vasanta',
+          rows: [2],
         },
       ],
     },

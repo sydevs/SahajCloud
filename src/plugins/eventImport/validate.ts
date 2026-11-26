@@ -41,6 +41,8 @@ export async function fieldErrors(
   data: JsonObject,
   /** The context the create will carry — the stage guard is one of these hooks. */
   context: RequestContext,
+  /** Field paths not to report: a `region` the run has yet to create. */
+  ignore: readonly string[] = [],
 ): Promise<string[]> {
   const collection = req.payload.collections.events.config
   const copy = structuredClone(data)
@@ -68,7 +70,7 @@ export async function fieldErrors(
     siblingDocWithLocales: {},
     skipValidation: false,
   })
-  return reasonsOf(errors)
+  return reasonsOf(errors.filter(({ path }) => !ignore.includes(path)))
 }
 
 /** Payload's field errors, each under the CSV column that held the value. */

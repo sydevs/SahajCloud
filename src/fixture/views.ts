@@ -157,6 +157,7 @@ export const VIEWS: ViewRegistry = {
     doc('imports', 1_024_001),
     doc('imports', 1_024_002),
     doc('imports', 1_024_003),
+    doc('imports', 1_024_005),
   ),
   '@/components/admin/EventImport/TemplateLink#default': links(
     list('imports'),

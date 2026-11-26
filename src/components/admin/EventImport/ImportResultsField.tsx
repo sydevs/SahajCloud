@@ -4,11 +4,16 @@ import { mergeFieldStyles } from '@/components/admin/helpers/mergeFieldStyles'
 import { isFeedbackOpen } from '@/lib/eventVerification/communityFeedback'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { relationId } from '@/lib/utilities/relationId'
-import type { Manager } from '@/payload-types'
+import type { Manager, Region } from '@/payload-types'
 import { skippedRowsCsv } from '@/plugins/eventImport/csv/template'
 import type { ImportResultRow } from '@/plugins/eventImport/results'
 
-import { type ResultRow, type ResultStatus, ImportResultsTable } from './ImportResultsTable'
+import {
+  type RegionResultRow,
+  type ResultRow,
+  type ResultStatus,
+  ImportResultsTable,
+} from './ImportResultsTable'
 import { csvScheduleSummary, liveScheduleSummary } from './scheduleSummary'
 import { readAsRequestUser } from '../helpers/readAsRequestUser'
 
@@ -22,7 +27,8 @@ const STATUS_WORDS: Record<ResultStatus, [string, string]> = {
 
 /**
  * The import's result, one line per CSV row, with each created class's live
- * status: it may have been published or cleaned up since the import ran.
+ * status: it may have been published or cleaned up since the import ran — and,
+ * above them, the city regions the run created for those classes.
  *
  * ⚠ **Read past access, on purpose.** Only admins and the managers of the
  * target region can open an import, and these are the classes it created there
@@ -44,73 +50,93 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
 }) => {
   const importId = Number(id)
   const stored = Number.isInteger(importId)
-    ? await readAsRequestUser(req, 'imports', importId, { results: true, targetRegion: true })
+    ? await readAsRequestUser(req, 'imports', importId, {
+        results: true,
+        createdRegions: true,
+        targetRegion: true,
+      })
     : null
   if (!stored) return null
   const results = (stored.results ?? []) as ImportResultRow[]
+  const createdRegions = stored.createdRegions ?? []
   const created = results.flatMap(({ eventId }) => (eventId === undefined ? [] : [eventId]))
   const originalOf = (result: ImportResultRow): number | undefined => result.duplicateOf?.eventId
   const originals = results.flatMap((result) => originalOf(result) ?? [])
   const ids = [...new Set([...created, ...originals])]
 
-  const [events, published] = ids.length
-    ? await Promise.all([
-        req.payload.find({
-          collection: 'events',
-          where: { id: { in: ids } },
-          // The stored document, not its newest draft: a published class with
-          // an edit saved as a draft is still published.
-          draft: false,
-          depth: 1,
-          pagination: false,
-          overrideAccess: true,
-          // ⚠ Stored columns only: the whole schedule group would compute its
-          // virtual `icalRule` and `upcomingDates` for each of up to 500 rows.
-          select: {
-            title: true,
-            eventType: true,
-            address: { mapboxId: true },
-            _status: true,
-            createdAt: true,
-            manager: true,
-            verificationStage: true,
-            inactive: true,
-            schedule: {
-              firstDate: true,
-              firstDate_tz: true,
-              recurrenceType: true,
-              interval: true,
-              weekdays: true,
-              monthlyMode: true,
-              monthDay: true,
-              weekNumber: true,
-              weekdayOfMonth: true,
-              endingType: true,
-              count: true,
-              untilDate: true,
-              exclusions: true,
+  const [[events, published], { docs: regionDocs }] = await Promise.all([
+    ids.length
+      ? Promise.all([
+          req.payload.find({
+            collection: 'events',
+            where: { id: { in: ids } },
+            // The stored document, not its newest draft: a published class with
+            // an edit saved as a draft is still published.
+            draft: false,
+            depth: 1,
+            pagination: false,
+            overrideAccess: true,
+            // ⚠ Stored columns only: the whole schedule group would compute its
+            // virtual `icalRule` and `upcomingDates` for each of up to 500 rows.
+            select: {
+              title: true,
+              eventType: true,
+              address: { mapboxId: true },
+              _status: true,
+              createdAt: true,
+              manager: true,
+              verificationStage: true,
+              inactive: true,
+              schedule: {
+                firstDate: true,
+                firstDate_tz: true,
+                recurrenceType: true,
+                interval: true,
+                weekdays: true,
+                monthlyMode: true,
+                monthDay: true,
+                weekNumber: true,
+                weekdayOfMonth: true,
+                endingType: true,
+                count: true,
+                untilDate: true,
+                exclusions: true,
+              },
             },
-          },
-          populate: { managers: { name: true, email: true } },
-          req: localeIsolatedReq(req),
-        }),
-        // When each created class was first published: its earliest published version.
-        req.payload.findVersions({
-          collection: 'events',
-          where: {
-            and: [{ parent: { in: created } }, { 'version._status': { equals: 'published' } }],
-          },
-          sort: 'createdAt',
+            populate: { managers: { name: true, email: true } },
+            req: localeIsolatedReq(req),
+          }),
+          // When each created class was first published: its earliest published version.
+          req.payload.findVersions({
+            collection: 'events',
+            where: {
+              and: [{ parent: { in: created } }, { 'version._status': { equals: 'published' } }],
+            },
+            sort: 'createdAt',
+            depth: 0,
+            pagination: false,
+            overrideAccess: true,
+            select: { parent: true, createdAt: true },
+            req: localeIsolatedReq(req),
+          }),
+        ])
+      : ([{ docs: [] }, { docs: [] }] as const),
+    // The created regions as they stand now: renamed or deleted since, perhaps.
+    createdRegions.length
+      ? req.payload.find({
+          collection: 'regions',
+          where: { id: { in: createdRegions.map(({ regionId }) => regionId) } },
           depth: 0,
           pagination: false,
           overrideAccess: true,
-          select: { parent: true, createdAt: true },
+          select: { name: true },
           req: localeIsolatedReq(req),
-        }),
-      ])
-    : [{ docs: [] }, { docs: [] }]
+        })
+      : ({ docs: [] } as const),
+  ])
 
   const live = new Map(events.docs.map((event) => [event.id, event]))
+  const liveRegion = new Map((regionDocs as Region[]).map((region) => [region.id, region]))
   const publishedAt = new Map<number, string>()
   for (const version of published.docs) {
     const parent = relationId(version.parent)
@@ -170,6 +196,18 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
   })
 
   const skipped = results.filter(({ outcome }) => outcome !== 'created')
+  const eventOfRow = new Map(results.map(({ row, eventId }) => [row, eventId]))
+  // Each created city, with the classes its rows made that still exist.
+  const regions: RegionResultRow[] = createdRegions.map(({ regionId, name, parentName, rows }) => {
+    const region = liveRegion.get(regionId)
+    return {
+      id: regionId,
+      name: region?.name || name,
+      parentName,
+      classes: rows.filter((row) => live.has(eventOfRow.get(row) ?? -1)).length,
+      removed: !region,
+    }
+  })
 
   return (
     <ImportResultsTable
@@ -190,6 +228,7 @@ export const ImportResultsField: JSONFieldServerComponent = async ({
       label={clientField.label}
       style={mergeFieldStyles(clientField.admin)}
       path={path}
+      regions={regions}
       rows={rows}
     />
   )

@@ -33,7 +33,21 @@ const REQUIREMENT_PREFIX: Record<ColumnRequirement, string> = {
 const HELP_TEXTS = IMPORT_COLUMNS.map(
   ({ requirement, help }) => `${REQUIREMENT_PREFIX[requirement]}${help}`,
 )
-const HELP_TEXT_SET: ReadonlySet<string> = new Set(HELP_TEXTS.filter(Boolean))
+/**
+ * A help cell as compared, with its punctuation dropped rather than listed. ⚠
+ * **Spreadsheets and the tools around them re-type punctuation**: one em dash
+ * saved back as a hyphen left a Karnataka file's help row unrecognised, and it
+ * was read as a class with twelve errors.
+ */
+function helpKey(text: string): string {
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+}
+
+const HELP_TEXT_SET: ReadonlySet<string> = new Set(HELP_TEXTS.filter(Boolean).map(helpKey))
 
 /**
  * Header row, a commented help row, and one example row.
@@ -72,13 +86,14 @@ export function skippedRowsCsv(
  * ⚠ **Matched on our own help strings, not on a leading `#`.** A `#` is how a
  * real class can start (`#1 Beginners Class`, `#204-1234 Main St`), and
  * skipping on it dropped those rows without a word. Every filled cell must be
- * one of the strings we wrote, in any order, so a reordered sheet still matches
- * and a help row from an older template falls through to visible row errors.
+ * one of the strings we wrote, in any order and whatever its punctuation, so a
+ * reordered sheet still matches and a help row from an older template falls
+ * through to visible row errors.
  */
 export function isTemplateHelpRow(record: readonly string[]): boolean {
   let matched = false
   for (const cell of record) {
-    const text = cell?.trim().replace(/^#\s*/, '')
+    const text = helpKey(cell?.trim().replace(/^#\s*/, '') ?? '')
     if (!text) continue
     if (!HELP_TEXT_SET.has(text)) return false
     matched = true

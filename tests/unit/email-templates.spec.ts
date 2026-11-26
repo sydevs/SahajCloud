@@ -622,6 +622,14 @@ describe('EventImportSummaryEmail', () => {
 
     expect(html).toContain('Your class import needs attention')
     expect(html).not.toContain('Duplicates skipped')
+    expect(html).not.toContain('New city regions')
+  })
+
+  it('counts the city regions the run created', async () => {
+    const html = await renderHtml(
+      createElement(EventImportSummaryEmail, { ...props, newCities: 3 }),
+    )
+    expect(html).toContain('New city regions')
   })
 })
 

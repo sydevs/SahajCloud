@@ -5,6 +5,7 @@ import type { PayloadRequest, RequestContext } from 'payload'
 
 import { EVENT_MACHINE } from '@/lib/eventVerification/machine'
 import { withActor } from '@/lib/stateMachine/actor'
+import type { EventImportCreatedRegions } from '@/payload-types'
 
 /**
  * Set on every class the job creates, so `refreshFromEvent` (`index.ts`)
@@ -64,6 +65,10 @@ export interface ImportRun {
   skipped: SkippedRow[]
   /** City regions under the target, by the Mapbox place id each holds. */
   cities: Map<string, number>
+  /** Under a country target, its state regions by the Mapbox id each holds. */
+  states: Map<string, { id: number; name: string }>
+  /** The city regions this run created, in the order it created them. */
+  createdRegions: EventImportCreatedRegions
   /** Each class key a row of this file has claimed, and that row, so a later twin is caught. */
   claimed: Map<string, number>
 }

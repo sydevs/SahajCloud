@@ -1,0 +1,2 @@
+title,eventType,country,city,address,postcode,date,startTime,endTime,recurrenceType,weekdays
+Fixture Well House Sitting,offline,GB,Fixture Wellspring,9 Well House Lane,FX4 1AA,2026-11-04,19:00,20:00,WEEKLY,WE

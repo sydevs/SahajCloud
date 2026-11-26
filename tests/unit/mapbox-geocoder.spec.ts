@@ -55,6 +55,7 @@ describe('geocodeLocation', () => {
   const berlinContext = {
     country: { mapbox_id: 'mbx-de', name: 'Germany', country_code: 'DE' },
     region: { mapbox_id: 'mbx-be', name: 'Berlin', region_code: 'BE', region_code_full: 'DE-BE' },
+    postcode: { mapbox_id: 'mbx-10999', name: '10999' },
     place: { mapbox_id: 'mbx-berlin', name: 'Berlin' },
   }
 
@@ -65,8 +66,9 @@ describe('geocodeLocation', () => {
     return outcome.location
   }
 
-  it('returns the point, the matched feature and the town around it', async () => {
-    stubFetch(() => ({ body: placed(berlinContext) }))
+  it('returns the point, the matched feature, its grade and the places around it', async () => {
+    const graded = { place: 'matched', postcode: 'matched', confidence: 'exact' }
+    stubFetch(() => ({ body: placed(berlinContext, { match_code: graded }) }))
     expect(
       await located({
         kind: 'address',
@@ -81,6 +83,11 @@ describe('geocodeLocation', () => {
       longitude: 13.4186,
       placeName: 'Berlin',
       placeId: 'mbx-berlin',
+      postcode: '10999',
+      stateId: 'mbx-be',
+      countryId: 'mbx-de',
+      matchCode: graded,
+      fullAddress: null,
     })
   })
 
@@ -123,10 +130,35 @@ describe('geocodeLocation', () => {
       seenUrl = url
       return { body: placed(berlinContext) }
     })
-    await geocodeLocation({ kind: 'place', city: 'Leipzig', countryCode: 'DE', address: 'ignored' })
+    await geocodeLocation({ kind: 'place', city: 'Leipzig', countryCode: 'DE' })
     const url = new URL(seenUrl)
     expect(url.searchParams.get('types')).toBe('place,locality')
     expect(url.searchParams.has('address_line1')).toBe(false)
+  })
+
+  it('asks a postcode lookup for the postcode alone, wherever it lies', async () => {
+    let seenUrl = ''
+    stubFetch((url) => {
+      seenUrl = url
+      return {
+        body: placed(berlinContext, {
+          mapbox_id: 'mbx-10999',
+          feature_type: 'postcode',
+          name: '10999',
+        }),
+      }
+    })
+    const location = await located({
+      kind: 'postcode',
+      postcode: '10999',
+      countryCode: 'DE',
+    })
+    const url = new URL(seenUrl)
+    expect(url.searchParams.get('types')).toBe('postcode')
+    expect(url.searchParams.get('postcode')).toBe('10999')
+    expect(url.searchParams.has('place')).toBe(false)
+    expect(url.searchParams.has('address_line1')).toBe(false)
+    expect(location).toMatchObject({ featureType: 'postcode', postcode: '10999', matchCode: null })
   })
 
   it('reports a match coarser than an address by its own feature type', async () => {
@@ -335,7 +367,10 @@ describe('geocodeLocation', () => {
     it.each([400, 404, 422])('reports a %i as refused, once, with its status', async (status) => {
       // ⚠ Retrying it, or reporting it as an outage, stalls the batch on this
       // row for good: every resume asks the same query and gets the same 4xx.
-      const fetchSpy = stubFetch(() => ({ status, body: { message: 'Query too long' } }))
+      const fetchSpy = stubFetch(() => ({
+        status,
+        body: { message: 'Query too long - 21/20 tokens' },
+      }))
       expect(
         await settled(
           geocodeLocation({
@@ -348,6 +383,7 @@ describe('geocodeLocation', () => {
       ).toEqual({
         status: 'refused',
         httpStatus: status,
+        message: 'Query too long - 21/20 tokens',
       })
       expect(fetchSpy).toHaveBeenCalledTimes(1)
     })

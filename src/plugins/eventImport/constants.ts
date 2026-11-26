@@ -17,9 +17,11 @@ export const MAX_IMPORT_ROWS = 500
 export const IMPORT_BATCH_SIZE = 50
 
 /**
- * Geocodes in flight at once. Mapbox allows 600 requests a minute; four never
- * approaches that, and a lookup is about 200 ms, so a full import takes under a
- * minute.
+ * Rows geocoded at once, not requests: a row whose address cannot vouch for
+ * itself spends two more lookups together, so up to 8 are in flight. What
+ * keeps a run inside Mapbox's 600 a minute is the per-run memo (`locate.ts`),
+ * which collapses those two across every row of a town — 61 rows of one
+ * Karnataka file cost 120 requests.
  */
 export const GEOCODE_CONCURRENCY = 4
 

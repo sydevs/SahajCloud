@@ -36,13 +36,28 @@ export interface MapboxContextLayer {
   country_code?: string
 }
 
+/**
+ * How v6 graded each field of an `address` answer against the query. Every
+ * coarser answer — a street, a postcode, a town — carries none.
+ */
+export interface MapboxMatchCode {
+  /** `matched`, `unmatched` or `not_applicable`, as each field below. */
+  place?: string
+  postcode?: string
+  /** `exact`, `high`, `medium` or `low`. */
+  confidence?: string
+}
+
 export interface MapboxFeature {
   geometry?: { coordinates?: number[] }
   properties?: {
     mapbox_id?: string
     name?: string
+    /** The whole answer in one line, e.g. `Old No., Bengaluru, 560040, India`. */
+    full_address?: string
     /** `address`, `street`, `postcode`, `place`, `locality`… */
     feature_type?: string
+    match_code?: MapboxMatchCode
     context?: {
       address?: MapboxContextLayer
       street?: MapboxContextLayer

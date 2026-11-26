@@ -112,7 +112,7 @@ const MAIN_FIELDS: Field[] = [
       position: 'sidebar',
       allowCreate: false,
       description:
-        'Classes are filed under the cities of this region. A town with no city region yet is skipped — create the city first.',
+        'Classes are filed under the cities of this region. A town with no city region yet gets one, listed on the import once it has run.',
     },
   },
   {
@@ -163,6 +163,23 @@ const MAIN_FIELDS: Field[] = [
       // class itself, which may have been published or cleaned up since.
       components: { Field: '@/components/admin/EventImport/ImportResultsField' },
     },
+  }),
+  jsonField({
+    // Rendered by the Result field above, beside the classes: one component
+    // reads both, and gates the read once.
+    name: 'createdRegions',
+    label: 'New City Regions',
+    schemaTitle: 'EventImportCreatedRegions',
+    schema: z.array(
+      z.strictObject({
+        regionId: z.int(),
+        name: z.string().describe('Mapbox’s name for the town, as the region was created.'),
+        parentName: z.string().describe('The region it was filed under.'),
+        rows: z.array(z.int()).describe('The spreadsheet lines whose town it is.'),
+      }),
+    ),
+    access: { update: () => false },
+    admin: { hidden: true },
   }),
   jsonField({
     // The parsed CSV, from the upload to the end of the run. Never shown:
