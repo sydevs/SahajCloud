@@ -1435,6 +1435,11 @@
           "type": "string",
           "description": "Label of the device’s own share sheet."
         },
+        "copy_link": {
+          "type": "string",
+          "default": "Copy link",
+          "description": "Button under Share that puts the class link on the clipboard."
+        },
         "link_copied": {
           "type": "string",
           "default": "Link copied",
