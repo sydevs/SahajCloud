@@ -366,19 +366,12 @@ describe('atlas translations seeds', () => {
   const ENGLISH_VALUES_ALLOWED: Record<Exclude<(typeof SEED_LOCALES)[number], 'en'>, string[]> = {
     // `%{start} – %{end}` is a format string with no word in it, so every
     // locale shares it. `Online` is the same word in seven of these languages.
-    cs: [
-      'event.display.online',
-      'filters.dates.pill_range',
-      'filters.format.online',
-      // `Region` is the Czech word, not the English one.
-      'filters.region.label',
-    ],
+    cs: ['event.display.online', 'filters.dates.pill_range', 'filters.format.online'],
     de: [
       'event.display.online',
       'filters.dates.pill_range',
       'filters.format.label',
       'filters.format.online',
-      'filters.region.label',
       'registration.form.okay',
     ],
     es: ['filters.dates.pill_range'],

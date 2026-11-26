@@ -23038,12 +23038,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "filters_region": {
-          "name": "filters_region",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
         "filters_more": {
           "name": "filters_more",
           "type": "jsonb",
@@ -23550,12 +23544,6 @@
         },
         "version_filters_dates": {
           "name": "version_filters_dates",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "version_filters_region": {
-          "name": "version_filters_region",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
@@ -29598,6 +29586,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "2c93a739-eec9-4198-b02d-71cda031996c",
+  "id": "82e6f887-f17a-423c-b149-7568a80c6d19",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }
