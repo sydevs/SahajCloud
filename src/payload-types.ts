@@ -8992,10 +8992,6 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   share_unavailable?: string;
   /**
-   * Message shown in place of the Atlas when its security check (Turnstile) does not answer: the host page blocked it, or it was too slow.
-   */
-  captcha_blocked?: string;
-  /**
    * Empty-list message in the Region and Online views, when the place itself has no events.
    */
   no_events?: string;

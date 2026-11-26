@@ -33,7 +33,6 @@
       "config": "Der Atlas ist auf dieser Seite nicht korrekt eingerichtet.",
       "unavailable": "Dieses Programm kann derzeit nicht besucht werden.",
       "share_unavailable": "Für diese Meditation gibt es noch keinen Link zum Teilen.",
-      "captcha_blocked": "Dieser Atlas kann auf dieser Seite nicht laufen: Seine Sicherheitsprüfung wurde blockiert.",
       "no_events": "Keine Veranstaltungen gefunden.",
       "back_to_region": "Veranstaltungen in %{region} ansehen",
       "near_city": "Veranstaltungen in der Nähe von %{city} ansehen",

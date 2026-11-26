@@ -33,7 +33,6 @@
       "config": "De Atlas is op deze pagina niet juist ingesteld.",
       "unavailable": "Je kunt op dit moment niet deelnemen aan dit programma.",
       "share_unavailable": "Er is nog geen link om deze meditatie te delen.",
-      "captcha_blocked": "Deze Atlas kan niet werken op deze pagina: de beveiligingscontrole is geblokkeerd.",
       "no_events": "Geen evenementen gevonden.",
       "back_to_region": "Evenementen in %{region} bekijken",
       "near_city": "Evenementen in de buurt van %{city} bekijken",

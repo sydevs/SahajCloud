@@ -33,7 +33,6 @@
       "config": "Atlas není na této stránce správně nastaven.",
       "unavailable": "Tento program teď není možné navštívit.",
       "share_unavailable": "Pro tuto meditaci zatím není odkaz ke sdílení.",
-      "captcha_blocked": "Tento Atlas na této stránce nefunguje: jeho bezpečnostní kontrola byla zablokována.",
       "no_events": "Nebyly nalezeny žádné události.",
       "back_to_region": "Zobrazit události: %{region}",
       "near_city": "Zobrazit události poblíž: %{city}",

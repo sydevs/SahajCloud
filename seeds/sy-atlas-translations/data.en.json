@@ -32,7 +32,6 @@
       "config": "This Atlas isn't set up correctly on this page.",
       "unavailable": "This program can’t be joined right now.",
       "share_unavailable": "There is no link to share for this meditation yet.",
-      "captcha_blocked": "The map can't load here right now, because its security check didn't respond. Try again later.",
       "no_events": "No events found.",
       "back_to_region": "See events in %{region}",
       "near_city": "See events near %{city}",
