@@ -10,6 +10,11 @@ import type {
 
 import { Forbidden } from 'payload'
 
+// Deep, not through `@/plugins/login`: that barrel reaches this plugin's own
+// barrel through `loginPlugin` and the impersonation strategy, so importing it
+// here closes a cycle between the two.
+import { keepImpersonatedPreferences } from '@/plugins/login/impersonation/preferences'
+
 import { isAdminManager } from './adminOnly'
 
 /**
@@ -43,6 +48,7 @@ export function restrictPayloadSystemEntities(config: SanitizedConfig): Sanitize
     if (policy.guardEndpoints && collection.endpoints) {
       collection.endpoints = collection.endpoints.map(managersOnlyEndpoint)
     }
+    policy.extend?.(collection)
   }
 
   for (const global of config.globals) {
@@ -69,6 +75,8 @@ interface CollectionPolicy {
   access: CollectionAccess
   /** Refuse non-managers on every endpoint, for handlers that skip collection access. */
   guardEndpoints?: boolean
+  /** Anything else the entity owes, applied after the two above. */
+  extend?: (collection: SanitizedCollectionConfig) => void
 }
 
 const adminOnly = ({ req }: { req: PayloadRequest }): boolean => isAdminManager(req.user)
@@ -121,6 +129,7 @@ const SYSTEM_COLLECTIONS: Record<string, CollectionPolicy> = {
     access: { ...everyOperation(ownManagerPreferences), create: managersOnly },
     // The `/:key` handlers write through `payload.db` and never consult access.
     guardEndpoints: true,
+    extend: keepImpersonatedPreferences,
   },
   // Payload denies its CRUD already; this also closes the `unlock` that
   // sanitize fills with `Boolean(user)`, and keeps admins out as before.

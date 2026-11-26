@@ -14,7 +14,8 @@
       "close": "Sluiten",
       "cancel": "Annuleren",
       "widget_label": "Gratis meditatielessen",
-      "all_classes_free": "Alle lessen zijn gratis"
+      "all_classes_free": "Alle lessen zijn gratis",
+      "copied": "Gekopieerd"
     },
     "settings": {
       "theme_auto": "Systeem (automatisch)",
@@ -32,7 +33,6 @@
       "config": "De Atlas is op deze pagina niet juist ingesteld.",
       "unavailable": "Je kunt op dit moment niet deelnemen aan dit programma.",
       "share_unavailable": "Er is nog geen link om deze meditatie te delen.",
-      "captcha_blocked": "Deze Atlas kan niet werken op deze pagina: de beveiligingscontrole is geblokkeerd.",
       "no_events": "Geen evenementen gevonden.",
       "back_to_region": "Evenementen in %{region} bekijken",
       "near_city": "Evenementen in de buurt van %{city} bekijken",
@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Gratis meditatielessen"
+    "title": "Gratis meditatielessen",
+    "browse_heading": "Of blader per land"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online lessen"
+    "title": "Online lessen",
+    "subtitle": "Doe mee vanaf elke plek"
   },
   "event": {
     "display": {
@@ -251,8 +253,7 @@
     }
   },
   "share": {
-    "native": "Delen…",
-    "copied": "Gekopieerd"
+    "native": "Delen…"
   },
   "seo": {
     "root_title": "Gratis meditatielessen bij jou in de buurt",

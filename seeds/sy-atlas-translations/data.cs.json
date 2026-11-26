@@ -14,7 +14,8 @@
       "close": "Zavřít",
       "cancel": "Zrušit",
       "widget_label": "Bezplatné meditační kurzy",
-      "all_classes_free": "Všechny lekce jsou zdarma"
+      "all_classes_free": "Všechny lekce jsou zdarma",
+      "copied": "Zkopírováno"
     },
     "settings": {
       "theme_auto": "Systémový (auto)",
@@ -32,7 +33,6 @@
       "config": "Atlas není na této stránce správně nastaven.",
       "unavailable": "Tento program teď není možné navštívit.",
       "share_unavailable": "Pro tuto meditaci zatím není odkaz ke sdílení.",
-      "captcha_blocked": "Tento Atlas na této stránce nefunguje: jeho bezpečnostní kontrola byla zablokována.",
       "no_events": "Nebyly nalezeny žádné události.",
       "back_to_region": "Zobrazit události: %{region}",
       "near_city": "Zobrazit události poblíž: %{city}",
@@ -74,7 +74,8 @@
     }
   },
   "countries": {
-    "title": "Bezplatné kurzy meditace"
+    "title": "Bezplatné kurzy meditace",
+    "browse_heading": "Nebo procházejte podle země"
   },
   "search": {
     "chrome": {
@@ -154,7 +155,8 @@
     }
   },
   "online": {
-    "title": "Online kurzy"
+    "title": "Online kurzy",
+    "subtitle": "Připojte se odkudkoli"
   },
   "event": {
     "display": {
@@ -253,8 +255,7 @@
     }
   },
   "share": {
-    "native": "Sdílet…",
-    "copied": "Zkopírováno"
+    "native": "Sdílet…"
   },
   "seo": {
     "root_title": "Bezplatné kurzy meditace ve vašem okolí",

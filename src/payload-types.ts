@@ -8909,15 +8909,31 @@ export interface SyAtlasTranslation {
 }
 export interface SyAtlasTranslationsCommonChromeStrings {
   /**
-   * Peek-strip name for the root drawer, shown when a deeper view is open.
+   * Back control where its target has no name.
    */
   back?: string;
   /**
-   * Peek-strip name that names its target view. `%{title}` = the parent view’s title.
+   * Back control on every place and class page. `%{title}` = the place it returns to.
    */
   back_to?: string;
   /**
-   * Close control on every drawer, the report modal, and the feedback banner.
+   * Back control on the registration and share pages, which open over the class they return to.
+   */
+  back_to_class?: string;
+  /**
+   * Back control on a country page, which returns to the map of every country.
+   */
+  back_to_world_map?: string;
+  /**
+   * Back control on a class opened from a search, and the spoken name of the arrow beside the search box on the results. `%{place}` = the first part of the searched place, such as `Prague`.
+   */
+  back_to_results_near?: string;
+  /**
+   * Button that raises the panel a phone visitor pulled down, on the first screen and on every place and class page.
+   */
+  show_more?: string;
+  /**
+   * Close control on the filters, which sit over the page they narrow, the report modal, and the feedback banner.
    */
   close?: string;
   /**
@@ -8932,6 +8948,10 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    * Subtitle under the Region, Online, and Registration headers.
    */
   all_classes_free?: string;
+  /**
+   * Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address.
+   */
+  copied?: string;
 }
 export interface SyAtlasTranslationsCommonSettingsStrings {
   /**
@@ -8988,10 +9008,6 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    * Message in the Share view when the event has no shareable URL.
    */
   share_unavailable?: string;
-  /**
-   * Message shown in place of the Atlas when its security check (Turnstile) does not answer: the host page blocked it, or it was too slow.
-   */
-  captcha_blocked?: string;
   /**
    * Empty-list message in the Region and Online views, when the place itself has no events.
    */
@@ -9139,13 +9155,17 @@ export interface SyAtlasTranslationsCountriesStrings {
    */
   title?: string;
   /**
+   * Small section heading above the country list on the first screen, after the Online classes row. It offers browsing by country as the alternative to online classes. Written in sentence case; the widget uppercases it.
+   */
+  browse_heading?: string;
+  /**
    * The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in.
    */
   place_title?: string;
 }
 export interface SyAtlasTranslationsSearchChromeStrings {
   /**
-   * Search view heading, and its peek-strip name.
+   * Search view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9203,7 +9223,7 @@ export interface SyAtlasTranslationsSearchNearbyPromptStrings {
 }
 export interface SyAtlasTranslationsFiltersChromeStrings {
   /**
-   * Filter view heading, and its peek-strip name.
+   * Filter view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9359,9 +9379,13 @@ export interface SyAtlasTranslationsFiltersRegionStrings {
 }
 export interface SyAtlasTranslationsOnlineStrings {
   /**
-   * Online view heading, its row on the Countries list, its link on a Region, and its peek-strip name.
+   * Online view heading, its row on the Countries list, its link on a Region, and the name Back says for it.
    */
   title?: string;
+  /**
+   * Short line under the Online classes row on the Countries list, saying these classes belong to no place.
+   */
+  subtitle?: string;
 }
 export interface SyAtlasTranslationsEventDisplayStrings {
   /**
@@ -9621,7 +9645,7 @@ export interface SyAtlasTranslationsEventTitleStrings {
 }
 export interface SyAtlasTranslationsCalendarStrings {
   /**
-   * Calendar view heading, and its peek-strip name.
+   * Calendar view heading, and the name Back says for it.
    */
   title?: string;
   /**
@@ -9643,7 +9667,7 @@ export interface SyAtlasTranslationsCalendarStrings {
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Registration view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
@@ -9698,6 +9722,10 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    * Refusal: the security check expired and must be redone before registering.
    */
   captcha_retry?: string;
+  /**
+   * Message above the “Try again” button, with Register disabled, when the registration form’s hidden security check (Turnstile) fails to load. Browsing the rest of the Atlas still works.
+   */
+  captcha_blocked?: string;
   /**
    * Mailing-list opt-in checkbox on the registration form. Shown only when the event’s `offersMailingList` is true.
    */
@@ -9999,7 +10027,7 @@ export interface SyAtlasTranslationsSubmitErrorsStrings {
 }
 export interface SyAtlasTranslationsShareStrings {
   /**
-   * Share view heading, and its peek-strip name. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
   /**
@@ -10007,9 +10035,21 @@ export interface SyAtlasTranslationsShareStrings {
    */
   native?: string;
   /**
-   * Confirmation shown after the link is copied.
+   * Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters.
    */
-  copied?: string;
+  qr_title?: string;
+  /**
+   * A short note under the opened QR code, saying what it is for and how to use it.
+   */
+  qr_hint?: string;
+  /**
+   * Button under the QR code that saves it as a large PNG image for printing.
+   */
+  qr_download?: string;
+  /**
+   * Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again.
+   */
+  qr_failed?: string;
 }
 export interface SyAtlasTranslationsSeoStrings {
   /**

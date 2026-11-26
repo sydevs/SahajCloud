@@ -36,11 +36,13 @@ export {
   rolesForAllLocales,
 } from './localizedRoles'
 export type { LocalizedRoles } from './localizedRoles'
+export { authenticateJWT, hydrateAuthUser } from './localizedRolesAuth'
 export {
   adminOnlyCondition,
   adminOnlyFieldAccess,
   isAdminManager,
   isManager,
+  isOwnRow,
   managersOnlyFieldAccess,
   selfOrAdminFieldAccess,
 } from './adminOnly'
