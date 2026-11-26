@@ -201,6 +201,7 @@ describe('atlas translations schema', () => {
           [
             'event.display.chip_today',
             'event.display.event_full',
+            'event.display.class_full',
             'event.display.contact_to_join_full',
             'common.feedback.confirmed_title',
             'common.feedback.denied_title',
@@ -210,6 +211,7 @@ describe('atlas translations schema', () => {
     ).toEqual({
       'event.display.chip_today': [14, true],
       'event.display.event_full': [36, true],
+      'event.display.class_full': [36, true],
       'event.display.contact_to_join_full': [40, true],
       'common.feedback.confirmed_title': [40, true],
       'common.feedback.denied_title': [40, true],
