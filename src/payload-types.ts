@@ -10036,6 +10036,10 @@ export interface SyAtlasTranslationsShareStrings {
    */
   native?: string;
   /**
+   * Button under Share that puts the class link on the clipboard.
+   */
+  copy_link?: string;
+  /**
    * What the Copy link button says for a moment after it has put the class link on the clipboard.
    */
   link_copied?: string;
