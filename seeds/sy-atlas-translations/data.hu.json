@@ -32,10 +32,7 @@
       "not_found_region": "Nem találjuk ezt a helyet.",
       "config": "Az Atlas nincs megfelelően beállítva ezen az oldalon.",
       "unavailable": "Ehhez a programhoz jelenleg nem lehet csatlakozni.",
-      "share_unavailable": "Ehhez a meditációhoz még nincs megosztható link.",
-      "no_events": "Nem található esemény.",
       "back_to_region": "Események itt: %{region}",
-      "near_city": "Események %{city} közelében",
       "browse_countries": "Összes ország megtekintése",
       "search_label": "Vagy keress egy helyet"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Több megjelenítése",
-      "farther": "Távoli események megjelenítése",
-      "no_nearby": "Nincs esemény %{km} km-en belül."
+      "farther": "Távoli események megjelenítése"
     },
     "sort": {
       "label": "Rendezés",
@@ -107,8 +103,7 @@
       "apply": "Alkalmaz",
       "clear": "Összes törlése",
       "clear_one": "Törlés",
-      "any_time": "Bármikor",
-      "no_results": "Egyetlen esemény sem felel meg a szűrőidnek."
+      "any_time": "Bármikor"
     },
     "where": {
       "label": "Hol",
@@ -175,8 +170,6 @@
       "started_on": "Elkezdődött: %{date}",
       "first_session": "Első alkalom: %{date}",
       "next_session": "Következő alkalom: %{date}",
-      "event_ended": "Ez az esemény véget ért",
-      "event_full": "Ez az esemény betelt",
       "registration_closed": "A regisztráció lezárult",
       "registration_required": "Regisztráció szükséges",
       "registration_external": "Erre az eseményre egy másik webhelyen lehet regisztrálni",
@@ -195,7 +188,6 @@
       "type_class_fortnightly": "Kéthetenkénti foglalkozás",
       "type_class_monthly": "Havi foglalkozás",
       "type_course": "Tanfolyam",
-      "type_oneoff": "Egyszeri esemény",
       "sessions_count_one": "%{count} alkalom",
       "sessions_count_other": "%{count} alkalom",
       "see_nearby": "Közeli események megtekintése",

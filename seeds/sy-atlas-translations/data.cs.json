@@ -32,10 +32,7 @@
       "not_found_region": "Toto místo se nepodařilo najít.",
       "config": "Atlas není na této stránce správně nastaven.",
       "unavailable": "Tento program teď není možné navštívit.",
-      "share_unavailable": "Pro tuto meditaci zatím není odkaz ke sdílení.",
-      "no_events": "Nebyly nalezeny žádné události.",
       "back_to_region": "Zobrazit události: %{region}",
-      "near_city": "Zobrazit události poblíž: %{city}",
       "browse_countries": "Procházet všechny země",
       "search_label": "Nebo vyhledejte místo"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Zobrazit více",
-      "farther": "Zobrazit vzdálené události",
-      "no_nearby": "Žádné události do %{km} km."
+      "farther": "Zobrazit vzdálené události"
     },
     "sort": {
       "label": "Seřadit",
@@ -107,8 +103,7 @@
       "apply": "Použít",
       "clear": "Vymazat vše",
       "clear_one": "Vymazat",
-      "any_time": "Kdykoli",
-      "no_results": "Žádné události neodpovídají vašim filtrům."
+      "any_time": "Kdykoli"
     },
     "where": {
       "label": "Kde",
@@ -175,8 +170,6 @@
       "started_on": "Zahájeno %{date}",
       "first_session": "První lekce: %{date}",
       "next_session": "Další lekce: %{date}",
-      "event_ended": "Tato akce již skončila",
-      "event_full": "Tato akce je obsazená",
       "registration_closed": "Registrace uzavřena",
       "registration_required": "Nutná registrace",
       "registration_external": "Registrace na tuto akci probíhá na jiném webu",
@@ -195,7 +188,6 @@
       "type_class_fortnightly": "Lekce jednou za dva týdny",
       "type_class_monthly": "Měsíční lekce",
       "type_course": "Kurz",
-      "type_oneoff": "Jednorázová akce",
       "sessions_count_one": "%{count} lekce",
       "sessions_count_few": "%{count} lekce",
       "sessions_count_many": "%{count} lekce",

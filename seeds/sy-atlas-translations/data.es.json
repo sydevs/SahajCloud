@@ -32,10 +32,7 @@
       "not_found_region": "No hemos encontrado ese lugar.",
       "config": "El Atlas no está configurado correctamente en esta página.",
       "unavailable": "Ahora mismo no es posible unirse a este programa.",
-      "share_unavailable": "Todavía no hay un enlace para compartir esta meditación.",
-      "no_events": "No se encontraron eventos.",
       "back_to_region": "Ver eventos en %{region}",
-      "near_city": "Ver eventos cerca de %{city}",
       "browse_countries": "Ver todos los países",
       "search_label": "O busca un lugar"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Mostrar más",
-      "farther": "Mostrar eventos distantes",
-      "no_nearby": "Ningún evento en un radio de %{km} km."
+      "farther": "Mostrar eventos distantes"
     },
     "sort": {
       "label": "Ordenar",
@@ -107,8 +103,7 @@
       "apply": "Aplicar",
       "clear": "Borrar todo",
       "clear_one": "Borrar",
-      "any_time": "Cualquier hora",
-      "no_results": "Ningún evento coincide con tus filtros."
+      "any_time": "Cualquier hora"
     },
     "where": {
       "label": "Dónde",
@@ -175,8 +170,6 @@
       "started_on": "Empezó el %{date}",
       "first_session": "Primera sesión: %{date}",
       "next_session": "Próxima sesión: %{date}",
-      "event_ended": "Este evento ha finalizado",
-      "event_full": "Este evento está completo",
       "registration_closed": "Inscripción cerrada",
       "registration_required": "Inscripción obligatoria",
       "registration_external": "La inscripción a este evento se realiza en otro sitio web",
@@ -195,7 +188,6 @@
       "type_class_fortnightly": "Clase quincenal",
       "type_class_monthly": "Clase mensual",
       "type_course": "Curso",
-      "type_oneoff": "Evento único",
       "sessions_count_one": "%{count} sesión",
       "sessions_count_other": "%{count} sesiones",
       "see_nearby": "Ver eventos cercanos",
