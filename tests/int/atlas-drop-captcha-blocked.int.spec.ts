@@ -4,9 +4,9 @@
  *
  * The first case is that defect as an assertion: seed the key underneath
  * validation, and a save of another tab is refused. The second is the
- * migration answering it. It imports the migration's `up` (as
- * `atlas-drop-time-in-place` did) and runs it inside `withSchema`, which
- * points its unqualified table names at this suite's own schema.
+ * migration answering it. It imports the migration's `up` and runs it inside
+ * `withSchema`, which points its unqualified table names at this suite's own
+ * schema.
  */
 import type { MigrateUpArgs } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
