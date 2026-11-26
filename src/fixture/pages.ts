@@ -460,7 +460,7 @@ export default fixture('pages', [
       _status: 'published' as const,
       title: node.title,
       slug: `fixture-node-${node.slug}`,
-      tags: ['wisdom' as const],
+      tags: ['wisdom' as const, 'subtle-system' as const],
       content: plainTextToLexical(`A short description of ${node.title.toLowerCase()}.`),
     },
   })),

@@ -2,7 +2,7 @@ import type { Block, Condition, FieldHook } from 'payload'
 
 import { extractID } from 'payload/shared'
 
-import { PAGE_TAGS } from '@/lib/pageTags'
+import { FACET_PAGE_TAGS } from '@/lib/pageTags'
 import { USER_CHOICE_TYPES } from '@/lib/userChoices'
 
 /** The `userChoiceFeatured` options, each with the `where` clause it contributes. */
@@ -178,7 +178,7 @@ export const ContentIndexBlock: Block = {
       type: 'select',
       hasMany: true,
       required: true,
-      options: PAGE_TAGS,
+      options: FACET_PAGE_TAGS,
       ...onlyForType('pages', 'Select page tags to use as filters for this index grid'),
     },
     {

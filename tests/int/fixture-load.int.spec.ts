@@ -1,10 +1,11 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { FIXTURES } from '@/fixture'
 import { loadFixture } from '@/fixture/load'
 import { fixture, type CollectionFixture } from '@/fixture/types'
+import { loadServicePages, PAGE_SERVICE_GLOBALS, type PageService } from '@/lib/pageServices'
 
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -34,14 +35,14 @@ describe('preview fixture loader', () => {
   ]
 
   /** One line per refused row: its message, its cause, and each field Payload named. */
-  const describe_ = ({ slug, id, error }: { slug: string; id: number; error: unknown }) => {
+  const describe_ = ({ slug, id, error }: { slug: string; id: number | null; error: unknown }) => {
     const e = error as {
       message?: string
       cause?: { message?: string }
       data?: { errors?: { path: string; message: string }[] }
     }
     const fields = e.data?.errors?.map((f) => `${f.path}: ${f.message}`).join('; ')
-    return `${slug} ${id}: ${e.message ?? String(error)}${e.cause?.message ? ` — ${e.cause.message}` : ''}${fields ? ` [${fields}]` : ''}`
+    return `${slug}${id == null ? '' : ` ${id}`}: ${e.message ?? String(error)}${e.cause?.message ? ` — ${e.cause.message}` : ''}${fields ? ` [${fields}]` : ''}`
   }
 
   const read = (id: number) =>
@@ -55,6 +56,7 @@ describe('preview fixture loader', () => {
           [1_906_001, 'Fixture Asha'],
           [1_906_002, 'Fixture Bea'],
         ]),
+        [],
       )
       expect(report).toMatchObject({ created: 2, updated: 0, deleted: 0, errors: [] })
       expect((await read(1_906_001))?.name).toBe('Fixture Asha')
@@ -67,6 +69,7 @@ describe('preview fixture loader', () => {
           [1_906_001, 'Fixture Asha'],
           [1_906_002, 'Fixture Bea'],
         ]),
+        [],
       )
       expect(report).toMatchObject({ created: 0, updated: 0, deleted: 0, unchanged: 2 })
     })
@@ -78,6 +81,7 @@ describe('preview fixture loader', () => {
           [1_906_001, 'Fixture Asha'],
           [1_906_002, 'Fixture Beatrix'],
         ]),
+        [],
       )
       expect(report).toMatchObject({ created: 0, updated: 1, unchanged: 1 })
       expect((await read(1_906_002))?.name).toBe('Fixture Beatrix')
@@ -88,7 +92,7 @@ describe('preview fixture loader', () => {
         collection: 'narrators',
         data: { name: 'A person’s own narrator', gender: 'male' },
       })
-      const report = await loadFixture(payload, narrators([[1_906_001, 'Fixture Asha']]))
+      const report = await loadFixture(payload, narrators([[1_906_001, 'Fixture Asha']]), [])
       expect(report).toMatchObject({ deleted: 1, errors: [] })
       expect(await read(1_906_002)).toBeNull()
       expect(await payload.kv.get('fixture:narrators:1906002')).toBeNull()
@@ -111,6 +115,17 @@ describe('preview fixture loader', () => {
         expect(docs.map((d) => Number(d.id)).sort(), slug).toEqual(entries.map((e) => e.id).sort())
       }
     }, 300_000)
+
+    // The point of seeding the globals: without them every preview shows the
+    // sidebar table refusing every page, which is what a reviewer opens.
+    it('places pages in both services, by name and by tag', async () => {
+      for (const service of Object.keys(PAGE_SERVICE_GLOBALS) as PageService[]) {
+        const req = { payload, context: {} } as unknown as PayloadRequest
+        const placed = await loadServicePages(req, service)
+        expect(placed.ids.size, service).toBeGreaterThan(0)
+        expect(placed.tags.length, service).toBeGreaterThan(0)
+      }
+    })
 
     it('leaves no job queued and no invitation due', async () => {
       const queued = await payload.count({

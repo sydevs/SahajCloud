@@ -1090,7 +1090,7 @@ export interface Page {
    * Featured video displayed on this page
    */
   featuredVideo?: (number | null) | Video;
-  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique')[] | null;
+  tags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**
    * Managers who can edit this page without broader permissions.
    */
@@ -5588,6 +5588,10 @@ export interface WmWebConfig {
      */
     lectures?: (number | null) | Page;
   };
+  /**
+   * Published pages carrying any of these tags belong to the website, as well as every page this configuration names. Each page says where it is available.
+   */
+  pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -6188,6 +6192,14 @@ export interface WmAppConfig {
   subtleSystemPage: number | Page;
   privacyPage: number | Page;
   termsPage: number | Page;
+  /**
+   * An app card pointing at this page offers a reminder for live meditations instead of opening it.
+   */
+  liveMeditationsReminderPage: number | Page;
+  /**
+   * Published pages carrying any of these tags belong to the app, as well as every page this configuration names. Each page says where it is available.
+   */
+  pageTags?: ('wisdom' | 'lifestyle' | 'creativity' | 'event' | 'technique' | 'subtle-system')[] | null;
   /**
    * Self-realization meditation for new users.
    */
@@ -10227,6 +10239,7 @@ export interface WmWebConfigSelect<T extends boolean = true> {
         meditations?: T;
         lectures?: T;
       };
+  pageTags?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
@@ -10318,6 +10331,8 @@ export interface WmAppConfigSelect<T extends boolean = true> {
   subtleSystemPage?: T;
   privacyPage?: T;
   termsPage?: T;
+  liveMeditationsReminderPage?: T;
+  pageTags?: T;
   selfRealizationMeditation?: T;
   postRealizationLecture?: T;
   vibeCheckTracks?:

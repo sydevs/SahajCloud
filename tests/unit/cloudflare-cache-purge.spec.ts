@@ -110,6 +110,47 @@ describe('cachePlugin global hook attachment (#710)', () => {
     expect(hookedSlugs().sort()).toEqual([...CACHEABLE_GLOBALS].sort())
   })
 
+  // A page's place in a service is read off these two globals, so saving one
+  // changes cached page reads with no page row written.
+  it('purges the pages tag beside its own when a configuration global changes', async () => {
+    configure()
+    const fetchFn = vi.fn(async () => new Response('{"success":true}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchFn)
+    try {
+      const [web] = cachePlugin({
+        globals: [{ slug: 'wm-web-config', fields: [] }],
+      } as unknown as Config).globals!
+      const hook = web!.hooks!.afterChange!.at(-1)!
+      await hook({ doc: {}, req: { context: {}, payload: { logger } } } as never)
+      await vi.waitFor(() => expect(fetchFn).toHaveBeenCalled())
+
+      const body = JSON.parse(
+        (fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string,
+      )
+      expect(body.tags).toEqual(['wm-web-config', 'pages'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  // The preview fixture seeds both configuration globals, and the zone it would
+  // purge is production's.
+  it('purges nothing for a preview fixture write', async () => {
+    configure()
+    const fetchFn = vi.fn(async () => new Response('{"success":true}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchFn)
+    try {
+      const [web] = cachePlugin({
+        globals: [{ slug: 'wm-web-config', fields: [] }],
+      } as unknown as Config).globals!
+      const hook = web!.hooks!.afterChange!.at(-1)!
+      await hook({ doc: {}, req: { context: { fixture: true }, payload: { logger } } } as never)
+      expect(fetchFn).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('leaves a non-cacheable global untouched', () => {
     // `wm-app-status` is the real one: an operator readiness report, read in
     // the admin over cookie auth, deliberately DYNAMIC.

@@ -5,7 +5,7 @@ import type {
   GlobalAfterChangeHook,
 } from 'payload'
 
-import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS } from './policy'
+import { CACHEABLE_GLOBALS, CACHEABLE_SLUGS, GLOBAL_DEPENDENT_TAGS } from './policy'
 import { purgeCloudflareCache } from './purge'
 
 /**
@@ -65,13 +65,19 @@ export function cachePlugin(config: Config): Config {
     globals: config.globals?.map((global) => {
       if (!CACHEABLE_GLOBALS.has(global.slug)) return global
 
-      const tag = global.slug
+      const tags = [
+        global.slug,
+        ...(GLOBAL_DEPENDENT_TAGS[global.slug as keyof typeof GLOBAL_DEPENDENT_TAGS] ?? []),
+      ]
       // A global has no delete, so there is no afterDelete half. `afterChange`
       // covers `publishSpecificLocale` too, which is the write that matters
       // most here: a client read is published-only and merged with English, so
       // publishing one locale changes what every client sees.
       const afterChange: GlobalAfterChangeHook = ({ doc, req }) => {
-        void purgeCloudflareCache({ tags: [tag] }, { logger: req.payload.logger })
+        // A preview fixture write purges nothing: the zone's cache is production's.
+        if (!req.context.fixture) {
+          void purgeCloudflareCache({ tags }, { logger: req.payload.logger })
+        }
         return doc
       }
 

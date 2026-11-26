@@ -1,4 +1,9 @@
-import type { CollectionSlug, RequiredDataFromCollectionSlug } from 'payload'
+import type {
+  CollectionSlug,
+  DataFromGlobalSlug,
+  GlobalSlug,
+  RequiredDataFromCollectionSlug,
+} from 'payload'
 
 import type { LocaleCode } from '@/lib/locales'
 
@@ -54,3 +59,22 @@ export const fixture = <S extends FixtureSlug>(
 
 /** Every fixture id is at least this, and nothing else ever is. */
 export const FIXTURE_ID_FLOOR = 1_000_000
+
+/** A global's data, typed against `src/payload-types.ts`, deep-partial for the same reason. */
+export type GlobalFixtureData<S extends GlobalSlug> = DeepPartial<Omit<DataFromGlobalSlug<S>, 'id'>>
+
+export interface GlobalFixture<S extends GlobalSlug = GlobalSlug> {
+  slug: S
+  data: GlobalFixtureData<S>
+}
+
+/**
+ * Declare one global's fixture, typed to its slug.
+ *
+ * A global has no id and no row to prune, so it is written after every
+ * collection — a configuration naming pages needs them to exist.
+ */
+export const globalFixture = <S extends GlobalSlug>(
+  slug: S,
+  data: GlobalFixtureData<S>,
+): GlobalFixture<S> => ({ slug, data })

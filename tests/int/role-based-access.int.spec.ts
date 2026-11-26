@@ -21,6 +21,7 @@ import { createSession } from '@/plugins/login'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
+import { placePages } from '../utils/servicePages'
 import {
   createData,
   createTestLexicalContent,
@@ -1956,10 +1957,13 @@ describe('Role-Based Access Control', () => {
         collection: 'pages',
         data: createData<'pages'>({
           title: 'Page to Publish',
+          // A website key reads only the pages the website places.
+          tags: ['wisdom'],
           content: createTestLexicalContent('Published content'),
         }),
         user: { ...admin, collection: 'managers' },
       })
+      await placePages(payload, 'web', { tags: ['wisdom'] })
 
       // Publish the page
       const publishedPage = await payload.update({

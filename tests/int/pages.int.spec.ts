@@ -9,12 +9,14 @@ import {
   createLexicalWithRelationshipNode,
   createLexicalWithUploadNode,
 } from '../utils/lexicalTestHelpers'
+import { placePages } from '../utils/servicePages'
 import { createData, testData, type LexicalContent } from '../utils/testData'
 import { createTestEnvironment, idOnlySelect } from '../utils/testHelpers'
 
 describe('Pages Collection', () => {
   let payload: Payload
   let cleanup: () => Promise<void>
+  let asManager: { user: PayloadRequest['user'] }
 
   // Page tags are now inline enum strings
   const wisdomTag = 'wisdom'
@@ -26,6 +28,9 @@ describe('Pages Collection', () => {
     const testEnv = await createTestEnvironment()
     payload = testEnv.payload
     cleanup = testEnv.cleanup
+    asManager = { user: { ...testEnv.adminUser, collection: 'managers' } as PayloadRequest['user'] }
+    // The website takes pages tagged `wisdom`; a case that names a page keeps it.
+    await placePages(payload, 'web', { tags: ['wisdom'] })
   })
 
   afterAll(async () => {
@@ -101,6 +106,8 @@ describe('Pages Collection', () => {
     it('answers the same webPath as a read selecting nothing', async () => {
       const page = await testData.createPage(payload, {
         title: 'Selected Deep Link Page',
+        // Placed on the website by tag, so the select must keep `tags` too.
+        tags: ['wisdom'],
         _status: 'published',
       })
 
@@ -362,6 +369,8 @@ describe('Pages Collection', () => {
 
       const page = await testData.createPage(payload, {
         title: 'Published Page with Client App Card Relationship',
+        // The suite's website places it, and an app key reads the website's pages.
+        tags: ['wisdom'],
         _status: 'published',
         content,
       })
@@ -428,12 +437,13 @@ describe('Pages Collection', () => {
       expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
 
-    it('English page without tag returns base/slug', async () => {
+    it('English page the website names, untagged, returns base/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'Untagged Page',
         _status: 'published',
       })
+      await placePages(payload, 'web', { pages: [page.id], tags: ['wisdom'] })
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'en' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
     })
@@ -470,12 +480,13 @@ describe('Pages Collection', () => {
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
     })
 
-    it('Non-English page without tag returns base/locale/slug', async () => {
+    it('Non-English page the website names, untagged, returns base/locale/slug', async () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'Czech Untagged Page',
         _status: 'published',
       })
+      await placePages(payload, 'web', { pages: [page.id], tags: ['wisdom'] })
       await publishLocale(page.id, 'cs', 'Ceska stranka bez stitku')
       const fetched = await payload.findByID({ collection: 'pages', id: page.id, locale: 'cs' })
       expect(fetched.webUrl).toBe(`https://wemeditate.com/cs/${page.slug}`)
@@ -495,6 +506,7 @@ describe('Pages Collection', () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'English Only Page',
+        tags: ['wisdom'],
         _status: 'published',
       })
 
@@ -516,6 +528,7 @@ describe('Pages Collection', () => {
       vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
       const page = await testData.createPage(payload, {
         title: 'Unpublish Page',
+        tags: ['wisdom'],
         _status: 'published',
       })
       const published = await payload.findByID({ collection: 'pages', id: page.id })
@@ -529,14 +542,14 @@ describe('Pages Collection', () => {
 
   // #542: a bulk publish fans the appUrl afterRead across every doc. Guard that
   // it publishes each and leaves version history intact. The once-per-request
-  // wm-app-config load is guarded deterministically in
-  // tests/unit/pages-app-config-cache.spec.ts — the stampede reproduces only
+  // configuration load is guarded deterministically in
+  // tests/unit/page-services.spec.ts — the stampede reproduces only
   // under production's connection-pool wait, not against a fast local DB, so a
   // black-box count here would pass on the buggy code too.
   describe('bulk publish (#542)', () => {
     it('publishes each doc and leaves one published latest version per doc', async () => {
       const drafts = await Promise.all(
-        Array.from({ length: 3 }, () => testData.createPage(payload)),
+        Array.from({ length: 3 }, () => testData.createPage(payload, { tags: ['wisdom'] })),
       )
       const ids = drafts.map((p) => p.id)
 
@@ -549,9 +562,10 @@ describe('Pages Collection', () => {
       expect(result.docs).toHaveLength(ids.length)
       result.docs.forEach((doc) => {
         expect(doc._status).toBe('published')
-        // Proves the appUrl afterRead — and thus loadAppConfigOnce — actually ran
-        // through the real bulk path: webPath computes from the published gate +
-        // slug, and appUrl is gated off (test pages are not in wm-app-config).
+        // Proves the appUrl afterRead — and thus loadServicePages — actually ran
+        // through the real bulk path: webPath computes from the published gate,
+        // the website's tag and the slug, and appUrl is gated off (the app
+        // places no page by that tag).
         expect(doc.webPath).toBeTruthy()
         expect(doc.appUrl).toBeFalsy()
       })
@@ -566,6 +580,56 @@ describe('Pages Collection', () => {
         expect(latest).toHaveLength(1)
         expect(latest[0]?.version._status).toBe('published')
       }
+    })
+  })
+
+  /**
+   * A page's place in each service is read off that service's configuration
+   * (`src/lib/pageServices`): a page field naming it, or a listed tag. The pure
+   * rules are `tests/unit/page-services.spec.ts`; these cases are the wiring.
+   */
+  describe("a page's place in each service", () => {
+    afterEach(async () => {
+      vi.unstubAllEnvs()
+      await placePages(payload, 'web', { tags: ['wisdom'] })
+      await placePages(payload, 'app', {})
+    })
+
+    it('gives a page the website does not place no website address', async () => {
+      vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
+      const page = await testData.createPage(payload, {
+        title: 'App Only Page',
+        tags: ['technique'],
+        _status: 'published',
+      })
+
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
+      expect(fetched.webPath).toBeNull()
+      expect(fetched.webUrl).toBeNull()
+    })
+
+    it('gives a website address to a page a configuration field names', async () => {
+      vi.stubEnv('WEMEDITATE_WEB_URL', 'https://wemeditate.com')
+      const page = await testData.createPage(payload, {
+        title: 'Named Page',
+        _status: 'published',
+      })
+      await placePages(payload, 'web', { pages: [page.id], tags: ['wisdom'] })
+
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
+      expect(fetched.webUrl).toBe(`https://wemeditate.com/${page.slug}`)
+    })
+
+    it('gives an app address to a page the app places by tag', async () => {
+      const page = await testData.createPage(payload, {
+        title: 'Technique Page',
+        tags: ['technique'],
+        _status: 'published',
+      })
+      await placePages(payload, 'app', { tags: ['technique'] })
+
+      const fetched = await payload.findByID({ collection: 'pages', id: page.id, ...asManager })
+      expect(fetched.appUrl).toBe(`wemeditate://${page.slug}`)
     })
   })
 })

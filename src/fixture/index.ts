@@ -1,4 +1,4 @@
-import type { CollectionFixture } from './types'
+import type { CollectionFixture, GlobalFixture } from './types'
 
 import albums from './albums'
 import appCards from './app-cards'
@@ -27,6 +27,8 @@ import userChoices from './user-choices'
 import userSubmissions from './user-submissions'
 import users from './users'
 import videos from './videos'
+import wmAppConfig from './wm-app-config'
+import wmWebConfig from './wm-web-config'
 
 /** Every collection's fixture, one file each. The loader orders them by their relationships. */
 export const FIXTURES = [
@@ -58,3 +60,9 @@ export const FIXTURES = [
   userSubmissions,
   payloadJobs,
 ] as CollectionFixture[]
+
+/**
+ * Every global's fixture the load writes, after the collections: each
+ * configuration names pages, so they have to exist first.
+ */
+export const GLOBAL_FIXTURES = [wmWebConfig, wmAppConfig] as GlobalFixture[]

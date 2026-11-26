@@ -1,6 +1,8 @@
 import type { GlobalConfig } from 'payload'
 
 import { availableLocalesField } from '@/fields/availableLocalesField'
+import { SERVICE_PAGE_TAGS_FIELD } from '@/lib/pageServices'
+import { PAGE_TAGS } from '@/lib/pageTags'
 
 export const VIBE_CHECK_IDENTIFIERS = [
   { label: 'What You Feel - Start', value: 'WHAT-YOU-FEEL-START' },
@@ -34,6 +36,11 @@ export const APP_PAGE_FIELDS: readonly AppPageField[] = [
   { name: 'subtleSystemPage', description: 'Learn more about the Subtle System.' },
   { name: 'privacyPage' },
   { name: 'termsPage' },
+  {
+    name: 'liveMeditationsReminderPage',
+    description:
+      'An app card pointing at this page offers a reminder for live meditations instead of opening it.',
+  },
 ]
 
 export const WeMeditateAppConfig: GlobalConfig = {
@@ -58,14 +65,30 @@ export const WeMeditateAppConfig: GlobalConfig = {
           label: 'Pages',
           description:
             'App-required pages. The same page is used for every locale; the localized content on each page is sourced at read time.',
-          fields: APP_PAGE_FIELDS.map((page) => ({
-            name: page.name,
-            ...(page.label ? { label: page.label } : {}),
-            type: 'relationship' as const,
-            relationTo: 'pages' as const,
-            required: true,
-            ...(page.description ? { admin: { description: page.description } } : {}),
-          })),
+          fields: [
+            ...APP_PAGE_FIELDS.map((page) => ({
+              name: page.name,
+              ...(page.label ? { label: page.label } : {}),
+              type: 'relationship' as const,
+              relationTo: 'pages' as const,
+              required: true,
+              ...(page.description ? { admin: { description: page.description } } : {}),
+            })),
+            // The app's page set is these slots plus these tags; an app key
+            // reads no other page but the website's (`src/lib/pageServices`).
+            {
+              name: SERVICE_PAGE_TAGS_FIELD,
+              label: 'Page tags',
+              type: 'select' as const,
+              hasMany: true,
+              options: PAGE_TAGS,
+              admin: {
+                description:
+                  'Published pages carrying any of these tags belong to the app, as well as ' +
+                  'every page this configuration names. Each page says where it is available.',
+              },
+            },
+          ],
         },
         {
           label: 'First Meditation',

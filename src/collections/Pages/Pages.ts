@@ -1,9 +1,9 @@
 import type { CollectionConfig } from 'payload'
 
 import { slugField, publicUrlFields } from '@/fields'
-import { APP_PAGE_FIELDS } from '@/globals/WeMeditateAppConfig/WeMeditateAppConfig'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
+import { isPagePlaced, loadServicePages } from '@/lib/pageServices'
 import { PAGE_TAGS } from '@/lib/pageTags'
 import { fullRichTextEditor } from '@/lib/richEditor'
 import { pageBlocks } from '@/lib/richEditor/blocks'
@@ -11,7 +11,6 @@ import { removeDanglingLexicalReferencesAfterRead } from '@/lib/richEditor/lexic
 import { adminOnlyFieldAccess } from '@/plugins/access'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
-import { loadAppConfigOnce } from './appConfigCache'
 import { pageParentField } from './parentField'
 import { buildPagePath, buildPageWebPath, homePageId } from './webPath'
 
@@ -148,6 +147,17 @@ export const Pages: CollectionConfig = {
       },
     },
     {
+      // Where each service's configuration places this page, and which one to
+      // name it in. A table rather than a column: nothing stores it, and
+      // `webUrl` and `appUrl` are what a consumer reads the answer from.
+      name: 'availability',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/PageAvailability' },
+      },
+    },
+    {
       // Document-level access: managers listed here can read + update this page
       // even without role-based access (see src/plugins/access/documentManagers.ts).
       // ⚠ Listing someone here also grants them the derived `page-editor` role
@@ -165,9 +175,10 @@ export const Pages: CollectionConfig = {
         description: 'Managers who can edit this page without broader permissions.',
       },
     },
-    // Virtual deep links: public web URL + in-app URL (registered app pages
-    // only). Both require the page to be published (gate built into
-    // publicUrlFields). Web path carries the optional locale, then the slug.
+    // Virtual deep links: public web URL + in-app URL, each only for a page its
+    // service places (`exposeWhen`). Both require the page to be published
+    // (gate built into publicUrlFields). Web path carries the optional locale,
+    // then the slug.
     //
     // ⚠ **The segments are the ancestors' slugs, then this page's — and no tag.**
     // WeMeditateWeb routes a page at its nested address (sydevs/WeMeditateWeb#333),
@@ -190,8 +201,9 @@ export const Pages: CollectionConfig = {
       // All three deep links read `slug`, and an include-mode `select` strips
       // it before the afterRead field hooks run — so `?select[webUrl]=true`
       // answered null for every published page (#1084). The publish gate's own
-      // `_status` is added by the factory.
-      inputs: ['slug', 'parent'],
+      // `_status` is added by the factory; `tags` is what places a page in a
+      // service beside its configuration (`exposeWhen`).
+      inputs: ['slug', 'tags', 'parent'],
       buildPath: ({ platform, data, req }) => {
         // The app deep-links by bare slug — it hands `webUrl` to a WebView
         // verbatim for four config pages, so a nested one needs no app release,
@@ -205,25 +217,11 @@ export const Pages: CollectionConfig = {
         }
         return buildPageWebPath({ slug: data?.slug, parent: data?.parent, locale: req.locale, req })
       },
-      // Both links already require published (publicUrlFields' built-in gate).
-      // Beyond that, the web link needs no extra condition; the app link is
-      // additionally gated to pages registered in the WeMeditate app config.
-      exposeWhen: async ({ platform, data, req }) => {
-        if (platform === 'web') return true
-        const id = data?.id
-        if (!id) return false
-
-        // Load wm-app-config once per request (memoized), not once per doc — a
-        // bulk publish fans this afterRead across every page concurrently. See
-        // loadAppConfigOnce for why the cache holds the promise, not the value.
-        const config = await loadAppConfigOnce(req)
-
-        return APP_PAGE_FIELDS.some(({ name }) => {
-          const val = config[name]
-          if (val === id) return true
-          return typeof val === 'object' && val !== null && (val as { id: unknown }).id === id
-        })
-      },
+      // Beyond the factory's publish gate, each link needs its page placed in
+      // that service by the service's own configuration — a `webUrl` for a page
+      // the website never reads is an address that 404s.
+      exposeWhen: async ({ platform, data, req }) =>
+        isPagePlaced(data ?? {}, await loadServicePages(req, platform)),
     }),
   ],
 }

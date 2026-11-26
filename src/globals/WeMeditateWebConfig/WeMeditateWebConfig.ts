@@ -3,6 +3,8 @@ import type { GlobalConfig } from 'payload'
 import { availableLocalesField } from '@/fields/availableLocalesField'
 import { weMeditatePreviewUrl } from '@/lib/env'
 import { livePreviewUrl } from '@/lib/livePreview/url'
+import { SERVICE_PAGE_TAGS_FIELD } from '@/lib/pageServices'
+import { PAGE_TAGS } from '@/lib/pageTags'
 
 export const WeMeditateWebConfig: GlobalConfig = {
   slug: 'wm-web-config',
@@ -159,6 +161,21 @@ export const WeMeditateWebConfig: GlobalConfig = {
           },
         },
       ],
+    },
+    // ⚠ Every page field above also places its pages on the website, beside
+    // these tags: an API key in the website's project reads no other page
+    // (`src/lib/pageServices`, `docs/rules/access.md`).
+    {
+      name: SERVICE_PAGE_TAGS_FIELD,
+      label: 'Page tags',
+      type: 'select',
+      hasMany: true,
+      options: PAGE_TAGS,
+      admin: {
+        description:
+          'Published pages carrying any of these tags belong to the website, as well as every ' +
+          'page this configuration names. Each page says where it is available.',
+      },
     },
   ],
 }

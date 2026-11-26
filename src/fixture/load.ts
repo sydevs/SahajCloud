@@ -15,9 +15,10 @@ import {
   type CollectionFixture,
   type FixtureEntry,
   type FixtureSlug,
+  type GlobalFixture,
 } from './types'
 
-import { FIXTURES } from '.'
+import { FIXTURES, GLOBAL_FIXTURES } from '.'
 
 /** Where a fixture's `file` lives. Traced into the standalone build by `next.config.ts`. */
 export const FIXTURE_FILES_DIR = path.resolve(process.cwd(), 'src/fixture/files')
@@ -45,6 +46,9 @@ export const FIXTURE_CONTEXT: RequestContext = withActor(
 )
 
 const kvKey = (slug: string, id: number): string => `fixture:${slug}:${id}`
+
+/** A global has no id, so its own key. Never collides: a slug names one or the other. */
+const globalKvKey = (slug: string): string => `fixture:global:${slug}`
 
 /** JSON with sorted keys, so a hash moves only when content does. */
 function stableStringify(value: unknown): string {
@@ -103,7 +107,8 @@ export interface LoadReport {
   updated: number
   unchanged: number
   deleted: number
-  errors: { slug: string; id: number; error: unknown }[]
+  /** `id` is null for a global, which has none. */
+  errors: { slug: string; id: number | null; error: unknown }[]
 }
 
 type AnyEntry = FixtureEntry<FixtureSlug>
@@ -192,6 +197,10 @@ async function existingIds(payload: Payload, slug: FixtureSlug): Promise<Set<num
 /**
  * Bring the database's fixture rows level with `src/fixture/`.
  *
+ * Each global's fixture is written after every collection, since a
+ * configuration names pages, and is counted as `updated` or `unchanged` — a
+ * global always exists and is never pruned.
+ *
  * A row whose stored hash matches is left alone, so a boot with nothing changed
  * writes nothing, and a reviewer's edit to a fixture row survives the next
  * deploy. A missing row is created at its pinned id, a changed one is updated,
@@ -204,6 +213,7 @@ async function existingIds(payload: Payload, slug: FixtureSlug): Promise<Set<num
 export async function loadFixture(
   payload: Payload,
   fixtures: CollectionFixture[] = FIXTURES,
+  globals: GlobalFixture[] = GLOBAL_FIXTURES,
   now: Date = new Date(),
 ): Promise<LoadReport> {
   const report: LoadReport = { created: 0, updated: 0, unchanged: 0, deleted: 0, errors: [] }
@@ -252,6 +262,31 @@ export async function loadFixture(
       pending = failed
     }
     for (const { slug, entry, error } of failed) report.errors.push({ slug, id: entry.id, error })
+
+    for (const { slug, data } of globals) {
+      try {
+        const hash = createHash('sha256').update(stableStringify(data)).digest('hex')
+        if ((await payload.kv.get<string>(globalKvKey(slug))) === hash) {
+          report.unchanged++
+          continue
+        }
+        await payload.updateGlobal({
+          slug,
+          data: data as never,
+          context: FIXTURE_CONTEXT,
+          depth: 0,
+          overrideAccess: true,
+          // A global's `filterOptions` is validated on the request's own
+          // authority, so a userless write is refused as an invalid selection
+          // for every value it narrows — `src/globals/AGENTS.md` carries why.
+          user: await fixtureAdmin(payload),
+        })
+        await payload.kv.set(globalKvKey(slug), hash)
+        report.updated++
+      } catch (error) {
+        report.errors.push({ slug, id: null, error })
+      }
+    }
 
     // Prune in reverse order, so a row goes before whatever it points at.
     for (const slug of [...order].reverse()) {

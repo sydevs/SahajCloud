@@ -57,12 +57,19 @@ describe('nested pages', () => {
   let admin: Awaited<ReturnType<typeof createTestEnvironment>>['adminUser']
   let homePage: Page
 
-  /** A published page, optionally under a parent, with the slug it is given. */
+  /**
+   * A published page, optionally under a parent, with the slug it is given.
+   *
+   * Tagged `wisdom`, which the configuration below lists: an address and a
+   * client's read both need the website to place the page, and nesting says
+   * nothing about which service carries it (`src/lib/pageServices`).
+   */
   const publish = (slug: string, parent?: number): Promise<Page> =>
     testData.createPage(payload, {
       title: `Nesting ${slug}`,
       slug,
       parent,
+      tags: ['wisdom'],
       _status: 'published',
     })
 
@@ -122,6 +129,7 @@ describe('nested pages', () => {
       audiences: [audience.id],
       featuredPages: featured.map((page) => page.id),
       featuredArticles: featured.map((page) => page.id),
+      pageTags: ['wisdom'],
     })
     // The home page keeps `''` rather than a slug, which `blankAllowed` admits
     // only once the global names it.

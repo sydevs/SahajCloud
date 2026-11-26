@@ -34,6 +34,11 @@ unset hides that path in the widget), `defaultMapCenter` group (required
 
 **WeMeditate Web** also carries `availableLocales`, after `homePage`.
 
+**Both We Meditate configs carry `pageTags`**, a `select` each declares inline. A page belongs to a
+service when any page field of that config names it or it carries one of these tags, and a
+client reads no other page (an app key also reads the website's) — `docs/rules/access.md`, "Which
+pages a client reads". A page field added to either config places its pages automatically.
+
 ### `availableLocales` — the language set, gated on published translations
 
 `availableLocalesField({ translationsSlug, description })`

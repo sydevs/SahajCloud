@@ -152,9 +152,8 @@ function readOperationArgs(args: unknown): ReadOperationArgs {
  * payload attaches to relationship population. **A global read has no such
  * signal** — `findGlobal` never sets `currentDepth` — and this codebase makes
  * plenty of internal global reads that forward the caller's `req`:
- * `clientEnglishFallback` re-reads its own global in English,
- * `loadAppConfigOnce` reads `wm-app-config` while serving a page, and the
- * atlas endpoints read `sy-atlas-config` for locales and canonical ownership.
+ * `clientEnglishFallback` re-reads its own global in English, and the atlas
+ * endpoints read `sy-atlas-config` for locales and canonical ownership.
  * Ungated, each would be metered a second time, and the ones passing no
  * `select` would be refused 400 — silently disabling the English fallback for
  * every client read of a translations global.
