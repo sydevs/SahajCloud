@@ -553,10 +553,6 @@
           "type": "object",
           "description": "Filter: which weekdays a class runs on. The day names themselves come from the browser, not from here.",
           "properties": {
-            "label": {
-              "type": "string",
-              "description": "Section label of the day-of-week filter."
-            },
             "short_label": {
               "type": "string",
               "default": "Day",
@@ -604,10 +600,6 @@
             "all": {
               "type": "string",
               "description": "Language option: no preference."
-            },
-            "empty": {
-              "type": "string",
-              "description": "Shown when no class in view declares a language."
             }
           },
           "additionalProperties": false
@@ -639,29 +631,6 @@
             "pill_range": {
               "type": "string",
               "description": "Chip for a closed range. `%{start}` = start date, `%{end}` = end date."
-            }
-          },
-          "additionalProperties": false
-        },
-        "region": {
-          "type": "object",
-          "description": "Filter: narrow the list to one region.",
-          "properties": {
-            "label": {
-              "type": "string",
-              "description": "Section label of the region filter."
-            },
-            "all": {
-              "type": "string",
-              "description": "Region option: no preference."
-            },
-            "search": {
-              "type": "string",
-              "description": "Placeholder of the region search input."
-            },
-            "empty": {
-              "type": "string",
-              "description": "Shown when the region search matches nothing."
             }
           },
           "additionalProperties": false

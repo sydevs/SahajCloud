@@ -8858,7 +8858,6 @@ export interface SyAtlasTranslation {
     time?: SyAtlasTranslationsFiltersTimeStrings;
     language?: SyAtlasTranslationsFiltersLanguageStrings;
     dates?: SyAtlasTranslationsFiltersDatesStrings;
-    region?: SyAtlasTranslationsFiltersRegionStrings;
     more?: SyAtlasTranslationsFiltersMoreStrings;
   };
   online?: SyAtlasTranslationsOnlineStrings;
@@ -9312,10 +9311,6 @@ export interface SyAtlasTranslationsFiltersCadenceStrings {
 }
 export interface SyAtlasTranslationsFiltersDaysStrings {
   /**
-   * Section label of the day-of-week filter.
-   */
-  label?: string;
-  /**
    * Section label of the day-of-week question in the filter drawer, above the seven day buttons.
    */
   short_label?: string;
@@ -9351,10 +9346,6 @@ export interface SyAtlasTranslationsFiltersLanguageStrings {
    * Language option: no preference.
    */
   all?: string;
-  /**
-   * Shown when no class in view declares a language.
-   */
-  empty?: string;
 }
 export interface SyAtlasTranslationsFiltersDatesStrings {
   /**
@@ -9381,24 +9372,6 @@ export interface SyAtlasTranslationsFiltersDatesStrings {
    * Chip for a closed range. `%{start}` = start date, `%{end}` = end date.
    */
   pill_range?: string;
-}
-export interface SyAtlasTranslationsFiltersRegionStrings {
-  /**
-   * Section label of the region filter.
-   */
-  label?: string;
-  /**
-   * Region option: no preference.
-   */
-  all?: string;
-  /**
-   * Placeholder of the region search input.
-   */
-  search?: string;
-  /**
-   * Shown when the region search matches nothing.
-   */
-  empty?: string;
 }
 export interface SyAtlasTranslationsFiltersMoreStrings {
   /**
@@ -10559,7 +10532,6 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         time?: T;
         language?: T;
         dates?: T;
-        region?: T;
         more?: T;
       };
   online?: T;

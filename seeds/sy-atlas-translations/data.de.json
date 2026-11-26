@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "de",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/de/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -130,7 +130,6 @@
       "once": "Einmalig"
     },
     "days": {
-      "label": "Wochentag",
       "short_label": "Tag"
     },
     "time": {
@@ -142,8 +141,7 @@
     },
     "language": {
       "label": "Sprache",
-      "all": "Alle Sprachen",
-      "empty": "Keine Sprachen verfügbar"
+      "all": "Alle Sprachen"
     },
     "dates": {
       "label": "Datum",
@@ -152,12 +150,6 @@
       "pill_from": "Ab %{date}",
       "pill_until": "Bis %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Region",
-      "all": "Alle Regionen",
-      "search": "Regionen suchen…",
-      "empty": "Keine Regionen gefunden"
     },
     "more": {
       "label": "Weitere Filter"

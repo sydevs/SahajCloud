@@ -372,15 +372,12 @@ describe('atlas translations seeds', () => {
       'event.display.online',
       'filters.dates.pill_range',
       'filters.format.online',
-      // `Region` is the Czech word, not the English one.
-      'filters.region.label',
     ],
     de: [
       'event.display.online',
       'filters.dates.pill_range',
       'filters.format.label',
       'filters.format.online',
-      'filters.region.label',
       'registration.form.okay',
     ],
     es: ['filters.dates.pill_range'],

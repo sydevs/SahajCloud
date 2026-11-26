@@ -240,7 +240,6 @@ describe('Translations Globals Configuration', () => {
         'time',
         'language',
         'dates',
-        'region',
         'more',
         'online',
         'display',
