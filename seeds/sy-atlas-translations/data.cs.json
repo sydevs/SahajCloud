@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "cs",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/cs/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -130,7 +130,6 @@
       "once": "Jednorázově"
     },
     "days": {
-      "label": "Den v týdnu",
       "short_label": "Den"
     },
     "time": {
@@ -142,8 +141,7 @@
     },
     "language": {
       "label": "Jazyk",
-      "all": "Všechny jazyky",
-      "empty": "Nejsou dostupné žádné jazyky"
+      "all": "Všechny jazyky"
     },
     "dates": {
       "label": "Datum",
@@ -152,12 +150,6 @@
       "pill_from": "Od %{date}",
       "pill_until": "Do %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Region",
-      "all": "Všechny regiony",
-      "search": "Hledat regiony…",
-      "empty": "Žádné regiony nenalezeny"
     },
     "more": {
       "label": "Další filtry"
