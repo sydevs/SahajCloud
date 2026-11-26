@@ -8851,6 +8851,7 @@ export interface SyAtlasTranslation {
   };
   filters?: {
     chrome?: SyAtlasTranslationsFiltersChromeStrings;
+    where?: SyAtlasTranslationsFiltersWhereStrings;
     format?: SyAtlasTranslationsFiltersFormatStrings;
     cadence?: SyAtlasTranslationsFiltersCadenceStrings;
     days?: SyAtlasTranslationsFiltersDaysStrings;
@@ -8858,6 +8859,7 @@ export interface SyAtlasTranslation {
     language?: SyAtlasTranslationsFiltersLanguageStrings;
     dates?: SyAtlasTranslationsFiltersDatesStrings;
     region?: SyAtlasTranslationsFiltersRegionStrings;
+    more?: SyAtlasTranslationsFiltersMoreStrings;
   };
   online?: SyAtlasTranslationsOnlineStrings;
   event?: {
@@ -9230,6 +9232,16 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   no_results?: string;
 }
+export interface SyAtlasTranslationsFiltersWhereStrings {
+  /**
+   * Section label of the Where question, above Near me and the tag naming the place in scope.
+   */
+  label?: string;
+  /**
+   * Button in the Where question that asks for the visitor’s location and lists the classes around it. While it is on, pressing it again turns it off.
+   */
+  near_me?: string;
+}
 export interface SyAtlasTranslationsFiltersFormatStrings {
   /**
    * Section label of the format filter.
@@ -9247,6 +9259,10 @@ export interface SyAtlasTranslationsFiltersFormatStrings {
    * Format option: classes held online.
    */
   online?: string;
+  /**
+   * Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the shorter name used elsewhere.
+   */
+  question?: string;
 }
 export interface SyAtlasTranslationsFiltersCadenceStrings {
   /**
@@ -9279,6 +9295,10 @@ export interface SyAtlasTranslationsFiltersDaysStrings {
    * Section label of the day-of-week filter.
    */
   label?: string;
+  /**
+   * Section label of the day-of-week question in the filter drawer, above the seven day buttons. Kept to one short word so it sits on one line beside the others.
+   */
+  short_label?: string;
 }
 export interface SyAtlasTranslationsFiltersTimeStrings {
   /**
@@ -9359,6 +9379,12 @@ export interface SyAtlasTranslationsFiltersRegionStrings {
    * Shown when the region search matches nothing.
    */
   empty?: string;
+}
+export interface SyAtlasTranslationsFiltersMoreStrings {
+  /**
+   * Disclosure at the bottom of the filter drawer that opens the Frequency and Dates questions. It opens by itself when either has a value.
+   */
+  label?: string;
 }
 export interface SyAtlasTranslationsOnlineStrings {
   /**
@@ -10478,6 +10504,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
     | T
     | {
         chrome?: T;
+        where?: T;
         format?: T;
         cadence?: T;
         days?: T;
@@ -10485,6 +10512,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         language?: T;
         dates?: T;
         region?: T;
+        more?: T;
       };
   online?: T;
   event?:

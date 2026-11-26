@@ -110,11 +110,16 @@
       "any_time": "À toute heure",
       "no_results": "Aucun événement ne correspond à vos filtres."
     },
+    "where": {
+      "label": "Où",
+      "near_me": "Près de moi"
+    },
     "format": {
       "label": "Format",
       "any": "Tous",
       "offline": "En personne",
-      "online": "En ligne"
+      "online": "En ligne",
+      "question": "En ligne ou en personne"
     },
     "cadence": {
       "label": "Fréquence",
@@ -125,7 +130,8 @@
       "once": "Ponctuel"
     },
     "days": {
-      "label": "Jour de la semaine"
+      "label": "Jour de la semaine",
+      "short_label": "Jour"
     },
     "time": {
       "label": "Heure de la journée",
@@ -152,6 +158,9 @@
       "all": "Toutes les régions",
       "search": "Rechercher une région…",
       "empty": "Aucune région trouvée"
+    },
+    "more": {
+      "label": "Plus de filtres"
     }
   },
   "online": {

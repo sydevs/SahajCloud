@@ -110,11 +110,16 @@
       "any_time": "Elk tijdstip",
       "no_results": "Geen evenementen komen overeen met je filters."
     },
+    "where": {
+      "label": "Waar",
+      "near_me": "Bij mij in de buurt"
+    },
     "format": {
       "label": "Vorm",
       "any": "Alle",
       "offline": "Op locatie",
-      "online": "Online"
+      "online": "Online",
+      "question": "Online of ter plaatse"
     },
     "cadence": {
       "label": "Frequentie",
@@ -125,7 +130,8 @@
       "once": "Eenmalig"
     },
     "days": {
-      "label": "Dag van de week"
+      "label": "Dag van de week",
+      "short_label": "Dag"
     },
     "time": {
       "label": "Tijdstip",
@@ -152,6 +158,9 @@
       "all": "Alle regio's",
       "search": "Regio's zoeken…",
       "empty": "Geen regio's gevonden"
+    },
+    "more": {
+      "label": "Meer filters"
     }
   },
   "online": {

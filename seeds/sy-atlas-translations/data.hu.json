@@ -110,11 +110,16 @@
       "any_time": "Bármikor",
       "no_results": "Egyetlen esemény sem felel meg a szűrőidnek."
     },
+    "where": {
+      "label": "Hol",
+      "near_me": "A közelemben"
+    },
     "format": {
       "label": "Forma",
       "any": "Bármely",
       "offline": "Személyesen",
-      "online": "Online"
+      "online": "Online",
+      "question": "Online vagy személyesen"
     },
     "cadence": {
       "label": "Gyakoriság",
@@ -125,7 +130,8 @@
       "once": "Egyszeri"
     },
     "days": {
-      "label": "A hét napja"
+      "label": "A hét napja",
+      "short_label": "Nap"
     },
     "time": {
       "label": "Napszak",
@@ -152,6 +158,9 @@
       "all": "Minden régió",
       "search": "Régiók keresése…",
       "empty": "Nincsenek régiók"
+    },
+    "more": {
+      "label": "További szűrők"
     }
   },
   "online": {

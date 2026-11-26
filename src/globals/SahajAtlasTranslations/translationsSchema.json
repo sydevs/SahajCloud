@@ -448,6 +448,23 @@
           },
           "additionalProperties": false
         },
+        "where": {
+          "type": "object",
+          "description": "The Where question at the top of the filters: finding classes near the visitor, and the place in scope.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "default": "Where",
+              "description": "Section label of the Where question, above Near me and the tag naming the place in scope."
+            },
+            "near_me": {
+              "type": "string",
+              "default": "Near me",
+              "description": "Button in the Where question that asks for the visitor’s location and lists the classes around it. While it is on, pressing it again turns it off."
+            }
+          },
+          "additionalProperties": false
+        },
         "format": {
           "type": "object",
           "description": "Filter: in-person or online.",
@@ -467,6 +484,11 @@
             "online": {
               "type": "string",
               "description": "Format option: classes held online."
+            },
+            "question": {
+              "type": "string",
+              "default": "Online or in person",
+              "description": "Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the shorter name used elsewhere."
             }
           },
           "additionalProperties": false
@@ -509,6 +531,11 @@
             "label": {
               "type": "string",
               "description": "Section label of the day-of-week filter."
+            },
+            "short_label": {
+              "type": "string",
+              "default": "Day",
+              "description": "Section label of the day-of-week question in the filter drawer, above the seven day buttons. Kept to one short word so it sits on one line beside the others."
             }
           },
           "additionalProperties": false
@@ -609,6 +636,18 @@
             "empty": {
               "type": "string",
               "description": "Shown when the region search matches nothing."
+            }
+          },
+          "additionalProperties": false
+        },
+        "more": {
+          "type": "object",
+          "description": "The fold at the bottom of the filters holding the less-used questions, Frequency and Dates.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "default": "More filters",
+              "description": "Disclosure at the bottom of the filter drawer that opens the Frequency and Dates questions. It opens by itself when either has a value."
             }
           },
           "additionalProperties": false
