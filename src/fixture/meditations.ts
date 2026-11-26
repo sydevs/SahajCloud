@@ -3,6 +3,8 @@ import { ID } from './ids'
 import { fixture } from './types'
 
 const AUDIO = 'fixture-audio.mp3'
+/** Real MPEG frames stating no duration, as `songs` uses: the meditation that shows the warning. */
+const AUDIO_NO_DURATION = 'fixture-audio-no-duration.mp3'
 
 export default fixture('meditations', [
   // Published daily meditation in English.
@@ -107,6 +109,23 @@ export default fixture('meditations', [
       locale: 'en',
       type: 'daily',
       narrator: ID.narrators.male,
+    },
+  },
+  // Audio stating no length: the duration warning, and the empty
+  // `subtleSystemNodeWeights` it explains. A draft, so no feed ranks it.
+  {
+    id: MEDITATION.noDuration,
+    file: AUDIO_NO_DURATION,
+    data: {
+      _status: 'draft',
+      label: 'Fixture Meditation (no duration)',
+      locale: 'en',
+      type: 'daily',
+      narrator: ID.narrators.female,
+      frames: [
+        { id: FRAME.mooladhara, timestamp: 0 },
+        { id: FRAME.sahasrara, timestamp: 12 },
+      ],
     },
   },
   {

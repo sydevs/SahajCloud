@@ -11,8 +11,9 @@ interface ExtractAudioDurationOptions {
  * Factory for a `beforeChange` hook that stores an uploaded file's audio
  * duration, in whole seconds, on `data.duration`.
  *
- * Audio that cannot be parsed leaves the document unchanged and logs a warning
- * — metadata must not fail a save.
+ * Audio whose length cannot be read clears the column and logs a warning —
+ * metadata must not fail a save, and a kept value would describe the file this
+ * upload replaces.
  *
  * The upload is parsed as a buffer, which carries its own size: a
  * constant-bitrate MP3 with no Xing or Info header states its length only as
@@ -29,16 +30,19 @@ export const extractAudioDuration =
     try {
       const { format } = await parseBuffer(req.file.data, { mimeType: req.file.mimetype })
       duration = format.duration == null ? undefined : Math.round(format.duration)
+      if (duration == null) {
+        req.payload.logger.warn({ msg: 'Audio states no duration', filename: req.file.name })
+      }
     } catch (error) {
       req.payload.logger.warn({
         msg: 'Failed to extract audio duration',
         filename: req.file.name,
         error: error instanceof Error ? error.message : String(error),
       })
-      return data
     }
 
     if (duration == null) {
+      data.duration = null
       return data
     }
 

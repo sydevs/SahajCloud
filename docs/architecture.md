@@ -40,7 +40,7 @@ Adapter routing, the R2 filename hook, the Stream webhook, and Cloudflare respon
 - **Videos** — Cloudflare Stream uploads, HLS. `mp4Url` 404s until the Stream webhook enables it.
 - **AppCards** — mobile cards with `type` (`standard`/`event`), three view tabs, `audiences` (OR), `conditions` (AND), and a `weight`.
 - **Images**, **Narrators**, **Authors** — media and profile collections.
-- **Lectures** — full-talk content via the Nirmala Vidya API, no drafts. `subtleSystemNodes` drives the related-lectures ranking. Optional `userChoices` drives that endpoint's user-choice gate.
+- **Lectures** — full-talk content via the Nirmala Vidya API, no drafts. `subtleSystemNodes` drives the related-lectures ranking. Optional `userChoices` drives that endpoint's user-choice gate. `date` — when the talk was given — is read out of the API's own title, which is the only place it states one, so nobody may type it (#1236).
 - **Frames** / **Files** — mixed-media uploads and storage, routed by MIME type, with trash and automatic orphan cleanup.
 - **UserChoices**, **SubtleSystemNodes** (12 chakras/nadis), **SongTags** — the tag collections referenced by Lectures and Frames.
 - **Audiences** — reusable targeting rules for AppCards and Lectures: progress ranges plus a country gate, evaluated on `/api/audiences/for-user`.

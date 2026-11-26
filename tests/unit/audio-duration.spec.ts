@@ -70,26 +70,28 @@ describe('extractAudioDuration', () => {
     ).rejects.toThrow(/exceeds maximum/)
   })
 
-  it('warns and stores nothing when the bytes cannot be parsed', async () => {
+  // Clearing, rather than leaving the column alone: whatever is stored
+  // described the file this upload replaces (#1236).
+  it('warns and clears the duration when the bytes cannot be parsed', async () => {
     const warn = vi.fn()
 
     const result = await extractAudioDuration()(hookArgs({ data: Buffer.from('not audio') }, warn))
 
-    expect(result).toEqual({})
+    expect(result).toEqual({ duration: null })
     expect(warn).toHaveBeenCalledWith(
       expect.objectContaining({ msg: 'Failed to extract audio duration' }),
     )
   })
 
-  it('stores nothing, and warns about nothing, when the audio states no duration', async () => {
+  it('warns and clears the duration when the audio states none', async () => {
     const warn = vi.fn()
 
     const result = await extractAudioDuration()(
       hookArgs({ data: read('fixture-audio-no-duration.mp3'), mimetype: 'audio/mpeg' }, warn),
     )
 
-    expect(result).toEqual({})
-    expect(warn).not.toHaveBeenCalled()
+    expect(result).toEqual({ duration: null })
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ msg: 'Audio states no duration' }))
   })
 
   it('leaves a save carrying no file alone', async () => {

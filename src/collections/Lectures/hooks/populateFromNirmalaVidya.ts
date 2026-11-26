@@ -2,13 +2,14 @@ import type { CollectionBeforeChangeHook } from 'payload'
 
 import { ValidationError } from 'payload'
 
-import { buildLectureMetadata } from '@/lib/lectures/nirmalaVidya'
+import { buildLectureMetadata, lectureDateFromTitle } from '@/lib/lectures/nirmalaVidya'
 import type { NirmalaVidyaVideoData } from '@/lib/lectures/nirmalaVidyaApi'
 import { extractVimeoId, fetchNirmalaVidyaVideo } from '@/lib/lectures/nirmalaVidyaApi'
 
 /**
  * beforeChange hook — create-only, runs only for `type === 'full'`. Fetches
- * the NV API once and packs the response into a single `metadata` JSON field.
+ * the NV API once and packs the response into a single `metadata` JSON field,
+ * plus the `date` its title states.
  * The editor-visible `title` is auto-filled for the current request locale if
  * the editor didn't supply one; other locales fall back to it via Payload's
  * locale-fallback mechanism.
@@ -94,6 +95,7 @@ export const populateFromNirmalaVidya: CollectionBeforeChangeHook = async ({
 
   const metadata = buildLectureMetadata(videoData)
   data.metadata = metadata
+  data.date = lectureDateFromTitle(metadata.title)
 
   // Auto-fill the editor-visible title for the current locale when blank.
   if (!data.title) {

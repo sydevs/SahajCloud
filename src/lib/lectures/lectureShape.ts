@@ -40,6 +40,7 @@ type FeedUserChoice = Required<Pick<UserChoice, 'id' | 'title'>>
 export const LECTURE_FEED_SELECT = {
   type: true,
   title: true,
+  date: true,
   metadata: true,
   startTime: true,
   stopTime: true,
@@ -96,7 +97,7 @@ export const LECTURE_FEED_POPULATE = {
  *
  * `title` is nullable (localized + hook-populated). `stopTime` and `duration`
  * may be `null` when neither an explicit value nor `metadata.duration` is
- * available.
+ * available. `date` follows `metadata`'s source — the parent's for a clip.
  *
  * `userChoices` carries this lecture's own user-choice membership, so a consumer
  * that SSR-loads the feed once can render filter pills and match each card to
@@ -106,6 +107,7 @@ export const LECTURE_FEED_POPULATE = {
 export type LecturePlayerData = {
   id: number
   title: string | null | undefined
+  date: string | null
   hlsUrl: string
   thumbnailUrl: string | null
   subtitles: Record<string, string>
@@ -222,6 +224,7 @@ export function shapeLecture(
   return {
     id: lecture.id,
     title: lecture.title,
+    date: metadataSource?.date ?? null,
     hlsUrl: metadata.hlsUrl,
     thumbnailUrl: resolveThumbnailUrl({
       override: lecture.thumbnail,

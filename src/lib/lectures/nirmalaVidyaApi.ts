@@ -22,6 +22,9 @@ export interface NirmalaVidyaVideoData {
 
 // --- Response Validation Schema (Zod) ---
 
+// Not strict: NV sends more than this — `event_id`, `created_time`,
+// `modified_time`, `description` — and only what we store is parsed. Why the
+// talk's own date is not among them: `lectureDateFromTitle` in ./nirmalaVidya.
 export const NirmalaVidyaResponseSchema = z.object({
   name: z.string(),
   files: z.array(

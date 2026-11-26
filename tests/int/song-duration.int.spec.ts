@@ -5,6 +5,9 @@
  */
 import type { Payload } from 'payload'
 
+import fs from 'fs'
+import path from 'path'
+
 import { handleEndpoints } from 'payload'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -68,6 +71,24 @@ describe('Song duration extraction', () => {
 
     expect(song.id).toBeDefined()
     expect(song.duration).toBeNull()
+  })
+
+  // A kept duration would describe the file the upload replaced, so the song
+  // would report 42 seconds for audio of unknown length (#1236).
+  it('clears the duration when a replacement file states none', async () => {
+    const song = await testData.createSong(payload, { album: album.id })
+    expect(song.duration).toBe(42)
+
+    const fileData = fs.readFileSync(path.join(__dirname, '../files', NO_DURATION))
+    const replaced = await payload.update({
+      collection: 'songs',
+      id: song.id,
+      data: {},
+      file: { data: fileData, mimetype: 'audio/mpeg', name: NO_DURATION, size: fileData.length },
+      overrideAccess: true,
+    })
+
+    expect(replaced.duration).toBeNull()
   })
 
   it('returns the duration to an API client that selects it', async () => {

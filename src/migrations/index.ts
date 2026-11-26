@@ -6,13 +6,18 @@ import * as migration_20261118_233000_wm_web_menu_key from './20261118_233000_wm
 import * as migration_20261118_235242_wm_web_drop_video_tab from './20261118_235242_wm_web_drop_video_tab';
 import * as migration_20261119_044129_tidy_event_form from './20261119_044129_tidy_event_form';
 import * as migration_20261119_223756_merge_snapshot_heal from './20261119_223756_merge_snapshot_heal';
+import * as migration_20261120_235118_lecture_date from './20261120_235118_lecture_date';
 import * as migration_20261121_035055_wm_web_drop_a11y_groups from './20261121_035055_wm_web_drop_a11y_groups';
 import * as migration_20261121_035100_atlas_drop_a11y_keys from './20261121_035100_atlas_drop_a11y_keys';
+import * as migration_20261122_182348_merge_snapshot_heal from './20261122_182348_merge_snapshot_heal';
 import * as migration_20261123_185218_pages_parent_index_pages from './20261123_185218_pages_parent_index_pages';
 import * as migration_20261125_152923_atlas_drop_compact_tab from './20261125_152923_atlas_drop_compact_tab';
 import * as migration_20261125_191844_merge_snapshot_heal from './20261125_191844_merge_snapshot_heal';
+import * as migration_20261125_191905_merge_snapshot_heal from './20261125_191905_merge_snapshot_heal';
+import * as migration_20261125_194946_merge_snapshot_heal from './20261125_194946_merge_snapshot_heal';
 import * as migration_20261125_213000_atlas_common_copied from './20261125_213000_atlas_common_copied';
 import * as migration_20261125_230000_atlas_drop_captcha_blocked from './20261125_230000_atlas_drop_captcha_blocked';
+import * as migration_20261126_035802_merge_snapshot_heal from './20261126_035802_merge_snapshot_heal';
 
 export const migrations = [
   {
@@ -56,6 +61,11 @@ export const migrations = [
     name: '20261119_223756_merge_snapshot_heal',
   },
   {
+    up: migration_20261120_235118_lecture_date.up,
+    down: migration_20261120_235118_lecture_date.down,
+    name: '20261120_235118_lecture_date',
+  },
+  {
     up: migration_20261121_035055_wm_web_drop_a11y_groups.up,
     down: migration_20261121_035055_wm_web_drop_a11y_groups.down,
     name: '20261121_035055_wm_web_drop_a11y_groups',
@@ -64,6 +74,11 @@ export const migrations = [
     up: migration_20261121_035100_atlas_drop_a11y_keys.up,
     down: migration_20261121_035100_atlas_drop_a11y_keys.down,
     name: '20261121_035100_atlas_drop_a11y_keys',
+  },
+  {
+    up: migration_20261122_182348_merge_snapshot_heal.up,
+    down: migration_20261122_182348_merge_snapshot_heal.down,
+    name: '20261122_182348_merge_snapshot_heal',
   },
   {
     up: migration_20261123_185218_pages_parent_index_pages.up,
@@ -81,6 +96,16 @@ export const migrations = [
     name: '20261125_191844_merge_snapshot_heal',
   },
   {
+    up: migration_20261125_191905_merge_snapshot_heal.up,
+    down: migration_20261125_191905_merge_snapshot_heal.down,
+    name: '20261125_191905_merge_snapshot_heal',
+  },
+  {
+    up: migration_20261125_194946_merge_snapshot_heal.up,
+    down: migration_20261125_194946_merge_snapshot_heal.down,
+    name: '20261125_194946_merge_snapshot_heal',
+  },
+  {
     up: migration_20261125_213000_atlas_common_copied.up,
     down: migration_20261125_213000_atlas_common_copied.down,
     name: '20261125_213000_atlas_common_copied',
@@ -89,5 +114,10 @@ export const migrations = [
     up: migration_20261125_230000_atlas_drop_captcha_blocked.up,
     down: migration_20261125_230000_atlas_drop_captcha_blocked.down,
     name: '20261125_230000_atlas_drop_captcha_blocked',
+  },
+  {
+    up: migration_20261126_035802_merge_snapshot_heal.up,
+    down: migration_20261126_035802_merge_snapshot_heal.down,
+    name: '20261126_035802_merge_snapshot_heal'
   },
 ];

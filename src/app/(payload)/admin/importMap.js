@@ -25,6 +25,7 @@ import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 }
 import { default as default_aab4ebf5529acd7d615f7dc8a0ee17ec } from '@/components/admin/LockedSlugField'
 import { default as default_4bf3740760c6993814cd4a5b35ee85d0 } from '@/components/admin/LivePreviewNotice'
 import { default as default_c3b32cae85b800f9348e9cdb8fc7a176 } from '@/components/admin/TagSelector'
+import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_bc10fee3a76719781454f604d687129b } from '@/components/admin/TagAssignmentField'
 import { default as default_85b3a6f55f7eb542fec6b94fa2de1494 } from '@/components/admin/PreviewTarget'
 import { MeditationTranscriptField as MeditationTranscriptField_e05896606e83681ced05ad0143aa8348 } from '@/components/admin/TranscriptPanel'
@@ -73,7 +74,6 @@ import { default as default_1dd99abed7767ee797cacf1ad150de88 } from '@/component
 import { default as default_826f2980c9e1e0e72b25c86307f02534 } from '@/components/admin/EventScheduleNotice'
 import { default as default_e7df6c7ccbfdd5e73d9b4008aaaf0482 } from '@/components/admin/EventFrequencyField'
 import { default as default_c1b589b819e10077292295d97dcd997f } from '@/components/admin/EventRegistrations/RegistrationsNotice'
-import { default as default_d749fd4cc4f11cb94ed2d6b537f6015d } from '@/components/admin/InfoBanner'
 import { default as default_d73215fe105de40829b40e0975052656 } from '@/components/admin/VerificationStageField'
 import { default as default_3db810cf95b8f600a49837ee6d29b565 } from '@/components/admin/LogTable'
 import { default as default_42fbdbfc3b16bbe7c43aa9f07c715c1c } from '@/components/admin/EventQualityPanel'
@@ -144,6 +144,7 @@ export const importMap = {
   "@/components/admin/LockedSlugField#default": default_aab4ebf5529acd7d615f7dc8a0ee17ec,
   "@/components/admin/LivePreviewNotice#default": default_4bf3740760c6993814cd4a5b35ee85d0,
   "@/components/admin/TagSelector#default": default_c3b32cae85b800f9348e9cdb8fc7a176,
+  "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/TagAssignmentField#default": default_bc10fee3a76719781454f604d687129b,
   "@/components/admin/PreviewTarget#default": default_85b3a6f55f7eb542fec6b94fa2de1494,
   "@/components/admin/TranscriptPanel#MeditationTranscriptField": MeditationTranscriptField_e05896606e83681ced05ad0143aa8348,
@@ -192,7 +193,6 @@ export const importMap = {
   "@/components/admin/EventScheduleNotice#default": default_826f2980c9e1e0e72b25c86307f02534,
   "@/components/admin/EventFrequencyField#default": default_e7df6c7ccbfdd5e73d9b4008aaaf0482,
   "@/components/admin/EventRegistrations/RegistrationsNotice#default": default_c1b589b819e10077292295d97dcd997f,
-  "@/components/admin/InfoBanner#default": default_d749fd4cc4f11cb94ed2d6b537f6015d,
   "@/components/admin/VerificationStageField#default": default_d73215fe105de40829b40e0975052656,
   "@/components/admin/LogTable#default": default_3db810cf95b8f600a49837ee6d29b565,
   "@/components/admin/EventQualityPanel#default": default_42fbdbfc3b16bbe7c43aa9f07c715c1c,

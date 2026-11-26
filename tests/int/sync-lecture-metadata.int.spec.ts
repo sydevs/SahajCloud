@@ -114,6 +114,35 @@ describe('SyncLectureMetadata task', () => {
     )
   })
 
+  it('refreshes the date from the title, and clears one the title drops (#1236)', async () => {
+    const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
+    const nvTitle = (title: string) => ({
+      title,
+      thumbnailUrl: 'https://example.com/thumb.jpg',
+      hlsUrl: 'https://example.com/stream.m3u8',
+      subtitles: [],
+      duration: null,
+    })
+
+    vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce(nvTitle('A talk nobody dated'))
+    const lecture = await testData.createLecture(payload)
+    expect(lecture.date).toBeNull()
+
+    vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce(
+      nvTitle('First Know Thyself (1989-08-01)'),
+    )
+    await runTask(payload, { lectureIds: [lecture.id] })
+    const dated = (await payload.findByID({ collection: 'lectures', id: lecture.id })) as Lecture
+    expect(dated.date).toBe('1989-08-01T12:00:00.000Z')
+
+    // The column states what the title states now. A retitle that drops the
+    // date leaves nothing upstream backing the old value.
+    vi.mocked(fetchNirmalaVidyaVideo).mockResolvedValueOnce(nvTitle('First Know Thyself'))
+    await runTask(payload, { lectureIds: [lecture.id] })
+    const cleared = (await payload.findByID({ collection: 'lectures', id: lecture.id })) as Lecture
+    expect(cleared.date).toBeNull()
+  })
+
   it('continues the batch when a single lecture fails at the API', async () => {
     const { fetchNirmalaVidyaVideo } = await import('@/lib/lectures/nirmalaVidyaApi')
 

@@ -3476,6 +3476,10 @@ export interface Lecture {
   nirmalVidyaVimeoUrl?: string | null;
   title?: string | null;
   /**
+   * The day this talk was given, read from the Nirmala Vidya title and refreshed monthly. Blank when that title states none.
+   */
+  date?: string | null;
+  /**
    * Optional override for the Nirmala Vidya thumbnail. If blank, the API thumbnail is used.
    */
   thumbnail?: (number | null) | Image;
@@ -4641,6 +4645,7 @@ export interface LecturesSelect<T extends boolean = true> {
   type?: T;
   nirmalVidyaVimeoUrl?: T;
   title?: T;
+  date?: T;
   thumbnail?: T;
   startTime?: T;
   stopTime?: T;
