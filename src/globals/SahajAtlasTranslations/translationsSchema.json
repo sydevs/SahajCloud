@@ -56,7 +56,7 @@
             "copied": {
               "type": "string",
               "default": "Copied",
-              "description": "Confirmation after a visitor copies a share link, a phone number, an email, or a class’s address."
+              "description": "Confirmation after a visitor copies a phone number, an email, or a class’s address. Copying a share link answers with `share.link_copied` instead."
             }
           },
           "additionalProperties": false
@@ -1415,14 +1415,34 @@
           "type": "string",
           "description": "Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
         },
+        "title_class": {
+          "type": "string",
+          "default": "Share this class",
+          "description": "Heading of the Share view for one class."
+        },
         "native": {
           "type": "string",
           "description": "Label of the device’s own share sheet."
         },
+        "link_copied": {
+          "type": "string",
+          "default": "Link copied",
+          "description": "What the Copy link button says for a moment after it has put the class link on the clipboard."
+        },
+        "copy_failed_touch": {
+          "type": "string",
+          "default": "Couldn’t copy it. Press and hold the link below, then choose Copy.",
+          "description": "Shown on a phone or tablet when the page refused the clipboard: how to copy the link by hand."
+        },
+        "copy_failed_pointer": {
+          "type": "string",
+          "default": "Couldn’t copy it. The link below is selected: press Ctrl+C, or ⌘C on a Mac.",
+          "description": "Shown on a computer when the page refused the clipboard. The link is already selected; this says which keys copy it."
+        },
         "qr_title": {
           "type": "string",
           "default": "QR code for posters",
-          "description": "Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters."
+          "description": "Closed row at the bottom of a class page that opens a QR code of the class link, for hosts printing posters."
         },
         "qr_hint": {
           "type": "string",
