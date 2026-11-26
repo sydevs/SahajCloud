@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "ru",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/ru/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 42 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -110,11 +110,16 @@
       "any_time": "Любое время",
       "no_results": "Нет событий, соответствующих вашим фильтрам."
     },
+    "where": {
+      "label": "Где",
+      "near_me": "Рядом со мной"
+    },
     "format": {
       "label": "Формат",
       "any": "Любой",
       "offline": "Очно",
-      "online": "Онлайн"
+      "online": "Онлайн",
+      "question": "Онлайн или очно"
     },
     "cadence": {
       "label": "Периодичность",
@@ -125,7 +130,8 @@
       "once": "Разовое"
     },
     "days": {
-      "label": "День недели"
+      "label": "День недели",
+      "short_label": "День"
     },
     "time": {
       "label": "Время суток",
@@ -152,6 +158,9 @@
       "all": "Все регионы",
       "search": "Поиск регионов…",
       "empty": "Регионы не найдены"
+    },
+    "more": {
+      "label": "Другие фильтры"
     }
   },
   "online": {

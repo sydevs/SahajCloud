@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "de",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/de/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 42 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -110,11 +110,16 @@
       "any_time": "Jederzeit",
       "no_results": "Keine Veranstaltungen entsprechen deinen Filtern."
     },
+    "where": {
+      "label": "Wo",
+      "near_me": "In meiner Nähe"
+    },
     "format": {
       "label": "Format",
       "any": "Alle",
       "offline": "Vor Ort",
-      "online": "Online"
+      "online": "Online",
+      "question": "Online oder vor Ort"
     },
     "cadence": {
       "label": "Häufigkeit",
@@ -125,7 +130,8 @@
       "once": "Einmalig"
     },
     "days": {
-      "label": "Wochentag"
+      "label": "Wochentag",
+      "short_label": "Tag"
     },
     "time": {
       "label": "Uhrzeit",
@@ -152,6 +158,9 @@
       "all": "Alle Regionen",
       "search": "Regionen suchen…",
       "empty": "Keine Regionen gefunden"
+    },
+    "more": {
+      "label": "Weitere Filter"
     }
   },
   "online": {

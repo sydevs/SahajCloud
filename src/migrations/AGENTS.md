@@ -485,6 +485,10 @@ still a migration, and so is rewording stored copy: a default lands only where
 nothing is stored. Such a migration carries no DDL, so none of the above
 applies to it.
 
+⚠ **A new leaf _group_ is still DDL**: it is one jsonb column on both
+`<global>_locales` tables, which `push` adds locally and only a generated
+migration adds in production. Run `db:migrations:create` for it.
+
 ⚠ **A hand-written migration imports from `@/lib/migrations/` and nowhere else
 in `src/`.** A file here is frozen once it merges, so shared SQL cannot live
 beside the first migration that needed it. `src/AGENTS.md` owns that rule.
