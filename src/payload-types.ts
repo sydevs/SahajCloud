@@ -10028,11 +10028,27 @@ export interface SyAtlasTranslationsShareStrings {
    */
   title?: string;
   /**
+   * Heading of the Share view for one class.
+   */
+  title_class?: string;
+  /**
    * Label of the device’s own share sheet.
    */
   native?: string;
   /**
-   * Closed row under the share buttons that opens a QR code of the class link, for hosts printing posters.
+   * What the Copy link button says for a moment after it has put the class link on the clipboard.
+   */
+  link_copied?: string;
+  /**
+   * Shown on a phone or tablet when the page refused the clipboard: how to copy the link by hand.
+   */
+  copy_failed_touch?: string;
+  /**
+   * Shown on a computer when the page refused the clipboard. The link is already selected; this says which keys copy it.
+   */
+  copy_failed_pointer?: string;
+  /**
+   * Closed row at the bottom of a class page that opens a QR code of the class link, for hosts printing posters.
    */
   qr_title?: string;
   /**
