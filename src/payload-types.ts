@@ -9238,7 +9238,7 @@ export interface SyAtlasTranslationsFiltersWhereStrings {
    */
   label?: string;
   /**
-   * Button in the Where question that asks for the visitor’s location and lists the classes around it. While it is on, pressing it again turns it off.
+   * Button in the Where question that lists the classes around the visitor’s location.
    */
   near_me?: string;
 }
@@ -9260,7 +9260,7 @@ export interface SyAtlasTranslationsFiltersFormatStrings {
    */
   online?: string;
   /**
-   * Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the shorter name used elsewhere.
+   * Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the one-word name.
    */
   question?: string;
 }
@@ -9296,7 +9296,7 @@ export interface SyAtlasTranslationsFiltersDaysStrings {
    */
   label?: string;
   /**
-   * Section label of the day-of-week question in the filter drawer, above the seven day buttons. Kept to one short word so it sits on one line beside the others.
+   * Section label of the day-of-week question in the filter drawer, above the seven day buttons.
    */
   short_label?: string;
 }
@@ -9382,7 +9382,7 @@ export interface SyAtlasTranslationsFiltersRegionStrings {
 }
 export interface SyAtlasTranslationsFiltersMoreStrings {
   /**
-   * Disclosure at the bottom of the filter drawer that opens the Frequency and Dates questions. It opens by itself when either has a value.
+   * Disclosure at the bottom of the filter drawer that reveals the less-used questions.
    */
   label?: string;
 }

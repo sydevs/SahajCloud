@@ -460,7 +460,7 @@
             "near_me": {
               "type": "string",
               "default": "Near me",
-              "description": "Button in the Where question that asks for the visitor’s location and lists the classes around it. While it is on, pressing it again turns it off."
+              "description": "Button in the Where question that lists the classes around the visitor’s location."
             }
           },
           "additionalProperties": false
@@ -488,7 +488,7 @@
             "question": {
               "type": "string",
               "default": "Online or in person",
-              "description": "Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the shorter name used elsewhere."
+              "description": "Section label of the format question in the filter drawer, above its Online and In person options. `format.label` stays the one-word name."
             }
           },
           "additionalProperties": false
@@ -535,7 +535,8 @@
             "short_label": {
               "type": "string",
               "default": "Day",
-              "description": "Section label of the day-of-week question in the filter drawer, above the seven day buttons. Kept to one short word so it sits on one line beside the others."
+              "description": "Section label of the day-of-week question in the filter drawer, above the seven day buttons.",
+              "maxLength": 12
             }
           },
           "additionalProperties": false
@@ -647,7 +648,7 @@
             "label": {
               "type": "string",
               "default": "More filters",
-              "description": "Disclosure at the bottom of the filter drawer that opens the Frequency and Dates questions. It opens by itself when either has a value."
+              "description": "Disclosure at the bottom of the filter drawer that reveals the less-used questions."
             }
           },
           "additionalProperties": false

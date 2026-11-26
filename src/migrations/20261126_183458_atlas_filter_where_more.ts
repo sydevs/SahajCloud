@@ -1,7 +1,3 @@
-/**
- * The atlas filters gain two leaf groups, `filters.where` and `filters.more`,
- * each one jsonb column per locale table.
- */
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
