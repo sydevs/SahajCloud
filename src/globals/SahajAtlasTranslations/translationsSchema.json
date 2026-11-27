@@ -57,6 +57,11 @@
               "type": "string",
               "default": "Copied",
               "description": "Confirmation after a visitor copies a phone number, an email, or a class’s address. Copying a share link answers with `share.link_copied` instead."
+            },
+            "optional": {
+              "type": "string",
+              "default": "optional",
+              "description": "Marker after a form field label that may be left empty, shown in brackets: “Your question (optional)”."
             }
           },
           "additionalProperties": false
@@ -959,7 +964,17 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
+              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it. Retiring: translate `title_class` instead, which says “class”."
+            },
+            "title_class": {
+              "type": "string",
+              "default": "Register for this class",
+              "description": "Registration view heading. Replaces `title`, which said “meditation”."
+            },
+            "reassurance": {
+              "type": "string",
+              "default": "Free, with no account needed.",
+              "description": "Line under the registration heading, reassuring the visitor before they fill the form."
             },
             "name": {
               "type": "string",
@@ -971,7 +986,12 @@
             },
             "starting_date": {
               "type": "string",
-              "description": "Label of the starting-date chooser."
+              "description": "Label of the starting-date chooser. Retiring: translate `first_class` instead; the date is now a dropdown labelled for the first class the visitor attends."
+            },
+            "first_class": {
+              "type": "string",
+              "default": "Your first class",
+              "description": "Label of the date dropdown: the session the visitor will attend first. Replaces `starting_date`."
             },
             "show_more_dates": {
               "type": "string",
@@ -981,9 +1001,39 @@
               "type": "string",
               "description": "Submit button of the registration form."
             },
+            "checking": {
+              "type": "string",
+              "default": "Checking you’re not a robot…",
+              "description": "Line under the disabled Register button while the security check runs in the background."
+            },
+            "security_check": {
+              "type": "string",
+              "default": "Please complete the security check above.",
+              "description": "Line under the disabled Register button once the security check has waited a few seconds and may want a tick."
+            },
+            "register_when_check_loads": {
+              "type": "string",
+              "default": "You can register once the security check loads.",
+              "description": "Line under the disabled Register button when the security check failed to load."
+            },
             "okay": {
               "type": "string",
-              "description": "Acknowledgement button that dismisses the thank-you screen."
+              "description": "Acknowledgement button that dismisses the thank-you screen. Retiring: the confirmation no longer has a dismiss button; the drawer closes with its own control."
+            },
+            "confirmed_title": {
+              "type": "string",
+              "default": "You’re registered",
+              "description": "Registration view heading once the visitor has registered."
+            },
+            "see_you": {
+              "type": "string",
+              "default": "See you on %{date}.",
+              "description": "Confirmation line naming the session registered for. `%{date}` = the long date in the visitor’s own format, e.g. “Tuesday 17 November”."
+            },
+            "confirm_email": {
+              "type": "string",
+              "default": "We’ll email a confirmation to %{email} shortly.",
+              "description": "Confirmation line under `see_you`. `%{email}` = the address the visitor entered."
             },
             "followup": {
               "type": "string",

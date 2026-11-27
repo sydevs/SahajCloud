@@ -8936,6 +8936,10 @@ export interface SyAtlasTranslationsCommonChromeStrings {
    * Confirmation after a visitor copies a phone number, an email, or a class’s address. Copying a share link answers with `share.link_copied` instead.
    */
   copied?: string;
+  /**
+   * Marker after a form field label that may be left empty, shown in brackets: “Your question (optional)”.
+   */
+  optional?: string;
 }
 export interface SyAtlasTranslationsCommonSettingsStrings {
   /**
@@ -9637,9 +9641,17 @@ export interface SyAtlasTranslationsCalendarStrings {
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
+   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it. Retiring: translate `title_class` instead, which says “class”.
    */
   title?: string;
+  /**
+   * Registration view heading. Replaces `title`, which said “meditation”.
+   */
+  title_class?: string;
+  /**
+   * Line under the registration heading, reassuring the visitor before they fill the form.
+   */
+  reassurance?: string;
   /**
    * Label of the name field.
    */
@@ -9649,9 +9661,13 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    */
   email?: string;
   /**
-   * Label of the starting-date chooser.
+   * Label of the starting-date chooser. Retiring: translate `first_class` instead; the date is now a dropdown labelled for the first class the visitor attends.
    */
   starting_date?: string;
+  /**
+   * Label of the date dropdown: the session the visitor will attend first. Replaces `starting_date`.
+   */
+  first_class?: string;
   /**
    * Control that reveals further start dates.
    */
@@ -9661,9 +9677,33 @@ export interface SyAtlasTranslationsRegistrationFormStrings {
    */
   submit?: string;
   /**
-   * Acknowledgement button that dismisses the thank-you screen.
+   * Line under the disabled Register button while the security check runs in the background.
+   */
+  checking?: string;
+  /**
+   * Line under the disabled Register button once the security check has waited a few seconds and may want a tick.
+   */
+  security_check?: string;
+  /**
+   * Line under the disabled Register button when the security check failed to load.
+   */
+  register_when_check_loads?: string;
+  /**
+   * Acknowledgement button that dismisses the thank-you screen. Retiring: the confirmation no longer has a dismiss button; the drawer closes with its own control.
    */
   okay?: string;
+  /**
+   * Registration view heading once the visitor has registered.
+   */
+  confirmed_title?: string;
+  /**
+   * Confirmation line naming the session registered for. `%{date}` = the long date in the visitor’s own format, e.g. “Tuesday 17 November”.
+   */
+  see_you?: string;
+  /**
+   * Confirmation line under `see_you`. `%{email}` = the address the visitor entered.
+   */
+  confirm_email?: string;
   /**
    * Thank-you screen line promising a confirmation email.
    */
