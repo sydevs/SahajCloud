@@ -321,6 +321,21 @@
           "type": "string",
           "default": "Free Meditation classes in %{place}",
           "description": "The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in."
+        },
+        "near_city": {
+          "type": "string",
+          "default": "Classes near %{city}",
+          "description": "One-tap line under the search box on the atlas’s first screen, naming the town guessed for the visitor; it opens classes near that town. `%{city}` = the guessed town’s name."
+        },
+        "near_me": {
+          "type": "string",
+          "default": "Classes near me",
+          "description": "The same line on the first screen when no town is guessed; tapping it asks the browser for the visitor’s location."
+        },
+        "locating": {
+          "type": "string",
+          "default": "Finding your location…",
+          "description": "The same line while the browser’s location request is out."
         }
       },
       "additionalProperties": false
@@ -343,6 +358,11 @@
             "placeholder": {
               "type": "string",
               "description": "Placeholder of the geocoder input, in every header that carries one."
+            },
+            "city_or_postcode": {
+              "type": "string",
+              "default": "City or postcode",
+              "description": "Hint (placeholder) in the atlas’s place search box, on every page."
             }
           },
           "additionalProperties": false

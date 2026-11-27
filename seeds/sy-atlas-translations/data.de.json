@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Kostenlose Meditationskurse",
-    "browse_heading": "Oder nach Land stöbern"
+    "browse_heading": "Oder nach Land stöbern",
+    "near_city": "Kurse in der Nähe von %{city}",
+    "near_me": "Kurse in meiner Nähe",
+    "locating": "Standort wird ermittelt…"
   },
   "search": {
     "chrome": {
       "title": "Suchen",
-      "placeholder": "Veranstaltungen suchen in …"
+      "placeholder": "Veranstaltungen suchen in …",
+      "city_or_postcode": "Ort oder Postleitzahl"
     },
     "results": {
       "more": "Mehr anzeigen",

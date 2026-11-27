@@ -9150,6 +9150,18 @@ export interface SyAtlasTranslationsCountriesStrings {
    * The inline embed’s page heading once a visitor is in a place. `%{place}` = the country, region or city name; for a venue or a class it is the city the venue sits in.
    */
   place_title?: string;
+  /**
+   * One-tap line under the search box on the atlas’s first screen, naming the town guessed for the visitor; it opens classes near that town. `%{city}` = the guessed town’s name.
+   */
+  near_city?: string;
+  /**
+   * The same line on the first screen when no town is guessed; tapping it asks the browser for the visitor’s location.
+   */
+  near_me?: string;
+  /**
+   * The same line while the browser’s location request is out.
+   */
+  locating?: string;
 }
 export interface SyAtlasTranslationsSearchChromeStrings {
   /**
@@ -9160,6 +9172,10 @@ export interface SyAtlasTranslationsSearchChromeStrings {
    * Placeholder of the geocoder input, in every header that carries one.
    */
   placeholder?: string;
+  /**
+   * Hint (placeholder) in the atlas’s place search box, on every page.
+   */
+  city_or_postcode?: string;
 }
 export interface SyAtlasTranslationsSearchResultsStrings {
   /**

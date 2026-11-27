@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Gratis meditatielessen",
-    "browse_heading": "Of blader per land"
+    "browse_heading": "Of blader per land",
+    "near_city": "Lessen bij %{city} in de buurt",
+    "near_me": "Lessen bij mij in de buurt",
+    "locating": "Je locatie zoeken…"
   },
   "search": {
     "chrome": {
       "title": "Zoeken",
-      "placeholder": "Zoek evenementen in de buurt van…"
+      "placeholder": "Zoek evenementen in de buurt van…",
+      "city_or_postcode": "Plaats of postcode"
     },
     "results": {
       "more": "Meer tonen",

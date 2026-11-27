@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Cours de méditation gratuits",
-    "browse_heading": "Ou parcourez par pays"
+    "browse_heading": "Ou parcourez par pays",
+    "near_city": "Cours près de %{city}",
+    "near_me": "Cours près de moi",
+    "locating": "Recherche de votre position…"
   },
   "search": {
     "chrome": {
       "title": "Rechercher",
-      "placeholder": "Rechercher des événements près de…"
+      "placeholder": "Rechercher des événements près de…",
+      "city_or_postcode": "Ville ou code postal"
     },
     "results": {
       "more": "Afficher plus",

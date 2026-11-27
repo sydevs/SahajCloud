@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Aulas gratuitas de meditação",
-    "browse_heading": "Ou navegue por país"
+    "browse_heading": "Ou navegue por país",
+    "near_city": "Aulas perto de %{city}",
+    "near_me": "Aulas perto de mim",
+    "locating": "Buscando sua localização…"
   },
   "search": {
     "chrome": {
       "title": "Buscar",
-      "placeholder": "Buscar eventos perto de…"
+      "placeholder": "Buscar eventos perto de…",
+      "city_or_postcode": "Cidade ou CEP"
     },
     "results": {
       "more": "Mostrar mais",
