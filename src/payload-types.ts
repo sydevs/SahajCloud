@@ -9221,7 +9221,7 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   apply?: string;
   /**
-   * Action that clears every filter at once: the filters' footer, the button over an empty list of results, and the filter buttons on a computer (an icon, this as its hover label).
+   * Action that clears every filter at once: the filters' footer, the ways out under a filtered list of results, and the filter buttons on a computer (an icon, this as its hover label).
    */
   clear?: string;
   /**
@@ -9257,21 +9257,37 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   no_match?: string;
   /**
-   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
+   * Button offered when no class matches, removing one answer: at the bottom of the filters, and under an empty list of results. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_one?: string;
   /**
-   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
+   * Button offered when no class matches, removing one answer: at the bottom of the filters, and under an empty list of results. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_few?: string;
   /**
-   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
+   * Button offered when no class matches, removing one answer: at the bottom of the filters, and under an empty list of results. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_many?: string;
   /**
-   * Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
+   * Button offered when no class matches, removing one answer: at the bottom of the filters, and under an empty list of results. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back.
    */
   widen_other?: string;
+  /**
+   * Line under a list of results when the filters hide in-person classes in the area searched, before the button that clears the filters. Entered per plural form. `%{count}` = in-person classes clearing the filters brings back.
+   */
+  more_area_one?: string;
+  /**
+   * Line under a list of results when the filters hide in-person classes in the area searched, before the button that clears the filters. Entered per plural form. `%{count}` = in-person classes clearing the filters brings back.
+   */
+  more_area_few?: string;
+  /**
+   * Line under a list of results when the filters hide in-person classes in the area searched, before the button that clears the filters. Entered per plural form. `%{count}` = in-person classes clearing the filters brings back.
+   */
+  more_area_many?: string;
+  /**
+   * Line under a list of results when the filters hide in-person classes in the area searched, before the button that clears the filters. Entered per plural form. `%{count}` = in-person classes clearing the filters brings back.
+   */
+  more_area_other?: string;
 }
 export interface SyAtlasTranslationsFiltersWhereStrings {
   /**

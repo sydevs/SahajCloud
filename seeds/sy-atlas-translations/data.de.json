@@ -108,7 +108,9 @@
       "show_classes_other": "%{count} Kurse anzeigen",
       "widen_one": "%{label} entfernen (%{count} Kurs)",
       "widen_other": "%{label} entfernen (%{count} Kurse)",
-      "no_match": "Keine Kurse gefunden"
+      "no_match": "Keine Kurse gefunden",
+      "more_area_one": "%{count} weiterer Kurs in dieser Gegend.",
+      "more_area_other": "%{count} weitere Kurse in dieser Gegend."
     },
     "where": {
       "label": "Wo",

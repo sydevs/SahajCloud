@@ -108,7 +108,9 @@
       "show_classes_other": "Ver %{count} clases",
       "widen_one": "Quitar %{label} (%{count} clase)",
       "widen_other": "Quitar %{label} (%{count} clases)",
-      "no_match": "Ninguna clase coincide"
+      "no_match": "Ninguna clase coincide",
+      "more_area_one": "%{count} clase más en esta zona.",
+      "more_area_other": "%{count} clases más en esta zona."
     },
     "where": {
       "label": "Dónde",

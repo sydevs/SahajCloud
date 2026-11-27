@@ -112,7 +112,11 @@
       "widen_few": "Прибрати %{label} (%{count} заняття)",
       "widen_many": "Прибрати %{label} (%{count} занять)",
       "widen_other": "Прибрати %{label} (%{count} заняття)",
-      "no_match": "Немає відповідних занять"
+      "no_match": "Немає відповідних занять",
+      "more_area_one": "Ще %{count} заняття в цьому районі.",
+      "more_area_few": "Ще %{count} заняття в цьому районі.",
+      "more_area_many": "Ще %{count} занять в цьому районі.",
+      "more_area_other": "Ще %{count} заняття в цьому районі."
     },
     "where": {
       "label": "Де",
