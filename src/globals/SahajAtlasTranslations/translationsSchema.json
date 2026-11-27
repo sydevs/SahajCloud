@@ -945,7 +945,7 @@
     },
     "calendar": {
       "type": "object",
-      "description": "The Calendar view’s own header. The grid’s dates and day names come from the browser.",
+      "description": "The Calendar view’s own words. The grid’s dates and day names come from the browser.",
       "preview": {
         "path": "/calendar"
       },
@@ -968,7 +968,22 @@
         },
         "times_note": {
           "type": "string",
-          "description": "Line under the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city."
+          "description": "Line above the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city."
+        },
+        "day_count": {
+          "type": "string",
+          "plural": true,
+          "description": "Phone month view: the count under the chosen day’s date (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day."
+        },
+        "more": {
+          "type": "string",
+          "plural": true,
+          "description": "Month grid: the button on a day with more classes than fit, opening that day’s list. Entered per plural form. `%{count}` = classes not shown."
+        },
+        "none": {
+          "type": "string",
+          "default": "No classes",
+          "description": "Phone month view and list: a day with no classes."
         }
       },
       "additionalProperties": false

@@ -217,7 +217,12 @@
     "title": "Calendário",
     "view_month": "Mês",
     "view_week": "Semana",
-    "view_list": "Lista"
+    "view_list": "Lista",
+    "day_count_one": "%{count} aula",
+    "day_count_other": "%{count} aulas",
+    "more_one": "+ %{count} aula",
+    "more_other": "+ %{count} aulas",
+    "none": "Nenhuma aula"
   },
   "registration": {
     "form": {
