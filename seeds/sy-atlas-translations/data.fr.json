@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Rechercher",
-      "placeholder": "Rechercher des événements près de…",
-      "city_or_postcode": "Ville ou code postal"
+      "placeholder": "Saisissez votre ville ou code postal"
     },
     "results": {
       "more": "Afficher plus",

@@ -357,11 +357,6 @@
             },
             "placeholder": {
               "type": "string",
-              "description": "Placeholder of the geocoder input, in every header that carries one."
-            },
-            "city_or_postcode": {
-              "type": "string",
-              "default": "City or postcode",
               "description": "Hint (placeholder) in the atlas’s place search box, on every page."
             }
           },

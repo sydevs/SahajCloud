@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Zoeken",
-      "placeholder": "Zoek evenementen in de buurt van…",
-      "city_or_postcode": "Plaats of postcode"
+      "placeholder": "Voer je plaats of postcode in"
     },
     "results": {
       "more": "Meer tonen",
