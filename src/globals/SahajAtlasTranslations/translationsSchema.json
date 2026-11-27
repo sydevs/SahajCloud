@@ -439,7 +439,7 @@
             },
             "clear": {
               "type": "string",
-              "description": "Action that clears every filter at once: the filters' footer, the button over an empty list of results, and the filter buttons on a computer (an icon, this as its hover label)."
+              "description": "Action that clears every filter at once: the filters' footer, the ways out under a filtered list of results, and the filter buttons on a computer (an icon, this as its hover label)."
             },
             "clear_one": {
               "type": "string",
@@ -467,7 +467,12 @@
             "widen": {
               "type": "string",
               "plural": true,
-              "description": "Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back."
+              "description": "Button offered when no class matches, removing one answer: at the bottom of the filters, and under an empty list of results. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back."
+            },
+            "more_area": {
+              "type": "string",
+              "plural": true,
+              "description": "Line under a list of results when the filters hide in-person classes in the area searched, before the button that clears the filters. Entered per plural form. `%{count}` = in-person classes clearing the filters brings back."
             }
           },
           "additionalProperties": false

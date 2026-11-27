@@ -112,7 +112,11 @@
       "widen_few": "Убрать %{label} (%{count} занятия)",
       "widen_many": "Убрать %{label} (%{count} занятий)",
       "widen_other": "Убрать %{label} (%{count} занятия)",
-      "no_match": "Нет подходящих занятий"
+      "no_match": "Нет подходящих занятий",
+      "more_area_one": "Ещё %{count} занятие в этом районе.",
+      "more_area_few": "Ещё %{count} занятия в этом районе.",
+      "more_area_many": "Ещё %{count} занятий в этом районе.",
+      "more_area_other": "Ещё %{count} занятия в этом районе."
     },
     "where": {
       "label": "Где",

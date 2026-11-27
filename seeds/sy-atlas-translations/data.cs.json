@@ -112,7 +112,11 @@
       "widen_few": "Odebrat %{label} (%{count} lekce)",
       "widen_many": "Odebrat %{label} (%{count} lekce)",
       "widen_other": "Odebrat %{label} (%{count} lekcí)",
-      "no_match": "Žádné lekce neodpovídají"
+      "no_match": "Žádné lekce neodpovídají",
+      "more_area_one": "V této oblasti je ještě %{count} lekce.",
+      "more_area_few": "V této oblasti jsou ještě %{count} lekce.",
+      "more_area_many": "V této oblasti je ještě %{count} lekce.",
+      "more_area_other": "V této oblasti je ještě %{count} lekcí."
     },
     "where": {
       "label": "Kde",

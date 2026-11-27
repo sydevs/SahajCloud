@@ -108,7 +108,9 @@
       "show_classes_other": "Voir %{count} cours",
       "widen_one": "Retirer %{label} (%{count} cours)",
       "widen_other": "Retirer %{label} (%{count} cours)",
-      "no_match": "Aucun cours ne correspond"
+      "no_match": "Aucun cours ne correspond",
+      "more_area_one": "%{count} autre cours dans cette zone.",
+      "more_area_other": "%{count} autres cours dans cette zone."
     },
     "where": {
       "label": "Où",

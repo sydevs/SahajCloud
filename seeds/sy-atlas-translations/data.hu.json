@@ -108,7 +108,9 @@
       "show_classes_other": "%{count} foglalkozás megtekintése",
       "widen_one": "%{label} eltávolítása (%{count} foglalkozás)",
       "widen_other": "%{label} eltávolítása (%{count} foglalkozás)",
-      "no_match": "Nincs megfelelő foglalkozás"
+      "no_match": "Nincs megfelelő foglalkozás",
+      "more_area_one": "Még %{count} foglalkozás ezen a környéken.",
+      "more_area_other": "Még %{count} foglalkozás ezen a környéken."
     },
     "where": {
       "label": "Hol",

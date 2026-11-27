@@ -103,7 +103,9 @@
       "show_classes_one": "Show %{count} class",
       "show_classes_other": "Show %{count} classes",
       "widen_one": "Remove %{label} (%{count} class)",
-      "widen_other": "Remove %{label} (%{count} classes)"
+      "widen_other": "Remove %{label} (%{count} classes)",
+      "more_area_one": "%{count} more class in this area.",
+      "more_area_other": "%{count} more classes in this area."
     },
     "format": {
       "label": "Format",
