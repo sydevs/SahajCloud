@@ -9676,9 +9676,45 @@ export interface SyAtlasTranslationsCalendarStrings {
    */
   view_list?: string;
   /**
-   * Line under the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city.
+   * Line above the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city.
    */
   times_note?: string;
+  /**
+   * Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day.
+   */
+  day_count_one?: string;
+  /**
+   * Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day.
+   */
+  day_count_few?: string;
+  /**
+   * Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day.
+   */
+  day_count_many?: string;
+  /**
+   * Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day.
+   */
+  day_count_other?: string;
+  /**
+   * Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown.
+   */
+  more_one?: string;
+  /**
+   * Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown.
+   */
+  more_few?: string;
+  /**
+   * Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown.
+   */
+  more_many?: string;
+  /**
+   * Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown.
+   */
+  more_other?: string;
+  /**
+   * Phone month view and list: a day with no classes.
+   */
+  none?: string;
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**

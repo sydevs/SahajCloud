@@ -217,7 +217,12 @@
     "title": "Kalender",
     "view_month": "Maand",
     "view_week": "Week",
-    "view_list": "Lijst"
+    "view_list": "Lijst",
+    "day_count_one": "%{count} les",
+    "day_count_other": "%{count} lessen",
+    "more_one": "+ %{count} les",
+    "more_other": "+ %{count} lessen",
+    "none": "Geen lessen"
   },
   "registration": {
     "form": {

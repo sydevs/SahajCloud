@@ -206,7 +206,11 @@
     "view_month": "Month",
     "view_week": "Week",
     "view_list": "List",
-    "times_note": "Times are local to each class. Online classes show your time (%{zone})."
+    "times_note": "Times are local to each class. Online classes show your time (%{zone}).",
+    "day_count_one": "%{count} class",
+    "day_count_other": "%{count} classes",
+    "more_one": "+ %{count} class",
+    "more_other": "+ %{count} classes"
   },
   "registration": {
     "form": {

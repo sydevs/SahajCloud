@@ -968,7 +968,22 @@
         },
         "times_note": {
           "type": "string",
-          "description": "Line under the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city."
+          "description": "Line above the calendar, shown only while online classes are on screen. `%{zone}` = the viewer’s own time zone city."
+        },
+        "day_count": {
+          "type": "string",
+          "plural": true,
+          "description": "Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day."
+        },
+        "more": {
+          "type": "string",
+          "plural": true,
+          "description": "Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown."
+        },
+        "none": {
+          "type": "string",
+          "default": "No classes",
+          "description": "Phone month view and list: a day with no classes."
         }
       },
       "additionalProperties": false

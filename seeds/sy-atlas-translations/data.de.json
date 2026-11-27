@@ -217,7 +217,12 @@
     "title": "Kalender",
     "view_month": "Monat",
     "view_week": "Woche",
-    "view_list": "Liste"
+    "view_list": "Liste",
+    "day_count_one": "%{count} Kurs",
+    "day_count_other": "%{count} Kurse",
+    "more_one": "+ %{count} Kurs",
+    "more_other": "+ %{count} Kurse",
+    "none": "Keine Kurse"
   },
   "registration": {
     "form": {
