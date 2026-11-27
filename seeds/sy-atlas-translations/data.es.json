@@ -226,7 +226,15 @@
     "day_count_other": "%{count} clases",
     "more_one": "+ %{count} clase",
     "more_other": "+ %{count} clases",
-    "none": "No hay clases"
+    "none": "No hay clases",
+    "next_7_days": "Próximos 7 días",
+    "none_in_window": "No hay clases en estas fechas.",
+    "none_match_filters": "Ninguna clase coincide con tus filtros en estas fechas.",
+    "clear_filters": "Quitar filtros",
+    "next_class": "Próxima clase: %{date}",
+    "share_title": "Clases de meditación, %{dates}",
+    "see_calendar": "Ver calendario",
+    "see_list": "Ver lista"
   },
   "registration": {
     "form": {

@@ -226,7 +226,15 @@
     "day_count_other": "%{count} aulas",
     "more_one": "+ %{count} aula",
     "more_other": "+ %{count} aulas",
-    "none": "Nenhuma aula"
+    "none": "Nenhuma aula",
+    "next_7_days": "Próximos 7 dias",
+    "none_in_window": "Nenhuma aula nessas datas.",
+    "none_match_filters": "Nenhuma aula corresponde aos seus filtros nessas datas.",
+    "clear_filters": "Limpar filtros",
+    "next_class": "Próxima aula: %{date}",
+    "share_title": "Aulas de meditação, %{dates}",
+    "see_calendar": "Ver calendário",
+    "see_list": "Ver lista"
   },
   "registration": {
     "form": {

@@ -236,7 +236,15 @@
     "more_few": "+ %{count} lekce",
     "more_many": "+ %{count} lekce",
     "more_other": "+ %{count} lekcí",
-    "none": "Žádné lekce"
+    "none": "Žádné lekce",
+    "next_7_days": "Příštích 7 dní",
+    "none_in_window": "Na tato data nejsou žádné lekce.",
+    "none_match_filters": "Na tato data žádné lekce neodpovídají vašim filtrům.",
+    "clear_filters": "Zrušit filtry",
+    "next_class": "Další lekce: %{date}",
+    "share_title": "Lekce meditace, %{dates}",
+    "see_calendar": "Zobrazit kalendář",
+    "see_list": "Zobrazit seznam"
   },
   "registration": {
     "form": {

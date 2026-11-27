@@ -226,7 +226,15 @@
     "day_count_other": "%{count} cours",
     "more_one": "+ %{count} cours",
     "more_other": "+ %{count} cours",
-    "none": "Aucun cours"
+    "none": "Aucun cours",
+    "next_7_days": "7 prochains jours",
+    "none_in_window": "Aucun cours à ces dates.",
+    "none_match_filters": "Aucun cours ne correspond à vos filtres à ces dates.",
+    "clear_filters": "Effacer les filtres",
+    "next_class": "Prochain cours : %{date}",
+    "share_title": "Cours de méditation, %{dates}",
+    "see_calendar": "Voir le calendrier",
+    "see_list": "Voir la liste"
   },
   "registration": {
     "form": {

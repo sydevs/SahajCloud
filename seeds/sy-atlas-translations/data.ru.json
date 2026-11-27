@@ -236,7 +236,15 @@
     "more_few": "+ %{count} занятия",
     "more_many": "+ %{count} занятий",
     "more_other": "+ %{count} занятия",
-    "none": "Нет занятий"
+    "none": "Нет занятий",
+    "next_7_days": "Ближайшие 7 дней",
+    "none_in_window": "В эти дни занятий нет.",
+    "none_match_filters": "В эти дни нет занятий, подходящих под ваши фильтры.",
+    "clear_filters": "Сбросить фильтры",
+    "next_class": "Следующее занятие: %{date}",
+    "share_title": "Занятия медитацией, %{dates}",
+    "see_calendar": "Открыть календарь",
+    "see_list": "Открыть список"
   },
   "registration": {
     "form": {

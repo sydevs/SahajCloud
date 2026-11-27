@@ -236,7 +236,15 @@
     "more_few": "+ %{count} заняття",
     "more_many": "+ %{count} занять",
     "more_other": "+ %{count} заняття",
-    "none": "Немає занять"
+    "none": "Немає занять",
+    "next_7_days": "Найближчі 7 днів",
+    "none_in_window": "У ці дні занять немає.",
+    "none_match_filters": "У ці дні немає занять, що відповідають вашим фільтрам.",
+    "clear_filters": "Скинути фільтри",
+    "next_class": "Наступне заняття: %{date}",
+    "share_title": "Заняття медитацією, %{dates}",
+    "see_calendar": "Відкрити календар",
+    "see_list": "Відкрити список"
   },
   "registration": {
     "form": {
