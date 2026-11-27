@@ -8847,7 +8847,6 @@ export interface SyAtlasTranslation {
     results?: SyAtlasTranslationsSearchResultsStrings;
     sort?: SyAtlasTranslationsSearchSortStrings;
     country_site?: SyAtlasTranslationsSearchCountrySiteStrings;
-    nearby_prompt?: SyAtlasTranslationsSearchNearbyPromptStrings;
   };
   filters?: {
     chrome?: SyAtlasTranslationsFiltersChromeStrings;
@@ -9214,12 +9213,6 @@ export interface SyAtlasTranslationsSearchCountrySiteStrings {
    * Onward link to that country’s own website. `%{country}` = country name.
    */
   cta?: string;
-}
-export interface SyAtlasTranslationsSearchNearbyPromptStrings {
-  /**
-   * Prompt question. `%{city}` = detected city name.
-   */
-  title?: string;
 }
 export interface SyAtlasTranslationsFiltersChromeStrings {
   /**
@@ -10575,7 +10568,6 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
         results?: T;
         sort?: T;
         country_site?: T;
-        nearby_prompt?: T;
       };
   filters?:
     | T

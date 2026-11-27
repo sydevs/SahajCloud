@@ -231,7 +231,6 @@ describe('Translations Globals Configuration', () => {
         'results',
         'sort',
         'country_site',
-        'nearby_prompt',
         'chrome',
         'where',
         'format',
