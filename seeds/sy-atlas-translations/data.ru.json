@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "ru",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/ru/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Мы не нашли это место.",
       "config": "Atlas настроен на этой странице неверно.",
       "unavailable": "К этой программе сейчас нельзя присоединиться.",
-      "share_unavailable": "Для этой медитации пока нет ссылки, которой можно поделиться.",
-      "no_events": "События не найдены.",
       "back_to_region": "Показать события: %{region}",
-      "near_city": "Показать события рядом: %{city}",
       "browse_countries": "Показать все страны",
       "search_label": "Или найдите место"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Показать ещё",
-      "farther": "Показать удалённые события",
-      "no_nearby": "Нет событий в радиусе %{km} км."
+      "farther": "Показать удалённые события"
     },
     "sort": {
       "label": "Сортировка",
@@ -108,7 +104,6 @@
       "clear": "Сбросить все",
       "clear_one": "Сбросить",
       "any_time": "Любое время",
-      "no_results": "Нет событий, соответствующих вашим фильтрам.",
       "show_classes_one": "Показать %{count} занятие",
       "show_classes_few": "Показать %{count} занятия",
       "show_classes_many": "Показать %{count} занятий",
@@ -139,7 +134,6 @@
       "once": "Разовое"
     },
     "days": {
-      "label": "День недели",
       "short_label": "День"
     },
     "time": {
@@ -151,8 +145,7 @@
     },
     "language": {
       "label": "Язык",
-      "all": "Все языки",
-      "empty": "Нет доступных языков"
+      "all": "Все языки"
     },
     "dates": {
       "label": "Дата",
@@ -161,12 +154,6 @@
       "pill_from": "С %{date}",
       "pill_until": "До %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Регион",
-      "all": "Все регионы",
-      "search": "Поиск регионов…",
-      "empty": "Регионы не найдены"
     },
     "more": {
       "label": "Другие фильтры"
@@ -184,8 +171,6 @@
       "started_on": "Идёт с %{date}",
       "first_session": "Первое занятие: %{date}",
       "next_session": "Следующее занятие: %{date}",
-      "event_ended": "Это мероприятие завершилось",
-      "event_full": "Свободных мест нет",
       "registration_closed": "Регистрация закрыта",
       "registration_required": "Требуется регистрация",
       "registration_external": "Регистрация на это мероприятие проходит на другом сайте",
@@ -204,7 +189,6 @@
       "type_class_fortnightly": "Занятия раз в две недели",
       "type_class_monthly": "Ежемесячные занятия",
       "type_course": "Курс",
-      "type_oneoff": "Разовое мероприятие",
       "sessions_count_one": "%{count} занятие",
       "sessions_count_few": "%{count} занятия",
       "sessions_count_many": "%{count} занятий",

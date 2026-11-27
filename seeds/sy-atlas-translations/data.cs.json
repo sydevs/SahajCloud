@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "cs",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/cs/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Toto místo se nepodařilo najít.",
       "config": "Atlas není na této stránce správně nastaven.",
       "unavailable": "Tento program teď není možné navštívit.",
-      "share_unavailable": "Pro tuto meditaci zatím není odkaz ke sdílení.",
-      "no_events": "Nebyly nalezeny žádné události.",
       "back_to_region": "Zobrazit události: %{region}",
-      "near_city": "Zobrazit události poblíž: %{city}",
       "browse_countries": "Procházet všechny země",
       "search_label": "Nebo vyhledejte místo"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Zobrazit více",
-      "farther": "Zobrazit vzdálené události",
-      "no_nearby": "Žádné události do %{km} km."
+      "farther": "Zobrazit vzdálené události"
     },
     "sort": {
       "label": "Seřadit",
@@ -108,7 +104,6 @@
       "clear": "Vymazat vše",
       "clear_one": "Vymazat",
       "any_time": "Kdykoli",
-      "no_results": "Žádné události neodpovídají vašim filtrům.",
       "show_classes_one": "Zobrazit %{count} lekci",
       "show_classes_few": "Zobrazit %{count} lekce",
       "show_classes_many": "Zobrazit %{count} lekce",
@@ -139,7 +134,6 @@
       "once": "Jednorázově"
     },
     "days": {
-      "label": "Den v týdnu",
       "short_label": "Den"
     },
     "time": {
@@ -151,8 +145,7 @@
     },
     "language": {
       "label": "Jazyk",
-      "all": "Všechny jazyky",
-      "empty": "Nejsou dostupné žádné jazyky"
+      "all": "Všechny jazyky"
     },
     "dates": {
       "label": "Datum",
@@ -161,12 +154,6 @@
       "pill_from": "Od %{date}",
       "pill_until": "Do %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Region",
-      "all": "Všechny regiony",
-      "search": "Hledat regiony…",
-      "empty": "Žádné regiony nenalezeny"
     },
     "more": {
       "label": "Další filtry"
@@ -184,8 +171,6 @@
       "started_on": "Zahájeno %{date}",
       "first_session": "První lekce: %{date}",
       "next_session": "Další lekce: %{date}",
-      "event_ended": "Tato akce již skončila",
-      "event_full": "Tato akce je obsazená",
       "registration_closed": "Registrace uzavřena",
       "registration_required": "Nutná registrace",
       "registration_external": "Registrace na tuto akci probíhá na jiném webu",
@@ -204,7 +189,6 @@
       "type_class_fortnightly": "Lekce jednou za dva týdny",
       "type_class_monthly": "Měsíční lekce",
       "type_course": "Kurz",
-      "type_oneoff": "Jednorázová akce",
       "sessions_count_one": "%{count} lekce",
       "sessions_count_few": "%{count} lekce",
       "sessions_count_many": "%{count} lekce",

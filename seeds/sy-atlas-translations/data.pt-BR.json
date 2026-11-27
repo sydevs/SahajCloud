@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "pt-BR",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/pt-BR/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Não encontramos esse lugar.",
       "config": "O Atlas não está configurado corretamente nesta página.",
       "unavailable": "Não é possível participar deste programa no momento.",
-      "share_unavailable": "Ainda não há um link para compartilhar esta meditação.",
-      "no_events": "Nenhum evento encontrado.",
       "back_to_region": "Ver eventos em %{region}",
-      "near_city": "Ver eventos perto de %{city}",
       "browse_countries": "Ver todos os países",
       "search_label": "Ou busque um lugar"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Mostrar mais",
-      "farther": "Mostrar eventos distantes",
-      "no_nearby": "Nenhum evento num raio de %{km} km."
+      "farther": "Mostrar eventos distantes"
     },
     "sort": {
       "label": "Ordenar",
@@ -108,7 +104,6 @@
       "clear": "Limpar tudo",
       "clear_one": "Limpar",
       "any_time": "Qualquer horário",
-      "no_results": "Nenhum evento corresponde aos seus filtros.",
       "show_classes_one": "Ver %{count} aula",
       "show_classes_other": "Ver %{count} aulas",
       "widen_one": "Remover %{label} (%{count} aula)",
@@ -135,7 +130,6 @@
       "once": "Única vez"
     },
     "days": {
-      "label": "Dia da semana",
       "short_label": "Dia"
     },
     "time": {
@@ -147,8 +141,7 @@
     },
     "language": {
       "label": "Idioma",
-      "all": "Todos os idiomas",
-      "empty": "Nenhum idioma disponível"
+      "all": "Todos os idiomas"
     },
     "dates": {
       "label": "Data",
@@ -157,12 +150,6 @@
       "pill_from": "A partir de %{date}",
       "pill_until": "Até %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Região",
-      "all": "Todas as regiões",
-      "search": "Buscar regiões…",
-      "empty": "Nenhuma região encontrada"
     },
     "more": {
       "label": "Mais filtros"
@@ -180,8 +167,6 @@
       "started_on": "Começou em %{date}",
       "first_session": "Primeira sessão: %{date}",
       "next_session": "Próxima sessão: %{date}",
-      "event_ended": "Este evento foi encerrado",
-      "event_full": "Este evento está lotado",
       "registration_closed": "Inscrições encerradas",
       "registration_required": "Inscrição obrigatória",
       "registration_external": "A inscrição neste evento é feita em outro site",
@@ -200,7 +185,6 @@
       "type_class_fortnightly": "Aula quinzenal",
       "type_class_monthly": "Aula mensal",
       "type_course": "Curso",
-      "type_oneoff": "Evento único",
       "sessions_count_one": "%{count} sessão",
       "sessions_count_other": "%{count} sessões",
       "see_nearby": "Ver eventos próximos",

@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "nl",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/nl/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "We konden die plaats niet vinden.",
       "config": "De Atlas is op deze pagina niet juist ingesteld.",
       "unavailable": "Je kunt op dit moment niet deelnemen aan dit programma.",
-      "share_unavailable": "Er is nog geen link om deze meditatie te delen.",
-      "no_events": "Geen evenementen gevonden.",
       "back_to_region": "Evenementen in %{region} bekijken",
-      "near_city": "Evenementen in de buurt van %{city} bekijken",
       "browse_countries": "Alle landen bekijken",
       "search_label": "Of zoek een plaats"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Meer tonen",
-      "farther": "Verre evenementen tonen",
-      "no_nearby": "Geen evenementen binnen %{km} km."
+      "farther": "Verre evenementen tonen"
     },
     "sort": {
       "label": "Sorteren",
@@ -108,7 +104,6 @@
       "clear": "Alles wissen",
       "clear_one": "Wissen",
       "any_time": "Elk tijdstip",
-      "no_results": "Geen evenementen komen overeen met je filters.",
       "show_classes_one": "%{count} les tonen",
       "show_classes_other": "%{count} lessen tonen",
       "widen_one": "%{label} verwijderen (%{count} les)",
@@ -135,7 +130,6 @@
       "once": "Eenmalig"
     },
     "days": {
-      "label": "Dag van de week",
       "short_label": "Dag"
     },
     "time": {
@@ -147,8 +141,7 @@
     },
     "language": {
       "label": "Taal",
-      "all": "Alle talen",
-      "empty": "Geen talen beschikbaar"
+      "all": "Alle talen"
     },
     "dates": {
       "label": "Datum",
@@ -157,12 +150,6 @@
       "pill_from": "Vanaf %{date}",
       "pill_until": "Tot %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Regio",
-      "all": "Alle regio's",
-      "search": "Regio's zoeken…",
-      "empty": "Geen regio's gevonden"
     },
     "more": {
       "label": "Meer filters"
@@ -180,8 +167,6 @@
       "started_on": "Gestart op %{date}",
       "first_session": "Eerste les: %{date}",
       "next_session": "Volgende les: %{date}",
-      "event_ended": "Dit evenement is afgelopen",
-      "event_full": "Dit evenement is vol",
       "registration_closed": "Aanmelden gesloten",
       "registration_required": "Aanmelden verplicht",
       "registration_external": "Aanmelden voor dit evenement gebeurt op een andere website",
@@ -200,7 +185,6 @@
       "type_class_fortnightly": "Tweewekelijkse les",
       "type_class_monthly": "Maandelijkse les",
       "type_course": "Cursus",
-      "type_oneoff": "Eenmalig evenement",
       "sessions_count_one": "%{count} les",
       "sessions_count_other": "%{count} lessen",
       "see_nearby": "Bekijk evenementen in de buurt",

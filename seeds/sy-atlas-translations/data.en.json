@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "en",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/en/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed. A key whose English is declared as a schema default is omitted too: translationsSchema.json is its one home, and the importer merges it in.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -31,10 +31,7 @@
       "not_found_region": "We couldn't find that place.",
       "config": "This Atlas isn't set up correctly on this page.",
       "unavailable": "This program can’t be joined right now.",
-      "share_unavailable": "There is no link to share for this meditation yet.",
-      "no_events": "No events found.",
       "back_to_region": "See events in %{region}",
-      "near_city": "See events near %{city}",
       "browse_countries": "Browse all countries",
       "search_label": "Or search for a place"
     },
@@ -83,8 +80,7 @@
     },
     "results": {
       "more": "Show more",
-      "farther": "Show distant events",
-      "no_nearby": "No events within %{km} km."
+      "farther": "Show distant events"
     },
     "sort": {
       "label": "Sort",
@@ -107,7 +103,6 @@
       "clear": "Clear all",
       "clear_one": "Clear",
       "any_time": "Any time",
-      "no_results": "No events match your filters.",
       "show_classes_one": "Show %{count} class",
       "show_classes_other": "Show %{count} classes",
       "widen_one": "Remove %{label} (%{count} class)",
@@ -127,9 +122,7 @@
       "monthly": "Monthly",
       "once": "One-time"
     },
-    "days": {
-      "label": "Day of week"
-    },
+    "days": {},
     "time": {
       "label": "Time of day",
       "morning": "Morning",
@@ -139,8 +132,7 @@
     },
     "language": {
       "label": "Language",
-      "all": "All languages",
-      "empty": "No languages available"
+      "all": "All languages"
     },
     "dates": {
       "label": "Date",
@@ -149,12 +141,6 @@
       "pill_from": "From %{date}",
       "pill_until": "Until %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Region",
-      "all": "All regions",
-      "search": "Search regions…",
-      "empty": "No regions found"
     }
   },
   "online": {
@@ -170,8 +156,6 @@
       "started_on": "Started %{date}",
       "first_session": "First session: %{date}",
       "next_session": "Next session: %{date}",
-      "event_ended": "This event has ended",
-      "event_full": "This event is full",
       "registration_closed": "Registration closed",
       "registration_required": "Registration required",
       "registration_external": "Registration for this event happens on another website",
@@ -192,7 +176,6 @@
       "type_class_fortnightly": "Fortnightly class",
       "type_class_monthly": "Monthly class",
       "type_course": "Course",
-      "type_oneoff": "One-off event",
       "sessions_count_one": "%{count} session",
       "sessions_count_other": "%{count} sessions",
       "see_nearby": "See nearby events",

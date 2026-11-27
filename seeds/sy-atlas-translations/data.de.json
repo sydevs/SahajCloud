@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "de",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/de/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Wir konnten diesen Ort nicht finden.",
       "config": "Der Atlas ist auf dieser Seite nicht korrekt eingerichtet.",
       "unavailable": "Dieses Programm kann derzeit nicht besucht werden.",
-      "share_unavailable": "Für diese Meditation gibt es noch keinen Link zum Teilen.",
-      "no_events": "Keine Veranstaltungen gefunden.",
       "back_to_region": "Veranstaltungen in %{region} ansehen",
-      "near_city": "Veranstaltungen in der Nähe von %{city} ansehen",
       "browse_countries": "Alle Länder ansehen",
       "search_label": "Oder suche nach einem Ort"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Mehr anzeigen",
-      "farther": "Entfernte Veranstaltungen anzeigen",
-      "no_nearby": "Keine Veranstaltungen innerhalb von %{km} km."
+      "farther": "Entfernte Veranstaltungen anzeigen"
     },
     "sort": {
       "label": "Sortieren",
@@ -108,7 +104,6 @@
       "clear": "Alle zurücksetzen",
       "clear_one": "Zurücksetzen",
       "any_time": "Jederzeit",
-      "no_results": "Keine Veranstaltungen entsprechen deinen Filtern.",
       "show_classes_one": "%{count} Kurs anzeigen",
       "show_classes_other": "%{count} Kurse anzeigen",
       "widen_one": "%{label} entfernen (%{count} Kurs)",
@@ -135,7 +130,6 @@
       "once": "Einmalig"
     },
     "days": {
-      "label": "Wochentag",
       "short_label": "Tag"
     },
     "time": {
@@ -147,8 +141,7 @@
     },
     "language": {
       "label": "Sprache",
-      "all": "Alle Sprachen",
-      "empty": "Keine Sprachen verfügbar"
+      "all": "Alle Sprachen"
     },
     "dates": {
       "label": "Datum",
@@ -157,12 +150,6 @@
       "pill_from": "Ab %{date}",
       "pill_until": "Bis %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Region",
-      "all": "Alle Regionen",
-      "search": "Regionen suchen…",
-      "empty": "Keine Regionen gefunden"
     },
     "more": {
       "label": "Weitere Filter"
@@ -180,8 +167,6 @@
       "started_on": "Begonnen am %{date}",
       "first_session": "Erster Termin: %{date}",
       "next_session": "Nächster Termin: %{date}",
-      "event_ended": "Diese Veranstaltung ist beendet",
-      "event_full": "Diese Veranstaltung ist ausgebucht",
       "registration_closed": "Anmeldung geschlossen",
       "registration_required": "Anmeldung erforderlich",
       "registration_external": "Die Anmeldung für diese Veranstaltung erfolgt auf einer anderen Website",
@@ -200,7 +185,6 @@
       "type_class_fortnightly": "Kurs alle zwei Wochen",
       "type_class_monthly": "Monatlicher Kurs",
       "type_course": "Kursreihe",
-      "type_oneoff": "Einmalige Veranstaltung",
       "sessions_count_one": "%{count} Termin",
       "sessions_count_other": "%{count} Termine",
       "see_nearby": "Veranstaltungen in der Nähe ansehen",

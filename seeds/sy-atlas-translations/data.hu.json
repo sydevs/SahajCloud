@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "hu",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/hu/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Nem találjuk ezt a helyet.",
       "config": "Az Atlas nincs megfelelően beállítva ezen az oldalon.",
       "unavailable": "Ehhez a programhoz jelenleg nem lehet csatlakozni.",
-      "share_unavailable": "Ehhez a meditációhoz még nincs megosztható link.",
-      "no_events": "Nem található esemény.",
       "back_to_region": "Események itt: %{region}",
-      "near_city": "Események %{city} közelében",
       "browse_countries": "Összes ország megtekintése",
       "search_label": "Vagy keress egy helyet"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Több megjelenítése",
-      "farther": "Távoli események megjelenítése",
-      "no_nearby": "Nincs esemény %{km} km-en belül."
+      "farther": "Távoli események megjelenítése"
     },
     "sort": {
       "label": "Rendezés",
@@ -108,7 +104,6 @@
       "clear": "Összes törlése",
       "clear_one": "Törlés",
       "any_time": "Bármikor",
-      "no_results": "Egyetlen esemény sem felel meg a szűrőidnek.",
       "show_classes_one": "%{count} foglalkozás megtekintése",
       "show_classes_other": "%{count} foglalkozás megtekintése",
       "widen_one": "%{label} eltávolítása (%{count} foglalkozás)",
@@ -135,7 +130,6 @@
       "once": "Egyszeri"
     },
     "days": {
-      "label": "A hét napja",
       "short_label": "Nap"
     },
     "time": {
@@ -147,8 +141,7 @@
     },
     "language": {
       "label": "Nyelv",
-      "all": "Minden nyelv",
-      "empty": "Nincsenek elérhető nyelvek"
+      "all": "Minden nyelv"
     },
     "dates": {
       "label": "Dátum",
@@ -157,12 +150,6 @@
       "pill_from": "Ettől: %{date}",
       "pill_until": "Eddig: %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Régió",
-      "all": "Minden régió",
-      "search": "Régiók keresése…",
-      "empty": "Nincsenek régiók"
     },
     "more": {
       "label": "További szűrők"
@@ -180,8 +167,6 @@
       "started_on": "Elkezdődött: %{date}",
       "first_session": "Első alkalom: %{date}",
       "next_session": "Következő alkalom: %{date}",
-      "event_ended": "Ez az esemény véget ért",
-      "event_full": "Ez az esemény betelt",
       "registration_closed": "A regisztráció lezárult",
       "registration_required": "Regisztráció szükséges",
       "registration_external": "Erre az eseményre egy másik webhelyen lehet regisztrálni",
@@ -200,7 +185,6 @@
       "type_class_fortnightly": "Kéthetenkénti foglalkozás",
       "type_class_monthly": "Havi foglalkozás",
       "type_course": "Tanfolyam",
-      "type_oneoff": "Egyszeri esemény",
       "sessions_count_one": "%{count} alkalom",
       "sessions_count_other": "%{count} alkalom",
       "see_nearby": "Közeli események megtekintése",

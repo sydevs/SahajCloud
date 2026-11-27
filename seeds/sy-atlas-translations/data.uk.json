@@ -3,7 +3,7 @@
     "global": "sy-atlas-translations",
     "locale": "uk",
     "source": "Converted from sydevs/SahajAtlasWeb@main:public/locales/uk/{common,events}.json through Appendix A of sydevs/SahajCloud#706.",
-    "schema_version": "post-#1256 (12 tabs, 44 leaf groups, grouped by widget view)",
+    "schema_version": "post-#1256 (12 tabs, 43 leaf groups, grouped by widget view)",
     "excluded": "emails and event.title are omitted on purpose — both hold live production data and are never overwritten by a seed.",
     "omitted_keys": "A key this locale has no translation for is omitted, never blank. The client-read English merge (#705) serves English for it."
   },
@@ -32,10 +32,7 @@
       "not_found_region": "Ми не знайшли це місце.",
       "config": "Atlas налаштовано на цій сторінці неправильно.",
       "unavailable": "До цієї програми зараз не можна долучитися.",
-      "share_unavailable": "Для цієї медитації поки немає посилання, яким можна поділитися.",
-      "no_events": "Події не знайдено.",
       "back_to_region": "Показати події: %{region}",
-      "near_city": "Показати події поблизу: %{city}",
       "browse_countries": "Показати всі країни",
       "search_label": "Або знайдіть місце"
     },
@@ -84,8 +81,7 @@
     },
     "results": {
       "more": "Показати ще",
-      "farther": "Показати віддалені події",
-      "no_nearby": "Немає подій у радіусі %{km} км."
+      "farther": "Показати віддалені події"
     },
     "sort": {
       "label": "Сортування",
@@ -108,7 +104,6 @@
       "clear": "Очистити все",
       "clear_one": "Очистити",
       "any_time": "Будь-який час",
-      "no_results": "Немає подій, що відповідають вашим фільтрам.",
       "show_classes_one": "Показати %{count} заняття",
       "show_classes_few": "Показати %{count} заняття",
       "show_classes_many": "Показати %{count} занять",
@@ -139,7 +134,6 @@
       "once": "Одноразово"
     },
     "days": {
-      "label": "День тижня",
       "short_label": "День"
     },
     "time": {
@@ -151,8 +145,7 @@
     },
     "language": {
       "label": "Мова",
-      "all": "Усі мови",
-      "empty": "Немає доступних мов"
+      "all": "Усі мови"
     },
     "dates": {
       "label": "Дата",
@@ -161,12 +154,6 @@
       "pill_from": "Від %{date}",
       "pill_until": "До %{date}",
       "pill_range": "%{start} – %{end}"
-    },
-    "region": {
-      "label": "Регіон",
-      "all": "Усі регіони",
-      "search": "Пошук регіонів…",
-      "empty": "Регіони не знайдено"
     },
     "more": {
       "label": "Інші фільтри"
@@ -184,8 +171,6 @@
       "started_on": "Триває з %{date}",
       "first_session": "Перше заняття: %{date}",
       "next_session": "Наступне заняття: %{date}",
-      "event_ended": "Цей захід завершився",
-      "event_full": "Вільних місць немає",
       "registration_closed": "Реєстрацію закрито",
       "registration_required": "Потрібна реєстрація",
       "registration_external": "Реєстрація на цей захід відбувається на іншому сайті",
@@ -204,7 +189,6 @@
       "type_class_fortnightly": "Заняття раз на два тижні",
       "type_class_monthly": "Щомісячні заняття",
       "type_course": "Курс",
-      "type_oneoff": "Разовий захід",
       "sessions_count_one": "%{count} заняття",
       "sessions_count_few": "%{count} заняття",
       "sessions_count_many": "%{count} занять",

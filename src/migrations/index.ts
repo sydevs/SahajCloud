@@ -15,6 +15,9 @@ import * as migration_20261125_213000_atlas_common_copied from './20261125_21300
 import * as migration_20261125_230000_atlas_drop_captcha_blocked from './20261125_230000_atlas_drop_captcha_blocked';
 import * as migration_20261126_180000_atlas_drop_status_chips from './20261126_180000_atlas_drop_status_chips';
 import * as migration_20261126_183458_atlas_filter_where_more from './20261126_183458_atlas_filter_where_more';
+import * as migration_20261126_224421_atlas_drop_filters_region from './20261126_224421_atlas_drop_filters_region';
+import * as migration_20261126_224500_atlas_drop_filter_labels from './20261126_224500_atlas_drop_filter_labels';
+import * as migration_20261126_230014_atlas_drop_event_worded_keys from './20261126_230014_atlas_drop_event_worded_keys';
 import * as migration_20261126_233000_atlas_filter_sheet_plurals from './20261126_233000_atlas_filter_sheet_plurals';
 
 export const migrations = [
@@ -101,7 +104,22 @@ export const migrations = [
   {
     up: migration_20261126_183458_atlas_filter_where_more.up,
     down: migration_20261126_183458_atlas_filter_where_more.down,
-    name: '20261126_183458_atlas_filter_where_more'
+    name: '20261126_183458_atlas_filter_where_more',
+  },
+  {
+    up: migration_20261126_224421_atlas_drop_filters_region.up,
+    down: migration_20261126_224421_atlas_drop_filters_region.down,
+    name: '20261126_224421_atlas_drop_filters_region'
+  },
+  {
+    up: migration_20261126_224500_atlas_drop_filter_labels.up,
+    down: migration_20261126_224500_atlas_drop_filter_labels.down,
+    name: '20261126_224500_atlas_drop_filter_labels'
+  },
+  {
+    up: migration_20261126_230014_atlas_drop_event_worded_keys.up,
+    down: migration_20261126_230014_atlas_drop_event_worded_keys.down,
+    name: '20261126_230014_atlas_drop_event_worded_keys',
   },
   {
     up: migration_20261126_233000_atlas_filter_sheet_plurals.up,
