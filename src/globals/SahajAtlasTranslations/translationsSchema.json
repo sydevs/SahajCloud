@@ -494,6 +494,18 @@
           },
           "additionalProperties": false
         },
+        "when": {
+          "type": "object",
+          "description": "The When question: the days, times of day, frequency and dates.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "default": "When",
+              "description": "Label of the When button above the map on a computer, which opens the days, times of day and More filters."
+            }
+          },
+          "additionalProperties": false
+        },
         "format": {
           "type": "object",
           "description": "Filter: in-person or online.",
