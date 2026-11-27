@@ -9600,6 +9600,10 @@ export interface SyAtlasTranslationsEventActionsStrings {
    * Add-to-calendar menu item that downloads an .ics file.
    */
   download_ics?: string;
+  /**
+   * Last row of an event’s Contact menu: copies the host’s phone number. The row then reads `common.chrome.copied`.
+   */
+  copy_number?: string;
 }
 export interface SyAtlasTranslationsEventRecurrenceStrings {
   /**
@@ -10164,6 +10168,10 @@ export interface SyAtlasTranslationsShareStrings {
    * Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again.
    */
   qr_failed?: string;
+  /**
+   * Label under the email icon in the Share popover. Brand names such as WhatsApp stay untranslated, so this is the only label there that needs copy.
+   */
+  email?: string;
 }
 export interface SyAtlasTranslationsSeoStrings {
   /**

@@ -871,6 +871,11 @@
             "download_ics": {
               "type": "string",
               "description": "Add-to-calendar menu item that downloads an .ics file."
+            },
+            "copy_number": {
+              "type": "string",
+              "default": "Copy number",
+              "description": "Last row of an event’s Contact menu: copies the host’s phone number. The row then reads `common.chrome.copied`."
             }
           },
           "additionalProperties": false
@@ -1536,6 +1541,11 @@
           "type": "string",
           "default": "The QR code didn’t load. Check your connection, then close and reopen this.",
           "description": "Shown in place of the QR code when it could not be made, usually because the connection dropped. Closing and reopening the row tries again."
+        },
+        "email": {
+          "type": "string",
+          "default": "Email",
+          "description": "Label under the email icon in the Share popover. Brand names such as WhatsApp stay untranslated, so this is the only label there that needs copy."
         }
       },
       "additionalProperties": false
