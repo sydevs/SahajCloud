@@ -240,7 +240,8 @@
     "next_class": "Próxima clase: %{date}",
     "share_title": "Clases de meditación, %{dates}",
     "see_calendar": "Ver calendario",
-    "see_list": "Ver lista"
+    "see_list": "Ver lista",
+    "times_note": "Las clases online están en tu zona horaria (%{zone})."
   },
   "registration": {
     "form": {

@@ -240,7 +240,8 @@
     "next_class": "Nächster Kurs: %{date}",
     "share_title": "Meditationskurse, %{dates}",
     "see_calendar": "Kalender ansehen",
-    "see_list": "Liste ansehen"
+    "see_list": "Liste ansehen",
+    "times_note": "Online-Kurse stehen in deiner Zeitzone (%{zone})."
   },
   "registration": {
     "form": {
