@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Szűrők",
       "apply": "Alkalmaz",
-      "clear": "Összes törlése",
+      "clear": "Szűrők törlése",
       "clear_one": "Törlés",
       "any_time": "Bármikor",
       "show_classes_one": "%{count} foglalkozás megtekintése",

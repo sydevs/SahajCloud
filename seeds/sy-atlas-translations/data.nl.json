@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Filters",
       "apply": "Toepassen",
-      "clear": "Alles wissen",
+      "clear": "Filters wissen",
       "clear_one": "Wissen",
       "any_time": "Elk tijdstip",
       "show_classes_one": "%{count} les tonen",
