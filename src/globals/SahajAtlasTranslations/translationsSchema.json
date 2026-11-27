@@ -999,12 +999,7 @@
           "properties": {
             "title": {
               "type": "string",
-              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it. Retiring: translate `title_class` instead, which says “class”."
-            },
-            "title_class": {
-              "type": "string",
-              "default": "Register for this class",
-              "description": "Registration view heading. Replaces `title`, which said “meditation”."
+              "description": "Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
             },
             "reassurance": {
               "type": "string",
