@@ -112,7 +112,8 @@
     },
     "where": {
       "label": "Dónde",
-      "near_me": "Cerca de mí"
+      "near_me": "Cerca de mí",
+      "scope": "%{near} a menos de %{distance}, más %{online} en línea"
     },
     "when": {
       "label": "Cuándo"

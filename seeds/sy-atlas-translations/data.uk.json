@@ -116,7 +116,8 @@
     },
     "where": {
       "label": "Де",
-      "near_me": "Поруч зі мною"
+      "near_me": "Поруч зі мною",
+      "scope": "%{near} у радіусі %{distance} і %{online} онлайн"
     },
     "when": {
       "label": "Коли"

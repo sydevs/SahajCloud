@@ -116,7 +116,8 @@
     },
     "where": {
       "label": "Kde",
-      "near_me": "V mém okolí"
+      "near_me": "V mém okolí",
+      "scope": "%{near} do %{distance} a %{online} online"
     },
     "when": {
       "label": "Kdy"

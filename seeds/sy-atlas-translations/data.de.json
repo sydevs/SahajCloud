@@ -112,7 +112,8 @@
     },
     "where": {
       "label": "Wo",
-      "near_me": "In meiner Nähe"
+      "near_me": "In meiner Nähe",
+      "scope": "%{near} im Umkreis von %{distance}, dazu %{online} online"
     },
     "when": {
       "label": "Wann"

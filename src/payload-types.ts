@@ -9286,6 +9286,10 @@ export interface SyAtlasTranslationsFiltersWhereStrings {
    * Button in the Where question that lists the classes around the visitor’s location.
    */
   near_me?: string;
+  /**
+   * Line under a searched place or Near me in the Where question, saying what the results hold. `%{near}` = in-person classes nearby; `%{distance}` = the radius, already formatted (“16 mi”, “25 km”); `%{online}` = online classes.
+   */
+  scope?: string;
 }
 export interface SyAtlasTranslationsFiltersWhenStrings {
   /**

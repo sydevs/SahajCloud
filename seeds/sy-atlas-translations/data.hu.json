@@ -112,7 +112,8 @@
     },
     "where": {
       "label": "Hol",
-      "near_me": "A közelemben"
+      "near_me": "A közelemben",
+      "scope": "%{near} %{distance} körzetben, és %{online} online"
     },
     "when": {
       "label": "Mikor"

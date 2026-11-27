@@ -112,7 +112,8 @@
     },
     "where": {
       "label": "Waar",
-      "near_me": "Bij mij in de buurt"
+      "near_me": "Bij mij in de buurt",
+      "scope": "%{near} binnen %{distance}, plus %{online} online"
     },
     "when": {
       "label": "Wanneer"

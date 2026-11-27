@@ -116,7 +116,8 @@
     },
     "where": {
       "label": "Где",
-      "near_me": "Рядом со мной"
+      "near_me": "Рядом со мной",
+      "scope": "%{near} в радиусе %{distance} и %{online} онлайн"
     },
     "when": {
       "label": "Когда"
