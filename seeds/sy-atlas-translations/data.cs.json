@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Filtry",
       "apply": "Použít",
-      "clear": "Vymazat vše",
+      "clear": "Zrušit filtry",
       "clear_one": "Vymazat",
       "any_time": "Kdykoli",
       "show_classes_one": "Zobrazit %{count} lekci",

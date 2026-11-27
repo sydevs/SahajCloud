@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Filtros",
       "apply": "Aplicar",
-      "clear": "Limpar tudo",
+      "clear": "Limpar filtros",
       "clear_one": "Limpar",
       "any_time": "Qualquer horário",
       "show_classes_one": "Ver %{count} aula",

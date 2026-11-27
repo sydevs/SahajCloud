@@ -97,7 +97,7 @@
     "chrome": {
       "title": "Filters",
       "apply": "Apply",
-      "clear": "Clear all",
+      "clear": "Clear filters",
       "clear_one": "Clear",
       "any_time": "Any time",
       "show_classes_one": "Show %{count} class",

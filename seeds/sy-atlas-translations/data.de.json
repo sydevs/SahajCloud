@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Filter",
       "apply": "Anwenden",
-      "clear": "Alle zurücksetzen",
+      "clear": "Filter zurücksetzen",
       "clear_one": "Zurücksetzen",
       "any_time": "Jederzeit",
       "show_classes_one": "%{count} Kurs anzeigen",

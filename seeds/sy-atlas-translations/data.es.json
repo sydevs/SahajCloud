@@ -101,7 +101,7 @@
     "chrome": {
       "title": "Filtros",
       "apply": "Aplicar",
-      "clear": "Borrar todo",
+      "clear": "Borrar filtros",
       "clear_one": "Borrar",
       "any_time": "Cualquier hora",
       "show_classes_one": "Ver %{count} clase",

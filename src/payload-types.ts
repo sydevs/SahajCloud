@@ -9221,7 +9221,7 @@ export interface SyAtlasTranslationsFiltersChromeStrings {
    */
   apply?: string;
   /**
-   * Action that clears every filter at once.
+   * Action that clears every filter at once: the filters' footer, the button over an empty list of results, and the filter buttons on a computer (an icon, this as its hover label).
    */
   clear?: string;
   /**
