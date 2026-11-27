@@ -419,17 +419,6 @@
             }
           },
           "additionalProperties": false
-        },
-        "nearby_prompt": {
-          "type": "object",
-          "description": "The header prompt offering to jump to the visitor’s own city.",
-          "properties": {
-            "title": {
-              "type": "string",
-              "description": "Prompt question. `%{city}` = detected city name."
-            }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false

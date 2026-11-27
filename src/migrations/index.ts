@@ -21,6 +21,7 @@ import * as migration_20261126_230014_atlas_drop_event_worded_keys from './20261
 import * as migration_20261126_233000_atlas_filter_sheet_plurals from './20261126_233000_atlas_filter_sheet_plurals';
 import * as migration_20261127_020000_atlas_drop_register_title_class from './20261127_020000_atlas_drop_register_title_class';
 import * as migration_20261127_030000_atlas_search_placeholder from './20261127_030000_atlas_search_placeholder';
+import * as migration_20261127_164504_atlas_drop_nearby_prompt from './20261127_164504_atlas_drop_nearby_prompt';
 
 export const migrations = [
   {
@@ -111,12 +112,12 @@ export const migrations = [
   {
     up: migration_20261126_224421_atlas_drop_filters_region.up,
     down: migration_20261126_224421_atlas_drop_filters_region.down,
-    name: '20261126_224421_atlas_drop_filters_region'
+    name: '20261126_224421_atlas_drop_filters_region',
   },
   {
     up: migration_20261126_224500_atlas_drop_filter_labels.up,
     down: migration_20261126_224500_atlas_drop_filter_labels.down,
-    name: '20261126_224500_atlas_drop_filter_labels'
+    name: '20261126_224500_atlas_drop_filter_labels',
   },
   {
     up: migration_20261126_230014_atlas_drop_event_worded_keys.up,
@@ -137,5 +138,10 @@ export const migrations = [
     up: migration_20261127_030000_atlas_search_placeholder.up,
     down: migration_20261127_030000_atlas_search_placeholder.down,
     name: '20261127_030000_atlas_search_placeholder',
+  },
+  {
+    up: migration_20261127_164504_atlas_drop_nearby_prompt.up,
+    down: migration_20261127_164504_atlas_drop_nearby_prompt.down,
+    name: '20261127_164504_atlas_drop_nearby_prompt'
   },
 ];
