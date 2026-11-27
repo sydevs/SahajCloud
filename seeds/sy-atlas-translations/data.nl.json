@@ -116,7 +116,9 @@
       "scope": "%{near} binnen %{distance}, plus %{online} online"
     },
     "when": {
-      "label": "Wanneer"
+      "label": "Wanneer",
+      "count_one": "%{count} tijd",
+      "count_other": "%{count} tijden"
     },
     "format": {
       "label": "Vorm",
@@ -145,7 +147,9 @@
     },
     "language": {
       "label": "Taal",
-      "all": "Alle talen"
+      "all": "Alle talen",
+      "count_one": "%{count} taal",
+      "count_other": "%{count} talen"
     },
     "dates": {
       "label": "Datum",

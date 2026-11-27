@@ -9292,6 +9292,22 @@ export interface SyAtlasTranslationsFiltersWhenStrings {
    * Label of the When button above the map on a computer, which opens the days, times of day and More filters.
    */
   label?: string;
+  /**
+   * The When button's name once more than two answers are picked (days, times of day, frequency, dates), entered per plural form. `%{count}` = how many.
+   */
+  count_one?: string;
+  /**
+   * The When button's name once more than two answers are picked (days, times of day, frequency, dates), entered per plural form. `%{count}` = how many.
+   */
+  count_few?: string;
+  /**
+   * The When button's name once more than two answers are picked (days, times of day, frequency, dates), entered per plural form. `%{count}` = how many.
+   */
+  count_many?: string;
+  /**
+   * The When button's name once more than two answers are picked (days, times of day, frequency, dates), entered per plural form. `%{count}` = how many.
+   */
+  count_other?: string;
 }
 export interface SyAtlasTranslationsFiltersFormatStrings {
   /**
@@ -9378,6 +9394,22 @@ export interface SyAtlasTranslationsFiltersLanguageStrings {
    * Language option: no preference.
    */
   all?: string;
+  /**
+   * The Language button's name once more than two languages are picked, entered per plural form. `%{count}` = how many.
+   */
+  count_one?: string;
+  /**
+   * The Language button's name once more than two languages are picked, entered per plural form. `%{count}` = how many.
+   */
+  count_few?: string;
+  /**
+   * The Language button's name once more than two languages are picked, entered per plural form. `%{count}` = how many.
+   */
+  count_many?: string;
+  /**
+   * The Language button's name once more than two languages are picked, entered per plural form. `%{count}` = how many.
+   */
+  count_other?: string;
 }
 export interface SyAtlasTranslationsFiltersDatesStrings {
   /**

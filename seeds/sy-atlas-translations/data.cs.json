@@ -120,7 +120,11 @@
       "scope": "%{near} do %{distance} a %{online} online"
     },
     "when": {
-      "label": "Kdy"
+      "label": "Kdy",
+      "count_one": "%{count} termín",
+      "count_few": "%{count} termíny",
+      "count_many": "%{count} termínu",
+      "count_other": "%{count} termínů"
     },
     "format": {
       "label": "Formát",
@@ -149,7 +153,11 @@
     },
     "language": {
       "label": "Jazyk",
-      "all": "Všechny jazyky"
+      "all": "Všechny jazyky",
+      "count_one": "%{count} jazyk",
+      "count_few": "%{count} jazyky",
+      "count_many": "%{count} jazyka",
+      "count_other": "%{count} jazyků"
     },
     "dates": {
       "label": "Datum",

@@ -116,7 +116,9 @@
       "scope": "%{near} a até %{distance}, mais %{online} online"
     },
     "when": {
-      "label": "Quando"
+      "label": "Quando",
+      "count_one": "%{count} horário",
+      "count_other": "%{count} horários"
     },
     "format": {
       "label": "Formato",
@@ -145,7 +147,9 @@
     },
     "language": {
       "label": "Idioma",
-      "all": "Todos os idiomas"
+      "all": "Todos os idiomas",
+      "count_one": "%{count} idioma",
+      "count_other": "%{count} idiomas"
     },
     "dates": {
       "label": "Data",
