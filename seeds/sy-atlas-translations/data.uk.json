@@ -103,7 +103,16 @@
       "apply": "Застосувати",
       "clear": "Очистити все",
       "clear_one": "Очистити",
-      "any_time": "Будь-який час"
+      "any_time": "Будь-який час",
+      "show_classes_one": "Показати %{count} заняття",
+      "show_classes_few": "Показати %{count} заняття",
+      "show_classes_many": "Показати %{count} занять",
+      "show_classes_other": "Показати %{count} заняття",
+      "widen_one": "Прибрати %{label} (%{count} заняття)",
+      "widen_few": "Прибрати %{label} (%{count} заняття)",
+      "widen_many": "Прибрати %{label} (%{count} занять)",
+      "widen_other": "Прибрати %{label} (%{count} заняття)",
+      "no_match": "Немає відповідних занять"
     },
     "where": {
       "label": "Де",

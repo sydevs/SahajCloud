@@ -103,7 +103,12 @@
       "apply": "Aplicar",
       "clear": "Borrar todo",
       "clear_one": "Borrar",
-      "any_time": "Cualquier hora"
+      "any_time": "Cualquier hora",
+      "show_classes_one": "Ver %{count} clase",
+      "show_classes_other": "Ver %{count} clases",
+      "widen_one": "Quitar %{label} (%{count} clase)",
+      "widen_other": "Quitar %{label} (%{count} clases)",
+      "no_match": "Ninguna clase coincide"
     },
     "where": {
       "label": "Dónde",

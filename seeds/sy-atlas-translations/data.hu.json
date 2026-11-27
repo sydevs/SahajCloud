@@ -103,7 +103,12 @@
       "apply": "Alkalmaz",
       "clear": "Összes törlése",
       "clear_one": "Törlés",
-      "any_time": "Bármikor"
+      "any_time": "Bármikor",
+      "show_classes_one": "%{count} foglalkozás megtekintése",
+      "show_classes_other": "%{count} foglalkozás megtekintése",
+      "widen_one": "%{label} eltávolítása (%{count} foglalkozás)",
+      "widen_other": "%{label} eltávolítása (%{count} foglalkozás)",
+      "no_match": "Nincs megfelelő foglalkozás"
     },
     "where": {
       "label": "Hol",

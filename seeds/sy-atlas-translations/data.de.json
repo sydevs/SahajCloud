@@ -103,7 +103,12 @@
       "apply": "Anwenden",
       "clear": "Alle zurücksetzen",
       "clear_one": "Zurücksetzen",
-      "any_time": "Jederzeit"
+      "any_time": "Jederzeit",
+      "show_classes_one": "%{count} Kurs anzeigen",
+      "show_classes_other": "%{count} Kurse anzeigen",
+      "widen_one": "%{label} entfernen (%{count} Kurs)",
+      "widen_other": "%{label} entfernen (%{count} Kurse)",
+      "no_match": "Keine Kurse gefunden"
     },
     "where": {
       "label": "Wo",

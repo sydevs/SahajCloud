@@ -102,7 +102,11 @@
       "apply": "Apply",
       "clear": "Clear all",
       "clear_one": "Clear",
-      "any_time": "Any time"
+      "any_time": "Any time",
+      "show_classes_one": "Show %{count} class",
+      "show_classes_other": "Show %{count} classes",
+      "widen_one": "Remove %{label} (%{count} class)",
+      "widen_other": "Remove %{label} (%{count} classes)"
     },
     "format": {
       "label": "Format",

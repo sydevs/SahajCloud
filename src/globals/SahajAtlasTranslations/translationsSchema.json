@@ -449,6 +449,21 @@
               "type": "string",
               "default": "No classes match your filters.",
               "description": "Empty-list message when the filters, rather than the place, excluded every class."
+            },
+            "show_classes": {
+              "type": "string",
+              "plural": true,
+              "description": "Main button at the bottom of the filters once an answer is picked, entered per plural form. `%{count}` = number of matching classes."
+            },
+            "no_match": {
+              "type": "string",
+              "default": "No classes match",
+              "description": "Line at the bottom of the filters when no class matches every answer picked, above the way out."
+            },
+            "widen": {
+              "type": "string",
+              "plural": true,
+              "description": "Button offered when no class matches, removing one answer. Entered per plural form. `%{label}` = that answer (“Sunday”, “Evening”); `%{count}` = classes that come back."
             }
           },
           "additionalProperties": false

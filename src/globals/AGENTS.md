@@ -343,7 +343,9 @@ write.
   ⚠ **English only, and never a plural key.** Every other locale resolves
   through `clientEnglishFallback`, so a default written into `fr` would be a
   translation nobody made; and a plural key's English is a CLDR family rather
-  than a value, so a `default` beside `plural` is ignored.
+  than a value, so a `default` beside `plural` is ignored. A plural key's
+  English family ships through `addEnglishKey` in a data-only migration
+  instead, and in `data.en.json` for a fresh database.
   ⚠ **The corpus file must not carry a key that declares a `default`**, or the
   two copies are free to disagree. `tests/unit/wm-web-translations-seed.spec.ts`
   and `tests/unit/atlas-translations-schema.spec.ts` each hold both halves, for

@@ -480,6 +480,9 @@ as `default` beside the key in `translationsSchema.json`, and
 `reconcileEnglishDefaults` puts it into a database that predates it, on every
 boot. Writing one by hand is the convention #1218 retired — three
 near-identical copies in 48 hours were what retired it.
+The one exception is a plural key, which declares no `default`: its English
+family ships through `addEnglishKey` in a data-only migration
+(`20261126_233000_atlas_filter_sheet_plurals` is the example).
 `src/globals/AGENTS.md` owns that rule and its guards. **Retiring** a key is
 still a migration, and so is rewording stored copy: a default lands only where
 nothing is stored. Such a migration carries no DDL, so none of the above
