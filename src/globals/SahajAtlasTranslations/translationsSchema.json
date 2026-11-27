@@ -1006,6 +1006,46 @@
           "type": "string",
           "default": "No classes",
           "description": "Phone month view and list: a day with no classes."
+        },
+        "next_7_days": {
+          "type": "string",
+          "default": "Next 7 days",
+          "description": "Week view: the dates label when the week shown is today and the six days after it."
+        },
+        "none_in_window": {
+          "type": "string",
+          "default": "No classes on these dates.",
+          "description": "Week view: shown when the place has no classes in the seven days on screen."
+        },
+        "none_match_filters": {
+          "type": "string",
+          "default": "No classes match your filters on these dates.",
+          "description": "Week view: shown when the chosen filters hide every class in the seven days on screen."
+        },
+        "clear_filters": {
+          "type": "string",
+          "default": "Clear filters",
+          "description": "Week view: button under the no-match line that removes the chosen filters."
+        },
+        "next_class": {
+          "type": "string",
+          "default": "Next class: %{date}",
+          "description": "Week view: button under an empty week that opens the week of the next class. `%{date}` = that class’s date (“Tue 8 Dec”)."
+        },
+        "share_title": {
+          "type": "string",
+          "default": "Meditation classes, %{dates}",
+          "description": "Title of the shared link for the week on screen. `%{dates}` = those dates (“16 – 22 Nov”)."
+        },
+        "see_calendar": {
+          "type": "string",
+          "default": "See calendar",
+          "description": "Button on a place page that opens the calendar for that place."
+        },
+        "see_list": {
+          "type": "string",
+          "default": "See list",
+          "description": "Button on the calendar that goes back to the place’s list of classes."
         }
       },
       "additionalProperties": false

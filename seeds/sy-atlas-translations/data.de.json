@@ -226,7 +226,15 @@
     "day_count_other": "%{count} Kurse",
     "more_one": "+ %{count} Kurs",
     "more_other": "+ %{count} Kurse",
-    "none": "Keine Kurse"
+    "none": "Keine Kurse",
+    "next_7_days": "Nächste 7 Tage",
+    "none_in_window": "An diesen Tagen gibt es keine Kurse.",
+    "none_match_filters": "An diesen Tagen passen keine Kurse zu deinen Filtern.",
+    "clear_filters": "Filter löschen",
+    "next_class": "Nächster Kurs: %{date}",
+    "share_title": "Meditationskurse, %{dates}",
+    "see_calendar": "Kalender ansehen",
+    "see_list": "Liste ansehen"
   },
   "registration": {
     "form": {

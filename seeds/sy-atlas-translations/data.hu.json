@@ -226,7 +226,15 @@
     "day_count_other": "%{count} foglalkozás",
     "more_one": "+ %{count} foglalkozás",
     "more_other": "+ %{count} foglalkozás",
-    "none": "Nincs foglalkozás"
+    "none": "Nincs foglalkozás",
+    "next_7_days": "Következő 7 nap",
+    "none_in_window": "Ezeken a napokon nincs foglalkozás.",
+    "none_match_filters": "Ezeken a napokon egy foglalkozás sem felel meg a szűrőknek.",
+    "clear_filters": "Szűrők törlése",
+    "next_class": "Következő foglalkozás: %{date}",
+    "share_title": "Meditációs foglalkozások, %{dates}",
+    "see_calendar": "Naptár megtekintése",
+    "see_list": "Lista megtekintése"
   },
   "registration": {
     "form": {

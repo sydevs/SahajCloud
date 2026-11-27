@@ -226,7 +226,15 @@
     "day_count_other": "%{count} lessen",
     "more_one": "+ %{count} les",
     "more_other": "+ %{count} lessen",
-    "none": "Geen lessen"
+    "none": "Geen lessen",
+    "next_7_days": "Komende 7 dagen",
+    "none_in_window": "Geen lessen op deze data.",
+    "none_match_filters": "Geen lessen die passen bij je filters op deze data.",
+    "clear_filters": "Filters wissen",
+    "next_class": "Volgende les: %{date}",
+    "share_title": "Meditatielessen, %{dates}",
+    "see_calendar": "Bekijk kalender",
+    "see_list": "Bekijk lijst"
   },
   "registration": {
     "form": {
