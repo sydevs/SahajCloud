@@ -945,7 +945,7 @@
     },
     "calendar": {
       "type": "object",
-      "description": "The Calendar view’s own header. The grid’s dates and day names come from the browser.",
+      "description": "The Calendar view’s own words. The grid’s dates and day names come from the browser.",
       "preview": {
         "path": "/calendar"
       },
@@ -973,12 +973,12 @@
         "day_count": {
           "type": "string",
           "plural": true,
-          "description": "Phone month view: the quieter line under the chosen day’s date, after “Today” or “Tomorrow” when it is one (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day."
+          "description": "Phone month view: the count under the chosen day’s date (“Today · 4 classes”). Entered per plural form. `%{count}` = classes that day."
         },
         "more": {
           "type": "string",
           "plural": true,
-          "description": "Month grid: a day with more classes than its box can show ends with this button, which opens that day’s list. Entered per plural form. `%{count}` = classes not shown."
+          "description": "Month grid: the button on a day with more classes than fit, opening that day’s list. Entered per plural form. `%{count}` = classes not shown."
         },
         "none": {
           "type": "string",
