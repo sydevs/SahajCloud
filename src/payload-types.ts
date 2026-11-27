@@ -9169,13 +9169,9 @@ export interface SyAtlasTranslationsSearchChromeStrings {
    */
   title?: string;
   /**
-   * Placeholder of the geocoder input, in every header that carries one.
-   */
-  placeholder?: string;
-  /**
    * Hint (placeholder) in the atlas’s place search box, on every page.
    */
-  city_or_postcode?: string;
+  placeholder?: string;
 }
 export interface SyAtlasTranslationsSearchResultsStrings {
   /**

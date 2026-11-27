@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Suchen",
-      "placeholder": "Veranstaltungen suchen in …",
-      "city_or_postcode": "Ort oder Postleitzahl"
+      "placeholder": "Ort oder Postleitzahl eingeben"
     },
     "results": {
       "more": "Mehr anzeigen",

@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Пошук",
-      "placeholder": "Шукати події поблизу…",
-      "city_or_postcode": "Місто або поштовий індекс"
+      "placeholder": "Введіть місто або поштовий індекс"
     },
     "results": {
       "more": "Показати ще",

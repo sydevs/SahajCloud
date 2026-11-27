@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Keresés",
-      "placeholder": "Események keresése a közelben…",
-      "city_or_postcode": "Város vagy irányítószám"
+      "placeholder": "Add meg a városod vagy irányítószámod"
     },
     "results": {
       "more": "Több megjelenítése",

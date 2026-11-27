@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Buscar",
-      "placeholder": "Buscar eventos perto de…",
-      "city_or_postcode": "Cidade ou CEP"
+      "placeholder": "Digite sua cidade ou CEP"
     },
     "results": {
       "more": "Mostrar mais",

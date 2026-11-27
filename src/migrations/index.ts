@@ -20,6 +20,7 @@ import * as migration_20261126_224500_atlas_drop_filter_labels from './20261126_
 import * as migration_20261126_230014_atlas_drop_event_worded_keys from './20261126_230014_atlas_drop_event_worded_keys';
 import * as migration_20261126_233000_atlas_filter_sheet_plurals from './20261126_233000_atlas_filter_sheet_plurals';
 import * as migration_20261127_020000_atlas_drop_register_title_class from './20261127_020000_atlas_drop_register_title_class';
+import * as migration_20261127_030000_atlas_search_placeholder from './20261127_030000_atlas_search_placeholder';
 
 export const migrations = [
   {
@@ -131,5 +132,10 @@ export const migrations = [
     up: migration_20261127_020000_atlas_drop_register_title_class.up,
     down: migration_20261127_020000_atlas_drop_register_title_class.down,
     name: '20261127_020000_atlas_drop_register_title_class',
+  },
+  {
+    up: migration_20261127_030000_atlas_search_placeholder.up,
+    down: migration_20261127_030000_atlas_search_placeholder.down,
+    name: '20261127_030000_atlas_search_placeholder',
   },
 ];

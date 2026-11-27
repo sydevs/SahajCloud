@@ -80,8 +80,7 @@
   "search": {
     "chrome": {
       "title": "Поиск",
-      "placeholder": "Искать события рядом с…",
-      "city_or_postcode": "Город или индекс"
+      "placeholder": "Введите город или индекс"
     },
     "results": {
       "more": "Показать ещё",

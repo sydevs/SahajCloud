@@ -76,7 +76,7 @@
   "search": {
     "chrome": {
       "title": "Search",
-      "placeholder": "Search for events near…"
+      "placeholder": "Enter your city or postcode"
     },
     "results": {
       "more": "Show more",
