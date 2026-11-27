@@ -9693,13 +9693,9 @@ export interface SyAtlasTranslationsCalendarStrings {
 }
 export interface SyAtlasTranslationsRegistrationFormStrings {
   /**
-   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it. Retiring: translate `title_class` instead, which says “class”.
+   * Registration view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
    */
   title?: string;
-  /**
-   * Registration view heading. Replaces `title`, which said “meditation”.
-   */
-  title_class?: string;
   /**
    * Line under the registration heading, reassuring the visitor before they fill the form.
    */

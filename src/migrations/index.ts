@@ -19,6 +19,7 @@ import * as migration_20261126_224421_atlas_drop_filters_region from './20261126
 import * as migration_20261126_224500_atlas_drop_filter_labels from './20261126_224500_atlas_drop_filter_labels';
 import * as migration_20261126_230014_atlas_drop_event_worded_keys from './20261126_230014_atlas_drop_event_worded_keys';
 import * as migration_20261126_233000_atlas_filter_sheet_plurals from './20261126_233000_atlas_filter_sheet_plurals';
+import * as migration_20261127_020000_atlas_drop_register_title_class from './20261127_020000_atlas_drop_register_title_class';
 
 export const migrations = [
   {
@@ -125,5 +126,10 @@ export const migrations = [
     up: migration_20261126_233000_atlas_filter_sheet_plurals.up,
     down: migration_20261126_233000_atlas_filter_sheet_plurals.down,
     name: '20261126_233000_atlas_filter_sheet_plurals',
+  },
+  {
+    up: migration_20261127_020000_atlas_drop_register_title_class.up,
+    down: migration_20261127_020000_atlas_drop_register_title_class.down,
+    name: '20261127_020000_atlas_drop_register_title_class',
   },
 ];
