@@ -221,7 +221,12 @@
     "title": "Naptár",
     "view_month": "Hónap",
     "view_week": "Hét",
-    "view_list": "Lista"
+    "view_list": "Lista",
+    "day_count_one": "%{count} foglalkozás",
+    "day_count_other": "%{count} foglalkozás",
+    "more_one": "+ %{count} foglalkozás",
+    "more_other": "+ %{count} foglalkozás",
+    "none": "Nincs foglalkozás"
   },
   "registration": {
     "form": {

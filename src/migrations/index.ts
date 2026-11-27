@@ -22,7 +22,8 @@ import * as migration_20261126_233000_atlas_filter_sheet_plurals from './2026112
 import * as migration_20261127_020000_atlas_drop_register_title_class from './20261127_020000_atlas_drop_register_title_class';
 import * as migration_20261127_030000_atlas_search_placeholder from './20261127_030000_atlas_search_placeholder';
 import * as migration_20261127_164504_atlas_drop_nearby_prompt from './20261127_164504_atlas_drop_nearby_prompt';
-import * as migration_20261127_171125_atlas_filters_when from './20261127_171125_atlas_filters_when';
+import * as migration_20261127_190000_atlas_calendar_words from './20261127_190000_atlas_calendar_words';
+import * as migration_20261127_200000_atlas_filters_when from './20261127_200000_atlas_filters_when';
 
 export const migrations = [
   {
@@ -143,11 +144,16 @@ export const migrations = [
   {
     up: migration_20261127_164504_atlas_drop_nearby_prompt.up,
     down: migration_20261127_164504_atlas_drop_nearby_prompt.down,
-    name: '20261127_164504_atlas_drop_nearby_prompt',
+    name: '20261127_164504_atlas_drop_nearby_prompt'
   },
   {
-    up: migration_20261127_171125_atlas_filters_when.up,
-    down: migration_20261127_171125_atlas_filters_when.down,
-    name: '20261127_171125_atlas_filters_when'
+    up: migration_20261127_190000_atlas_calendar_words.up,
+    down: migration_20261127_190000_atlas_calendar_words.down,
+    name: '20261127_190000_atlas_calendar_words',
+  },
+  {
+    up: migration_20261127_200000_atlas_filters_when.up,
+    down: migration_20261127_200000_atlas_filters_when.down,
+    name: '20261127_200000_atlas_filters_when',
   },
 ];

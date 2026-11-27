@@ -227,7 +227,16 @@
     "title": "Kalendář",
     "view_month": "Měsíc",
     "view_week": "Týden",
-    "view_list": "Seznam"
+    "view_list": "Seznam",
+    "day_count_one": "%{count} lekce",
+    "day_count_few": "%{count} lekce",
+    "day_count_many": "%{count} lekce",
+    "day_count_other": "%{count} lekcí",
+    "more_one": "+ %{count} lekce",
+    "more_few": "+ %{count} lekce",
+    "more_many": "+ %{count} lekce",
+    "more_other": "+ %{count} lekcí",
+    "none": "Žádné lekce"
   },
   "registration": {
     "form": {

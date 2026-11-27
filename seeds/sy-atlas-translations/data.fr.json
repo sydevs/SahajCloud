@@ -221,7 +221,12 @@
     "title": "Calendrier",
     "view_month": "Mois",
     "view_week": "Semaine",
-    "view_list": "Liste"
+    "view_list": "Liste",
+    "day_count_one": "%{count} cours",
+    "day_count_other": "%{count} cours",
+    "more_one": "+ %{count} cours",
+    "more_other": "+ %{count} cours",
+    "none": "Aucun cours"
   },
   "registration": {
     "form": {

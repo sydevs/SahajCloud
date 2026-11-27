@@ -227,7 +227,16 @@
     "title": "Календарь",
     "view_month": "Месяц",
     "view_week": "Неделя",
-    "view_list": "Список"
+    "view_list": "Список",
+    "day_count_one": "%{count} занятие",
+    "day_count_few": "%{count} занятия",
+    "day_count_many": "%{count} занятий",
+    "day_count_other": "%{count} занятия",
+    "more_one": "+ %{count} занятие",
+    "more_few": "+ %{count} занятия",
+    "more_many": "+ %{count} занятий",
+    "more_other": "+ %{count} занятия",
+    "none": "Нет занятий"
   },
   "registration": {
     "form": {
