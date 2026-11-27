@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Clases gratuitas de meditación",
-    "browse_heading": "O explora por país"
+    "browse_heading": "O explora por país",
+    "near_city": "Clases cerca de %{city}",
+    "near_me": "Clases cerca de mí",
+    "locating": "Buscando tu ubicación…"
   },
   "search": {
     "chrome": {
       "title": "Buscar",
-      "placeholder": "Buscar eventos cerca de…"
+      "placeholder": "Buscar eventos cerca de…",
+      "city_or_postcode": "Ciudad o código postal"
     },
     "results": {
       "more": "Mostrar más",

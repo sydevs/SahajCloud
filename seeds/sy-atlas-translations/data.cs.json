@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Bezplatné kurzy meditace",
-    "browse_heading": "Nebo procházejte podle země"
+    "browse_heading": "Nebo procházejte podle země",
+    "near_city": "Kurzy poblíž: %{city}",
+    "near_me": "Kurzy v mém okolí",
+    "locating": "Zjišťuji vaši polohu…"
   },
   "search": {
     "chrome": {
       "title": "Hledat",
-      "placeholder": "Hledat události poblíž…"
+      "placeholder": "Hledat události poblíž…",
+      "city_or_postcode": "Město nebo PSČ"
     },
     "results": {
       "more": "Zobrazit více",

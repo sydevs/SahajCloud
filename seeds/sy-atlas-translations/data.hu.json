@@ -72,12 +72,16 @@
   },
   "countries": {
     "title": "Ingyenes meditációs órák",
-    "browse_heading": "Vagy böngéssz ország szerint"
+    "browse_heading": "Vagy böngéssz ország szerint",
+    "near_city": "Órák %{city} közelében",
+    "near_me": "Órák a közelemben",
+    "locating": "Tartózkodási hely keresése…"
   },
   "search": {
     "chrome": {
       "title": "Keresés",
-      "placeholder": "Események keresése a közelben…"
+      "placeholder": "Események keresése a közelben…",
+      "city_or_postcode": "Város vagy irányítószám"
     },
     "results": {
       "more": "Több megjelenítése",
