@@ -116,7 +116,9 @@
       "scope": "%{near} %{distance} körzetben, és %{online} online"
     },
     "when": {
-      "label": "Mikor"
+      "label": "Mikor",
+      "count_one": "%{count} időpont",
+      "count_other": "%{count} időpont"
     },
     "format": {
       "label": "Forma",
@@ -145,7 +147,9 @@
     },
     "language": {
       "label": "Nyelv",
-      "all": "Minden nyelv"
+      "all": "Minden nyelv",
+      "count_one": "%{count} nyelv",
+      "count_other": "%{count} nyelv"
     },
     "dates": {
       "label": "Dátum",

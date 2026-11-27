@@ -129,7 +129,9 @@
     },
     "language": {
       "label": "Language",
-      "all": "All languages"
+      "all": "All languages",
+      "count_one": "%{count} language",
+      "count_other": "%{count} languages"
     },
     "dates": {
       "label": "Date",
@@ -138,6 +140,10 @@
       "pill_from": "From %{date}",
       "pill_until": "Until %{date}",
       "pill_range": "%{start} – %{end}"
+    },
+    "when": {
+      "count_one": "%{count} timing",
+      "count_other": "%{count} timings"
     }
   },
   "online": {

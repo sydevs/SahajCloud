@@ -116,7 +116,9 @@
       "scope": "%{near} à moins de %{distance}, plus %{online} en ligne"
     },
     "when": {
-      "label": "Quand"
+      "label": "Quand",
+      "count_one": "%{count} créneau",
+      "count_other": "%{count} créneaux"
     },
     "format": {
       "label": "Format",
@@ -145,7 +147,9 @@
     },
     "language": {
       "label": "Langue",
-      "all": "Toutes les langues"
+      "all": "Toutes les langues",
+      "count_one": "%{count} langue",
+      "count_other": "%{count} langues"
     },
     "dates": {
       "label": "Date",

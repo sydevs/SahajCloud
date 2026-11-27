@@ -120,7 +120,11 @@
       "scope": "%{near} у радіусі %{distance} і %{online} онлайн"
     },
     "when": {
-      "label": "Коли"
+      "label": "Коли",
+      "count_one": "%{count} варіант",
+      "count_few": "%{count} варіанти",
+      "count_many": "%{count} варіантів",
+      "count_other": "%{count} варіанта"
     },
     "format": {
       "label": "Формат",
@@ -149,7 +153,11 @@
     },
     "language": {
       "label": "Мова",
-      "all": "Усі мови"
+      "all": "Усі мови",
+      "count_one": "%{count} мова",
+      "count_few": "%{count} мови",
+      "count_many": "%{count} мов",
+      "count_other": "%{count} мови"
     },
     "dates": {
       "label": "Дата",

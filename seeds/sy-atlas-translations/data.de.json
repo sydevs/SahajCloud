@@ -116,7 +116,9 @@
       "scope": "%{near} im Umkreis von %{distance}, dazu %{online} online"
     },
     "when": {
-      "label": "Wann"
+      "label": "Wann",
+      "count_one": "%{count} Zeit",
+      "count_other": "%{count} Zeiten"
     },
     "format": {
       "label": "Format",
@@ -145,7 +147,9 @@
     },
     "language": {
       "label": "Sprache",
-      "all": "Alle Sprachen"
+      "all": "Alle Sprachen",
+      "count_one": "%{count} Sprache",
+      "count_other": "%{count} Sprachen"
     },
     "dates": {
       "label": "Datum",

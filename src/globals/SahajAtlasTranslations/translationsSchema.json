@@ -502,6 +502,11 @@
               "type": "string",
               "default": "When",
               "description": "Label of the When button above the map on a computer, which opens the days, times of day and More filters."
+            },
+            "count": {
+              "type": "string",
+              "plural": true,
+              "description": "The When button's name once more than two answers are picked (days, times of day, frequency, dates), entered per plural form. `%{count}` = how many."
             }
           },
           "additionalProperties": false
@@ -616,6 +621,11 @@
             "all": {
               "type": "string",
               "description": "Language option: no preference."
+            },
+            "count": {
+              "type": "string",
+              "plural": true,
+              "description": "The Language button's name once more than two languages are picked, entered per plural form. `%{count}` = how many."
             }
           },
           "additionalProperties": false
