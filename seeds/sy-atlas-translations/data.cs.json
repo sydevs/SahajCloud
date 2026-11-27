@@ -252,7 +252,8 @@
     "next_class": "Další lekce: %{date}",
     "share_title": "Lekce meditace, %{dates}",
     "see_calendar": "Zobrazit kalendář",
-    "see_list": "Zobrazit seznam"
+    "see_list": "Zobrazit seznam",
+    "times_note": "Časy online lekcí jsou ve vašem časovém pásmu (%{zone})."
   },
   "registration": {
     "form": {
