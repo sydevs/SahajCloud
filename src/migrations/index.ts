@@ -24,6 +24,7 @@ import * as migration_20261127_030000_atlas_search_placeholder from './20261127_
 import * as migration_20261127_164504_atlas_drop_nearby_prompt from './20261127_164504_atlas_drop_nearby_prompt';
 import * as migration_20261127_190000_atlas_calendar_words from './20261127_190000_atlas_calendar_words';
 import * as migration_20261127_200000_atlas_filters_when from './20261127_200000_atlas_filters_when';
+import * as migration_20261127_210000_atlas_drop_retired_share_keys from './20261127_210000_atlas_drop_retired_share_keys';
 
 export const migrations = [
   {
@@ -155,5 +156,10 @@ export const migrations = [
     up: migration_20261127_200000_atlas_filters_when.up,
     down: migration_20261127_200000_atlas_filters_when.down,
     name: '20261127_200000_atlas_filters_when',
+  },
+  {
+    up: migration_20261127_210000_atlas_drop_retired_share_keys.up,
+    down: migration_20261127_210000_atlas_drop_retired_share_keys.down,
+    name: '20261127_210000_atlas_drop_retired_share_keys',
   },
 ];

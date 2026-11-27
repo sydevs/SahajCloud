@@ -8993,10 +8993,6 @@ export interface SyAtlasTranslationsCommonErrorsStrings {
    */
   unavailable?: string;
   /**
-   * Message in the Share view when the class has no shareable link.
-   */
-  share_unavailable_class?: string;
-  /**
    * Empty-list message in the Region and Online views, when the place itself has no classes.
    */
   no_classes?: string;
@@ -10124,14 +10120,6 @@ export interface SyAtlasTranslationsSubmitErrorsStrings {
   urls_not_allowed?: string;
 }
 export interface SyAtlasTranslationsShareStrings {
-  /**
-   * Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it.
-   */
-  title?: string;
-  /**
-   * Heading of the Share view for one class.
-   */
-  title_class?: string;
   /**
    * Label of the device’s own share sheet.
    */
