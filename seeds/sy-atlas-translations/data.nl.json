@@ -238,7 +238,8 @@
     "next_class": "Volgende les: %{date}",
     "share_title": "Meditatielessen, %{dates}",
     "see_calendar": "Bekijk kalender",
-    "see_list": "Bekijk lijst"
+    "see_list": "Bekijk lijst",
+    "times_note": "Online lessen staan in je eigen tijdzone (%{zone})."
   },
   "registration": {
     "form": {

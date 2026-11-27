@@ -238,7 +238,8 @@
     "next_class": "Próxima aula: %{date}",
     "share_title": "Aulas de meditação, %{dates}",
     "see_calendar": "Ver calendário",
-    "see_list": "Ver lista"
+    "see_list": "Ver lista",
+    "times_note": "As aulas online estão no seu fuso horário (%{zone})."
   },
   "registration": {
     "form": {

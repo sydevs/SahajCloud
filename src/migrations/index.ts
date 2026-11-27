@@ -27,6 +27,7 @@ import * as migration_20261127_200000_atlas_filters_when from './20261127_200000
 import * as migration_20261127_210000_atlas_drop_retired_share_keys from './20261127_210000_atlas_drop_retired_share_keys';
 import * as migration_20261127_220000_atlas_filter_counts from './20261127_220000_atlas_filter_counts';
 import * as migration_20261127_230000_atlas_clear_filters from './20261127_230000_atlas_clear_filters';
+import * as migration_20261128_000000_atlas_times_note from './20261128_000000_atlas_times_note';
 
 export const migrations = [
   {
@@ -173,5 +174,10 @@ export const migrations = [
     up: migration_20261127_230000_atlas_clear_filters.up,
     down: migration_20261127_230000_atlas_clear_filters.down,
     name: '20261127_230000_atlas_clear_filters',
+  },
+  {
+    up: migration_20261128_000000_atlas_times_note.up,
+    down: migration_20261128_000000_atlas_times_note.down,
+    name: '20261128_000000_atlas_times_note',
   },
 ];

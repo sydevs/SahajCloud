@@ -238,7 +238,8 @@
     "next_class": "Prochain cours : %{date}",
     "share_title": "Cours de méditation, %{dates}",
     "see_calendar": "Voir le calendrier",
-    "see_list": "Voir la liste"
+    "see_list": "Voir la liste",
+    "times_note": "Les cours en ligne sont à l’heure de votre fuseau (%{zone})."
   },
   "registration": {
     "form": {
