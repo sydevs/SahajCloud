@@ -125,11 +125,6 @@
               "type": "string",
               "description": "Default reason shown in the registration-blocked row when no more specific reason applies."
             },
-            "share_unavailable_class": {
-              "type": "string",
-              "default": "There is no link to share for this class yet.",
-              "description": "Message in the Share view when the class has no shareable link."
-            },
             "no_classes": {
               "type": "string",
               "default": "No classes found.",
@@ -1529,15 +1524,6 @@
       "type": "object",
       "description": "The Share view: the share targets offered for one event.",
       "properties": {
-        "title": {
-          "type": "string",
-          "description": "Share view heading. Untranslated in every non-English locale today — the English merge serves English until a translator fills it."
-        },
-        "title_class": {
-          "type": "string",
-          "default": "Share this class",
-          "description": "Heading of the Share view for one class."
-        },
         "native": {
           "type": "string",
           "description": "Label of the device’s own share sheet."
