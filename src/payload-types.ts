@@ -8851,6 +8851,7 @@ export interface SyAtlasTranslation {
   filters?: {
     chrome?: SyAtlasTranslationsFiltersChromeStrings;
     where?: SyAtlasTranslationsFiltersWhereStrings;
+    when?: SyAtlasTranslationsFiltersWhenStrings;
     format?: SyAtlasTranslationsFiltersFormatStrings;
     cadence?: SyAtlasTranslationsFiltersCadenceStrings;
     days?: SyAtlasTranslationsFiltersDaysStrings;
@@ -9285,6 +9286,16 @@ export interface SyAtlasTranslationsFiltersWhereStrings {
    * Button in the Where question that lists the classes around the visitor’s location.
    */
   near_me?: string;
+  /**
+   * Line under a searched place or Near me in the Where question, saying what the results hold. `%{near}` = in-person classes nearby; `%{distance}` = the radius, already formatted (“16 mi”, “25 km”); `%{online}` = online classes.
+   */
+  scope?: string;
+}
+export interface SyAtlasTranslationsFiltersWhenStrings {
+  /**
+   * Label of the When button above the map on a computer, which opens the days, times of day and More filters.
+   */
+  label?: string;
 }
 export interface SyAtlasTranslationsFiltersFormatStrings {
   /**
@@ -10610,6 +10621,7 @@ export interface SyAtlasTranslationsSelect<T extends boolean = true> {
     | {
         chrome?: T;
         where?: T;
+        when?: T;
         format?: T;
         cadence?: T;
         days?: T;

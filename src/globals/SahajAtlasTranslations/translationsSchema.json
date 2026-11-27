@@ -490,6 +490,23 @@
               "type": "string",
               "default": "Near me",
               "description": "Button in the Where question that lists the classes around the visitor’s location."
+            },
+            "scope": {
+              "type": "string",
+              "default": "%{near} within %{distance}, plus %{online} online",
+              "description": "Line under a searched place or Near me in the Where question, saying what the results hold. `%{near}` = in-person classes nearby; `%{distance}` = the radius, already formatted (“16 mi”, “25 km”); `%{online}` = online classes."
+            }
+          },
+          "additionalProperties": false
+        },
+        "when": {
+          "type": "object",
+          "description": "The When question: the days, times of day, frequency and dates.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "default": "When",
+              "description": "Label of the When button above the map on a computer, which opens the days, times of day and More filters."
             }
           },
           "additionalProperties": false

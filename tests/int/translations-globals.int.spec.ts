@@ -233,6 +233,7 @@ describe('Translations Globals Configuration', () => {
         'country_site',
         'chrome',
         'where',
+        'when',
         'format',
         'cadence',
         'days',
