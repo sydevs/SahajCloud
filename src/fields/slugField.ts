@@ -170,7 +170,8 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
         }
       }
 
-      // `create` stays open for the same reason as the checkbox above.
+      // `create` stays open so a non-admin editor can set the slug on the
+      // first save.
       if (field.fields[1].type === 'text') {
         field.fields[1].access = { ...field.fields[1].access, update: adminOnlyFieldAccess }
         field.fields[1].admin = {
