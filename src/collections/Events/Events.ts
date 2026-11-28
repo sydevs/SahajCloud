@@ -63,6 +63,7 @@ import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuali
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
+import { requireRegion } from './hooks/requireRegion'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { refuseContactWithoutBox, withheldUnlessAllowed } from './hooks/withholdContact'
@@ -128,6 +129,10 @@ export const Events: CollectionConfig = {
   // unpublish. The root `experimental.localizeStatus` flag is already on, so
   // nothing else stops it. Held by `tests/unit/event-localize-status-guard.spec.ts`.
   versions: { drafts: true },
+  // ⚠ A duplicate runs the create-access check with empty data, so it cannot see
+  // the copied `region`, and reads are project-wide: a region manager could copy
+  // any class into a region they do not own, then not edit the copy.
+  disableDuplicate: true,
   // Soft delete: "archiving" a long-expired event means trashing it, and it
   // stays recoverable from the admin trash view. This replaces Atlas's
   // `archived` terminal state.
@@ -171,9 +176,8 @@ export const Events: CollectionConfig = {
     livePreview: {
       // An unsaved document has nothing to fetch yet. Returning null disables the panel.
       // The event's own map path, shared with `webPath` through
-      // `buildEventWebPath`. A draft with no region yet has nowhere to appear,
-      // and `region` is only nominally required — drafts skip validation — so
-      // that is a normal state, not an edge case.
+      // `buildEventWebPath`. Every save carries a region (`requireRegion`), but
+      // a row saved before that hook may still lack one.
       url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
@@ -450,6 +454,9 @@ export const Events: CollectionConfig = {
               label: 'City / Venue',
               relationTo: 'regions',
               required: true,
+              // `required` is skipped on a draft save, and the region is what
+              // a region manager's write access reads — see `requireRegion`.
+              hooks: { beforeValidate: [requireRegion] },
               filterOptions: async (args) => {
                 // City or venue only. For a region manager, also within their
                 // owned-region subtree.

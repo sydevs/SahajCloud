@@ -294,12 +294,15 @@ describe('eventsGeoJson endpoint', () => {
           languages: ['en'],
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           schedule: SCHEDULE,
           _status: 'draft',
         }),
       })
+      // `requireRegion` refuses a regionless create, so store the state an
+      // older draft can still be in.
+      await storeInvalidEvent(payload, draft.id, { region: null })
       regionlessDraftId = draft.id
-      expect(draft.region ?? null).toBeNull()
 
       // Deleting a region nulls the column on its published events.
       const orphaned = await payload.create({

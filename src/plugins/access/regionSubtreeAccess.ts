@@ -144,9 +144,14 @@ export async function scopeRegionSubtreeWrite({
     // A re-parent must keep the region inside the owned subtree — reject moving
     // it under a region they don't own.
     const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
+    // ⚠ **A posted `null` is a move too, out of the tree.** It turns the region
+    // into a root, which takes it and its events out of the subtree of every
+    // manager above it. An omitted `parent` is no move.
+    const clearsParent = (data as { parent?: unknown } | null)?.parent === null
     if (id !== undefined) {
       if (!ownedRegionIds.includes(Number(id))) return false
-      if (newParentId === null || ownedRegionIds.includes(newParentId)) return true
+      if (newParentId !== null && ownedRegionIds.includes(newParentId)) return true
+      if (newParentId === null && !clearsParent) return true
       // ⚠ **A posted parent that repeats the stored one is not a re-parent.**
       // Payload's admin posts the whole document, and a subtree ROOT's own
       // parent sits above the subtree — so refusing every outside parent
@@ -167,7 +172,8 @@ export async function scopeRegionSubtreeWrite({
     }
     // Bulk update: no one stored value to compare, so an outside parent is a
     // re-parent attempt.
-    if (newParentId !== null && !ownedRegionIds.includes(newParentId)) return false
+    if (clearsParent || (newParentId !== null && !ownedRegionIds.includes(newParentId)))
+      return false
     return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
   }
 

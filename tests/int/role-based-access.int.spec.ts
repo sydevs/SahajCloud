@@ -969,6 +969,81 @@ describe('Role-Based Access Control', () => {
       ).rejects.toThrow()
     })
 
+    // Clearing `parent` makes the region a root, outside every subtree above
+    // it — including the one region the manager is listed on.
+    it('rejects clearing the parent of a region in its subtree, its own top region included', async () => {
+      for (const id of [cityId, regionId]) {
+        await expect(
+          payload.update({
+            collection: 'regions',
+            id,
+            data: { parent: null },
+            user: managerUser(atlasManager),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow(/not allowed/)
+      }
+      await expect(
+        payload.update({
+          collection: 'regions',
+          where: { id: { equals: cityId } },
+          data: { parent: null },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/not allowed/)
+      const city = await payload.findByID({ collection: 'regions', id: cityId, depth: 0 })
+      expect(relationId(city.parent)).toBe(regionId)
+    })
+
+    // A region is what a region manager's write access to an event reads, and
+    // Payload skips `required` on a draft: a regionless first draft locked out
+    // the manager who saved it.
+    it('refuses an event with no region, on a draft and for an admin too', async () => {
+      await expect(createEvent({ address: { street: 'Nowhere' } }, atlasManager)).rejects.toThrow(
+        /invalid: region/,
+      )
+      await expect(createEvent({ address: { street: 'Nowhere' } })).rejects.toThrow(
+        /invalid: region/,
+      )
+
+      const inside = await createEvent({ region: cityId, address: { street: 'Keep' } })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: inside.id,
+          draft: true,
+          // What a cleared picker posts; the generated type calls it required.
+          data: { region: null as unknown as number },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/invalid: region/)
+    })
+
+    // Duplicate runs create access with empty data, so it cannot see the
+    // copied region or parent, and reads are project-wide.
+    it('offers no duplicate of an event or a region', async () => {
+      const outside = await createEvent({ region: otherVenueId, address: { street: 'Far' } })
+      await expect(
+        payload.duplicate({
+          collection: 'events',
+          id: outside.id,
+          draft: true,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/cannot be duplicated/)
+      await expect(
+        payload.duplicate({
+          collection: 'regions',
+          id: otherVenueId,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/cannot be duplicated/)
+    })
+
     it('cannot create an event when it is listed nowhere', async () => {
       // A manager listed on no region and named on no event holds neither
       // Atlas role, so nothing grants `events: create` at all.

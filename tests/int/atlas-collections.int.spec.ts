@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Region } from '@/payload-types'
 
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -110,6 +111,22 @@ describe('Atlas collections', () => {
   })
 
   describe('Events title auto-fill', () => {
+    // Every event names a region (`requireRegion`). An address outranks it in
+    // the title, so these cases read the street.
+    let regionId: number
+    beforeAll(async () => {
+      const city = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          name: 'Title City',
+          level: 'city',
+          mapboxId: 'title.city',
+          managers: [managerId],
+        }),
+      })
+      regionId = city.id
+    })
+
     it('auto-fills an empty title from the first segment of the street address', async () => {
       const event = await payload.create({
         collection: 'events',
@@ -120,6 +137,7 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A, Wing 2' },
         }),
       })
@@ -136,6 +154,7 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A' },
         }),
       })
@@ -143,18 +162,29 @@ describe('Atlas collections', () => {
       expect(event.title).toBe('Diwali Special')
     })
 
-    it('leaves the title empty when there is no street to build from', async () => {
+    // No create reaches this any more: only a row stored before `requireRegion`
+    // still lacks a region, and an update leaving `region` out keeps that.
+    it('leaves the title empty when there is no street or region to build from', async () => {
       const event = await payload.create({
         collection: 'events',
         draft: true,
         data: createData<'events'>({
+          title: 'Placeholder',
           eventType: 'online',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
         }),
       })
+      await storeInvalidEvent(payload, event.id, { region: null })
 
-      expect(event.title ?? null).toBeNull()
+      const cleared = await payload.update({
+        collection: 'events',
+        id: event.id,
+        draft: true,
+        data: createData<'events'>({ title: '' }),
+      })
+      expect(cleared.title ?? '').toBe('')
     })
 
     // The auto-fill names the time of day, so a blank title is preferable to a
@@ -173,6 +203,7 @@ describe('Atlas collections', () => {
             eventType: 'offline',
             registrationMode: 'sahaj-atlas',
             manager: managerId,
+            region: regionId,
             address: { street },
             ...(schedule ? { schedule } : {}),
           }),
@@ -221,6 +252,7 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A' },
           schedule: { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'Europe/Berlin' },
         }),
@@ -302,9 +334,9 @@ describe('Atlas collections', () => {
     })
 
     it('sends an event with no region to the explanation, never to null', async () => {
-      // `region` is nominally required, but drafts skip validation — so a
-      // region-less event draft is ordinary, and it is exactly the document an
-      // editor is most likely to be previewing. Returning `null` here would
+      // Every save names a region (`requireRegion`), but a row stored before
+      // that hook can still lack one, and an editor is likely to be previewing
+      // it while they fix it. Returning `null` here would
       // close the panel AND persist "live preview off" as their preference.
       // Root-relative: Payload resolves it against the admin window, so it is
       // same-origin wherever the admin is served. An absolute URL built from
