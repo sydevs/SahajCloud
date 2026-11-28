@@ -215,7 +215,9 @@
       "fact_time": "Čas kurzu",
       "fact_place": "Místo konání",
       "fact_cost": "Cena",
-      "fact_cost_free": "Vždy zdarma"
+      "fact_cost_free": "Vždy zdarma",
+      "share_title": "Sdílet tuto lekci",
+      "report_details": "Nahlásit nesprávné údaje o lekci"
     },
     "actions": {
       "contact": "Kontakt",
@@ -293,7 +295,8 @@
     }
   },
   "share": {
-    "native": "Sdílet…"
+    "native": "Sdílet…",
+    "more": "Více"
   },
   "seo": {
     "root_title": "Bezplatné kurzy meditace ve vašem okolí",

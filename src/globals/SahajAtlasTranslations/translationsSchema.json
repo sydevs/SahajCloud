@@ -875,6 +875,16 @@
               "type": "string",
               "default": "Always free",
               "description": "The cost line under the `fact_cost` label in the class page’s detailed facts, on a computer."
+            },
+            "share_title": {
+              "type": "string",
+              "default": "Share this class",
+              "description": "Heading of the row of share targets (copy link, a messaging app, email, more) beside the map on the inline atlas class page."
+            },
+            "report_details": {
+              "type": "string",
+              "default": "Report incorrect class details",
+              "description": "Link under the share row on the inline atlas class page that lets a visitor report that the class’s details (time, place, contact) are wrong."
             }
           },
           "additionalProperties": false
@@ -1612,6 +1622,11 @@
           "type": "string",
           "default": "Email",
           "description": "Label under the email icon in the Share popover. Brand names such as WhatsApp stay untranslated, so this is the only label there that needs copy."
+        },
+        "more": {
+          "type": "string",
+          "default": "More",
+          "description": "Last target in the share row on the inline atlas class page. Opens the device’s own share sheet, or the full list of share targets."
         }
       },
       "additionalProperties": false

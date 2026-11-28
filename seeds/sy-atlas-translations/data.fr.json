@@ -203,7 +203,9 @@
       "fact_time": "Horaire du cours",
       "fact_place": "Lieu",
       "fact_cost": "Coût",
-      "fact_cost_free": "Toujours gratuit"
+      "fact_cost_free": "Toujours gratuit",
+      "share_title": "Partager ce cours",
+      "report_details": "Signaler des informations incorrectes sur le cours"
     },
     "actions": {
       "contact": "Contacter",
@@ -277,7 +279,8 @@
     }
   },
   "share": {
-    "native": "Partager…"
+    "native": "Partager…",
+    "more": "Plus"
   },
   "seo": {
     "root_title": "Cours de méditation gratuits près de chez vous",

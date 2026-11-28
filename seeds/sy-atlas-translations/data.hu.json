@@ -203,7 +203,9 @@
       "fact_time": "Az óra időpontja",
       "fact_place": "Helyszín",
       "fact_cost": "Költség",
-      "fact_cost_free": "Mindig ingyenes"
+      "fact_cost_free": "Mindig ingyenes",
+      "share_title": "Az óra megosztása",
+      "report_details": "Hibás óraadatok jelentése"
     },
     "actions": {
       "contact": "Kapcsolat",
@@ -277,7 +279,8 @@
     }
   },
   "share": {
-    "native": "Megosztás…"
+    "native": "Megosztás…",
+    "more": "Továbbiak"
   },
   "seo": {
     "root_title": "Ingyenes meditációs órák a közelében",
