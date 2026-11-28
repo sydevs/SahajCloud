@@ -7,7 +7,10 @@ import { relationId } from '@/plugins/access/documentManagers'
 /**
  * Refuses an event with no region, on a draft too: Payload skips `required` on
  * a draft save, and a region manager's write access to an event is its
- * `region`.
+ * `region` — so a regionless first draft locked out the manager who created
+ * it. Binds admins and the class import as well. An update that leaves
+ * `region` out still passes, so a job writing an unrelated column to an older
+ * regionless row is not refused.
  *
  * A field hook, as `refuseContactWithoutBox` is, because only a field
  * `beforeValidate` sees an omitted value as omitted. ⚠ Read the omission off
