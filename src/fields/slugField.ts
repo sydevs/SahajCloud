@@ -8,14 +8,9 @@ import { slugify } from '@/fields/slugify'
 import { localeIsolatedReq } from '@/lib/utilities/localeIsolatedReq'
 import { adminOnlyCondition, adminOnlyFieldAccess } from '@/plugins/access/adminOnly'
 
-/**
- * Options for creating a slug field.
- * Based on Payload's internal SlugFieldArgs type.
- */
 export type SlugFieldOptions = {
-  /** Field to use for generating the slug */
+  /** The field the slug is generated from. Default `title`. */
   useAsSlug?: string
-  /** Enable localization for the slug field */
   localized?: TextField['localized']
   /**
    * Whether the slug is required (defaults to Payload's `true`). Pass `false`
@@ -23,26 +18,23 @@ export type SlugFieldOptions = {
    * after the field is added, so the migration needn't enforce NOT NULL.
    */
   required?: TextField['required']
-  /** Override for the slug field name (default: 'slug') */
+  /** Default `slug`. */
   name?: string
-  /** Override for the checkbox field name (default: 'generateSlug') */
+  /** Default `generateSlug`. */
   checkboxName?: string
-  /** Position of the slug field in admin UI (default: 'sidebar') */
+  /** Default `sidebar`. */
   position?: 'sidebar'
-  /** Custom overrides function for granular field customization */
   overrides?: (field: RowField) => RowField
   /**
-   * Collection slug to enable application-layer uniqueness validation.
-   * When set, a validate function is added that checks for duplicate slugs
-   * before the DB write, converting 500 constraint errors into 400 validation errors.
+   * Set it to check uniqueness before the write, so a duplicate answers 400
+   * rather than surfacing the constraint violation as a 500.
    */
   collectionSlug?: string
   /** The documents allowed a blank slug, stored as `''`. */
   blankAllowed?: (args: FieldHookArgs) => boolean | Promise<boolean>
 } & {
   /**
-   * Description text for the slug field.
-   * Use {sourceField} as a placeholder that will be replaced with the useAsSlug value.
+   * `{sourceField}` in it is replaced with the `useAsSlug` value.
    * @example 'URL-friendly identifier (auto-generated from {sourceField})'
    */
   description?: string
@@ -140,24 +132,7 @@ function blankSlugHooks(options: {
   return { before: nullOnDrafts, after: settleBlank }
 }
 
-/**
- * Creates a slug field with simplified description handling.
- * Wraps Payload's built-in slugField to provide an easier API for adding field descriptions.
- *
- * @example Basic usage (same as Payload's slugField)
- * ```typescript
- * slugField({ useAsSlug: 'title' })
- * ```
- *
- * @example With description using placeholder
- * ```typescript
- * slugField({
- *   useAsSlug: 'title',
- *   description: 'URL-friendly identifier (auto-generated from {sourceField})',
- * })
- * // Results in: "URL-friendly identifier (auto-generated from title)"
- * ```
- */
+/** Payload's own `slugField`, plus a description placeholder and the locks below. */
 export function slugField(options: SlugFieldOptions = {}): RowField {
   const {
     blankAllowed,
@@ -176,7 +151,6 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
     slugify: ({ valueToSlugify }) => slugify(valueToSlugify),
     ...payloadOptions,
     overrides: (field) => {
-      // Apply description if provided
       if (resolvedDescription && field.fields[1].type === 'text') {
         field.fields[1].admin = {
           ...field.fields[1].admin,
@@ -184,9 +158,8 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
         }
       }
 
-      // Lock the generateSlug checkbox: hide from non-admins in UI, and block
-      // update via the API. create is intentionally left open so non-admin
-      // editors can choose whether to auto-generate on first save.
+      // `create` stays open so a non-admin editor can choose whether to
+      // auto-generate on the first save.
       if (field.fields[0].type === 'checkbox') {
         field.fields[0].access = { ...field.fields[0].access, update: adminOnlyFieldAccess }
         field.fields[0].admin = { ...field.fields[0].admin, condition: adminOnlyCondition }
@@ -197,9 +170,7 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
         }
       }
 
-      // Lock the slug text field on update. create is intentionally left open
-      // so non-admin editors can still populate the slug when creating a doc.
-      // The custom Field component hides unlock/generate buttons for non-admins.
+      // `create` stays open for the same reason as the checkbox above.
       if (field.fields[1].type === 'text') {
         field.fields[1].access = { ...field.fields[1].access, update: adminOnlyFieldAccess }
         field.fields[1].admin = {
@@ -214,8 +185,7 @@ export function slugField(options: SlugFieldOptions = {}): RowField {
           },
         }
 
-        // Application-layer uniqueness check so D1 UNIQUE constraint violations
-        // surface as 400 validation errors instead of 500 DB errors.
+        // Checked here so a UNIQUE violation answers 400, not 500.
         if (collectionSlug) {
           field.fields[1].validate = (async (
             value: string | null | undefined,

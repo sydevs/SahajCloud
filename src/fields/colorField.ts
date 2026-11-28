@@ -1,8 +1,7 @@
 import type { Condition, Field, FieldAccess, TextFieldSingleValidation } from 'payload'
 
-/** Validates hex color format (#RRGGBB or #RGB) */
 const hexColorValidation: TextFieldSingleValidation = (value) => {
-  if (!value) return true // Allow empty if not required
+  if (!value) return true
   const hexPattern = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/
   if (!hexPattern.test(value)) {
     return 'Please enter a valid hex color (e.g., #FF5733 or #F00)'
@@ -33,17 +32,6 @@ export interface ColorFieldOptions {
   }
 }
 
-/**
- * Creates a color field with hex validation and a custom color picker component.
- * Returns a single Field (no spread required).
- *
- * @example
- * ```typescript
- * fields: [
- *   colorField({ name: 'color', required: true }),
- * ]
- * ```
- */
 export function colorField(options: ColorFieldOptions = {}): Field {
   const {
     name = 'color',

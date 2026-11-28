@@ -18,13 +18,10 @@ export const changeFieldName = (name: string): string => `${name}Change`
  * the admin control that sets it. Spread the result into `fields`: two fields,
  * the control first.
  *
- * - **The stored field** is never readable (`read: () => false`), never in form
- *   state (`admin.disabled`), never `required`, and encrypted through
- *   `payload.encrypt`.
- * - **The control** is a virtual `<name>Change` field. Its value is the only
- *   thing the form ever holds: empty (keep), `remove`, or `stage:<token>` — a
- *   reference to a value the set modal staged through `secretFieldEndpoints`.
- *   Save applies it; nothing else does.
+ * The control is a virtual `<name>Change` field, whose value is the only thing
+ * the form ever holds: empty (keep), `remove`, or `stage:<token>` — a reference
+ * to a value the set modal staged through `secretFieldEndpoints`. Save applies
+ * it; nothing else does.
  *
  * ⚠ **The control comes first, and that order is load-bearing.** Payload runs a
  * field's `beforeValidate` hooks, then its access check, in field order; the
