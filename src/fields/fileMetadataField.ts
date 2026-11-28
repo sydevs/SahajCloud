@@ -10,12 +10,12 @@ import { jsonField } from './jsonField'
  * seed importers — never by an editor, never by an API client.
  *
  * **The shape stays open on purpose.** Both Cloudflare adapters build it by
- * spreading whatever the row already held
+ * spreading whatever the row already held and adding `originalFilename`
  * (`cloudflareImagesAdapter.ts`, `cloudflareStreamAdapter.ts`), so a row
  * imported under an earlier shape keeps its extra keys. Payload validates on
  * every save, including one that never touched this column, so
  * `additionalProperties: false` would make such a row unsaveable rather than
- * catch a bug.
+ * catch a bug. Declaring that one key still buys the generated type.
  */
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
   return jsonField({
