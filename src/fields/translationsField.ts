@@ -32,12 +32,11 @@ interface StringPropertySchema {
    */
   maxLength?: number
   /**
-   * Turns this key's `maxLength` from advisory into blocking. The limit is
-   * emitted into the field's JSON Schema, so Payload's own validator refuses
-   * the save, and the admin renders an error rather than a warning.
+   * Turns this key's `maxLength` from advisory into blocking: the limit reaches
+   * the field's JSON Schema, so Payload's own validator refuses the save.
    *
-   * Only meaningful beside `maxLength`. Use it where an over-length string
-   * breaks a layout rather than merely looking untidy.
+   * Use it where an over-length string breaks a layout rather than merely
+   * looking untidy.
    */
   strict?: boolean
   /**
@@ -49,12 +48,10 @@ interface StringPropertySchema {
    */
   plural?: boolean
   /**
-   * The key's English copy, declared beside the key itself.
-   *
-   * This is where a new key's English goes. The seed importer merges it under
-   * `data.en.json` for a fresh database, and `reconcileEnglishDefaults`
-   * (`src/lib/translations/englishDefaults.ts`) fills it into one that already
-   * exists — which is what a per-key data migration used to do, once each.
+   * The key's English copy, and the only place a new key's English goes. The
+   * seed importer merges it under `data.en.json` for a fresh database, and
+   * `reconcileEnglishDefaults` (`src/lib/translations/englishDefaults.ts`)
+   * fills it into one that already exists.
    *
    * Never on a `plural` key: its English is a family, not a value.
    */
@@ -69,26 +66,12 @@ interface RichTextPropertySchema {
 type LeafPropertySchema = StringPropertySchema | RichTextPropertySchema
 
 /**
- * JSON Schema definition for a group of translations.
+ * A group is **either** a leaf group whose `properties` are `LeafPropertySchema`
+ * entries, **or** a parent group whose `properties` are nested `GroupSchema`
+ * values. Mixing the two at one level is not supported.
  *
- * A group is either a leaf group whose `properties` are `LeafPropertySchema`
- * entries (string and/or richText), or a parent group whose `properties` are
- * nested `GroupSchema` values. Mixing leaf properties and nested groups at
- * the same level is not supported.
- *
- * Non-JSON-Schema extensions consumed by the Payload admin builder:
- * - `screenshot` (group level): relative path or URL (image or Figma) shown
- *   above the translation rows for translator orientation.
- * - `preview` (top-level group only): where the Live Preview panel points
- *   while that tab is open, as a `PreviewTarget`. Declared beside the group
- *   that describes the view, since the per-view URL belongs to the view. A
- *   group with no `preview` leaves the panel on the global's default URL.
- * - `maxLength` (string-key level, see `StringPropertySchema`): soft per-key
- *   character limit surfaced as a reference + non-blocking over-length warning.
- * - `plural` (string-key level, see `StringPropertySchema`): expands one key
- *   into the CLDR plural family and renders a grouped per-category row.
- * - `default` (string-key level, see `StringPropertySchema`): the key's English
- *   copy, which the seed importer and the boot-time reconciliation both read.
+ * `screenshot`, `preview`, `maxLength`, `plural` and `default` are extensions
+ * the Payload admin builder reads, not JSON Schema keywords.
  */
 interface GroupSchema {
   type: 'object'
@@ -97,9 +80,9 @@ interface GroupSchema {
   additionalProperties?: boolean
   screenshot?: string
   /**
-   * Read on a top-level group only — a sub-group renders as a collapsible,
-   * which mounts whether or not it is open, so it cannot tell the panel
-   * anything. See `previewTargetField`.
+   * Where the Live Preview panel points while this tab is open. Top-level
+   * groups only — a sub-group renders as a collapsible, which mounts whether or
+   * not it is open, so it cannot tell the panel anything.
    */
   preview?: PreviewTarget
 }
@@ -110,10 +93,7 @@ export interface TranslationsSchema {
   additionalProperties?: boolean
 }
 
-/**
- * One entry per string-typed translation key in a leaf group. Consumed by
- * TranslationsRow to render the title + (optional) English reference + input.
- */
+/** One entry per string-typed key in a leaf group, read by TranslationsRow. */
 export interface SchemaEntry {
   key: string
   description: string
@@ -163,7 +143,7 @@ function createScreenshotField(
   }
 }
 
-/** A slug in title case (`page_tags` -> `Page Tags`). Every tab's label. */
+/** `page_tags` -> `Page Tags`. Every tab's label. */
 function slugLabel(slug: string): string {
   return toWords(slug.replace(/_/g, '-'))
 }
@@ -179,29 +159,25 @@ function pascalCase(...segments: (string | undefined)[]): string {
 }
 
 /**
- * The JSON Schema for one leaf group's strings blob.
+ * The JSON Schema for one leaf group's strings blob. It buys a **named
+ * interface** per group in `payload-types.ts`, and Ajv enforcing the shape on
+ * write.
  *
- * Two things it buys, both of which the hand-rolled `validate` it replaced
- * could not: Payload generates a **named interface** per group instead of the
- * `{ [k: string]: unknown } | … | null` union every consumer had to cast away,
- * and Ajv enforces the shape on write.
- *
- * Three rules hold it together:
+ * Four rules hold it together:
  *
  * - **Every property is optional.** Payload validates a stored column on every
  *   save of its document, including a save that never touched translations, so
- *   a `required` key would strand every locale that has not been translated yet.
- * - **`maxLength` appears only for a `strict` key.** An advisory limit that
- *   blocked the save would be a silent behaviour change on keys already over it.
+ *   a `required` key would strand every locale not yet translated.
+ * - **`maxLength` appears only for a `strict` key**, or an advisory limit would
+ *   block the save on keys already over it.
  * - **Only standard JSON Schema keywords may appear.** Payload runs Ajv 8 in
  *   strict mode, where an unknown keyword throws at validate time rather than
  *   at boot — so `plural`, `screenshot` and `strict` must never leak in.
  *   A plural key contributes its expanded CLDR family instead of itself.
- * - **`default` stays out too, though it is a standard keyword.** Ajv writes a
- *   declared default into the data it validates under `useDefaults`, so
- *   emitting it would make a save store copy nobody typed. A default reaches a
- *   database through `reconcileEnglishDefaults` instead, which fills English
- *   alone.
+ * - **`default` stays out too, though it is a standard keyword.** Under
+ *   `useDefaults` Ajv writes a declared default into the data it validates, so
+ *   emitting it would store copy nobody typed. `reconcileEnglishDefaults` is
+ *   what delivers one instead.
  */
 export function stringsSchema({
   allowAdditional,
@@ -233,9 +209,8 @@ export function stringsSchema({
     }
   }
 
-  // Raw JSON Schema rather than Zod: `properties` is assembled as data from the
-  // group's own entries, so building it in Zod only to convert it back would be
-  // a round trip.
+  // Raw JSON Schema rather than Zod: `properties` is assembled as data, which
+  // Zod would only convert back.
   return {
     schemaTitle,
     schema: {
@@ -247,29 +222,20 @@ export function stringsSchema({
 }
 
 /**
- * One localized JSON field per leaf group, holding every string-typed key in
- * that group as flat `{ key: value }` pairs. Rendered by TranslationsRow,
- * which displays each schema entry as its own row (title + description +
- * optional English reference + input). For simple tabs, the field name is
- * the tab slug (e.g. `navigation`). For nested tabs wrapped in a group, the
- * field name is the sub-group slug (e.g. `welcome`) and `parentGroup` is the
- * group name (e.g. `onboarding`), so the data path is `onboarding.welcome`.
- *
- * RichText keys are emitted as sibling richText fields at the same level
- * (see createRichTextField), not packed into this JSON blob.
+ * One localized JSON field per leaf group, holding that group's string keys as
+ * flat `{ key: value }` pairs. RichText keys become sibling richText fields at
+ * the same level instead.
  *
  * **The `validate` here COMPOSES Payload's built-in one — it must never
  * replace it.** Supplying a validate replaces the built-in `json` validator,
  * which is the one bound to `jsonSchema`, so a hand-rolled rule would switch
- * the whole schema off with nothing to show for it. The built-in enforces what
- * the deleted validator did (unknown keys, non-string values) plus `maxLength`
- * for a `strict` key.
+ * the whole schema off with nothing to show for it.
  *
  * One rule it does not reach: the built-in short-circuits on an "empty" value,
  * and `[]` counts as empty (`payload/dist/fields/validations.js`), so an array
- * would land in a column whose generated type is an object. The old validator
- * rejected every array, so that check is kept ahead of the delegation.
- * See `src/collections/AGENTS.md`, "A JSON column declares its shape".
+ * would land in a column whose generated type is an object. Hence the array
+ * check ahead of the delegation. See `src/collections/AGENTS.md`, "A JSON
+ * column declares its shape".
  */
 function createStringsJsonField(
   fieldName: string,
@@ -314,12 +280,7 @@ function createStringsJsonField(
   })
 }
 
-/**
- * Creates a localized richText field for a single richText key. Uses the
- * `basicRichTextEditor` preset (Bold, Italic, Link, InlineToolbar). The
- * Description slot renders the translation title + English reference above
- * the standard Lexical editor.
- */
+/** The Description slot carries the translation title and English reference. */
 function createRichTextField(
   fieldName: string,
   translationKey: string,
@@ -381,19 +342,14 @@ function createLeafFields(
 // --- Main: buildTranslationTabs ---
 
 /**
- * Converts a translations schema into PayloadCMS tabs configuration.
+ * One tab per top-level group.
  *
- * Each top-level group becomes one tab. Simple tabs (leaf group only) emit
- * one JSON field named after the tab slug. Nested tabs (containing sub-groups)
- * wrap their fields in a Payload group named after the tab slug, so the API
- * response is `{ onboarding: { welcome: {…}, user_type: {…} } }` instead of
- * the flat `{ onboarding_welcome: {…}, onboarding_user_type: {…} }`. The
- * underlying SQLite column names are identical in both cases (`group_field`
- * matches the old `leafSlug` naming), so no migration is required.
+ * A group holding sub-groups wraps them in a Payload group named after the tab
+ * slug, so the API response is namespaced (`{ onboarding: { welcome: {…} } }`)
+ * rather than flat. The column name is `<tab>_<sub>` either way.
  *
- * Every leaf group emits one JSON field (holding string keys) plus one
- * richText field per richText key. The flat-leaf-JSON shape keeps the per-row
- * UX while staying under SQLite's `json_array()` argument limit.
+ * One JSON field per leaf group rather than a column per key: that keeps the
+ * per-row UX while staying under SQLite's `json_array()` argument limit.
  */
 export function buildTranslationTabs(
   schema: TranslationsSchema,
@@ -415,15 +371,9 @@ export function buildTranslationTabs(
         : []
 
       if (subgroups.length > 0) {
-        // Wrap sub-group fields in a group named after the tab slug so the
-        // API response is namespaced: { onboarding: { welcome: {…} } }
-        //
-        // Each sub-group renders as a **collapsible**, not an inner tab row.
-        // Tabs inside tabs hide every sub-group but one, which is the wrong
-        // shape for a translator working down a page. Collapsibles are
-        // presentational only: the data path and the column name are identical
-        // either way (`<tab>_<sub>`), so `wm-app-translations` reads and saves
-        // exactly as before and no migration is involved.
+        // A collapsible, not an inner tab row: tabs inside tabs hide every
+        // sub-group but one, which is the wrong shape for a translator working
+        // down a page.
         const collapsibles: CollapsibleField[] = subgroups.map(([subSlug, subSchema]) => ({
           type: 'collapsible',
           label: slugLabel(subSlug),
