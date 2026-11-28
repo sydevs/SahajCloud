@@ -1133,6 +1133,12 @@ describe('Role-Based Access Control', () => {
           /cannot be duplicated/,
         )
       }
+      // Payload gives an auth collection this flag only when the key is absent,
+      // and it sanitizes after every plugin — so a plugin writing `false` here
+      // would register both duplicate routes.
+      for (const slug of ['managers', 'clients'] as const) {
+        expect(payload.collections[slug].config.disableDuplicate).toBe(true)
+      }
     })
 
     it('cannot create an event when it is listed nowhere', async () => {
