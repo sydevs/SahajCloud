@@ -1066,6 +1066,53 @@ describe('Role-Based Access Control', () => {
       expect(saved.region ?? null).toBeNull()
     })
 
+    // Restore runs update access with `{ _status }` alone, then writes the old
+    // version's region (`keepRegionInSubtree`).
+    it('refuses restoring a version that would move an event out of its subtree', async () => {
+      const event = await testData.createEvent(payload, {
+        region: otherVenueId,
+        manager: fillerId,
+        _status: 'published',
+      })
+      await payload.update({ collection: 'events', id: event.id, data: { region: cityId } })
+      const { docs } = await payload.findVersions({
+        collection: 'events',
+        where: { parent: { equals: event.id } },
+        sort: 'createdAt',
+        depth: 0,
+      })
+      const outsideVersion = docs.find((v) => relationId(v.version.region) === otherVenueId)
+      expect(outsideVersion).toBeDefined()
+
+      await expect(
+        payload.restoreVersion({
+          collection: 'events',
+          id: outsideVersion!.id,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/inside your own area/)
+      const stored = await payload.findByID({ collection: 'events', id: event.id, depth: 0 })
+      expect(relationId(stored.region)).toBe(cityId)
+    })
+
+    it('refuses a create that skips access but names a region outside its subtree', async () => {
+      await expect(
+        payload.create({
+          collection: 'events',
+          draft: true,
+          data: createData<'events'>({
+            eventType: 'offline',
+            registrationMode: 'sahaj-atlas',
+            region: otherVenueId,
+            address: { street: 'Skipped access' },
+          }),
+          user: managerUser(atlasManager),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/inside your own area/)
+    })
+
     // Duplicate runs create access with empty data, so it cannot see the copied
     // region or parent. Every collection this scoping covers owes the flag.
     it('offers no duplicate on a region-scoped collection', async () => {

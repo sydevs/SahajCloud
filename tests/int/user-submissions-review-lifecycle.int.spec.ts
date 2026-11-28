@@ -275,6 +275,34 @@ describe('User submission review lifecycle', () => {
       expect(preview).not.toHaveProperty('activityLog')
     })
 
+    // Accept creates the event with `overrideAccess: true`, so create access
+    // never sees the region the reviewer left on the row (`keepRegionInSubtree`).
+    it('refuses to accept a new event into a city outside the reviewer’s area', async () => {
+      const elsewhere = await testData.createRegion(payload, {
+        name: 'Elsewhere',
+        level: 'country',
+      })
+      const farCity = await testData.createRegion(payload, {
+        name: 'Far City',
+        level: 'city',
+        parent: elsewhere.id,
+      })
+      const created = await createProposal({
+        region: cityId,
+        proposed: { ...BASE_PROPOSED, schedule: WEEKLY_SCHEDULE },
+      })
+
+      await expect(decide(created.id, 'accepted', { region: farCity.id })).rejects.toThrow(
+        /inside your own area/,
+      )
+      const { totalDocs } = await payload.count({
+        collection: 'events',
+        where: { region: { equals: farCity.id } },
+        overrideAccess: true,
+      })
+      expect(totalDocs).toBe(0)
+    })
+
     it('previews a new-event proposal with the region Accept writes, and no photographs', async () => {
       const created = await createProposal({
         region: cityId,

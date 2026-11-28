@@ -62,6 +62,7 @@ import {
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { keepRegionInSubtree } from './hooks/keepRegionInSubtree'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
 import { requireRegion } from './hooks/requireRegion'
 import { syncEventFullness } from './hooks/syncFullness'
@@ -200,8 +201,10 @@ export const Events: CollectionConfig = {
     // the inputs this collection's own computed fields declare.
     beforeOperation: [excludeFinishedEvents],
     // A class that repeats one already listed is refused before anything else
-    // runs, drafts included — see refuseDuplicateClass.
-    beforeValidate: [refuseDuplicateClass],
+    // runs, drafts included — see refuseDuplicateClass. `keepRegionInSubtree`
+    // goes first: it refuses for less, and the restore and proposal-accept
+    // writes reach no other region check.
+    beforeValidate: [keepRegionInSubtree, refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark, and it
     // names the writer the stage column's own guard then judges. Both stamping
