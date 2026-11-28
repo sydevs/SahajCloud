@@ -5,7 +5,7 @@ export type MediaFieldOptions = {
   label?: string
   required?: boolean
   localized?: boolean
-  /** Constrain selection to one image orientation. */
+  /** ⚠ Read by nothing. Two blocks pass one and get an unfiltered picker (#1314). */
   orientation?: 'landscape' | 'portrait' | 'square'
   /** Constrain selection to images carrying this tag, e.g. `thumbnail`. */
   tagName?: string
