@@ -1029,6 +1029,12 @@ describe('Role-Based Access Control', () => {
           /invalid: region/,
         )
       }
+      // Payload reads both as empty before the hook runs.
+      for (const region of ['', 'none']) {
+        await expect(
+          createEvent({ region: region as unknown as number, address: { street: 'Blank' } }),
+        ).rejects.toThrow(/invalid: region/)
+      }
 
       const inside = await createEvent({ region: cityId, address: { street: 'Keep' } })
       await expect(
