@@ -14,6 +14,12 @@ import { relationId } from '@/plugins/access/documentManagers'
  * `siblingData`, never `value`, which already carries the stored row's.
  * `relationId` is the access layer's, which reads a numeric string as the id
  * Payload stores it as.
+ *
+ * ⚠ **Testing for `null` is safe here and nowhere earlier.** `relationId('')`
+ * is `0`, so this is the shape `regionSubtreeAccess.ts` forbids; it holds only
+ * because Payload coerces `''`, `'none'`, `'null'` and `null` to `null` in the
+ * field pass ahead of field hooks. Access runs before that pass, and tests for
+ * "not an owned id" instead.
  */
 export const requireRegion: FieldHook = ({ operation, siblingData, value }) => {
   const omittedOnUpdate = operation === 'update' && siblingData.region === undefined
