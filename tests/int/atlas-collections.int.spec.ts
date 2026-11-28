@@ -110,6 +110,22 @@ describe('Atlas collections', () => {
   })
 
   describe('Events title auto-fill', () => {
+    // Every event names a region (`requireRegion`). An address outranks it in
+    // the title, so these cases read the street.
+    let regionId: number
+    beforeAll(async () => {
+      const city = await payload.create({
+        collection: 'regions',
+        data: createData<'regions'>({
+          name: 'Title City',
+          level: 'city',
+          mapboxId: 'title.city',
+          managers: [managerId],
+        }),
+      })
+      regionId = city.id
+    })
+
     it('auto-fills an empty title from the first segment of the street address', async () => {
       const event = await payload.create({
         collection: 'events',
@@ -120,6 +136,7 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A, Wing 2' },
         }),
       })
@@ -136,25 +153,12 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A' },
         }),
       })
 
       expect(event.title).toBe('Diwali Special')
-    })
-
-    it('leaves the title empty when there is no street to build from', async () => {
-      const event = await payload.create({
-        collection: 'events',
-        draft: true,
-        data: createData<'events'>({
-          eventType: 'online',
-          registrationMode: 'sahaj-atlas',
-          manager: managerId,
-        }),
-      })
-
-      expect(event.title ?? null).toBeNull()
     })
 
     // The auto-fill names the time of day, so a blank title is preferable to a
@@ -173,6 +177,7 @@ describe('Atlas collections', () => {
             eventType: 'offline',
             registrationMode: 'sahaj-atlas',
             manager: managerId,
+            region: regionId,
             address: { street },
             ...(schedule ? { schedule } : {}),
           }),
@@ -221,6 +226,7 @@ describe('Atlas collections', () => {
           eventType: 'offline',
           registrationMode: 'sahaj-atlas',
           manager: managerId,
+          region: regionId,
           address: { street: 'Hall A' },
           schedule: { firstDate: '2024-09-06T17:30:00.000Z', firstDate_tz: 'Europe/Berlin' },
         }),
@@ -302,10 +308,10 @@ describe('Atlas collections', () => {
     })
 
     it('sends an event with no region to the explanation, never to null', async () => {
-      // `region` is nominally required, but drafts skip validation — so a
-      // region-less event draft is ordinary, and it is exactly the document an
-      // editor is most likely to be previewing. Returning `null` here would
-      // close the panel AND persist "live preview off" as their preference.
+      // A row stored before `requireRegion` can still lack a region, and an
+      // editor is likely to be previewing it while they fix it. Returning
+      // `null` here would close the panel AND persist "live preview off" as
+      // their preference.
       // Root-relative: Payload resolves it against the admin window, so it is
       // same-origin wherever the admin is served. An absolute URL built from
       // `SAHAJCLOUD_URL` was refused by the CSP on a Railway PR preview, which

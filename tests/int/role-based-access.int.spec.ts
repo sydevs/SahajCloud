@@ -16,11 +16,13 @@ import { bypassPermissions, hasAnyPermission, hasPermission, virtualRoles } from
 import { PROPOSAL_REGION_PATHS } from '@/plugins/access/accessConfigs'
 import { filterAvailableLocales } from '@/plugins/access/filterAvailableLocales'
 import { isLocaleScopedCollection } from '@/plugins/access/localeScopedWrites'
+import { isRegionSubtreeCollection } from '@/plugins/access/regionSubtreeAccess'
 import type { ContentSlug } from '@/plugins/access/types'
 import { createSession } from '@/plugins/login'
 
 import { setLifecycleState } from '../utils/lifecycleFixtures'
 import { createRestClientAs, type RestClient } from '../utils/restRequest'
+import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import {
   createData,
   createTestLexicalContent,
@@ -967,6 +969,176 @@ describe('Role-Based Access Control', () => {
           overrideAccess: false,
         }),
       ).rejects.toThrow()
+    })
+
+    // Clearing `parent` makes the region a root, outside every subtree above
+    // it — including the one region the manager is listed on. Payload reads
+    // `'none'` as empty only after access has run.
+    it('rejects clearing the parent of a region in its subtree, its own top region included', async () => {
+      for (const parent of [null, 'none']) {
+        for (const id of [cityId, regionId]) {
+          await expect(
+            payload.update({
+              collection: 'regions',
+              id,
+              data: { parent: parent as null },
+              user: managerUser(atlasManager),
+              overrideAccess: false,
+            }),
+          ).rejects.toThrow(/not allowed/)
+        }
+        await expect(
+          payload.update({
+            collection: 'regions',
+            where: { id: { equals: cityId } },
+            data: { parent: parent as null },
+            user: managerUser(atlasManager),
+            overrideAccess: false,
+          }),
+        ).rejects.toThrow(/not allowed/)
+      }
+      const city = await payload.findByID({ collection: 'regions', id: cityId, depth: 0 })
+      expect(relationId(city.parent)).toBe(regionId)
+    })
+
+    // The admin form posts `parent: null` for a country, where the field is
+    // hidden: a parent that was already empty is not a move.
+    it('still saves a root region it is listed on', async () => {
+      const listed = await testData.createManager(payload, { name: 'Country Manager', roles: [] })
+      const country = await createRegion({
+        level: 'country',
+        name: 'AtlasMgr Rootland',
+        managers: [listed.id],
+      })
+      const countryManager = await testData.authUser(payload, listed)
+      const saved = await payload.update({
+        collection: 'regions',
+        id: country.id,
+        data: { parent: null, name: 'AtlasMgr Rootland Renamed' },
+        user: managerUser(countryManager),
+        overrideAccess: false,
+      })
+      expect(saved.name).toBe('AtlasMgr Rootland Renamed')
+    })
+
+    // A region is what a region manager's write access to an event reads, and
+    // Payload skips `required` on a draft.
+    it('refuses an event with no region, on a draft and for an admin too', async () => {
+      for (const user of [atlasManager, undefined]) {
+        await expect(createEvent({ address: { street: 'Nowhere' } }, user)).rejects.toThrow(
+          /invalid: region/,
+        )
+      }
+      // Payload reads both as empty before the hook runs.
+      for (const region of ['', 'none']) {
+        await expect(
+          createEvent({ region: region as unknown as number, address: { street: 'Blank' } }),
+        ).rejects.toThrow(/invalid: region/)
+      }
+
+      const inside = await createEvent({ region: cityId, address: { street: 'Keep' } })
+      await expect(
+        payload.update({
+          collection: 'events',
+          id: inside.id,
+          draft: true,
+          // What a cleared picker posts; the generated type calls it required.
+          data: { region: null as unknown as number },
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/invalid: region/)
+    })
+
+    it('accepts a region posted as a numeric string', async () => {
+      const created = await createEvent(
+        { region: String(cityId) as unknown as number, address: { street: 'String id' } },
+        atlasManager,
+      )
+      expect(relationId(created.region)).toBe(cityId)
+    })
+
+    // Bookkeeping and job writes name no region, and must still land on a row
+    // stored before `requireRegion`.
+    it('lets a write that leaves region out save an older regionless event', async () => {
+      const legacy = await createEvent({ region: cityId, address: { street: 'Legacy' } })
+      await storeInvalidEvent(payload, legacy.id, { region: null })
+      const saved = await payload.update({
+        collection: 'events',
+        id: legacy.id,
+        draft: true,
+        data: { address: { street: 'Legacy edited' } },
+      })
+      expect(saved.region ?? null).toBeNull()
+    })
+
+    // Restore runs update access with `{ _status }` alone, then writes the old
+    // version's region (`keepRegionInSubtree`).
+    it('refuses restoring a version that would move an event out of its subtree', async () => {
+      const event = await testData.createEvent(payload, {
+        region: otherVenueId,
+        manager: fillerId,
+        _status: 'published',
+      })
+      await payload.update({ collection: 'events', id: event.id, data: { region: cityId } })
+      const { docs } = await payload.findVersions({
+        collection: 'events',
+        where: { parent: { equals: event.id } },
+        sort: 'createdAt',
+        depth: 0,
+      })
+      const outsideVersion = docs.find((v) => relationId(v.version.region) === otherVenueId)
+      expect(outsideVersion).toBeDefined()
+
+      await expect(
+        payload.restoreVersion({
+          collection: 'events',
+          id: outsideVersion!.id,
+          user: managerUser(atlasManager),
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow(/inside your own area/)
+      const stored = await payload.findByID({ collection: 'events', id: event.id, depth: 0 })
+      expect(relationId(stored.region)).toBe(cityId)
+    })
+
+    it('refuses a create that skips access but names a region outside its subtree', async () => {
+      await expect(
+        payload.create({
+          collection: 'events',
+          draft: true,
+          data: createData<'events'>({
+            eventType: 'offline',
+            registrationMode: 'sahaj-atlas',
+            region: otherVenueId,
+            address: { street: 'Skipped access' },
+          }),
+          user: managerUser(atlasManager),
+          overrideAccess: true,
+        }),
+      ).rejects.toThrow(/inside your own area/)
+    })
+
+    // Duplicate runs create access with empty data, so it cannot see the copied
+    // region or parent. Every collection this scoping covers owes the flag.
+    it('offers no duplicate on a region-scoped collection', async () => {
+      const scoped = payload.config.collections.filter((c) =>
+        isRegionSubtreeCollection(c.slug as ContentSlug),
+      )
+      expect(scoped.map((c) => c.slug).sort()).toEqual(['events', 'regions'])
+      for (const { slug } of scoped) {
+        expect(payload.collections[slug].config.disableDuplicate).toBe(true)
+        // Refused before the id is read.
+        await expect(payload.duplicate({ collection: slug, id: 1 })).rejects.toThrow(
+          /cannot be duplicated/,
+        )
+      }
+      // Payload gives an auth collection this flag only when the key is absent,
+      // and it sanitizes after every plugin — so a plugin writing `false` here
+      // would register both duplicate routes.
+      for (const slug of ['managers', 'clients'] as const) {
+        expect(payload.collections[slug].config.disableDuplicate).toBe(true)
+      }
     })
 
     it('cannot create an event when it is listed nowhere', async () => {

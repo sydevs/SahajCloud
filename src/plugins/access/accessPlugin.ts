@@ -19,6 +19,7 @@ import { getProjectSlugs, getRoleSlugs, isTranslatableCollection } from './confi
 import { applyFieldAccessForTranslatableCollections } from './fieldAccess'
 import { restrictCreateToRequestLocale } from './localeScopedWrites'
 import { withLocalizedRoleAuth } from './localizedRolesAuth'
+import { isRegionSubtreeCollection } from './regionSubtreeAccess'
 import { stripLockedFieldsOnSelfRead } from './stripLockedFieldsOnSelfRead'
 import { createHidden } from './visibility'
 
@@ -118,6 +119,16 @@ export function accessPlugin(options: AccessPluginOptions = {}): (config: Config
             },
             ['readVersions', 'unlock'],
           ),
+          // ⚠ A duplicate runs create access with EMPTY data, so it cannot see
+          // the copied `region` or `parent` — and reads are project-wide, so a
+          // region manager could copy any class or region into an area they do
+          // not own. Set here because being region-scoped is what forces it: a
+          // slug added to `REGION_SUBTREE_COLLECTIONS` needs no second edit.
+          // ⚠ **A conditional spread, because this key may only ever be written
+          // `true`.** `sanitizeConfig` runs after every plugin and gives an auth
+          // collection `disableDuplicate ?? true`, so writing `false` here would
+          // register `POST /api/managers/:id/duplicate` and the `clients` one.
+          ...(isRegionSubtreeCollection(slug) && { disableDuplicate: true }),
           admin: {
             ...collection.admin,
             // Respect existing hidden config, otherwise apply project-based visibility

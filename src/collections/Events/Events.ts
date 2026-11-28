@@ -62,7 +62,9 @@ import {
 import { computeEventQualityReport, stampEventQuality } from './hooks/eventQuality'
 import { eventTitleBeforeChange, eventTitleValidate } from './hooks/eventTitle'
 import { excludeFinishedEvents } from './hooks/excludeFinishedEvents'
+import { keepRegionInSubtree } from './hooks/keepRegionInSubtree'
 import { refuseDuplicateClass } from './hooks/refuseDuplicateClass'
+import { requireRegion } from './hooks/requireRegion'
 import { syncEventFullness } from './hooks/syncFullness'
 import { syncVerificationOnSave } from './hooks/syncVerificationOnSave'
 import { refuseContactWithoutBox, withheldUnlessAllowed } from './hooks/withholdContact'
@@ -171,9 +173,8 @@ export const Events: CollectionConfig = {
     livePreview: {
       // An unsaved document has nothing to fetch yet. Returning null disables the panel.
       // The event's own map path, shared with `webPath` through
-      // `buildEventWebPath`. A draft with no region yet has nowhere to appear,
-      // and `region` is only nominally required — drafts skip validation — so
-      // that is a normal state, not an edge case.
+      // `buildEventWebPath`. A row stored before `requireRegion` may still lack
+      // a region.
       url: async ({ data, locale, req }) =>
         livePreviewUrl({
           base: serverEnv.SAHAJATLAS_URL,
@@ -197,8 +198,10 @@ export const Events: CollectionConfig = {
     // the inputs this collection's own computed fields declare.
     beforeOperation: [excludeFinishedEvents],
     // A class that repeats one already listed is refused before anything else
-    // runs, drafts included — see refuseDuplicateClass.
-    beforeValidate: [refuseDuplicateClass],
+    // runs, drafts included — see refuseDuplicateClass. `keepRegionInSubtree`
+    // goes first: it refuses for less, and the restore and proposal-accept
+    // writes reach no other region check.
+    beforeValidate: [keepRegionInSubtree, refuseDuplicateClass],
     // syncVerificationOnSave must run first. It decides the stage this save
     // lands on: verify, or just re-arm the pre-adoption watermark, and it
     // names the writer the stage column's own guard then judges. Both stamping
@@ -450,6 +453,8 @@ export const Events: CollectionConfig = {
               label: 'City / Venue',
               relationTo: 'regions',
               required: true,
+              // Drafts skip `required`: see `requireRegion`.
+              hooks: { beforeValidate: [requireRegion] },
               filterOptions: async (args) => {
                 // City or venue only. For a region manager, also within their
                 // owned-region subtree.
