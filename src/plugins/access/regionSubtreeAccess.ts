@@ -141,17 +141,18 @@ export async function scopeRegionSubtreeWrite({
       // remove. Whether the subtree may go at all is `refuseDeleteWhileInUse`'s.
       return ownedRegionIds.length ? { parent: { in: ownedRegionIds } } : false
     }
-    // A re-parent must keep the region inside the owned subtree — reject moving
-    // it under a region they don't own.
-    const newParentId = relationId((data as { parent?: unknown } | null)?.parent)
-    // ⚠ **A posted `null` is a move too, out of the tree.** It turns the region
-    // into a root, which takes it and its events out of the subtree of every
-    // manager above it. An omitted `parent` is no move.
-    const clearsParent = (data as { parent?: unknown } | null)?.parent === null
+    const posted = (data as { parent?: unknown } | null)?.parent
+    const newParentId = relationId(posted)
+    // ⚠ **Any posted parent that is not an owned region is a move, an empty one
+    // included.** It makes the region a root, out of the subtree of every manager
+    // above it. Access sees the raw body, and Payload reads `''`, `'none'` and
+    // `'null'` as empty only after it, so test for "not an owned id", never for
+    // `null`. An omitted `parent` is no move.
+    const leavesSubtree =
+      posted !== undefined && (newParentId === null || !ownedRegionIds.includes(newParentId))
     if (id !== undefined) {
       if (!ownedRegionIds.includes(Number(id))) return false
-      if (newParentId !== null && ownedRegionIds.includes(newParentId)) return true
-      if (newParentId === null && !clearsParent) return true
+      if (!leavesSubtree) return true
       // ⚠ **A posted parent that repeats the stored one is not a re-parent.**
       // Payload's admin posts the whole document, and a subtree ROOT's own
       // parent sits above the subtree — so refusing every outside parent
@@ -170,10 +171,8 @@ export async function scopeRegionSubtreeWrite({
       })) as { parent?: unknown } | null
       return stored !== null && newParentId === relationId(stored.parent)
     }
-    // Bulk update: no one stored value to compare, so an outside parent is a
-    // re-parent attempt.
-    if (clearsParent || (newParentId !== null && !ownedRegionIds.includes(newParentId)))
-      return false
+    // Bulk update: no one stored value to compare, so it is a re-parent attempt.
+    if (leavesSubtree) return false
     return ownedRegionIds.length ? { id: { in: ownedRegionIds } } : false
   }
 
