@@ -1,47 +1,39 @@
 import type { Field, GroupField } from 'payload'
 
-/** Text-backed searchable dropdown component (country + region), see src/components/admin/StringSelectField. */
+/** Text-backed searchable dropdown, so `country` and `region` need no Postgres enum. */
 const STRING_SELECT_FIELD = '@/components/admin/StringSelectField'
-/** Mapbox address-search component, bound to the `mapboxId` field. */
+/** Bound to the `mapboxId` field. */
 const ADDRESS_SEARCH_FIELD = '@/components/admin/AddressSearchField'
 
 export interface AddressFieldsOptions {
-  /** Group field name (default: 'address') */
+  /** Default `address`. */
   name?: string
-  /** Group label (default: derived "Address"; pass false to hide) */
+  /** Default: derived "Address"; `false` hides it. */
   label?: false | string
-  /** Field names to mark required (e.g. `['street', 'city', 'country']`). Default: none. */
+  /** The sub-fields to mark required, e.g. `['street', 'city', 'country']`. */
   required?: string[]
-  /** Include the `room` field (default: true) */
+  /** Default true. */
   hasRoom?: boolean
   /**
-   * Include a `venueName` field (default: false) — the building's own name
-   * ("Broadstairs Friends Meeting House"), which a street address doesn't
-   * convey. Distinct from `room`: that says where *inside* the building to go.
+   * The building's own name ("Broadstairs Friends Meeting House"), which a
+   * street address does not convey. Distinct from `room`: that says where
+   * *inside* the building to go.
    */
   hasVenueName?: boolean
-  /** Include `latitude` / `longitude` (default: true) */
+  /** Default true. */
   hasCoordinates?: boolean
   /**
-   * Add a Mapbox address-search field (`mapboxId`) above the inputs (default:
-   * true). Selecting a result stores the Mapbox feature id and auto-fills the
-   * fields; the detail fields stay hidden until `mapboxId` is set (by a search
-   * result, or the search field's "Enter manually" option). Degrades to manual
-   * entry when no Mapbox token is configured.
+   * A Mapbox address-search field (`mapboxId`) above the inputs. Default true,
+   * and it degrades to manual entry with no Mapbox token configured.
    */
   hasGeocoding?: boolean
-  /** Admin overrides — notably `condition` (e.g. show only for offline events) */
   admin?: Partial<GroupField['admin']>
 }
 
 /**
- * Reusable postal-address group. `country` and `region` are searchable
- * dropdowns backed by plain `text` columns (no Postgres enum) via
- * `StringSelectField`: `country` lists all countries; `region` cascades from
- * the selected country (disabled until one is chosen). Values are ISO codes —
- * alpha-2 for `country` (e.g. `US`), ISO 3166-2 subdivision shortCode for
- * `region` (e.g. `CA`). With `hasGeocoding`, a Mapbox search field (`mapboxId`)
- * above the inputs auto-fills them. Companion of `scheduleFields`.
+ * A postal-address group. `country` and `region` store ISO codes — alpha-2 for
+ * `country` (`US`), ISO 3166-2 subdivision shortCode for `region` (`CA`) — and
+ * `region` cascades from the selected country.
  *
  * @example
  * addressFields({
@@ -63,8 +55,8 @@ export function addressFields(options: AddressFieldsOptions = {}): Field {
 
   const isRequired = (fieldName: string) => required.includes(fieldName)
 
-  // With geocoding on, the address starts as just the search field; every other
-  // field appears once `mapboxId` is set (a chosen result, or "Enter manually").
+  // With geocoding on, every other field waits for `mapboxId` — set by a chosen
+  // result, or by the search field's "Enter manually".
   const revealOnSearch: {
     condition?: (data: Record<string, unknown>, siblingData: Record<string, unknown>) => boolean
   } = hasGeocoding ? { condition: (_data, siblingData) => Boolean(siblingData?.mapboxId) } : {}

@@ -15,8 +15,7 @@ import { jsonField } from './jsonField'
  * imported under an earlier shape keeps its extra keys. Payload validates on
  * every save, including one that never touched this column, so
  * `additionalProperties: false` would make such a row unsaveable rather than
- * catch a bug. Declaring the one key every writer sets still buys the generated
- * type, which is what `BaseImporter` reads.
+ * catch a bug. Declaring that one key still buys the generated type.
  */
 export function fileMetadataField(options: { description?: string } = {}): JSONField {
   return jsonField({

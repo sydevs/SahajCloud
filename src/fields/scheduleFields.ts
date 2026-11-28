@@ -14,23 +14,21 @@ import { isHHMM } from '@/lib/schedule/time'
 
 import { jsonField } from './jsonField'
 
-/** Field factory options */
 export interface ScheduleFieldsOptions {
-  /** Field name (default: 'schedule') */
+  /** Default `schedule`. */
   name?: string
-  /** Field label (default: 'Schedule', false to hide) */
+  /** Default `Schedule`; `false` hides it. */
   label?: false | string
-  /** Whether sub-fields are required (default: true) */
+  /** Default true. */
   required?: boolean
-  /** Show end time field (default: false) */
   hasEndTime?: boolean
-  /** Show weekday picker for weekly recurrence (default: false) */
+  /** Weekday picker for weekly recurrence. */
   hasComplexWeekly?: boolean
-  /** Show day/weekday picker for monthly recurrence (default: false) */
+  /** Day-or-weekday picker for monthly recurrence. */
   hasComplexMonthly?: boolean
-  /** Show ending conditions — count or until date (default: false) */
+  /** Count, or an until date. */
   hasEnding?: boolean
-  /** Show exclusion date ranges for recurring events (default: false) */
+  /** Date ranges the recurrence skips. */
   hasExclusions?: boolean
   /**
    * Show the group's own Repeats select and its summary banner (default: true).
@@ -38,17 +36,12 @@ export interface ScheduleFieldsOptions {
    * `recurrenceType` in the form, and it places `ScheduleSummary` above it.
    */
   hasRecurrenceControl?: boolean
-  /** Admin configuration (uses PayloadCMS JSONField admin type) */
   admin?: Partial<JSONField['admin']>
 }
 
-/** Internal configuration for sub-field builders */
 type SubFieldConfig = Omit<ScheduleFieldsOptions, 'name' | 'label' | 'admin'>
 
-/**
- * Weekday options for the multi-select field. ⚠ In Temporal `dayOfWeek` order
- * (Monday first): the class import reads a date's code as `[dayOfWeek - 1]`.
- */
+/** ⚠ Temporal `dayOfWeek` order: the class import reads a code as `[dayOfWeek - 1]`. */
 export const WEEKDAY_OPTIONS = [
   { label: 'Mon', value: 'MO' },
   { label: 'Tue', value: 'TU' },
@@ -59,56 +52,12 @@ export const WEEKDAY_OPTIONS = [
   { label: 'Sun', value: 'SU' },
 ] as const
 
-/** Ending type options */
 const ENDING_OPTIONS = [
   { label: 'After', value: 'count' },
   { label: 'On Date', value: 'until' },
 ]
 
-/**
- * Creates a schedule field for event scheduling with datetime, timezone,
- * and iCalendar RRULE support.
- *
- * Returns a Group field with native PayloadCMS sub-fields that store
- * directly in individual database columns. Includes virtual `icalRule`
- * and `upcomingDates` fields computed on read.
- *
- * Core fields (always present): firstDate (with timezone picker),
- * recurrenceType, interval, icalRule (virtual), upcomingDates (virtual).
- *
- * The `firstDate` field uses PayloadCMS's `timezone: true` option which
- * stores the datetime in UTC and auto-creates a companion `firstDate_tz`
- * field for the timezone.
- *
- * A `ScheduleSummary` beforeInput banner heads the group with a
- * human-readable description of the configured recurrence, updating in
- * real time as the user edits sub-fields (`hasRecurrenceControl`).
- *
- * Feature flags enable additional field groups:
- * - `endTime` — end time field
- * - `complexWeekly` — weekday picker for weekly recurrence
- * - `complexMonthly` — day/weekday picker for monthly recurrence
- * - `ending` — ending conditions (count or until date)
- * - `exclusions` — exclusion date ranges for recurring events
- *
- * @example Basic usage (core fields only)
- * ```typescript
- * fields: [
- *   scheduleFields({ name: 'schedule' }),
- * ]
- * ```
- *
- * @example With feature flags
- * ```typescript
- * fields: [
- *   scheduleFields({
- *     name: 'schedule',
- *     hasEndTime: true,
- *     hasEnding: true,
- *   }),
- * ]
- * ```
- */
+/** A group of datetime, timezone and RRULE sub-fields. Used by Events and AppCards. */
 export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
   const {
     name = 'schedule',
@@ -152,7 +101,6 @@ export function scheduleFields(options: ScheduleFieldsOptions = {}): Field {
 
 // ─── Row Builders ─────────────────────────────────────────────────────
 
-/** Row 1: firstDate (with timezone picker) + optional endTime */
 function buildDateTimeRow({ required, hasEndTime }: SubFieldConfig): Field {
   return {
     type: 'row',
@@ -175,7 +123,6 @@ function buildDateTimeRow({ required, hasEndTime }: SubFieldConfig): Field {
   }
 }
 
-/** End time text field with HH:MM validation and start-time comparison. */
 function buildEndTimeField(): Field {
   return {
     name: 'endTime',
@@ -189,20 +136,19 @@ function buildEndTimeField(): Field {
       value: string | null | undefined,
       { siblingData }: { siblingData: Record<string, unknown> },
     ) => {
-      if (!value) return true // Optional field
+      if (!value) return true
       // Shared with the bulk import, which writes through this field: two
       // independent patterns meant a CSV row could be accepted and then
       // refused at write. See `@/lib/schedule/time`.
       if (!isHHMM(value)) {
         return 'Enter time in HH:MM format (e.g., 17:00)'
       }
-      // End time must be after start time (extracted from firstDate UTC + timezone)
       const firstDate = siblingData?.firstDate as string | undefined
       const firstDateTz = siblingData?.firstDate_tz as string | undefined
       if (firstDate && firstDateTz) {
         const startTimeStr = getLocalTimeHHMM(firstDate, firstDateTz)
-        // Pad to 2-digit hours (regex allows "9:30") for reliable comparison
-        // HH:MM in 24-hour format is lexicographically ordered
+        // Padded because the regex admits "9:30", and 24-hour HH:MM then sorts
+        // lexicographically.
         if (startTimeStr && value.padStart(5, '0') <= startTimeStr) {
           return 'End time must be after start time'
         }
@@ -212,7 +158,6 @@ function buildEndTimeField(): Field {
   }
 }
 
-/** recurrenceType, then a row of interval + the optional complex weekly/monthly fields. */
 function buildRecurrenceFields(config: SubFieldConfig): Field[] {
   const recurrenceType: Field = {
     name: 'recurrenceType',
@@ -255,7 +200,6 @@ function buildRecurrenceFields(config: SubFieldConfig): Field[] {
   ]
 }
 
-/** Weekday multi-select for weekly recurrence (complexWeekly flag). */
 function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
   return [
     {
@@ -272,7 +216,6 @@ function buildComplexWeeklyFields({ required }: SubFieldConfig): Field[] {
   ]
 }
 
-/** Monthly mode fields: by date (monthDay) or by weekday (weekNumber + weekdayOfMonth). */
 function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
   return [
     {
@@ -348,7 +291,6 @@ function buildComplexMonthlyFields({ required }: SubFieldConfig): Field[] {
   ]
 }
 
-/** Optional Row 3: ending conditions (count or until date). */
 function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
   if (!hasEnding) return []
 
@@ -399,10 +341,7 @@ function buildEndingRow({ required, hasEnding }: SubFieldConfig): Field[] {
   ]
 }
 
-/**
- * Optional exclusion date ranges array field.
- * Shown only when recurrenceType is set (exclusions only apply to recurring events).
- */
+/** Shown only with a recurrence, which is the only thing an exclusion can skip. */
 function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
   if (!hasExclusions) return []
 
@@ -451,10 +390,9 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
                 value: Date | null | undefined,
                 { siblingData }: { siblingData: Record<string, unknown> },
               ) => {
-                if (!value) return true // Optional field
+                if (!value) return true
                 const startDate = siblingData?.startDate as Date | string | undefined
                 if (!startDate) return true
-                // Compare dates: both may be Date objects or ISO strings
                 const endTime = value instanceof Date ? value.getTime() : new Date(value).getTime()
                 const startTime =
                   startDate instanceof Date ? startDate.getTime() : new Date(startDate).getTime()
@@ -480,13 +418,12 @@ function buildExclusionsField({ hasExclusions }: SubFieldConfig): Field[] {
 }
 
 /**
- * Stored derived column: the end of the schedule's final occurrence (local
- * end-of-day, as a UTC instant), or `null` for an open-ended recurrence.
+ * The end of the final occurrence (local end-of-day as a UTC instant), or `null`
+ * for an open-ended recurrence.
  *
- * Recomputed by `computeLastDate` on every write and never editable — a real
- * column rather than a virtual field precisely so "has this schedule run out?"
- * can appear in a `where` (see `@/lib/schedule/scheduleStatus`). Indexed: the
- * public event feeds filter on it on every read.
+ * A real column rather than a virtual field precisely so "has this schedule run
+ * out?" can appear in a `where` (see `@/lib/schedule/scheduleStatus`). Indexed:
+ * the public event feeds filter on it on every read.
  */
 function buildLastDateField(): Field {
   return {
@@ -500,7 +437,6 @@ function buildLastDateField(): Field {
   }
 }
 
-/** Virtual fields computed on read (not stored in database). */
 function buildVirtualFields(): Field[] {
   return [
     {
@@ -531,7 +467,6 @@ function buildVirtualFields(): Field[] {
 
 // ─── Composer ─────────────────────────────────────────────────────────
 
-/** Build the sub-fields for the schedule group based on feature flags. */
 function buildScheduleSubFields(config: SubFieldConfig): Field[] {
   return [
     buildDateTimeRow(config),

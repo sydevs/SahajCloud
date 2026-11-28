@@ -5,10 +5,9 @@ import { randomBytes } from 'node:crypto'
 /**
  * Where a secret waits between the set modal and the document's Save.
  *
- * The modal posts the value once; the server checks it, encrypts it and keeps
- * it here under a random token, and only the token enters the edit form. So the
- * value never sits in form state — which live preview posts to another origin —
- * and the document changes only when its own Save applies the token.
+ * Only the token enters the edit form, so the value never sits in form state —
+ * which live preview posts to another origin — and the document changes only
+ * when its own Save applies the token.
  *
  * `payload.kv` rather than a column: an entry belongs to one unsaved edit, not
  * to the document, and an abandoned one must not ride along on the next save.

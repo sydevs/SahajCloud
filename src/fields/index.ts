@@ -1,16 +1,9 @@
-// Field factories for this project - not intended for external use
-// All exports use camelCase naming convention
-
-// Media field - standardized media upload with ThumbnailCell component
 export { mediaField } from './mediaField'
 export type { MediaFieldOptions } from './mediaField'
 
-// URL field - text field with URL validation
 export { urlField } from './urlField'
 export type { UrlFieldOptions } from './urlField'
 
-// Public URL fields - virtual path/url fields (optional webPath + web/app URLs)
-// from one buildPath, published-gated by default
 export { publicUrlFields } from './publicUrlFields'
 export type {
   PublicUrlFieldContext,
@@ -18,7 +11,6 @@ export type {
   PublicUrlPlatform,
 } from './publicUrlFields'
 
-// File metadata - the shared sidebar column on the four upload collections
 export { fileMetadataField } from './fileMetadataField'
 
 // jsonField is deliberately NOT re-exported here. Importing it via this
@@ -26,11 +18,9 @@ export { fileMetadataField } from './fileMetadataField'
 // every light module that declares a JSON column. Use the deep path
 // `@/fields/jsonField`, as all its call sites do.
 
-// Color field - text field with hex color validation and color picker
 export { colorField } from './colorField'
 export type { ColorFieldOptions } from './colorField'
 
-// Slug field - wrapper around Payload's slugField with simplified description handling
 export { slugField } from './slugField'
 export type { SlugFieldOptions } from './slugField'
 
@@ -39,13 +29,9 @@ export type { SlugFieldOptions } from './slugField'
 // that graph into every light module taking a field from it. Use the deep path
 // `@/fields/translationsField`, as all its call sites do.
 
-// Available locales - the language set a web project offers, gated on published
-// translations for each one
 export { availableLocalesField, SKIP_AVAILABLE_LOCALES_CHECK } from './availableLocalesField'
 export type { AvailableLocalesFieldOptions } from './availableLocalesField'
 
-// Schedule fields - group of datetime, timezone, and RRULE sub-fields
-// Delivery log — "did that email actually go out?", rendered for managers.
 export {
   asLog,
   DEFAULT_LOG_LIMIT,
@@ -60,17 +46,14 @@ export { scheduleFields } from './scheduleFields'
 export { systemMetaField } from './systemMetaField'
 export type { ScheduleFieldsOptions } from './scheduleFields'
 
-// Address fields - group of postal-address sub-fields with country/region dropdowns
 export { addressFields } from './addressFields'
 export type { AddressFieldsOptions } from './addressFields'
 
-// Legacy migration fields - hidden legacyId + legacyData for the Atlas import
 export { legacyMigrationFields } from './legacyFields'
 
-// Admin condition that hides a field (e.g. join fields) until the doc has an id
 export { hideUntilCreated } from './hideUntilCreated'
 
-// Secret field - a write-only, encrypted-at-rest stored credential. Its routes,
-// `secretFieldEndpoints`, are imported by deep path: they reach server-only code.
+// `secretFieldEndpoints` is deliberately NOT re-exported here: the routes reach
+// server-only code, so a collection imports them by deep path.
 export { secretField } from './secretField'
 export type { SecretFieldOptions, SecretVerifyArgs } from './secretField'

@@ -9,52 +9,36 @@ import { jsonField } from './jsonField'
  * manager can read. Emails sent about it, but also anything else worth a
  * record — a registration created, a listing verified, a booking cancelled.
  *
- * Two logs existed before this and agreed on nothing: the Events verification
- * log was rendered by its own component, the Registrations reminder ledger was
- * invisible; one reset per cycle, one grew forever uncapped; each had its own
- * coercion and membership helper.
- *
  * **One row per entry**, not one JSON array per document. An append is then an
  * `INSERT` with bound parameters, which is what `@/lib/atomicWrites/appendLogEntry`
  * writes — a `jsonb` column could be merged only as escaped SQL text, because
  * the connection an append must run on takes no parameters (#1116 review).
  *
  * **Columns are declared here**, on the field, and travel to the renderer in
- * `admin.custom` — the same way `SelectDescription` and `EventQualityPanel` get
- * their config. One table serves a verification cycle and a registrant's mail
- * without either being flattened, because each declares what it shows.
- *
- * Declaring them (rather than deriving them from whatever the entries happen to
- * carry) fixes the order and the headings even when a column is absent from
- * every entry so far — a log that has only ever recorded one kind of event
- * still shows the shape it will grow into. With `columns` omitted the table
- * falls back to deriving them, which keeps a new consumer zero-config.
+ * `admin.custom`. Declared rather than derived from whatever the entries happen
+ * to carry, so the order and the headings hold even while a column is absent
+ * from every entry so far. Omitting `columns` falls back to deriving them,
+ * which keeps a new consumer zero-config.
  *
  * Display is **opt-in, inside `cells`**, and everything else on the entry is
  * machine data. That default is the important one: entries are read back as
  * data — `hasReminderForStage` decides whether to send by reading an entry's
- * stage and recipient — and a verification entry carries ten such fields. With
- * the rule the other way round (every unreserved key is a column) that log
- * rendered a fourteen-column table of raw enum values, which is how this shape
- * was arrived at.
+ * stage and recipient — and a verification entry carries ten such fields.
  *
  * **A log is a record, not a query filter.** A job that needs to *find*
  * documents still wants a real dated column beside the log —
- * `followUpSentAt` stays exactly for that. The log says what happened; the
- * column is what the sweep selects on.
+ * `followUpSentAt` stays exactly for that.
  */
 
 /** Entries beyond this are dropped, oldest first, on append. */
 export const DEFAULT_LOG_LIMIT = 50
 
 /**
- * One cell. A bare string is the common case; the object form adds a muted
- * `label` inline before the text (`email: a@b.test`) and/or a muted `sub` line
- * beneath it (a recipient's role and region under their name).
+ * The object form adds a muted `label` inline before the text
+ * (`email: a@b.test`) and/or a muted `sub` line beneath it.
  */
 export type LogCell = string | { label?: string; text: string; sub?: string }
 
-/** A declared column: which cell it reads, and what to head it. */
 export interface LogColumn {
   /** Key within an entry's `cells`. */
   key: string
@@ -76,9 +60,9 @@ export interface LogEntry {
 }
 
 /**
- * One stored row. An entry's four named parts are columns; everything else it
- * carries is one `data` column, because each writer owns its own keys and a
- * row cannot grow a column per writer.
+ * An entry's four named parts are columns. Everything else it carries is one
+ * `data` column, because each writer owns its own keys and a row cannot grow a
+ * column per writer.
  */
 export interface LogRow {
   at?: string
@@ -88,10 +72,9 @@ export interface LogRow {
   data?: Record<string, unknown>
 }
 
-/** The reserved keys — the ones that are columns rather than `data`. */
+/** The keys that are columns rather than `data`. */
 const RESERVED = ['at', 'type', 'key', 'cells'] as const
 
-/** Split an entry into the row that stores it. */
 export function toLogRow(entry: LogEntry): LogRow {
   const data: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(entry)) {
@@ -110,9 +93,9 @@ export function toLogRow(entry: LogEntry): LogRow {
 /**
  * Coerce stored rows into entries, dropping anything malformed.
  *
- * The row's own `data` is spread back out, so a reader sees one flat entry and
- * never has to know which of its keys the schema happened to name. The row id
- * is not part of the entry: it belongs to the table, not to what was recorded.
+ * `data` is spread back out, so a reader sees one flat entry and never has to
+ * know which of its keys the schema happened to name. The row id belongs to the
+ * table, not to what was recorded, so it is left out.
  */
 export function asLog(value: unknown): LogEntry[] {
   if (!Array.isArray(value)) return []
@@ -134,23 +117,20 @@ export function asLog(value: unknown): LogEntry[] {
 }
 
 /**
- * Has this exact thing already been logged? The guard a job checks before
- * sending, so a task retry or an overlapping run never double-sends.
+ * The guard a job checks before sending, so a task retry or an overlapping run
+ * never double-sends.
  *
- * Matching on `type` **and** `key` together is deliberate: one log holds
- * several kinds of entry, and a bare key would collide across them.
+ * Matches `type` **and** `key` together: one log holds several kinds of entry,
+ * and a bare key would collide across them.
  */
 export function hasLogEntry(log: LogEntry[], type: string, key: string): boolean {
   return log.some((entry) => entry.type === type && entry.key === key)
 }
 
 /**
- * Has anything of this kind been logged? The question {@link hasLogEntry}
- * cannot answer, because it matches `type` **and** `key` together.
- *
- * A writer that keys an entry on its own timestamp — so that every occurrence
- * is its own line — leaves no key a later reader could name. `mergeRepeatRegistration`
- * is one, and the manager's registration notice is worded from this.
+ * The question {@link hasLogEntry} cannot answer, for a writer that keys an
+ * entry on its own timestamp — so every occurrence is its own line — and leaves
+ * no key a later reader could name. `mergeRepeatRegistration` is one.
  *
  * ⚠ **The answer is capped**, because an append drops the oldest entry past
  * {@link DEFAULT_LOG_LIMIT}. Read it where the entry is recent, never as a
@@ -160,9 +140,7 @@ export function hasLogEntryType(log: LogEntry[], type: string): boolean {
   return log.some((entry) => entry.type === type)
 }
 
-/**
- * One cell. Mirrors {@link LogCell}.
- */
+/** Mirrors {@link LogCell}. */
 const logCellSchema = z.union([
   z.string(),
   z.strictObject({
@@ -191,10 +169,7 @@ export interface LogFieldOptions {
   admin?: Omit<NonNullable<ArrayField['admin']>, 'components' | 'description' | 'readOnly'>
 }
 
-/**
- * A read-only activity log field. Never writable through the API — like
- * `systemMetaField`, the writers are jobs and hooks passing `overrideAccess`.
- */
+/** Never writable through the API: the writers are jobs and hooks passing `overrideAccess`. */
 export function logField({
   name = 'activityLog',
   label = 'Activity Log',
@@ -237,14 +212,11 @@ export function logField({
 }
 
 /**
- * The entry's own columns.
- *
- * ⚠ **Every one of them optional.** Payload validates a row on every save of
- * the document, including one that never touches the log, so a `required`
- * column makes a row written under an earlier shape permanently unsaveable —
- * this column predates the factory as Registrations' `reminderLog`, whose
- * entries were reminders with no `cells` at all. {@link asLog} drops a row it
- * cannot read, which is where the shape is actually enforced.
+ * ⚠ **Every column optional.** Payload validates a row on every save of the
+ * document, including one that never touches the log, so a `required` column
+ * makes a row written under an earlier shape permanently unsaveable.
+ * {@link asLog} drops a row it cannot read, which is where the shape is
+ * actually enforced.
  */
 function entryFields(): Field[] {
   return [

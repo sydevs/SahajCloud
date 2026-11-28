@@ -1,8 +1,8 @@
 import type { Condition, FieldAccess, PayloadRequest } from 'payload'
 
 /*
- * The secret field's shapes, in a module with no runtime dependencies so the admin
- * control can share them without pulling server code into the browser bundle.
+ * No runtime dependencies, so the admin control can share these shapes without
+ * pulling server code into the browser bundle.
  */
 
 /** The control's form value that applies a staged secret on Save. */

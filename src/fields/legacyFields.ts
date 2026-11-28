@@ -2,24 +2,18 @@ import type { Field } from 'payload'
 
 /**
  * Migration-only fields shared by the five collections carrying imported Atlas
- * rows (Clients, Events, Managers, Regions, Users). Populated by the Phase 3
- * importer and dropped in a future migration once the import is verified.
+ * rows (Clients, Events, Managers, Regions, Users), to be dropped once the
+ * import is verified. `legacyId` is indexed for relationship rewiring and
+ * idempotent re-runs.
  *
- * - `legacyId` — the source row's integer primary key, indexed for
- *   relationship rewiring and idempotent re-runs.
- * - `legacyData` — the complete raw source record (verbatim), kept for
- *   debugging / re-derivation during and after the import.
- *
- * Returns fresh field objects on each call so the same config object isn't
- * shared — and mutated by Payload's field sanitizer — across collections.
+ * Fresh objects on each call, or Payload's field sanitizer would mutate one
+ * config shared across collections.
  */
 export function legacyMigrationFields(): Field[] {
   return [
     {
       label: 'Legacy',
       type: 'collapsible',
-      // Import-only debugging data — never what an editor opened the document
-      // for, so it stays out of the way until asked for.
       admin: { initCollapsed: true },
       fields: [
         {
@@ -31,9 +25,8 @@ export function legacyMigrationFields(): Field[] {
         {
           name: 'legacyData',
           type: 'json',
-          // No schema on purpose: this is the source row verbatim, and the
-          // point of keeping it is that nothing here has interpreted it. Four
-          // collections share the field, so there is no one shape to declare.
+          // No schema on purpose: the source row verbatim, so the collections
+          // sharing the field have no one shape to declare.
           admin: { readOnly: true },
         },
       ],

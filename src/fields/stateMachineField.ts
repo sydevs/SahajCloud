@@ -20,9 +20,8 @@ export interface StateMachineFieldOptions<State extends string> extends Pick<
 }
 
 /**
- * The column a {@link StateMachine} governs: a required select whose options
- * are the machine's states, read-only in the admin, carrying the guard that
- * refuses every move the table does not hold.
+ * The column a {@link StateMachine} governs, carrying the guard that refuses
+ * every move the table does not hold.
  *
  * One declaration per lifecycle, so the options, the generated union in
  * `payload-types.ts` and the guard cannot name different sets — and a column

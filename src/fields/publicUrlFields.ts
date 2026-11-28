@@ -3,13 +3,11 @@ import type { Field, FieldHook, PayloadRequest, TextField } from 'payload'
 import { virtualFieldInputs } from '@/plugins/virtualFields'
 
 /**
- * A base URL — a literal, or a resolver.
+ * A base URL — a literal, or a resolver, which lets a base vary per document
+ * (resolving the client that owns the canonical URLs for an event's region).
  *
- * The resolver is handed the same {@link PublicUrlFieldContext} as `buildPath`,
- * so a base can vary per document (e.g. resolving the client that owns the
- * canonical URLs for an event's region). It stays **optional-arity**: a zero-arg
- * thunk reading an env var is still assignable, since a function that ignores
- * its parameter satisfies one that receives it.
+ * **Optional-arity**, so a zero-arg thunk reading an env var is still
+ * assignable.
  */
 type UrlBase =
   | string
@@ -40,18 +38,18 @@ export interface PublicUrlFieldsOptions {
    */
   buildPath: (ctx: PublicUrlFieldContext) => string | null | Promise<string | null>
   /**
-   * Optional *additional* guard, AND-ed with the publish gate: when it resolves
-   * false the field reads `null`. Use for extra conditions beyond published —
-   * e.g. "is a registered app page". (Named `exposeWhen` rather than "guard" to
-   * read as a predicate.)
+   * An *additional* guard, AND-ed with the publish gate: when it resolves false
+   * the field reads `null`. For a condition beyond published — "is a registered
+   * app page".
    */
   exposeWhen?: (ctx: PublicUrlFieldContext) => boolean | Promise<boolean>
   /**
    * Gate every field on `_status === 'published'`. Default `true`. Set `false`
-   * for collections with no drafts/`_status` (e.g. Regions) — otherwise the
-   * absent `_status` reads as "not published" and every field resolves to null.
-   * A field-hook can't tell "no `_status` column" from "`_status` deselected",
-   * so this stays an explicit per-collection choice rather than a runtime guess.
+   * for a collection with no drafts (Regions), where an absent `_status` would
+   * otherwise read as "not published" and null every field.
+   *
+   * Explicit rather than guessed: a field hook cannot tell "no `_status`
+   * column" from "`_status` deselected".
    */
   requirePublished?: boolean
   /** Label for the collapsible the fields are grouped into. Default `Public Links`. */
@@ -70,13 +68,10 @@ export interface PublicUrlFieldsOptions {
 }
 
 /**
- * Is this document published, for the locale being read?
- *
  * `_status` is a **string** without `versions.drafts.localizeStatus`, and a
- * per-locale **map** with it (`pages`, `app-cards`). Handle both: the map can
- * still be unresolved here, because Payload hoists a localized value down to
- * the requested locale in the same `afterRead` field pass that runs this hook,
- * so field order decides which shape arrives.
+ * per-locale **map** with it (`pages`, `app-cards`). Both shapes arrive here:
+ * Payload hoists a localized value down to the requested locale in the same
+ * `afterRead` field pass that runs this hook, so field order decides which.
  *
  * At `locale: 'all'` no single locale is being asked about, so any published
  * locale counts.
@@ -89,7 +84,6 @@ export function isPublished(status: unknown, locale: string | undefined): boolea
   return map[locale] === 'published'
 }
 
-/** Shared per-read inputs for a field's afterRead hook. */
 interface HookConfig {
   buildPath: PublicUrlFieldsOptions['buildPath']
   exposeWhen: PublicUrlFieldsOptions['exposeWhen']
@@ -97,10 +91,9 @@ interface HookConfig {
 }
 
 /**
- * afterRead hook for one field: publish gate → `exposeWhen` → path → optional
- * base prefix. `base === null` builds the path-only field (returns the raw
- * path); any other `base` builds a URL (`base + encodeURI(path)`), and an unset base
- * (`undefined`) means that URL platform isn't configured, so it reads `null`.
+ * `base === null` builds the path-only field. Any other `base` builds a URL, and
+ * an unset one (`undefined`) means that platform is not configured, so the field
+ * reads `null`.
  */
 function computeHook(
   platform: PublicUrlPlatform,
@@ -110,12 +103,9 @@ function computeHook(
   const { buildPath, exposeWhen, requirePublished } = config
   const isPath = base === null
   return async ({ data, req }) => {
-    // A public URL/path only exists once the document is published — an
-    // unpublished / draft / expired doc has no public page. Built in (rather
-    // than left to each call site) so no draft-enabled collection can leak one;
-    // opt out with `requirePublished: false` for collections with no `_status`.
+    // Built in rather than left to each call site, so no draft-enabled
+    // collection can leak a URL for a page that has no public address yet.
     if (requirePublished && !isPublished(data?._status, req.locale)) return null
-    // A URL platform with no base configured can never resolve — skip the work.
     if (!isPath && base === undefined) return null
 
     const ctx: PublicUrlFieldContext = { platform, data, req }
@@ -125,9 +115,8 @@ function computeHook(
     if (path == null) return null
     if (isPath) return path
 
-    // Resolved after the path, and with the same context, so a per-document
-    // base (the client owning this region's canonical URLs) can read `data` /
-    // `req` — and pays nothing on a document whose path didn't resolve.
+    // After the path, so a per-document base pays nothing on a document whose
+    // path did not resolve.
     const resolved = typeof base === 'function' ? await base(ctx) : base
     // A slug keeps its native letters (`/bg/софия`), so the path is stored raw
     // and percent-encoded only where it becomes a URL.
@@ -136,8 +125,6 @@ function computeHook(
 }
 
 /**
- * A virtual, read-only, list-hidden text field carrying a computed URL/path.
- *
  * ⚠ **Private, and must stay private.** `@/plugins/storage/urlFields` already
  * exports a `virtualUrlField`, with an object argument, used by the four upload
  * collections — exporting this one would put two different functions behind one
@@ -156,21 +143,12 @@ function virtualUrlField(name: string, hook: FieldHook, inputs: readonly string[
 }
 
 /**
- * Build the virtual public-link fields every collection exposes consistently,
- * all from one `buildPath` and all published-gated:
+ * `webPath` (the raw path), `webUrl` and `appUrl`, all from one `buildPath` and
+ * all published-gated.
  *
- * - `webPath` — the raw path (no base).
- * - `webUrl` — the web path prefixed with the `web` base (null if `web` unset).
- * - `appUrl` — the app path prefixed with the `app` base (null if `app` unset).
- *
- * Fields are published-gated by default; pass `requirePublished: false` for
- * collections without `_status`.
- *
- * They're always wrapped in a **collapsed collapsible**: these are read-only
- * derived values an editor only occasionally wants to copy, so they shouldn't
- * cost vertical space in the edit view by default. A collapsible carries no
- * `name`, so this is presentation only — the fields stay top-level in the data
- * (and in `select` / `flattenedFields`), and no migration is involved.
+ * Wrapped in a **collapsed collapsible**, because these are derived values an
+ * editor only occasionally copies. A collapsible carries no `name`, so the
+ * fields stay top-level in the data and in `select`.
  *
  * @example
  * publicUrlFields({
