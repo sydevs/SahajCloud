@@ -129,9 +129,6 @@ export const Events: CollectionConfig = {
   // unpublish. The root `experimental.localizeStatus` flag is already on, so
   // nothing else stops it. Held by `tests/unit/event-localize-status-guard.spec.ts`.
   versions: { drafts: true },
-  // ⚠ A duplicate runs create access with empty data, so it cannot see the copied
-  // `region`: a region manager could copy any class into a region they do not own.
-  disableDuplicate: true,
   // Soft delete: "archiving" a long-expired event means trashing it, and it
   // stays recoverable from the admin trash view. This replaces Atlas's
   // `archived` terminal state.

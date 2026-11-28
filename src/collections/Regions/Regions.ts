@@ -103,9 +103,6 @@ const CHILD_LEVEL_TABS = [
 export const Regions: CollectionConfig = {
   slug: 'regions',
   labels: { singular: 'Region', plural: 'Regions' },
-  // ⚠ A duplicate runs create access with empty data, so it cannot see the copied
-  // `parent`: a region manager could plant a copy under any region they can read.
-  disableDuplicate: true,
   admin: {
     group: 'Classes',
     useAsTitle: 'name',
