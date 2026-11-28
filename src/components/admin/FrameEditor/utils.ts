@@ -1,4 +1,4 @@
-import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
+import { subtleSystemNodeLabel } from '@/lib/subtleSystem'
 import type { Frame, SubtleSystemNode } from '@/payload-types'
 
 /** Format seconds to MM:SS display format */
@@ -70,8 +70,7 @@ export const getFrameSubtleSystemNodeSlug = (
  */
 export const getSubtleSystemNodeLabel = (slug: string | null | undefined): string => {
   if (!slug) return ''
-  const option = SUBTLE_SYSTEM_NODE_OPTIONS.find((opt) => opt.value === slug)
-  return option?.label || slug
+  return subtleSystemNodeLabel(slug)
 }
 
 export const getFrameDisplayLabel = (

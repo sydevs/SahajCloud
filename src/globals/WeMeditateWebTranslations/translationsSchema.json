@@ -303,6 +303,71 @@
             "upsell_app_link": {
               "type": "string",
               "description": "The clickable words inside `upsell_app`, naming the mobile app and that it costs nothing. Translate as a noun phrase, not a sentence. `upsell_app` ends in a possessive, so inflect this phrase to follow it."
+            },
+            "title": {
+              "type": "string",
+              "default": "Meditation for %{node}",
+              "description": "A meditation's name, composed from the node it dwells on longest. `%{node}` = that chakra or channel's name, taken from the `node_*` keys below and translated there. Reads as a page heading, a card title and a browser tab title, so none of the three is a fixed-width slot."
+            },
+            "node_mooladhara": {
+              "type": "string",
+              "default": "Mooladhara",
+              "description": "Name of Mooladhara, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_swadhistan": {
+              "type": "string",
+              "default": "Swadhistan",
+              "description": "Name of Swadhistan, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_nabhi": {
+              "type": "string",
+              "default": "Nabhi",
+              "description": "Name of Nabhi, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_void": {
+              "type": "string",
+              "default": "Void",
+              "description": "Name of the Void, the region of the subtle system around Nabhi, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them."
+            },
+            "node_anahat": {
+              "type": "string",
+              "default": "Anahat",
+              "description": "Name of Anahat, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_vishuddhi": {
+              "type": "string",
+              "default": "Vishuddhi",
+              "description": "Name of Vishuddhi, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_agnya": {
+              "type": "string",
+              "default": "Agnya",
+              "description": "Name of Agnya, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_sahasrara": {
+              "type": "string",
+              "default": "Sahasrara",
+              "description": "Name of Sahasrara, an energy centre of the subtle system, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_kundalini": {
+              "type": "string",
+              "default": "Kundalini",
+              "description": "Name of Kundalini, the energy a meditation awakens, read into `title` as `%{node}`. A Sanskrit name, so transliterate it into your script rather than translating it \u2014 and keep the spelling your language already uses for it."
+            },
+            "node_pingala": {
+              "type": "string",
+              "default": "Right Channel",
+              "description": "Name of the Right Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them."
+            },
+            "node_ida": {
+              "type": "string",
+              "default": "Left Channel",
+              "description": "Name of the Left Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them."
+            },
+            "node_sushumna": {
+              "type": "string",
+              "default": "Center Channel",
+              "description": "Name of the Center Channel, an energy channel of the subtle system, read into `title` as `%{node}`. Descriptive words rather than a Sanskrit name, so translate them."
             }
           },
           "additionalProperties": false

@@ -29,6 +29,7 @@ import {
 import { ROUTING_MODES } from '@/lib/clients/canonical'
 import { EMBED_MODES, MAX_MOUNT_KEY_LENGTH } from '@/lib/clients/embedMetadata'
 import { LOCALES } from '@/lib/locales'
+import { SUBTLE_SYSTEM_NODE_OPTIONS } from '@/lib/subtleSystem'
 
 import {
   depthParameter,
@@ -1141,16 +1142,24 @@ export const CUSTOM_ENDPOINT_SCHEMAS: Record<string, OpenAPISchemaObject> = {
    * Flat, card-ready meditation returned by `GET /api/lectures/{id}/related-meditations`.
    * Keep in lockstep with `MeditationCardData` in `src/lib/meditations/meditationShape.ts` —
    * the shaper drops any meditation missing `title` / `durationMinutes` / a thumbnail URL,
-   * so those three are always present (non-null); `narratorName` is best-effort (nullable).
+   * so those three are always present (non-null); `titleNode` is present but nullable, and
+   * `narratorName` is best-effort (nullable).
    * `additionalProperties: false` keeps the shape tight so no other Meditation field leaks.
    */
   MeditationCardData: {
     type: 'object',
     additionalProperties: false,
-    required: ['id', 'title', 'durationMinutes', 'thumbnailUrl', 'narratorName'],
+    required: ['id', 'title', 'titleNode', 'durationMinutes', 'thumbnailUrl', 'narratorName'],
     properties: {
       id: { type: 'integer' },
       title: { type: 'string' },
+      titleNode: {
+        type: ['string', 'null'],
+        enum: [...SUBTLE_SYSTEM_NODE_OPTIONS.map((option) => option.value), null],
+        description:
+          'The dominant subtle-system node, language-neutral, for a consumer wording the ' +
+          'name itself. `title` is the same node in English.',
+      },
       durationMinutes: { type: 'number' },
       thumbnailUrl: { type: 'string' },
       narratorName: { type: ['string', 'null'] },

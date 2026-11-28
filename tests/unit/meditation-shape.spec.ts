@@ -11,6 +11,7 @@ function makeMeditation(overrides: Partial<Meditation>): Meditation {
   return {
     id: 10,
     title: 'Meditation for Anahat',
+    titleNode: 'anahat',
     durationMinutes: 12,
     thumbnail: img('https://cdn.example/thumb.jpg'),
     narrator: narrator('Jane'),
@@ -24,10 +25,18 @@ describe('shapeMeditation', () => {
     expect(card).toEqual({
       id: 10,
       title: 'Meditation for Anahat',
+      titleNode: 'anahat',
       durationMinutes: 12,
       thumbnailUrl: 'https://cdn.example/thumb.jpg',
       narratorName: 'Jane',
     } satisfies MeditationCardData)
+  })
+
+  // The field is virtual, so an include-mode `select` that dropped it would
+  // leave it undefined rather than null — and the card declares it present.
+  it('emits titleNode: null when the meditation carries no node', () => {
+    expect(shapeMeditation(makeMeditation({ titleNode: null }))?.titleNode).toBeNull()
+    expect(shapeMeditation(makeMeditation({ titleNode: undefined }))?.titleNode).toBeNull()
   })
 
   it('returns null when the public title is missing (never falls back to a label)', () => {

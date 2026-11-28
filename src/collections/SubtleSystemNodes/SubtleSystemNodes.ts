@@ -24,7 +24,7 @@ export const SubtleSystemNodes: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
-      options: SUBTLE_SYSTEM_NODE_OPTIONS as unknown as { label: string; value: string }[],
+      options: [...SUBTLE_SYSTEM_NODE_OPTIONS],
       admin: {
         description: 'Identifier for this chakra or nadi. Closed enum of 12 values.',
       },
