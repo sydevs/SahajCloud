@@ -215,7 +215,7 @@
       "fact_time": "Čas kurzu",
       "fact_place": "Místo konání",
       "fact_cost": "Cena",
-      "cost_free": "Vždy zdarma"
+      "fact_cost_free": "Vždy zdarma"
     },
     "actions": {
       "contact": "Kontakt",

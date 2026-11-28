@@ -203,7 +203,7 @@
       "fact_time": "Lestijd",
       "fact_place": "Locatie",
       "fact_cost": "Kosten",
-      "cost_free": "Altijd gratis"
+      "fact_cost_free": "Altijd gratis"
     },
     "actions": {
       "contact": "Contact",

@@ -203,7 +203,7 @@
       "fact_time": "Az óra időpontja",
       "fact_place": "Helyszín",
       "fact_cost": "Költség",
-      "cost_free": "Mindig ingyenes"
+      "fact_cost_free": "Mindig ingyenes"
     },
     "actions": {
       "contact": "Kapcsolat",

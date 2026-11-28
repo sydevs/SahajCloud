@@ -203,7 +203,7 @@
       "fact_time": "Kurszeit",
       "fact_place": "Ort",
       "fact_cost": "Kosten",
-      "cost_free": "Immer kostenlos"
+      "fact_cost_free": "Immer kostenlos"
     },
     "actions": {
       "contact": "Kontakt",

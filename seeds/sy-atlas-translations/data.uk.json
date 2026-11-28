@@ -215,7 +215,7 @@
       "fact_time": "Час заняття",
       "fact_place": "Місце",
       "fact_cost": "Вартість",
-      "cost_free": "Завжди безкоштовно"
+      "fact_cost_free": "Завжди безкоштовно"
     },
     "actions": {
       "contact": "Зв'язатися",

@@ -203,7 +203,7 @@
       "fact_time": "Horaire du cours",
       "fact_place": "Lieu",
       "fact_cost": "Coût",
-      "cost_free": "Toujours gratuit"
+      "fact_cost_free": "Toujours gratuit"
     },
     "actions": {
       "contact": "Contacter",

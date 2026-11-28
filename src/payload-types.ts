@@ -9635,9 +9635,9 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    */
   fact_cost?: string;
   /**
-   * The cost line itself in the class page’s detailed facts, on a computer.
+   * The cost line under the `fact_cost` label in the class page’s detailed facts, on a computer.
    */
-  cost_free?: string;
+  fact_cost_free?: string;
 }
 export interface SyAtlasTranslationsEventActionsStrings {
   /**

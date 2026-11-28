@@ -203,7 +203,7 @@
       "fact_time": "Horário da aula",
       "fact_place": "Local",
       "fact_cost": "Custo",
-      "cost_free": "Sempre gratuito"
+      "fact_cost_free": "Sempre gratuito"
     },
     "actions": {
       "contact": "Contato",

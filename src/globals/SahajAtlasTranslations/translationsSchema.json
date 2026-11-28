@@ -871,10 +871,10 @@
               "default": "Cost",
               "description": "Label above the class’s cost in the class page’s detailed facts, on a computer."
             },
-            "cost_free": {
+            "fact_cost_free": {
               "type": "string",
               "default": "Always free",
-              "description": "The cost line itself in the class page’s detailed facts, on a computer."
+              "description": "The cost line under the `fact_cost` label in the class page’s detailed facts, on a computer."
             }
           },
           "additionalProperties": false

@@ -215,7 +215,7 @@
       "fact_time": "Время занятия",
       "fact_place": "Место",
       "fact_cost": "Стоимость",
-      "cost_free": "Всегда бесплатно"
+      "fact_cost_free": "Всегда бесплатно"
     },
     "actions": {
       "contact": "Связаться",
