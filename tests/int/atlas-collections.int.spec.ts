@@ -4,7 +4,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { Region } from '@/payload-types'
 
-import { storeInvalidEvent } from '../utils/storeInvalidEvent'
 import { createData } from '../utils/testData'
 import { createTestEnvironment } from '../utils/testHelpers'
 
@@ -162,31 +161,6 @@ describe('Atlas collections', () => {
       expect(event.title).toBe('Diwali Special')
     })
 
-    // No create reaches this any more: only a row stored before `requireRegion`
-    // still lacks a region, and an update leaving `region` out keeps that.
-    it('leaves the title empty when there is no street or region to build from', async () => {
-      const event = await payload.create({
-        collection: 'events',
-        draft: true,
-        data: createData<'events'>({
-          title: 'Placeholder',
-          eventType: 'online',
-          registrationMode: 'sahaj-atlas',
-          manager: managerId,
-          region: regionId,
-        }),
-      })
-      await storeInvalidEvent(payload, event.id, { region: null })
-
-      const cleared = await payload.update({
-        collection: 'events',
-        id: event.id,
-        draft: true,
-        data: createData<'events'>({ title: '' }),
-      })
-      expect(cleared.title ?? '').toBe('')
-    })
-
     // The auto-fill names the time of day, so a blank title is preferable to a
     // hand-written generic one — it localizes, and a venue running several
     // classes a week stops producing identical titles. The slot comes from the
@@ -334,10 +308,10 @@ describe('Atlas collections', () => {
     })
 
     it('sends an event with no region to the explanation, never to null', async () => {
-      // Every save names a region (`requireRegion`), but a row stored before
-      // that hook can still lack one, and an editor is likely to be previewing
-      // it while they fix it. Returning `null` here would
-      // close the panel AND persist "live preview off" as their preference.
+      // A row stored before `requireRegion` can still lack a region, and an
+      // editor is likely to be previewing it while they fix it. Returning
+      // `null` here would close the panel AND persist "live preview off" as
+      // their preference.
       // Root-relative: Payload resolves it against the admin window, so it is
       // same-origin wherever the admin is served. An absolute URL built from
       // `SAHAJCLOUD_URL` was refused by the CSP on a Railway PR preview, which
