@@ -108,8 +108,9 @@ export function availableLocalesField({
       }
 
       // English is mandatory rather than chosen, so gating it would be a
-      // deadlock: every locale lands as `draft`, and the error would tell the
-      // operator to publish the one locale they cannot deselect.
+      // deadlock: the migration adding per-locale `_status` lands every locale
+      // as `draft`, and the error would tell the operator to publish the one
+      // locale they cannot deselect.
       const gated = locales.filter((locale) => locale !== DEFAULT_LOCALE)
       if (gated.length === 0) return true
 
