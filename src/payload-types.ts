@@ -9618,6 +9618,26 @@ export interface SyAtlasTranslationsEventDisplayStrings {
    * Label of the register button in the register slot.
    */
   register_now?: string;
+  /**
+   * The inline atlas class page’s one heading: the class name and its town. `%{title}` = the class name, `%{place}` = the town the class is in.
+   */
+  title_in_place?: string;
+  /**
+   * Label above the class’s schedule in the class page’s detailed facts, on a computer.
+   */
+  fact_time?: string;
+  /**
+   * Label above the class’s address in the class page’s detailed facts, on a computer.
+   */
+  fact_place?: string;
+  /**
+   * Label above the class’s cost in the class page’s detailed facts, on a computer.
+   */
+  fact_cost?: string;
+  /**
+   * The cost line under the `fact_cost` label in the class page’s detailed facts, on a computer.
+   */
+  fact_cost_free?: string;
 }
 export interface SyAtlasTranslationsEventActionsStrings {
   /**

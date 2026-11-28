@@ -210,7 +210,12 @@
       "sessions_count_many": "%{count} занять",
       "sessions_count_other": "%{count} заняття",
       "see_nearby": "Переглянути заходи поруч",
-      "register_now": "Зареєструватися зараз"
+      "register_now": "Зареєструватися зараз",
+      "title_in_place": "%{title} — %{place}",
+      "fact_time": "Час заняття",
+      "fact_place": "Місце",
+      "fact_cost": "Вартість",
+      "fact_cost_free": "Завжди безкоштовно"
     },
     "actions": {
       "contact": "Зв'язатися",

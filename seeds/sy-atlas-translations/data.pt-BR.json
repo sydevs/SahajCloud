@@ -198,7 +198,12 @@
       "sessions_count_one": "%{count} sessão",
       "sessions_count_other": "%{count} sessões",
       "see_nearby": "Ver eventos próximos",
-      "register_now": "Cadastre-se agora"
+      "register_now": "Cadastre-se agora",
+      "title_in_place": "%{title} em %{place}",
+      "fact_time": "Horário da aula",
+      "fact_place": "Local",
+      "fact_cost": "Custo",
+      "fact_cost_free": "Sempre gratuito"
     },
     "actions": {
       "contact": "Contato",

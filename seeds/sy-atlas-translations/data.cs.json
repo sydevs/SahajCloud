@@ -210,7 +210,12 @@
       "sessions_count_many": "%{count} lekce",
       "sessions_count_other": "%{count} lekcí",
       "see_nearby": "Zobrazit akce v okolí",
-      "register_now": "Zaregistrujte se nyní"
+      "register_now": "Zaregistrujte se nyní",
+      "title_in_place": "%{title} v místě %{place}",
+      "fact_time": "Čas kurzu",
+      "fact_place": "Místo konání",
+      "fact_cost": "Cena",
+      "fact_cost_free": "Vždy zdarma"
     },
     "actions": {
       "contact": "Kontakt",

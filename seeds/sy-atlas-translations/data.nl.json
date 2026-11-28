@@ -198,7 +198,12 @@
       "sessions_count_one": "%{count} les",
       "sessions_count_other": "%{count} lessen",
       "see_nearby": "Bekijk evenementen in de buurt",
-      "register_now": "Registreer nu"
+      "register_now": "Registreer nu",
+      "title_in_place": "%{title} in %{place}",
+      "fact_time": "Lestijd",
+      "fact_place": "Locatie",
+      "fact_cost": "Kosten",
+      "fact_cost_free": "Altijd gratis"
     },
     "actions": {
       "contact": "Contact",

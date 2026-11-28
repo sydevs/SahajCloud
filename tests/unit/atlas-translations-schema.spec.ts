@@ -366,9 +366,12 @@ describe('atlas translations seeds', () => {
   const ENGLISH_VALUES_ALLOWED: Record<Exclude<(typeof SEED_LOCALES)[number], 'en'>, string[]> = {
     // `%{start} – %{end}` is a format string with no word in it, so every
     // locale shares it. `Online` is the same word in seven of these languages.
+    // `%{title} in %{place}` is a plain pattern that German and Dutch both write
+    // the same way.
     cs: ['event.display.online', 'filters.dates.pill_range', 'filters.format.online'],
     de: [
       'event.display.online',
+      'event.display.title_in_place',
       'filters.dates.pill_range',
       'filters.format.label',
       'filters.format.online',
@@ -382,6 +385,7 @@ describe('atlas translations seeds', () => {
       'event.actions.contact',
       'event.actions.website',
       'event.display.online',
+      'event.display.title_in_place',
       'filters.chrome.title',
       'filters.dates.pill_range',
       'filters.format.online',
