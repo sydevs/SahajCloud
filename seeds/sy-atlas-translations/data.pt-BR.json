@@ -203,7 +203,9 @@
       "fact_time": "Horário da aula",
       "fact_place": "Local",
       "fact_cost": "Custo",
-      "fact_cost_free": "Sempre gratuito"
+      "fact_cost_free": "Sempre gratuito",
+      "share_title": "Compartilhar esta aula",
+      "report_details": "Informar dados incorretos da aula"
     },
     "actions": {
       "contact": "Contato",
@@ -277,7 +279,8 @@
     }
   },
   "share": {
-    "native": "Compartilhar…"
+    "native": "Compartilhar…",
+    "more": "Mais"
   },
   "seo": {
     "root_title": "Aulas gratuitas de meditação perto de você",

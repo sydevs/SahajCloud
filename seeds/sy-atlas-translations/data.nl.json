@@ -203,7 +203,9 @@
       "fact_time": "Lestijd",
       "fact_place": "Locatie",
       "fact_cost": "Kosten",
-      "fact_cost_free": "Altijd gratis"
+      "fact_cost_free": "Altijd gratis",
+      "share_title": "Deel deze les",
+      "report_details": "Onjuiste lesgegevens melden"
     },
     "actions": {
       "contact": "Contact",
@@ -277,7 +279,8 @@
     }
   },
   "share": {
-    "native": "Delen…"
+    "native": "Delen…",
+    "more": "Meer"
   },
   "seo": {
     "root_title": "Gratis meditatielessen bij jou in de buurt",

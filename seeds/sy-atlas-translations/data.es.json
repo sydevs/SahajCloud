@@ -203,7 +203,9 @@
       "fact_time": "Horario de la clase",
       "fact_place": "Lugar",
       "fact_cost": "Costo",
-      "fact_cost_free": "Siempre gratis"
+      "fact_cost_free": "Siempre gratis",
+      "share_title": "Compartir esta clase",
+      "report_details": "Informar de datos incorrectos de la clase"
     },
     "actions": {
       "contact": "Contactar",
@@ -277,7 +279,8 @@
     }
   },
   "share": {
-    "native": "Compartir…"
+    "native": "Compartir…",
+    "more": "Más"
   },
   "seo": {
     "root_title": "Clases gratuitas de meditación cerca de ti",
