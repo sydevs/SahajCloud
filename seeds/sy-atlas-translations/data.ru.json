@@ -210,7 +210,12 @@
       "sessions_count_many": "%{count} занятий",
       "sessions_count_other": "%{count} занятия",
       "see_nearby": "Показать мероприятия рядом",
-      "register_now": "Зарегистрируйтесь сейчас"
+      "register_now": "Зарегистрируйтесь сейчас",
+      "title_in_place": "%{title} — %{place}",
+      "fact_time": "Время занятия",
+      "fact_place": "Место",
+      "fact_cost": "Стоимость",
+      "cost_free": "Всегда бесплатно"
     },
     "actions": {
       "contact": "Связаться",

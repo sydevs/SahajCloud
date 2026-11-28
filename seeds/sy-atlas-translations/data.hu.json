@@ -198,7 +198,12 @@
       "sessions_count_one": "%{count} alkalom",
       "sessions_count_other": "%{count} alkalom",
       "see_nearby": "Közeli események megtekintése",
-      "register_now": "Regisztráljon most"
+      "register_now": "Regisztráljon most",
+      "title_in_place": "%{title} – %{place}",
+      "fact_time": "Az óra időpontja",
+      "fact_place": "Helyszín",
+      "fact_cost": "Költség",
+      "cost_free": "Mindig ingyenes"
     },
     "actions": {
       "contact": "Kapcsolat",

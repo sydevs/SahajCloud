@@ -198,7 +198,12 @@
       "sessions_count_one": "%{count} séance",
       "sessions_count_other": "%{count} séances",
       "see_nearby": "Voir les événements à proximité",
-      "register_now": "Inscrivez-vous maintenant"
+      "register_now": "Inscrivez-vous maintenant",
+      "title_in_place": "%{title} à %{place}",
+      "fact_time": "Horaire du cours",
+      "fact_place": "Lieu",
+      "fact_cost": "Coût",
+      "cost_free": "Toujours gratuit"
     },
     "actions": {
       "contact": "Contacter",
